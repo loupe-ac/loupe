@@ -199,6 +199,27 @@ card of a type that may have children, such as an epic, needs no review. The
 rules of the template turn the review on. A template with none of the rules
 below asks for no review, and its cards follow the other rules.
 
+The review checks the code, and it also checks the whole pull request against
+the designs that the card links. The reviewer reads the product document, the
+tech design, the answers to their decisions, and the plan. A finding of the
+category `spec` reports a gap between the pull request and a design: a
+requirement that nothing builds, a decision that the change makes differently,
+a behaviour that no requirement asks for, or a deliverable that a design names
+and the diff lacks, such as a documentation page. The changelog entry has its
+own CI check, so the review leaves it out. A requirement that nothing builds has
+no file and no line, so it shows in the summary of the check and has no line
+note. The check lists the `spec` findings first.
+
+The fix worker fixes a failed `spec` finding as any other finding. When the
+implementer chose on purpose to depart from a design, the plan document records
+the departure under a "Departures" section, with the reason. The review then
+shows it as a nit, which never fails the review, and the fix worker leaves it
+alone. A departure with no record fails the review.
+
+A review with a `spec` finding also creates a Loupe document with the tag
+`spec-review`, linked to the card, and adds a to-do for it to your inbox. The
+to-do does not block the card.
+
 Four conditions of the **Agent review** group read the reviews:
 
 | Condition | True when |
@@ -223,7 +244,7 @@ Lifecycle uses the conditions in these rules:
 
 | Rule | Slot | Does |
 |---|---|---|
-| `agent-review` and `agent-review-in-review` | Implementation and In review | When `agent_review.due` holds, asks for work of kind `review` |
+| `agent-review` and `agent-review-in-review` | Implementation and In review | When `agent_review.due` holds, asks for work of kind `review`. The rule waits while work of kind `implement`, `fix`, `sync` or `rebase-stacked` is active on the card, because that worker can still push a new head |
 | `fix-agent-review` and `fix-agent-review-in-review` | Implementation and In review | When `agent_review.failed` holds, asks for a fix with the reason `agent-review`. The limit is 10 rounds. The count starts again when `agent_review.passed` holds |
 | `review-ready` | Implementation | Marks a draft pull request ready, when its review passed, its checks passed, it has no conflict and no request for changes. It uses the `review-ready` write |
 
