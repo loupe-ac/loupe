@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -530,6 +531,7 @@ func decodeWorkerOutput(doc harn.Output, raw []byte, cut bool, stderr string) wo
 			delete(fields, "status")
 			delete(fields, "summary")
 			delete(fields, "reason")
+			maps.DeleteFunc(fields, func(_ string, v any) bool { return v == nil })
 			res.hasResult, res.status, res.fields, summary = true, status, fields, s
 		}
 	}

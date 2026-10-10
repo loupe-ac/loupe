@@ -80,7 +80,7 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 	args = append(args, "--json", "--skip-git-repo-check")
 	if spec.Schema != "" && spec.RunDir != "" {
 		path := filepath.Join(spec.RunDir, schemaFile)
-		files[path] = spec.Schema
+		files[path] = strictSchema(spec.Schema)
 		args = append(args, "--output-schema", path)
 	}
 	if spec.RunDir != "" {
