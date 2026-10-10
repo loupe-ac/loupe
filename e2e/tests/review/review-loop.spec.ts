@@ -1247,9 +1247,12 @@ test('hovering an anchored passage activates its comment card', async ({
         timeout: coverageScaled(5000),
     });
 
-    // Moving off it releases the pairing again. The heading is bare prose, and
-    // a fixed offset can land on the card in the panels stacked above.
-    await page.locator('[data-comment-anchor-target="doc"] h1').first().hover();
+    // Moving off it releases the pairing again. The paragraph starts with bare
+    // prose, and the page hides the h1 that repeats the title.
+    await page
+        .locator(`${DOC} p`)
+        .first()
+        .hover({ position: { x: 2, y: 2 } });
     await expect(thread).not.toHaveClass(/lp-comment-thread--active/, {
         timeout: coverageScaled(5000),
     });

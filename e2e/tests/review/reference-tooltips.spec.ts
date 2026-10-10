@@ -173,7 +173,7 @@ test('hovering a mention shows its definition and the document it comes from', a
         tooltip.getByRole('link', { name: 'Go to entry' }),
     ).toHaveAttribute('href', `${reviewUrl(plan)}#ref-R1`);
 
-    await page.locator(`${DOC} h1`).hover();
+    await page.locator(`${DOC} p`).first().hover({ position: { x: 2, y: 2 } });
     await expect(tooltip).toBeHidden();
 });
 
