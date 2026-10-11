@@ -124,6 +124,10 @@ func TestDecodeWorkerOutput(t *testing.T) {
 			stdout: `{"type":"result","structured_output":{"status":"blocked","summary":"Asked the owner.","reason":"needs-owner","prUrl":"https://x.test/1"}}`,
 			want:   workerResult{hasResult: true, status: "blocked", reason: "needs-owner", output: "Asked the owner.", fields: map[string]any{"prUrl": "https://x.test/1"}},
 		},
+		"null optional fields from a strict schema": {
+			stdout: `{"type":"result","structured_output":{"status":"finished","summary":"Done.","reason":null,"prUrl":null,"card":87}}`,
+			want:   workerResult{hasResult: true, status: "finished", output: "Done.", fields: map[string]any{"card": float64(87)}},
+		},
 		"a reason that is no string": {
 			stdout: `{"type":"result","structured_output":{"status":"finished","summary":"Done.","reason":3}}`,
 			want:   workerResult{hasResult: true, status: "finished", output: "Done.", fields: map[string]any{}},
