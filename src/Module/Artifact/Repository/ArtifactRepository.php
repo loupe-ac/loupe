@@ -8,6 +8,7 @@ use App\Module\Artifact\Entity\Artifact;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<Artifact> */
 class ArtifactRepository extends ServiceEntityRepository
@@ -34,5 +35,15 @@ class ArtifactRepository extends ServiceEntityRepository
         }
 
         return array_values($builder->getQuery()->getResult());
+    }
+
+    /** Scoped to the project, so an id cannot reach the artifact of another project. */
+    public function findOneByIdInProject(string $id, Project $project): ?Artifact
+    {
+        if (!Uuid::isValid($id)) {
+            return null;
+        }
+
+        return $this->findOneBy(['id' => Uuid::fromString($id), 'project' => $project]);
     }
 }
