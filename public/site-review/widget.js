@@ -28,6 +28,12 @@
     // A preview page names the card it is for as `card:<uuid>`. Notes on that
     // page go to that card, whatever mode the reviewer chose elsewhere.
     const CONTEXT = script.getAttribute('data-context') || '';
+    // A preview page can carry a token that signs the widget in with no popup.
+    // A popup grant wins over it, and a 401 ends that one token only.
+    const PREVIEW_TOKEN = script.getAttribute('data-preview-token') || '';
+    const PREVIEW_ENDED =
+        'The preview sign-in for this page ended. Sign in, or restart the preview.';
+    let endedPreviewToken = '';
     // Read again rather than kept, because an SPA swap replaces the tag and may
     // carry a different marker. `script` is the one this ran from and goes
     // stale; the document is the source of truth afterwards.
@@ -44,6 +50,27 @@
         return tag ? tag.getAttribute('data-context') || '' : CONTEXT;
     };
     let lastSeenMarker = CONTEXT;
+    // Read again for the reason the marker is: a Turbo visit swaps the tag, and
+    // a restarted preview carries a new token.
+    const pagePreviewToken = () => {
+        const tag = document.querySelector(
+            'script[src*="site-review/widget.js"]',
+        );
+
+        return tag
+            ? tag.getAttribute('data-preview-token') || ''
+            : PREVIEW_TOKEN;
+    };
+    const livePreviewToken = () => {
+        const token = pagePreviewToken();
+
+        return token === endedPreviewToken ? '' : token;
+    };
+    const previewEndedMessage = () =>
+        endedPreviewToken && pagePreviewToken() === endedPreviewToken
+            ? PREVIEW_ENDED
+            : '';
+    let lastSeenPreviewToken = PREVIEW_TOKEN;
     let refreshGeneration = 0;
     // Every comment is saved to the API as it is written and is live from that
     // moment — there is no send step. `comments` mirrors the project's Pending
@@ -488,32 +515,48 @@
         return refreshing;
     };
 
+    // A refused refresh ends the popup grant, and the page token takes over.
+    const refreshOrFallBack = async () => {
+        try {
+            await refreshGrant();
+        } catch (error) {
+            if (grant || !livePreviewToken()) throw error;
+        }
+    };
+
     const accessToken = async () => {
         if (!OAUTH) return '';
-        if (!grant) throw signedOutError();
-        if (grant.expiresAt - OAUTH_EXPIRY_MARGIN_MS <= Date.now())
-            await refreshGrant();
+        if (grant && grant.expiresAt - OAUTH_EXPIRY_MARGIN_MS <= Date.now())
+            await refreshOrFallBack();
+        if (!grant) {
+            const preview = livePreviewToken();
+            if (preview) return preview;
+            throw signedOutError(previewEndedMessage());
+        }
         return grant.accessToken;
     };
 
     const serverApi = async (method, path, body, retried = false) => {
+        const token = await accessToken();
+        const preview = OAUTH && !grant ? token : '';
         const response = await fetch(`${BACKEND}${path}`, {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${await accessToken()}`,
+                Authorization: `Bearer ${token}`,
             },
             body: body === undefined ? undefined : JSON.stringify(body),
         });
         // An access token can die before its expiry, for example when the owner
         // revokes the app. One refresh tells a dead token from a dead grant.
         if (OAUTH && response.status === 401 && !retried && grant) {
-            await refreshGrant();
+            await refreshOrFallBack();
             return serverApi(method, path, body, true);
         }
         if (OAUTH && response.status === 401) {
             setGrant(null);
-            throw signedOutError();
+            if (preview) endedPreviewToken = preview;
+            throw signedOutError(previewEndedMessage());
         }
         if (!response.ok) {
             // Carry the status so callers can tell a permanent auth/config failure (401/403 —
@@ -5260,7 +5303,17 @@
     };
     // Re-resolve when the page starts naming a different card. Safe to call
     // repeatedly: it does nothing until the marker actually changes.
+    // A new preview token can end the signed-out state that the old one caused.
+    const recheckPreviewToken = () => {
+        const token = pagePreviewToken();
+        if (token === lastSeenPreviewToken) return;
+        lastSeenPreviewToken = token;
+        if (grant || !state.fatal || !livePreviewToken()) return;
+        state.fatal = null;
+        refresh({ firstLoad: true }).then(sync);
+    };
     const recheckMarker = () => {
+        recheckPreviewToken();
         const marker = pageMarker();
         if (marker === lastSeenMarker) return;
         lastSeenMarker = marker;
