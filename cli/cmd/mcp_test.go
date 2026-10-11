@@ -346,3 +346,9 @@ func TestMcpSessionReadsTheFirstSetVariable(t *testing.T) {
 		}
 	}
 }
+
+func TestTheMcpStartLineNamesTheBinary(t *testing.T) {
+	if got, want := mcpStartLine(), "loupe mcp "+cliVersion()+" started"; got != want {
+		t.Fatalf("start line = %q, want %q", got, want)
+	}
+}
