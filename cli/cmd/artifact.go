@@ -154,7 +154,7 @@ func artifactProject(ctx context.Context, client *api.Client, flag string, notes
 
 // collectArtifactFiles reads the file, or the regular files of the folder.
 func collectArtifactFiles(path string) ([]api.ArtifactFile, error) {
-	info, err := os.Stat(path)
+	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,12 @@ func collectArtifactFiles(path string) ([]api.ArtifactFile, error) {
 	var files []api.ArtifactFile
 	total := 0
 	add := func(name, full string) error {
-		data, err := os.ReadFile(full)
+		f, err := os.Open(full)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		data, err := io.ReadAll(io.LimitReader(f, int64(maxArtifactBytes-total)+1))
 		if err != nil {
 			return err
 		}

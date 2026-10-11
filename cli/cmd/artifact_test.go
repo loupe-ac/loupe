@@ -98,3 +98,32 @@ func TestTheLinkJoinsTheInstanceAndThePath(t *testing.T) {
 		t.Fatalf("link = %q", got)
 	}
 }
+
+func TestAFileFarOverTheCapIsRefusedWithoutReadingItAll(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "huge.bin")
+	f, err := os.Create(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(1 << 34); err != nil {
+		t.Skip("no sparse files here")
+	}
+	f.Close()
+	if _, err := collectArtifactFiles(file); err == nil || !strings.Contains(err.Error(), "larger than 8 MiB") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestADirectLinkIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "site", "index.html"), "a")
+	for _, target := range []string{"site/index.html", "site"} {
+		link := filepath.Join(dir, "link-"+filepath.Base(target))
+		if err := os.Symlink(filepath.Join(dir, target), link); err != nil {
+			t.Skip("no symlinks here")
+		}
+		if _, err := collectArtifactFiles(link); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+			t.Fatalf("%s: err = %v", target, err)
+		}
+	}
+}
