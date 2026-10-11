@@ -9,6 +9,7 @@ use App\Module\Artifact\Entity\Artifact;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /** @extends ServiceEntityRepository<Artifact> */
@@ -93,5 +94,21 @@ class ArtifactRepository extends ServiceEntityRepository
         }
 
         return $this->findOneBy(['id' => Uuid::fromString($id), 'project' => $project]);
+    }
+
+    /** For a route that holds the project as the raw id string, which a map-entity expression cannot turn into the entity. */
+    public function findOneByIdAndProjectId(string $id, string $projectId): ?Artifact
+    {
+        if (!Uuid::isValid($id) || !Uuid::isValid($projectId)) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('a')
+            ->andWhere('a.id = :id')
+            ->andWhere('a.project = :project')
+            ->setParameter('id', Uuid::fromString($id), UuidType::NAME)
+            ->setParameter('project', Uuid::fromString($projectId), UuidType::NAME)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }
