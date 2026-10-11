@@ -103,7 +103,8 @@ func TestRunWorkerRunsCodexAndReadsItsFiles(t *testing.T) {
 		t.Fatalf("thread map = %q, %v", b, err)
 	}
 	args, _ := os.ReadFile(filepath.Join(home, "args.log"))
-	for _, want := range []string{"exec\n-p\nopenrouter\n-m\nopenrouter/free\n-s\nread-only\n--json\n", "--output-schema\n", "--\ngo\n"} {
+	session := "-c\nmcp_servers.loupe.env.LOUPE_SESSION_ID=\"" + testSession + "\"\n"
+	for _, want := range []string{"exec\n-p\nopenrouter\n-m\nopenrouter/free\n-s\nread-only\n" + session + "--json\n", "--output-schema\n", "--\ngo\n"} {
 		if !strings.Contains(string(args), want) {
 			t.Fatalf("args = %q, want %q", args, want)
 		}

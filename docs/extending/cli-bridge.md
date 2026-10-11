@@ -403,6 +403,10 @@ A worker run takes the first mode that this list sets:
 3. the level in `defaults.permissions`
 4. the `--permission-mode` flag of `loupe bridge run`
 
+A worker on a `codex` account that none of these set runs in the `workspace`
+sandbox. The own default sandbox of Codex has no network, so a worker could not
+reach the forge.
+
 The `--model` and `--permission-mode` flags name Claude Code values. A run on a
 `codex` account ignores both.
 
@@ -502,6 +506,13 @@ CODEX_HOME=~/.codex codex mcp add loupe -- loupe mcp
 
 The [account check](#account-checks) fails when the server is missing. A worker
 without the Loupe tools cannot read its card.
+
+Codex starts an MCP server with a fixed set of environment variables, so
+`LOUPE_SESSION_ID` on the `codex` process does not reach `loupe mcp`. The bridge
+therefore passes the run id with `-c mcp_servers.loupe.env.LOUPE_SESSION_ID=<run id>`,
+on a worker, a resume and an interactive launch. That key adds one variable, and
+keeps the `env` and `env_vars` that your config sets. Without it, Loupe refuses a
+tool that only a worker of the card can call, such as `agent_review_submit`.
 
 `codex exec` runs with the approval policy `never`. At the `workspace` and
 `read-only` levels, Codex refuses a Loupe tool call that needs approval. Add

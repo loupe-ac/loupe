@@ -652,6 +652,10 @@ func (s *Set) resolve(account, model, level string, interactive bool) RunSetting
 	if !interactive {
 		r.PermissionMode = cmp.Or(r.PermissionMode, a.PermissionMode, modes[s.fileDefaults.Permissions], flagMode)
 	}
+	// Codex's own default sandbox has no network, so a worker could not reach the forge.
+	if a.Harness == HarnessCodex && !interactive && r.PermissionMode == "" {
+		r.PermissionMode = codexModes[PermissionsWorkspace]
+	}
 	for _, path := range []string{s.envFile, a.EnvFile} {
 		if path != "" {
 			r.EnvFiles = append(r.EnvFiles, path)
