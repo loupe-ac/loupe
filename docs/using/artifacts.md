@@ -62,6 +62,34 @@ stores a version. A worker gets a 422 answer that says so.
 The answer is a 201 with `artifactId`, `versionNumber`, `path` and
 `versionPath`.
 
+## Storing from the command line
+
+Run `loupe artifact push` to store files from disk. The command sends the files
+itself, so an agent writes only the command and not the content of each file.
+
+```bash
+loupe artifact push review-page.html --name "Review page" --card 611
+loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337
+```
+
+| Flag | Meaning |
+|---|---|
+| `--name` | The name of a new artifact |
+| `--artifact` | The id of an existing artifact, to store a new version of it |
+| `--card` | Link the artifact to a card, by its number or its id |
+| `--source-link` | Where the files came from, such as a design canvas link |
+| `--project` | The project id. Without it the command reads `.loupe.yaml`, then the one project your login covers. |
+
+Pass `--name` or `--artifact`, never both. A file is stored under its base name.
+A folder is stored with the path of each file relative to the folder, and the
+command skips a `.git` folder. The command refuses an empty folder, a file that
+is not a regular file, and a push of more than 8 MiB.
+
+The command sends the id of the session that runs it, read from
+`LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID`. A worker run
+cannot store, so run the command from an interactive session. It prints the
+artifact id, the version number, the stable link and the link of that version.
+
 ## Your data
 
 An account data export holds an `artifacts.json` file. It lists each artifact of
