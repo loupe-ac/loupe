@@ -14,8 +14,11 @@ use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\ScheduledTasks;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
+use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
+use Symfony\Component\Messenger\Transport\TransportInterface;
 
 final class SweepWorkflowCardsTaskTest extends KernelTestCase
 {
@@ -57,12 +60,75 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertIsInt($logger->records[0]['context']['durationMs']);
     }
 
-    private function task(RecordingLogger $logger): SweepWorkflowCardsTask
+    public function test_the_sweep_queues_on_the_low_priority_transport_only(): void
     {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-low');
+        $this->bindLifecycle($bound);
+        $this->card($bound, 'next');
+        $async = self::getContainer()->get('messenger.transport.async');
+        self::assertInstanceOf(InMemoryTransport::class, $async);
+        $async->reset();
+        $this->transport()->reset();
+
+        $this->task(new RecordingLogger())();
+
+        self::assertNotSame([], $this->sent());
+        self::assertSame([], $async->getSent());
+    }
+
+    public function test_the_sweep_queues_nothing_while_the_previous_sweep_still_waits(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('sweep-skip');
+        $this->bindLifecycle($bound);
+        $this->card($bound, 'next');
+        $this->transport()->reset();
+        $logger = new RecordingLogger();
+
+        $this->task($logger, waiting: 3)();
+
+        self::assertSame([], $this->sent());
+        self::assertSame(0, $logger->records[0]['context']['cards']);
+    }
+
+    private function task(RecordingLogger $logger, ?int $waiting = null): SweepWorkflowCardsTask
+    {
+        $transport = null === $waiting ? $this->transport() : new readonly class($waiting) implements TransportInterface, MessageCountAwareInterface {
+            public function __construct(
+                private int $waiting,
+            ) {
+            }
+
+            public function getMessageCount(): int
+            {
+                return $this->waiting;
+            }
+
+            public function get(): iterable
+            {
+                return [];
+            }
+
+            public function ack(Envelope $envelope): void
+            {
+            }
+
+            public function reject(Envelope $envelope): void
+            {
+            }
+
+            public function send(Envelope $envelope): Envelope
+            {
+                return $envelope;
+            }
+        };
+
         return new SweepWorkflowCardsTask(
             new SweepWorkflowCardsHandler(
                 $this->service(WorkflowBindingRepository::class),
                 new EvaluationTrigger($this->service(MessageBusInterface::class)),
+                $transport,
             ),
             $logger,
         );
@@ -70,7 +136,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.async_low');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;
