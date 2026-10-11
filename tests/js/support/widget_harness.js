@@ -48,6 +48,7 @@ export function bootWidget({
     project = PROJECT,
     signedIn = true,
     mode = null,
+    previewToken = null,
 } = {}) {
     window.matchMedia = () => ({
         matches: false,
@@ -73,6 +74,9 @@ export function bootWidget({
     // Every other embed names its project. The reviewer signs in with OAuth.
     if (project !== null) script.setAttribute('data-project', project);
     if (!demo && project !== null && signedIn) signIn(project);
+    // The token a preview page carries, which signs the widget in with no popup.
+    if (previewToken !== null)
+        script.setAttribute('data-preview-token', previewToken);
     // Where notes go, as a reviewer chose it on an earlier visit.
     if (mode !== null) {
         window.localStorage.setItem(

@@ -12,6 +12,7 @@ framework:
             - resend-verification
             - accept-terms
             - revoke-connected-app
+            - revoke-preview-token
             - github-account-disconnect
             - submit-review
             - document-publish

@@ -140,6 +140,7 @@
                 </section>
                 {% endif %}
                 {{ workflow_card_panel(card.snapshot()) }}
+                {{ oauth_preview_sign_in_panel(card.project, card.id) }}
                 {% include '@Bridge/_card_worker_runs.html.twig' with {project: card.project, cardId: card.id ~ ''} only %}
             </div>
         </section>

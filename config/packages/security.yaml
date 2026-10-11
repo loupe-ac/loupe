@@ -101,6 +101,8 @@ security:
         - { path: '^/api/projects/[^/]+/experiments/[^/]+/pins/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/inbox/asks/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/artifacts$', roles: ROLE_API_AGENT }
+        - { path: '^/api/projects/[^/]+/preview-tokens$', roles: ROLE_API_AGENT }
+        - { path: '^/api/projects/[^/]+/preview-tokens/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/heartbeat$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/commands/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/runs$', roles: ROLE_API_AGENT }

@@ -23,6 +23,7 @@ use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
+use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\RuleAsks;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
@@ -56,6 +57,8 @@ final readonly class Engine
     public const string NO_BRIDGE_TOOK_WORK = 'no-bridge-took-work';
 
     public const string REPAIR_FAILED = 'repair-failed';
+
+    public const string STILL_TRUE = 'still-true';
 
     private const string RUN_RESUMED = 'run-resumed';
     private const string SUBJECT_CHANGED = 'subject-changed';
@@ -298,6 +301,16 @@ final readonly class Engine
                 continue;
             }
             if (WorkState::Done === $request->state) {
+                if ($this->retriesWhileTrue($rule)) {
+                    if (null === $state->lastRefusalAt || null === $request->settledAt || $state->lastRefusalAt < $request->settledAt) {
+                        $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule, $policy, $bound): void {
+                            $this->refuse($run, $rule, $state, $policy, self::STILL_TRUE, $bound);
+                            // A fact that changed while the request ran must not skip the wait in this pass.
+                            $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
+                        });
+                    }
+                    continue;
+                }
                 $this->write($run, $state, static function (WorkflowRuleState $state): void {
                     $state->attempts = 0;
                     $state->dueAt = null;
@@ -314,9 +327,10 @@ final readonly class Engine
             }
 
             if ($repair) {
-                $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule): void {
+                $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule, $bound): void {
                     $state->lastRefusal = self::REPAIR_FAILED;
                     $state->lastRefusalAt = $run->now;
+                    $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
                     $this->pause($run, PauseKind::Retries, self::REPAIR_FAILED, $rule->id);
                 });
                 continue;
@@ -358,6 +372,8 @@ final readonly class Engine
     {
         $state->lastRefusal = $code;
         $state->lastRefusalAt = $run->now;
+        // The facts at the refusal, so a request that was open at the last pass does not count as a change.
+        $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
         if (!$policy->retries($code)) {
             $this->pause($run, PauseKind::WorkStopped, $code, $rule->id);
 
@@ -397,6 +413,7 @@ final readonly class Engine
     private function settleWorkRequests(Evaluation $run, Uuid $cardId, bool $expire = true): void
     {
         $withdrawn = false;
+        $expired = [];
         foreach ($this->ledger->live($cardId) as $request) {
             $requestId = $request->id;
             $rule = $run->rule($request->ruleId);
@@ -414,6 +431,7 @@ final readonly class Engine
                 $repair = null !== $state && $state->repaired && null !== $state->workRequestId && $state->workRequestId->equals($requestId);
                 if ($repair || 'expire' !== ActionParams::optionalString($rule, 'onTimeout')) {
                     $this->pause($run, PauseKind::WorkTimeout, self::NO_BRIDGE_TOOK_WORK, $rule->id);
+                    $expired[$rule->id] = $rule;
                 }
             }
         }
@@ -421,6 +439,12 @@ final readonly class Engine
         if ($withdrawn) {
             // The first build of the pass logged its failed sources already.
             $run->facts = $this->facts($run->card, $run->now, $run->facts);
+        }
+        // The facts after the expiry, so the closed request does not end the pause it made.
+        foreach ($expired as $rule) {
+            $this->write($run, $this->state($run, $rule), function (WorkflowRuleState $state) use ($run, $rule): void {
+                $state->fingerprint = $this->fingerprint->of($this->ruleSubject->bind($rule, $run->facts)->facts, $rule->when->reads());
+            });
         }
     }
 
@@ -438,11 +462,14 @@ final readonly class Engine
             return true;
         }
 
-        $released = $this->cardPauses->release($pause, $code) ?? $this->cardPauses->findLatest($run->card->id) ?? $pause;
+        // A null release means another writer ended the pause and recorded it.
+        $released = $this->cardPauses->release($pause, $code);
+        if (null !== $released) {
+            $this->cardPauses->recordReleased($released, Actor::System, null);
+        }
         $rule = $run->rule($pause->ruleId);
         if (self::RUN_RESUMED === $code && null !== $rule) {
             $this->keepQuiet($run, $rule);
-            $this->cardPauses->recordReleased($released, Actor::System, null);
         }
         if (self::REFILLED === $code && null !== $rule) {
             $this->write($run, $this->state($run, $rule), static function (WorkflowRuleState $state): void {
@@ -871,5 +898,12 @@ final readonly class Engine
         $action = $this->actions->get($rule->then->key);
 
         return $action instanceof RefiresOnFactChange && $action::refiresOnFactChange($rule->then->params);
+    }
+
+    private function retriesWhileTrue(Rule $rule): bool
+    {
+        $action = $this->actions->get($rule->then->key);
+
+        return $action instanceof RetriesWhileTrue && $action::retriesWhileTrue($rule->then->params);
     }
 }

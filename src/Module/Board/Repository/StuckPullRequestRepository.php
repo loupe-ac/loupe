@@ -12,7 +12,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * The ready pull requests whose stuck delay has ended, read in one query across all projects.
+ * The pull requests whose stuck delay has ended, read in one query across all projects.
  *
  * @extends ServiceEntityRepository<ForgePullRequest>
  */
@@ -66,6 +66,46 @@ class StuckPullRequestRepository extends ServiceEntityRepository
             'projectId' => $row['project_id'],
             'cardId' => $row['card_id'],
         ], $rows);
+    }
+
+    /**
+     * The open cards that link an open pull request and whose newest history row plus the stuck delay fell inside the window.
+     * The query is broad, because the card state decides whether the card shows Stuck.
+     * Rows come in card id order after `$afterCardId`, so a caller pages through every due card.
+     *
+     * @return list<array{projectId: string, cardId: string}>
+     */
+    public function findQuietDue(\DateTimeImmutable $now, int $windowSeconds, int $limit, ?string $afterCardId = null): array
+    {
+        /** @var list<array{project_id: string, card_id: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT card.project_id, card.id AS card_id
+            FROM board_cards card
+            LEFT JOIN board_automation_settings settings ON settings.project_id = card.project_id
+            JOIN LATERAL (SELECT MAX(event.occurred_at) AS newest FROM board_card_events event WHERE event.card_id = card.id) history ON TRUE
+            WHERE card.completed_at IS NULL
+                AND (CAST(:after AS uuid) IS NULL OR card.id > CAST(:after AS uuid))
+                AND history.newest IS NOT NULL
+                AND history.newest + make_interval(mins => COALESCE(settings.stuck_delay_minutes, :defaultDelay)) <= :now
+                AND history.newest + make_interval(mins => COALESCE(settings.stuck_delay_minutes, :defaultDelay)) > :windowStart
+                AND EXISTS (
+                    SELECT 1 FROM board_card_pull_requests link
+                    JOIN forge_pull_requests pr ON pr.project_id = card.project_id AND pr.forge = link.forge AND pr.repository = LOWER(link.repository) AND pr.number = link.number
+                    WHERE link.card_id = card.id AND pr.state = :open
+                )
+            ORDER BY card.id
+            LIMIT :limit',
+            [
+                'open' => 'open',
+                'defaultDelay' => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
+                'now' => $now->format(self::TIME_FORMAT),
+                'windowStart' => $now->modify(\sprintf('-%d seconds', $windowSeconds))->format(self::TIME_FORMAT),
+                'after' => $afterCardId,
+                'limit' => $limit,
+            ],
+        );
+
+        return array_map(static fn (array $row): array => ['projectId' => $row['project_id'], 'cardId' => $row['card_id']], $rows);
     }
 
     /** Records the announcement, unless the pull request turned ready again, a merge started, or the board delay grew since the read. */

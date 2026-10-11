@@ -57,12 +57,8 @@ db_server_version = "18" # the cluster's actual PG major version
 # --- Site review ---
 # Optional. The id of the loupe.ac project site-review comments should file
 # into. The reviewer signs in through the OAuth popup, so the page source
-# carries no credential. It wins over the token below.
+# carries no credential.
 # site_review_widget_project = "0199c0de-0000-7000-8000-000000000001"
-# Optional. The widget token of the loupe.ac project site-review comments should
-# file into — read it from that project's page. Unset serves no widget unless
-# the project above is set. It is shown to administrators only, so ordinary
-# visitors never see it.
 # Empty (the default) shows the widget to administrators only. "1" offers it to
 # every visitor, whose comments an agent may then act on.
 # site_review_widget_public = "1"
@@ -73,6 +69,9 @@ db_server_version = "18" # the cluster's actual PG major version
 # deployment serves. Unset is right here: a real deployment stores nothing. A
 # preview instance sets it so a comment carries the work it was made against.
 # site_review_widget_context = "card:0199c0de-0000-7000-8000-000000000001"
+# A preview token that signs the widget in with no popup. Unset is right here:
+# a real deployment has none. A preview instance gets one from the loupe CLI.
+# site_review_widget_preview_token = "token-from-the-loupe-cli"
 # --- Analytics (Umami) ---
 # The first two, plus the analytics.enabled feature flag, before any tag is
 # emitted. The origins go in the policy: the script's in script-src, the one

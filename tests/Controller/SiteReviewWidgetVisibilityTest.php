@@ -32,6 +32,7 @@ final class SiteReviewWidgetVisibilityTest extends WebTestCase
     protected function tearDown(): void
     {
         $this->setWidgetProject('');
+        $this->setPreviewToken('');
 
         parent::tearDown();
     }
@@ -109,6 +110,28 @@ final class SiteReviewWidgetVisibilityTest extends WebTestCase
         }
     }
 
+    public function test_the_embed_carries_the_preview_token_when_one_is_set(): void
+    {
+        $this->setPreviewToken('preview-token-value');
+        $client = static::createClient();
+        $this->signInAdmin($client, 'widget-preview-token@example.com');
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects');
+
+        self::assertCount(1, $crawler->filter(self::WIDGET.'[data-preview-token="preview-token-value"]'));
+    }
+
+    public function test_the_embed_has_no_preview_token_attribute_by_default(): void
+    {
+        $client = static::createClient();
+        $this->signInAdmin($client, 'widget-no-preview-token@example.com');
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects');
+
+        self::assertCount(1, $crawler->filter(self::WIDGET));
+        self::assertCount(0, $crawler->filter(self::WIDGET.'[data-preview-token]'));
+    }
+
     /** @param non-empty-string $email */
     private function signInAdmin(KernelBrowser $client, string $email): void
     {
@@ -122,6 +145,11 @@ final class SiteReviewWidgetVisibilityTest extends WebTestCase
         $em->flush();
 
         $client->loginUser($admin);
+    }
+
+    private function setPreviewToken(string $token): void
+    {
+        $_ENV['SITE_REVIEW_WIDGET_PREVIEW_TOKEN'] = $_SERVER['SITE_REVIEW_WIDGET_PREVIEW_TOKEN'] = $token;
     }
 
     /** Read as a Twig global through %env(...)%, so the request reads it. */

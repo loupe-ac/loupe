@@ -12,6 +12,7 @@ enum CardStateCode: string
     case ChecksFailed = 'checks-failed';
     case Conflicting = 'conflicting';
     case ReadyNotMerged = 'ready-not-merged';
+    case PullRequestIdle = 'pull-request-idle';
 
     case DocumentInReview = 'document-in-review';
     case WaitsForApproval = 'waits-for-approval';
@@ -31,7 +32,7 @@ enum CardStateCode: string
     public function kind(): CardStateKind
     {
         return match ($this) {
-            self::Paused, self::RunStopped, self::ChecksFailed, self::Conflicting, self::ReadyNotMerged => CardStateKind::Stuck,
+            self::Paused, self::RunStopped, self::ChecksFailed, self::Conflicting, self::ReadyNotMerged, self::PullRequestIdle => CardStateKind::Stuck,
             self::DocumentInReview, self::WaitsForApproval, self::OpenQuestion => CardStateKind::NeedsYou,
             self::RunOpen, self::WorkRequested, self::ForgeRequestPending => CardStateKind::Working,
             self::HeldByBlocker => CardStateKind::Waiting,

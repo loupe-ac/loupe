@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Command;
 
 use App\Module\OAuth\Repository\GrantRepository;
+use App\Module\OAuth\Repository\PreviewTokenRepository;
 use App\Module\OAuth\Scope\GrantedScope;
 use App\Module\Project\Repository\ProjectRepository;
 
@@ -13,6 +14,7 @@ final readonly class ListConnectedAppsHandler
     public function __construct(
         private GrantRepository $grants,
         private ProjectRepository $projects,
+        private PreviewTokenRepository $previewTokens,
     ) {
     }
 
@@ -40,6 +42,6 @@ final readonly class ListConnectedAppsHandler
             $connected[] = new ConnectedApp((string) $clientId, $app['name'], $app['grants']);
         }
 
-        return new ListConnectedAppsView($connected);
+        return new ListConnectedAppsView($connected, $this->previewTokens->findLiveForUser($userId));
     }
 }
