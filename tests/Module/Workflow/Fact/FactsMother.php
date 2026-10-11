@@ -23,6 +23,7 @@ use App\Module\Board\Workflow\ParentFactProvider;
 use App\Module\Board\Workflow\ParentFacts;
 use App\Module\Board\Workflow\PullRequestListFactProvider;
 use App\Module\Board\Workflow\StaleApprovalFacts;
+use App\Module\Board\Workflow\WorkAtHeadFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\Workflow\LatestWorkFactProvider;
 use App\Module\Bridge\Workflow\LatestWorkFacts;
@@ -86,11 +87,12 @@ final class FactsMother
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false)),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds), new ParentWorkFacts($run->parentActiveKinds)),
-            ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
+            ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
         ];
         $prints = [
             FixRunFacts::class => [],
             StaleApprovalFacts::class => [],
+            WorkAtHeadFacts::class => [[], []],
             LatestWorkFacts::class => new \ReflectionClass(LatestWorkFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($given[LatestWorkFacts::class]),
         ];
         $legacy = [];
