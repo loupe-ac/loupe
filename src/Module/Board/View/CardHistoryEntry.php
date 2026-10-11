@@ -29,6 +29,19 @@ final readonly class CardHistoryEntry
         'agent-review' => 'board.card.history.reason.agent_review',
     ];
 
+    private const array RELEASE_REASONS = [
+        'facts-changed' => 'board.card.history.release_reason.facts_changed',
+        'subject-changed' => 'board.card.history.release_reason.subject_changed',
+        'refilled' => 'board.card.history.release_reason.refilled',
+        'until-met' => 'board.card.history.release_reason.until_met',
+        'inbox-on' => 'board.card.history.release_reason.inbox_on',
+        'left-slot' => 'board.card.history.release_reason.left_slot',
+        'rule-removed' => 'board.card.history.release_reason.rule_removed',
+        'run-resumed' => 'board.card.history.release_reason.run_resumed',
+        'released-by-rule' => 'board.card.history.release_reason.released_by_rule',
+        'released-by-person' => 'board.card.history.release_reason.released_by_person',
+    ];
+
     private function __construct(
         public string $icon,
         public \DateTimeImmutable $occurredAt,
@@ -141,6 +154,10 @@ final readonly class CardHistoryEntry
             return null;
         }
         $ruleId = $detail['ruleId'] ?? null;
+        $rule = \is_string($ruleId) && '' !== $ruleId ? $ruleId : null;
+        $releaseReason = CardEventKind::PauseReleased === $event->kind && \is_string($detail['releaseReason'] ?? null)
+            ? self::RELEASE_REASONS[$detail['releaseReason']] ?? null
+            : null;
 
         return new self(
             $icon,
@@ -153,7 +170,11 @@ final readonly class CardHistoryEntry
                 PauseKind::WorkTimeout => 'board.card.history.pause_kind.work_timeout',
                 PauseKind::WorkStopped => 'board.card.history.pause_kind.work_stopped',
             })]),
-            \is_string($ruleId) && '' !== $ruleId ? new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => $ruleId]) : null,
+            match (true) {
+                null === $rule => null,
+                null === $releaseReason => new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => $rule]),
+                default => new TranslatableMessage('board.card.history.cause.pause_released', ['%reason%' => new TranslatableMessage($releaseReason), '%rule%' => $rule]),
+            },
         );
     }
 

@@ -6647,6 +6647,16 @@
             <trans-unit id="board.card.history.pause_kind.work_limit"><source>board.card.history.pause_kind.work_limit</source><target>a rule reached its work limit</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.work_timeout"><source>board.card.history.pause_kind.work_timeout</source><target>no bridge took the work in time</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.work_stopped"><source>board.card.history.pause_kind.work_stopped</source><target>the worker stopped and needs a person</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.facts_changed"><source>board.card.history.release_reason.facts_changed</source><target>the facts the rule reads changed</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.subject_changed"><source>board.card.history.release_reason.subject_changed</source><target>the rule moved to another pull request</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.refilled"><source>board.card.history.release_reason.refilled</source><target>the work budget of the rule refilled</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.until_met"><source>board.card.history.release_reason.until_met</source><target>the condition that ends the pause holds</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.inbox_on"><source>board.card.history.release_reason.inbox_on</source><target>the inbox turned on</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.left_slot"><source>board.card.history.release_reason.left_slot</source><target>the card left the column of the rule</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.rule_removed"><source>board.card.history.release_reason.rule_removed</source><target>the rule left the workflow</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.run_resumed"><source>board.card.history.release_reason.run_resumed</source><target>a worker run resumed</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.released_by_rule"><source>board.card.history.release_reason.released_by_rule</source><target>a workflow rule released it</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.released_by_person"><source>board.card.history.release_reason.released_by_person</source><target>a person released it</target></trans-unit>
             <trans-unit id="board.card.history.changed"><source>board.card.history.changed</source><target>%actor% changed the card.</target></trans-unit>
             <trans-unit id="board.card.history.reason"><source>board.card.history.reason</source><target>Because %reason%.</target></trans-unit>
             <trans-unit id="board.card.history.run_state_unknown"><source>board.card.history.run_state_unknown</source><target>Unknown</target></trans-unit>
@@ -6660,6 +6670,7 @@
             <trans-unit id="board.card.history.cause.run"><source>board.card.history.cause.run</source><target>Via the %kind% run.</target></trans-unit>
             <trans-unit id="board.card.history.cause.run_no_kind"><source>board.card.history.cause.run_no_kind</source><target>Via a run.</target></trans-unit>
             <trans-unit id="board.card.history.cause.workflow_rule"><source>board.card.history.cause.workflow_rule</source><target>Via the %rule% workflow rule.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.pause_released"><source>board.card.history.cause.pause_released</source><target>Because %reason%. Via the %rule% workflow rule.</target></trans-unit>
             <trans-unit id="board.card.history.cause.column_deleted"><source>board.card.history.cause.column_deleted</source><target>After the %column% column was deleted.</target></trans-unit>
             <trans-unit id="board.card.overview.description"><source>board.card.overview.description</source><target>Description</target></trans-unit>
             <trans-unit id="board.card.overview.status"><source>board.card.overview.status</source><target>Status</target></trans-unit>

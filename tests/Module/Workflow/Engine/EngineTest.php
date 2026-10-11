@@ -349,7 +349,50 @@ final class EngineTest extends KernelTestCase
         $events = $this->service(CardEventRepository::class)->findBy(['card' => $card, 'kind' => CardEventKind::PauseReleased]);
         self::assertCount(1, $events);
         self::assertSame(Actor::System, $events[0]->actorKind);
-        self::assertSame(['kind' => 'work-stopped', 'reason' => 'needs-person', 'ruleId' => 'work'], $events[0]->detail);
+        self::assertSame(['kind' => 'work-stopped', 'reason' => 'needs-person', 'ruleId' => 'work', 'releaseReason' => 'run-resumed'], $events[0]->detail);
+    }
+
+    public function test_a_release_on_changed_facts_leaves_a_system_entry_in_the_card_history(): void
+    {
+        $card = $this->boundCard([self::moveRule('stuck', 'three', self::NOT_EPIC)], backoffMinutes: []);
+        $this->evaluate($card);
+        self::assertNotNull($this->activePause($card));
+
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 13:01:00');
+
+        $events = $this->service(CardEventRepository::class)->findBy(['card' => $card, 'kind' => CardEventKind::PauseReleased]);
+        self::assertCount(1, $events);
+        self::assertSame(Actor::System, $events[0]->actorKind);
+        self::assertNull($events[0]->actorUser);
+        self::assertSame('facts-changed', $events[0]->detail['releaseReason'] ?? null);
+        self::assertSame('stuck', $events[0]->detail['ruleId'] ?? null);
+    }
+
+    public function test_a_release_rule_leaves_a_system_entry_in_the_card_history(): void
+    {
+        $card = $this->boundCard(self::holdRules());
+        $this->evaluate($card);
+        self::assertNotNull($this->activePause($card));
+
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        $events = $this->service(CardEventRepository::class)->findBy(['card' => $card, 'kind' => CardEventKind::PauseReleased]);
+        self::assertCount(1, $events);
+        self::assertSame(Actor::System, $events[0]->actorKind);
+        self::assertSame(['kind' => 'rule', 'reason' => 'on-hold', 'ruleId' => 'hold', 'releaseReason' => ReleasePause::RELEASE_REASON], $events[0]->detail);
+    }
+
+    public function test_a_pause_that_holds_leaves_no_entry_in_the_card_history(): void
+    {
+        $card = $this->boundCard(self::holdRules());
+        $this->evaluate($card);
+        self::assertNotNull($this->activePause($card));
+
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertSame([], $this->service(CardEventRepository::class)->findBy(['card' => $card, 'kind' => CardEventKind::PauseReleased]));
     }
 
     public function test_a_retries_pause_ends_when_a_person_resumes_the_run(): void

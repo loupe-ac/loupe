@@ -439,11 +439,14 @@ final readonly class Engine
             return true;
         }
 
-        $released = $this->cardPauses->release($pause, $code) ?? $this->cardPauses->findLatest($run->card->id) ?? $pause;
+        // A null release means another writer ended the pause and recorded it.
+        $released = $this->cardPauses->release($pause, $code);
+        if (null !== $released) {
+            $this->cardPauses->recordReleased($released, Actor::System, null);
+        }
         $rule = $run->rule($pause->ruleId);
         if (self::RUN_RESUMED === $code && null !== $rule) {
             $this->keepQuiet($run, $rule);
-            $this->cardPauses->recordReleased($released, Actor::System, null);
         }
         if (self::REFILLED === $code && null !== $rule) {
             $this->write($run, $this->state($run, $rule), static function (WorkflowRuleState $state): void {

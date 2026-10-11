@@ -990,8 +990,8 @@ this card reads the link. `card_search` does not carry `relatedCards`.
 same way `card_list` does, with 50 events by default and 100 at most. Each event
 carries `kind`, `occurredAt` and `actor`.
 
-`kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced` or
-`run-finished`. `actor` carries `kind` and `name`. Its `kind` is `human`,
+`kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
+`run-finished`, `paused`, `pause-released` or `verdict`. `actor` carries `kind` and `name`. Its `kind` is `human`,
 `agent`, `reviewer` or `system`. `name` is the current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
@@ -1003,6 +1003,13 @@ the card on its own, such as a merged pull request. An action of the
 event also sets `reason`, such as `conflict`. A `run-finished`
 event carries the stored record of the run in `run`. A key that does not apply
 is null.
+
+A `paused` or `pause-released` event sets `pause`, with the `kind` of the pause
+and the `ruleId` that set it. The app writes `paused`. A person or the app
+writes `pause-released`. On a `pause-released` event, `pause` also holds
+`releaseReason`, such as `facts-changed`, `released-by-rule` or
+`released-by-person`. An event from before the app recorded this reason holds
+null.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.
