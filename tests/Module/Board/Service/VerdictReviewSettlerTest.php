@@ -16,6 +16,7 @@ use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\ApprovalCoverageReaders;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
 use App\Module\Forge\Service\PullRequestReviewFailed;
 use App\Module\Forge\Service\PullRequestReviewKind;
 use App\Module\Forge\Service\PullRequestReviewPosters;
@@ -363,6 +364,7 @@ final class VerdictReviewSettlerTest extends KernelTestCase
             $this->service(ForgePullRequestRepository::class),
             new PullRequestStateReaders([$this->authors]),
             new ApprovalCoverageReaders([]),
+            new PullRequestChangeFingerprintReaders([]),
             $this->em,
             $this->service(MessageBusInterface::class),
             new EventDispatcher(),
