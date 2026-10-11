@@ -150,6 +150,7 @@ COPY docker/prod/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY docker/prod/php-fpm-memory.conf /usr/local/etc/php-fpm.d/zz-memory.conf
 COPY docker/prod/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/prod/supervisord.conf /etc/supervisord.conf
+COPY docker/prod/worker-supervisord.conf /etc/worker-supervisord.conf
 
 # The whole tree in one copy, rather than a list of the directories that matter.
 # A list is the failure this boundary invites: miss `var/cache` or the compiled
