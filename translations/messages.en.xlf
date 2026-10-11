@@ -2437,6 +2437,26 @@
                 <source>project.connect.tool.document_unarchive</source>
                 <target>Restore an archived document so it appears in the reviewer's list again.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_list">
+                <source>project.connect.tool.artifact_list</source>
+                <target>List the stored design artifacts of the project.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_get">
+                <source>project.connect.tool.artifact_get</source>
+                <target>Describe one artifact: its versions, and the files of one version.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_read">
+                <source>project.connect.tool.artifact_read</source>
+                <target>Read one file of an artifact, as text or as an image.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_archive">
+                <source>project.connect.tool.artifact_archive</source>
+                <target>Archive an artifact. It leaves the default list but is not deleted.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_unarchive">
+                <source>project.connect.tool.artifact_unarchive</source>
+                <target>Restore an archived artifact so it appears in the list again.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.document_set_tags">
                 <source>project.connect.tool.document_set_tags</source>
                 <target>Replace a document's tags with the given set. An empty list clears them.</target>

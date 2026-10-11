@@ -94,4 +94,40 @@ class ArtifactRepository extends ServiceEntityRepository
 
         return $this->findOneBy(['id' => Uuid::fromString($id), 'project' => $project]);
     }
+
+    /**
+     * One page of the project's artifacts, newest first. Archived ones are left out unless asked for.
+     *
+     * @return list<Artifact>
+     */
+    public function findPageByProject(Project $project, bool $includeArchived, int $limit, int $offset): array
+    {
+        $builder = $this->createQueryBuilder('a')
+            ->andWhere('a.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('a.createdAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC')
+            ->setMaxResults($limit)
+            ->setFirstResult($offset);
+
+        if (!$includeArchived) {
+            $builder->andWhere('a.archivedAt IS NULL');
+        }
+
+        return array_values($builder->getQuery()->getResult());
+    }
+
+    public function countInProject(Project $project, bool $includeArchived): int
+    {
+        $builder = $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.project = :project')
+            ->setParameter('project', $project);
+
+        if (!$includeArchived) {
+            $builder->andWhere('a.archivedAt IS NULL');
+        }
+
+        return (int) $builder->getQuery()->getSingleScalarResult();
+    }
 }

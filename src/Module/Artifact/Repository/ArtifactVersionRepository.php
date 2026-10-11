@@ -28,4 +28,63 @@ class ArtifactVersionRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['artifact' => $artifact, 'number' => $number]);
     }
+
+    /**
+     * The highest version number of each artifact, in one query.
+     *
+     * @param list<Artifact> $artifacts
+     *
+     * @return array<string, int> keyed by artifact id
+     */
+    public function latestNumbers(array $artifacts): array
+    {
+        if ([] === $artifacts) {
+            return [];
+        }
+
+        /** @var list<array{id: mixed, latest: mixed}> $rows */
+        $rows = $this->createQueryBuilder('v')
+            ->select('IDENTITY(v.artifact) AS id, MAX(v.number) AS latest')
+            ->andWhere('v.artifact IN (:artifacts)')
+            ->setParameter('artifacts', $artifacts)
+            ->groupBy('v.artifact')
+            ->getQuery()
+            ->getArrayResult();
+
+        $latest = [];
+        foreach ($rows as $row) {
+            $latest[(string) $row['id']] = (int) $row['latest'];
+        }
+
+        return $latest;
+    }
+
+    /**
+     * Every version of the artifact with its file count and total size, oldest first.
+     *
+     * @return list<array{version: ArtifactVersion, fileCount: int, totalBytes: int}>
+     */
+    public function summaries(Artifact $artifact): array
+    {
+        /** @var list<array{0: ArtifactVersion, fileCount: mixed, totalBytes: mixed}> $rows */
+        $rows = $this->createQueryBuilder('v')
+            ->select('v, COUNT(f.id) AS fileCount, COALESCE(SUM(b.size), 0) AS totalBytes')
+            ->leftJoin('v.files', 'f')
+            ->leftJoin('f.blob', 'b')
+            ->andWhere('v.artifact = :artifact')
+            ->setParameter('artifact', $artifact)
+            ->groupBy('v.id')
+            ->orderBy('v.number', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return array_map(
+            static fn (array $row): array => [
+                'version' => $row[0],
+                'fileCount' => (int) $row['fileCount'],
+                'totalBytes' => (int) $row['totalBytes'],
+            ],
+            $rows,
+        );
+    }
 }
