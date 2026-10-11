@@ -120,6 +120,10 @@ final class EngineTest extends KernelTestCase
 
     private const string NOON = '2026-10-02 12:00:00';
 
+    private const string HEAD_ONE = 'aaaaaaa1';
+
+    private const string HEAD_TWO = 'bbbbbbb2';
+
     private const array ALWAYS = ['all' => []];
 
     private const array NOT_EPIC = ['not' => ['card.type' => ['type' => 'epic']]];
@@ -2584,23 +2588,110 @@ final class EngineTest extends KernelTestCase
         self::assertNotNull($state->dueAt);
     }
 
-    public function test_a_lifecycle_child_merged_into_the_epic_branch_asks_for_an_epic_preview_and_one_merged_into_main_does_not(): void
+    public function test_a_lifecycle_child_merged_into_the_epic_branch_asks_for_no_epic_preview(): void
     {
         self::bootKernel();
-        $project = $this->workflowProject('engine-epic-preview');
+        $project = $this->workflowProject('engine-epic-preview-child');
         $this->bindLifecycle($project);
         $epic = $this->epic($project);
-        $intoEpic = $this->childOf($epic, 'done');
-        $this->pullRequest($intoEpic, PullRequestState::Merged, base: 'epic/'.$epic->number);
-        $intoMain = $this->childOf($epic, 'done');
-        $this->pullRequest($intoMain, PullRequestState::Merged);
+        $child = $this->childOf($epic, 'done');
+        $this->pullRequest($child, PullRequestState::Merged, base: 'epic/'.$epic->number);
 
-        $this->evaluate($intoEpic);
-        $this->evaluate($intoMain);
+        $this->evaluate($child);
 
-        $kinds = fn (Card $card): array => array_map(static fn (WorkRequest $request): string => $request->kind, $this->liveRequests($card));
-        self::assertEqualsCanonicalizing(['epic-preview', 'teardown'], $kinds($intoEpic));
-        self::assertSame(['teardown'], $kinds($intoMain));
+        self::assertSame(['teardown'], $this->liveKinds($child));
+    }
+
+    public function test_a_lifecycle_epic_in_implementation_asks_for_no_epic_preview(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('engine-epic-preview-implementation');
+        $this->bindLifecycle($project);
+        $epic = $this->epic($project);
+        $this->childOf($epic, 'done');
+        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+
+        $this->evaluate($epic);
+
+        self::assertNotContains('epic-preview', $this->liveKinds($epic));
+    }
+
+    public function test_a_lifecycle_epic_in_review_refreshes_its_preview_once_for_each_head_of_its_pull_request(): void
+    {
+        $epic = $this->epicInReview('engine-epic-preview-heads');
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+
+        $this->evaluate($epic);
+        self::assertSame(['epic-preview'], $this->liveKinds($epic));
+        self::assertSame(self::HEAD_ONE, $this->liveRequestOfKind($epic, 'epic-preview')->context->headSha);
+
+        $this->finish($this->liveRequestOfKind($epic, 'epic-preview'));
+        $this->evaluate($epic, '2026-10-02 12:25:00');
+        self::assertSame([], $this->liveKinds($epic), 'A refresh that ended well at the head covers it.');
+
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->em()->flush();
+        $this->evaluate($epic, '2026-10-02 12:30:00');
+        self::assertSame(['epic-preview'], $this->liveKinds($epic), 'A fix round push is a new head.');
+        self::assertSame(self::HEAD_TWO, $this->liveRequestOfKind($epic, 'epic-preview')->context->headSha);
+    }
+
+    public function test_a_lifecycle_epic_in_review_waits_for_a_fix_request_and_a_worker_run_before_it_refreshes(): void
+    {
+        $epic = $this->epicInReview('engine-epic-preview-busy');
+        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $fix = new WorkRequest($epic->project, WorkSubject::CARD, $epic->id ?? throw new \LogicException('A flushed card has an id.'), $epic->number, 'fix', null, 'fix-in-review', new \DateTimeImmutable(self::NOON));
+        $this->em()->persist($fix);
+        $this->em()->flush();
+        $this->evaluate($epic);
+        self::assertSame(['fix'], $this->liveKinds($epic));
+
+        $this->finish($fix);
+        $run = $this->workerRun($epic, 'fix', WorkerRunState::Running);
+        $this->evaluate($epic, '2026-10-02 12:25:00');
+        self::assertSame([], $this->liveKinds($epic));
+
+        $run->state = WorkerRunState::Succeeded;
+        $this->em()->flush();
+        $this->evaluate($epic, '2026-10-02 12:30:00');
+        self::assertSame(['epic-preview'], $this->liveKinds($epic));
+    }
+
+    public function test_a_lifecycle_epic_in_review_refreshes_again_for_a_head_that_lands_during_a_refresh(): void
+    {
+        $epic = $this->epicInReview('engine-epic-preview-race');
+        $pullRequest = $this->pullRequest($epic, headSha: self::HEAD_ONE);
+        $this->evaluate($epic);
+        $refresh = $this->liveRequestOfKind($epic, 'epic-preview');
+
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->em()->flush();
+        $this->evaluate($epic, '2026-10-02 12:10:00');
+        $this->finish($refresh);
+        $this->evaluate($epic, '2026-10-02 12:25:00');
+
+        self::assertSame(['epic-preview'], $this->liveKinds($epic));
+        self::assertSame(self::HEAD_TWO, $this->liveRequestOfKind($epic, 'epic-preview')->context->headSha);
+    }
+
+    public function test_a_lifecycle_epic_pauses_after_three_failed_refreshes_in_a_row(): void
+    {
+        $epic = $this->epicInReview('engine-epic-preview-limit');
+        $this->pullRequest($epic, headSha: self::HEAD_ONE);
+
+        foreach (['12:00:00', '12:10:00', '12:20:00'] as $at) {
+            $this->evaluate($epic, '2026-10-02 '.$at);
+            $this->evaluate($epic, '2026-10-02 '.$at);
+            $this->refuse($this->liveRequestOfKind($epic, 'epic-preview'), 'failed', '2026-10-02 '.$at);
+        }
+        self::assertNull($this->activePause($epic));
+
+        $this->evaluate($epic, '2026-10-02 12:30:00');
+
+        $pause = $this->activePause($epic);
+        self::assertNotNull($pause);
+        self::assertSame([PauseKind::WorkLimit, 'epic-preview'], [$pause->kind, $pause->ruleId]);
+        self::assertSame([], $this->liveKinds($epic));
     }
 
     public function test_a_card_evaluations_call_evaluates_the_card_and_its_provided_fact_fires_the_rule(): void
@@ -3533,6 +3624,24 @@ final class EngineTest extends KernelTestCase
         $this->setType($epic, 'epic');
 
         return $epic;
+    }
+
+    private function epicInReview(string $slug): Card
+    {
+        self::bootKernel();
+        $project = $this->workflowProject($slug);
+        $this->bindLifecycle($project);
+        $epic = $this->epic($project);
+        $this->childOf($epic, 'done');
+        $this->moveTo($epic, 'in-review');
+
+        return $epic;
+    }
+
+    /** @return list<string> */
+    private function liveKinds(Card $card): array
+    {
+        return array_map(static fn (WorkRequest $request): string => $request->kind, $this->liveRequests($card));
     }
 
     private function childOf(Card $epic, string $column): Card

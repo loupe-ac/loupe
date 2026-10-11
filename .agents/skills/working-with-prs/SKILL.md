@@ -805,9 +805,10 @@ any pull request into `main` does. It syncs by a merge of `main`, through
 branch existed has no `epic/<n>`, and its children target `main`.
 
 The app opens the epic pull request as a draft after the first child merge.
-After each child merge, an `epic-preview` work request has the merge stage
-refresh the epic preview at `https://epic-<n>.loupe.dev.localhost`. The stage
-carries the child's preview links to the `## Preview` section of the epic pull
+While the epic sits in In review, an `epic-preview` work request on the epic
+card has the merge stage refresh the epic preview at
+`https://epic-<n>.loupe.dev.localhost`, once for each head of the epic pull
+request. The stage carries the preview links of the children to the `## Preview` section of the epic pull
 request. It re-mints each signed link
 from its `to` and `email` parameters. So write each Preview line of a child with
 a signed link, its marker in backticks, and a `State:` text. The child's

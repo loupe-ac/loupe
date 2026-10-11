@@ -342,6 +342,37 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * The kind, the pull request number and the head of each request of the card that ended done with one of the heads.
+     *
+     * @param list<string> $headShas lower-case head shas
+     *
+     * @return list<array{kind: string, pullRequestNumber: int, headSha: string}>
+     */
+    public function findDoneAtHeads(Uuid $cardId, array $headShas): array
+    {
+        if ([] === $headShas) {
+            return [];
+        }
+
+        /** @var list<array{kind: string, number: string|int|null, head: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT DISTINCT kind, (context::jsonb ->> 'pullRequestNumber') AS number, (context::jsonb ->> 'headSha') AS head FROM work_requests
+             WHERE subject_type = :subject AND subject_id = :card AND state = :done AND (context::jsonb ->> 'headSha') IN (:heads)",
+            ['subject' => WorkSubject::CARD, 'card' => $cardId->toRfc4122(), 'done' => WorkRequestState::Done->value, 'heads' => $headShas],
+            ['heads' => ArrayParameterType::STRING],
+        )->fetchAllAssociative();
+
+        $found = [];
+        foreach ($rows as $row) {
+            if (null !== $row['number']) {
+                $found[] = ['kind' => $row['kind'], 'pullRequestNumber' => (int) $row['number'], 'headSha' => $row['head']];
+            }
+        }
+
+        return $found;
+    }
+
     /** The request of the card that opened last, in any state. */
     public function findLatestForCard(Uuid $cardId): ?WorkRequest
     {
