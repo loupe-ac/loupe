@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\EventListener;
 
-use App\Module\Board\Command\ConfigureBoardColumnCommand;
-use App\Module\Board\Command\ConfigureBoardColumnHandler;
 use App\Module\Board\Command\DeleteBoardColumnCommand;
 use App\Module\Board\Command\DeleteBoardColumnHandler;
 use App\Module\Board\Command\UpdateCardCommand;
@@ -21,7 +19,6 @@ use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** Driven through a real card move, a real column delete and a real terminal flip, so each listener runs where Board dispatches its event. */
 final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
@@ -161,7 +158,7 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $untouched = $this->linkedItem($project, 2, $this->card($this->em, $project, 2));
         $this->em->flush();
 
-        $this->configureTerminal($this->column($project, 'in-progress'), true);
+        $this->configureColumn($project, 'in-progress', terminal: true);
 
         self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
         self::assertSame(InboxItemState::Open, $this->reload($untouched)->state);
@@ -172,12 +169,13 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $project = $this->persistedProject('obsolete-column-open');
         $archived = new BoardColumn($project, 'Archived', 'archived', 99, terminal: true);
         $this->em->persist($archived);
+        $this->seededColumns[$project->id.'/archived'] = $archived;
         $card = new Card(project: $project, column: $archived, title: 'Reopens', body: 'Body', number: 1);
         $this->em->persist($card);
         $item = $this->linkedItem($project, 1, $card);
         $this->em->flush();
 
-        $this->configureTerminal($archived, false);
+        $this->configureColumn($project, 'archived', terminal: false);
 
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
@@ -218,17 +216,6 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         self::assertInstanceOf(UpdateCardHandler::class, $handler);
 
         $handler(new UpdateCardCommand($card, Actor::Human, column: $this->column($project, $slug)));
-    }
-
-    private function configureTerminal(BoardColumn $column, bool $terminal): void
-    {
-        $handler = self::getContainer()->get(ConfigureBoardColumnHandler::class);
-        self::assertInstanceOf(ConfigureBoardColumnHandler::class, $handler);
-        $translator = self::getContainer()->get(TranslatorInterface::class);
-        self::assertInstanceOf(TranslatorInterface::class, $translator);
-        $label = $translator->trans($column->label);
-
-        $handler(new ConfigureBoardColumnCommand($column, Actor::Human, $label, $terminal, $column->label, $column->terminal));
     }
 
     private function reload(InboxItem $item): InboxItem
