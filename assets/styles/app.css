@@ -5083,6 +5083,41 @@
     .lp-verdict-chip__undo {
         @apply m-0 inline-flex;
     }
+    /* "Updated … ago" in the byline opens what each revision changed. */
+    .lp-revision-notes {
+        @apply relative inline-flex;
+    }
+    .lp-revision-notes__trigger {
+        @apply -mx-1.5 inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-sm text-fg-dim transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+    }
+    .lp-revision-notes__caret {
+        @apply size-3.5 shrink-0 motion-safe:transition-transform;
+    }
+    .lp-revision-notes__trigger[aria-expanded='true']
+        .lp-revision-notes__caret {
+        @apply rotate-180;
+    }
+    .lp-revision-notes__panel {
+        @apply absolute top-full left-0 z-40 mt-1 flex max-h-96 w-96 flex-col gap-3 overflow-y-auto rounded-xl border border-line bg-elev p-4 text-sm shadow-card max-sm:w-72;
+    }
+    .lp-revision-notes__panel[hidden] {
+        @apply hidden;
+    }
+    .lp-revision-notes__title {
+        @apply text-xs font-semibold tracking-wide text-fg-label uppercase;
+    }
+    .lp-revision-notes__entry {
+        @apply flex flex-col gap-1 border-t border-line-faint pt-3;
+    }
+    .lp-revision-notes__entry-head {
+        @apply flex items-center gap-2;
+    }
+    .lp-revision-notes__time {
+        @apply text-xs text-fg-dim;
+    }
+    .lp-revision-notes__text {
+        @apply whitespace-pre-wrap text-ink;
+    }
 
     /* ── App shell (sidebar + content) ──────────────────────────────── */
 
