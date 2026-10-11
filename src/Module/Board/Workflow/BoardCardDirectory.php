@@ -38,8 +38,7 @@ final readonly class BoardCardDirectory implements CardDirectory
         if (null === $card) {
             return null;
         }
-        $this->cards->refreshColumn($card);
-        $this->cards->refreshTypeAndParent($card);
+        $this->cards->refreshPlacement($card);
 
         return $card->snapshot();
     }

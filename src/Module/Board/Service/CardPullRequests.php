@@ -9,6 +9,7 @@ use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Module\Workflow\Contract\PullRequestFacts;
 
 /** The pull requests that Forge tracks for the links of a card, and the one the engine acts on. */
@@ -17,6 +18,7 @@ final readonly class CardPullRequests
     public function __construct(
         private CardPullRequestRepository $cardPullRequests,
         private ForgePullRequestRepository $forgePullRequests,
+        private FactsPass $factsPass,
     ) {
     }
 
@@ -26,6 +28,12 @@ final readonly class CardPullRequests
      * @return list<ForgePullRequest> by forge, repository and number
      */
     public function forCard(Card $card): array
+    {
+        return $this->factsPass->remember('card-pull-requests:'.$card->id, fn (): array => $this->readForCard($card));
+    }
+
+    /** @return list<ForgePullRequest> */
+    private function readForCard(Card $card): array
     {
         $keys = [];
         foreach ($this->cardPullRequests->findCurrentKeys($card) as $link) {

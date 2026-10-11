@@ -203,6 +203,16 @@ final readonly class Engine
         return $run;
     }
 
+    /** Doctrine compares a Uuid by identity, so assigning an equal id would write the row again. */
+    private static function adoptSubject(WorkflowRuleState $state, ?Uuid $subject): void
+    {
+        $stored = $state->subjectPullRequestId;
+        if (null !== $stored && null !== $subject ? $stored->equals($subject) : $stored === $subject) {
+            return;
+        }
+        $state->subjectPullRequestId = $subject;
+    }
+
     /** Records the truth of each rule the card reads now, clears its retries, and resets the rules of other slots. Fires none. */
     private function baseline(Evaluation $run): void
     {
@@ -234,7 +244,7 @@ final readonly class Engine
                     if ($bound->binds && null !== $state->subjectPullRequestId && null !== $bound->subject && !$state->subjectPullRequestId->equals($bound->subject)) {
                         $state->fires = 0;
                     }
-                    $state->subjectPullRequestId = $bound->subject;
+                    self::adoptSubject($state, $bound->subject);
                 }
                 $state->attempts = 0;
                 $state->dueAt = null;
@@ -254,8 +264,8 @@ final readonly class Engine
     private function readSettledRequests(Evaluation $run): void
     {
         $policy = $run->template->onWorkFailed;
-        // A second pause is refused, so a refusal waits until the active pause ends.
-        if (null === $policy || null !== $this->cardPauses->findActive($run->card->id)) {
+        // The pass reaches this read only while no pause holds the card, so a refusal never waits on one here.
+        if (null === $policy) {
             return;
         }
         foreach ($run->template->rules as $rule) {
@@ -617,7 +627,7 @@ final readonly class Engine
         $state->fingerprint = $fingerprint;
         // A live repair still serves the old subject.
         if (!isset($run->repairing[$rule->id])) {
-            $state->subjectPullRequestId = $bound->subject;
+            self::adoptSubject($state, $bound->subject);
         }
         if (!$fire) {
             return true;
@@ -637,7 +647,7 @@ final readonly class Engine
         $outcome = $this->actions->get($call->key)->run($this->contexts->for($rule, $run->card, $bound->facts, $state->fires));
         // The live request still serves the old subject, so the change waits until it settles.
         if ($newSubject && $outcome->alreadyLive) {
-            $state->subjectPullRequestId = $stored;
+            self::adoptSubject($state, $stored);
             $state->fires = $firesBefore;
             $state->repaired = $repairedBefore;
         }
