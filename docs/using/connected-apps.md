@@ -74,6 +74,11 @@ access and the project. **Revoke** removes the access of that app at once: its
 access tokens and its refresh tokens stop working. To connect again, the app
 must ask the user again.
 
+The *Site review widget* row is always on the page. Under it, each live
+preview token has a row with its card, its project, when it expires and when
+the widget last used it. **Revoke** on a row ends that token only. **Revoke
+all** ends every preview token and every widget sign-in of the account.
+
 Loupe also removes access in these cases:
 
 - The user deletes the project. Every grant for that project stops working.

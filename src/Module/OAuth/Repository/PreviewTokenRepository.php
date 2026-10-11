@@ -52,6 +52,14 @@ class PreviewTokenRepository extends ServiceEntityRepository
         ]);
     }
 
+    public function findLiveForUserByAccessTokenId(Uuid $userId, string $accessTokenId): ?PreviewTokenRow
+    {
+        return $this->findLiveWhere('p.user_id = :userId AND p.access_token_id = :accessTokenId', [
+            'userId' => $userId->toRfc4122(),
+            'accessTokenId' => $accessTokenId,
+        ])[0] ?? null;
+    }
+
     /**
      * Whether the card of the project sits in a terminal column, or null when
      * the project has no such card. Reads by SQL, because OAuth must not depend on Board.

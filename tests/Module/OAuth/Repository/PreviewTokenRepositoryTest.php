@@ -160,6 +160,19 @@ final class PreviewTokenRepositoryTest extends KernelTestCase
         self::assertSame([$ofCard], array_map(static fn (PreviewTokenRow $row): string => $row->accessTokenId, $rows));
     }
 
+    public function test_one_token_is_found_for_its_owner_alone_and_only_while_live(): void
+    {
+        $id = $this->mint('pr-12');
+        $stranger = $this->scenario->createUser('preview-find-one-stranger@example.com');
+
+        self::assertSame($id, $this->repository->findLiveForUserByAccessTokenId($this->ownerId(), $id)?->accessTokenId);
+        self::assertNull($this->repository->findLiveForUserByAccessTokenId($stranger->id ?? throw new \LogicException('A persisted user has an id.'), $id));
+
+        $this->connection->executeStatement('UPDATE oauth2_access_token SET revoked = true WHERE identifier = :id', ['id' => $id]);
+
+        self::assertNull($this->repository->findLiveForUserByAccessTokenId($this->ownerId(), $id));
+    }
+
     private function ownerId(): Uuid
     {
         return $this->owner->id ?? throw new \LogicException('A persisted user has an id.');

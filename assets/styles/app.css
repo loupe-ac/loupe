@@ -5212,6 +5212,39 @@
         @apply font-sans;
     }
 
+    /* An app row with sub-rows under it: the site review widget and its live
+       preview tokens on Connected apps. */
+    .lp-app-group {
+        @apply rounded-xl bg-surface-2;
+    }
+    .lp-app-group__head {
+        @apply bg-transparent;
+    }
+    .lp-app-group__empty {
+        @apply m-0 border-t border-line pt-3 pr-4 pb-3.5 pl-11 text-sm text-fg-mute;
+    }
+    .lp-preview-token-list {
+        @apply m-0 list-none pt-0 pr-4 pb-1.5 pl-11;
+    }
+    .lp-preview-token-row {
+        @apply flex items-center gap-3 border-t border-line py-3;
+    }
+    .lp-preview-token-row__text {
+        @apply flex min-w-0 flex-1 flex-col gap-0.5;
+    }
+    .lp-preview-token-row__card {
+        @apply flex min-w-0 items-baseline gap-2;
+    }
+    .lp-preview-token-row__number {
+        @apply shrink-0 font-mono text-xs font-semibold text-fg-mute;
+    }
+    .lp-preview-token-row__title {
+        @apply truncate text-sm font-medium text-ink;
+    }
+    .lp-preview-token-row__meta {
+        @apply font-mono text-xs text-fg-dim;
+    }
+
     /* Amber callout. Used for the two things on this page that are warnings
        rather than body copy: the once-only token, and the fact that the widget
        token is public. */
