@@ -5077,6 +5077,22 @@
     .lp-main {
         @apply flex-1 min-h-0 bg-app overflow-x-auto overflow-y-auto;
     }
+    /* Every page but the board fits one left-aligned frame. The top bar keeps
+       its full-width ground, and its items end at the frame edge. */
+    @media (width >= 64rem) {
+        .lp-app > .lp-shell:not(:has(.lp-board)) {
+            --app-frame-inset: max(
+                calc(var(--spacing) * 0),
+                100% - var(--container-7xl)
+            );
+        }
+        .lp-app > .lp-shell:not(:has(.lp-board)) > .lp-topbar {
+            padding-right: calc(var(--app-frame-inset) + var(--spacing) * 7.5);
+        }
+        .lp-app > .lp-shell:not(:has(.lp-board)) > .lp-main {
+            padding-right: var(--app-frame-inset);
+        }
+    }
 
     .lp-sidebar {
         @apply flex flex-col w-54 shrink-0 pt-7 px-3.5 pb-3.5;
