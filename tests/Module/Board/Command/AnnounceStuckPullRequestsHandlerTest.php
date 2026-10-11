@@ -188,6 +188,46 @@ final class AnnounceStuckPullRequestsHandlerTest extends KernelTestCase
         self::assertSame(0, $this->announce());
     }
 
+    public function test_every_quiet_card_past_one_batch_refreshes(): void
+    {
+        $project = $this->stateProject('announce-quiet-many');
+        $expected = [];
+        for ($i = 0; $i <= AnnounceStuckPullRequestsHandler::BATCH; ++$i) {
+            $card = $this->stateCard($project);
+            $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+            $this->recordHistory($card, '-17 minutes');
+            $expected[] = (string) $card->id;
+        }
+
+        self::assertSame(AnnounceStuckPullRequestsHandler::BATCH + 1, $this->announce());
+        $changed = $this->changedCardIds();
+        sort($expected);
+        sort($changed);
+        self::assertSame($expected, $changed);
+    }
+
+    public function test_quiet_cards_page_in_card_id_order(): void
+    {
+        $project = $this->stateProject('announce-quiet-pages');
+        $ids = [];
+        for ($i = 0; $i < 3; ++$i) {
+            $card = $this->stateCard($project);
+            $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+            $this->recordHistory($card, '-17 minutes');
+            $ids[] = (string) $card->id;
+        }
+        sort($ids);
+        $repository = self::getContainer()->get(StuckPullRequestRepository::class);
+        self::assertInstanceOf(StuckPullRequestRepository::class, $repository);
+        $now = new \DateTimeImmutable();
+
+        $first = array_column($repository->findQuietDue($now, AnnounceStuckPullRequestsHandler::QUIET_WINDOW_SECONDS, 2), 'cardId');
+        $second = array_column($repository->findQuietDue($now, AnnounceStuckPullRequestsHandler::QUIET_WINDOW_SECONDS, 2, $first[1] ?? null), 'cardId');
+
+        self::assertSame([$ids[0], $ids[1]], $first);
+        self::assertSame([$ids[2]], $second);
+    }
+
     private function ready(Card $card, string $since): ForgePullRequest
     {
         return $this->linkPullRequest($card, [

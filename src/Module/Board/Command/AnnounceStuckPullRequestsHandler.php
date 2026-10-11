@@ -45,10 +45,15 @@ final readonly class AnnounceStuckPullRequestsHandler
             $this->stuckPullRequests->markAnnounced($pullRequestId, $readySince, $now);
         }
 
-        foreach ($this->stuckPullRequests->findQuietDue($now, self::QUIET_WINDOW_SECONDS, self::BATCH) as $row) {
-            $this->events->dispatch(new CardChanged(Uuid::fromString($row['projectId']), Uuid::fromString($row['cardId']), CardChanged::UPDATED, false));
-            ++$refreshed;
-        }
+        $after = null;
+        do {
+            $quiet = $this->stuckPullRequests->findQuietDue($now, self::QUIET_WINDOW_SECONDS, self::BATCH, $after);
+            foreach ($quiet as $row) {
+                $this->events->dispatch(new CardChanged(Uuid::fromString($row['projectId']), Uuid::fromString($row['cardId']), CardChanged::UPDATED, false));
+                $after = $row['cardId'];
+                ++$refreshed;
+            }
+        } while (\count($quiet) === self::BATCH);
 
         return $refreshed;
     }
