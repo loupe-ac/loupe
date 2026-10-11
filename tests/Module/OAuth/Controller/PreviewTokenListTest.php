@@ -55,7 +55,7 @@ final class PreviewTokenListTest extends WebTestCase
 
         $row = '[data-preview-token="'.$id.'"]';
         self::assertSelectorTextContains($row, 'No card');
-        self::assertSelectorTextContains($row, 'Expires today');
+        self::assertSelectorTextContains($row, 'Expires in less than a day');
         self::assertSelectorTextContains($row, 'Last used 2h ago');
     }
 

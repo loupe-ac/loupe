@@ -7656,7 +7656,7 @@
             <trans-unit id="oauth.connected_apps.preview_tokens.list_label"><source>oauth.connected_apps.preview_tokens.list_label</source><target>Live preview tokens</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.empty"><source>oauth.connected_apps.preview_tokens.empty</source><target>No live preview tokens.</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.no_card"><source>oauth.connected_apps.preview_tokens.no_card</source><target>No card</target></trans-unit>
-            <trans-unit id="oauth.connected_apps.preview_tokens.expires"><source>oauth.connected_apps.preview_tokens.expires</source><target>{0}Expires today|{1}Expires in %count% day|]1,Inf[Expires in %count% days</target></trans-unit>
+            <trans-unit id="oauth.connected_apps.preview_tokens.expires"><source>oauth.connected_apps.preview_tokens.expires</source><target>{0}Expires in less than a day|{1}Expires in %count% day|]1,Inf[Expires in %count% days</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.last_used"><source>oauth.connected_apps.preview_tokens.last_used</source><target>Last used %when%</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.not_used"><source>oauth.connected_apps.preview_tokens.not_used</source><target>Not used yet</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke.title"><source>oauth.connected_apps.preview_tokens.revoke.title</source><target>Revoke this preview token?</target></trans-unit>
@@ -7670,7 +7670,7 @@
             <trans-unit id="oauth.preview_sign_in.status"><source>oauth.preview_sign_in.status</source><target>Status</target></trans-unit>
             <trans-unit id="oauth.preview_sign_in.active"><source>oauth.preview_sign_in.active</source><target>Active</target></trans-unit>
             <trans-unit id="oauth.preview_sign_in.expires"><source>oauth.preview_sign_in.expires</source><target>Expires</target></trans-unit>
-            <trans-unit id="oauth.preview_sign_in.expires_in"><source>oauth.preview_sign_in.expires_in</source><target>{0}Today|{1}In %count% day|]1,Inf[In %count% days</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.expires_in"><source>oauth.preview_sign_in.expires_in</source><target>{0}In less than a day|{1}In %count% day|]1,Inf[In %count% days</target></trans-unit>
             <trans-unit id="oauth.preview_sign_in.last_used"><source>oauth.preview_sign_in.last_used</source><target>Last used</target></trans-unit>
             <trans-unit id="oauth.preview_sign_in.see_all"><source>oauth.preview_sign_in.see_all</source><target>See all preview tokens</target></trans-unit>
             <trans-unit id="oauth.preview_sign_in.see_all_where"><source>oauth.preview_sign_in.see_all_where</source><target>in Account &gt; Connected apps.</target></trans-unit>
