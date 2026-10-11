@@ -53,7 +53,7 @@ final readonly class AnnounceStuckPullRequestsHandler
                 $after = $row['cardId'];
                 ++$refreshed;
             }
-        } while (\count($quiet) === self::BATCH);
+        } while (self::BATCH === \count($quiet));
 
         return $refreshed;
     }
