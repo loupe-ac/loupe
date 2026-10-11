@@ -108,6 +108,32 @@ On such a page, every note goes to that card. The widget does not ask for a
 choice, and it does not change the choice you keep for other pages. When the
 card is closed or deleted, the widget refuses notes and says so.
 
+## Preview sign-in
+
+A preview page can sign the widget in with no popup. It sets
+`SITE_REVIEW_WIDGET_PREVIEW_TOKEN`, and the embed carries the value in
+`data-preview-token`. See [Environment variables](../reference/environment.md).
+
+```html
+<script src="https://your-instance/site-review/widget.js" data-project="PROJECT-ID" data-preview-token="TOKEN"></script>
+```
+
+The widget sends the token as its sign-in. It shows the review tools at once,
+with no pop-up and no consent page, also in a new tab. The token never renews,
+and it ends after 14 days at most. The token acts as the person who minted it,
+so a note shows that person as its author.
+
+A sign-in through the pop-up wins over the token. The widget keeps that sign-in
+in the tab's session storage, as described above.
+
+When the token ended, the widget shows this line: "The preview sign-in for this
+page ended. Sign in, or restart the preview." Under it, the **Sign in with
+Loupe** button works as before. A token ends when its preview stops, when its
+card reaches a terminal column, or when the owner revokes it.
+
+The page source carries the token. Use it on internal preview pages only. The
+allowed sites of the project do not limit where a token works.
+
 ## Sending a verdict
 
 On a page that locks a card, the panel shows three buttons when the card has at

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     BACKEND,
     bootWidget,
@@ -833,6 +833,72 @@ describe('boot', () => {
         expect(panelRoot().getElementById('lp-launch-count').textContent).toBe(
             '1',
         );
+    });
+});
+
+describe('a preview token', () => {
+    const PREVIEW = 'preview_token_value';
+
+    // Earlier tests leave a popup grant in the tab's session storage.
+    beforeEach(() => window.sessionStorage.clear());
+
+    it('signs the widget in when no popup grant exists', async () => {
+        const fetchMock = bootWidget({
+            respond: () => ok({ comments: [] }),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+
+        const [, options] = fetchMock.mock.calls[0];
+        expect(options.headers.Authorization).toBe(`Bearer ${PREVIEW}`);
+        expect(alerting()).toBe(false);
+    });
+
+    it('yields to a popup grant', async () => {
+        const fetchMock = bootWidget({
+            respond: () => ok({ comments: [] }),
+            previewToken: PREVIEW,
+        });
+        await settle();
+
+        const [, options] = fetchMock.mock.calls[0];
+        expect(options.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
+    });
+
+    it('shows the ended line and the sign-in button after a 401', async () => {
+        const fetchMock = bootWidget({
+            respond: () => rejected(401),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+        openPanel();
+
+        const root = panelRoot();
+        expect(root.getElementById('lp-fatal').textContent).toContain(
+            'The preview sign-in for this page ended. Sign in, or restart the preview.',
+        );
+        expect(root.getElementById('lp-sign-in')).not.toBeNull();
+        const used = fetchMock.mock.calls.filter(
+            ([, options]) =>
+                options.headers.Authorization === `Bearer ${PREVIEW}`,
+        );
+        expect(used).toHaveLength(1);
+    });
+
+    it('sends no token when the page carries none and no grant exists', async () => {
+        const fetchMock = bootWidget({
+            respond: () => ok({ comments: [] }),
+            signedIn: false,
+        });
+        await settle();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(alerting()).toBe(false);
+        openPanel();
+        expect(panelRoot().getElementById('lp-sign-in')).not.toBeNull();
     });
 });
 

@@ -28,6 +28,12 @@
     // A preview page names the card it is for as `card:<uuid>`. Notes on that
     // page go to that card, whatever mode the reviewer chose elsewhere.
     const CONTEXT = script.getAttribute('data-context') || '';
+    // A preview page can carry a token that signs the widget in with no popup.
+    // A popup grant wins over it, and a 401 for it ends it for this page load.
+    const PREVIEW_TOKEN = script.getAttribute('data-preview-token') || '';
+    const PREVIEW_ENDED =
+        'The preview sign-in for this page ended. Sign in, or restart the preview.';
+    let previewEnded = false;
     // Read again rather than kept, because an SPA swap replaces the tag and may
     // carry a different marker. `script` is the one this ran from and goes
     // stale; the document is the source of truth afterwards.
@@ -490,13 +496,17 @@
 
     const accessToken = async () => {
         if (!OAUTH) return '';
-        if (!grant) throw signedOutError();
+        if (!grant) {
+            if (PREVIEW_TOKEN && !previewEnded) return PREVIEW_TOKEN;
+            throw signedOutError(previewEnded ? PREVIEW_ENDED : '');
+        }
         if (grant.expiresAt - OAUTH_EXPIRY_MARGIN_MS <= Date.now())
             await refreshGrant();
         return grant.accessToken;
     };
 
     const serverApi = async (method, path, body, retried = false) => {
+        const viaPreview = OAUTH && !grant && !!PREVIEW_TOKEN && !previewEnded;
         const response = await fetch(`${BACKEND}${path}`, {
             method,
             headers: {
@@ -513,7 +523,8 @@
         }
         if (OAUTH && response.status === 401) {
             setGrant(null);
-            throw signedOutError();
+            if (viaPreview) previewEnded = true;
+            throw signedOutError(previewEnded ? PREVIEW_ENDED : '');
         }
         if (!response.ok) {
             // Carry the status so callers can tell a permanent auth/config failure (401/403 —
