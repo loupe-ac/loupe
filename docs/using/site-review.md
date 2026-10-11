@@ -124,7 +124,8 @@ and it ends after 14 days at most. The token acts as the person who minted it,
 so a note shows that person as its author.
 
 A sign-in through the pop-up wins over the token. The widget keeps that sign-in
-in the tab's session storage, as described above.
+in the tab's session storage, as described above. When that sign-in ends and
+cannot renew, the widget uses the token of the page again.
 
 When the token ended, the widget shows this line: "The preview sign-in for this
 page ended. Sign in, or restart the preview." Under it, the **Sign in with

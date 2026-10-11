@@ -515,15 +515,24 @@
         return refreshing;
     };
 
+    // A refused refresh ends the popup grant, and the page token takes over.
+    const refreshOrFallBack = async () => {
+        try {
+            await refreshGrant();
+        } catch (error) {
+            if (grant || !livePreviewToken()) throw error;
+        }
+    };
+
     const accessToken = async () => {
         if (!OAUTH) return '';
+        if (grant && grant.expiresAt - OAUTH_EXPIRY_MARGIN_MS <= Date.now())
+            await refreshOrFallBack();
         if (!grant) {
             const preview = livePreviewToken();
             if (preview) return preview;
             throw signedOutError(previewEndedMessage());
         }
-        if (grant.expiresAt - OAUTH_EXPIRY_MARGIN_MS <= Date.now())
-            await refreshGrant();
         return grant.accessToken;
     };
 
@@ -541,7 +550,7 @@
         // An access token can die before its expiry, for example when the owner
         // revokes the app. One refresh tells a dead token from a dead grant.
         if (OAUTH && response.status === 401 && !retried && grant) {
-            await refreshGrant();
+            await refreshOrFallBack();
             return serverApi(method, path, body, true);
         }
         if (OAUTH && response.status === 401) {

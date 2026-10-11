@@ -11,7 +11,9 @@ import {
     rejected,
     resetWidget,
     settle,
+    storageKeyFor,
     ACCESS_TOKEN,
+    PROJECT,
 } from './support/widget_harness.js';
 
 let originalHistory;
@@ -918,6 +920,54 @@ describe('a preview token', () => {
         expect(panelRoot().getElementById('lp-fatal').style.display).toBe(
             'none',
         );
+        expect(alerting()).toBe(false);
+    });
+
+    it('falls back to the page token when an expired grant cannot refresh', async () => {
+        window.sessionStorage.setItem(
+            storageKeyFor(PROJECT),
+            JSON.stringify({
+                accessToken: ACCESS_TOKEN,
+                refreshToken: 'wt_test_refresh',
+                expiresAt: Date.now() - 1000,
+            }),
+        );
+        const fetchMock = bootWidget({
+            respond: (url) =>
+                url.endsWith('/oauth/token')
+                    ? rejected(400, { error: 'invalid_grant' })
+                    : ok({ comments: [] }),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+
+        const api = fetchMock.mock.calls.filter(
+            ([url]) => !url.endsWith('/oauth/token'),
+        );
+        expect(api[0][1].headers.Authorization).toBe(`Bearer ${PREVIEW}`);
+        expect(alerting()).toBe(false);
+    });
+
+    it('falls back to the page token when a refused grant cannot refresh', async () => {
+        const fetchMock = bootWidget({
+            respond: (url, init) => {
+                if (url.endsWith('/oauth/token'))
+                    return rejected(400, { error: 'invalid_grant' });
+                return init.headers.Authorization === `Bearer ${PREVIEW}`
+                    ? ok({ comments: [] })
+                    : rejected(401);
+            },
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+
+        const sent = fetchMock.mock.calls
+            .filter(([url]) => !url.endsWith('/oauth/token'))
+            .map(([, options]) => options.headers.Authorization);
+        expect(sent).toEqual([`Bearer ${ACCESS_TOKEN}`, `Bearer ${PREVIEW}`]);
         expect(alerting()).toBe(false);
     });
 
