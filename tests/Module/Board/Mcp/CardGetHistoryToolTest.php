@@ -98,8 +98,24 @@ final class CardGetHistoryToolTest extends KernelTestCase
 
         self::assertSame('paused', $paused['kind']);
         self::assertSame('review-failed', $paused['reason']);
-        self::assertSame(['kind' => 'retries', 'ruleId' => 'fix-on-review'], $paused['pause']);
+        self::assertSame(['kind' => 'retries', 'ruleId' => 'fix-on-review', 'releaseReason' => null], $paused['pause']);
         self::assertNull($creation['pause']);
+    }
+
+    public function test_a_release_row_reads_why_the_pause_ended(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-history-release'));
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->card($created['cardId']);
+        $this->events()->record($card, CardEventKind::PauseReleased, Actor::System, null, ['kind' => 'retries', 'reason' => 'review-failed', 'ruleId' => 'fix-on-review', 'releaseReason' => 'facts-changed'], new \DateTimeImmutable('+1 minute'));
+        $this->events()->record($card, CardEventKind::PauseReleased, Actor::Human, null, ['kind' => 'retries', 'reason' => 'review-failed', 'ruleId' => 'fix-on-review'], new \DateTimeImmutable('+2 minutes'));
+        $this->em->flush();
+
+        [$legacy, $released] = ($this->tool)($created['cardId'])['events'];
+
+        self::assertSame('pause-released', $released['kind']);
+        self::assertSame(['kind' => 'retries', 'ruleId' => 'fix-on-review', 'releaseReason' => 'facts-changed'], $released['pause']);
+        self::assertSame(['kind' => 'retries', 'ruleId' => 'fix-on-review', 'releaseReason' => null], $legacy['pause'], 'An event written before the release reason was recorded reads null.');
     }
 
     public function test_a_finished_run_passes_its_whole_detail_through(): void
