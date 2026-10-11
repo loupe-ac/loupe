@@ -9,7 +9,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Names the tokens to revoke in one of three ways: a person's label on a
- * project, one access token id, or a card id. Set the fields of exactly one.
+ * project, one access token id of that person, or a card id. Set the fields
+ * of exactly one.
  */
 final readonly class RevokePreviewTokensCommand
 {

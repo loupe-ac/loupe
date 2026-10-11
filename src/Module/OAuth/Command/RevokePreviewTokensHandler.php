@@ -36,7 +36,11 @@ final readonly class RevokePreviewTokensHandler
             );
             $by = 'label';
         } elseif (null !== $command->accessTokenId) {
-            $revoked = $this->previewTokens->revokeByAccessTokenId($command->accessTokenId);
+            $owner = $command->owner ?? throw new \LogicException('a revoke by token names the owner.');
+            $revoked = $this->previewTokens->revokeByAccessTokenId(
+                $command->accessTokenId,
+                $owner->id ?? throw new \LogicException('a persisted user always has an id.'),
+            );
             $by = 'token';
         } elseif (null !== $command->cardId) {
             $revoked = $this->previewTokens->revokeByCard($command->cardId);

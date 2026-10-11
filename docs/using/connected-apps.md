@@ -82,7 +82,8 @@ Loupe also removes access in these cases:
   fails.
 
 The data export includes `connected_apps.json`. It lists each connected app and
-its access. It contains no token.
+its access, then each live preview token with its project, card, label and
+dates. It contains no token value.
 
 ## Your GitHub account
 
