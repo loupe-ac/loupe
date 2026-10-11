@@ -234,6 +234,18 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertCount(1, $this->writer->published[0]['annotations']);
     }
 
+    public function test_a_finding_that_needs_a_person_is_labelled(): void
+    {
+        $card = $this->card($this->project);
+        $this->stored($card, $this->linked($card, 7), str_repeat('a', 40), [
+            new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, 'Unclear design', 'It contradicts itself.', AgentReviewCategory::Spec, true),
+        ]);
+
+        $this->publisher()->publish($card);
+
+        self::assertStringContainsString('- [important] (waits for the owner) Unclear design: It contradicts itself.', $this->writer->published[0]['summary']);
+    }
+
     public function test_the_summary_lists_the_first_findings_and_counts_the_rest(): void
     {
         $card = $this->card($this->project);
