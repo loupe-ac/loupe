@@ -33,6 +33,19 @@ test_db="app_test_$token"
 project=$(grep -E '^COMPOSE_PROJECT_NAME=' "$main/.env" | head -1 | cut -d= -f2-)
 project=${project:-loupe}
 
+# End this preview's token before the tree goes. It is best-effort: the CLI may be missing or
+# signed out, and a token left behind still ends at its 14-day expiry or when its card is done.
+# A worktree whose widget backend is itself keeps its token in the database dropped below.
+if [ -f "$root/.env.local" ] && command -v loupe >/dev/null 2>&1; then
+    wt_env() { grep -E "^$1=" "$root/.env.local" | tail -1 | cut -d= -f2- | tr -d '"' || true; }
+    widget_project=$(wt_env SITE_REVIEW_WIDGET_PROJECT)
+    widget_backend=$(wt_env SITE_REVIEW_WIDGET_BACKEND)
+    if [ -n "$widget_project" ] && [ -n "$widget_backend" ] && [ "${widget_backend%/}" != "https://$slug.$project.dev.localhost" ]; then
+        loupe preview-token revoke --project "$widget_project" --label "$slug" --instance "$widget_backend" >/dev/null \
+            || echo "worktree-teardown: could not revoke the preview token of '$name'." >&2
+    fi
+fi
+
 # Prefer the worktree's own definition; fall back to main's when the worktree
 # directory is already gone (the usual case when pruning).
 compose_file="$root/docker/compose/worktree.yaml"

@@ -21,9 +21,10 @@ use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\RetriesWhileTrue;
 
 /** A fix request also writes the fix-requested card event that the experiment report counts. */
-final readonly class RequestWork implements Action
+final readonly class RequestWork implements Action, RetriesWhileTrue
 {
     private const string FIX_KIND = 'fix';
 
@@ -59,6 +60,7 @@ final readonly class RequestWork implements Action
             new Parameter('limit', ParameterType::Int, required: false, min: 1),
             new Parameter('refill', ParameterType::Expression, required: false, needs: 'limit'),
             new Parameter('onTimeout', ParameterType::String, required: false, choices: ['pause', 'expire']),
+            new Parameter('stillTrue', ParameterType::String, required: false, choices: ['retry']),
             new Parameter('document', ParameterType::Document, required: false),
             new Parameter('checks', ParameterType::List, required: false),
             new Parameter(ParameterNames::PROMPT, ParameterType::String, required: false, pattern: ParameterNames::PROMPT_PATTERN, patternHint: '[a-z][a-z0-9-], at most 40 characters', appOnly: true),
@@ -69,6 +71,12 @@ final readonly class RequestWork implements Action
     public static function traits(): ActionTraits
     {
         return new ActionTraits(countsTowardLimit: true, refreshesFacts: true);
+    }
+
+    #[\Override]
+    public static function retriesWhileTrue(array $params): bool
+    {
+        return 'retry' === ($params['stillTrue'] ?? null);
     }
 
     #[\Override]

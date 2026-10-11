@@ -10,11 +10,12 @@ use App\Module\Account\Entity\User;
 use App\Module\OAuth\Command\ListConnectedAppsCommand;
 use App\Module\OAuth\Command\ListConnectedAppsHandler;
 use App\Module\OAuth\Scope\ApiScope;
+use App\Module\OAuth\Twig\PreviewSignInExtension;
 use Symfony\Component\DependencyInjection\Attribute\AsTaggedItem;
 
 /**
  * OAuth's contribution to the admin user detail page: the apps the user has
- * connected, and what each one reaches.
+ * connected, what each one reaches, and the live preview tokens.
  *
  * The panel always renders, empty state included, because "this account has
  * connected nothing" is the answer an admin most often wants and an absent
@@ -35,8 +36,10 @@ final readonly class ConnectedAppsAdminUserPanel implements AdminUserPanelInterf
     #[\Override]
     public function panelFor(User $user): AdminUserPanel
     {
+        $view = ($this->listConnectedApps)(new ListConnectedAppsCommand($user));
+
         $apps = [];
-        foreach (($this->listConnectedApps)(new ListConnectedAppsCommand($user))->apps as $app) {
+        foreach ($view->apps as $app) {
             $grants = [];
             foreach ($app->grants as $grant) {
                 $grants[] = [
@@ -51,6 +54,17 @@ final readonly class ConnectedAppsAdminUserPanel implements AdminUserPanelInterf
             $apps[] = ['name' => $app->clientName, 'grants' => $grants];
         }
 
-        return new AdminUserPanel('@OAuth/admin/connected_apps_panel.html.twig', ['apps' => $apps]);
+        $previewTokens = [];
+        foreach ($view->previewTokens as $token) {
+            $previewTokens[] = [
+                'label' => $token->label,
+                'cardNumber' => $token->cardNumber,
+                'cardTitle' => $token->cardTitle,
+                'project' => $token->projectName,
+                'daysLeft' => PreviewSignInExtension::daysLeft($token->expiresAt),
+            ];
+        }
+
+        return new AdminUserPanel('@OAuth/admin/connected_apps_panel.html.twig', ['apps' => $apps, 'previewTokens' => $previewTokens]);
     }
 }
