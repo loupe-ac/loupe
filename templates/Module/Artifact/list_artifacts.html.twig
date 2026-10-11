@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'artifact.list.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <a class="lp-topbar__crumb" href="{{ path('app_project_artifacts', {id: project.id}) }}">{{ project.name }}</a>
+    <span class="lp-topbar__sep">/</span>
+    <span class="lp-topbar__here">{{ 'nav.link.artifacts'|trans }}</span>
+{% endblock %}
+
+{% block body %}
+<div class="lp-workspace lp-artifact-library">
+    <header class="lp-artifact-library__header">
+        <div class="lp-page-header__copy">
+            <h1 class="lp-workspace-title lp-workspace-title--doc">{{ 'artifact.list.heading'|trans }}</h1>
+            <p class="lp-workspace-desc">{{ 'artifact.list.description'|trans }}</p>
+        </div>
+        {% if includeArchived %}
+            <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_project_artifacts', {id: project.id}) }}" data-artifact-archived-toggle>{{ 'artifact.list.hide_archived'|trans }}</twig:Ds:Button>
+        {% else %}
+            <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_project_artifacts', {id: project.id, archived: 1}) }}" data-artifact-archived-toggle>{{ 'artifact.list.show_archived'|trans }}</twig:Ds:Button>
+        {% endif %}
+    </header>
+
+    {% if items is empty %}
+        <twig:Ds:EmptyState data-artifact-empty icon="lucide:package" :title="'artifact.list.empty.title'|trans" :body="'artifact.list.empty.body'|trans" />
+    {% else %}
+        <twig:DataTable modifier="artifacts" :columns="[
+            {label: 'artifact.list.column.name'|trans},
+            {label: 'artifact.list.column.version'|trans},
+            {label: 'artifact.list.column.cards'|trans, align: 'end'},
+            {label: 'artifact.list.column.stored_by'|trans},
+            {label: 'artifact.list.column.stored'|trans},
+        ]">
+            {% for item in items %}
+            <div class="lp-data-table__row" data-artifact-id="{{ item.artifact.id }}">
+                <div class="lp-data-table__cell lp-data-table__primary">
+                    <a class="lp-data-table__target" href="{{ path('app_project_artifact', {id: project.id, artifactId: item.artifact.id}) }}">
+                        <span class="lp-data-table__title">{{ item.artifact.name }}</span>
+                    </a>
+                    {% if item.artifact.archivedAt is not null %}<twig:Ds:Tag tone="neutral" data-artifact-archived>{{ 'artifact.list.archived'|trans }}</twig:Ds:Tag>{% endif %}
+                </div>
+                <span class="lp-data-table__cell" data-artifact-version>{{ 'artifact.viewer.version'|trans({'%number%': item.latest.number}) }}</span>
+                <span class="lp-data-table__cell lp-data-table__cell--end" data-artifact-card-count>{{ item.linkedCardCount }}</span>
+                <span class="lp-data-table__cell" data-artifact-stored-by>{% include '@Artifact/_stored_by.html.twig' with {version: item.latest} only %}</span>
+                <span class="lp-data-table__cell"><time datetime="{{ item.latest.createdAt|date('c') }}" title="{{ item.latest.createdAt|date('Y-m-d H:i:s T') }}">{{ item.latest.createdAt|relative_time }}</time></span>
+            </div>
+            {% endfor %}
+        </twig:DataTable>
+    {% endif %}
+</div>
+{% endblock %}

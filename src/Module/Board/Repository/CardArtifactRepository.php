@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Repository;
 
+use App\Module\Artifact\Entity\Artifact;
 use App\Module\Artifact\Entity\ArtifactVersion;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardArtifact;
@@ -50,5 +51,46 @@ class CardArtifactRepository extends ServiceEntityRepository
         }
 
         return $byCard;
+    }
+
+    /**
+     * @param list<Artifact> $artifacts
+     *
+     * @return array<string, int> keyed by artifact id; an artifact with no link is absent
+     */
+    public function countByArtifacts(array $artifacts): array
+    {
+        if ([] === $artifacts) {
+            return [];
+        }
+
+        /** @var list<array{id: mixed, total: mixed}> $rows */
+        $rows = $this->createQueryBuilder('link')
+            ->select('IDENTITY(link.artifact) AS id, COUNT(link.id) AS total')
+            ->where('link.artifact IN (:artifacts)')
+            ->setParameter('artifacts', $artifacts)
+            ->groupBy('link.artifact')
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(string) $row['id']] = (int) $row['total'];
+        }
+
+        return $counts;
+    }
+
+    /** @return list<CardArtifact> with the card loaded, in card number order */
+    public function findByArtifact(Artifact $artifact): array
+    {
+        return array_values($this->createQueryBuilder('link')
+            ->addSelect('card')
+            ->join('link.card', 'card')
+            ->where('link.artifact = :artifact')
+            ->setParameter('artifact', $artifact)
+            ->orderBy('card.number', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 }

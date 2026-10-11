@@ -6,7 +6,6 @@ namespace App\Tests\Module\Artifact\Controller;
 
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Artifact\Entity\ArtifactVersion;
-use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
 use App\Module\Board\Entity\Card;
@@ -265,16 +264,6 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $this->em()->flush();
 
         return $card;
-    }
-
-    /** @param non-empty-string $email */
-    private function switchedOnProject(string $email): Project
-    {
-        $em = $this->em();
-        $project = $this->project($em, $email, 'Artifacts');
-        $em->getConnection()->executeStatement("UPDATE feature_flag SET value = 'true' WHERE name = ?", [ArtifactInstallFlags::FLAG_ENABLED]);
-
-        return $project;
     }
 
     private function token(Project $project): string
