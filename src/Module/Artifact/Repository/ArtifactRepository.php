@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Repository;
 
-use App\Module\Artifact\Entity\Artifact;
 use App\Module\Account\Entity\User;
+use App\Module\Artifact\Entity\Artifact;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;

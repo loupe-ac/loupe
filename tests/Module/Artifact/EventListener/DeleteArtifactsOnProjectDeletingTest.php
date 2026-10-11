@@ -7,6 +7,7 @@ namespace App\Tests\Module\Artifact\EventListener;
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Artifact\EventListener\DeleteArtifactsOnProjectDeleting;
 use App\Module\Artifact\Repository\ArtifactBlobRepository;
+use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardArtifact;
 use App\Module\Project\Entity\Project;
@@ -51,7 +52,9 @@ final class DeleteArtifactsOnProjectDeletingTest extends KernelTestCase
         $this->seedColumns($doomed);
         $card = new Card(project: $doomed, column: $this->column($doomed, 'backlog'), title: 'Ship it', body: 'Body', number: 1);
         $em->persist($card);
-        $artifact = $em->getRepository(Artifact::class)->findOneBy(['project' => $doomed]);
+        $artifacts = self::getContainer()->get(ArtifactRepository::class);
+        self::assertInstanceOf(ArtifactRepository::class, $artifacts);
+        $artifact = $artifacts->findOneBy(['project' => $doomed]);
         self::assertInstanceOf(Artifact::class, $artifact);
         $em->persist(new CardArtifact($card, $artifact));
         $em->flush();
