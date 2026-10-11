@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Artifact\Repository;
 
 use App\Module\Artifact\Entity\Artifact;
+use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -35,6 +36,53 @@ class ArtifactRepository extends ServiceEntityRepository
         }
 
         return array_values($builder->getQuery()->getResult());
+    }
+
+    /**
+     * Every artifact in the projects the user owns, archived ones included.
+     *
+     * @return list<Artifact>
+     */
+    public function findByProjectOwner(User $owner): array
+    {
+        return array_values($this->createQueryBuilder('a')
+            ->join('a.project', 'p')
+            ->andWhere('p.owner = :owner')
+            ->setParameter('owner', $owner)
+            ->orderBy('a.createdAt', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
+     * Archived artifacts are not counted.
+     *
+     * @param list<Project> $projects
+     *
+     * @return array<string, int> keyed by project id; a project with no artifact is absent
+     */
+    public function countByProjects(array $projects): array
+    {
+        if ([] === $projects) {
+            return [];
+        }
+
+        /** @var list<array{id: mixed, total: mixed}> $rows */
+        $rows = $this->createQueryBuilder('a')
+            ->select('IDENTITY(a.project) AS id, COUNT(a.id) AS total')
+            ->andWhere('a.project IN (:projects)')
+            ->andWhere('a.archivedAt IS NULL')
+            ->setParameter('projects', $projects)
+            ->groupBy('a.project')
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(string) $row['id']] = (int) $row['total'];
+        }
+
+        return $counts;
     }
 
     /** Scoped to the project, so an id cannot reach the artifact of another project. */

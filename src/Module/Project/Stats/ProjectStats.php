@@ -18,6 +18,7 @@ final readonly class ProjectStats
         public int $openCardCount = 0,
         public int $openInboxItemCount = 0,
         public int $completedCardCount = 0,
+        public int $artifactCount = 0,
     ) {
     }
 
@@ -30,6 +31,7 @@ final readonly class ProjectStats
             $this->openCardCount + $other->openCardCount,
             $this->openInboxItemCount + $other->openInboxItemCount,
             $this->completedCardCount + $other->completedCardCount,
+            $this->artifactCount + $other->artifactCount,
         );
     }
 }
