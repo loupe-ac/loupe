@@ -9,6 +9,7 @@ use App\Module\AgentReview\Workflow\AgentReviewFacts;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
@@ -22,6 +23,7 @@ use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Module\Workflow\Template\UnknownTemplate;
 use App\Tests\Module\Workflow\Fact\FactsMother;
+use App\Tests\Module\Workflow\Fact\RunInputs;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Translation\TranslatorBagInterface;
@@ -163,6 +165,31 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContains('fix-agent-review'.$suffix, $this->firingRuleIds($facts));
     }
 
+    /** @return iterable<string, array{string, list<string>, bool}> */
+    public static function activeWorkDuringReview(): iterable
+    {
+        foreach (['implementation', 'in-review'] as $slot) {
+            yield $slot.', implement work runs' => [$slot, ['implement'], false];
+            yield $slot.', fix work runs' => [$slot, ['fix'], false];
+            yield $slot.', sync work runs' => [$slot, ['sync'], false];
+            yield $slot.', rebase work runs' => [$slot, ['rebase-stacked'], false];
+            yield $slot.', its own review runs' => [$slot, ['review'], true];
+            yield $slot.', other work runs' => [$slot, ['merge'], true];
+        }
+    }
+
+    /** @param list<string> $activeWorkKinds */
+    #[DataProvider('activeWorkDuringReview')]
+    public function test_a_head_waits_for_its_review_until_work_that_pushes_to_its_branch_ends(string $slot, array $activeWorkKinds, bool $asks): void
+    {
+        $facts = self::withAgentReview($slot, [null], activeWorkKinds: $activeWorkKinds);
+        $ruleId = 'agent-review'.('in-review' === $slot ? '-in-review' : '');
+        $rule = array_find($this->lifecycle()->rulesFor($slot), static fn ($rule): bool => $ruleId === $rule->id);
+
+        self::assertNotNull($rule);
+        self::assertSame($asks, $rule->when->evaluate($facts));
+    }
+
     #[DataProvider('reviewSlots')]
     public function test_a_failed_agent_review_asks_for_a_fix_with_its_own_reason_and_limit(string $slot): void
     {
@@ -240,8 +267,11 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], epicBranch: true)));
     }
 
-    /** @param list<AgentReviewConclusion|null> $conclusions the newest review conclusion of each open pull request head */
-    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false): Facts
+    /**
+     * @param list<AgentReviewConclusion|null> $conclusions     the newest review conclusion of each open pull request head
+     * @param list<string>                     $activeWorkKinds
+     */
+    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = []): Facts
     {
         $id = Uuid::v7();
         $heads = array_map(static fn (?AgentReviewConclusion $conclusion): ReviewedHead => new ReviewedHead((string) $id, str_repeat('a', 40), $conclusion), $conclusions);
@@ -249,6 +279,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         return FactsMother::facts(
             card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
             pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, approvalsCoveringHead: $approvals, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id),
+            run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
             provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false)],
         );
     }
@@ -528,6 +559,24 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContainsEquals($toTerminal, $this->actions(FactsMother::facts(card: $epic, pullRequest: $merged, pullRequests: [$merged], run: $open)));
         self::assertContainsEquals($toTerminal, $this->actions(FactsMother::facts(card: $epic, pullRequest: $merged, pullRequests: [$merged])));
         self::assertContainsEquals($toTerminal, $this->actions(FactsMother::facts(card: $feature, pullRequest: $merged, pullRequests: [$merged], run: $open)));
+    }
+
+    public function test_an_implement_run_that_finished_with_no_code_moves_only_a_card_with_no_pull_request_and_no_live_work(): void
+    {
+        $finished = static fn (string $reason, bool $live = false): RunInputs => FactsMother::run(activeWorkKinds: $live ? ['implement'] : [], latestWorkState: WorkRequestState::Done, latestWorkKind: 'implement', latestWorkReason: $reason);
+        $feature = FactsMother::card(slot: 'implementation');
+        $pullRequest = FactsMother::pullRequest();
+
+        self::assertSame(['nothing-to-build'], array_values(array_intersect($this->firingRuleIds(FactsMother::facts(card: $feature, run: $finished('nothing-to-build'))), ['nothing-to-build', 'delivered-without-code'])));
+        self::assertSame(['delivered-without-code'], array_values(array_intersect($this->firingRuleIds(FactsMother::facts(card: $feature, run: $finished('delivered-without-code'))), ['nothing-to-build', 'delivered-without-code'])));
+        foreach ([
+            'an epic' => FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic'), run: $finished('nothing-to-build')),
+            'a linked pull request' => FactsMother::facts(card: $feature, pullRequest: $pullRequest, pullRequests: [$pullRequest], run: $finished('nothing-to-build')),
+            'live work' => FactsMother::facts(card: $feature, run: $finished('nothing-to-build', live: true)),
+            'another slot' => FactsMother::facts(card: FactsMother::card(slot: 'in-review'), run: $finished('nothing-to-build')),
+        ] as $case => $facts) {
+            self::assertSame([], array_values(array_intersect($this->firingRuleIds($facts), ['nothing-to-build', 'delivered-without-code'])), $case);
+        }
     }
 
     /** @param list<string> $pair */

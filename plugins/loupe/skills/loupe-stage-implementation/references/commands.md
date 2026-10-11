@@ -8,16 +8,33 @@
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`.
 3. Pick the forge adapter as the next section says.
 
-The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write a plan, and run the plan task by task.
+The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold an optional `Forge` section with one value, the forge name, such as `github`. A missing `Forge` section blocks nothing. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write a plan, and run the plan task by task.
 
 ## Pick the forge adapter
 
 The stage skills name forge operations. An adapter file maps them to commands for one forge. The operations are these: find and validate a pull request, list feedback items, reply to a thread, post a top-level comment, and post a refusal comment. Also read checks and failed logs, create a pull request, and check mergeability. The merge stage adds five more: read the merge state, check the approval covers the head, compare with the base, update the branch, and merge.
 
-1. Read the forge from `pullRequests[].forge` in `card_get`: `github`, `gitlab`, `bitbucket` or `other`.
-2. Before a pull request exists, read the host of `git remote get-url origin`. `github.com` is `github`, a `gitlab` host is `gitlab`, `bitbucket.org` is `bitbucket`, and any other host is `other`.
-3. Read `forges/<forge>.md` in this directory.
-4. When no such file exists, stop with `STAGE RESULT: blocked: no forge adapter for <forge>`.
+1. When the profile has a `Forge` section, its value is the forge. Take no other source.
+2. Otherwise read the forge from `pullRequests[].forge` in `card_get`: `github`, `gitlab`, `bitbucket` or `other`. The app stores `other` for every link it cannot parse, so `other` names no forge. Go on to item 3.
+3. Otherwise read the host of `git remote get-url origin`. `github.com` is `github`, a `gitlab` host is `gitlab`, `bitbucket.org` is `bitbucket`, and any other host is `other`.
+4. Read `forges/<forge>.md` in this directory.
+5. When no such file exists, stop with `STAGE RESULT: blocked: no forge adapter for <forge>`. A repository on a self-hosted forge names it in the profile `Forge` section.
+
+### Report words
+
+Each read section of a forge file ends with a Report line. It translates the values of that forge into the words below. A stage skill reads these words only, and never a value that belongs to one forge.
+
+| Word | Values |
+|---|---|
+| state | `open`, `merged`, `closed` |
+| draft | `yes`, `no` |
+| review | `approved`, `changes-requested`, `required`, `none` |
+| checks | `passed`, `failed`, `pending` |
+| mergeability | `mergeable`, `conflicting`, `behind`, `blocked`, `unknown` |
+| behind count | a number, from "Compare with the base" |
+| approval | `COVERED`, `HOLD <reason>`, `UNREAD: <reason>` |
+
+Every approval script of a forge prints the same three result lines: `COVERED`, `HOLD` and `UNREAD`.
 
 ## Column check
 
@@ -114,6 +131,28 @@ Then write the changelog entry that the profile `Changelog` section names, run i
 ## After the push
 
 The stage ends at the push. The app reads the pull request again after each push, so no stage waits for CI. A failed check or a conflict reaches a fix round as a fix request. Green checks move the card, and an approved pull request with green checks reaches the merge stage. Report `waiting`, and name the pull request URL.
+
+## Finish without code
+
+A card can end its implementation with no pull request. The worker reports the finish, and a workflow rule moves the card to the terminal column. The worker never moves the card itself. Two cases exist, and each has its own form:
+
+1. Nothing to build. An answered decision of the tech design removes all the work of the card, or of the Breakdown entry of a child. An example is a note such as "no detector" on the only decision of the card.
+2. Delivered without code. The card asks only for a document, such as a measurement or a report, and no code change.
+
+Use this section only when the case is clear from the design, its answers and the card body. When some work remains, build it from step 6. When you are not sure, record the block and stop with `STAGE RESULT: blocked: unsure whether the card has code to build`.
+
+For a card with nothing to build:
+
+1. Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final line: `Nothing to build: <decision id> (<answer>) removed the work.`
+2. Stop with `STAGE RESULT: nothing to build [reason: nothing-to-build]`, and the structured status `finished`.
+
+For a card delivered without code:
+
+1. Write the document as `loupe-documents` says, and link it to the card (contract rule 5).
+2. Read the card with `card_get`. Send its whole `body` back with `card_update`, plus one final line: `Delivered without code: <document title>.`
+3. Stop with `STAGE RESULT: delivered without code <document review url> [reason: delivered-without-code]`, and the structured status `finished`.
+
+Both forms create no branch, no commit and no pull request. A card that links a pull request never takes this section, because the rules that move the card wait for a card with no pull request.
 
 ## Record a block
 
