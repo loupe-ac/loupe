@@ -304,9 +304,10 @@ final readonly class Engine
             }
 
             if ($repair) {
-                $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule): void {
+                $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule, $bound): void {
                     $state->lastRefusal = self::REPAIR_FAILED;
                     $state->lastRefusalAt = $run->now;
+                    $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
                     $this->pause($run, PauseKind::Retries, self::REPAIR_FAILED, $rule->id);
                 });
                 continue;
@@ -348,6 +349,8 @@ final readonly class Engine
     {
         $state->lastRefusal = $code;
         $state->lastRefusalAt = $run->now;
+        // The facts at the refusal, so a request that was open at the last pass does not count as a change.
+        $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
         if (!$policy->retries($code)) {
             $this->pause($run, PauseKind::WorkStopped, $code, $rule->id);
 
@@ -387,6 +390,7 @@ final readonly class Engine
     private function settleWorkRequests(Evaluation $run, Uuid $cardId, bool $expire = true): void
     {
         $withdrawn = false;
+        $expired = [];
         foreach ($this->ledger->live($cardId) as $request) {
             $requestId = $request->id;
             $rule = $run->rule($request->ruleId);
@@ -404,6 +408,7 @@ final readonly class Engine
                 $repair = null !== $state && $state->repaired && null !== $state->workRequestId && $state->workRequestId->equals($requestId);
                 if ($repair || 'expire' !== ActionParams::optionalString($rule, 'onTimeout')) {
                     $this->pause($run, PauseKind::WorkTimeout, self::NO_BRIDGE_TOOK_WORK, $rule->id);
+                    $expired[$rule->id] = $rule;
                 }
             }
         }
@@ -411,6 +416,12 @@ final readonly class Engine
         if ($withdrawn) {
             // The first build of the pass logged its failed sources already.
             $run->facts = $this->facts($run->card, $run->now, $run->facts);
+        }
+        // The facts after the expiry, so the closed request does not end the pause it made.
+        foreach ($expired as $rule) {
+            $this->write($run, $this->state($run, $rule), function (WorkflowRuleState $state) use ($run, $rule): void {
+                $state->fingerprint = $this->fingerprint->of($this->ruleSubject->bind($rule, $run->facts)->facts, $rule->when->reads());
+            });
         }
     }
 
