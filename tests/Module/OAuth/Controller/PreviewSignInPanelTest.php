@@ -28,7 +28,7 @@ final class PreviewSignInPanelTest extends WebTestCase
         $cardId = $this->cardOf($this->project);
         $id = $this->mint('pr-12', $cardId);
         $this->connection->executeStatement(
-            "UPDATE oauth_preview_tokens SET last_used_at = NOW() - INTERVAL '2 hours' WHERE access_token_id = :id",
+            "UPDATE oauth_preview_tokens SET last_used_at = NOW() - INTERVAL '150 minutes' WHERE access_token_id = :id",
             ['id' => $id],
         );
 
