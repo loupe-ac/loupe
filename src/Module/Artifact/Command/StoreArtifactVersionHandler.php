@@ -142,7 +142,8 @@ final readonly class StoreArtifactVersionHandler
             return ['files' => 'artifact.error.no_files'];
         }
 
-        if (\count($files) > $this->featureFlags->getIntValue(ArtifactInstallFlags::FLAG_MAX_FILES, ArtifactInstallFlags::DEFAULT_MAX_FILES)) {
+        $maxFiles = min($this->featureFlags->getIntValue(ArtifactInstallFlags::FLAG_MAX_FILES, ArtifactInstallFlags::DEFAULT_MAX_FILES), ArtifactInstallFlags::CEILING_MAX_FILES);
+        if (\count($files) > $maxFiles) {
             return ['files' => 'artifact.error.too_many_files'];
         }
 
@@ -164,7 +165,8 @@ final readonly class StoreArtifactVersionHandler
             $bytes += \strlen($file->contents);
         }
 
-        if ($bytes > $this->featureFlags->getIntValue(ArtifactInstallFlags::FLAG_MAX_VERSION_BYTES, ArtifactInstallFlags::DEFAULT_MAX_VERSION_BYTES)) {
+        $maxBytes = min($this->featureFlags->getIntValue(ArtifactInstallFlags::FLAG_MAX_VERSION_BYTES, ArtifactInstallFlags::DEFAULT_MAX_VERSION_BYTES), ArtifactInstallFlags::CEILING_MAX_VERSION_BYTES);
+        if ($bytes > $maxBytes) {
             return ['files' => 'artifact.error.too_large'];
         }
 

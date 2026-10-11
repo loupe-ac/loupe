@@ -18,6 +18,10 @@ final readonly class ArtifactInstallFlags implements InstallFlagDefaultsInterfac
     public const int DEFAULT_MAX_VERSION_BYTES = 5 * 1024 * 1024;
     public const int DEFAULT_MAX_FILES = 50;
 
+    // The web server refuses a body above 8 MiB and PHP keeps 100 uploads, so a higher flag cannot take effect.
+    public const int CEILING_MAX_VERSION_BYTES = 7 * 1024 * 1024;
+    public const int CEILING_MAX_FILES = 100;
+
     #[\Override]
     public function defaults(SeedInstallFlagsCommand $command): iterable
     {

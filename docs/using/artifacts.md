@@ -29,7 +29,9 @@ Two more flags on the same page set the limits for one stored version.
 | `artifacts.max_files` | 50 | The number of files in one version |
 
 A request that goes over a limit gets a 422 answer and stores nothing. The web
-server also refuses a request body of more than 8 MiB, whatever the flag says.
+server refuses a request body of more than 8 MiB, so Loupe caps
+`artifacts.max_version_bytes` at 7 MiB and `artifacts.max_files` at 100. A
+higher value in a flag has no effect.
 
 Each file path must be relative. It has no empty segment, no `.` or `..`
 segment, no backslash, and no control character. It has at most 1024 characters.

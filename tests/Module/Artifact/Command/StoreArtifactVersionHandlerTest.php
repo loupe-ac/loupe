@@ -208,6 +208,22 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         self::assertCount(2, $version->files);
     }
 
+    public function test_a_file_flag_above_the_ceiling_still_refuses_more_files_than_the_ceiling(): void
+    {
+        $project = $this->setUpProject('store-many-ceiling@example.com');
+        $files = array_map(static fn (int $i) => new ArtifactFileInput("f{$i}.html", 'x', 'text/html'), range(0, ArtifactInstallFlags::CEILING_MAX_FILES));
+
+        $this->assertRefused($project, ['files' => 'artifact.error.too_many_files'], name: 'Widget tokens', files: $files, flags: [ArtifactInstallFlags::FLAG_MAX_FILES => 1000]);
+    }
+
+    public function test_a_size_flag_above_the_ceiling_still_refuses_a_version_larger_than_the_ceiling(): void
+    {
+        $project = $this->setUpProject('store-big-ceiling@example.com');
+        $files = [new ArtifactFileInput('a.bin', str_repeat('x', ArtifactInstallFlags::CEILING_MAX_VERSION_BYTES + 1), 'application/octet-stream')];
+
+        $this->assertRefused($project, ['files' => 'artifact.error.too_large'], name: 'Widget tokens', files: $files, flags: [ArtifactInstallFlags::FLAG_MAX_VERSION_BYTES => 100 * 1024 * 1024]);
+    }
+
     /** @return iterable<string, array{string}> */
     public static function unsafePaths(): iterable
     {
