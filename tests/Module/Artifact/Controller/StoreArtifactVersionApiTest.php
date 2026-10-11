@@ -9,12 +9,14 @@ use App\Module\Artifact\Entity\ArtifactVersion;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
+use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Artifact\ArtifactScenario;
+use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -26,6 +28,7 @@ use Symfony\Component\Uid\Uuid;
 final class StoreArtifactVersionApiTest extends WebTestCase
 {
     use ArtifactScenario;
+    use BoardColumnFixtures;
 
     /** @var list<string> */
     private array $tempFiles = [];
@@ -222,6 +225,46 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $this->post($client, $project, $token, ['name' => 'Two', 'paths' => ['a.html']], ['a.html' => 'a']);
         self::assertResponseStatusCodeSame(429);
         self::assertSame(1, $this->artifactRepository()->count([]));
+    }
+
+    public function test_it_links_the_artifact_to_the_card_it_names_and_a_second_push_adds_no_link(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('route-card@example.com');
+        $card = $this->card($project);
+        $token = $this->token($project);
+
+        $this->post($client, $project, $token, ['name' => 'Widget tokens', 'card' => (string) $card->number, 'paths' => ['a.html']], ['a.html' => 'v1']);
+        self::assertResponseStatusCodeSame(201);
+        $artifactId = $this->json($client)['artifactId'];
+        $this->post($client, $project, $token, ['artifactId' => $artifactId, 'card' => (string) $card->id, 'paths' => ['a.html']], ['a.html' => 'v2']);
+        self::assertResponseStatusCodeSame(201);
+
+        $rows = $this->em()->getConnection()->fetchAllAssociative('SELECT card_id, artifact_id FROM board_card_artifacts');
+        self::assertSame([['card_id' => (string) $card->id, 'artifact_id' => $artifactId]], $rows);
+    }
+
+    public function test_it_refuses_a_card_that_is_not_in_the_project_and_stores_nothing(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('route-card-refused@example.com');
+        $token = $this->token($project);
+
+        $this->post($client, $project, $token, ['name' => 'X', 'card' => '99', 'paths' => ['a.html']], ['a.html' => 'a']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertArrayHasKey('card', $this->json($client)['errors']);
+        self::assertSame(0, $this->artifactRepository()->count([]));
+    }
+
+    private function card(Project $project): Card
+    {
+        $this->seedColumns($project);
+        $card = new Card($project, $this->column($project, 'backlog'), 'Prototype', 'Body', 1);
+        $this->em()->persist($card);
+        $this->em()->flush();
+
+        return $card;
     }
 
     /** @param non-empty-string $email */

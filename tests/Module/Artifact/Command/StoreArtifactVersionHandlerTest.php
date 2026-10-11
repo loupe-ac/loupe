@@ -13,6 +13,7 @@ use App\Module\Artifact\Entity\ArtifactVersion;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactBlobRepository;
 use App\Module\Artifact\Repository\ArtifactRepository;
+use App\Module\Artifact\Service\ArtifactCardLinksInterface;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -317,6 +318,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             self::getContainer()->get(ArtifactBlobRepository::class),
             self::getContainer()->get(WorkerRunRepository::class),
             FeatureFlags::service($flags),
+            self::getContainer()->get(ArtifactCardLinksInterface::class),
             $this->em(),
             $this->audit->auditor,
         );

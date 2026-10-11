@@ -10,6 +10,7 @@ use App\Module\Artifact\Entity\ArtifactVersion;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Repository\ArtifactBlobRepository;
 use App\Module\Artifact\Repository\ArtifactRepository;
+use App\Module\Artifact\Service\ArtifactCardLinksInterface;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\DBAL\LockMode;
@@ -32,6 +33,7 @@ final readonly class StoreArtifactVersionHandler
         private ArtifactBlobRepository $artifactBlobs,
         private WorkerRunRepository $workerRuns,
         private FeatureFlagService $featureFlags,
+        private ArtifactCardLinksInterface $cardLinks,
         private EntityManagerInterface $em,
         private Auditor $auditor,
     ) {
@@ -76,13 +78,18 @@ final readonly class StoreArtifactVersionHandler
             }
         }
 
+        $card = trim($command->card ?? '');
+        if ('' !== $card && !$this->cardLinks->cardExists($project, $card)) {
+            $errors['card'] = 'artifact.error.card_not_found';
+        }
+
         $errors += $this->fileErrors($command->files);
 
         if ([] !== $errors) {
             throw new DomainErrors($errors);
         }
 
-        $version = $this->em->wrapInTransaction(function () use ($command, $project, $existing, $session): ArtifactVersion {
+        $version = $this->em->wrapInTransaction(function () use ($command, $project, $existing, $session, $card): ArtifactVersion {
             if (null !== $existing) {
                 // The lock makes two stores at once take turns. No refresh: Doctrine cannot refresh the readonly
                 // properties, and the lazy version list loads after the lock, so the next number is current.
@@ -99,6 +106,10 @@ final readonly class StoreArtifactVersionHandler
             }
             $this->em->persist($version);
             $this->em->flush();
+            if ('' !== $card) {
+                $this->cardLinks->link($project, $card, $artifact);
+                $this->em->flush();
+            }
 
             return $version;
         });
@@ -112,6 +123,7 @@ final readonly class StoreArtifactVersionHandler
                 'versionNumber' => $version->number,
                 'fileCount' => \count($command->files),
                 'bySession' => null !== $session,
+                'linkedToCard' => '' !== $card,
             ],
             new AuditSubject('artifact', (string) $version->artifact->id),
         );

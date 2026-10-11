@@ -88,6 +88,7 @@ final class StoreArtifactVersionController extends AppController
                 sourceLink: $payload->sourceLink,
                 sessionId: $request->headers->get(self::SESSION_HEADER),
                 files: $inputs,
+                card: $payload->card,
             ));
         } catch (DomainErrors $error) {
             if (isset($error->errors['project'])) {

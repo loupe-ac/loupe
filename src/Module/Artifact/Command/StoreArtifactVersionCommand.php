@@ -21,6 +21,8 @@ final readonly class StoreArtifactVersionCommand
         /** The session id the CLI sent. Null means a person stored it with no session. */
         public ?string $sessionId,
         public array $files,
+        /** The id or the number of a card of the project to link the artifact to. Null links none. */
+        public ?string $card = null,
     ) {
     }
 }

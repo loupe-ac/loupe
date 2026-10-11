@@ -20,6 +20,9 @@ final readonly class StoreArtifactVersionRequest
         #[Assert\Length(max: 2000)]
         public ?string $sourceLink = null,
         public array $paths = [],
+
+        #[Assert\Length(max: 36)]
+        public ?string $card = null,
     ) {
     }
 }
