@@ -165,6 +165,29 @@ final class AnnounceStuckPullRequestsHandlerTest extends KernelTestCase
         self::assertNull($this->reload($row)->stuckAnnouncedFor);
     }
 
+    public function test_a_quiet_pull_request_whose_delay_just_ended_refreshes_its_card(): void
+    {
+        $card = $this->stateCard($this->stateProject('announce-quiet'));
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($card, '-17 minutes');
+
+        self::assertSame(1, $this->announce());
+        self::assertSame([(string) $card->id], $this->changedCardIds());
+    }
+
+    public function test_a_quiet_pull_request_is_left_alone_inside_the_delay_and_after_the_window(): void
+    {
+        $project = $this->stateProject('announce-quiet-bounds');
+        $fresh = $this->stateCard($project);
+        $this->linkPullRequest($fresh, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($fresh, '-5 minutes');
+        $old = $this->stateCard($project);
+        $this->linkPullRequest($old, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($old, '-2 hours');
+
+        self::assertSame(0, $this->announce());
+    }
+
     private function ready(Card $card, string $since): ForgePullRequest
     {
         return $this->linkPullRequest($card, [

@@ -189,7 +189,7 @@ is in a state. The mark says what the card needs now:
 
 | State | Means |
 |---|---|
-| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge rule matches it |
+| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result, a pull request has failed checks or a conflict and no fix is under way, a pull request has been ready to merge for longer than the stuck delay and no merge rule matches it, or an open pull request in Implementation or In review has had no card history for longer than the stuck delay and no other reason applies. A pull request that waits for its parent, or whose checks still run, never shows this. The remedy is to read the card history |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
 | **Working** | Work waits for a bridge to take it, a worker runs on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
 | **Waiting** | A card that blocks this card is still open |
@@ -809,7 +809,7 @@ the work instead, as its template says.
 | Setting | Default | Does |
 |---|---|---|
 | **Run the workflow of the board** | on | When off, the workflow moves no card and asks for no work on this board. Loupe still records the pull request facts |
-| **Stuck delay in minutes** | 15 | The minutes a pull request may stay ready to merge before its card shows **Stuck**, from 1 to 1440 |
+| **Stuck delay in minutes** | 15 | The minutes a pull request may stay ready to merge, or stay quiet with no card history, before its card shows **Stuck**, from 1 to 1440 |
 
 The epic branch pattern, the loop limit of the fix rules and the comments are
 part of the workflow template. The `epicBranch` value of the template names the
@@ -973,7 +973,7 @@ Every card row carries `state`. It is null for a card in no state and for a card
 in a terminal column. Otherwise it holds `kind` (`stuck`, `needs-you`, `working`
 or `waiting`), `code`, and `since`. `code` names the reason, such as `paused`,
 `run-stopped`, `checks-failed`, `conflicting`, `ready-not-merged`,
-`document-in-review`, `waits-for-approval`, `open-question`, `run-open`,
+`pull-request-idle`, `document-in-review`, `waits-for-approval`, `open-question`, `run-open`,
 `work-requested`, `forge-request-pending` or `held-by-blocker`. `since` is the
 time that reason began, or null when Loupe stores none. `card_get`,
 `card_list` with `full`, `card_create`, `card_update` and `card_run_open` also

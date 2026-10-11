@@ -6735,6 +6735,7 @@
             <trans-unit id="board.card_state.duration.hours"><source>board.card_state.duration.hours</source><target>%count% h</target></trans-unit>
             <trans-unit id="board.card_state.duration.day"><source>board.card_state.duration.day</source><target>1 d</target></trans-unit>
             <trans-unit id="board.card_state.duration.days"><source>board.card_state.duration.days</source><target>%count% d</target></trans-unit>
+            <trans-unit id="board.card_state.remedy.pull_request_idle"><source>board.card_state.remedy.pull_request_idle</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.ready_not_merged"><source>board.card_state.remedy.ready_not_merged</source><target>Merge the pull request, or change the card so that a merge rule of its column matches it.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.document_in_review"><source>board.card_state.remedy.document_in_review</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.waits_for_approval"><source>board.card_state.remedy.waits_for_approval</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
@@ -6752,6 +6753,7 @@
             <trans-unit id="board.card_state.reason.run_stopped"><source>board.card_state.reason.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
             <trans-unit id="board.card_state.reason.checks_failed"><source>board.card_state.reason.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
             <trans-unit id="board.card_state.reason.conflicting"><source>board.card_state.reason.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>
+            <trans-unit id="board.card_state.reason.pull_request_idle"><source>board.card_state.reason.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
             <trans-unit id="board.card_state.reason.ready_not_merged"><source>board.card_state.reason.ready_not_merged</source><target>Pull request #%number% is ready to merge, and no merge rule matches it.</target></trans-unit>
             <trans-unit id="board.card_state.reason.document_in_review"><source>board.card_state.reason.document_in_review</source><target>The document "%title%" waits for your review.</target></trans-unit>
             <trans-unit id="board.card_state.reason.waits_for_approval"><source>board.card_state.reason.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
@@ -7151,7 +7153,7 @@
             </trans-unit>
             <trans-unit id="board.form.save_board_automation_settings_form.stuck_delay_minutes.help">
                 <source>board.form.save_board_automation_settings_form.stuck_delay_minutes.help</source>
-                <target>How long a ready pull request may wait for a merge before its card shows Stuck on the board. Use a number from 1 to 1440.</target>
+                <target>How long a pull request may wait for a merge or for any card change before its card shows Stuck on the board. Use a number from 1 to 1440.</target>
             </trans-unit>
             <trans-unit id="board.automation.comment_failure.summary">
                 <source>board.automation.comment_failure.summary</source>

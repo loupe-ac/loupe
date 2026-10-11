@@ -14,7 +14,7 @@ use Mcp\Exception\ToolCallException;
 /**
  * @phpstan-type AutomationSettingsSummary array{enabled: bool, stuckDelayMinutes: int}
  */
-#[McpTool(name: self::NAME, description: 'Turn the workflow of the project board on or off, the same switch as the Automation page of the project settings. While it is off, the workflow moves no card and asks for no work. stuckDelayMinutes is the minutes a ready pull request may wait for a merge before its card shows Stuck. A setting you leave out keeps the value it has. The result gives the value of every setting after the change.')]
+#[McpTool(name: self::NAME, description: 'Turn the workflow of the project board on or off, the same switch as the Automation page of the project settings. While it is off, the workflow moves no card and asks for no work. stuckDelayMinutes is the minutes a pull request may wait for a merge or for any card change before its card shows Stuck. A setting you leave out keeps the value it has. The result gives the value of every setting after the change.')]
 final readonly class AutomationSettingsUpdateTool
 {
     public const string NAME = 'automation_settings_update';
@@ -29,7 +29,7 @@ final readonly class AutomationSettingsUpdateTool
 
     /**
      * @param bool|null $enabled           whether the workflow of the board moves the cards and asks for their work
-     * @param int|null  $stuckDelayMinutes the minutes a ready pull request may wait for a merge before its card shows Stuck, from 1 to 1440
+     * @param int|null  $stuckDelayMinutes the minutes a pull request may wait for a merge or for any card change before its card shows Stuck, from 1 to 1440
      *
      * @return AutomationSettingsSummary
      */

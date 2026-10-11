@@ -6,7 +6,9 @@ namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
+use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Service\CardLiveWork;
 use App\Module\Bridge\View\CardLiveWorkItem;
 use App\Module\Bridge\View\CardRunWarning;
@@ -14,6 +16,7 @@ use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\CardStateHints;
 use App\Observability\RequestTimeline;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
@@ -33,6 +36,9 @@ final readonly class CardStates
         private CardPauseRepository $cardPauses,
         private BoardAutomation $automation,
         private CardLiveWork $liveWork,
+        private CardEventRepository $cardEvents,
+        private CardHoldRepository $cardHolds,
+        private CardStateHints $hints,
         private ClockInterface $clock,
         private RequestTimeline $timeline,
 
@@ -55,11 +61,12 @@ final readonly class CardStates
             return [];
         }
 
-        return $this->timeline->span('board.card_states', function () use ($project, $open, $pullRequests, $runWarnings, $paused): array {
+        return $this->timeline->span('board.card_states', function () use ($project, $cards, $open, $pullRequests, $runWarnings, $paused): array {
             $ids = array_map(static fn (Card $card): string => (string) $card->id, $open);
             $now = $this->clock->now();
             $paused ??= $this->cardPauses->findActiveForCardIds($ids);
-            $work = $this->liveWork->forCards($project, $ids);
+            $parentIds = array_values(array_unique(array_map(static fn (Card $card): string => (string) $card->parent?->id, array_filter($open, static fn (Card $card): bool => null !== $card->parent))));
+            $work = $this->liveWork->forCards($project, array_values(array_unique([...$ids, ...$parentIds])));
             $delay = new \DateInterval(\sprintf('PT%dM', $this->automation->settingsOf($project)->stuckDelayMinutes));
 
             $reasons = [];
@@ -76,6 +83,8 @@ final readonly class CardStates
                     }
                 }
             }
+
+            $this->addQuietPullRequests($project, $cards, $open, $reasons, $work, $pullRequests, $now, $delay);
 
             $states = [];
             foreach ($ids as $id) {
@@ -148,6 +157,63 @@ final readonly class CardStates
         }
 
         return $reasons;
+    }
+
+    /**
+     * Runs after the signals, because it needs to know that no other reason applies.
+     *
+     * @param list<Card>                                    $cards
+     * @param list<Card>                                    $open
+     * @param array<string, array<string, CardStateReason>> $reasons
+     * @param array<string, list<CardLiveWorkItem>>         $work
+     */
+    private function addQuietPullRequests(Project $project, array $cards, array $open, array &$reasons, array $work, PullRequestStates $pullRequests, \DateTimeImmutable $now, \DateInterval $delay): void
+    {
+        $candidates = array_filter($open, static fn (Card $card): bool => !isset($reasons[(string) $card->id]) && [] !== $card->pullRequests->toArray());
+        if ([] === $candidates) {
+            return;
+        }
+        $projectId = $project->requireId();
+        $columns = array_flip($this->hints->pullRequestColumnIds($projectId));
+        $candidates = array_filter($candidates, static fn (Card $card): bool => isset($columns[(string) $card->column->id]));
+        if ([] === $candidates) {
+            return;
+        }
+
+        $ids = array_map(static fn (Card $card): string => (string) $card->id, $candidates);
+        $held = array_flip($this->cardHolds->findCardIdsOfProject($project));
+        $newest = $this->cardEvents->findNewestOccurredAtOfCards(array_values($ids));
+        $unfinishedParents = [];
+        foreach ($cards as $card) {
+            if (null !== $card->parent && !$card->column->terminal) {
+                $unfinishedParents[(string) $card->parent->id] = true;
+            }
+        }
+
+        foreach ($candidates as $card) {
+            $id = (string) $card->id;
+            $parentId = null === $card->parent ? null : (string) $card->parent->id;
+            if (isset($held[$id]) || isset($unfinishedParents[$id]) || null === ($newest[$id] ?? null) || (null !== $parentId && [] !== ($work[$parentId] ?? []))) {
+                continue;
+            }
+            $stuckAt = $newest[$id]->add($delay);
+            if ($stuckAt > $now) {
+                continue;
+            }
+            $epicBranch = null === $card->parent ? null : $this->hints->epicBranchOf($projectId, $card->parent->number);
+            foreach ($card->pullRequests as $link) {
+                $view = $pullRequests->of($link);
+                if (null === $view || null === $view->refreshedAt || PullRequestState::Open !== $view->state || PullRequestChecks::Pending === $view->checks) {
+                    continue;
+                }
+                $stacked = null !== $view->defaultBranch && $view->baseBranch !== $view->defaultBranch && $view->baseBranch !== $epicBranch;
+                if (!$stacked) {
+                    self::add($reasons, $id, new CardStateReason(CardStateCode::PullRequestIdle, ['%number%' => $link->number ?? 0], $stuckAt));
+
+                    break;
+                }
+            }
+        }
     }
 
     /**
