@@ -15,17 +15,20 @@
                 <span class="lp-revision-notes__title">{{ 'review.document.diff.notes_title'|trans }}</span>
                 {% for meta in revisionNotes %}
                 <span class="lp-revision-notes__entry">
-                    <span class="lp-revision-notes__entry-head">
-                        <twig:Ds:Tag tone="{{ meta.versionNumber == version.versionNumber ? 'lime' : 'neutral' }}">{{ 'v' ~ meta.versionNumber }}</twig:Ds:Tag>
-                        <span class="lp-revision-notes__time">{{ meta.createdAt|relative_time }}</span>
-                        {% if meta.versionNumber < version.versionNumber %}
-                        <a class="lp-revision-notes__diff" href="{{ path('app_document_review_diff', {projectId: document.project.id, documentId: document.id, fromVersionNumber: meta.versionNumber, toVersionNumber: version.versionNumber}) }}">
-                            <twig:ux:icon name="lucide:git-compare" />
-                            {{ 'review.document.revision_notes.diff'|trans({'%to%': version.versionNumber}) }}
-                        </a>
-                        {% endif %}
+                    <span class="lp-revision-notes__entry-body">
+                        <span class="lp-revision-notes__entry-head">
+                            <twig:Ds:Tag tone="{{ meta.versionNumber == version.versionNumber ? 'lime' : 'neutral' }}">{{ 'v' ~ meta.versionNumber }}</twig:Ds:Tag>
+                            <span class="lp-revision-notes__time">{{ meta.createdAt|relative_time }}</span>
+                        </span>
+                        {% if meta.description is not empty %}<span class="lp-revision-notes__text">{{ meta.description }}</span>{% endif %}
                     </span>
-                    {% if meta.description is not empty %}<span class="lp-revision-notes__text">{{ meta.description }}</span>{% endif %}
+                    {% if meta.versionNumber < version.versionNumber %}
+                    {% set diffLabel = 'review.document.revision_notes.diff'|trans({'%from%': meta.versionNumber, '%to%': version.versionNumber}) %}
+                    <a class="lp-revision-notes__diff" href="{{ path('app_document_review_diff', {projectId: document.project.id, documentId: document.id, fromVersionNumber: meta.versionNumber, toVersionNumber: version.versionNumber}) }}"
+                       aria-label="{{ diffLabel }}" title="{{ diffLabel }}">
+                        <twig:ux:icon name="lucide:file-diff" />
+                    </a>
+                    {% endif %}
                 </span>
                 {% endfor %}
             </span>

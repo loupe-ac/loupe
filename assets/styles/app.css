@@ -5080,7 +5080,10 @@
         @apply text-xs font-semibold tracking-wide text-fg-label uppercase;
     }
     .lp-revision-notes__entry {
-        @apply flex flex-col gap-1 border-t border-line-faint pt-3;
+        @apply flex items-center gap-3 border-t border-line-faint pt-3;
+    }
+    .lp-revision-notes__entry-body {
+        @apply flex min-w-0 flex-1 flex-col gap-1;
     }
     .lp-revision-notes__entry-head {
         @apply flex items-center gap-2;
@@ -5089,10 +5092,10 @@
         @apply text-xs text-fg-dim;
     }
     .lp-revision-notes__diff {
-        @apply -my-1 ml-auto inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-fg-label no-underline hover:bg-surface-3 hover:text-ink;
+        @apply -mr-2 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-fg-label hover:bg-surface-3 hover:text-ink;
     }
     .lp-revision-notes__diff svg {
-        @apply size-3.5 shrink-0;
+        @apply size-4;
     }
     .lp-revision-notes__text {
         @apply whitespace-pre-wrap text-ink;
