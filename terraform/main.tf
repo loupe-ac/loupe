@@ -134,6 +134,7 @@ module "app" {
     var.site_review_widget_public == "" ? {} : { SITE_REVIEW_WIDGET_PUBLIC = { value = var.site_review_widget_public } },
     var.site_review_widget_backend == "" ? {} : { SITE_REVIEW_WIDGET_BACKEND = { value = var.site_review_widget_backend } },
     var.site_review_widget_context == "" ? {} : { SITE_REVIEW_WIDGET_CONTEXT = { value = var.site_review_widget_context } },
+    var.site_review_widget_preview_token == "" ? {} : { SITE_REVIEW_WIDGET_PREVIEW_TOKEN = { value = var.site_review_widget_preview_token, type = "SECRET" } },
     var.analytics_script_url == "" ? {} : { ANALYTICS_SCRIPT_URL = { value = var.analytics_script_url } },
     var.analytics_website_id == "" ? {} : { ANALYTICS_WEBSITE_ID = { value = var.analytics_website_id } },
     var.analytics_origin == "" ? {} : { ANALYTICS_ORIGIN = { value = var.analytics_origin } },

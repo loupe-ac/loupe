@@ -194,6 +194,13 @@ variable "site_review_widget_context" {
   description = "SITE_REVIEW_WIDGET_CONTEXT: an opaque marker stored on every comment the widget files, saying what this deployment was serving. Empty (the default) is right for production, which stores nothing. A preview instance sets it so a comment carries the work it was made against."
 }
 
+variable "site_review_widget_preview_token" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "SITE_REVIEW_WIDGET_PREVIEW_TOKEN: a preview token that signs the site-review widget in with no popup. Empty (the default) is right for production. A preview instance gets one from the loupe CLI."
+}
+
 variable "site_review_widget_project" {
   type        = string
   default     = ""
