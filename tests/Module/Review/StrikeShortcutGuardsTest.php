@@ -32,14 +32,14 @@ final class StrikeShortcutGuardsTest extends TestCase
             $source,
             'onDocMouseup must clear the captured anchor, not just hide the toolbar',
         );
-        // Counted inside onDocMouseup rather than across the file: the method has
-        // exactly four ways to reject a selection — the fourth being a demo too
-        // narrow to place a card — and a whole-file count also breaks when some
-        // unrelated caller legitimately discards the anchor.
+        // Counted inside the method that onDocMouseup defers to rather than across
+        // the file: it has exactly four ways to reject a selection — the fourth
+        // being a demo too narrow to place a card — and a whole-file count also
+        // breaks when some unrelated caller legitimately discards the anchor.
         self::assertSame(
             4,
-            substr_count($this->methodSource($source, 'onDocMouseup'), 'this.#clearPendingSelection();'),
-            'every invalid-selection branch in onDocMouseup must discard the anchor',
+            substr_count($this->methodSource($source, '#readReleasedSelection'), 'this.#clearPendingSelection();'),
+            'every invalid-selection branch of the mouseup handler must discard the anchor',
         );
     }
 
