@@ -7,23 +7,37 @@ namespace App\Module\Workflow\Template;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 
-/** Reads the template copy a project stored when it was bound, with the app rules after its own. */
+/** Reads the template copy a project stored when it was bound, with the app rules after its own. It keeps each project's template until the services reset. */
 #[AsAlias(TemplateSource::class)]
-final readonly class ProjectTemplateCopy implements TemplateSource
+final class ProjectTemplateCopy implements TemplateSource, ResetInterface
 {
+    /** @var array<string, Template> */
+    private array $templates = [];
+
     public function __construct(
-        private WorkflowBindingRepository $workflowBindings,
-        private TemplateParser $parser,
-        private AppRules $appRules,
+        private readonly WorkflowBindingRepository $workflowBindings,
+        private readonly TemplateParser $parser,
+        private readonly AppRules $appRules,
     ) {
     }
 
     #[\Override]
     public function forProject(Uuid $projectId): Template
     {
+        $key = $projectId->toRfc4122();
+        if (isset($this->templates[$key])) {
+            return $this->templates[$key];
+        }
         $binding = $this->workflowBindings->findOneByProjectId($projectId) ?? throw new TemplateMissing($projectId);
 
-        return $this->appRules->appendTo($this->parser->parseStored($binding->definition));
+        return $this->templates[$key] = $this->appRules->appendTo($this->parser->parseStored($binding->definition));
+    }
+
+    #[\Override]
+    public function reset(): void
+    {
+        $this->templates = [];
     }
 }
