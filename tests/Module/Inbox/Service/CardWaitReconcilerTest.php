@@ -761,6 +761,33 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertEquals($updatedAt, $again->item->updatedAt);
     }
 
+    public function test_a_sweep_rewrites_the_old_title_and_body_of_an_existing_item(): void
+    {
+        $this->workerRun(WorkerRunState::Blocked, 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network.');
+        $handler = self::getContainer()->get(PauseCardHandler::class);
+        self::assertInstanceOf(PauseCardHandler::class, $handler);
+        $handler(new PauseCardCommand($this->card, 'work-stopped', 'review', PauseKind::WorkStopped));
+        $this->reconcile();
+        $watch = $this->onlyWatch();
+        $watch->item->title = '#12 Ship it';
+        $watch->item->body = "worker-run blocked\ncard-pause work-stopped";
+        $this->em->flush();
+        $this->em->clear();
+        $project = $this->em->find(Project::class, $this->project->id);
+        self::assertInstanceOf(Project::class, $project);
+
+        $this->reconciler->reconcile($project, null);
+
+        $this->em->clear();
+        $again = $this->onlyWatch();
+        self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
+        self::assertSame('#12 Implement worker blocked: cannot reach github.com: DNS lookup failed · Ship it', $again->item->title);
+        self::assertSame(
+            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Fix the cause, then resume the card.',
+            $again->item->body,
+        );
+    }
+
     public function test_a_ready_pull_request_opens_a_wait(): void
     {
         $pullRequest = $this->pullRequest(5);
