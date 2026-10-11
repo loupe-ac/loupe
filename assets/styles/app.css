@@ -5092,7 +5092,7 @@
         @apply text-xs text-fg-dim;
     }
     .lp-revision-notes__diff {
-        @apply -mr-2 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-fg-label hover:bg-surface-3 hover:text-ink;
+        @apply inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-fg-label hover:bg-surface-3 hover:text-ink;
     }
     .lp-revision-notes__diff svg {
         @apply size-4;
