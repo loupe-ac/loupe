@@ -104,6 +104,12 @@ async function commentOn(
     await expect(page.locator(COMPOSER)).toBeHidden({
         timeout: coverageScaled(10000),
     });
+    // The new thread opens the Comments panel. A toggle before that closes it.
+    await expect(panelButton(page, 'Comments')).toHaveAttribute(
+        'aria-pressed',
+        'true',
+        { timeout: coverageScaled(10000) },
+    );
 }
 
 /** Selects a phrase, chooses Comment and fills the composer, with no post. */
