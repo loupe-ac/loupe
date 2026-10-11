@@ -11,7 +11,6 @@ use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ReadinessChecklist;
-use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,7 +33,6 @@ final readonly class StartDiscoveryHandler
         private ReadinessChecklist $checklist,
         private DiscoveryRunRepository $discoveryRuns,
         private CreateCardHandler $createCard,
-        private CardEvaluations $evaluations,
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private CardTypeCatalog $catalog,
@@ -93,8 +91,6 @@ final readonly class StartDiscoveryHandler
             ],
             new AuditSubject('discovery_run', (string) $run->id),
         );
-        // No listener evaluates a new card, and the app rule fires only when the engine evaluates it.
-        $this->evaluations->forCards([$cardId]);
 
         return $run;
     }
