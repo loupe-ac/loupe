@@ -6,9 +6,9 @@ namespace App\Tests\Module\Board\Workflow;
 
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
-use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\AgentReview\Service\AgentReviewAnnotations;
 use App\Module\AgentReview\Service\AgentReviewCheckPublisher;
+use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
@@ -809,8 +809,7 @@ final class ForgeWriteTest extends KernelTestCase
                 new MockClock('2026-10-02 12:00:00'),
             ),
             new AgentReviewCheckPublisher(
-                $this->service(CardPullRequestRepository::class),
-                $this->service(AgentReviewRepository::class),
+                $this->service(AgentReviewPosts::class),
                 new PullRequestCheckWriters([$this->checkWriter]),
                 new AgentReviewAnnotations(),
                 $this->service(TranslatorInterface::class),

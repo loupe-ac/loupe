@@ -8,7 +8,7 @@ use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Service\PullRequestChangeFingerprint;
 use App\Module\Forge\Service\PullRequestChangeFingerprintReader;
 
-/** Answers the next fingerprint in line for the `fake` forge, and records the head of each read. */
+/** Answers the next fingerprint in line for one forge, `fake` by default, and records the head of each read. */
 final class FakePullRequestChangeFingerprintReader implements PullRequestChangeFingerprintReader
 {
     /** @var list<string> */
@@ -17,13 +17,14 @@ final class FakePullRequestChangeFingerprintReader implements PullRequestChangeF
     /** @param list<?PullRequestChangeFingerprint> $answers */
     public function __construct(
         public array $answers = [],
+        private readonly string $forge = FakePullRequestStateReader::FORGE,
     ) {
     }
 
     #[\Override]
     public function supports(string $forge): bool
     {
-        return FakePullRequestStateReader::FORGE === $forge;
+        return $this->forge === $forge;
     }
 
     #[\Override]

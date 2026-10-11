@@ -219,10 +219,19 @@ with a done request, so the rules never fire for its runs.
 ### Agent review
 
 A separate agent reviews each open pull request of a card while it is still a
-draft. The review belongs to one head commit. A new push needs a new review. A
-card of a type that may have children, such as an epic, needs no review. The
-rules of the template turn the review on. A template with none of the rules
-below asks for no review, and its cards follow the other rules.
+draft. The review belongs to one head commit. A card of a type that may have
+children, such as an epic, needs no review. The rules of the template turn the
+review on. A template with none of the rules below asks for no review, and its
+cards follow the other rules.
+
+A new head whose change is identical to a reviewed head carries the review. A
+clean merge of the base is the usual case. The check on the new head says that
+the review was carried, and from which commit. It keeps the line notes only when
+the changed lines keep their line numbers. Otherwise the summary lists the
+findings. A different change gets a full review. So does a pull request of 300
+files or more, a forge other than GitHub, or a head that Loupe could not read.
+A carried review does not judge the change against the new base. CI catches the
+mechanical breaks.
 
 The review checks the code, and it also checks the whole pull request against
 the designs that the card links. The reviewer reads the product document, the
@@ -249,10 +258,10 @@ Four conditions of the **Agent review** group read the reviews:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review |
+| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried |
 | `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed |
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
-| `agent_review.unposted` | a stored review of the card has no check on the forge yet |
+| `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
 
 A review fails when it has a finding of a severity that the template counts as
 failing. The `agentReviewFailingSeverities` value of the template lists those
@@ -432,7 +441,7 @@ every column. It reads a condition of the Agent review group:
 |---|---|---|
 | `post-widget-review` | `card.site_review.verdict_unsent`: a verdict of the card has a pull request that no review settled yet | `post-review` |
 | `sync-site-review-check` | `card.site_review.check_stale`: an open GitHub pull request of the card has no check for its head commit, a check with another result than the one the card now wants, or a check that lists other notes than the card now carries | `site-review-check` |
-| `sync-agent-review-check` | `agent_review.unposted`: a stored agent review of the card has no check on the forge yet | `agent-review-check` |
+| `sync-agent-review-check` | `agent_review.unposted`: a stored agent review of the card has no check on the forge yet, on its own head or on a head it was carried to | `agent-review-check` |
 
 The review is posted under the reviewer's own account. The reviewer connects
 that account from the widget. A review that the connection cannot send, because
