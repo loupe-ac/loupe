@@ -113,7 +113,7 @@ The template sets this behaviour in its `onWorkFailed` block:
 
 ```yaml
 onWorkFailed:
-    retryOn: [failed, timeout]
+    retryOn: [failed, timeout, still-true]
     retries: 3
     backoffMinutes: [2, 3, 5]
     repair: { kind: repair }
@@ -124,6 +124,13 @@ before the repair. `backoffMinutes` gives the wait before each retry. `repair`
 names the kind of the repair request. A template with no `repair` key pauses
 the card when the retries run out. A template with no `onWorkFailed` block
 neither retries nor pauses after a refused request.
+
+A request can also end with no result while its rule still holds. A `request`
+action that sets `stillTrue: retry` counts such an end as a failed try with the
+code `still-true`. The rule then asks again after the next wait, and `retryOn`
+must list `still-true`, or the first such end pauses the card. The Lifecycle
+review rules set it, so a review run that ends with no review, such as one that
+saw a new head, asks for a review of the current head again.
 
 A work request that no bridge takes within 2 hours pauses the card with "no
 bridge took the work". A teardown request is the exception: it expires with no
@@ -223,6 +230,11 @@ draft. The review belongs to one head commit. A card of a type that may have
 children, such as an epic, needs no review. The rules of the template turn the
 review on. A template with none of the rules below asks for no review, and its
 cards follow the other rules.
+
+A review run can end with no review, for example when the head moved after the
+request. The review rules then count the run as a failed try and ask again after
+2, 3 and 5 minutes. After the retries, a repair starts, and then the card
+pauses with an inbox item.
 
 A new head whose change is identical to a reviewed head carries the review. A
 clean merge of the base is the usual case. The check on the new head says that

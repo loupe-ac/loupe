@@ -23,6 +23,7 @@ use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
+use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\RuleAsks;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
@@ -56,6 +57,8 @@ final readonly class Engine
     public const string NO_BRIDGE_TOOK_WORK = 'no-bridge-took-work';
 
     public const string REPAIR_FAILED = 'repair-failed';
+
+    public const string STILL_TRUE = 'still-true';
 
     private const string RUN_RESUMED = 'run-resumed';
     private const string SUBJECT_CHANGED = 'subject-changed';
@@ -288,6 +291,12 @@ final readonly class Engine
                 continue;
             }
             if (WorkState::Done === $request->state) {
+                if ($this->retriesWhileTrue($rule)) {
+                    if (null === $state->lastRefusalAt || null === $request->settledAt || $state->lastRefusalAt < $request->settledAt) {
+                        $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, self::STILL_TRUE, $bound));
+                    }
+                    continue;
+                }
                 $this->write($run, $state, static function (WorkflowRuleState $state): void {
                     $state->attempts = 0;
                     $state->dueAt = null;
@@ -861,5 +870,12 @@ final readonly class Engine
         $action = $this->actions->get($rule->then->key);
 
         return $action instanceof RefiresOnFactChange && $action::refiresOnFactChange($rule->then->params);
+    }
+
+    private function retriesWhileTrue(Rule $rule): bool
+    {
+        $action = $this->actions->get($rule->then->key);
+
+        return $action instanceof RetriesWhileTrue && $action::retriesWhileTrue($rule->then->params);
     }
 }
