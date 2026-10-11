@@ -10,6 +10,7 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\FactsPass;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\LockMode;
@@ -22,8 +23,10 @@ use Symfony\Component\Uid\Uuid;
 /** @extends ServiceEntityRepository<CardPullRequest> */
 class CardPullRequestRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly FactsPass $factsPass,
+    ) {
         parent::__construct($registry, CardPullRequest::class);
     }
 
@@ -193,6 +196,12 @@ class CardPullRequestRepository extends ServiceEntityRepository
      * @return list<ForgePullRequest>
      */
     public function findOpenGitHubForCard(Card $card): array
+    {
+        return $this->factsPass->remember('open-github-pull-requests:'.$card->id, fn (): array => $this->readOpenGitHubForCard($card));
+    }
+
+    /** @return list<ForgePullRequest> */
+    private function readOpenGitHubForCard(Card $card): array
     {
         /** @var list<ForgePullRequest> $pullRequests */
         $pullRequests = $this->getEntityManager()->createQuery(
