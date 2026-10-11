@@ -59,4 +59,22 @@ class ArtifactVersion
 
         return $file;
     }
+
+    /** The file a viewer opens: index.html, else the first HTML file, else the first file. */
+    public function entryFile(): ?ArtifactFile
+    {
+        $first = null;
+        $firstHtml = null;
+        foreach ($this->files as $file) {
+            if ('index.html' === $file->path) {
+                return $file;
+            }
+            $first ??= $file;
+            if (null === $firstHtml && 1 === preg_match('/\.html?$/i', $file->path)) {
+                $firstHtml = $file;
+            }
+        }
+
+        return $firstHtml ?? $first;
+    }
 }

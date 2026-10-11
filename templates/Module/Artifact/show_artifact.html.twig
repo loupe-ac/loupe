@@ -1,0 +1,134 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'artifact.viewer.page.title'|trans({'%name%': artifact.name}) }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <a class="lp-topbar__crumb" href="{{ path('app_project_artifacts', {id: project.id}) }}">{{ 'nav.link.artifacts'|trans }}</a>
+    <span class="lp-topbar__sep">/</span>
+    <span class="lp-topbar__here">{{ artifact.name }}</span>
+{% endblock %}
+
+{% block body %}
+{% set isLatest = version.number == latestNumber %}
+{% set versionParams = {id: project.id, artifactId: artifact.id, number: version.number} %}
+{% set shareLink = pinned ? url('app_project_artifact_version', versionParams) : url('app_project_artifact', {id: project.id, artifactId: artifact.id}) %}
+<div class="lp-artifact-viewer" data-artifact-viewer>
+    <div class="lp-artifact-bar">
+        <h1 class="lp-artifact-bar__name" data-artifact-name>{{ artifact.name }}</h1>
+        {% if artifact.archivedAt is not null %}<twig:Ds:Tag tone="neutral" data-artifact-archived>{{ 'artifact.list.archived'|trans }}</twig:Ds:Tag>{% endif %}
+
+        <div class="lp-artifact-bar__actions">
+            <div class="lp-artifact-bar__menu" data-controller="popover" data-artifact-version-picker>
+                <twig:Ds:Button type="button" variant="ghost" size="sm"
+                        aria-label="{{ 'artifact.viewer.versions.label'|trans }}"
+                        aria-expanded="false"
+                        aria-controls="artifact-versions"
+                        data-popover-target="trigger"
+                        data-action="click->popover#toggle">
+                    <span data-artifact-current-version>{{ 'artifact.viewer.version'|trans({'%number%': version.number}) }}{% if isLatest %} · {{ 'artifact.viewer.latest'|trans }}{% endif %}</span>
+                    <twig:ux:icon name="lucide:chevron-down" class="size-4" />
+                </twig:Ds:Button>
+                <div id="artifact-versions" class="lp-backlog-menu" data-popover-target="panel" hidden>
+                    {% for entry in versions %}
+                    <a class="lp-backlog-menu__item" href="{{ path('app_project_artifact_version', {id: project.id, artifactId: artifact.id, number: entry.number}) }}"
+                       data-artifact-version-link="{{ entry.number }}"{% if entry.number == version.number %} aria-current="true"{% endif %}>
+                        <span>{{ 'artifact.viewer.version'|trans({'%number%': entry.number}) }}{% if entry.number == latestNumber %} · {{ 'artifact.viewer.latest'|trans }}{% endif %}</span>
+                        <time class="lp-artifact-bar__when" datetime="{{ entry.createdAt|date('c') }}">{{ entry.createdAt|relative_time }}</time>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="lp-artifact-bar__menu" data-controller="popover" data-artifact-cards>
+                <twig:Ds:Button type="button" variant="ghost" size="sm"
+                        aria-expanded="false"
+                        aria-controls="artifact-cards"
+                        data-popover-target="trigger"
+                        data-action="click->popover#toggle">
+                    <twig:ux:icon name="lucide:square-kanban" class="size-4" />
+                    <span data-artifact-card-count>{{ 'artifact.viewer.cards.count'|trans({'%count%': cards|length}) }}</span>
+                </twig:Ds:Button>
+                <div id="artifact-cards" class="lp-backlog-menu" data-popover-target="panel" hidden>
+                    {% for card in cards %}
+                    <a class="lp-backlog-menu__item" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}" data-artifact-card-link>
+                        <span class="lp-data-table__number">#{{ card.number }}</span>
+                        <span class="lp-artifact-bar__card-title">{{ card.title }}</span>
+                    </a>
+                    {% else %}
+                    <p class="lp-artifact-bar__none">{{ 'artifact.viewer.cards.none'|trans }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_project_artifact_version_download', versionParams) }}" data-artifact-download>
+                <twig:ux:icon name="lucide:download" class="size-4" />
+                {{ 'artifact.viewer.download'|trans }}
+            </twig:Ds:Button>
+
+            <span data-controller="clipboard"
+                  data-clipboard-text-value="{{ shareLink }}"
+                  data-clipboard-copied-label-value="{{ 'artifact.viewer.copied'|trans }}">
+                <twig:Ds:Button type="button" variant="ghost" size="sm" data-clipboard-target="button" data-action="click->clipboard#copy" data-artifact-copy-link>{{ 'artifact.viewer.copy_link'|trans }}</twig:Ds:Button>
+            </span>
+
+            <div class="lp-artifact-bar__menu" data-controller="popover" data-artifact-menu>
+                <twig:Ds:Button type="button" variant="icon"
+                        aria-label="{{ 'artifact.viewer.menu'|trans }}"
+                        aria-expanded="false"
+                        aria-controls="artifact-menu"
+                        data-popover-target="trigger"
+                        data-action="click->popover#toggle">
+                    <twig:ux:icon name="lucide:ellipsis" class="size-4" />
+                </twig:Ds:Button>
+                <div id="artifact-menu" class="lp-backlog-menu" data-popover-target="panel" hidden>
+                    {% if artifact.archivedAt is null %}
+                    <form method="post" action="{{ path('app_project_artifact_archive', {id: project.id, artifactId: artifact.id}) }}" data-artifact-archive-form>
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('artifact-archive') }}">
+                        <button type="submit" class="lp-backlog-menu__item">
+                            <twig:ux:icon name="lucide:archive" class="size-4" />
+                            {{ 'artifact.viewer.archive'|trans }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{{ path('app_project_artifact_unarchive', {id: project.id, artifactId: artifact.id}) }}" data-artifact-unarchive-form>
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('artifact-unarchive') }}">
+                        <button type="submit" class="lp-backlog-menu__item">
+                            <twig:ux:icon name="lucide:archive-restore" class="size-4" />
+                            {{ 'artifact.viewer.unarchive'|trans }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <twig:Ds:Flash severity="warning" :dismissLabel="'artifact.viewer.band.dismiss'|trans" class="lp-artifact-band" data-artifact-band>{{ 'artifact.viewer.band.text'|trans }}</twig:Ds:Flash>
+
+    <p class="lp-artifact-caption" data-artifact-caption>
+        <span>{{ 'artifact.viewer.stored_by'|trans }} {% include '@Artifact/_stored_by.html.twig' with {version: version} only %}</span>
+        <time datetime="{{ version.createdAt|date('c') }}" title="{{ version.createdAt|date('Y-m-d H:i:s T') }}">{{ version.createdAt|relative_time }}</time>
+        {% if artifact.sourceLink is not null %}
+        <span data-artifact-source>
+            {{ 'artifact.viewer.source'|trans }}:
+            {% if artifact.sourceLink starts with 'https://' or artifact.sourceLink starts with 'http://' %}
+            <a href="{{ artifact.sourceLink }}" target="_blank" rel="noopener noreferrer">{{ artifact.sourceLink }}</a>
+            {% else %}
+            {{ artifact.sourceLink }}
+            {% endif %}
+            · {{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('Y-m-d')}) }}
+        </span>
+        {% endif %}
+    </p>
+
+    {% if contentPath is not null %}
+    <iframe class="lp-artifact-frame" data-artifact-frame
+            src="{{ contentPath }}"
+            title="{{ 'artifact.viewer.frame.title'|trans({'%name%': artifact.name}) }}"
+            sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock"
+            referrerpolicy="no-referrer"></iframe>
+    {% else %}
+    <twig:Ds:EmptyState icon="lucide:file-question" :title="'artifact.viewer.no_files'|trans" />
+    {% endif %}
+</div>
+{% endblock %}

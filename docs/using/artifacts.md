@@ -9,7 +9,8 @@ again for the same artifact, Loupe saves them as a new version and keeps the
 old ones.
 
 Artifacts are behind the `artifacts.enabled` feature flag, and the flag ships
-off. While it is off, the store route refuses every request.
+off. While it is off, the store route and every artifact page answer 404, and
+the sidebar shows no Artifacts link.
 
 ## Turning artifacts on
 
@@ -89,6 +90,59 @@ The command sends the id of the session that runs it, read from
 `LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID`. A worker run
 cannot store, so run the command from an interactive session. It prints the
 artifact id, the version number, the stable link and the link of that version.
+
+## The library
+
+When the flag is on, the sidebar of a project shows an **Artifacts** link. It
+opens the library at `/projects/{project}/artifacts`. The library lists each
+artifact with its name, the number of its newest version, the number of cards
+that link to it, who stored that version, and when. The artifact with the
+newest version comes first.
+
+An artifact that an agent stored from an interactive session shows
+"Claude, interactive session" as the author. Only the owner of the project can
+open the library.
+
+An archived artifact is hidden. Choose **Show archived** to list it, and
+**Hide archived** to hide it again.
+
+## The viewer
+
+Choose an artifact to open the viewer. The page shows the files of one version
+in a frame, under a thin bar with these controls.
+
+| Control | What it does |
+|---|---|
+| Name | The name of the artifact |
+| Version | Lists every version. Choose one to open it. |
+| Linked cards | Shows how many cards link to the artifact. Choose it to list the cards. |
+| Download | Gives you the files of the version you see, as a zip file |
+| Copy link | Copies the link of the page you see |
+| More actions | Archives the artifact, or restores it |
+
+The link `/projects/{project}/artifacts/{artifact}` always opens the newest
+version. The link `/projects/{project}/artifacts/{artifact}/versions/{number}`
+opens one version and never changes. A link that an agent returns after a store
+is one of these two.
+
+The frame opens `index.html`. When the version has no `index.html`, it opens
+the first HTML file, and then the first file. Under the frame, a line shows who
+stored the version and when. When the artifact has a source link, the line also
+shows the link and the date of the store.
+
+An archived artifact still opens. Choose **Unarchive** in the more actions menu
+to list it again.
+
+## Limited preview
+
+Loupe shows the files in a sealed frame. A script in a prototype runs, but it
+cannot read your session or call Loupe as you. Some features that need a normal
+web origin may not work, such as storage in the browser. The viewer shows a
+band that says so. Choose **Dismiss** to hide the band. It returns when you
+open the page again.
+
+Each file comes from a link that Loupe signs and that expires after one hour.
+Reload the page to get a fresh link.
 
 ## Your data
 
