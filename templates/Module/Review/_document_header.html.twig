@@ -3,8 +3,8 @@
     <div class="lp-review-doc__byline">
         <span class="lp-review-doc__author">{{ document.owner.fullName }}</span>
         <span class="lp-review-doc__middot" aria-hidden="true">·</span>
-        {% set revisionNotes = versions|default([])|filter(meta => meta.versionNumber <= version.versionNumber and meta.description is not empty) %}
-        {% if revisionNotes|length > 0 %}
+        {% set revisionNotes = versions|default([])|filter(meta => meta.versionNumber <= version.versionNumber) %}
+        {% if revisionNotes|length > 1 or revisionNotes|filter(meta => meta.description is not empty)|length > 0 %}
         <span class="lp-revision-notes" data-controller="popover">
             <button type="button" class="lp-revision-notes__trigger" aria-expanded="false" aria-controls="revision-notes-panel"
                     data-popover-target="trigger" data-action="click->popover#toggle">
@@ -18,8 +18,14 @@
                     <span class="lp-revision-notes__entry-head">
                         <twig:Ds:Tag tone="{{ meta.versionNumber == version.versionNumber ? 'lime' : 'neutral' }}">{{ 'v' ~ meta.versionNumber }}</twig:Ds:Tag>
                         <span class="lp-revision-notes__time">{{ meta.createdAt|relative_time }}</span>
+                        {% if meta.versionNumber < version.versionNumber %}
+                        <a class="lp-revision-notes__diff" href="{{ path('app_document_review_diff', {projectId: document.project.id, documentId: document.id, fromVersionNumber: meta.versionNumber, toVersionNumber: version.versionNumber}) }}">
+                            <twig:ux:icon name="lucide:git-compare" />
+                            {{ 'review.document.revision_notes.diff'|trans({'%to%': version.versionNumber}) }}
+                        </a>
+                        {% endif %}
                     </span>
-                    <span class="lp-revision-notes__text">{{ meta.description }}</span>
+                    {% if meta.description is not empty %}<span class="lp-revision-notes__text">{{ meta.description }}</span>{% endif %}
                 </span>
                 {% endfor %}
             </span>

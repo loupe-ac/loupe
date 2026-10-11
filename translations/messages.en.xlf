@@ -1618,6 +1618,10 @@
                 <source>review.document.diff.notes_title</source>
                 <target>Revision notes</target>
             </trans-unit>
+            <trans-unit id="review.document.revision_notes.diff">
+                <source>review.document.revision_notes.diff</source>
+                <target>Diff with v%to%</target>
+            </trans-unit>
             <trans-unit id="review.document.diff.identical">
                 <source>review.document.diff.identical</source>
                 <target>These two versions have identical source.</target>

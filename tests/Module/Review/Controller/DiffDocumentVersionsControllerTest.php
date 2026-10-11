@@ -101,6 +101,12 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         // What the author claims changed, read next to what actually did.
         self::assertSelectorTextContains('.lp-diff-notes', 'Phased the rollout.');
         self::assertStringNotContainsString('The original brief.', $crawler->filter('.lp-diff-notes')->text());
+
+        // The byline lists every version, and each older one links to its diff
+        // with the version on screen.
+        $diffLinks = $crawler->filter('.lp-revision-notes__diff');
+        self::assertCount(1, $diffLinks);
+        self::assertSame('/projects/'.$projectId.'/documents/'.$id.'/review/diff/1/2', $diffLinks->attr('href'));
     }
 
     /**
