@@ -5539,6 +5539,10 @@
                 <source>board.card.error.document_unknown</source>
                 <target>One of those documents is not in this project.</target>
             </trans-unit>
+            <trans-unit id="board.card.error.artifact_unknown">
+                <source>board.card.error.artifact_unknown</source>
+                <target>One of those artifacts is not in this project.</target>
+            </trans-unit>
             <trans-unit id="board.card.pull_requests.title">
                 <source>board.card.pull_requests.title</source>
                 <target>Pull requests</target>
@@ -8120,6 +8124,21 @@
             <trans-unit id="agent_review.check.carried"><source>agent_review.check.carried</source><target>Carried from %sha%: the change is identical.</target></trans-unit>
             <trans-unit id="agent_review.check.summary_more"><source>agent_review.check.summary_more</source><target>{0} No more findings.|{1} And one more finding.|]1,Inf[ And %count% more findings.</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
+            <trans-unit id="artifact.error.project_not_found"><source>artifact.error.project_not_found</source><target>The project does not exist.</target></trans-unit>
+            <trans-unit id="artifact.error.switched_off"><source>artifact.error.switched_off</source><target>Artifacts are switched off</target></trans-unit>
+            <trans-unit id="artifact.error.card_not_found"><source>artifact.error.card_not_found</source><target>The project has no card with that id or number.</target></trans-unit>
+            <trans-unit id="artifact.error.session_too_long"><source>artifact.error.session_too_long</source><target>The session id is too long.</target></trans-unit>
+            <trans-unit id="artifact.error.worker_refused"><source>artifact.error.worker_refused</source><target>Workers read artifacts and do not store them. Store a new version from an interactive session.</target></trans-unit>
+            <trans-unit id="artifact.error.artifact_not_found"><source>artifact.error.artifact_not_found</source><target>This project has no artifact with that id.</target></trans-unit>
+            <trans-unit id="artifact.error.name_blank"><source>artifact.error.name_blank</source><target>Give the artifact a name.</target></trans-unit>
+            <trans-unit id="artifact.error.name_too_long"><source>artifact.error.name_too_long</source><target>The artifact name is too long.</target></trans-unit>
+            <trans-unit id="artifact.error.no_files"><source>artifact.error.no_files</source><target>Send at least one file.</target></trans-unit>
+            <trans-unit id="artifact.error.too_many_files"><source>artifact.error.too_many_files</source><target>The version has more files than the limit of this instance allows.</target></trans-unit>
+            <trans-unit id="artifact.error.unsafe_path"><source>artifact.error.unsafe_path</source><target>Each path must be relative, with no empty or dot segment, no backslash and no control character, and at most 1024 characters.</target></trans-unit>
+            <trans-unit id="artifact.error.duplicate_path"><source>artifact.error.duplicate_path</source><target>Two files have the same path.</target></trans-unit>
+            <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
+            <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>
+            <trans-unit id="artifact.error.too_large"><source>artifact.error.too_large</source><target>The files together are larger than the size limit of this instance allows.</target></trans-unit>
         </body>
     </file>
 </xliff>

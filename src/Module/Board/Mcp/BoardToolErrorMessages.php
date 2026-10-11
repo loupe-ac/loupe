@@ -50,6 +50,7 @@ final readonly class BoardToolErrorMessages
             'board.card.error.title_too_long' => \sprintf('A card title must be at most %d characters.', Card::MAX_TITLE_LENGTH),
             'board.card.error.pull_request_url_too_long' => \sprintf('A pull request URL must be at most %d characters.', CardPullRequest::MAX_URL_LENGTH),
             'board.card.error.document_unknown' => 'One of those document ids names no document of this project.',
+            'board.card.error.artifact_unknown' => 'One of those artifact ids names no artifact of this project.',
             'board.card.error.linked_card_unknown' => 'One of those card ids names no card of this project.',
             'board.card.error.linked_card_self' => 'A card cannot link to itself. Remove its own id from relatedCards.',
             'board.card.error.linked_card_twice' => 'The same card appears twice in relatedCards. Name each card once, with one kind.',

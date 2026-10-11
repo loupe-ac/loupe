@@ -81,6 +81,7 @@ export default defineConfig({
             { slug: 'using/board' },
             { slug: 'using/workflows' },
             { slug: 'using/inbox' },
+            { slug: 'using/artifacts' },
             {
               label: 'Activity',
               items: [

@@ -15,7 +15,7 @@ use App\Module\Workflow\Contract\CardEventCause;
  * publishes it to the outbox. Every other field is optional, and null means
  * "leave it alone".
  *
- * $pullRequestUrls, $documentIds and $relatedCards are the places where null
+ * $pullRequestUrls, $documentIds, $artifactIds and $relatedCards are the places where null
  * and an empty array differ: null keeps the links the card has, and an empty
  * array removes them all. $relatedCards replaces every link that touches the
  * card, whichever card wrote it.
@@ -52,6 +52,7 @@ final readonly class UpdateCardCommand
     /**
      * @param list<string>|null        $pullRequestUrls
      * @param list<string>|null        $documentIds
+     * @param list<string>|null        $artifactIds
      * @param ?int                     $position        the rank the card takes inside its column, counting
      *                                                  from 0; null leaves the rank alone, and a rank past
      *                                                  the end of the column is clamped to it
@@ -66,6 +67,7 @@ final readonly class UpdateCardCommand
         public ?BoardColumn $column = null,
         public ?array $pullRequestUrls = null,
         public ?array $documentIds = null,
+        public ?array $artifactIds = null,
         public ?int $position = null,
         public ?array $relatedCards = null,
         public ?string $parentCardId = null,
