@@ -10,7 +10,6 @@ use App\Module\OAuth\Repository\PreviewTokenRepository;
 use App\Module\OAuth\Scope\GrantedScope;
 use App\Module\OAuth\Widget\WidgetClient;
 use App\Module\Project\Repository\ProjectRepository;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Bundle\OAuth2ServerBundle\Manager\AccessTokenManagerInterface;
 use League\Bundle\OAuth2ServerBundle\Model\AccessToken;
@@ -31,8 +30,8 @@ use Ubermuda\AuditBundle\AuditSubject;
  * mint one, as only the owner may sign in through the popup.
  *
  * A second mint under the same label replaces the first, so a preview
- * that is deployed again does not pile up tokens. The project row lock
- * makes two mints at once take turns, so only one of them stays live.
+ * that is deployed again does not pile up tokens. The revoke takes a lock
+ * on the label, so another mint or revoke of the label waits for this one.
  */
 final readonly class MintPreviewTokenHandler
 {
@@ -86,7 +85,6 @@ final readonly class MintPreviewTokenHandler
         $expiresAt = new \DateTimeImmutable(self::TTL);
 
         $jwt = $this->em->wrapInTransaction(function () use ($command, $label, $userId, $projectId, $project, $expiresAt): string {
-            $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             $this->previewTokens->revokeByLabel($userId, $projectId, $label);
 
             $client = $this->clients->getClientEntity(WidgetClient::ID)

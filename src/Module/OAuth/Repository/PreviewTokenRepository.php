@@ -45,14 +45,27 @@ class PreviewTokenRepository extends ServiceEntityRepository
         );
     }
 
-    /** Revokes the live tokens a person minted for a project under one label. */
+    /**
+     * Revokes the live tokens a person minted for a project under one label.
+     * It holds the label lock until the enclosing transaction ends, so a mint
+     * and a revoke of one label take turns.
+     */
     public function revokeByLabel(Uuid $userId, Uuid $projectId, string $label): int
     {
-        return $this->revokeWhere('p.user_id = :userId AND p.project_id = :projectId AND p.label = :label', [
-            'userId' => $userId->toRfc4122(),
-            'projectId' => $projectId->toRfc4122(),
-            'label' => $label,
-        ]);
+        return $this->getEntityManager()->getConnection()->transactional(function (Connection $connection) use ($userId, $projectId, $label): int {
+            $connection->executeStatement('SELECT pg_advisory_xact_lock(hashtext(?))', [self::labelLockKey($userId, $projectId, $label)]);
+
+            return $this->revokeWhere('p.user_id = :userId AND p.project_id = :projectId AND p.label = :label', [
+                'userId' => $userId->toRfc4122(),
+                'projectId' => $projectId->toRfc4122(),
+                'label' => $label,
+            ]);
+        });
+    }
+
+    public static function labelLockKey(Uuid $userId, Uuid $projectId, string $label): string
+    {
+        return 'preview-token:'.$userId->toRfc4122().':'.$projectId->toRfc4122().':'.$label;
     }
 
     public function revokeByAccessTokenId(string $accessTokenId): int
