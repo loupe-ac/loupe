@@ -56,6 +56,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Module\Workflow\Contract\RuleBudgets;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Service\EvaluationTrigger;
@@ -772,7 +773,7 @@ final class ForgeWriteTest extends KernelTestCase
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
         $action = new ForgeWrite(
             $this->service(CardRepository::class),
-            new CardPullRequests($this->service(CardPullRequestRepository::class), $forgePullRequests),
+            new CardPullRequests($this->service(CardPullRequestRepository::class), $forgePullRequests, $this->service(FactsPass::class)),
             $this->service(EpicBranches::class),
             new ForgePullRequestWrites(
                 new PullRequestMergers($registered),
