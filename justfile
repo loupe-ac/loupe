@@ -154,8 +154,7 @@ arkitect:
 phpunit_processes := env("PHPUNIT_PROCESSES", "4")
 
 # XDEBUG_MODE lives here rather than in a compose overlay, so CI and a
-# workstation run the one command. The php-fpm container carries
-# develop,coverage, which instruments every line the suite executes.
+# workstation run the one command.
 # ParaTest runs PHPUNIT_PROCESSES workers, each on its own test database.
 phpunit *args:
     bin/worktrees/compose-exec.sh env XDEBUG_MODE=off vendor/bin/paratest --processes={{phpunit_processes}} "$@"
