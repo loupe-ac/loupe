@@ -44,6 +44,7 @@ use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\FactsPass;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\Unreadable;
@@ -51,6 +52,7 @@ use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\FactProviders;
 use App\Module\Workflow\Service\FactsBuilder;
+use App\Module\Workflow\Service\PassMemo;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -152,7 +154,7 @@ final class FactsBuilderTest extends KernelTestCase
         $connection->rollBack();
     }
 
-    public function test_a_provider_that_swallows_its_own_database_error_gives_a_failed_source_and_leaves_the_transaction_usable(): void
+    public function test_a_provider_that_swallows_its_own_database_error_leaves_the_transaction_usable(): void
     {
         self::bootKernel();
         $card = $this->card($this->workflowProject('facts-database-swallowed'), 'next');
@@ -167,7 +169,7 @@ final class FactsBuilderTest extends KernelTestCase
         $connection->beginTransaction();
         $facts = $this->facts($card);
 
-        self::assertSame(UnreadableKind::Failed, $facts->unreadable(ProvidedFacts::class)?->kind);
+        self::assertNull($facts->unreadable(ProvidedFacts::class));
         self::assertSame(1, $connection->fetchOne('SELECT 1'));
         $connection->rollBack();
     }
@@ -783,6 +785,7 @@ final class FactsBuilderTest extends KernelTestCase
             $this->service(ProjectRepository::class),
             new FactProviders([...array_values(array_diff_key($this->service(FactProviders::class)->byClass, [ProvidedFacts::class => true])), $this->provider]),
             $this->em()->getConnection(),
+            $this->service(PassMemo::class),
         );
     }
 
@@ -802,7 +805,7 @@ final class FactsBuilderTest extends KernelTestCase
 
     private function cardPullRequests(): CardPullRequests
     {
-        return new CardPullRequests($this->service(CardPullRequestRepository::class), $this->service(ForgePullRequestRepository::class));
+        return new CardPullRequests($this->service(CardPullRequestRepository::class), $this->service(ForgePullRequestRepository::class), $this->service(FactsPass::class));
     }
 
     /**

@@ -90,6 +90,7 @@ use App\Module\Workflow\Service\EvaluationTrigger;
 use App\Module\Workflow\Service\FactFingerprint;
 use App\Module\Workflow\Service\FactProviders;
 use App\Module\Workflow\Service\FactsBuilder;
+use App\Module\Workflow\Service\PassMemo;
 use App\Module\Workflow\Service\WorkflowAutomation;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
@@ -102,6 +103,8 @@ use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
 use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
 use App\Tests\Support\RecordingLogger;
+use Doctrine\ORM\Event\PreUpdateEventArgs;
+use Doctrine\ORM\Events;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
@@ -1442,6 +1445,31 @@ final class EngineTest extends KernelTestCase
         $state = $this->ruleState($card, 'fix');
         self::assertSame(2, $state->fires);
         self::assertTrue($pullRequest->id?->equals($state->subjectPullRequestId));
+    }
+
+    public function test_an_evaluation_that_changes_nothing_writes_no_rule_state(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['pr.checks_failed' => []], limit: 3)]);
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->checks = PullRequestChecks::Failed;
+        $this->evaluate($card, '2026-10-02 12:30:00');
+        $state = $this->ruleState($card, 'fix');
+        $state->subjectPullRequestId = Uuid::fromString((string) $state->subjectPullRequestId);
+        $this->em()->flush();
+        $listener = new class {
+            /** @var list<string> */
+            public array $updated = [];
+
+            public function preUpdate(PreUpdateEventArgs $args): void
+            {
+                $this->updated[] = $args->getObject()::class.': '.implode(',', array_keys($args->getEntityChangeSet()));
+            }
+        };
+        $this->em()->getEventManager()->addEventListener(Events::preUpdate, $listener);
+
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertSame([], $listener->updated);
     }
 
     public function test_a_merge_rule_binds_the_base_of_a_stack_although_the_stacked_pull_request_opened_later(): void
@@ -3423,6 +3451,7 @@ final class EngineTest extends KernelTestCase
                 $this->service(ProjectRepository::class),
                 $this->providers(),
                 $this->em()->getConnection(),
+                $this->service(PassMemo::class),
             ),
             new FactFingerprint(),
             $this->service(WorkflowRuleStateRepository::class),

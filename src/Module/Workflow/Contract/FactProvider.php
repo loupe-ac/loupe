@@ -16,7 +16,10 @@ interface FactProvider
     /** False when the module that owns the facts is off on this instance. */
     public function isOn(): bool;
 
-    /** The facts of one card, an instance of factsClass(). */
+    /**
+     * The facts of one card, an instance of factsClass().
+     * A provider only reads. All providers of a pass share one savepoint, and a failure rolls back to it.
+     */
     public function build(CardSnapshot $card): object;
 
     /** The part of the facts whose change counts as a change, comparable across evaluations. */
