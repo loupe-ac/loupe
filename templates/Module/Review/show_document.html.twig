@@ -41,11 +41,7 @@
             {% if review is not null %}
             <div class="lp-verdict-chip__body">
                 <p class="lp-verdict-chip__meta">
-                    <twig:ux:icon name="lucide:user" class="lp-verdict-chip__meta-icon" />
                     <span class="lp-verdict-chip__reviewer">{{ review.reviewer.fullName }}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>{{ review.submittedAt|relative_time }}</span>
-                    <span class="lp-version-pill">{{ 'v' ~ review.version.versionNumber }}</span>
                 </p>
                 {% if review.note %}<blockquote class="lp-verdict-chip__note">{{ review.note }}</blockquote>{% endif %}
             </div>

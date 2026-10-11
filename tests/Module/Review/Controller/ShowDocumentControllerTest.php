@@ -630,7 +630,6 @@ final class ShowDocumentControllerTest extends WebTestCase
         $panel = $crawler->filter('.lp-verdict-chip__panel[hidden]');
         self::assertCount(1, $panel);
         self::assertStringContainsString('Chipowner', $panel->text());
-        self::assertStringContainsString('v1', $panel->text());
         self::assertStringContainsString('Split the second step.', $panel->text());
         self::assertCount(1, $panel->filter('button[data-action="click->review-finish#open"]'));
         self::assertCount(1, $panel->filter('.lp-verdict-chip__undo button'));

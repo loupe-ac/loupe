@@ -17,7 +17,6 @@
     {% set changeNote = versions|filter(meta => meta.versionNumber == version.versionNumber and meta.description is not empty)|first %}
     {% if changeNote %}
     <div class="lp-diff-notes">
-        <twig:ux:icon name="lucide:message-square" class="lp-diff-notes__icon" />
         <twig:Ds:Tag tone="neutral">{{ 'v' ~ changeNote.versionNumber }}</twig:Ds:Tag>
         <p class="lp-diff-notes__entry">{{ changeNote.description }}</p>
     </div>
