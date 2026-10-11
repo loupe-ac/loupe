@@ -602,6 +602,25 @@ final class EngineTest extends KernelTestCase
         self::assertNotSame($first, $live[0]);
     }
 
+    public function test_a_done_request_whose_facts_changed_while_it_ran_still_waits_for_the_first_retry(): void
+    {
+        $rule = self::requestRule('work', self::NOT_EPIC);
+        $rule['then']['request']['stillTrue'] = 'retry';
+        $card = $this->boundCard([$rule], onWorkFailed: ['retryOn' => ['still-true'], 'retries' => 2, 'backoffMinutes' => [2, 3]]);
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+
+        $this->setType($card, 'bug');
+        $this->finish($first, '2026-10-02 12:00:30');
+        $this->evaluate($card, '2026-10-02 12:01:00');
+        $state = $this->ruleState($card, 'work');
+        self::assertSame([1, '2026-10-02 12:03:00'], [$state->attempts, $state->dueAt?->format('Y-m-d H:i:s')]);
+        self::assertSame([], $this->liveRequests($card), 'The change and the settle in one pass keep the wait.');
+
+        $this->evaluate($card, '2026-10-02 12:03:00');
+        self::assertCount(1, $this->liveRequests($card));
+    }
+
     public function test_a_done_request_that_keeps_the_rule_true_pauses_the_card_when_the_retries_run_out(): void
     {
         $rule = self::requestRule('work', self::ALWAYS);

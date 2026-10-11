@@ -293,7 +293,11 @@ final readonly class Engine
             if (WorkState::Done === $request->state) {
                 if ($this->retriesWhileTrue($rule)) {
                     if (null === $state->lastRefusalAt || null === $request->settledAt || $state->lastRefusalAt < $request->settledAt) {
-                        $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, self::STILL_TRUE, $bound));
+                        $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule, $policy, $bound): void {
+                            $this->refuse($run, $rule, $state, $policy, self::STILL_TRUE, $bound);
+                            // A fact that changed while the request ran must not skip the wait in this pass.
+                            $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
+                        });
                     }
                     continue;
                 }
