@@ -1343,13 +1343,14 @@
         > :is(.lp-diff-columns, .lp-diff-notes, .lp-empty) {
         margin-right: calc(var(--review-panels-width) + var(--doc-margin-gap));
     }
-    /* The panel column fills the window below the top bar, stays in view, and
-       scrolls on its own when the open panels are taller than the window. */
+    /* The panel column fills the window below the top bar, also beside a short
+       document, stays in view, and scrolls on its own when the open panels are
+       taller than the window. */
     .lp-review .lp-review-panels__inner {
         @apply overflow-y-auto overscroll-contain pb-1;
         position: sticky;
         top: calc(var(--spacing) * 6);
-        height: min(calc(100dvh - var(--spacing) * 26), 100%);
+        height: calc(100dvh - var(--spacing) * 26);
         scrollbar-width: thin;
     }
     /* The last open panel fills the column to its foot. */
