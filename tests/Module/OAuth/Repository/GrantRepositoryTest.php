@@ -6,12 +6,16 @@ namespace App\Tests\Module\OAuth\Repository;
 
 use App\Module\Account\Deletion\AccountDeletionCleanup;
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
 use App\Module\OAuth\Repository\GrantRepository;
 use App\Module\OAuth\Service\ConnectedAppsExporter;
 use App\Module\OAuth\Service\OAuthGrantAccountPurger;
+use App\Module\OAuth\Widget\WidgetClient;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class GrantRepositoryTest extends KernelTestCase
@@ -69,6 +73,7 @@ final class GrantRepositoryTest extends KernelTestCase
         $rows = iterator_to_array(static::getContainer()->get(ConnectedAppsExporter::class)->export($this->user), false);
 
         self::assertSame([[
+            'kind' => 'grant',
             'clientId' => OAuthScenario::CLIENT_ID,
             'clientName' => OAuthScenario::CLIENT_NAME,
             'scopes' => ['mcp'],
@@ -77,7 +82,76 @@ final class GrantRepositoryTest extends KernelTestCase
         ]], $rows);
     }
 
-    private function insertAccessToken(string $id, string $expiry, ?string $userId = null, ?string $scopes = null, bool $revoked = false): void
+    public function test_the_grant_list_leaves_out_preview_tokens_and_keeps_a_popup_sign_in(): void
+    {
+        $this->insertAccessToken('popup', '+1 hour', scopes: 'site-review project:'.$this->project->id, client: WidgetClient::ID);
+        $this->insertAccessToken('preview', '+1 hour', scopes: 'site-review', client: WidgetClient::ID);
+        $this->connection->insert('oauth_preview_tokens', [
+            'access_token_id' => 'preview',
+            'user_id' => (string) $this->user->id,
+            'project_id' => (string) $this->project->id,
+            'label' => 'pr-12',
+            'created_at' => new \DateTimeImmutable()->format('Y-m-d H:i:s'),
+        ]);
+
+        $rows = static::getContainer()->get(GrantRepository::class)->findLiveGrantsForUser($this->user->id ?? throw new \LogicException('A persisted user has an id.'));
+
+        self::assertSame([['clientId' => WidgetClient::ID, 'scopes' => 'site-review project:'.$this->project->id]], array_map(
+            static fn (array $row): array => ['clientId' => $row['clientId'], 'scopes' => $row['scopes']],
+            $rows,
+        ));
+    }
+
+    public function test_the_export_lists_a_live_preview_token_after_the_grants_and_no_token_value(): void
+    {
+        $this->insertAccessToken('live', '+1 hour');
+        $this->insertAccessToken('preview-token-jti', '2030-01-02 03:04:05', scopes: 'site-review', client: WidgetClient::ID);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $column = new BoardColumn($this->project, 'Doing', 'doing', 1);
+        $card = new Card(project: $this->project, column: $column, title: 'Preview it', body: 'Body', number: 7);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+        $this->connection->insert('oauth_preview_tokens', [
+            'access_token_id' => 'preview-token-jti',
+            'user_id' => (string) $this->user->id,
+            'project_id' => (string) $this->project->id,
+            'card_id' => $cardId->toRfc4122(),
+            'label' => 'pr-12',
+            'created_at' => '2026-10-01 10:00:00',
+            'last_used_at' => '2026-10-02 11:00:00',
+        ]);
+        $this->insertAccessToken('revoked-preview', '+1 hour', scopes: 'site-review', revoked: true, client: WidgetClient::ID);
+        $this->connection->insert('oauth_preview_tokens', [
+            'access_token_id' => 'revoked-preview',
+            'user_id' => (string) $this->user->id,
+            'project_id' => (string) $this->project->id,
+            'label' => 'pr-13',
+            'created_at' => '2026-10-01 10:00:00',
+        ]);
+
+        $rows = iterator_to_array(static::getContainer()->get(ConnectedAppsExporter::class)->export($this->user), false);
+
+        self::assertCount(2, $rows);
+        self::assertSame('grant', $rows[0]['kind']);
+        self::assertSame([
+            'kind' => 'preview-token',
+            'clientId' => WidgetClient::ID,
+            'projectId' => (string) $this->project->id,
+            'projectName' => 'Site',
+            'cardId' => $cardId->toRfc4122(),
+            'cardNumber' => 7,
+            'cardTitle' => 'Preview it',
+            'label' => 'pr-12',
+            'expiresAt' => new \DateTimeImmutable('2030-01-02 03:04:05')->format(\DATE_ATOM),
+            'lastUsedAt' => new \DateTimeImmutable('2026-10-02 11:00:00')->format(\DATE_ATOM),
+            'createdAt' => new \DateTimeImmutable('2026-10-01 10:00:00')->format(\DATE_ATOM),
+        ], $rows[1]);
+        self::assertStringNotContainsString('preview-token-jti', json_encode($rows, \JSON_THROW_ON_ERROR));
+    }
+
+    private function insertAccessToken(string $id, string $expiry, ?string $userId = null, ?string $scopes = null, bool $revoked = false, string $client = OAuthScenario::CLIENT_ID): void
     {
         $this->connection->insert('oauth2_access_token', [
             'identifier' => $id,
@@ -85,7 +159,7 @@ final class GrantRepositoryTest extends KernelTestCase
             'user_identifier' => $userId ?? (string) $this->user->id,
             'scopes' => $scopes ?? 'mcp project:'.$this->project->id,
             'revoked' => $revoked,
-            'client' => OAuthScenario::CLIENT_ID,
+            'client' => $client,
         ], ['revoked' => 'boolean']);
     }
 

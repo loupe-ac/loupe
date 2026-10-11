@@ -38,6 +38,7 @@ use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Template\TemplateMissing;
@@ -72,6 +73,7 @@ final readonly class CardWaitReconciler
         private TemplateSource $templates,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private CardWaitText $waitText,
+        private EpicBranches $epicBranches,
     ) {
     }
 
@@ -307,6 +309,7 @@ final readonly class CardWaitReconciler
 
     /**
      * An open run on the card holds back a ready wait, because the run can still push.
+     * A child pull request into the epic branch of its parent merges with no approval, so it gets no ready wait.
      *
      * @param list<Uuid> $cardIds
      *
@@ -329,6 +332,12 @@ final readonly class CardWaitReconciler
         }
 
         $running = array_flip($this->workerRuns->findCardIdsWithOpenRun($project, $cardIds));
+        $parents = [];
+        foreach ($this->cards->findByIdsInProject($project, $cardIds) as $card) {
+            if (null !== $card->parent) {
+                $parents[(string) $card->id] = $card->parent->number;
+            }
+        }
 
         $waits = [];
         foreach ($links as $link) {
@@ -340,7 +349,7 @@ final readonly class CardWaitReconciler
             $rowId = $row->id ?? throw new \LogicException('A stored pull request has an id.');
             $idle = !isset($running[$cardId]);
 
-            if ($idle && self::waitsForReview($row, $row->headSha)) {
+            if ($idle && self::waitsForReview($row, $row->headSha) && !$this->mergesWithoutApproval($projectId, $row, $parents[(string) $cardId] ?? null)) {
                 $waits[] = [$cardId, PullRequestReview::Approved === $row->review
                     ? WantedCardWait::forPullRequestChangedAfterApproval($rowId, $row->headSha)
                     : WantedCardWait::forPullRequestReady($rowId, $row->headSha)];
@@ -363,6 +372,11 @@ final readonly class CardWaitReconciler
         }
 
         return $waits;
+    }
+
+    private function mergesWithoutApproval(Uuid $projectId, ForgePullRequest $row, ?int $parentNumber): bool
+    {
+        return null !== $parentNumber && null !== $row->baseBranch && $row->baseBranch === $this->epicBranches->of($projectId, $parentNumber);
     }
 
     /**

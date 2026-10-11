@@ -6,9 +6,11 @@ namespace App\Module\OAuth\Security;
 
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\OAuth\Repository\PreviewTokenRepository;
 use App\Module\OAuth\Scope\ApiScope;
 use App\Module\OAuth\Scope\GrantedScope;
 use App\Module\OAuth\Service\McpResource;
+use App\Module\OAuth\Widget\WidgetClient;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Security\AuthenticatedCredential;
 use App\Security\BearerToken;
@@ -60,6 +62,7 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
         private readonly ProjectRepository $projects,
         private readonly AccessTokenManagerInterface $accessTokens,
         private readonly McpResource $mcpResource,
+        private readonly PreviewTokenRepository $previewTokens,
         private readonly LoggerInterface $logger,
         private readonly Auditor $auditor,
     ) {
@@ -115,6 +118,10 @@ final class OAuthAccessTokenAuthenticator extends AbstractAuthenticator implemen
             if (null === $project || $project->owner->id?->toRfc4122() !== $user->id?->toRfc4122()) {
                 throw new AuthenticationException('The OAuth grant no longer applies.');
             }
+        }
+
+        if (WidgetClient::ID === $clientId && \is_string($tokenId)) {
+            $this->previewTokens->recordUse($tokenId);
         }
 
         $passport = new SelfValidatingPassport(new UserBadge($user->getUserIdentifier(), static fn (): User => $user));

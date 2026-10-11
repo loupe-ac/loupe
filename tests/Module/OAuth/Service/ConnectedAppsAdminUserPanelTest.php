@@ -5,12 +5,18 @@ declare(strict_types=1);
 namespace App\Tests\Module\OAuth\Service;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
+use App\Module\OAuth\Command\MintPreviewTokenCommand;
+use App\Module\OAuth\Command\MintPreviewTokenHandler;
 use App\Module\OAuth\Service\ConnectedAppsAdminUserPanel;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\AcceptedTerms;
 use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
+use Twig\Environment;
 
 /**
  * Drives a real grant through the panel, rather than a stub of the handler.
@@ -30,6 +36,44 @@ final class ConnectedAppsAdminUserPanelTest extends KernelTestCase
         // type. This asserts the empty state an admin actually reads.
         self::assertSame('@OAuth/admin/connected_apps_panel.html.twig', $panel->template);
         self::assertSame([], $panel->context['apps']);
+        self::assertSame([], $panel->context['previewTokens']);
+    }
+
+    public function test_an_account_with_only_preview_tokens_lists_each_token(): void
+    {
+        self::bootKernel();
+        $user = $this->persistUser('preview-only@example.com');
+        $project = $this->persistProject($user, 'Cirrus');
+        $cardId = $this->persistCard($project, 'Preview it', 4);
+
+        $this->mintPreviewToken($user, $project, 'pr-1', $cardId);
+        $this->mintPreviewToken($user, $project, 'pr-2');
+
+        $panel = $this->panel()->panelFor($user);
+
+        self::assertSame([], $panel->context['apps']);
+        self::assertEqualsCanonicalizing([
+            ['label' => 'pr-1', 'cardNumber' => 4, 'cardTitle' => 'Preview it', 'project' => 'Cirrus', 'daysLeft' => 14],
+            ['label' => 'pr-2', 'cardNumber' => null, 'cardTitle' => null, 'project' => 'Cirrus', 'daysLeft' => 14],
+        ], $panel->context['previewTokens']);
+    }
+
+    public function test_the_panel_lists_preview_tokens_instead_of_the_empty_line(): void
+    {
+        self::bootKernel();
+        $user = $this->persistUser('preview-render@example.com');
+        $project = $this->persistProject($user, 'Cirrus');
+        $this->mintPreviewToken($user, $project, 'pr-1', $this->persistCard($project, 'Preview it', 4));
+
+        $panel = $this->panel()->panelFor($user);
+        $twig = static::getContainer()->get(Environment::class);
+        self::assertInstanceOf(Environment::class, $twig);
+        $html = $twig->render($panel->template, $panel->context);
+
+        self::assertStringNotContainsString('connected-apps-panel-empty', $html);
+        self::assertStringContainsString('#4 Preview it', $html);
+        self::assertStringContainsString('Cirrus', $html);
+        self::assertStringContainsString('Expires in 14 days', $html);
     }
 
     public function test_a_grant_shows_its_client_scope_and_project(): void
@@ -95,6 +139,27 @@ final class ConnectedAppsAdminUserPanelTest extends KernelTestCase
         $em->flush();
 
         return $user;
+    }
+
+    private function mintPreviewToken(User $owner, Project $project, string $label, ?Uuid $cardId = null): void
+    {
+        $handler = static::getContainer()->get(MintPreviewTokenHandler::class);
+        self::assertInstanceOf(MintPreviewTokenHandler::class, $handler);
+        $handler(new MintPreviewTokenCommand($owner, (string) $project->id, $label, $cardId));
+    }
+
+    private function persistCard(Project $project, string $title, int $number): Uuid
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        $column = new BoardColumn($project, 'Doing', 'doing-'.$number, $number);
+        $card = new Card(project: $project, column: $column, title: $title, body: 'Body', number: $number);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+
+        return $card->id ?? throw new \LogicException('A flushed card has an id.');
     }
 
     private function persistProject(User $owner, string $name): Project
