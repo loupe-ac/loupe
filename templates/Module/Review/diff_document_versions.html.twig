@@ -12,16 +12,6 @@
    survives, and the chip in the metadata bar carries the version range. #}
 
 {% block documentPane %}
-    {# What the author said the newer version changed, read next to what it
-       actually changed. #}
-    {% set changeNote = versions|filter(meta => meta.versionNumber == version.versionNumber and meta.description is not empty)|first %}
-    {% if changeNote %}
-    <div class="lp-diff-notes">
-        <twig:Ds:Tag tone="neutral">{{ 'v' ~ changeNote.versionNumber }}</twig:Ds:Tag>
-        <p class="lp-diff-notes__entry">{{ changeNote.description }}</p>
-    </div>
-    {% endif %}
-
     {% if diffRefusal %}
         {# Declining to compare, rather than showing a comparison that describes
            neither version. Each version still reads normally, which is what the

@@ -1340,7 +1340,7 @@
         .lp-review-doc--wide:has(
             > .lp-review-panels .lp-review-panel:not([hidden])
         )
-        > :is(.lp-diff-columns, .lp-diff-notes, .lp-empty) {
+        > :is(.lp-diff-columns, .lp-empty) {
         margin-right: calc(var(--review-panels-width) + var(--doc-margin-gap));
     }
     /* The panel column fills the window below the top bar, also beside a short
@@ -1812,20 +1812,16 @@
 .lp-review .lp-diff-nav .lp-btn--icon {
     @apply size-8 min-h-8 rounded-lg border-transparent bg-transparent text-fg-label hover:bg-surface-3;
 }
-.lp-review .lp-diff-notes {
-    @apply m-0 mt-2 flex max-w-none items-start gap-2.5 rounded-xl border-0 bg-surface-2 px-3 py-2;
+/* The newer version's note hangs under the compare bar as its last row. */
+.lp-review .lp-diff-bar:has(+ .lp-diff-notes) {
+    @apply rounded-b-none;
 }
-.lp-review .lp-diff-notes .lp-tag {
-    @apply mt-1;
+.lp-review .lp-diff-notes {
+    @apply m-0 flex max-w-none items-baseline gap-2.5 rounded-t-none rounded-b-xl border-0 border-t border-line-faint bg-surface-2 py-2 pr-3 pl-4.5;
 }
 .lp-review .lp-diff-notes__entry {
     @apply m-0 block leading-7 whitespace-pre-wrap text-prose;
     font-size: calc(var(--spacing) * 4.25);
-}
-.lp-review .lp-diff-notes + .lp-review-doc__prose,
-.lp-review .lp-diff-notes + .lp-diff,
-.lp-review .lp-diff-notes + .lp-diff-columns {
-    @apply mt-4;
 }
 .lp-review .lp-diff-notice {
     @apply mt-3;
