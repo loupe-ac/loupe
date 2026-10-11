@@ -458,6 +458,18 @@ and `data-project` must name a project that instance holds. A local id against
 production, and a production id against the worktree, both end at "This review
 widget can't connect".
 
+### The preview token
+
+After the seed, `worktree-bootstrap.sh` runs `loupe preview-token mint --project
+<SITE_REVIEW_WIDGET_PROJECT> --label <slug> --instance <SITE_REVIEW_WIDGET_BACKEND>`,
+with `--card` from the card marker, and writes the result to
+`SITE_REVIEW_WIDGET_PREVIEW_TOKEN` in `.env.local`. `worktree-teardown.sh`
+revokes it. A failed mint prints one warning and writes an empty value, so
+`worktree-up` never fails for it. The warning means the CLI is missing, signed
+out, or signed in to another instance than the widget backend. A branch whose
+backend is its own worktree host mints from its own database with
+`app:dev:preview-token`, with no card.
+
 ## Writing worktree tooling
 
 - Source helpers relative to the script, not to `$main`. A script in a worktree

@@ -43,7 +43,7 @@ class BoardAutomationSettings
         #[ORM\Column(options: ['default' => 3])]
         public int $terminalWindowDays = 3,
 
-        /** How long a ready pull request may wait for a merge before its card shows Stuck. */
+        /** How long a pull request may wait for a merge or for any card change before its card shows Stuck. */
         #[ORM\Column(options: ['default' => self::DEFAULT_STUCK_DELAY_MINUTES])]
         public int $stuckDelayMinutes = self::DEFAULT_STUCK_DELAY_MINUTES,
     ) {

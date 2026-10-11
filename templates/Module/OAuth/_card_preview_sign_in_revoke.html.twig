@@ -1,0 +1,15 @@
+{# The Revoke button of one preview token on a card page. Props: token (PreviewTokenRow), index (unique on the page). #}
+<div data-controller="modal">
+    <twig:Ds:Button variant="danger-ghost" size="sm" type="button" data-action="click->modal#open">{{ 'oauth.connected_apps.action.revoke'|trans }}</twig:Ds:Button>
+    <twig:Ds:Dialog aria-labelledby="revoke-card-preview-token-title-{{ index }}" data-action="cancel->modal#close">
+        <h2 class="lp-dialog-title" id="revoke-card-preview-token-title-{{ index }}">{{ 'oauth.connected_apps.preview_tokens.revoke.title'|trans }}</h2>
+        <p class="lp-dialog-desc">{{ 'oauth.connected_apps.preview_tokens.revoke.description'|trans }}</p>
+        <form method="post" action="{{ path('app_account_preview_token_revoke_to_card', {accessTokenId: token.accessTokenId}) }}" data-turbo-frame="_top">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke-preview-token') }}">
+            <div class="lp-dialog-actions">
+                <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.connected_apps.revoke.cancel'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="danger" type="submit">{{ 'oauth.connected_apps.revoke.confirm'|trans }}</twig:Ds:Button>
+            </div>
+        </form>
+    </twig:Ds:Dialog>
+</div>

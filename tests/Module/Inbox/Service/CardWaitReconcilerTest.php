@@ -803,6 +803,70 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(self::HEAD_A, $wait->headSha);
     }
 
+    public function test_a_child_pull_request_into_its_epic_branch_opens_no_wait(): void
+    {
+        $this->makeChildOfEpic(7);
+        $this->pullRequest(5)->baseBranch = 'epic/7';
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_child_pull_request_into_main_opens_a_wait(): void
+    {
+        $this->makeChildOfEpic(7);
+        $this->pullRequest(5)->baseBranch = 'main';
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame(InboxCardWaitTrigger::PullRequestReady, $this->onlyWait($this->onlyWatch())->trigger);
+    }
+
+    public function test_a_pull_request_of_a_card_with_no_parent_into_an_epic_branch_opens_a_wait(): void
+    {
+        $this->pullRequest(5)->baseBranch = 'epic/7';
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame(InboxCardWaitTrigger::PullRequestReady, $this->onlyWait($this->onlyWatch())->trigger);
+    }
+
+    public function test_an_open_review_wait_of_a_child_closes_when_its_pull_request_targets_the_epic_branch(): void
+    {
+        $this->makeChildOfEpic(7);
+        $pullRequest = $this->pullRequest(5);
+        $pullRequest->baseBranch = 'main';
+        $this->em->flush();
+        $this->reconcile();
+        self::assertSame(InboxItemState::Open, $this->onlyWatch()->item->state);
+
+        $pullRequest->baseBranch = 'epic/7';
+        $this->em->flush();
+        $this->reconcile();
+
+        $watch = $this->onlyWatch();
+        self::assertSame(InboxItemState::Done, $watch->item->state);
+        self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
+    }
+
+    public function test_a_paused_child_with_a_pull_request_into_its_epic_branch_keeps_its_pause_wait(): void
+    {
+        $this->makeChildOfEpic(7);
+        $this->pullRequest(5)->baseBranch = 'epic/7';
+        $this->em->flush();
+        $handler = self::getContainer()->get(PauseCardHandler::class);
+        self::assertInstanceOf(PauseCardHandler::class, $handler);
+        $handler(new PauseCardCommand($this->card, 'work-stopped', 'review', PauseKind::WorkStopped));
+
+        $this->reconcile();
+
+        self::assertSame(InboxCardWaitTrigger::CardPaused, $this->onlyWait($this->onlyWatch())->trigger);
+    }
+
     /** @return iterable<string, array{\Closure(ForgePullRequest): void}> */
     public static function readyPullRequests(): iterable
     {
@@ -1073,6 +1137,13 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->flush();
 
         return $settings;
+    }
+
+    private function makeChildOfEpic(int $epicNumber): void
+    {
+        $epic = $this->card($this->em, $this->project, $epicNumber);
+        $this->card->parent = $epic;
+        $this->em->flush();
     }
 
     /** A pull request on $this->card with checks passed on the head commit, a review asked for, and mergeable. */

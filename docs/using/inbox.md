@@ -263,6 +263,10 @@ A pull request is ready for review when all of these are true:
 - It needs a review, or it has no review rule. A request for changes on an
   older commit also counts, because the author pushed a fix after it.
 - No worker run of the card is open.
+- It does not merge with no approval. A pull request of an epic child into the
+  epic branch of its parent merges there with no approval, so it gives no wait.
+  The epic's own pull request into the main branch still gives one. A child
+  pull request into the main branch gives one too.
 
 An approval ends the wait. So does a request for changes on the newest commit,
 a new commit whose checks did not pass yet, a merge and a close. A pull request

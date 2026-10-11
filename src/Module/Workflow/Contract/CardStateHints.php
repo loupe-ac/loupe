@@ -20,4 +20,20 @@ interface CardStateHints
      * @return list<BlockerHold>
      */
     public function blockerHolds(array $cardIds): array;
+
+    /**
+     * The columns whose slot has a rule of its own that reads a pull request.
+     *
+     * @return list<string> RFC 4122 column ids; empty when the project has no template
+     */
+    public function pullRequestColumnIds(Uuid $projectId): array;
+
+    /**
+     * The branch of each epic with these card numbers. It reads the template once, whatever the count.
+     *
+     * @param list<int> $numbers
+     *
+     * @return array<int, string> card number => its branch; empty when the project has no template or its template has no epic branches
+     */
+    public function epicBranchesOf(Uuid $projectId, array $numbers): array;
 }

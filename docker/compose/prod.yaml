@@ -88,10 +88,8 @@ x-app-environment: &app-environment
   # Empty means the endpoint never reports a version.
   HEALTH_PROBE_TOKEN: "${HEALTH_PROBE_TOKEN:-}"
   # Optional: the id of the project site-review comments file into. The reviewer
-  # signs in through the OAuth popup, and it wins over the token below.
+  # signs in through the OAuth popup.
   SITE_REVIEW_WIDGET_PROJECT: "${SITE_REVIEW_WIDGET_PROJECT:-}"
-  # Optional: the widget token of the project site-review comments file into.
-  # Empty serves no widget on its own; when set it is shown to admins only.
   # Empty shows the widget to administrators only. "1" offers it to every
   # visitor, whose comments an agent may then act on.
   SITE_REVIEW_WIDGET_PUBLIC: "${SITE_REVIEW_WIDGET_PUBLIC:-}"
@@ -99,6 +97,8 @@ x-app-environment: &app-environment
   # Empty is this one.
   SITE_REVIEW_WIDGET_BACKEND: "${SITE_REVIEW_WIDGET_BACKEND:-}"
   SITE_REVIEW_WIDGET_CONTEXT: "${SITE_REVIEW_WIDGET_CONTEXT:-}"
+  # Empty on a real deployment. A preview token signs the widget in with no popup.
+  SITE_REVIEW_WIDGET_PREVIEW_TOKEN: "${SITE_REVIEW_WIDGET_PREVIEW_TOKEN:-}"
   # Umami. The first two, plus the analytics.enabled flag, before a tag is
   # emitted. The two origins are the script's and the one events post to.
   ANALYTICS_SCRIPT_URL: "${ANALYTICS_SCRIPT_URL:-}"

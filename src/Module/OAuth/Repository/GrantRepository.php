@@ -31,7 +31,8 @@ final readonly class GrantRepository
     }
 
     /**
-     * One row per client and scope set that still holds a usable token.
+     * One row per client and scope set that still holds a usable token. A
+     * preview token has its own list, so it is left out here.
      *
      * @return list<array{clientId: string, clientName: string, scopes: string}>
      */
@@ -41,6 +42,7 @@ final readonly class GrantRepository
             'SELECT c.identifier AS "clientId", c.name AS "clientName", COALESCE(a.scopes, \'\') AS scopes
              FROM oauth2_access_token a JOIN oauth2_client c ON c.identifier = a.client
              WHERE a.identifier IN ('.self::LIVE_ACCESS_TOKENS.')
+               AND NOT EXISTS (SELECT 1 FROM oauth_preview_tokens p WHERE p.access_token_id = a.identifier)
              GROUP BY c.identifier, c.name, a.scopes
              ORDER BY c.name, a.scopes',
             ['userId' => $userId->toRfc4122()],

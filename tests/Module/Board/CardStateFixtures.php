@@ -6,6 +6,8 @@ namespace App\Tests\Module\Board;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
+use App\Module\Board\Entity\CardEvent;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardPause;
@@ -25,6 +27,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\DocumentVersion;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -62,6 +65,15 @@ trait CardStateFixtures
         $this->em()->flush();
 
         return $card;
+    }
+
+    private function recordHistory(Card $card, string $at): CardEvent
+    {
+        $event = new CardEvent($card, $card->project, CardEventKind::Moved, Actor::Agent, null, [], new \DateTimeImmutable($at));
+        $this->em()->persist($event);
+        $this->em()->flush();
+
+        return $event;
     }
 
     private function pauseCard(Card $card, string $at = '2026-10-02 09:00:00'): CardPause
