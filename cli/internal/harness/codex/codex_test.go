@@ -117,8 +117,8 @@ func TestWorkerArgs(t *testing.T) {
 			if !reflect.DeepEqual(cmd.Args, tc.want) {
 				t.Fatalf("args = %q\nwant   %q", cmd.Args, tc.want)
 			}
-			if got := cmd.Files[filepath.Join(run, schemaFile)]; got != spec.Schema {
-				t.Fatalf("schema file = %q, want %q", got, spec.Schema)
+			if got, want := cmd.Files[filepath.Join(run, schemaFile)], strictSchema(spec.Schema); got != want {
+				t.Fatalf("schema file = %q, want %q", got, want)
 			}
 		})
 	}

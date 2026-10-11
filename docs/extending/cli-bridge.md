@@ -480,6 +480,12 @@ The profile names the variable in `env_key`. Put that variable in the
 `envFile` of the account, such as `OPENROUTER_API_KEY=...`. An account with no
 `profile` uses the login of the Codex home folder, which `codex login` makes.
 
+The bridge passes the result schema to Codex with `--output-schema`, in the
+strict form that the OpenAI API needs. Each object sets `additionalProperties`
+to `false` and lists every property as required. An optional field, such as
+`reason` or a field of `resultFields`, also takes `null`. The bridge reads a
+`null` field as a field the worker did not set.
+
 Each permission level maps to a sandbox of Codex. The `workspace` level
 turns the network on. It also adds the git folder of the main repository as a
 writable folder, because a worker in a git worktree keeps its index and refs
