@@ -25,6 +25,8 @@ final readonly class ArtifactReadTool implements FlagGatedToolInterface
 {
     private const array IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
+    private const array TEXT_TYPES = ['application/json', 'application/javascript', 'application/ecmascript', 'application/xml', 'image/svg+xml'];
+
     public function __construct(
         private ArtifactSubjectResolver $subjects,
         private ReadArtifactFileHandler $handler,
@@ -50,7 +52,7 @@ final readonly class ArtifactReadTool implements FlagGatedToolInterface
                 return new ImageContent(base64_encode($contents), $type);
             }
 
-            if (!str_contains($contents, "\0") && mb_check_encoding($contents, 'UTF-8')) {
+            if ($this->isTextType($type) && !str_contains($contents, "\0") && mb_check_encoding($contents, 'UTF-8')) {
                 return new TextContent($contents);
             }
 
@@ -62,6 +64,15 @@ final readonly class ArtifactReadTool implements FlagGatedToolInterface
         } catch (\Throwable $e) {
             throw new ToolCallException('The artifact file could not be read. The error has been logged.', previous: $e);
         }
+    }
+
+    /** The stored content type decides first, because a binary format such as a PDF can be valid UTF-8. */
+    private function isTextType(string $type): bool
+    {
+        return str_starts_with($type, 'text/')
+            || \in_array($type, self::TEXT_TYPES, true)
+            || str_ends_with($type, '+json')
+            || str_ends_with($type, '+xml');
     }
 
     #[\Override]

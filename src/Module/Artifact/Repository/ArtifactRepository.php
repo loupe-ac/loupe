@@ -130,4 +130,18 @@ class ArtifactRepository extends ServiceEntityRepository
 
         return (int) $builder->getQuery()->getSingleScalarResult();
     }
+
+    /** Reads the stored archive time past the loaded entity, which a row lock does not refresh. */
+    public function archivedAtOf(Artifact $artifact): ?\DateTimeImmutable
+    {
+        /** @var array{archivedAt: ?\DateTimeImmutable} $state */
+        $state = $this->createQueryBuilder('a')
+            ->select('a.archivedAt')
+            ->andWhere('a = :artifact')
+            ->setParameter('artifact', $artifact)
+            ->getQuery()
+            ->getSingleResult();
+
+        return $state['archivedAt'];
+    }
 }

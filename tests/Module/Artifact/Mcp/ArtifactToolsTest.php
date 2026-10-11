@@ -167,6 +167,29 @@ final class ArtifactToolsTest extends KernelTestCase
         }
     }
 
+    public function test_read_refuses_a_binary_content_type_even_when_its_bytes_are_valid_utf8(): void
+    {
+        $project = $this->switchedOnProject('read-pdf@example.com');
+        $artifact = $this->artifact($project, 'Spec', [['spec.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n", 'application/pdf']]);
+
+        $message = $this->refusal(fn () => ($this->tool(ArtifactReadTool::class))((string) $artifact->id, 'spec.pdf'));
+
+        self::assertStringContainsString('binary file of 29 bytes (application/pdf)', $message);
+    }
+
+    public function test_read_returns_a_structured_text_type_as_text(): void
+    {
+        $project = $this->switchedOnProject('read-json@example.com');
+        $artifact = $this->artifact($project, 'Data', [['data.json', '{"a":1}', 'application/vnd.api+json'], ['icon.svg', '<svg/>', 'image/svg+xml']]);
+
+        $json = ($this->tool(ArtifactReadTool::class))((string) $artifact->id, 'data.json');
+        $svg = ($this->tool(ArtifactReadTool::class))((string) $artifact->id, 'icon.svg');
+
+        self::assertInstanceOf(TextContent::class, $json);
+        self::assertSame('{"a":1}', $json->text);
+        self::assertInstanceOf(TextContent::class, $svg);
+    }
+
     public function test_read_refuses_a_missing_path(): void
     {
         $project = $this->switchedOnProject('read-missing@example.com');
@@ -198,6 +221,23 @@ final class ArtifactToolsTest extends KernelTestCase
 
         ($this->tool(ArtifactUnarchiveTool::class))((string) $artifact->id);
         self::assertCount(2, $this->audit->sink->events);
+    }
+
+    public function test_archive_and_unarchive_read_the_stored_state_and_audit_nothing_when_another_caller_changed_it(): void
+    {
+        $project = $this->switchedOnProject('archive-race@example.com');
+        $artifact = $this->artifact($project, 'Widget', [['index.html', 'a', 'text/html']]);
+        $connection = $this->em()->getConnection();
+
+        $connection->executeStatement('UPDATE artifacts SET archived_at = NOW() WHERE id = ?', [$artifact->id], ['uuid']);
+        ($this->tool(ArtifactArchiveTool::class))((string) $artifact->id);
+        self::assertNotNull($artifact->archivedAt);
+
+        $connection->executeStatement('UPDATE artifacts SET archived_at = NULL WHERE id = ?', [$artifact->id], ['uuid']);
+        ($this->tool(ArtifactUnarchiveTool::class))((string) $artifact->id);
+        self::assertNull($artifact->archivedAt);
+
+        self::assertCount(0, $this->audit->sink->events);
     }
 
     public function test_an_artifact_of_another_project_reads_as_not_found_for_every_tool(): void
