@@ -34,12 +34,13 @@ final readonly class FactsBuilder
         private ProjectRepository $projects,
         private FactProviders $providers,
         private Connection $connection,
+        private PassMemo $pass,
     ) {
     }
 
     public function build(CardSnapshot $snapshot, \DateTimeImmutable $now): Facts
     {
-        $provided = array_map(fn (FactProvider $provider): array => $this->provided($provider, $snapshot), $this->providers->byClass);
+        $provided = $this->pass->during(fn (): array => $this->providedByClass($snapshot));
         $pullRequests = $provided[PullRequestList::class][0] ?? null;
         $card = $this->cards->findWithParentColumn($snapshot->id) ?? throw new \LogicException('A stored card has an id.');
         $project = $this->projects->find($snapshot->projectId) ?? throw new \LogicException('A stored card has a project.');
@@ -56,17 +57,33 @@ final readonly class FactsBuilder
     }
 
     /**
-     * The facts of the provider and their fingerprint. A savepoint isolates the queries of the provider, so a database error leaves the transaction of the caller usable.
+     * One savepoint covers the queries of every provider, so a database error leaves the transaction of the caller usable.
+     * Rolling back to it keeps it open, so only the failing provider loses its facts.
+     *
+     * @return array<class-string, array{object, mixed}>
+     */
+    private function providedByClass(CardSnapshot $card): array
+    {
+        $savepoint = $this->connection->isTransactionActive();
+        if ($savepoint) {
+            $this->connection->createSavepoint(self::SAVEPOINT);
+        }
+        $provided = array_map(fn (FactProvider $provider): array => $this->provided($provider, $card, $savepoint), $this->providers->byClass);
+        if ($savepoint) {
+            $this->release();
+        }
+
+        return $provided;
+    }
+
+    /**
+     * The facts of the provider and their fingerprint. A provider only reads, so a rollback to the shared savepoint loses nothing but its own facts.
      *
      * @return array{object, mixed}
      */
-    private function provided(FactProvider $provider, CardSnapshot $card): array
+    private function provided(FactProvider $provider, CardSnapshot $card, bool $savepoint): array
     {
         $source = $provider::class;
-        $savepoint = $this->connection->isTransactionActive() ? self::SAVEPOINT : null;
-        if (null !== $savepoint) {
-            $this->connection->createSavepoint($savepoint);
-        }
         try {
             $source = $provider->source();
             $class = $provider->factsClass();
@@ -79,17 +96,25 @@ final readonly class FactsBuilder
                 $fingerprint = $provider->fingerprint($facts);
                 json_encode($fingerprint, \JSON_THROW_ON_ERROR);
             }
-            if (null !== $savepoint) {
-                $this->connection->releaseSavepoint($savepoint);
-            }
 
             return [$facts, $fingerprint];
         } catch (\Throwable $e) {
-            if (null !== $savepoint) {
-                $this->connection->rollbackSavepoint($savepoint);
+            if ($savepoint) {
+                $this->connection->rollbackSavepoint(self::SAVEPOINT);
             }
 
             return [new Unreadable(UnreadableKind::Failed, $source, $e), null];
+        }
+    }
+
+    /** A provider that swallowed its own database error left the transaction aborted, and only a rollback to the savepoint makes it usable. */
+    private function release(): void
+    {
+        try {
+            $this->connection->releaseSavepoint(self::SAVEPOINT);
+        } catch (\Throwable) {
+            $this->connection->rollbackSavepoint(self::SAVEPOINT);
+            $this->connection->releaseSavepoint(self::SAVEPOINT);
         }
     }
 

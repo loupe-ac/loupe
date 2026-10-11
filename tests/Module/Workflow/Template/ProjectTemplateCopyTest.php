@@ -72,6 +72,21 @@ final class ProjectTemplateCopyTest extends KernelTestCase
         }
     }
 
+    public function test_it_keeps_the_template_of_a_project_until_it_resets(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('workflow-copy-kept');
+        $this->bindLifecycle($project);
+        $projectId = $project->id ?? throw new \LogicException();
+        $copy = $this->copy();
+
+        $first = $copy->forProject($projectId);
+
+        self::assertSame($first, $copy->forProject($projectId));
+        $copy->reset();
+        self::assertNotSame($first, $copy->forProject($projectId));
+    }
+
     private function copy(): ProjectTemplateCopy
     {
         $copy = self::getContainer()->get(ProjectTemplateCopy::class);
