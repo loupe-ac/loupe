@@ -319,8 +319,11 @@ Some rules act from any slot:
    once when it can.
 7. A card that reaches a terminal column asks for a teardown, which removes its
    worktree on the bridge.
-8. A child that reaches a terminal column with a pull request merged into its
-   epic branch asks for an epic preview refresh.
+8. An epic in In review, whose children are all finished, asks for an epic
+   preview refresh when no refresh ended well at the head of its pull request.
+   It waits while any other work or worker run is live on the epic. The rule is
+   `epic-preview`, with the condition `card.run.done_at_head`. Three failed
+   refreshes in a row pause the epic.
 9. A fix run that a bridge queues gets one comment on its pull request. The
    rule is `comment-fix-run`, with the condition `card.fix_run.uncommented`
    and the write `comment` with `comment: fix-run`. The comment shows the round
@@ -468,7 +471,7 @@ A rule that asks for work names its kind. A bridge runs a kind only when its
 | `sync` | An update of a branch that is behind, when the project has no GitHub App installation |
 | `merge` | A merge, when the project has no GitHub App installation |
 | `teardown` | The removal of the card's worktree |
-| `epic-preview` | A refresh of the epic preview after a child merges into the epic branch |
+| `epic-preview` | A refresh of the epic preview, when the head of the epic pull request has no refresh that ended well |
 | `repair` | A repair of the cause after the work of a rule failed and its retries ran out |
 
 Simple asks for `teardown` alone.
