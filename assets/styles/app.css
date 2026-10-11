@@ -5251,6 +5251,13 @@
     .lp-preview-sign-in__note svg {
         @apply mt-px shrink-0;
     }
+    /* One token of the panel. A card with several tokens shows the label of each above its fields. */
+    .lp-preview-sign-in__token {
+        @apply flex flex-col gap-2;
+    }
+    .lp-preview-sign-in__label {
+        @apply m-0 font-mono text-sm font-semibold text-ink;
+    }
 
     /* Amber callout. Used for the two things on this page that are warnings
        rather than body copy: the once-only token, and the fact that the widget
