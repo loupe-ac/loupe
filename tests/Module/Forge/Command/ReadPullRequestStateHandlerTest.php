@@ -19,10 +19,13 @@ use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\ApprovalCoverage;
 use App\Module\Forge\Service\ApprovalCoverageReaders;
+use App\Module\Forge\Service\PullRequestChangeFingerprint;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
 use App\Module\Forge\Service\PullRequestStateReaders;
 use App\Module\Forge\Service\PullRequestUnreadable;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Forge\FakeApprovalCoverageReader;
+use App\Tests\Module\Forge\FakePullRequestChangeFingerprintReader;
 use App\Tests\Module\Forge\FakePullRequestStateReader;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\EntityManagerInterface;
@@ -41,6 +44,7 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
     private EntityManagerInterface $em;
     private FakePullRequestStateReader $reader;
     private FakeApprovalCoverageReader $coverage;
+    private FakePullRequestChangeFingerprintReader $fingerprints;
     private MockClock $clock;
     private RecordingLogger $logger;
 
@@ -70,12 +74,14 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
 
         $this->reader = new FakePullRequestStateReader();
         $this->coverage = new FakeApprovalCoverageReader();
+        $this->fingerprints = new FakePullRequestChangeFingerprintReader();
         $this->clock = new MockClock(self::NOW);
         $this->logger = new RecordingLogger();
         $this->handler = new ReadPullRequestStateHandler(
             $forgePullRequests,
             new PullRequestStateReaders([$this->reader]),
             new ApprovalCoverageReaders([$this->coverage]),
+            new PullRequestChangeFingerprintReaders([$this->fingerprints]),
             $em,
             $bus,
             $events,
@@ -585,6 +591,145 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertFalse($this->reload($row)->readyToMerge);
     }
 
+    public function test_a_new_head_stores_its_change_fingerprint(): void
+    {
+        $row = $this->row();
+        $this->reader->answers = [new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main'), new PullRequestSnapshot(headSha: 'h2', baseBranch: 'main')];
+        $this->fingerprints->answers = [new PullRequestChangeFingerprint('change1', 'lines1'), new PullRequestChangeFingerprint('change2', 'lines2')];
+
+        $this->handle($row, self::NOW);
+        $fresh = $this->reload($row);
+        self::assertSame('h1', $fresh->changeFingerprintSha);
+        self::assertSame('change1', $fresh->changeFingerprint);
+        self::assertSame('lines1', $fresh->linesFingerprint);
+
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+
+        $fresh = $this->reload($row);
+        self::assertSame(['h1', 'h2'], $this->fingerprints->heads);
+        self::assertSame('h2', $fresh->changeFingerprintSha);
+        self::assertSame('change2', $fresh->changeFingerprint);
+        self::assertSame('lines2', $fresh->linesFingerprint);
+    }
+
+    public function test_the_fingerprint_of_a_head_is_not_asked_again(): void
+    {
+        $row = $this->row();
+        $read = new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main', mergeability: PullRequestMergeability::Mergeable);
+        $this->reader->answers = [$read, $read];
+        $this->fingerprints->answers = [new PullRequestChangeFingerprint('change1', 'lines1'), new PullRequestChangeFingerprint('change2', 'lines2')];
+
+        $this->handle($row, self::NOW);
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+
+        self::assertSame(['h1'], $this->fingerprints->heads);
+        self::assertSame('change1', $this->reload($row)->changeFingerprint);
+        self::assertCount(1, $this->changes);
+    }
+
+    public function test_a_new_base_asks_the_fingerprint_of_the_same_head_again(): void
+    {
+        $row = $this->row();
+        $this->reader->answers = [new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main'), new PullRequestSnapshot(headSha: 'h1', baseBranch: 'release')];
+        $this->fingerprints->answers = [new PullRequestChangeFingerprint('change1', 'lines1'), new PullRequestChangeFingerprint('change2', 'lines2')];
+
+        $this->handle($row, self::NOW);
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+
+        $fresh = $this->reload($row);
+        self::assertSame(['h1', 'h1'], $this->fingerprints->heads);
+        self::assertSame('change2', $fresh->changeFingerprint);
+        self::assertSame('lines2', $fresh->linesFingerprint);
+    }
+
+    public function test_a_read_that_only_stores_a_new_fingerprint_is_announced(): void
+    {
+        $read = new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main', mergeability: PullRequestMergeability::Mergeable);
+        $row = $this->row();
+        $row->apply($read);
+        $this->em->flush();
+        $this->reader->answers = [$read];
+        $this->fingerprints->answers = [new PullRequestChangeFingerprint('change1', 'lines1')];
+
+        $this->handle($row, self::NOW);
+
+        self::assertCount(1, $this->changes);
+        self::assertTrue($this->changes[0]->current->equals($this->changes[0]->previous));
+        self::assertSame('change1', $this->changes[0]->pullRequest->changeFingerprint);
+    }
+
+    public function test_a_forge_with_no_fingerprint_reader_stores_none_for_the_head(): void
+    {
+        $handler = new ReadPullRequestStateHandler(
+            $this->service(ForgePullRequestRepository::class),
+            new PullRequestStateReaders([$this->reader]),
+            new ApprovalCoverageReaders([]),
+            new PullRequestChangeFingerprintReaders([]),
+            $this->em,
+            $this->service(MessageBusInterface::class),
+            new EventDispatcher(),
+            $this->clock,
+            $this->logger,
+        );
+        $row = $this->row();
+        $row->changeFingerprint = 'stale';
+        $row->linesFingerprint = 'stale';
+        $this->em->flush();
+        $this->reader->answers = [new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main')];
+
+        $handler(new ReadPullRequestStateCommand((string) $row->id, new \DateTimeImmutable(self::NOW)));
+
+        $fresh = $this->reload($row);
+        self::assertSame('h1', $fresh->changeFingerprintSha);
+        self::assertNull($fresh->changeFingerprint);
+        self::assertNull($fresh->linesFingerprint);
+    }
+
+    public function test_the_fingerprint_is_not_asked_for_a_closed_pull_request_or_one_with_no_head(): void
+    {
+        $merged = $this->row();
+        $headless = $this->row();
+        $this->reader->answers = [new PullRequestSnapshot(state: PullRequestState::Merged, headSha: 'h1', baseBranch: 'main'), new PullRequestSnapshot(baseBranch: 'main')];
+
+        $this->handle($merged, self::NOW);
+        $this->handle($headless, self::NOW);
+
+        self::assertSame(2, $this->reader->reads);
+        self::assertSame([], $this->fingerprints->heads);
+        self::assertNull($this->reload($merged)->changeFingerprintSha);
+        self::assertNull($this->reload($headless)->changeFingerprintSha);
+    }
+
+    public function test_a_reopen_asks_the_fingerprint_of_the_same_head_again(): void
+    {
+        $row = $this->row();
+        $this->reader->answers = [
+            new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main'),
+            new PullRequestSnapshot(state: PullRequestState::Closed, headSha: 'h1', baseBranch: 'main'),
+            new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main'),
+        ];
+        $this->fingerprints->answers = [new PullRequestChangeFingerprint('change1', 'lines1'), new PullRequestChangeFingerprint('change2', 'lines2')];
+
+        $this->handle($row, self::NOW);
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+        $closed = $this->reload($row);
+        self::assertNull($closed->changeFingerprintSha);
+        self::assertNull($closed->changeFingerprint);
+        self::assertNull($closed->linesFingerprint);
+
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:01:30');
+
+        $fresh = $this->reload($row);
+        self::assertSame(['h1', 'h1'], $this->fingerprints->heads);
+        self::assertSame('h1', $fresh->changeFingerprintSha);
+        self::assertSame('change2', $fresh->changeFingerprint);
+    }
+
     public function test_a_missing_row_and_a_forge_with_no_reader_are_skipped(): void
     {
         $gitlab = $this->row(forge: 'gitlab');
@@ -761,6 +906,21 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         $this->em->clear();
 
         return $this->em->find(ForgePullRequest::class, $row->id) ?? throw new \LogicException('The row exists.');
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $id
+     *
+     * @return T
+     */
+    private function service(string $id): object
+    {
+        $service = self::getContainer()->get($id);
+        self::assertInstanceOf($id, $service);
+
+        return $service;
     }
 
     /** @return list<Envelope> */

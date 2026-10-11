@@ -8,10 +8,9 @@ use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewCategory;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewPost;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
-use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Service\AgentReviewCheck;
 use App\Module\Board\Service\SiteReviewWriteResult;
 use App\Module\Forge\Service\PullRequestCheckConclusion;
@@ -23,7 +22,7 @@ use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Posts each stored agent review that no check shows yet, on the open GitHub pull requests of the card.
+ * Posts each check of the card that AgentReviewPosts finds due: a review on its own head, or a carried review on a later head.
  *
  * Each review gets a new run: the forge appends the notes of every update to a run and cannot remove them.
  * For the same reason, a run that took only part of the notes keeps its id, and the retry sends it the rest.
@@ -38,8 +37,7 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
     private const int MAX_BODY_WIDTH = 300;
 
     public function __construct(
-        private CardPullRequestRepository $cardPullRequests,
-        private AgentReviewRepository $agentReviews,
+        private AgentReviewPosts $posts,
         private PullRequestCheckWriters $writers,
         private AgentReviewAnnotations $annotations,
         private TranslatorInterface $translator,
@@ -48,28 +46,38 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
     ) {
     }
 
-    /** A failure on one review does not hold back the others. */
+    /** A failure on one check does not hold back the others. */
     #[\Override]
     public function publish(Card $card): SiteReviewWriteResult
     {
         $failure = null;
         $changed = false;
-        foreach ($this->agentReviews->findUnpostedOfCard($card, $this->cardPullRequests->findOpenGitHubForCard($card)) as $review) {
-            $writer = $this->writers->for($review->pullRequest->forge);
+        foreach ($this->posts->dueForCard($card) as $due) {
+            $review = $due->review;
+            $writer = $this->writers->for($due->pullRequest->forge);
             if (null === $writer) {
                 continue;
             }
+            $target = $review;
+            $summary = $this->summary($review);
             $annotations = $this->annotations->of($review);
+            if ($due->carried) {
+                $target = $due->post ?? $this->newPost($due);
+                $summary = $this->translator->trans('agent_review.check.carried', ['%sha%' => mb_substr($review->headSha, 0, 7)])."\n\n".$summary;
+                if (!$target->lineNotes) {
+                    $annotations = [];
+                }
+            }
             try {
                 $runId = $writer->publish(
-                    $review->pullRequest,
+                    $due->pullRequest,
                     self::NAME,
-                    $review->headSha,
+                    $due->headSha,
                     AgentReviewConclusion::Failure === $review->conclusion ? PullRequestCheckConclusion::Failure : PullRequestCheckConclusion::Success,
                     $this->title($review),
-                    $this->summary($review),
-                    $review->checkRunId,
-                    \array_slice($annotations, $review->annotationsPosted),
+                    $summary,
+                    $target->checkRunId,
+                    \array_slice($annotations, $target->annotationsPosted),
                 );
             } catch (PullRequestCheckFailed $e) {
                 // A project with no GitHub App installation has nothing to post a check with.
@@ -77,22 +85,36 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
                     $failure ??= $e->cause;
                 }
                 if (null !== $e->runId) {
-                    $review->checkRunId = $e->runId;
-                    $review->annotationsPosted += $e->annotationsSent;
+                    $target->checkRunId = $e->runId;
+                    $target->annotationsPosted += $e->annotationsSent;
                     $this->em->flush();
                 }
 
                 continue;
             }
 
-            $review->checkRunId = $runId;
-            $review->annotationsPosted = \count($annotations);
-            $review->postedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
+            $target->checkRunId = $runId;
+            $target->annotationsPosted = \count($annotations);
+            $target->postedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();
             $changed = true;
         }
 
         return new SiteReviewWriteResult($failure, $changed);
+    }
+
+    /** The line notes of a carried check point at lines of the reviewed head, so they go out only when no changed line moved. */
+    private function newPost(DuePost $due): AgentReviewPost
+    {
+        $pullRequest = $due->pullRequest;
+        $current = null !== $pullRequest->changeFingerprintSha && mb_strtolower($pullRequest->changeFingerprintSha) === mb_strtolower($due->headSha);
+        $linesKept = $current && null !== $due->review->linesFingerprint && $due->review->linesFingerprint === $pullRequest->linesFingerprint;
+
+        $post = new AgentReviewPost($due->review, $due->headSha, $linesKept);
+        $this->em->persist($post);
+        $this->em->flush();
+
+        return $post;
     }
 
     private function title(AgentReview $review): string

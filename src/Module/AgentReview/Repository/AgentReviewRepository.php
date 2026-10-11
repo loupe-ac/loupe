@@ -44,7 +44,8 @@ class AgentReviewRepository extends ServiceEntityRepository
     }
 
     /**
-     * The newest review of the current head of each pull request, whichever card asked for it.
+     * The newest review of the current head of each pull request, whichever card asked for it. A review of an
+     * older head counts when its change fingerprint equals the fingerprint of the current head.
      *
      * @param list<ForgePullRequest> $pullRequests
      *
@@ -53,29 +54,43 @@ class AgentReviewRepository extends ServiceEntityRepository
     public function findLatestOfHeads(array $pullRequests): array
     {
         $heads = [];
+        $fingerprints = [];
+        $withHead = [];
         foreach ($pullRequests as $pullRequest) {
-            if (null !== $pullRequest->headSha) {
-                $heads[(string) $pullRequest->id] = mb_strtolower($pullRequest->headSha);
+            if (null === $pullRequest->headSha) {
+                continue;
+            }
+            $key = (string) $pullRequest->id;
+            $heads[$key] = mb_strtolower($pullRequest->headSha);
+            $withHead[] = $pullRequest;
+            if (null !== $pullRequest->changeFingerprint && null !== $pullRequest->changeFingerprintSha && mb_strtolower($pullRequest->changeFingerprintSha) === $heads[$key]) {
+                $fingerprints[$key] = $pullRequest->changeFingerprint;
             }
         }
         if ([] === $heads) {
             return [];
         }
 
-        /** @var list<AgentReview> $reviews */
-        $reviews = $this->createQueryBuilder('r')
-            ->where('r.pullRequest IN (:pullRequests) AND LOWER(r.headSha) IN (:heads)')
-            ->setParameter('pullRequests', array_filter($pullRequests, static fn (ForgePullRequest $pullRequest): bool => null !== $pullRequest->headSha))
+        $query = $this->createQueryBuilder('r')
+            ->where('r.pullRequest IN (:pullRequests)')
+            ->setParameter('pullRequests', $withHead)
             ->setParameter('heads', array_values(array_unique($heads)))
             ->orderBy('r.createdAt')
-            ->addOrderBy('r.id')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('r.id');
+        if ([] === $fingerprints) {
+            $query->andWhere('LOWER(r.headSha) IN (:heads)');
+        } else {
+            $query->andWhere('LOWER(r.headSha) IN (:heads) OR r.changeFingerprint IN (:fingerprints)')
+                ->setParameter('fingerprints', array_values(array_unique($fingerprints)));
+        }
+        /** @var list<AgentReview> $reviews */
+        $reviews = $query->getQuery()->getResult();
 
         $latest = [];
         foreach ($reviews as $review) {
             $key = (string) $review->pullRequest->id;
-            if (($heads[$key] ?? null) === mb_strtolower($review->headSha)) {
+            $print = $fingerprints[$key] ?? null;
+            if (($heads[$key] ?? null) === mb_strtolower($review->headSha) || (null !== $print && $print === $review->changeFingerprint)) {
                 $latest[$key] = $review;
             }
         }

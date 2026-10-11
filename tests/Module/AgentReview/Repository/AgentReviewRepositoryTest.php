@@ -10,6 +10,7 @@ use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Project\Entity\Project;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -57,9 +58,93 @@ final class AgentReviewRepositoryTest extends KernelTestCase
         self::assertSame([], $this->reviews->findLatestOfHeads([]));
     }
 
-    private function reviewAt(Card $card, ForgePullRequest $pullRequest, string $headSha, string $createdAt): AgentReview
+    public function test_find_latest_of_heads_matches_a_review_of_an_older_head_with_the_same_change(): void
+    {
+        $project = $this->makeProject('agent-review-latest-carried');
+        $card = $this->card($project);
+        $pullRequest = $this->fingerprinted($project, 7, str_repeat('e', 40), 'change-1');
+        $carried = $this->reviewAt($card, $pullRequest, str_repeat('d', 40), '2026-10-01 09:00:00', 'change-1');
+        $this->em->flush();
+
+        self::assertSame([(string) $pullRequest->id => $carried], $this->reviews->findLatestOfHeads([$pullRequest]));
+    }
+
+    public function test_find_latest_of_heads_reads_the_fingerprint_head_in_any_case(): void
+    {
+        $project = $this->makeProject('agent-review-latest-case');
+        $card = $this->card($project);
+        $pullRequest = $this->fingerprinted($project, 7, str_repeat('e', 40), 'change-1');
+        $pullRequest->changeFingerprintSha = str_repeat('E', 40);
+        $carried = $this->reviewAt($card, $pullRequest, str_repeat('d', 40), '2026-10-01 09:00:00', 'change-1');
+        $this->em->flush();
+
+        self::assertSame([(string) $pullRequest->id => $carried], $this->reviews->findLatestOfHeads([$pullRequest]));
+    }
+
+    public function test_find_latest_of_heads_never_matches_on_a_null_fingerprint(): void
+    {
+        $project = $this->makeProject('agent-review-latest-null');
+        $card = $this->card($project);
+        $pullRequest = $this->fingerprinted($project, 7, str_repeat('e', 40), null);
+        $this->reviewAt($card, $pullRequest, str_repeat('d', 40), '2026-10-01 09:00:00');
+        $this->em->flush();
+
+        self::assertSame([], $this->reviews->findLatestOfHeads([$pullRequest]));
+    }
+
+    public function test_find_latest_of_heads_ignores_a_fingerprint_of_another_head(): void
+    {
+        $project = $this->makeProject('agent-review-latest-stale-print');
+        $card = $this->card($project);
+        $pullRequest = $this->fingerprinted($project, 7, str_repeat('e', 40), 'change-1');
+        $pullRequest->changeFingerprintSha = str_repeat('d', 40);
+        $this->reviewAt($card, $pullRequest, str_repeat('d', 40), '2026-10-01 09:00:00', 'change-1');
+        $this->em->flush();
+
+        self::assertSame([], $this->reviews->findLatestOfHeads([$pullRequest]));
+    }
+
+    public function test_find_latest_of_heads_matches_each_fingerprint_on_its_own_pull_request_only(): void
+    {
+        $project = $this->makeProject('agent-review-latest-cross');
+        $card = $this->card($project);
+        $first = $this->fingerprinted($project, 7, str_repeat('e', 40), 'change-1');
+        $second = $this->fingerprinted($project, 8, str_repeat('f', 40), 'change-1');
+        $own = $this->reviewAt($card, $first, str_repeat('d', 40), '2026-10-01 09:00:00', 'change-1');
+        $this->em->flush();
+
+        self::assertSame([(string) $first->id => $own], $this->reviews->findLatestOfHeads([$first, $second]));
+    }
+
+    public function test_find_latest_of_heads_takes_the_newest_of_a_head_match_and_a_fingerprint_match(): void
+    {
+        $project = $this->makeProject('agent-review-latest-newest');
+        $card = $this->card($project);
+        $byHead = $this->fingerprinted($project, 7, str_repeat('e', 40), 'change-1');
+        $byPrint = $this->fingerprinted($project, 8, str_repeat('e', 40), 'change-2');
+        $this->reviewAt($card, $byHead, str_repeat('d', 40), '2026-10-01 09:00:00', 'change-1');
+        $headReview = $this->reviewAt($card, $byHead, str_repeat('e', 40), '2026-10-01 10:00:00', 'change-1');
+        $this->reviewAt($card, $byPrint, str_repeat('e', 40), '2026-10-01 09:00:00', 'change-2');
+        $printReview = $this->reviewAt($card, $byPrint, str_repeat('d', 40), '2026-10-01 10:00:00', 'change-2');
+        $this->em->flush();
+
+        self::assertSame([(string) $byHead->id => $headReview, (string) $byPrint->id => $printReview], $this->reviews->findLatestOfHeads([$byHead, $byPrint]));
+    }
+
+    private function fingerprinted(Project $project, int $number, string $headSha, ?string $change): ForgePullRequest
+    {
+        $pullRequest = $this->pullRequest($project, $number);
+        $pullRequest->headSha = $headSha;
+        $pullRequest->changeFingerprintSha = $headSha;
+        $pullRequest->changeFingerprint = $change;
+
+        return $pullRequest;
+    }
+
+    private function reviewAt(Card $card, ForgePullRequest $pullRequest, string $headSha, string $createdAt, ?string $change = null): AgentReview
     {
         $review = new AgentReview($card->project, $card, $pullRequest, $headSha, 'Done.', AgentReviewConclusion::Success, [], createdAt: new \DateTimeImmutable($createdAt));
+        $review->changeFingerprint = $change;
         $this->em->persist($review);
 
         return $review;

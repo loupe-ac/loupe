@@ -40,6 +40,14 @@ class AgentReview
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $postedAt = null;
 
+    /** The change fingerprint of $headSha, so a later head with the same change carries this review. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $changeFingerprint = null;
+
+    /** The lines fingerprint of $headSha, so a carried check keeps its line notes only when no line moved. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $linesFingerprint = null;
+
     /**
      * @param list<AgentReviewFinding> $findings
      */

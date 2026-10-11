@@ -8069,6 +8069,7 @@
             <trans-unit id="agent_review.check.count.pre-existing"><source>agent_review.check.count.pre-existing</source><target>{0} no pre-existing findings|{1} 1 pre-existing finding|]1,Inf[ %count% pre-existing findings</target></trans-unit>
             <trans-unit id="agent_review.check.heading.spec"><source>agent_review.check.heading.spec</source><target>Spec: the change against the approved design</target></trans-unit>
             <trans-unit id="agent_review.check.heading.code"><source>agent_review.check.heading.code</source><target>Code</target></trans-unit>
+            <trans-unit id="agent_review.check.carried"><source>agent_review.check.carried</source><target>Carried from %sha%: the change is identical.</target></trans-unit>
             <trans-unit id="agent_review.check.summary_more"><source>agent_review.check.summary_more</source><target>{0} No more findings.|{1} And one more finding.|]1,Inf[ And %count% more findings.</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
         </body>
