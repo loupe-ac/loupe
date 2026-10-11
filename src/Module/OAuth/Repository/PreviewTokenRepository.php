@@ -36,13 +36,19 @@ class PreviewTokenRepository extends ServiceEntityRepository
         );
     }
 
-    /** Reads the card table by SQL, because OAuth must not depend on Board. */
-    public function cardBelongsToProject(Uuid $cardId, Project $project): bool
+    /**
+     * Whether the card of the project sits in a terminal column, or null when
+     * the project has no such card. Reads by SQL, because OAuth must not depend on Board.
+     */
+    public function isCardFinished(Uuid $cardId, Project $project): ?bool
     {
-        return false !== $this->getEntityManager()->getConnection()->fetchOne(
-            'SELECT 1 FROM board_cards WHERE id = :cardId AND project_id = :projectId',
+        $terminal = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT CASE WHEN col.terminal THEN 1 ELSE 0 END FROM board_cards c JOIN board_columns col ON col.id = c.column_id
+             WHERE c.id = :cardId AND c.project_id = :projectId',
             ['cardId' => $cardId->toRfc4122(), 'projectId' => (string) $project->id],
         );
+
+        return false === $terminal ? null : 1 === (int) $terminal;
     }
 
     /**

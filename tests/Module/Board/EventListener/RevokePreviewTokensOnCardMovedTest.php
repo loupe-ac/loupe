@@ -73,9 +73,12 @@ final class RevokePreviewTokensOnCardMovedTest extends KernelTestCase
     public function test_a_move_between_two_terminal_columns_and_a_move_back_out_revoke_nothing_new(): void
     {
         $project = $this->feedbackProject('preview-terminal');
-        $card = $this->cardIn($project, 'done');
+        $card = $this->cardIn($project, 'in-progress');
         $this->em->flush();
         $token = $this->mintForCard($project, $card);
+        // Mint refuses a finished card, so the card reaches done with no move.
+        $card->column = $this->column($project, 'done');
+        $this->em->flush();
 
         $this->move($card, $project, 'shipped');
         self::assertFalse($this->isRevoked($token));

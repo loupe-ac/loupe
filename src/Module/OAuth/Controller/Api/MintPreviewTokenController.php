@@ -51,6 +51,7 @@ final class MintPreviewTokenController extends AppController
         } catch (DomainErrors $e) {
             return match (true) {
                 isset($e->errors['handle']) => $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND),
+                'oauth.preview_token.error.card_finished' === ($e->errors['card'] ?? null) => $this->json(['error' => 'card_finished'], JsonResponse::HTTP_CONFLICT),
                 isset($e->errors['card']) => $this->json(['error' => 'card_not_found'], JsonResponse::HTTP_NOT_FOUND),
                 default => $this->json(['error' => 'invalid_label'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
             };

@@ -112,6 +112,22 @@ final class MintPreviewTokenHandlerTest extends KernelTestCase
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth2_access_token'));
     }
 
+    public function test_a_card_in_a_terminal_column_is_refused_and_nothing_is_issued(): void
+    {
+        $handler = static::getContainer()->get(MintPreviewTokenHandler::class);
+        self::assertInstanceOf(MintPreviewTokenHandler::class, $handler);
+
+        try {
+            $handler(new MintPreviewTokenCommand($this->owner, (string) $this->project->id, 'pr-12', $this->cardOf($this->project, finished: true)));
+            self::fail('A token was minted for a finished card.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['card' => 'oauth.preview_token.error.card_finished'], $e->errors);
+        }
+
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth2_access_token'));
+    }
+
     public function test_a_blank_or_long_label_is_refused(): void
     {
         $handler = static::getContainer()->get(MintPreviewTokenHandler::class);

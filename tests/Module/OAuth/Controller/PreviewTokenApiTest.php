@@ -132,6 +132,17 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
 
+    public function test_a_finished_card_is_a_conflict_and_mints_nothing(): void
+    {
+        $agent = AgentCredential::agentToken(static::getContainer(), $this->owner);
+
+        $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12","card":"'.$this->cardOf($this->project, finished: true).'"}');
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame(['error' => 'card_finished'], $this->json());
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
+    }
+
     /** @return iterable<string, array{string}> */
     public static function badBodies(): iterable
     {

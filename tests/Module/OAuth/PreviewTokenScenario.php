@@ -33,10 +33,10 @@ trait PreviewTokenScenario
     }
 
     /** A card of the project, in a column of its own. */
-    private function cardOf(Project $project, int $number = 1): Uuid
+    private function cardOf(Project $project, int $number = 1, bool $finished = false): Uuid
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $column = new BoardColumn($project, 'Doing', 'doing-'.$number, $number);
+        $column = new BoardColumn($project, 'Doing', 'doing-'.$number, $number, terminal: $finished);
         $card = new Card(project: $project, column: $column, title: 'Preview it', body: 'Body', number: $number);
         $em->persist($column);
         $em->persist($card);

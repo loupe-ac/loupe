@@ -10,6 +10,7 @@ use App\Module\OAuth\Repository\PreviewTokenRepository;
 use App\Module\OAuth\Scope\GrantedScope;
 use App\Module\OAuth\Widget\WidgetClient;
 use App\Module\Project\Repository\ProjectRepository;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Bundle\OAuth2ServerBundle\Manager\AccessTokenManagerInterface;
 use League\Bundle\OAuth2ServerBundle\Model\AccessToken;
@@ -32,6 +33,7 @@ use Ubermuda\AuditBundle\AuditSubject;
  * A second mint under the same label replaces the first, so a preview
  * that is deployed again does not pile up tokens. The revoke takes a lock
  * on the label, so another mint or revoke of the label waits for this one.
+ * A card in a terminal column takes no token, as its previews have ended.
  */
 final readonly class MintPreviewTokenHandler
 {
@@ -76,15 +78,25 @@ final readonly class MintPreviewTokenHandler
             throw new DomainErrors(['handle' => 'oauth.preview_token.error.project_not_found']);
         }
 
-        if (null !== $command->cardId && !$this->previewTokens->cardBelongsToProject($command->cardId, $project)) {
-            throw new DomainErrors(['card' => 'oauth.preview_token.error.card_not_found']);
-        }
-
         $userId = $command->owner->id ?? throw new \LogicException('a persisted user always has an id.');
         $projectId = $project->id ?? throw new \LogicException('a persisted project always has an id.');
         $expiresAt = new \DateTimeImmutable(self::TTL);
 
-        $jwt = $this->em->wrapInTransaction(function () use ($command, $label, $userId, $projectId, $project, $expiresAt): string {
+        $jwt = $this->em->wrapInTransaction(function () use ($command, $label, $userId, $projectId, $project, $expiresAt): string|DomainErrors {
+            if (null !== $command->cardId) {
+                // A card move or delete locks the project row for update and
+                // revokes the card's tokens, so this share lock orders the check
+                // and the insert wholly before or after it.
+                $this->em->lock($project, LockMode::PESSIMISTIC_READ);
+                $finished = $this->previewTokens->isCardFinished($command->cardId, $project);
+                if (null === $finished) {
+                    return new DomainErrors(['card' => 'oauth.preview_token.error.card_not_found']);
+                }
+                if ($finished) {
+                    return new DomainErrors(['card' => 'oauth.preview_token.error.card_finished']);
+                }
+            }
+
             $this->previewTokens->revokeByLabel($userId, $projectId, $label);
 
             $client = $this->clients->getClientEntity(WidgetClient::ID)
@@ -114,6 +126,9 @@ final readonly class MintPreviewTokenHandler
 
             return $token->toString();
         });
+        if ($jwt instanceof DomainErrors) {
+            throw $jwt;
+        }
 
         $this->auditor->record(
             'oauth.preview_token_minted',
