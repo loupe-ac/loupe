@@ -443,16 +443,21 @@ rules:
                   - A command that removes the worktree and the preview of a finished card
 
     - id: epic-preview
-      slot: '@terminal'
+      slot: in-review
       when:
           all:
-              - card.parent.exists: {}
-              - pr.base_is_epic_branch: {}
-              - card.pr.all_finished_one_merged: {}
+              - card.type: { type: epic }
+              - card.children.finished: {}
+              - pr.open: {}
+              - not: { card.run.done_at_head: { kind: epic-preview } }
+              - not: { card.run.work_active: {} }
+              - not: { card.run.worker_active: {} }
       then:
           request:
               kind: epic-preview
               onTimeout: expire
+              limit: 3
+              refill: { card.run.done_at_head: { kind: epic-preview } }
               checks:
                   - A preview URL per epic branch
 
