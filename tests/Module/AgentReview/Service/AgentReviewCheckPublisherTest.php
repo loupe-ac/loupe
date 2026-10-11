@@ -8,14 +8,15 @@ use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewCategory;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewPost;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
-use App\Module\AgentReview\Repository\AgentReviewRepository;
+use App\Module\AgentReview\Repository\AgentReviewPostRepository;
 use App\Module\AgentReview\Service\AgentReviewAnnotations;
 use App\Module\AgentReview\Service\AgentReviewCheckPublisher;
+use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
-use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Service\AgentReviewCheck;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
@@ -34,6 +35,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 final class AgentReviewCheckPublisherTest extends KernelTestCase
 {
     use AgentReviewScenario;
+
+    private const string MERGED = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
     private EntityManagerInterface $em;
     private Project $project;
@@ -247,19 +250,155 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertCount(200, $this->writer->published[0]['annotations']);
     }
 
+    public function test_a_carried_review_goes_out_on_the_new_head_with_its_line_notes_when_no_line_moved(): void
+    {
+        $card = $this->card($this->project);
+        [$review] = $this->carried($card, 'lines-1', [$this->finding(AgentReviewSeverity::Important)]);
+
+        $result = $this->publisher()->publish($card);
+
+        self::assertNull($result->failure);
+        self::assertTrue($result->changed);
+        self::assertCount(1, $this->writer->published);
+        $call = $this->writer->published[0];
+        self::assertSame([self::MERGED, PullRequestCheckConclusion::Failure, null, 'Agent review: 1 important finding'], [$call['sha'], $call['conclusion'], $call['runId'], $call['title']]);
+        self::assertSame(['Carried from 1111111: the change is identical.', '', 'Summary of the review.', '', '- [important] src/Foo.php:3-5 Null read: The value can be null here.'], explode("\n", $call['summary']));
+        self::assertCount(1, $call['annotations']);
+
+        $post = $this->posts($review)[0];
+        self::assertSame([self::MERGED, true, 101, 1], [$post->headSha, $post->lineNotes, $post->checkRunId, $post->annotationsPosted]);
+        self::assertEquals(new \DateTimeImmutable('2026-10-09 12:00:00'), $post->postedAt);
+        self::assertSame(99, $review->checkRunId);
+    }
+
+    public function test_a_carried_review_whose_lines_moved_has_no_line_notes(): void
+    {
+        $card = $this->card($this->project);
+        [$review] = $this->carried($card, 'lines-2', [$this->finding(AgentReviewSeverity::Important)]);
+
+        $this->publisher()->publish($card);
+
+        self::assertSame([], $this->writer->published[0]['annotations']);
+        self::assertStringContainsString('src/Foo.php:3-5 Null read', $this->writer->published[0]['summary']);
+        $post = $this->posts($review)[0];
+        self::assertFalse($post->lineNotes);
+        self::assertSame(0, $post->annotationsPosted);
+    }
+
+    public function test_a_carried_review_goes_out_once(): void
+    {
+        $card = $this->card($this->project);
+        [$review] = $this->carried($card, 'lines-1', []);
+
+        $this->publisher()->publish($card);
+        $this->writer->published = [];
+        $again = $this->publisher()->publish($card);
+
+        self::assertFalse($again->changed);
+        self::assertSame([], $this->writer->published);
+        self::assertCount(1, $this->posts($review));
+    }
+
+    public function test_a_carried_post_that_took_part_of_the_notes_keeps_its_run_and_its_row(): void
+    {
+        $card = $this->card($this->project);
+        $findings = [];
+        for ($line = 1; $line <= 70; ++$line) {
+            $findings[] = new AgentReviewFinding('src/Foo.php', $line, $line, AgentReviewSeverity::Nit, 'Note '.$line, 'Fix line '.$line.'.');
+        }
+        [$review] = $this->carried($card, 'lines-1', $findings);
+        $this->writer->failsAfterAnnotations = 50;
+
+        $first = $this->publisher()->publish($card);
+        $post = $this->posts($review)[0];
+        self::assertSame('server_error', $first->failure);
+        self::assertSame([101, 50, null], [$post->checkRunId, $post->annotationsPosted, $post->postedAt]);
+
+        $second = $this->publisher()->publish($card);
+
+        self::assertNull($second->failure);
+        self::assertSame(
+            [[self::MERGED, null, 1, 70], [self::MERGED, 101, 51, 20]],
+            array_map(static fn (array $call): array => [$call['sha'], $call['runId'], $call['annotations'][0]->startLine, \count($call['annotations'])], $this->writer->published),
+        );
+        $this->em->clear();
+        $stored = $this->posts($review);
+        self::assertCount(1, $stored);
+        self::assertSame([101, 70], [$stored[0]->checkRunId, $stored[0]->annotationsPosted]);
+        self::assertNotNull($stored[0]->postedAt);
+    }
+
+    public function test_a_carried_post_refused_for_no_installation_keeps_its_row_and_its_line_notes_decision(): void
+    {
+        $card = $this->card($this->project);
+        [$review, $pullRequest] = $this->carried($card, 'lines-1', [$this->finding(AgentReviewSeverity::Important)]);
+        $this->writer->failingNumbers = [7];
+        $this->writer->failureCause = 'no_installation';
+
+        $refused = $this->publisher()->publish($card);
+
+        self::assertNull($refused->failure);
+        self::assertFalse($refused->changed);
+        $post = $this->posts($review)[0];
+        self::assertTrue($post->lineNotes);
+        self::assertNull($post->postedAt);
+
+        $pullRequest->linesFingerprint = 'lines-2';
+        $this->writer->failingNumbers = [];
+        $posted = $this->publisher()->publish($card);
+
+        self::assertTrue($posted->changed);
+        $last = array_last($this->writer->published);
+        self::assertNotNull($last);
+        self::assertCount(1, $last['annotations']);
+        $stored = $this->posts($review);
+        self::assertCount(1, $stored);
+        self::assertSame($post, $stored[0]);
+        self::assertNotNull($stored[0]->postedAt);
+    }
+
+    /**
+     * A review of the head 1111…, posted, whose change the new head MERGED keeps.
+     *
+     * @param list<AgentReviewFinding> $findings
+     *
+     * @return array{AgentReview, ForgePullRequest}
+     */
+    private function carried(Card $card, string $mergedLines, array $findings): array
+    {
+        $pullRequest = $this->linked($card, 7);
+        $review = $this->stored($card, $pullRequest, str_repeat('1', 40), $findings);
+        $review->changeFingerprint = 'change-1';
+        $review->linesFingerprint = 'lines-1';
+        $review->checkRunId = 99;
+        $review->postedAt = new \DateTimeImmutable('2026-10-09 11:00:00');
+        $pullRequest->headSha = self::MERGED;
+        $pullRequest->changeFingerprintSha = self::MERGED;
+        $pullRequest->changeFingerprint = 'change-1';
+        $pullRequest->linesFingerprint = $mergedLines;
+
+        return [$review, $pullRequest];
+    }
+
+    /** @return list<AgentReviewPost> */
+    private function posts(AgentReview $review): array
+    {
+        $posts = self::getContainer()->get(AgentReviewPostRepository::class);
+        self::assertInstanceOf(AgentReviewPostRepository::class, $posts);
+
+        return $posts->findBy(['review' => $review->id]);
+    }
+
     private function publisher(): AgentReviewCheckPublisher
     {
         $this->em->flush();
-        $reviews = self::getContainer()->get(AgentReviewRepository::class);
-        self::assertInstanceOf(AgentReviewRepository::class, $reviews);
-        $cardPullRequests = self::getContainer()->get(CardPullRequestRepository::class);
-        self::assertInstanceOf(CardPullRequestRepository::class, $cardPullRequests);
+        $posts = self::getContainer()->get(AgentReviewPosts::class);
+        self::assertInstanceOf(AgentReviewPosts::class, $posts);
         $translator = self::getContainer()->get(TranslatorInterface::class);
         self::assertInstanceOf(TranslatorInterface::class, $translator);
 
         return new AgentReviewCheckPublisher(
-            $cardPullRequests,
-            $reviews,
+            $posts,
             new PullRequestCheckWriters([$this->writer]),
             new AgentReviewAnnotations(),
             $translator,

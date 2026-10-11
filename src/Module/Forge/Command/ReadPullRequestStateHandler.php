@@ -12,6 +12,7 @@ use App\Module\Forge\Event\PullRequestStateChanged;
 use App\Module\Forge\Messenger\RefreshPullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\ApprovalCoverageReaders;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
 use App\Module\Forge\Service\PullRequestStateReaders;
 use App\Module\Forge\Service\PullRequestUnreadable;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ final readonly class ReadPullRequestStateHandler
         private ForgePullRequestRepository $forgePullRequests,
         private PullRequestStateReaders $readers,
         private ApprovalCoverageReaders $coverageReaders,
+        private PullRequestChangeFingerprintReaders $fingerprintReaders,
         private EntityManagerInterface $em,
         private MessageBusInterface $bus,
         private EventDispatcherInterface $events,
@@ -91,9 +93,12 @@ final readonly class ReadPullRequestStateHandler
 
             $coveredBefore = $pullRequest->coveredSha;
             $uncoveredBefore = $pullRequest->uncoveredSha;
+            $changeBefore = $pullRequest->changeFingerprint;
+            $linesBefore = $pullRequest->linesFingerprint;
             $pullRequest->apply($current);
             $pullRequest->refreshedAt = $readStartedAt;
             $this->judgeCoverage($pullRequest);
+            $this->readChangeFingerprint($pullRequest, $previous->baseBranch);
             $pullRequest->settleReadyToMerge($current->readyToMerge, $readStartedAt);
             $pullRequest->settleStartTimes($readStartedAt);
             $settled = $pullRequest->snapshot();
@@ -103,8 +108,10 @@ final readonly class ReadPullRequestStateHandler
             if (null !== $verdict && null !== $command->reviewId) {
                 $pullRequest->recordAnnouncedReview($command->reviewId);
             }
-            // The snapshot leaves the approval out, so a new approval or a late judgement of an unchanged head shows only in the coverage.
-            if (!$settled->equals($previous) || null !== $verdict || $pullRequest->coveredSha !== $coveredBefore || $pullRequest->uncoveredSha !== $uncoveredBefore) {
+            // The snapshot leaves the approval and the fingerprints out, so a change to either of them is compared here.
+            $coverageChanged = $pullRequest->coveredSha !== $coveredBefore || $pullRequest->uncoveredSha !== $uncoveredBefore;
+            $fingerprintChanged = $pullRequest->changeFingerprint !== $changeBefore || $pullRequest->linesFingerprint !== $linesBefore;
+            if (!$settled->equals($previous) || null !== $verdict || $coverageChanged || $fingerprintChanged) {
                 $this->events->dispatch(new PullRequestStateChanged($pullRequest, $previous, $settled, $verdict));
             }
 
@@ -141,6 +148,29 @@ final readonly class ReadPullRequestStateHandler
         if (null !== $reader) {
             $pullRequest->recordCoverage($reader->read($pullRequest));
         }
+    }
+
+    /**
+     * A head stays recorded with no fingerprint when the forge has no reader or gives none. It is asked again when the head or the base moves.
+     * A pull request that is not open forgets its fingerprint, because its base can change before a reopen.
+     */
+    private function readChangeFingerprint(ForgePullRequest $pullRequest, ?string $baseBefore): void
+    {
+        if (PullRequestState::Open !== $pullRequest->state) {
+            $pullRequest->changeFingerprintSha = $pullRequest->changeFingerprint = $pullRequest->linesFingerprint = null;
+
+            return;
+        }
+        $head = $pullRequest->headSha;
+        if (null === $head || '' === $head) {
+            return;
+        }
+        if ($head === $pullRequest->changeFingerprintSha && $baseBefore === $pullRequest->baseBranch) {
+            return;
+        }
+
+        $reader = $this->fingerprintReaders->for($pullRequest->forge);
+        $pullRequest->recordChangeFingerprint($head, $reader?->read($pullRequest, $head));
     }
 
     private function retryUnknownMergeability(ForgePullRequest $pullRequest): void

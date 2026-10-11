@@ -101,6 +101,15 @@ Show a short snippet where it makes a part or a decision concrete. Put the snipp
 2. Keep the snippet near 20 lines.
 3. Name the file that the snippet lands in, and mark the snippet as a sketch.
 
+## Prototype links
+
+A headless worker cannot read a claude.ai artifact, so link each prototype in a form that a worker reads.
+
+1. Link a Claude Design canvas, a Loupe document or a file of the repository.
+2. When the product document links an artifact, link its readable copy on the branch `prototype/<card number>` too.
+3. Never make a new artifact prototype in this stage. The stage changes only Loupe documents, and a headless worker has no `Artifact` tool. Make a new prototype as a Loupe document.
+4. Never link an artifact that has no readable copy. When the design needs such an artifact, stop as the contract "Read a linked prototype" says. The owner stores the copy in an interactive session, as rule C8 of `../loupe-product-design/references/claude-design.md` says.
+
 ## Facts and recommendations
 
 1. Read the code before you state a fact about it. Run the search, and write the count it gives, never a count from memory.

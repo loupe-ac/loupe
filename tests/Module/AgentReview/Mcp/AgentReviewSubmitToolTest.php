@@ -24,12 +24,16 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\PullRequestChangeFingerprint;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReader;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Command\BindWorkflowTemplateHandler;
 use App\Module\Workflow\Contract\AgentReviewFailingSeverities;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
+use App\Tests\Module\Forge\FakePullRequestChangeFingerprintReader;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
@@ -114,24 +118,53 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
                 return true;
             }
         };
-        $container = self::getContainer();
-        $handler = new SubmitAgentReviewHandler(
-            $container->get(WorkerRunRepository::class),
-            $container->get(PullRequestUrlResolver::class),
-            $container->get(CardPullRequests::class),
-            $container->get(CardPullRequestRepository::class),
-            $container->get(ForgePullRequestRepository::class),
-            $container->get(AgentReviewFailingSeverities::class),
-            $this->em,
-            $evaluations,
-            $container->get(Auditor::class),
-        );
+        $handler = $this->handler($evaluations);
 
         $handler(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('a', 40), 'Nothing found.', []));
 
         $evaluated = array_map(static fn (string|Uuid $id): string => (string) $id, $evaluations->cardIds);
         self::assertContains((string) $this->card->id, $evaluated);
         self::assertContains((string) $other->id, $evaluated);
+    }
+
+    public function test_a_review_of_the_head_of_the_stored_fingerprints_copies_them(): void
+    {
+        $this->reviewRun();
+        $this->pullRequest->changeFingerprintSha = str_repeat('A', 40);
+        $this->pullRequest->changeFingerprint = 'change-1';
+        $this->pullRequest->linesFingerprint = 'lines-1';
+        $this->em->flush();
+        $reader = new FakePullRequestChangeFingerprintReader([new PullRequestChangeFingerprint('change-2', 'lines-2')], 'github');
+
+        $review = $this->handler(fingerprints: $reader)(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('a', 40), 'Nothing found.', []));
+
+        self::assertSame(['change-1', 'lines-1'], [$review->changeFingerprint, $review->linesFingerprint]);
+        self::assertSame([], $reader->heads);
+    }
+
+    public function test_a_review_of_another_head_asks_the_forge_for_its_fingerprints_once(): void
+    {
+        $this->reviewRun();
+        $this->pullRequest->changeFingerprintSha = str_repeat('a', 40);
+        $this->pullRequest->changeFingerprint = 'change-1';
+        $this->em->flush();
+        $reader = new FakePullRequestChangeFingerprintReader([new PullRequestChangeFingerprint('change-2', 'lines-2')], 'github');
+
+        $review = $this->handler(fingerprints: $reader)(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('b', 40), 'Nothing found.', []));
+
+        self::assertSame(['change-2', 'lines-2'], [$review->changeFingerprint, $review->linesFingerprint]);
+        self::assertSame([str_repeat('b', 40)], $reader->heads);
+    }
+
+    public function test_a_review_that_no_forge_reader_fingerprints_stores_none(): void
+    {
+        $this->reviewRun();
+        $this->em->flush();
+
+        $review = $this->handler()(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('b', 40), 'Nothing found.', []));
+        $failed = $this->handler(fingerprints: new FakePullRequestChangeFingerprintReader([null], 'github'))(new SubmitAgentReviewCommand($this->card, $this->sessionId, self::URL, str_repeat('b', 40), 'Nothing found.', []));
+
+        self::assertSame([null, null, null, null], [$review->changeFingerprint, $review->linesFingerprint, $failed->changeFingerprint, $failed->linesFingerprint]);
     }
 
     public function test_a_spec_finding_with_no_path_is_stored_and_fails_the_review(): void
@@ -305,6 +338,24 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         $this->em->flush();
 
         return $run;
+    }
+
+    private function handler(?CardEvaluations $evaluations = null, ?PullRequestChangeFingerprintReader $fingerprints = null): SubmitAgentReviewHandler
+    {
+        $container = self::getContainer();
+
+        return new SubmitAgentReviewHandler(
+            $container->get(WorkerRunRepository::class),
+            $container->get(PullRequestUrlResolver::class),
+            $container->get(CardPullRequests::class),
+            $container->get(CardPullRequestRepository::class),
+            $container->get(ForgePullRequestRepository::class),
+            new PullRequestChangeFingerprintReaders(null === $fingerprints ? [] : [$fingerprints]),
+            $container->get(AgentReviewFailingSeverities::class),
+            $this->em,
+            $evaluations ?? $container->get(CardEvaluations::class),
+            $container->get(Auditor::class),
+        );
     }
 
     private function sendSession(?Uuid $session): void

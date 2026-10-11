@@ -14,6 +14,7 @@ use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\PullRequestUrlResolver;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\PullRequestChangeFingerprintReaders;
 use App\Module\Workflow\Contract\AgentReviewFailingSeverities;
 use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,6 +37,7 @@ final readonly class SubmitAgentReviewHandler
         private CardPullRequests $trackedPullRequests,
         private CardPullRequestRepository $cardPullRequests,
         private ForgePullRequestRepository $forgePullRequests,
+        private PullRequestChangeFingerprintReaders $fingerprintReaders,
         private AgentReviewFailingSeverities $failingSeverities,
         private EntityManagerInterface $em,
         private CardEvaluations $evaluations,
@@ -77,6 +79,14 @@ final readonly class SubmitAgentReviewHandler
             workerRunId: $run->id,
             workRequestId: $run->workRequestId,
         );
+        if (null !== $pullRequest->changeFingerprintSha && mb_strtolower($pullRequest->changeFingerprintSha) === mb_strtolower($command->headSha)) {
+            $review->changeFingerprint = $pullRequest->changeFingerprint;
+            $review->linesFingerprint = $pullRequest->linesFingerprint;
+        } else {
+            $fingerprint = $this->fingerprintReaders->for($pullRequest->forge)?->read($pullRequest, $command->headSha);
+            $review->changeFingerprint = $fingerprint?->change;
+            $review->linesFingerprint = $fingerprint?->lines;
+        }
         $this->em->persist($review);
         $this->em->flush();
 

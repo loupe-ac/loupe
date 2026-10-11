@@ -7,6 +7,7 @@ namespace App\Tests\Module\AgentReview\Service;
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewPost;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
@@ -56,7 +57,34 @@ final class CardAgentReviewReaderTest extends KernelTestCase
         self::assertSame(str_repeat('a', 40), $summary['headSha']);
         self::assertSame('2026-10-02T10:00:00+00:00', $summary['createdAt']);
         self::assertNull($summary['postedAt']);
+        self::assertSame([], $summary['carriedTo']);
         self::assertSame([['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => 'important', 'title' => 'Null read', 'body' => 'The value can be null here.', 'category' => 'code']], $summary['findings']);
+    }
+
+    public function test_the_summary_lists_the_heads_a_review_was_carried_to_oldest_first(): void
+    {
+        $project = $this->makeProject('agent-review-reader-carried');
+        $card = $this->card($project);
+        $other = $this->card($project, 2);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'acme/widgets', 7);
+        $otherLink = $this->link($other, 'acme/widgets', 7);
+        $review = $this->review($card, $forge);
+        $this->review($other, $forge);
+        $later = new AgentReviewPost($review, str_repeat('c', 40), false, new \DateTimeImmutable('2026-10-02T10:00:00+00:00'));
+        $earlier = new AgentReviewPost($review, str_repeat('B', 40), true, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'));
+        $earlier->postedAt = new \DateTimeImmutable('2026-10-01T10:05:00+00:00');
+        $this->em->persist($later);
+        $this->em->persist($earlier);
+        $this->em->flush();
+
+        $summaries = $this->reader->forCards([$card, $other]);
+
+        self::assertSame([
+            ['headSha' => str_repeat('b', 40), 'postedAt' => '2026-10-01T10:05:00+00:00'],
+            ['headSha' => str_repeat('c', 40), 'postedAt' => null],
+        ], $summaries[(string) $link->id]['carriedTo']);
+        self::assertSame([], $summaries[(string) $otherLink->id]['carriedTo']);
     }
 
     public function test_a_pull_request_with_no_review_has_no_entry(): void

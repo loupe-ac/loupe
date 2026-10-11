@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\AgentReview\Workflow;
 
+use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewPassed;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewUnposted;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
@@ -14,7 +19,9 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\Facts;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
+use App\Tests\Module\Workflow\Fact\FactsMother;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -80,6 +87,65 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $pullRequest->headSha = str_repeat('f', 40);
 
         self::assertNull($this->build($card)->heads[0]->conclusion);
+    }
+
+    public function test_a_carried_success_passes_and_is_not_due(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->carry($card, $pullRequest, AgentReviewConclusion::Success, 'change-1');
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertFalse(new AgentReviewDue()->evaluate($facts, []));
+        self::assertTrue(new AgentReviewPassed()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewFailed()->evaluate($facts, []));
+        self::assertTrue(new AgentReviewUnposted()->evaluate($facts, []));
+    }
+
+    public function test_a_carried_failure_stays_a_failure(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->carry($card, $pullRequest, AgentReviewConclusion::Failure, 'change-1');
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertFalse(new AgentReviewDue()->evaluate($facts, []));
+        self::assertTrue(new AgentReviewFailed()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewPassed()->evaluate($facts, []));
+    }
+
+    public function test_a_hand_resolved_conflict_with_another_change_is_due(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->carry($card, $pullRequest, AgentReviewConclusion::Success, 'change-2');
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertTrue(new AgentReviewDue()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewPassed()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewUnposted()->evaluate($facts, []));
+    }
+
+    /** A posted review of the head aaaa… with the fingerprint change-1, and a new head whose fingerprint is $headChange. */
+    private function carry(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $headChange): void
+    {
+        $review = new AgentReview($card->project, $card, $pullRequest, str_repeat('a', 40), 'Done.', $conclusion, []);
+        $review->changeFingerprint = 'change-1';
+        $review->postedAt = new \DateTimeImmutable();
+        $this->em->persist($review);
+        $pullRequest->headSha = $pullRequest->changeFingerprintSha = str_repeat('e', 40);
+        $pullRequest->changeFingerprint = $headChange;
+    }
+
+    private function conditionFacts(Card $card, ForgePullRequest $pullRequest): Facts
+    {
+        return FactsMother::facts(
+            pullRequest: FactsMother::pullRequest(id: $pullRequest->id ?? throw new \LogicException('The pull request is flushed.')),
+            provided: [AgentReviewFacts::class => $this->build($card)],
+        );
     }
 
     public function test_every_open_pull_request_is_listed_and_one_without_a_head_has_none(): void

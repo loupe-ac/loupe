@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Observability;
 
+use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Observability\TracesSampler;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -69,9 +70,31 @@ final class TracesSamplerTest extends TestCase
         self::assertSame(0.25, $sampler(self::context(null, 'app_project_list')));
     }
 
-    private static function context(?bool $parentSampled, ?string $route = null): SamplingContext
+    public function test_a_card_evaluation_samples_at_its_own_rate(): void
     {
-        $transaction = new TransactionContext();
+        $sampler = new TracesSampler('https://key@sentry.example/1', 0.25);
+
+        self::assertSame(0.05, $sampler(self::context(null, name: EvaluateCard::class)));
+    }
+
+    public function test_another_message_samples_at_the_configured_rate(): void
+    {
+        $sampler = new TracesSampler('https://key@sentry.example/1', 0.25);
+
+        self::assertSame(0.25, $sampler(self::context(null, name: 'App\Module\Mail\Messenger\SendDigest')));
+    }
+
+    public function test_a_parent_decision_wins_over_a_card_evaluation_rate(): void
+    {
+        $sampler = new TracesSampler('https://key@sentry.example/1', 0.25);
+
+        self::assertSame(1.0, $sampler(self::context(true, name: EvaluateCard::class)));
+        self::assertSame(0.0, $sampler(self::context(false, name: EvaluateCard::class)));
+    }
+
+    private static function context(?bool $parentSampled, ?string $route = null, string $name = TransactionContext::DEFAULT_NAME): SamplingContext
+    {
+        $transaction = TransactionContext::make()->setName($name);
         if (null !== $route) {
             $transaction->setData(['route' => $route]);
         }

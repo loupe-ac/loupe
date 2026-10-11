@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\AgentReview\Service;
 
+use App\Module\AgentReview\Repository\AgentReviewPostRepository;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Service\CardAgentReviews;
@@ -19,6 +20,7 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
     public function __construct(
         private ForgePullRequestRepository $forgePullRequests,
         private AgentReviewRepository $agentReviews,
+        private AgentReviewPostRepository $agentReviewPosts,
     ) {
     }
 
@@ -62,8 +64,13 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
         }
 
         $latest = [];
-        foreach ($this->agentReviews->findLatestOfCards($cards, $forgeRows) as $review) {
+        $reviews = $this->agentReviews->findLatestOfCards($cards, $forgeRows);
+        foreach ($reviews as $review) {
             $latest[$review->card->id.' '.$review->pullRequest->id] = $review;
+        }
+        $carriedTo = [];
+        foreach ($this->agentReviewPosts->findOfReviews($reviews) as $post) {
+            $carriedTo[(string) $post->review->id][] = ['headSha' => $post->headSha, 'postedAt' => $post->postedAt?->format(\DATE_ATOM)];
         }
 
         $summaries = [];
@@ -85,6 +92,7 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
                     'findings' => array_map(static fn ($finding): array => $finding->toArray(), $review->findings()),
                     'createdAt' => $review->createdAt->format(\DATE_ATOM),
                     'postedAt' => $review->postedAt?->format(\DATE_ATOM),
+                    'carriedTo' => $carriedTo[(string) $review->id] ?? [],
                 ];
             }
         }
