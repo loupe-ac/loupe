@@ -502,6 +502,7 @@ record holds no claim token.
 | 404 | `{"error":"work_request_not_found"}` | the request does not exist, belongs to another account, or belongs to a project the bridge does not follow |
 | 404 | | an id is not a uuid, or agent push is switched off on the instance |
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
+| 409 | `{"error":"card_held"}` | the request is about a card that a person or an agent made unmanaged. The request stays as it is, and the bridge starts no worker |
 | 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
 | 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
 | 429 | | more than 60 claims in one minute from one token |

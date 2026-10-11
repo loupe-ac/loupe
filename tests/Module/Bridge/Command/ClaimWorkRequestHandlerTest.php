@@ -11,6 +11,7 @@ use App\Module\Bridge\Command\ClaimWorkRequestResult;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
+use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -136,5 +137,25 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertInstanceOf(ClaimWorkRequestHandler::class, $handler);
 
         return $handler(new ClaimWorkRequestCommand($owner, $bridge->id, $request->id ?? throw new \LogicException('A flushed request has an id.')));
+    }
+
+    public function test_a_claim_of_a_held_card_is_refused_until_the_release(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-held', WorkRequestState::Open);
+        $holds = self::getContainer()->get(CardHolds::class);
+        self::assertInstanceOf(CardHolds::class, $holds);
+        $holds->hold($request->project, $request->subjectId, $owner);
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertSame(WorkRequestRefusal::CardHeld, $result->refusal);
+        self::assertSame('card_held', $result->refusal->code());
+        self::assertSame(409, $result->refusal->httpStatus());
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+
+        $holds->release($request->project, [$request->subjectId]);
+
+        self::assertNull($this->claim($owner, $bridge, $request)->refusal);
     }
 }

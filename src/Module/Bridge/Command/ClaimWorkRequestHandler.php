@@ -61,7 +61,9 @@ final readonly class ClaimWorkRequestHandler
 
             $leaseUntil = $this->lease->until($this->clock->now());
             if (!$this->workRequests->claim($command->workRequestId, $command->bridgeId, Uuid::v4(), $leaseUntil)) {
-                return WorkRequestRefusal::AlreadyClaimed;
+                return $this->workRequests->isOfHeldCard($command->workRequestId)
+                    ? WorkRequestRefusal::CardHeld
+                    : WorkRequestRefusal::AlreadyClaimed;
             }
             // The claim writes with native SQL, so the managed copy is stale until this read.
             $claimed = $this->workRequests->findOneLocked($command->workRequestId)

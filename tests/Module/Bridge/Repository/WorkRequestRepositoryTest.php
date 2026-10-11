@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge\Repository;
 
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
@@ -232,9 +233,9 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertSame(3, (int) $connection->fetchOne('SELECT COUNT(*) FROM work_requests'));
     }
 
-    private function claimed(Project $project, Uuid $bridgeId, Uuid $token, \DateTimeImmutable $leaseUntil = new \DateTimeImmutable(self::LEASE_UNTIL)): WorkRequest
+    private function claimed(Project $project, Uuid $bridgeId, Uuid $token, \DateTimeImmutable $leaseUntil = new \DateTimeImmutable(self::LEASE_UNTIL), ?Uuid $cardId = null, string $kind = 'implement'): WorkRequest
     {
-        $request = $this->seedWorkRequest($this->em(), $project);
+        $request = $this->seedWorkRequest($this->em(), $project, $cardId, $kind);
         $request->state = WorkRequestState::Claimed;
         $request->bridgeId = $bridgeId;
         $request->claimToken = $token;
@@ -353,5 +354,29 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertInstanceOf(WorkRequestRepository::class, $repository);
 
         return $repository;
+    }
+
+    public function test_a_held_card_has_no_offer_and_no_reopened_claim_until_the_release(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'held-card-offers@example.com');
+        $project = $this->project($em, $owner, 'Held Card Offers');
+        $heldCard = Uuid::v7();
+        $offered = $this->seedWorkRequest($em, $project);
+        $this->seedWorkRequest($em, $project, cardId: $heldCard);
+        $lapsed = $this->claimed($project, Uuid::v4(), Uuid::v4(), new \DateTimeImmutable('2026-10-01 12:00:00'), $heldCard, 'review');
+        $holds = self::getContainer()->get(CardHolds::class);
+        self::assertInstanceOf(CardHolds::class, $holds);
+        $holds->hold($project, $heldCard, $owner);
+        $em->clear();
+
+        self::assertSame([(string) $offered->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers([(string) $project->id], [], 10)));
+        self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00')));
+
+        $holds->release($project, [$heldCard]);
+
+        self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'))));
+        self::assertCount(3, $this->repository()->findOpenOffers([(string) $project->id], [], 10));
     }
 }

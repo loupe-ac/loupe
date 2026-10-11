@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Repository;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -29,6 +30,13 @@ use Symfony\Component\Uid\Uuid;
  */
 class WorkRequestRepository extends ServiceEntityRepository
 {
+    /** A card request whose card has a hold. No bridge may take its work, or run it again. */
+    private const string HELD_CARD = <<<'SQL'
+        (work_requests.subject_type = 'card' AND EXISTS (
+            SELECT 1 FROM bridge_card_holds h
+            WHERE h.project_id = work_requests.project_id AND h.card_id = work_requests.subject_id))
+        SQL;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, WorkRequest::class);
@@ -40,9 +48,8 @@ class WorkRequestRepository extends ServiceEntityRepository
         $sql = <<<'SQL'
             UPDATE work_requests
             SET state = :claimed, bridge_id = :bridge, claim_token = :token, lease_until = :leaseUntil, claims = claims + 1
-            WHERE id = :id AND state = :open
-            RETURNING id
-            SQL;
+            WHERE id = :id AND state = :open AND NOT
+            SQL.self::HELD_CARD.' RETURNING id';
 
         return false !== $this->getEntityManager()->getConnection()->executeQuery(
             $sql,
@@ -55,6 +62,15 @@ class WorkRequestRepository extends ServiceEntityRepository
                 'open' => WorkRequestState::Open->value,
             ],
             ['leaseUntil' => Types::DATETIME_IMMUTABLE],
+        )->fetchOne();
+    }
+
+    /** Whether the request is about a card that has a hold. */
+    public function isOfHeldCard(Uuid $id): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT 1 FROM work_requests WHERE id = :id AND '.self::HELD_CARD,
+            ['id' => $id->toRfc4122()],
         )->fetchOne();
     }
 
@@ -142,6 +158,9 @@ class WorkRequestRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('w')
             ->andWhere('w.project IN (:projects)')
             ->andWhere('w.state = :open')
+            ->andWhere('w.subjectType <> :card OR NOT EXISTS (
+                SELECT 1 FROM '.CardHold::class.' h WHERE h.project = w.project AND h.cardId = w.subjectId)')
+            ->setParameter('card', WorkSubject::CARD)
             ->setParameter('projects', $projectIds)
             ->setParameter('open', WorkRequestState::Open->value)
             ->orderBy('w.createdAt', 'ASC')
@@ -175,7 +194,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             WITH target AS MATERIALIZED (
                 SELECT id
                 FROM work_requests
-                WHERE state = :claimed AND lease_until <= :now
+                WHERE state = :claimed AND lease_until <= :now AND NOT %s
                 ORDER BY id
                 FOR UPDATE SKIP LOCKED
             )
@@ -185,6 +204,7 @@ class WorkRequestRepository extends ServiceEntityRepository
             WHERE work_requests.id = target.id
             RETURNING work_requests.id
             SQL;
+        $sql = \sprintf($sql, self::HELD_CARD);
 
         $ids = $this->getEntityManager()->getConnection()->executeQuery(
             $sql,

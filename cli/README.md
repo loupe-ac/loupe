@@ -1184,7 +1184,7 @@ Docker container.
 A stop ends one run and holds nothing. To keep every agent off a card, a person
 pauses the agents on the card. The server then holds the card, and the bridge
 starts no worker for a held card. A queued run of a held card waits until the
-hold ends. A request of a held card starts nothing.
+hold ends. Loupe cancels the open requests of a held card, and a claim of one gets `card_held`.
 
 Until the bridge reads the held list once, it treats the server as an older
 one. In that mode a stop holds the card, and a resume or a rerun ends the hold.
