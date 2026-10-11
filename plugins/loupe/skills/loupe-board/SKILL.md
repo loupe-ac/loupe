@@ -147,6 +147,11 @@ project is **refused** rather than kept: a URL cannot be checked and an id can.
 `card_get` returns them as `documents`, each with `documentId`, `title` and
 `status`.
 
+`artifactIds` links the artifacts of this project the same way, on `card_create`
+and `card_update`, with the same omit-versus-empty rule and the same refusal of an
+unknown id. `card_get` returns them as `artifacts`, each with `artifactId`, `name`,
+`versionNumber`, `archived` and `path`.
+
 `relatedCards` links other cards of this project, on `card_create` and
 `card_update`. Each entry takes a `cardId` and a `kind`: `relates-to` (the
 default), `blocks` or `blocked-by`. A pair of cards holds one link, and both cards

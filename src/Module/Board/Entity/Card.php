@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Board\Entity;
 
 use App\Doctrine\SearchLanguage;
+use App\Module\Artifact\Entity\Artifact;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -93,6 +94,11 @@ class Card implements ProjectScopedSubject
     #[ORM\OrderBy(['linkedAt' => 'ASC'])]
     public Collection $documents;
 
+    /** @var Collection<int, CardArtifact> */
+    #[ORM\OneToMany(targetEntity: CardArtifact::class, mappedBy: 'card', cascade: ['persist'], orphanRemoval: true)]
+    #[ORM\OrderBy(['linkedAt' => 'ASC'])]
+    public Collection $artifacts;
+
     /**
      * Null on a row an image without this column wrote, which is why nothing
      * reads it directly. Read $reporter instead.
@@ -179,6 +185,7 @@ class Card implements ProjectScopedSubject
         $this->storedReporter = $this->origin;
         $this->pullRequests = new ArrayCollection();
         $this->documents = new ArrayCollection();
+        $this->artifacts = new ArrayCollection();
         $this->updatedAt = $this->createdAt;
     }
 
@@ -254,6 +261,41 @@ class Card implements ProjectScopedSubject
 
         foreach ($wanted as $document) {
             $this->documents->add(new CardDocument($this, $document));
+        }
+    }
+
+    /** Links the artifact unless the card already carries it. */
+    public function linkArtifact(Artifact $artifact): void
+    {
+        foreach ($this->artifacts as $link) {
+            if ($link->artifact->id?->equals($artifact->id) ?? false) {
+                return;
+            }
+        }
+
+        $this->artifacts->add(new CardArtifact($this, $artifact));
+    }
+
+    /** Makes the card's artifact links match the given set exactly, as syncDocuments does for documents. */
+    public function syncArtifacts(Artifact ...$artifacts): void
+    {
+        $wanted = [];
+        foreach ($artifacts as $artifact) {
+            $wanted[(string) $artifact->id] = $artifact;
+        }
+
+        foreach ($this->artifacts as $link) {
+            $id = (string) $link->artifact->id;
+            if (isset($wanted[$id])) {
+                unset($wanted[$id]);
+
+                continue;
+            }
+            $this->artifacts->removeElement($link);
+        }
+
+        foreach ($wanted as $artifact) {
+            $this->artifacts->add(new CardArtifact($this, $artifact));
         }
     }
 

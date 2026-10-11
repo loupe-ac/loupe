@@ -17,6 +17,7 @@ use App\Module\Board\Event\CardParentChanged;
 use App\Module\Board\Event\CardPullRequestsChanged;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\ArtifactLinkResolver;
 use App\Module\Board\Service\CardLinkResolver;
 use App\Module\Board\Service\CardLinkSync;
 use App\Module\Board\Service\CardMover;
@@ -55,6 +56,7 @@ final readonly class UpdateCardHandler
         private PullRequestUrlResolver $pullRequests,
         private PullRequestTracking $pullRequestTracking,
         private DocumentLinkResolver $documentLinks,
+        private ArtifactLinkResolver $artifactLinks,
         private CardLinkResolver $cardLinks,
         private CardLinkSync $cardLinkSync,
         private CardParentResolver $parents,
@@ -95,6 +97,9 @@ final readonly class UpdateCardHandler
         $documents = null === $command->documentIds
             ? null
             : $this->documentLinks->resolve($card->project, array_values($command->documentIds));
+        $artifacts = null === $command->artifactIds
+            ? null
+            : $this->artifactLinks->resolve($card->project, array_values($command->artifactIds));
         $relatedCards = null === $command->relatedCards
             ? null
             : $this->cardLinks->resolve($card->project, $card, array_values($command->relatedCards));
@@ -105,7 +110,7 @@ final readonly class UpdateCardHandler
         // so this handler owns the transaction the move runs in.
         // Flushing the fields first would commit half an update whose move
         // then failed.
-        $outcome = $this->em->wrapInTransaction(function () use ($command, $card, $title, $documents, $relatedCards, $newParent): UpdateCardOutcome|string|DomainErrors|EpicChildrenOpen|CardManaged {
+        $outcome = $this->em->wrapInTransaction(function () use ($command, $card, $title, $documents, $artifacts, $relatedCards, $newParent): UpdateCardOutcome|string|DomainErrors|EpicChildrenOpen|CardManaged {
             $this->em->lock($card->project, LockMode::PESSIMISTIC_WRITE);
             // lock() takes the project row and leaves the loaded card as the
             // request read it, which may be before the caller ahead of us in
@@ -236,6 +241,9 @@ final readonly class UpdateCardHandler
             if (null !== $documents) {
                 $card->syncDocuments(...$documents);
             }
+            if (null !== $artifacts) {
+                $card->syncArtifacts(...$artifacts);
+            }
             $trackedBefore = null;
             if (null !== $command->pullRequestUrls) {
                 $trackedBefore = $this->pullRequestTracking->referencesOf($card);
@@ -329,6 +337,7 @@ final readonly class UpdateCardHandler
             || $outcome->laneChanged
             || null !== $command->pullRequestUrls
             || null !== $command->documentIds
+            || null !== $command->artifactIds
             || null !== $command->relatedCards;
 
         if ($changedSomething || null !== $outcome->move) {
@@ -376,6 +385,7 @@ final readonly class UpdateCardHandler
                 'laneChanged' => $outcome->laneChanged,
                 'pullRequestsReplaced' => null !== $command->pullRequestUrls,
                 'documentsReplaced' => null !== $command->documentIds,
+                'artifactsReplaced' => null !== $command->artifactIds,
                 'relatedCardsReplaced' => null !== $command->relatedCards,
                 'moved' => null !== $outcome->move,
             ],

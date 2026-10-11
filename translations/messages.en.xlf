@@ -5539,6 +5539,10 @@
                 <source>board.card.error.document_unknown</source>
                 <target>One of those documents is not in this project.</target>
             </trans-unit>
+            <trans-unit id="board.card.error.artifact_unknown">
+                <source>board.card.error.artifact_unknown</source>
+                <target>One of those artifacts is not in this project.</target>
+            </trans-unit>
             <trans-unit id="board.card.pull_requests.title">
                 <source>board.card.pull_requests.title</source>
                 <target>Pull requests</target>
@@ -8122,6 +8126,7 @@
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
             <trans-unit id="artifact.error.project_not_found"><source>artifact.error.project_not_found</source><target>The project does not exist.</target></trans-unit>
             <trans-unit id="artifact.error.switched_off"><source>artifact.error.switched_off</source><target>Artifacts are switched off</target></trans-unit>
+            <trans-unit id="artifact.error.card_not_found"><source>artifact.error.card_not_found</source><target>The project has no card with that id or number.</target></trans-unit>
             <trans-unit id="artifact.error.session_too_long"><source>artifact.error.session_too_long</source><target>The session id is too long.</target></trans-unit>
             <trans-unit id="artifact.error.worker_refused"><source>artifact.error.worker_refused</source><target>Workers read artifacts and do not store them. Store a new version from an interactive session.</target></trans-unit>
             <trans-unit id="artifact.error.artifact_not_found"><source>artifact.error.artifact_not_found</source><target>This project has no artifact with that id.</target></trans-unit>

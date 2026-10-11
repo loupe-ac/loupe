@@ -876,12 +876,12 @@ An agent drives the board through the MCP endpoint. See
 | Tool | Arguments |
 |---|---|
 | `board_columns` | None. It also returns the card types of the project. |
-| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds` and `relatedCards` are optional. `origin` is the old name for `reporter` and is deprecated. |
+| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds`, `artifactIds` and `relatedCards` are optional. `origin` is the old name for `reporter` and is deprecated. |
 | `card_list` | `status`, `type` and `reporter`, each optional, each a filter. `page`, `perPage` and `full` are optional as well. |
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
 | `card_get_history` | Exactly one of `cardId` and `number`. `page` and `perPage` are optional. |
-| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds` and `relatedCards` are optional. |
+| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds` and `relatedCards` are optional. |
 | `card_run_open` | `sessionId`, `name` and exactly one of `cardId` and `number` are required. `status` is optional. |
 | `card_run_close` | `sessionId` and exactly one of `cardId` and `number` are required. |
 | `column_create` | `label` is required. |
@@ -1022,6 +1022,18 @@ template.
 Such a card always lands in Backlog, and carries no pull request
 link. The widget offers neither, so a page visitor cannot file work straight
 into a column. The widget refuses a card or an epic in a terminal column.
+
+## Artifacts on a card
+
+A card links to any number of artifacts in the same project. Pass `artifactIds`
+to `card_create` or `card_update`, or pass `card` when you push a version of an
+artifact, with the id or the number of the card. `card_get` returns each link as
+`artifacts`, with `artifactId`, `name`, `versionNumber`, `archived` and `path`.
+
+An id that names no artifact of the project is refused, and so is a `card` that
+names no card of the project. `artifactIds` follows the omit-versus-empty rule of
+`documentIds`. A push that names a card links the artifact once, however often
+you push.
 
 ## Documents on a card
 
