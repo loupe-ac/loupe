@@ -1353,13 +1353,6 @@
         height: calc(100dvh - var(--spacing) * 26);
         scrollbar-width: thin;
     }
-    /* The last open panel fills the column to its foot. */
-    .lp-review
-        .lp-review-panel:not([hidden]):not(
-            :has(~ .lp-review-panel:not([hidden]))
-        ) {
-        @apply grow;
-    }
 }
 @media (width < 75rem) {
     .lp-review .lp-review-doc:not(.lp-review-doc--wide) {
