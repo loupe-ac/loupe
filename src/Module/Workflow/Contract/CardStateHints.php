@@ -28,6 +28,12 @@ interface CardStateHints
      */
     public function pullRequestColumnIds(Uuid $projectId): array;
 
-    /** The branch of the epic with this card number, or null when the project has no template or its template has no epic branches. */
-    public function epicBranchOf(Uuid $projectId, int $number): ?string;
+    /**
+     * The branch of each epic with these card numbers. It reads the template once, whatever the count.
+     *
+     * @param list<int> $numbers
+     *
+     * @return array<int, string> card number => its branch; empty when the project has no template or its template has no epic branches
+     */
+    public function epicBranchesOf(Uuid $projectId, array $numbers): array;
 }

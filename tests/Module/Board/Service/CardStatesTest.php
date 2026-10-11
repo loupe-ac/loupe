@@ -7,6 +7,7 @@ namespace App\Tests\Module\Board\Service;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Service\CardPullRequestStates;
 use App\Module\Board\Service\CardState;
 use App\Module\Board\Service\CardStateCode;
@@ -438,7 +439,20 @@ final class CardStatesTest extends KernelTestCase
         $this->linkPullRequest($epic, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
         $this->recordHistory($epic, '-1 hour');
 
-        self::assertNull($this->stateOf($epic, all: true));
+        self::assertNull($this->stateOf($epic));
+    }
+
+    public function test_a_quiet_pull_request_of_a_project_with_automation_off_shows_no_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-quiet-automation-off'));
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($card, '-1 hour');
+        $automation = self::getContainer()->get(BoardAutomation::class);
+        self::assertInstanceOf(BoardAutomation::class, $automation);
+        $automation->settingsForUpdate($card->project)->enabled = false;
+        $this->em()->flush();
+
+        self::assertNull($this->stateOf($card));
     }
 
     /** @param array<string, CardRunWarning> $warnings */

@@ -89,12 +89,25 @@ final readonly class WorkflowCardStateHints implements CardStateHints
     }
 
     #[\Override]
-    public function epicBranchOf(Uuid $projectId, int $number): ?string
+    public function epicBranchesOf(Uuid $projectId, array $numbers): array
     {
-        try {
-            return $this->templates->forProject($projectId)->epicBranchOf($number);
-        } catch (TemplateMissing) {
-            return null;
+        if ([] === $numbers) {
+            return [];
         }
+        try {
+            $template = $this->templates->forProject($projectId);
+        } catch (TemplateMissing) {
+            return [];
+        }
+
+        $branches = [];
+        foreach ($numbers as $number) {
+            $branch = $template->epicBranchOf($number);
+            if (null !== $branch) {
+                $branches[$number] = $branch;
+            }
+        }
+
+        return $branches;
     }
 }

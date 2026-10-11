@@ -566,6 +566,27 @@ class CardRepository extends ServiceEntityRepository
         )));
     }
 
+    /**
+     * The cards among these ids that have a child in a column that is not terminal, in one query.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<string>
+     */
+    public function findIdsWithOpenChildren(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT DISTINCT c.parent_card_id FROM board_cards c JOIN board_columns k ON k.id = c.column_id
+             WHERE c.parent_card_id IN (:ids) AND k.terminal = false',
+            ['ids' => $ids],
+            ['ids' => ArrayParameterType::STRING],
+        )));
+    }
+
     public function countChildren(Card $card): int
     {
         return (int) $this->getEntityManager()->getConnection()->fetchOne(
