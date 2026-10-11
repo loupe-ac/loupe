@@ -47,7 +47,7 @@ services:
     volumes:
       - .:/var/www/html
     environment:
-      XDEBUG_MODE: "develop,coverage"
+      XDEBUG_MODE: "off"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8"
       # MAILER_DSN is deliberately NOT set here: real environment beats every
       # dotenv file, so a container value would pin every worktree to the shared
