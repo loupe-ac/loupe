@@ -5082,7 +5082,10 @@
         .lp-app > .lp-shell:not(:has(.lp-board)) > .lp-topbar {
             padding-right: calc(var(--app-frame-inset) + var(--spacing) * 7.5);
         }
-        .lp-app > .lp-shell:not(:has(.lp-board)) > .lp-main {
+        /* The side-by-side diff takes the full width below the framed bar. */
+        .lp-app
+            > .lp-shell:not(:has(.lp-board))
+            > .lp-main:not(:has(.lp-review-doc--wide)) {
             padding-right: var(--app-frame-inset);
         }
     }
