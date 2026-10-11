@@ -7,10 +7,13 @@ namespace App\Module\Inbox\Service;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Inbox\Entity\InboxCardWait;
+use App\Module\Inbox\Entity\InboxCardWaitReason;
 use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\View\CardWaitLine;
 use App\Module\Review\Repository\DocumentRepository;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** Builds the translation key, the values and the link for one wait. Each type has the keys of the part that owns it. */
 final readonly class CardWaitText
@@ -20,7 +23,73 @@ final readonly class CardWaitText
         private ForgePullRequestRepository $forgePullRequests,
         private WorkerRunRepository $workerRuns,
         private UrlGeneratorInterface $urls,
+        private TranslatorInterface $translator,
+
+        #[Autowire(param: 'kernel.default_locale')]
+        private string $locale,
     ) {
+    }
+
+    /** A stop pause of the card is the action of the run line that caused it, so the page shows it once. */
+    public static function isFolded(InboxCardWait $wait): bool
+    {
+        return null === $wait->endedAt
+            && InboxCardWaitType::CardPause === $wait->type
+            && \in_array($wait->reason, [InboxCardWaitReason::PauseWorkStopped, InboxCardWaitReason::PauseRetries], true)
+            && null !== self::openRunWait(array_values($wait->watch->waits->toArray()));
+    }
+
+    /**
+     * The title of the item: the reason of the wait that matters most, then the card title.
+     *
+     * @param list<InboxCardWait> $open
+     */
+    public function title(array $open, int $cardNumber, string $cardTitle, int $maxLength): string
+    {
+        $main = self::mainWait($open);
+        $line = null === $main ? null : $this->line($main, false);
+        $reason = null === $line ? '' : $this->translator->trans($line->titleKey(), $line->params, null, $this->locale);
+
+        return mb_substr(\sprintf('#%d %s', $cardNumber, '' === $reason ? $cardTitle : $reason.' · '.$cardTitle), 0, $maxLength);
+    }
+
+    /**
+     * One sentence for each wait the page shows, with its action.
+     *
+     * @param list<InboxCardWait> $open
+     */
+    public function body(array $open): string
+    {
+        $lines = [];
+        foreach ($open as $wait) {
+            if (self::isFolded($wait)) {
+                continue;
+            }
+            $line = $this->line($wait, false);
+            $lines[] = rtrim($this->translator->trans($line->key, $line->params, null, $this->locale), '.').'. '.$this->translator->trans($line->actionKey(), $line->params, null, $this->locale).'.';
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param list<InboxCardWait> $open
+     */
+    private static function mainWait(array $open): ?InboxCardWait
+    {
+        return self::openRunWait($open) ?? array_first(array_filter($open, static fn (InboxCardWait $wait): bool => !self::isFolded($wait))) ?? null;
+    }
+
+    /** @param list<InboxCardWait> $waits */
+    private static function openRunWait(array $waits): ?InboxCardWait
+    {
+        foreach ($waits as $wait) {
+            if (null === $wait->endedAt && InboxCardWaitType::WorkerRun === $wait->type) {
+                return $wait;
+            }
+        }
+
+        return null;
     }
 
     public function line(InboxCardWait $wait, bool $documentLinked): CardWaitLine
@@ -29,6 +98,9 @@ final readonly class CardWaitText
         $params = ['%card%' => $wait->watch->cardNumber];
         $href = null;
         $detail = null;
+        $key = null;
+        $titleKey = null;
+        $action = null;
 
         switch ($wait->type) {
             case InboxCardWaitType::Document:
@@ -48,13 +120,42 @@ final readonly class CardWaitText
                 $run = null === $wait->runId ? null : $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $projectId);
                 $detail = null === $run ? null : RunOutputText::clean($run->output);
                 $href = null === $wait->runId ? null : $this->urls->generate('app_project_worker_runs', ['id' => $projectId, 'search' => $wait->runId]);
+                $headline = null === $run ? '' : RunOutputText::headline($run->output);
+                $worker = null === $run || null === $run->workKind || '' === $run->workKind ? 'worker' : str_replace('-', ' ', $run->workKind).' worker';
+                $params['%worker%'] = $worker;
+                $params['%Worker%'] = ucfirst($worker);
+                $params['%headline%'] = $headline;
+                if ('' !== $headline) {
+                    $base = 'bridge.inbox_wait.'.$wait->reason->keyPart();
+                    $key = $base.'.headline';
+                    $titleKey = $key.'.title';
+                    $action = $base.'.action';
+                }
+                if (self::hasFoldedPause($wait)) {
+                    $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
+                    $action = 'bridge.inbox_wait.folded.action';
+                }
                 break;
             case InboxCardWaitType::CardPause:
                 $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
                 break;
         }
 
-        return new CardWaitLine(self::prefix($wait->type).'.inbox_wait.'.$wait->reason->keyPart(), $params, $href, '' === $detail ? null : $detail);
+        return new CardWaitLine($key ?? self::prefix($wait->type).'.inbox_wait.'.$wait->reason->keyPart(), $params, $href, '' === $detail ? null : $detail, $titleKey, $action);
+    }
+
+    private static function hasFoldedPause(InboxCardWait $run): bool
+    {
+        if (null !== $run->endedAt) {
+            return false;
+        }
+        foreach ($run->watch->waits as $wait) {
+            if (self::isFolded($wait)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function prefix(InboxCardWaitType $type): string

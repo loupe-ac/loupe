@@ -176,24 +176,17 @@ services:
         condition: service_healthy
 
   # Its own container from the same image, so worker restarts never recycle
-  # php-fpm. scheduler_default before async deliberately: a deep async backlog
-  # must not delay schedule ticks. su-exec drops to www-data so both processes
-  # write the shared export volume as the same user — the local adapter writes
+  # php-fpm. Supervisord runs two consumers, the second for async_low. su-exec
+  # keeps the shared export volume written by one user: the local adapter writes
   # archives 0600, so a root-written one 404s for every download.
   worker:
     image: ${LOUPE_PROD_IMAGE:-ghcr.io/ubermuda/loupe:prod}
     build: *app-build
     restart: unless-stopped
     command:
-      - su-exec
-      - www-data
-      - php
-      - bin/console
-      - messenger:consume
-      - scheduler_default
-      - async
-      - --time-limit=3600
-      - --memory-limit=128M
+      - /usr/bin/supervisord
+      - -c
+      - /etc/worker-supervisord.conf
     environment: *app-environment
     volumes:
       - exports:/var/www/html/var/exports

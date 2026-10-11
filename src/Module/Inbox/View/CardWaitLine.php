@@ -13,11 +13,18 @@ final readonly class CardWaitLine
         public array $params,
         public ?string $href,
         public ?string $detail,
+        public ?string $titleKey = null,
+        private ?string $action = null,
     ) {
     }
 
     public function actionKey(): string
     {
-        return $this->key.'.action';
+        return $this->action ?? $this->key.'.action';
+    }
+
+    public function titleKey(): string
+    {
+        return $this->titleKey ?? $this->key.'.title';
     }
 }

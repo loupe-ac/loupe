@@ -30,6 +30,7 @@ use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Service\CardWorkflowPanelBuilder;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\WorkflowAutomation;
+use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateSource;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
@@ -213,6 +214,7 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
                 ['id' => 'hold', 'slot' => 'tech-design', 'when' => ['all' => []], 'then' => ['pause' => ['reason' => 'on-hold', 'until' => [ProvidedFactsReady::KEY => []]]]],
             ],
         ];
+        $this->service(ProjectTemplateCopy::class)->reset();
         $this->em()->flush();
         $this->service(PauseCardHandler::class)(new PauseCardCommand($card, 'on-hold', 'hold', PauseKind::Rule));
         $this->service(ProvidedFactsProvider::class)->failure = new \RuntimeException('The source is down.');
@@ -254,6 +256,7 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
                 ['id' => 'hold', 'slot' => 'tech-design', 'when' => ['all' => []], 'then' => ['pause' => ['reason' => 'on-hold', 'until' => [ProvidedFactsReady::KEY => []]]]],
             ],
         ];
+        $this->service(ProjectTemplateCopy::class)->reset();
         $this->em()->flush();
         $this->service(ProvidedFactsProvider::class)->failure = new \RuntimeException('The source is down.');
 
@@ -378,6 +381,7 @@ final class CardWorkflowPanelBuilderTest extends KernelTestCase
             'workTimeoutMinutes' => 120,
             'rules' => $rules,
         ];
+        $this->service(ProjectTemplateCopy::class)->reset();
         $this->em()->flush();
     }
 

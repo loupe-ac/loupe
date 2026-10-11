@@ -74,7 +74,7 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
         self::assertCount(1, $rows);
         self::assertSame('human', $rows[0]['actor_kind']);
         self::assertSame((string) $this->project->owner->id, $rows[0]['actor_user_id']);
-        self::assertSame(['kind' => $kind->value, 'reason' => 'move-refused', 'ruleId' => 'tech-design-write'], json_decode((string) $rows[0]['detail'], true));
+        self::assertSame(['kind' => $kind->value, 'reason' => 'move-refused', 'ruleId' => 'tech-design-write', 'releaseReason' => 'released-by-person'], json_decode((string) $rows[0]['detail'], true));
 
         self::assertEquals([new EvaluateCard((string) $card->id)], $this->queued());
     }

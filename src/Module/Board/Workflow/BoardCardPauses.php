@@ -98,7 +98,7 @@ final readonly class BoardCardPauses implements CardPauses
             CardEventKind::PauseReleased,
             $actor,
             null === $actorUserId ? null : $this->em->getReference(User::class, $actorUserId),
-            ['kind' => $pause->kind->value, 'reason' => $pause->reason, 'ruleId' => $pause->ruleId],
+            ['kind' => $pause->kind->value, 'reason' => $pause->reason, 'ruleId' => $pause->ruleId, 'releaseReason' => $pause->releaseReason],
             $pause->releasedAt,
         );
     }

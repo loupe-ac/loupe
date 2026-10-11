@@ -7,6 +7,7 @@ namespace App\Module\Workflow\Service;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\BlockerHold;
 use App\Module\Workflow\Contract\CardStateHints;
+use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\StageDocumentTags;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
@@ -56,5 +57,57 @@ final readonly class WorkflowCardStateHints implements CardStateHints
             static fn (array $row): BlockerHold => new BlockerHold($row['card_id'], new \DateTimeImmutable($row['since']), (int) $row['number'], $row['title']),
             $this->workflowRuleStates->findBlockerHolds($cardIds),
         );
+    }
+
+    #[\Override]
+    public function pullRequestColumnIds(Uuid $projectId): array
+    {
+        $project = $this->projects->find($projectId);
+        if (null === $project) {
+            return [];
+        }
+        try {
+            $template = $this->templates->forProject($projectId);
+        } catch (TemplateMissing) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($this->workflowSlotLinks->findColumnsBySlot($project) as $slot => $column) {
+            if (null === $column) {
+                continue;
+            }
+            foreach ($template->rules as $rule) {
+                if ($rule->slot === $slot && \in_array(EngineFact::PullRequest, $rule->when->reads(), true)) {
+                    $ids[] = $column->id->toRfc4122();
+                    break;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    #[\Override]
+    public function epicBranchesOf(Uuid $projectId, array $numbers): array
+    {
+        if ([] === $numbers) {
+            return [];
+        }
+        try {
+            $template = $this->templates->forProject($projectId);
+        } catch (TemplateMissing) {
+            return [];
+        }
+
+        $branches = [];
+        foreach ($numbers as $number) {
+            $branch = $template->epicBranchOf($number);
+            if (null !== $branch) {
+                $branches[$number] = $branch;
+            }
+        }
+
+        return $branches;
     }
 }

@@ -10,6 +10,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardEvent;
 use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Entity\CardSource;
@@ -52,6 +53,7 @@ use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
+use App\Module\Workflow\Contract\PauseKind;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\When;
 use Symfony\Component\Uid\Uuid;
@@ -108,6 +110,7 @@ final readonly class ProjectShowcaseSeeder
             $documents = $this->seedDocuments($owner, $project, $cards['onboarding']);
             $this->seedInbox($project, $owner, $reviewer, $cards, $documents);
             $this->seedEpicLane($project);
+            $this->seedBlockedRun($project);
             $this->seedSiteFeedback($project, $cards['checkout']);
             $this->em->flush();
             $waitingCard = $cards['onboarding'];
@@ -636,6 +639,46 @@ final readonly class ProjectShowcaseSeeder
         );
         $this->em->persist($run);
         $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::GaveUp, $endedAt, $endedAt));
+    }
+
+    /** A blocked review run and the pause it caused, which the wait item shows as one line. */
+    private function seedBlockedRun(Project $project): void
+    {
+        $columns = [];
+        foreach ($this->boardColumns->findForProject($project) as $column) {
+            $columns[$column->slug] = $column;
+        }
+        $column = $columns['in-progress'] ?? $columns['backlog'] ?? throw new \LogicException('The project has no backlog column.');
+        $card = new Card(
+            project: $project,
+            column: $column,
+            title: 'Sync the forge state',
+            body: 'Read the checks of a linked pull request again after each push.',
+            number: $this->cards->nextNumber($project),
+            type: 'feature',
+        );
+        $this->em->persist($card);
+        $this->em->flush();
+
+        $endedAt = new \DateTimeImmutable('-10 minutes');
+        $run = new WorkerRun(
+            project: $project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+            cardNumber: $card->number,
+            workKind: 'review',
+            state: WorkerRunState::Blocked,
+            runKey: Uuid::v4(),
+            endedAt: $endedAt,
+            exitCode: 0,
+            hasResult: true,
+            output: 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network of the worker, then resume the card.',
+            receivedAt: $endedAt,
+        );
+        $this->em->persist($run);
+        $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Blocked, $endedAt, $endedAt));
+        $this->em->persist(new CardPause($card, $project, 'work-stopped', 'review', PauseKind::WorkStopped, $endedAt));
     }
 
     private function seedSiteFeedback(Project $project, Card $checkout): void

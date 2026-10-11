@@ -47,7 +47,7 @@ services:
     volumes:
       - .:/var/www/html
     environment:
-      XDEBUG_MODE: "develop,coverage"
+      XDEBUG_MODE: "off"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8"
       # MAILER_DSN is deliberately NOT set here: real environment beats every
       # dotenv file, so a container value would pin every worktree to the shared
@@ -72,8 +72,8 @@ services:
       dockerfile: ./docker/dev/php-fpm/Dockerfile
     restart: unless-stopped
     # scheduler_default listed first deliberately — a deep async backlog must
-    # not delay schedule ticks.
-    command: php bin/console messenger:consume scheduler_default async --time-limit=3600 --memory-limit=128M
+    # not delay schedule ticks. async_low (the workflow sweep) comes last.
+    command: php bin/console messenger:consume scheduler_default async async_low --time-limit=3600 --memory-limit=128M
     volumes:
       - .:/var/www/html
     environment:
@@ -167,6 +167,7 @@ services:
 ###> doctrine/doctrine-bundle ###
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       # You should definitely change the password in production

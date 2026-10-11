@@ -71,6 +71,7 @@ final readonly class CardWaitReconciler
         private CardPauseRepository $cardPauses,
         private TemplateSource $templates,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
+        private CardWaitText $waitText,
     ) {
     }
 
@@ -516,8 +517,8 @@ final readonly class CardWaitReconciler
     {
         $open = array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
         usort($open, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, $a->key()] <=> [$b->startedAt, $b->key()]);
-        $title = self::title($card);
-        $body = implode("\n", array_map(static fn (InboxCardWait $wait): string => $wait->type->value.' '.$wait->reason->value, $open));
+        $title = $this->waitText->title($open, $card->number, $card->title, InboxItem::MAX_TITLE_LENGTH);
+        $body = $this->waitText->body($open);
 
         $item = $watch->item;
         if ($item->title === $title && $item->body === $body) {

@@ -285,6 +285,50 @@ final class CardHistoryEntryTest extends TestCase
         self::assertEquals(new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => 'fix-on-review']), $entry->cause);
     }
 
+    #[DataProvider('releaseReasons')]
+    public function test_a_release_names_why_the_pause_ended_and_the_rule(string $releaseReason, string $reasonKey): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::PauseReleased, Actor::System, null, ['kind' => 'retries', 'reason' => 'review-failed', 'ruleId' => 'fix-on-review', 'releaseReason' => $releaseReason]));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.pause_released', [
+            '%actor%' => new TranslatableMessage('board.card.history.actor.system'),
+            '%kind%' => new TranslatableMessage('board.card.history.pause_kind.retries'),
+        ]), $entry->sentence);
+        self::assertEquals(new TranslatableMessage('board.card.history.cause.pause_released', [
+            '%reason%' => new TranslatableMessage($reasonKey),
+            '%rule%' => 'fix-on-review',
+        ]), $entry->cause);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function releaseReasons(): iterable
+    {
+        yield 'changed facts' => ['facts-changed', 'board.card.history.release_reason.facts_changed'];
+        yield 'another pull request' => ['subject-changed', 'board.card.history.release_reason.subject_changed'];
+        yield 'a refilled budget' => ['refilled', 'board.card.history.release_reason.refilled'];
+        yield 'a met condition' => ['until-met', 'board.card.history.release_reason.until_met'];
+        yield 'an inbox turned on' => ['inbox-on', 'board.card.history.release_reason.inbox_on'];
+        yield 'a card out of the column' => ['left-slot', 'board.card.history.release_reason.left_slot'];
+        yield 'a removed rule' => ['rule-removed', 'board.card.history.release_reason.rule_removed'];
+        yield 'a resumed run' => ['run-resumed', 'board.card.history.release_reason.run_resumed'];
+        yield 'a release rule' => ['released-by-rule', 'board.card.history.release_reason.released_by_rule'];
+        yield 'a person' => ['released-by-person', 'board.card.history.release_reason.released_by_person'];
+    }
+
+    public function test_a_release_with_an_unknown_reason_keeps_the_rule_cause(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::PauseReleased, Actor::System, null, ['kind' => 'retries', 'ruleId' => 'fix-on-review', 'releaseReason' => 'gremlins']));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => 'fix-on-review']), $entry->cause);
+    }
+
+    public function test_a_pause_ignores_a_release_reason(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::Paused, Actor::System, null, ['kind' => 'retries', 'ruleId' => 'fix-on-review', 'releaseReason' => 'facts-changed']));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.cause.workflow_rule', ['%rule%' => 'fix-on-review']), $entry->cause);
+    }
+
     public function test_a_verdict_names_the_person_and_the_decision(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::Verdict, Actor::Human, $this->user, ['kind' => 'request-changes', 'noteCount' => 2]));

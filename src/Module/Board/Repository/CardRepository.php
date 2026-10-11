@@ -413,6 +413,27 @@ class CardRepository extends ServiceEntityRepository
             : $this->getEntityManager()->find(Card::class, Uuid::fromString((string) $row['parent_card_id']));
     }
 
+    /** Reads onto the card its column, type, parent and lane setting in one statement, for the reason in refreshColumn(). */
+    public function refreshPlacement(Card $card): void
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            'SELECT column_id, type, parent_card_id, lane_enabled FROM board_cards WHERE id = :id',
+            ['id' => (string) $card->id],
+        );
+
+        if (false === $row) {
+            return;
+        }
+
+        $card->column = $this->getEntityManager()->find(BoardColumn::class, Uuid::fromString((string) $row['column_id']))
+            ?? throw new \LogicException('Card row points at a missing column.');
+        $card->type = (string) $row['type'];
+        $card->laneEnabled = (bool) $row['lane_enabled'];
+        $card->parent = null === $row['parent_card_id']
+            ? null
+            : $this->getEntityManager()->find(Card::class, Uuid::fromString((string) $row['parent_card_id']));
+    }
+
     /** Reads onto the card its rank, for the reason in refreshColumn(). A card the database no longer holds is left alone. */
     public function refreshPosition(Card $card): void
     {
@@ -563,6 +584,27 @@ class CardRepository extends ServiceEntityRepository
         return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
             'SELECT id FROM board_cards WHERE parent_card_id = :id',
             ['id' => $parentId->toRfc4122()],
+        )));
+    }
+
+    /**
+     * The cards among these ids that have a child in a column that is not terminal, in one query.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<string>
+     */
+    public function findIdsWithOpenChildren(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT DISTINCT c.parent_card_id FROM board_cards c JOIN board_columns k ON k.id = c.column_id
+             WHERE c.parent_card_id IN (:ids) AND k.terminal = false',
+            ['ids' => $ids],
+            ['ids' => ArrayParameterType::STRING],
         )));
     }
 

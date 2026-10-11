@@ -211,6 +211,8 @@
                             <nav class="lp-topbar__trail">{% block topbar_crumbs %}{% endblock %}</nav>
                             {% block topbar_meta %}{% endblock %}
                         </div>
+                        {# Before the global actions, so the bell and New work stay right-most on every page. #}
+                        {% block topbar_actions %}{% endblock %}
                         <div class="lp-topbar__global-actions" aria-label="{{ 'nav.global_actions.label'|trans }}">
                             {% if is_feature_enabled('search.topbar.enabled') %}
                             {% include 'search/_search_dialog.html.twig' with {project: project} only %}
@@ -225,7 +227,6 @@
                             </twig:Ds:Button>
                             {% endif %}
                         </div>
-                        {% block topbar_actions %}{% endblock %}
                     {% endblock %}
                 </header>
                 <main id="main-content" class="lp-main" tabindex="-1">

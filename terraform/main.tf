@@ -92,11 +92,12 @@ module "app" {
   # delivered, data exports never build, the trial-end sweep never runs, and the
   # site-review outbox never drains.
   #
-  # scheduler_default is listed first deliberately — a deep async backlog must
-  # not delay schedule ticks. --time-limit recycles the process hourly and
-  # --memory-limit guards against a leak in long-lived consumers.
+  # Supervisord runs two consumers (docker/prod/worker-supervisord.conf):
+  # scheduler_default async, and async_low for the workflow sweep, so the sweep
+  # never delays a job that a person waits for. scheduler_default is first
+  # deliberately — a deep async backlog must not delay schedule ticks.
   enable_worker  = true
-  worker_command = "php bin/console messenger:consume scheduler_default async --time-limit=3600 --memory-limit=128M"
+  worker_command = "/usr/bin/supervisord -c /etc/worker-supervisord.conf"
 
   # Mercure hub for site-review push, run as a second service in this app.
   # Gated on the secret rather than hardcoded true, so the feature is cleanly
