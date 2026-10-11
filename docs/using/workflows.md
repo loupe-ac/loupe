@@ -87,6 +87,12 @@ with "the worker stopped and needs a person". The board marks a card whose
 latest worker run failed or ended with no result, until a later run ends in
 another state.
 
+A pause after a refused or expired request ends by itself when a fact that its
+rule reads changes after the refusal, such as a new head commit. The work then
+starts again. The end of the card's own request does not count as a change, so
+a worker that blocks does not start a new run on the same card. A retry after a
+refusal also waits for its delay.
+
 When the retries run out, the workflow opens one `repair` work request for the
 card. The request names the failed rule in `{ruleId}`, and the last refusal
 code in `{reason}`. A repair worker reads the failed run, fixes the cause, and
@@ -143,7 +149,8 @@ release is refused on an unmanaged card. It is also refused on a pause that a
 rule made, because that pause ends only on its own release condition. After a
 release the paused rule runs again with a fresh budget of retries and work. The
 card history records the pause and the release, with the person who released
-it. An agent ends a pause with the `card_pause_release` MCP tool.
+it. A pause that the workflow ends by itself shows in the history too, with
+Loupe as the actor and the reason. An agent ends a pause with the `card_pause_release` MCP tool.
 
 ## Writes to GitHub
 
