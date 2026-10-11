@@ -389,6 +389,12 @@ export default class extends Controller {
         if (!this.docTarget.contains(event.target)) {
             return;
         }
+        // A click inside a selection collapses it only after mouseup is
+        // dispatched, so the selection is read once the release has finished.
+        window.setTimeout(() => this.#readReleasedSelection(), 0);
+    }
+
+    #readReleasedSelection() {
         if (this.#demoUnavailable()) {
             this.#clearPendingSelection();
             return;
