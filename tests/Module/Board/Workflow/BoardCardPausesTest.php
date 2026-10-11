@@ -99,7 +99,7 @@ final class BoardCardPausesTest extends KernelTestCase
         self::assertCount(1, $rows);
         self::assertSame('system', $rows[0]['actor_kind']);
         self::assertNull($rows[0]['actor_user_id']);
-        self::assertSame(['kind' => 'retries', 'reason' => 'review-failed', 'ruleId' => 'fix-on-review'], json_decode((string) $rows[0]['detail'], true));
+        self::assertSame(['kind' => 'retries', 'reason' => 'review-failed', 'ruleId' => 'fix-on-review', 'releaseReason' => 'run-resumed'], json_decode((string) $rows[0]['detail'], true));
     }
 
     private function pauses(): BoardCardPauses

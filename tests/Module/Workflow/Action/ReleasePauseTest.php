@@ -8,6 +8,7 @@ use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Command\ReleaseCardPauseHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
@@ -15,6 +16,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Workflow\BoardCardPauses;
 use App\Module\Workflow\Action\ReleasePause;
 use App\Module\Workflow\Contract\ActionOutcome;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Workflow\Fact\FactsMother;
@@ -39,6 +41,11 @@ final class ReleasePauseTest extends KernelTestCase
         self::assertNotNull($pause->releasedAt);
         self::assertSame('released-by-rule', $pause->releaseReason);
         self::assertNull($this->service(CardPauseRepository::class)->findActiveForCard($card));
+        $this->em()->flush();
+        $events = $this->service(CardEventRepository::class)->findBy(['card' => $card, 'kind' => CardEventKind::PauseReleased]);
+        self::assertCount(1, $events);
+        self::assertSame(Actor::System, $events[0]->actorKind);
+        self::assertSame('released-by-rule', $events[0]->detail['releaseReason'] ?? null);
     }
 
     public function test_a_pause_with_another_reason_stays(): void
@@ -51,6 +58,8 @@ final class ReleasePauseTest extends KernelTestCase
 
         self::assertEquals(ActionOutcome::done(), $outcome);
         self::assertNull($pause->releasedAt);
+        $this->em()->flush();
+        self::assertSame([], $this->service(CardEventRepository::class)->findBy(['card' => $card, 'kind' => CardEventKind::PauseReleased]));
     }
 
     public function test_a_card_with_no_pause_is_done(): void
