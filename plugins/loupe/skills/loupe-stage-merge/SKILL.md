@@ -5,7 +5,7 @@ description: "Use when a card's pull request is ready to merge or behind its bas
 
 # Merge stage
 
-Merge one card's pull request when it is ready, or bring a branch that is behind its base up to date. After a child merge into an epic branch, refresh the epic preview.
+Merge one card's pull request when it is ready, or bring a branch that is behind its base up to date. When the head of an epic pull request has no refreshed preview, refresh the epic preview.
 
 ## Contract
 
@@ -23,7 +23,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
 2. Load `working-with-prs` when the profile `Instruction files` section names it.
-3. Read the prompt. The line `Loupe asks for epic preview work.` asks for an epic preview refresh after a child merge. Take the merged pull request of the card `pullRequests` whose base is the epic branch of `parent.number`, as "Epic branches" says. When there is none, stop with `STAGE RESULT: blocked: no merged epic child`. Then take "Refresh the epic preview", and skip steps 4 to 8. The line `Pull request <url> is ready to merge at <sha>.` asks for a merge. The line `Pull request <url> is behind its base.` asks for an update. The line `Loupe asks for merge work.` asks for a merge, and `Loupe asks for sync work.` asks for an update. A merge or sync work request names no pull request, so take the one open pull request of the card `pullRequests`, and its head commit from the forge adapter as the SHA of the prompt. When the card has no open pull request, stop with `STAGE RESULT: no open pull request`. When it has more than one, stop with `STAGE RESULT: blocked: more than one open pull request`. Any other prompt: stop with `STAGE RESULT: blocked: no merge request in the prompt`.
+3. Read the prompt. The line `Loupe asks for epic preview work.` asks for an epic preview refresh. The card of the request is the epic itself. When its `type` is not `epic`, stop with `STAGE RESULT: blocked: not an epic`. Then take "Refresh the epic preview", and skip steps 4 to 8. The line `Pull request <url> is ready to merge at <sha>.` asks for a merge. The line `Pull request <url> is behind its base.` asks for an update. The line `Loupe asks for merge work.` asks for a merge, and `Loupe asks for sync work.` asks for an update. A merge or sync work request names no pull request, so take the one open pull request of the card `pullRequests`, and its head commit from the forge adapter as the SHA of the prompt. When the card has no open pull request, stop with `STAGE RESULT: no open pull request`. When it has more than one, stop with `STAGE RESULT: blocked: more than one open pull request`. Any other prompt: stop with `STAGE RESULT: blocked: no merge request in the prompt`.
 4. The URL must be one of the card `pullRequests`. Otherwise stop with `STAGE RESULT: blocked: pull request not linked to the card`.
 5. Find and validate the pull request with the forge adapter. When it is outside this repository, stop with `STAGE RESULT: blocked: pull request outside this repository`. When its state is `merged`, stop with `STAGE RESULT: merged <url>`. When it is `closed`, stop with `STAGE RESULT: no open pull request`.
 6. Read the merge state with the forge adapter. Read its Report words only, as `../loupe-stage-implementation/references/commands.md` "Report words" lists them. From this step on, post the refusal comment before each `not ready` or `blocked:` stop. Follow "Post a refusal comment" in `../loupe-stage-implementation/references/commands.md`.
@@ -78,17 +78,17 @@ Then:
 2. Read the state again. When it is not `merged`, stop with `STAGE RESULT: blocked: merge refused <url>: <message>`, and record the block as "Record a block" in `../loupe-stage-implementation/references/commands.md` says.
 3. Stop with `STAGE RESULT: merged <url>`.
 
-The app opens the epic pull request after the first child merge. The app also asks for epic preview work after each child merge.
+The app opens the epic pull request after the first child merge. The app asks for epic preview work when the epic is in review, no other work runs on it, and no refresh ended well at the head of its pull request. A fix round push, a sync and a child merge each give the pull request a new head.
 
 ### Refresh the epic preview
 
 The epic preview serves the code of the epic branch, so the owner can try every merged child in one place. When the profile `Epics` section names no epic preview, stop with `STAGE RESULT: blocked: no epic preview in .loupe/lifecycle.md`.
 
-Read the epic with `card_get` on `parent.cardId`. Two child merges can run this section at the same time. Take the epic preview lock of the profile `Epics` section before step 1, and release it before each stop, also when a step fails. When the lock does not come, record the block, and stop with `STAGE RESULT: blocked: epic preview lock`. With the lock held, read the epic with `card_get` again. When its `status` is a terminal column, release the lock and stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
+Read the epic with `card_get` on the card of the request. A refresh and a teardown can run this section at the same time. Take the epic preview lock of the profile `Epics` section before step 1, and release it before each stop, also when a step fails. When the lock does not come, record the block, and stop with `STAGE RESULT: blocked: epic preview lock`. With the lock held, read the epic with `card_get` again. When its `status` is a terminal column, release the lock and stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
 
 1. Create the epic preview, or refresh it when it exists, as the profile says. Run a long command as the harness adapter says. Never bind writes to the preview.
-2. When the epic `pullRequestUrls` has no open epic pull request, stop with `STAGE RESULT: preview refreshed <epic preview url>`. The app can link the epic pull request after this run starts. The next child merge writes the lines that the body lacks.
-3. Read the body of the epic pull request with the forge adapter. List this child, and each other child of the epic `children` in a terminal column that has no line in the preview section. Read each listed child with `card_get`, and take its pull request that merged into the epic branch. Leave out a child with no such pull request.
+2. When the epic `pullRequestUrls` has no open epic pull request, stop with `STAGE RESULT: preview refreshed <epic preview url>`. The app can link the epic pull request after this run starts. The next refresh writes the lines that the body lacks.
+3. Read the body of the epic pull request with the forge adapter. List each child of the epic `children` in a terminal column that has no line in the preview section. Read each listed child with `card_get`, and take its pull request that merged into the epic branch. Leave out a child with no such pull request.
 4. Read the body of each merged child pull request with the forge adapter. In the preview section that the profile `Pull request` section names, take each link of the form that the profile `Epics` section carries, with its label and its marker. A child with no such link carries nothing. When no listed child carries a link, stop with `STAGE RESULT: preview refreshed <epic pull request url>`.
 5. For each link, mint a link on the epic preview and prove it, as the profile says. The mint or the proof can fail, because the child seeded its state into its own database. Write such a line as not minted or not proved, and go on.
 6. Read the body of the epic pull request with the forge adapter, just before you write it.

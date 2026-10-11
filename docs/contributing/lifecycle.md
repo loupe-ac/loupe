@@ -151,10 +151,13 @@ A child pull request merges into the epic branch, `epic/<number>`. The
 `epicBranch` value of the workflow template of the project names that branch. After the first child
 merge, the app opens a draft epic pull request from the epic branch to the
 default branch, and links it to the epic. The board setting **Open the epic
-pull request** turns this on. After each child merge, the workflow asks for
-`epic-preview` work on the child. Its worker refreshes the epic preview
-`.worktrees/epic-<number>`, and copies the preview links of the merged children
-to the epic pull request.
+pull request** turns this on. While the epic sits in In review, the workflow
+asks for `epic-preview` work on the epic card. It asks when no refresh ended
+well at the head of the epic pull request, and no other work or worker run is
+live on the epic. A child merge, a fix round push and a sync each move that
+head. Its worker refreshes the epic preview `.worktrees/epic-<number>`, and
+copies the preview links of the merged children to the epic pull request. Three
+failed refreshes in a row pause the epic with a work limit pause.
 
 ## Rule file
 
