@@ -266,6 +266,16 @@ own CI check, so the review leaves it out. A requirement that nothing builds has
 no file and no line, so it shows in the summary of the check and has no line
 note. The check lists the `spec` findings first.
 
+A finding with a clear rule or root problem opens its body with "Rule:" and the
+rule. It ends with "Also at:" and every other place in the change where the rule
+applies. The reviewer gives the most attention to the commits of earlier fix
+rounds. Each fix commit carries a `Loupe-Fix-Round` trailer, so the reviewer can
+find it.
+
+The fix worker fixes the rule at every place in the pull request, not only the
+place that the finding names. It adds a test that checks the rule. Before it
+pushes, it reviews its own fix with the same checklist as the reviewer.
+
 The fix worker fixes a failed `spec` finding as any other finding. When the
 implementer chose on purpose to depart from a design, the plan document records
 the departure under a "Departures" section, with the reason. The review then
