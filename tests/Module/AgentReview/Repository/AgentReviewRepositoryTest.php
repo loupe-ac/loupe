@@ -69,6 +69,18 @@ final class AgentReviewRepositoryTest extends KernelTestCase
         self::assertSame([(string) $pullRequest->id => $carried], $this->reviews->findLatestOfHeads([$pullRequest]));
     }
 
+    public function test_find_latest_of_heads_reads_the_fingerprint_head_in_any_case(): void
+    {
+        $project = $this->makeProject('agent-review-latest-case');
+        $card = $this->card($project);
+        $pullRequest = $this->fingerprinted($project, 7, str_repeat('e', 40), 'change-1');
+        $pullRequest->changeFingerprintSha = str_repeat('E', 40);
+        $carried = $this->reviewAt($card, $pullRequest, str_repeat('d', 40), '2026-10-01 09:00:00', 'change-1');
+        $this->em->flush();
+
+        self::assertSame([(string) $pullRequest->id => $carried], $this->reviews->findLatestOfHeads([$pullRequest]));
+    }
+
     public function test_find_latest_of_heads_never_matches_on_a_null_fingerprint(): void
     {
         $project = $this->makeProject('agent-review-latest-null');

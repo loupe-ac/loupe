@@ -119,25 +119,45 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
         self::assertNotSame($fromOld->change, $fromOther->change);
     }
 
-    public function test_a_file_with_no_patch_is_known_by_its_blob(): void
+    public function test_a_file_with_no_patch_and_changes_gives_no_fingerprint(): void
     {
         $pullRequest = $this->tracked('ubermuda/loupe', 72_006);
 
-        $first = $this->read($pullRequest, [$this->file('logo.png', sha: 'blob1')]);
-        $same = $this->read($pullRequest, [$this->file('logo.png', sha: 'blob1')]);
-        $other = $this->read($pullRequest, [$this->file('logo.png', sha: 'blob2')]);
+        self::assertNull($this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH), $this->file('composer.lock', changes: 12)]));
+        self::assertSame([], $this->logger->records);
+    }
+
+    public function test_a_pure_rename_with_no_patch_is_known_by_its_names_and_not_its_blob(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 72_021);
+
+        $first = $this->read($pullRequest, [$this->file('logo-new.png', status: 'renamed', previous: 'logo.png', sha: 'blob1', changes: 0)]);
+        $otherBlob = $this->read($pullRequest, [$this->file('logo-new.png', status: 'renamed', previous: 'logo.png', sha: 'blob2', changes: 0)]);
+        $otherName = $this->read($pullRequest, [$this->file('logo-new.png', status: 'renamed', previous: 'icon.png', sha: 'blob1', changes: 0)]);
 
         self::assertNotNull($first);
-        self::assertNotNull($other);
-        self::assertEquals($first, $same);
-        self::assertNotSame($first->change, $other->change);
-        self::assertNotSame($first->lines, $other->lines);
+        self::assertNotNull($otherName);
+        self::assertEquals($first, $otherBlob);
+        self::assertNotSame($first->change, $otherName->change);
+    }
+
+    public function test_the_function_context_of_a_hunk_header_is_part_of_the_change(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 72_022);
+        $elsewhere = str_replace('@@ -10,3 +10,4 @@ final class Widget', '@@ -10,3 +10,4 @@ final class Gadget', self::PATCH);
+
+        $before = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
+        $after = $this->read($pullRequest, [$this->file('src/Widget.php', $elsewhere)]);
+
+        self::assertNotNull($before);
+        self::assertNotNull($after);
+        self::assertNotSame($before->change, $after->change);
     }
 
     public function test_the_order_of_the_files_does_not_matter(): void
     {
         $pullRequest = $this->tracked('ubermuda/loupe', 72_007);
-        $files = [$this->file('9.php', self::PATCH), $this->file('10.php', self::PATCH), $this->file('a.png', sha: 'blob1')];
+        $files = [$this->file('9.php', self::PATCH), $this->file('10.php', self::PATCH), $this->file('a.png', status: 'renamed', previous: 'b.png', changes: 0)];
 
         $forward = $this->read($pullRequest, $files);
         $backward = $this->read($pullRequest, array_reverse($files));
@@ -209,9 +229,12 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
     }
 
     /** @return array<string, mixed> */
-    private function file(string $filename, ?string $patch = null, string $status = 'modified', ?string $previous = null, string $sha = 'blob0'): array
+    private function file(string $filename, ?string $patch = null, string $status = 'modified', ?string $previous = null, string $sha = 'blob0', ?int $changes = null): array
     {
         $file = ['sha' => $sha, 'filename' => $filename, 'status' => $status];
+        if (null !== $changes) {
+            $file['changes'] = $changes;
+        }
         if (null !== $patch) {
             $file['patch'] = $patch;
         }

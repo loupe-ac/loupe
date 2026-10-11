@@ -328,6 +328,35 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertNotNull($stored[0]->postedAt);
     }
 
+    public function test_a_carried_post_refused_for_no_installation_keeps_its_row_and_its_line_notes_decision(): void
+    {
+        $card = $this->card($this->project);
+        [$review, $pullRequest] = $this->carried($card, 'lines-1', [$this->finding(AgentReviewSeverity::Important)]);
+        $this->writer->failingNumbers = [7];
+        $this->writer->failureCause = 'no_installation';
+
+        $refused = $this->publisher()->publish($card);
+
+        self::assertNull($refused->failure);
+        self::assertFalse($refused->changed);
+        $post = $this->posts($review)[0];
+        self::assertTrue($post->lineNotes);
+        self::assertNull($post->postedAt);
+
+        $pullRequest->linesFingerprint = 'lines-2';
+        $this->writer->failingNumbers = [];
+        $posted = $this->publisher()->publish($card);
+
+        self::assertTrue($posted->changed);
+        $last = array_last($this->writer->published);
+        self::assertNotNull($last);
+        self::assertCount(1, $last['annotations']);
+        $stored = $this->posts($review);
+        self::assertCount(1, $stored);
+        self::assertSame($post, $stored[0]);
+        self::assertNotNull($stored[0]->postedAt);
+    }
+
     /**
      * A review of the head 1111…, posted, whose change the new head MERGED keeps.
      *

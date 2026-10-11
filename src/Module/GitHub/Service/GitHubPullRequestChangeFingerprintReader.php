@@ -76,16 +76,20 @@ final readonly class GitHubPullRequestChangeFingerprintReader implements PullReq
             $header = $status.' '.(\is_string($previous) ? $previous : '').' '.$filename;
             $patch = $file['patch'] ?? null;
             if (\is_string($patch)) {
-                $change[$filename] = $header."\n".preg_replace('/^@@[^\n]*/m', '@@', $patch);
+                $change[$filename] = $header."\n".preg_replace('/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/m', '@@ @@', $patch);
                 $lines[$filename] = $header."\n".$patch;
 
                 continue;
             }
-            $sha = $file['sha'] ?? null;
-            if (!\is_string($sha)) {
-                throw new \UnexpectedValueException('A compared file has no patch and no blob sha.');
+            $changes = $file['changes'] ?? null;
+            if (!\is_int($changes)) {
+                throw new \UnexpectedValueException('A compared file has no patch and no change count.');
             }
-            $change[$filename] = $lines[$filename] = $header.' blob '.$sha;
+            // The head blob of a binary or very large file does not show a change on the base side, so only a pure rename or mode change keeps a fingerprint.
+            if (0 !== $changes) {
+                return null;
+            }
+            $change[$filename] = $lines[$filename] = $header;
         }
         ksort($change, \SORT_STRING);
         ksort($lines, \SORT_STRING);

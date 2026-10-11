@@ -230,6 +230,9 @@ the review was carried, and from which commit. It keeps the line notes only when
 the changed lines keep their line numbers. Otherwise the summary lists the
 findings. A different change gets a full review. So does a pull request of 300
 files or more, a forge other than GitHub, or a head that Loupe could not read.
+A changed file that GitHub shows with no patch, such as a binary or a very
+large file, also gets a full review. A file that a pull request only renames
+does not.
 A carried review does not judge the change against the new base. CI catches the
 mechanical breaks.
 
@@ -259,7 +262,7 @@ Four conditions of the **Agent review** group read the reviews:
 | Condition | True when |
 |---|---|
 | `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried |
-| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed |
+| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried |
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
 
