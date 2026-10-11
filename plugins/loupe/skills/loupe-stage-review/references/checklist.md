@@ -1,6 +1,6 @@
 # Review checklist
 
-The review stage and the fix round read this list. The reviewer applies it to the whole change. The fix worker applies it to its own fix diff before it pushes.
+The review stage and the fix round read this list. The reviewer applies it to the whole change. The fix worker applies it to every change of its round, committed or not, before it pushes.
 
 ## What to look for
 
@@ -10,7 +10,7 @@ Look for these, most important first:
 2. A break of a convention that an instruction file of the repository names.
 3. A missing test for new behaviour.
 4. Dead code and needless complexity.
-5. The spec pass of the review stage, when the change has a design. Run it for each pull request, after the checks above.
+5. The spec pass of the review stage. Run it for each pull request, after the checks above. Its requirement source is the approved designs, or the card body when the card has no design.
 
 ## Name the rule, then find every site
 
