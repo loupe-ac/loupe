@@ -15,7 +15,7 @@ Copy the DSN from the *Client Keys* page of your Sentry project, and set it in
 | Variable | Default | Purpose |
 |---|---|---|
 | `SENTRY_DSN` | empty | Where events go. **Secret.** Empty turns Sentry off. |
-| `SENTRY_TRACES_SAMPLE_RATE` | `1.0` | The share of web requests, worker messages and console commands that Sentry traces, from `0.0` to `1.0`. |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0.25` | The share of web requests, worker messages and console commands that Sentry traces, from `0.0` to `1.0`. A card evaluation message has a fixed rate of `0.05`. |
 | `SENTRY_PROFILES_SAMPLE_RATE` | `1.0` | The share of traces that Sentry also profiles, from `0.0` to `1.0`. |
 
 [Environment variables](../reference/environment.md) lists them with the rest.
@@ -115,8 +115,11 @@ a run of repeated queries, and Sentry's N+1 query detector then misses it.
 
 ## Stay within a Sentry quota
 
-Both rates default to `1.0`, so every request, message and command is traced
-and profiled. On a busy instance this can use up a Sentry quota quickly. Lower
+Loupe traces a quarter of requests, messages and commands, and profiles each
+traced one. It traces 1 in 20 card evaluations, because the workflow engine
+evaluates a card each time its facts change. It sends no savepoint span.
+
+On a busy instance this can still use up a Sentry quota. Lower
 `SENTRY_TRACES_SAMPLE_RATE` first, for example to `0.1`. Lower
 `SENTRY_PROFILES_SAMPLE_RATE` too if profiles still use too much. Errors are
 not sampled, so each unhandled exception still reaches Sentry.

@@ -239,6 +239,28 @@ final class SentryEventScrubberTest extends TestCase
         self::assertSame('SELECT 1', $scrubbed->getSpans()[0]->getDescription());
     }
 
+    public function test_savepoint_spans_leave_the_transaction(): void
+    {
+        $kept = [
+            new Span(SpanContext::make()->setOp('db.sql.query')->setDescription('SELECT 1')),
+            new Span(SpanContext::make()->setOp('db.sql.exec')->setDescription('INSERT INTO savepoint_log VALUES (1)')),
+            new Span(SpanContext::make()->setOp('db.sql.exec')),
+        ];
+        $event = Event::createTransaction();
+        $event->setSpans([
+            $kept[0],
+            new Span(SpanContext::make()->setOp('db.sql.exec')->setDescription('SAVEPOINT workflow_fact_provider')),
+            $kept[1],
+            new Span(SpanContext::make()->setOp('db.sql.exec')->setDescription('RELEASE SAVEPOINT workflow_fact_provider')),
+            new Span(SpanContext::make()->setOp('db.sql.exec')->setDescription('ROLLBACK TO SAVEPOINT workflow_fact_provider')),
+            $kept[2],
+        ]);
+
+        $scrubbed = $this->scrub($event);
+
+        self::assertSame($kept, $scrubbed->getSpans());
+    }
+
     public function test_an_http_trace_context_loses_its_description(): void
     {
         $event = Event::createEvent();

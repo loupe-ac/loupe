@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observability;
 
+use App\Module\Workflow\Messenger\EvaluateCard;
 use Sentry\Tracing\SamplingContext;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -15,6 +16,9 @@ final readonly class TracesSampler
 {
     /** Routes whose traces carry no performance signal: an uptime probe and a per-minute ping. */
     public const array UNTRACED_ROUTES = ['ubermuda_health_check', 'api_bridge_heartbeat'];
+
+    /** Root transactions too frequent for the configured rate, by transaction name. */
+    public const array TRANSACTION_RATES = [EvaluateCard::class => 0.05];
 
     public function __construct(
         #[Autowire('%env(default::SENTRY_DSN)%')]
@@ -38,7 +42,7 @@ final readonly class TracesSampler
         return match ($context->getParentSampled()) {
             true => 1.0,
             false => 0.0,
-            null => $this->sampleRate,
+            null => self::TRANSACTION_RATES[$context->getTransactionContext()?->getName() ?? ''] ?? $this->sampleRate,
         };
     }
 }
