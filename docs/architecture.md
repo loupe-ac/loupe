@@ -25,13 +25,21 @@ still returns 200.
 
 ```
 php bin/console messenger:consume scheduler_default async --time-limit=3600 --memory-limit=128M
+php bin/console messenger:consume async_low --time-limit=3600 --memory-limit=128M
 ```
 
-`scheduler_default` is listed **before** `async` deliberately: a deep async
-backlog must not delay schedule ticks. `--time-limit` recycles the process
-hourly and `--memory-limit` guards against a leak in a long-lived consumer.
+Run both consumers. `scheduler_default` is listed **before** `async`
+deliberately: a deep async backlog must not delay schedule ticks. `async_low`
+holds the workflow sweep, which checks every open card every 10 minutes. It has
+its own consumer so the sweep never delays a job that a person waits for. A
+single command that reads `scheduler_default async async_low`, last, also works,
+but then the sweep waits while `async` stays busy. A worker that never reads
+`async_low` never runs the sweep, and nothing warns you. `--time-limit` recycles
+the process hourly and `--memory-limit` guards against a leak in a long-lived
+consumer.
 
-Both shipped topologies run exactly that command — `worker_command` in
-`terraform/main.tf`, the `worker` service in `docker/compose/prod.yaml`. If you deploy
-some other way, this is the piece it is easiest to forget.
+Both shipped topologies run `supervisord -c /etc/worker-supervisord.conf`, which
+starts both consumers — `worker_command` in `terraform/main.tf`, the `worker`
+service in `docker/compose/prod.yaml`. If you deploy some other way, this is the
+piece it is easiest to forget.
 
