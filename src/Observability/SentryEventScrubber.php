@@ -9,6 +9,7 @@ use Sentry\Event;
 use Sentry\EventHint;
 use Sentry\ExceptionDataBag;
 use Sentry\Stacktrace;
+use Sentry\Tracing\Span;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -28,6 +29,9 @@ final readonly class SentryEventScrubber
     private const array URL_DATA_KEYS = ['http.url', 'http.query', 'http.fragment'];
 
     private const array KEPT_HEADERS = ['host', 'user-agent', 'accept', 'accept-language', 'content-type', 'content-length'];
+
+    // A savepoint span carries no timing signal and costs a large share of the span quota.
+    private const array DROPPED_SPAN_PREFIXES = ['SAVEPOINT ', 'RELEASE SAVEPOINT ', 'ROLLBACK TO SAVEPOINT '];
 
     private const string URL_PATTERN = '~\b[a-z][a-z0-9+.\-]*://[^\s"\'<>]+~i';
 
@@ -105,6 +109,11 @@ final readonly class SentryEventScrubber
             $event->setContext('trace', $trace);
         }
 
+        $event->setSpans(array_values(array_filter(
+            $event->getSpans(),
+            static fn (Span $span): bool => !self::isSavepoint($span->getDescription()),
+        )));
+
         foreach ($event->getSpans() as $span) {
             $description = $span->getDescription();
             if (null !== $description) {
@@ -121,6 +130,11 @@ final readonly class SentryEventScrubber
                 $span->setData(array_map(static fn (): string => '[Filtered]', $present));
             }
         }
+    }
+
+    private static function isSavepoint(?string $description): bool
+    {
+        return array_any(self::DROPPED_SPAN_PREFIXES, static fn (string $prefix): bool => str_starts_with($description ?? '', $prefix));
     }
 
     /** @param array<string, mixed> $data */

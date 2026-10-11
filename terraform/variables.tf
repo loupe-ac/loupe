@@ -404,7 +404,7 @@ variable "sentry_dsn" {
 variable "sentry_traces_sample_rate" {
   type        = string
   default     = ""
-  description = "SENTRY_TRACES_SAMPLE_RATE, from 0.0 to 1.0. Empty keeps the committed default of 1.0."
+  description = "SENTRY_TRACES_SAMPLE_RATE, from 0.0 to 1.0. Empty keeps the committed default of 0.25."
 }
 
 variable "sentry_profiles_sample_rate" {

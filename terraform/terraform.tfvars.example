@@ -188,7 +188,7 @@ export_bucket_region = "tor1"
 
 # Sentry error capture, tracing and profiling. Empty DSN sends nothing.
 # sentry_dsn                  = "https://<key>@<org>.ingest.sentry.io/<project>"
-# sentry_traces_sample_rate   = "1.0"
+# sentry_traces_sample_rate   = "0.25"
 # sentry_profiles_sample_rate = "1.0"
 # sentry_browser_dsn                = "https://<key>@<org>.ingest.sentry.io/<project>"
 # sentry_browser_traces_sample_rate = "1.0"
