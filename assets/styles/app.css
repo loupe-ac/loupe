@@ -5085,10 +5085,10 @@
     }
     /* "Updated … ago" in the byline opens what each revision changed. */
     .lp-revision-notes {
-        @apply relative inline-flex;
+        @apply relative -mx-1.5 inline-flex;
     }
     .lp-revision-notes__trigger {
-        @apply -mx-1.5 inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-sm text-fg-dim transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
+        @apply inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.5 py-0.5 text-sm text-fg-dim transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
     }
     .lp-revision-notes__caret {
         @apply size-3.5 shrink-0 motion-safe:transition-transform;
