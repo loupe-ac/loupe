@@ -51,13 +51,13 @@
             </div>
             {% endif %}
             <div class="lp-verdict-chip__actions">
-                <twig:Ds:Button variant="ghost" size="sm" type="button" data-controller="review-finish" data-action="click->review-finish#open"><twig:ux:icon name="lucide:pencil" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.change'|trans }}</twig:Ds:Button>
                 {% if review is not null and undoVerdictForm is defined %}
                 {{ form_start(undoVerdictForm, {attr: {class: 'lp-verdict-chip__undo'}}) }}
                     {{ form_widget(undoVerdictForm.reviewId) }}
                     <twig:Ds:Button variant="ghost" size="sm" type="submit"><twig:ux:icon name="lucide:rotate-ccw" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.undo'|trans }}</twig:Ds:Button>
                 {{ form_end(undoVerdictForm) }}
                 {% endif %}
+                <twig:Ds:Button variant="ghost" size="sm" type="button" data-controller="review-finish" data-action="click->review-finish#open"><twig:ux:icon name="lucide:pencil" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.change'|trans }}</twig:Ds:Button>
             </div>
         </div>
     </div>

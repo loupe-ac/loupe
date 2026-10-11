@@ -12,28 +12,15 @@
    survives, and the chip in the metadata bar carries the version range. #}
 
 {% block documentPane %}
-    {# What the author said each revision changed, read next to what it actually
-       changed. Only the versions the diff spans are listed. #}
-    {% set changeNotes = versions|filter(meta =>
-        meta.versionNumber > diffFromVersion
-        and meta.versionNumber <= version.versionNumber
-        and meta.description is not empty
-    ) %}
-    {% if changeNotes|length > 0 %}
-    <details class="lp-diff-notes" data-controller="disclosure">
-        <summary class="lp-diff-notes__title" data-action="click->disclosure#toggle">
-            <twig:ux:icon name="lucide:chevron-right" class="lp-diff-notes__chevron" />
-            {{ 'review.document.diff.notes_title'|trans }}
-        </summary>
-        <div class="lp-diff-notes__body" data-disclosure-target="content">
-            {% for meta in changeNotes %}
-            <p class="lp-diff-notes__entry">
-                <twig:Ds:Tag tone="neutral">{{ 'v' ~ meta.versionNumber }}</twig:Ds:Tag>
-                <span>{{ meta.description }}</span>
-            </p>
-            {% endfor %}
-        </div>
-    </details>
+    {# What the author said the newer version changed, read next to what it
+       actually changed. #}
+    {% set changeNote = versions|filter(meta => meta.versionNumber == version.versionNumber and meta.description is not empty)|first %}
+    {% if changeNote %}
+    <div class="lp-diff-notes">
+        <twig:ux:icon name="lucide:message-square" class="lp-diff-notes__icon" />
+        <twig:Ds:Tag tone="neutral">{{ 'v' ~ changeNote.versionNumber }}</twig:Ds:Tag>
+        <p class="lp-diff-notes__entry">{{ changeNote.description }}</p>
+    </div>
     {% endif %}
 
     {% if diffRefusal %}

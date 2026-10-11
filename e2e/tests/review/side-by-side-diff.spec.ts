@@ -152,11 +152,7 @@ test('the visible picker compares equal versions and keeps the view', async ({
         .getByLabel('Compare from version', { exact: true })
         .selectOption('1');
     await expect(page).toHaveURL(`${reviewPath}/diff/1/2?view=source`, VISIT);
-    const notes = page.locator('.lp-diff-notes');
-    await expect(notes).not.toHaveAttribute('open');
-    await notes.locator('summary').click();
-    await expect(notes).toHaveAttribute('open');
-    await expect(notes.locator('.lp-diff-notes__entry')).toBeVisible();
+    await expect(page.locator('.lp-diff-notes__entry')).toBeVisible();
 });
 
 async function seedComparison(page: Page): Promise<string> {
