@@ -9,6 +9,14 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+            # The sweep's evaluations, read after `async` is empty. Same DSN, own queue name.
+            async_low:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: async_low
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
             failed: 'doctrine://default?queue_name=failed'
 
         default_bus: messenger.bus.default
@@ -64,6 +72,12 @@ when@test:
                         # Same retry budget as prod so retry-flow tests exercise
                         # the real number of attempts; zero delay so the
                         # in-memory transport releases retries immediately.
+                        max_retries: 3
+                        multiplier: 2
+                        delay: 0
+                async_low:
+                    dsn: 'in-memory://'
+                    retry_strategy:
                         max_retries: 3
                         multiplier: 2
                         delay: 0
