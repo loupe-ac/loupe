@@ -95,7 +95,7 @@ func TestRunWorkerRunsCodexAndReadsItsFiles(t *testing.T) {
 		t.Fatalf("run record = %+v, %v", rec, err)
 	}
 	schema, err := os.ReadFile(filepath.Join(res.dir, "schema.json"))
-	if err != nil || string(schema) != `{"type":"object"}` {
+	if err != nil || string(schema) != `{"additionalProperties":false,"properties":{},"required":[],"type":"object"}` {
 		t.Fatalf("schema file = %q, %v", schema, err)
 	}
 	threads, _ := config.CodexThreadsDir()
