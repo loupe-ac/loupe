@@ -5084,6 +5084,82 @@
                 <source>board.inbox_wait.work_stopped.action</source>
                 <target>Open the card and resume it</target>
             </trans-unit>
+            <trans-unit id="review.inbox_wait.waiting_for_review.title">
+                <source>review.inbox_wait.waiting_for_review.title</source>
+                <target>Document version %version% waits for your review</target>
+            </trans-unit>
+            <trans-unit id="forge.inbox_wait.waiting_for_review.title">
+                <source>forge.inbox_wait.waiting_for_review.title</source>
+                <target>Pull request #%number% waits for your review</target>
+            </trans-unit>
+            <trans-unit id="forge.inbox_wait.new_commits_after_approval.title">
+                <source>forge.inbox_wait.new_commits_after_approval.title</source>
+                <target>Pull request #%number% changed after your approval</target>
+            </trans-unit>
+            <trans-unit id="forge.inbox_wait.fix_stopped.title">
+                <source>forge.inbox_wait.fix_stopped.title</source>
+                <target>The fixes of pull request #%number% stopped</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.blocked.title">
+                <source>bridge.inbox_wait.blocked.title</source>
+                <target>%Worker% blocked</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.gave_up.title">
+                <source>bridge.inbox_wait.gave_up.title</source>
+                <target>%Worker% gave up</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.waits_for_person.title">
+                <source>bridge.inbox_wait.waits_for_person.title</source>
+                <target>%Worker% waits for you</target>
+            </trans-unit>
+            <trans-unit id="board.inbox_wait.rule.title">
+                <source>board.inbox_wait.rule.title</source>
+                <target>A workflow rule paused the card</target>
+            </trans-unit>
+            <trans-unit id="board.inbox_wait.retries.title">
+                <source>board.inbox_wait.retries.title</source>
+                <target>Card paused: its work failed too many times</target>
+            </trans-unit>
+            <trans-unit id="board.inbox_wait.work_limit.title">
+                <source>board.inbox_wait.work_limit.title</source>
+                <target>Card paused: its work reached a limit</target>
+            </trans-unit>
+            <trans-unit id="board.inbox_wait.work_timeout.title">
+                <source>board.inbox_wait.work_timeout.title</source>
+                <target>Card paused: its work ran too long</target>
+            </trans-unit>
+            <trans-unit id="board.inbox_wait.work_stopped.title">
+                <source>board.inbox_wait.work_stopped.title</source>
+                <target>Card paused: a worker stopped</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.blocked.headline.title">
+                <source>bridge.inbox_wait.blocked.headline.title</source>
+                <target>%Worker% blocked: %headline%</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.gave_up.headline.title">
+                <source>bridge.inbox_wait.gave_up.headline.title</source>
+                <target>%Worker% gave up: %headline%</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.waits_for_person.headline.title">
+                <source>bridge.inbox_wait.waits_for_person.headline.title</source>
+                <target>%Worker% waits for you: %headline%</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.blocked.headline">
+                <source>bridge.inbox_wait.blocked.headline</source>
+                <target>The %worker% on card %card% is blocked: %headline%.</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.gave_up.headline">
+                <source>bridge.inbox_wait.gave_up.headline</source>
+                <target>The %worker% on card %card% gave up: %headline%.</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.waits_for_person.headline">
+                <source>bridge.inbox_wait.waits_for_person.headline</source>
+                <target>The %worker% on card %card% waits for an answer from you: %headline%.</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.folded.action">
+                <source>bridge.inbox_wait.folded.action</source>
+                <target>Fix the cause, then resume the card</target>
+            </trans-unit>
             <trans-unit id="inbox.wait.ended.resolved">
                 <source>inbox.wait.ended.resolved</source>
                 <target>Closed when you acted on it.</target>

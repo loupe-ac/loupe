@@ -25,7 +25,7 @@
         {# A deleted document drops its link row, so a wait of it shows as text. #}
         {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
         <ul class="lp-inbox-waits" data-inbox-waits>
-            {% for wait in watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null)) %}
+            {% for wait in watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
                 <li{% if wait.endedAt %} class="lp-inbox-waits__wait--ended"{% endif %} data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
                     {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
                     <span class="lp-inbox-waits__reason">{{ line.key|trans(line.params) }}</span>
