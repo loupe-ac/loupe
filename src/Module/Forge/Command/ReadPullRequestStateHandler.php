@@ -150,11 +150,19 @@ final readonly class ReadPullRequestStateHandler
         }
     }
 
-    /** A head stays recorded with no fingerprint when the forge has no reader or gives none. It is asked again when the head or the base moves. */
+    /**
+     * A head stays recorded with no fingerprint when the forge has no reader or gives none. It is asked again when the head or the base moves.
+     * A pull request that is not open forgets its fingerprint, because its base can change before a reopen.
+     */
     private function readChangeFingerprint(ForgePullRequest $pullRequest, ?string $baseBefore): void
     {
+        if (PullRequestState::Open !== $pullRequest->state) {
+            $pullRequest->changeFingerprintSha = $pullRequest->changeFingerprint = $pullRequest->linesFingerprint = null;
+
+            return;
+        }
         $head = $pullRequest->headSha;
-        if (PullRequestState::Open !== $pullRequest->state || null === $head || '' === $head) {
+        if (null === $head || '' === $head) {
             return;
         }
         if ($head === $pullRequest->changeFingerprintSha && $baseBefore === $pullRequest->baseBranch) {

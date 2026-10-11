@@ -703,6 +703,33 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertNull($this->reload($headless)->changeFingerprintSha);
     }
 
+    public function test_a_reopen_asks_the_fingerprint_of_the_same_head_again(): void
+    {
+        $row = $this->row();
+        $this->reader->answers = [
+            new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main'),
+            new PullRequestSnapshot(state: PullRequestState::Closed, headSha: 'h1', baseBranch: 'main'),
+            new PullRequestSnapshot(headSha: 'h1', baseBranch: 'main'),
+        ];
+        $this->fingerprints->answers = [new PullRequestChangeFingerprint('change1', 'lines1'), new PullRequestChangeFingerprint('change2', 'lines2')];
+
+        $this->handle($row, self::NOW);
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+        $closed = $this->reload($row);
+        self::assertNull($closed->changeFingerprintSha);
+        self::assertNull($closed->changeFingerprint);
+        self::assertNull($closed->linesFingerprint);
+
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:01:30');
+
+        $fresh = $this->reload($row);
+        self::assertSame(['h1', 'h1'], $this->fingerprints->heads);
+        self::assertSame('h1', $fresh->changeFingerprintSha);
+        self::assertSame('change2', $fresh->changeFingerprint);
+    }
+
     public function test_a_missing_row_and_a_forge_with_no_reader_are_skipped(): void
     {
         $gitlab = $this->row(forge: 'gitlab');
