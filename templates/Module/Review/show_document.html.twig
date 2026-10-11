@@ -31,18 +31,31 @@
             <twig:ux:icon name="lucide:chevron-down" class="lp-verdict-chip__caret" />
         </button>
         <div class="lp-verdict-chip__panel" id="verdict-chip-panel" data-popover-target="panel" hidden>
-            <p class="lp-verdict-chip__word">{{ verdictLabel }}</p>
+            <div class="lp-verdict-chip__head">
+                <twig:ux:icon name="{{ document.status.value == 'approved' ? 'lucide:circle-check' : 'lucide:circle-alert' }}" class="lp-verdict-chip__icon" />
+                <div class="lp-verdict-chip__heading">
+                    <p class="lp-verdict-chip__word">{{ verdictLabel }}</p>
+                    <p class="lp-verdict-chip__detail">{{ ('review.document.verdict.' ~ document.status.value ~ '_detail')|trans }}</p>
+                </div>
+            </div>
             {% if review is not null %}
-            <p class="lp-verdict-chip__meta">{{ review.reviewer.fullName }} · {{ review.submittedAt|relative_time }} · {{ 'v' ~ review.version.versionNumber }}</p>
-            {% if review.note %}<p class="lp-verdict-chip__note">{{ review.note }}</p>{% endif %}
+            <div class="lp-verdict-chip__body">
+                <p class="lp-verdict-chip__meta">
+                    <twig:ux:icon name="lucide:user" class="lp-verdict-chip__meta-icon" />
+                    <span class="lp-verdict-chip__reviewer">{{ review.reviewer.fullName }}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{{ review.submittedAt|relative_time }}</span>
+                    <span class="lp-version-pill">{{ 'v' ~ review.version.versionNumber }}</span>
+                </p>
+                {% if review.note %}<blockquote class="lp-verdict-chip__note">{{ review.note }}</blockquote>{% endif %}
+            </div>
             {% endif %}
-            <p class="lp-verdict-chip__detail">{{ ('review.document.verdict.' ~ document.status.value ~ '_detail')|trans }}</p>
             <div class="lp-verdict-chip__actions">
-                <twig:Ds:Button variant="ghost" size="sm" type="button" data-controller="review-finish" data-action="click->review-finish#open">{{ 'review.document.verdict.change'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="ghost" size="sm" type="button" data-controller="review-finish" data-action="click->review-finish#open"><twig:ux:icon name="lucide:pencil" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.change'|trans }}</twig:Ds:Button>
                 {% if review is not null and undoVerdictForm is defined %}
                 {{ form_start(undoVerdictForm, {attr: {class: 'lp-verdict-chip__undo'}}) }}
                     {{ form_widget(undoVerdictForm.reviewId) }}
-                    <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'review.document.verdict.undo'|trans }}</twig:Ds:Button>
+                    <twig:Ds:Button variant="ghost" size="sm" type="submit"><twig:ux:icon name="lucide:rotate-ccw" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.undo'|trans }}</twig:Ds:Button>
                 {{ form_end(undoVerdictForm) }}
                 {% endif %}
             </div>

@@ -5021,7 +5021,41 @@
         @apply rotate-180;
     }
     .lp-verdict-chip__panel {
-        @apply absolute top-full right-0 z-40 mt-1 flex w-72 flex-col gap-1 rounded-xl border border-line bg-elev p-3 text-sm shadow-card max-sm:right-3.5 max-sm:left-3.5 max-sm:w-auto;
+        @apply absolute top-full right-0 z-40 mt-1 flex w-80 flex-col overflow-hidden rounded-xl border border-line bg-elev text-sm shadow-card max-sm:right-3.5 max-sm:left-3.5 max-sm:w-auto;
+    }
+    /* The head takes the verdict's tint, so the dropdown reads as its chip. */
+    .lp-verdict-chip__head {
+        @apply flex items-start gap-2.5 border-b border-line-faint px-4 py-3;
+    }
+    .lp-verdict-chip--approved .lp-verdict-chip__head {
+        @apply bg-status-ok-bg;
+    }
+    .lp-verdict-chip--changes-requested .lp-verdict-chip__head {
+        @apply bg-status-danger-bg;
+    }
+    .lp-verdict-chip__icon {
+        @apply mt-0.5 size-5 shrink-0;
+    }
+    .lp-verdict-chip--approved .lp-verdict-chip__icon {
+        @apply text-status-ok-deep;
+    }
+    .lp-verdict-chip--changes-requested .lp-verdict-chip__icon {
+        @apply text-status-danger-deep;
+    }
+    .lp-verdict-chip__heading {
+        @apply flex min-w-0 flex-col gap-0.5;
+    }
+    .lp-verdict-chip__body {
+        @apply flex flex-col gap-2.5 px-4 py-3;
+    }
+    .lp-verdict-chip__meta-icon {
+        @apply size-3.5 shrink-0;
+    }
+    .lp-verdict-chip__reviewer {
+        @apply font-semibold text-ink;
+    }
+    .lp-verdict-chip__action-icon {
+        @apply size-3.5 shrink-0;
     }
     .lp-verdict-chip__panel[hidden] {
         @apply hidden;
@@ -5032,17 +5066,19 @@
         @apply relative z-30;
     }
     .lp-verdict-chip__word {
-        @apply m-0 font-semibold text-ink;
+        @apply m-0 text-base font-bold text-ink;
     }
-    .lp-verdict-chip__meta,
     .lp-verdict-chip__detail {
-        @apply m-0 text-fg-dim;
+        @apply m-0 text-xs text-fg-dim;
+    }
+    .lp-verdict-chip__meta {
+        @apply m-0 flex flex-wrap items-center gap-1.5 text-fg-dim;
     }
     .lp-verdict-chip__note {
-        @apply m-0 whitespace-pre-wrap text-ink;
+        @apply m-0 rounded-lg border-l-2 border-line bg-surface-2 px-3 py-2 whitespace-pre-wrap text-ink;
     }
     .lp-verdict-chip__actions {
-        @apply -mx-1.5 mt-1 flex items-center gap-1 border-t border-line-faint pt-2;
+        @apply flex items-center gap-1 border-t border-line-faint bg-surface-2 px-2.5 py-2;
     }
     .lp-verdict-chip__undo {
         @apply m-0 inline-flex;
