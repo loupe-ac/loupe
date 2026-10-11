@@ -30,6 +30,11 @@ owned_once "epic-$number"
 cd "$main"
 just worktree-down "card-$number"
 
+# A product design keeps a readable prototype copy on this branch, and nothing merges it.
+if git ls-remote --exit-code --heads origin "prototype/$number" >/dev/null; then
+    git push origin --delete "prototype/$number"
+fi
+
 # The merge stage refreshes the epic preview under this lock, and the last child merge can finish the epic.
 lock="$main/.worktrees/epic-$number.lock"
 mkdir -p "$main/.worktrees"
