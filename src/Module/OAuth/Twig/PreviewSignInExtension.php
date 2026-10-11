@@ -52,11 +52,12 @@ final class PreviewSignInExtension extends AbstractExtension
         ]);
     }
 
-    /** Whole days left, so a token with less than one day left reads 0. */
+    /** Days left, rounded up so a new token reads 14. Less than one day left reads 0. */
     public static function daysLeft(\DateTimeImmutable $expiresAt, ?\DateTimeImmutable $now = null): int
     {
         $now ??= new \DateTimeImmutable();
+        $seconds = $expiresAt->getTimestamp() - $now->getTimestamp();
 
-        return intdiv(max(0, $expiresAt->getTimestamp() - $now->getTimestamp()), 86400);
+        return $seconds < 86400 ? 0 : intdiv($seconds + 86399, 86400);
     }
 }

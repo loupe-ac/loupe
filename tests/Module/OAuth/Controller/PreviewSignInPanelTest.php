@@ -38,7 +38,7 @@ final class PreviewSignInPanelTest extends WebTestCase
         $panel = '[data-preview-sign-in="'.$id.'"]';
         self::assertSelectorTextContains($panel, 'Preview sign-in');
         self::assertSelectorTextContains($panel.' .lp-status-chip--ok', 'Active');
-        self::assertSelectorTextContains($panel, 'In 13 days');
+        self::assertSelectorTextContains($panel, 'In 14 days');
         self::assertSelectorTextContains($panel, '2h ago');
         self::assertSelectorExists($panel.' form[action$="/preview-tokens/'.$id.'/revoke/to-card"]');
         self::assertSelectorExists($panel.' a[href="/account/connected-apps"]');

@@ -33,7 +33,7 @@ final class PreviewTokenListTest extends WebTestCase
         self::assertSelectorTextContains($row, '#707');
         self::assertSelectorTextContains($row, 'Preview it');
         self::assertSelectorTextContains($row, 'Preview site');
-        self::assertSelectorTextContains($row, 'Expires in 13 days');
+        self::assertSelectorTextContains($row, 'Expires in 14 days');
         self::assertSelectorTextContains($row, 'Not used yet');
         self::assertSelectorExists('[data-preview-widget] [data-preview-widget-revoke-all]');
     }
