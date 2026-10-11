@@ -81,7 +81,7 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-inbox-ask__title', '#4 Ship it');
+        self::assertSelectorTextSame('.lp-inbox-ask__title', '#4 Document version 1 waits for your review · Ship it');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
         self::assertCount(1, $crawler->filter('#inbox-item-1 [data-linked-card="'.$this->card->id.'"]'));
     }

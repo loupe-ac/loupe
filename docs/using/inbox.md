@@ -187,15 +187,23 @@ a document makes Loupe check each card that links it again.
 
 The item has the kind **Waiting**, and it is always blocking.
 
-A card has at most one open automatic item. Its title is the card number and
-the card title. The item links the card and each document that it waits on.
-Its panel lists each current wait as one plain sentence. The sentence says why
-Loupe opened the item, such as "The document "Tech design", version 1, of card
-635 waits for your review." A link beside it opens the page that closes the
-wait: the document review, the pull request, the worker run, or the card for a
-pause. A run wait shows the whole output of the run below the sentence, with the
-stage protocol text removed. The waits that ended show below them, in grey, with
-a sentence that says how they closed, such as "Closed when you acted on it."
+A card has at most one open automatic item. Its title is the card number, the
+reason of the main wait, and the card title, such as "#686 Review worker
+blocked: cannot reach github.com · Let bridge workers read the prototypes". The
+item links the card and each document that it waits on. Its panel lists each
+current wait as one plain sentence. The sentence says why Loupe opened the
+item, such as "The document "Tech design", version 1, of card 635 waits for
+your review." A link beside it opens the page that closes the wait: the
+document review, the pull request, the worker run, or the card for a pause.
+A run wait starts with the first sentence of the run output, such as "The
+review worker on card 686 is blocked: cannot reach github.com". When a
+workflow pause of the card comes from that run, the panel shows no second
+line. The link of the run line then reads "Fix the cause, then resume the
+card" and opens the card. A run wait shows the whole output of the run below
+the sentence, with the stage protocol text and the reason tag removed. The
+body of the item that `inbox_get` returns holds the same sentences. The waits
+that ended show below them, in grey, with a sentence that says how they
+closed, such as "Closed when you acted on it."
 **Dismiss** hides the item. The card still waits until you act on it, and the
 panel says so beside the button.
 
