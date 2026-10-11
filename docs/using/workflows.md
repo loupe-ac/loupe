@@ -241,9 +241,16 @@ the departure under a "Departures" section, with the reason. The review then
 shows it as a nit, which never fails the review, and the fix worker leaves it
 alone. A departure with no record fails the review.
 
-A review with a `spec` finding also creates a Loupe document with the tag
-`spec-review`, linked to the card, and adds a to-do for it to your inbox. The
-to-do does not block the card.
+The reviewer marks a `spec` finding with `needsPerson` when a worker cannot
+settle it from the design and the code alone. The design may be unclear,
+contradict itself, or look wrong against the code. The change may also depart
+from the design with no departure on file. The check labels such a finding
+"waits for the owner", and the review fails on it. The fix worker fixes the
+other findings first. It then writes a Loupe document with the tag
+`spec-review`, linked to the card, and asks you one question in your inbox. The
+worker pushes only after you answer. A finding where the code simply does not
+build what the design says goes to the fix worker alone. It creates no document
+and no inbox item.
 
 Four conditions of the **Agent review** group read the reviews:
 
