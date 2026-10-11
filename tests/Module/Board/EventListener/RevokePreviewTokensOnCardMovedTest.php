@@ -10,8 +10,6 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Event\CardMoved;
 use App\Module\Board\EventListener\RevokePreviewTokensOnCardMoved;
 use App\Module\Board\Service\CardMove;
-use App\Module\OAuth\Command\MintPreviewTokenCommand;
-use App\Module\OAuth\Command\MintPreviewTokenHandler;
 use App\Module\OAuth\Command\RevokePreviewTokensHandler;
 use App\Module\OAuth\Repository\PreviewTokenRepository;
 use App\Module\Project\Entity\Project;
@@ -115,15 +113,6 @@ final class RevokePreviewTokensOnCardMovedTest extends KernelTestCase
 
         $this->expectException(DbalInvalidArgument::class);
         $this->listener($repository, new RecordingLogger())(new CardMoved($card, new CardMove($this->column($project, 'in-progress')), Actor::Human));
-    }
-
-    private function mintForCard(Project $project, ?Card $card): string
-    {
-        $handler = self::getContainer()->get(MintPreviewTokenHandler::class);
-        self::assertInstanceOf(MintPreviewTokenHandler::class, $handler);
-        $view = $handler(new MintPreviewTokenCommand($project->owner, (string) $project->id, 'pr-'.uniqid(), $card?->id));
-
-        return self::tokenIdOf($view->token);
     }
 
     private function listener(PreviewTokenRepository $repository, RecordingLogger $logger): RevokePreviewTokensOnCardMoved

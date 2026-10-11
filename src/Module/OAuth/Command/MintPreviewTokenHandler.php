@@ -84,9 +84,10 @@ final readonly class MintPreviewTokenHandler
 
         $jwt = $this->em->wrapInTransaction(function () use ($command, $label, $userId, $projectId, $project, $expiresAt): string|DomainErrors {
             if (null !== $command->cardId) {
-                // A card move or delete locks the project row for update and
-                // revokes the card's tokens, so this share lock orders the check
-                // and the insert wholly before or after it.
+                // A card move or delete, and a column delete or terminal change,
+                // locks the project row for update and revokes the tokens of the
+                // cards it finishes, so this share lock orders the check and the
+                // insert wholly before or after it.
                 $this->em->lock($project, LockMode::PESSIMISTIC_READ);
                 $finished = $this->previewTokens->isCardFinished($command->cardId, $project);
                 if (null === $finished) {

@@ -56,6 +56,12 @@ trait PreviewTokenScenario
         return self::tokenIdOf($view->token);
     }
 
+    /** @return non-empty-string the access token id */
+    private function mintForCard(Project $project, ?Card $card): string
+    {
+        return $this->mint('pr-'.uniqid(), $card?->id, $project->owner, $project);
+    }
+
     /** @return non-empty-string */
     private static function tokenIdOf(string $jwt): string
     {
