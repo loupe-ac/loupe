@@ -6694,6 +6694,16 @@
             <trans-unit id="board.card.history.pause_kind.work_limit"><source>board.card.history.pause_kind.work_limit</source><target>a rule reached its work limit</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.work_timeout"><source>board.card.history.pause_kind.work_timeout</source><target>no bridge took the work in time</target></trans-unit>
             <trans-unit id="board.card.history.pause_kind.work_stopped"><source>board.card.history.pause_kind.work_stopped</source><target>the worker stopped and needs a person</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.facts_changed"><source>board.card.history.release_reason.facts_changed</source><target>the facts the rule reads changed</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.subject_changed"><source>board.card.history.release_reason.subject_changed</source><target>the rule moved to another pull request</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.refilled"><source>board.card.history.release_reason.refilled</source><target>the work budget of the rule refilled</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.until_met"><source>board.card.history.release_reason.until_met</source><target>the condition that ends the pause holds</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.inbox_on"><source>board.card.history.release_reason.inbox_on</source><target>the inbox turned on</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.left_slot"><source>board.card.history.release_reason.left_slot</source><target>the card left the column of the rule</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.rule_removed"><source>board.card.history.release_reason.rule_removed</source><target>the rule left the workflow</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.run_resumed"><source>board.card.history.release_reason.run_resumed</source><target>a worker run resumed</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.released_by_rule"><source>board.card.history.release_reason.released_by_rule</source><target>a workflow rule released it</target></trans-unit>
+            <trans-unit id="board.card.history.release_reason.released_by_person"><source>board.card.history.release_reason.released_by_person</source><target>a person released it</target></trans-unit>
             <trans-unit id="board.card.history.changed"><source>board.card.history.changed</source><target>%actor% changed the card.</target></trans-unit>
             <trans-unit id="board.card.history.reason"><source>board.card.history.reason</source><target>Because %reason%.</target></trans-unit>
             <trans-unit id="board.card.history.run_state_unknown"><source>board.card.history.run_state_unknown</source><target>Unknown</target></trans-unit>
@@ -6707,6 +6717,7 @@
             <trans-unit id="board.card.history.cause.run"><source>board.card.history.cause.run</source><target>Via the %kind% run.</target></trans-unit>
             <trans-unit id="board.card.history.cause.run_no_kind"><source>board.card.history.cause.run_no_kind</source><target>Via a run.</target></trans-unit>
             <trans-unit id="board.card.history.cause.workflow_rule"><source>board.card.history.cause.workflow_rule</source><target>Via the %rule% workflow rule.</target></trans-unit>
+            <trans-unit id="board.card.history.cause.pause_released"><source>board.card.history.cause.pause_released</source><target>Because %reason%. Via the %rule% workflow rule.</target></trans-unit>
             <trans-unit id="board.card.history.cause.column_deleted"><source>board.card.history.cause.column_deleted</source><target>After the %column% column was deleted.</target></trans-unit>
             <trans-unit id="board.card.overview.description"><source>board.card.overview.description</source><target>Description</target></trans-unit>
             <trans-unit id="board.card.overview.status"><source>board.card.overview.status</source><target>Status</target></trans-unit>
@@ -6782,6 +6793,7 @@
             <trans-unit id="board.card_state.duration.hours"><source>board.card_state.duration.hours</source><target>%count% h</target></trans-unit>
             <trans-unit id="board.card_state.duration.day"><source>board.card_state.duration.day</source><target>1 d</target></trans-unit>
             <trans-unit id="board.card_state.duration.days"><source>board.card_state.duration.days</source><target>%count% d</target></trans-unit>
+            <trans-unit id="board.card_state.remedy.pull_request_idle"><source>board.card_state.remedy.pull_request_idle</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.ready_not_merged"><source>board.card_state.remedy.ready_not_merged</source><target>Merge the pull request, or change the card so that a merge rule of its column matches it.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.document_in_review"><source>board.card_state.remedy.document_in_review</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.waits_for_approval"><source>board.card_state.remedy.waits_for_approval</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
@@ -6799,6 +6811,7 @@
             <trans-unit id="board.card_state.reason.run_stopped"><source>board.card_state.reason.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
             <trans-unit id="board.card_state.reason.checks_failed"><source>board.card_state.reason.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
             <trans-unit id="board.card_state.reason.conflicting"><source>board.card_state.reason.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>
+            <trans-unit id="board.card_state.reason.pull_request_idle"><source>board.card_state.reason.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
             <trans-unit id="board.card_state.reason.ready_not_merged"><source>board.card_state.reason.ready_not_merged</source><target>Pull request #%number% is ready to merge, and no merge rule matches it.</target></trans-unit>
             <trans-unit id="board.card_state.reason.document_in_review"><source>board.card_state.reason.document_in_review</source><target>The document "%title%" waits for your review.</target></trans-unit>
             <trans-unit id="board.card_state.reason.waits_for_approval"><source>board.card_state.reason.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
@@ -7198,7 +7211,7 @@
             </trans-unit>
             <trans-unit id="board.form.save_board_automation_settings_form.stuck_delay_minutes.help">
                 <source>board.form.save_board_automation_settings_form.stuck_delay_minutes.help</source>
-                <target>How long a ready pull request may wait for a merge before its card shows Stuck on the board. Use a number from 1 to 1440.</target>
+                <target>How long a pull request may wait for a merge or for any card change before its card shows Stuck on the board. Use a number from 1 to 1440.</target>
             </trans-unit>
             <trans-unit id="board.automation.comment_failure.summary">
                 <source>board.automation.comment_failure.summary</source>

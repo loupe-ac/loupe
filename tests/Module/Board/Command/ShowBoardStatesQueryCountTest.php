@@ -48,6 +48,35 @@ final class ShowBoardStatesQueryCountTest extends KernelTestCase
         self::assertSame(\count($forSmall), \count($forBig), "The board query count grew with the cards:\n".implode("\n", $forBig));
     }
 
+    public function test_fifty_quiet_epic_children_cost_the_board_no_more_queries_than_five(): void
+    {
+        $small = $this->quietChildren('states-q-quiet-small', 5);
+        $big = $this->quietChildren('states-q-quiet-big', 50);
+        $this->em()->clear();
+
+        [$forSmall, $smallStates] = $this->showing($small, CardStateCode::PullRequestIdle);
+        [$forBig, $bigStates] = $this->showing($big, CardStateCode::PullRequestIdle);
+
+        self::assertSame(5, $smallStates);
+        self::assertSame(50, $bigStates);
+        self::assertSame(\count($forSmall), \count($forBig), "The board query count grew with the quiet children:\n".implode("\n", $forBig));
+    }
+
+    /** Each epic waits in Next, with one child whose pull request on the epic branch nothing moves. */
+    private function quietChildren(string $name, int $epics): Project
+    {
+        $project = $this->stateProject($name);
+        for ($i = 0; $i < $epics; ++$i) {
+            $epic = $this->stateCard($project, 'next');
+            $child = $this->stateCard($project);
+            $child->parent = $epic;
+            $this->linkPullRequest($child, ['draft' => true, 'checks' => PullRequestChecks::Passed, 'baseBranch' => 'epic/'.$epic->number]);
+            $this->recordHistory($child, '-1 hour');
+        }
+
+        return $project;
+    }
+
     /** Every other card holds one of seven facts, in turn. The rest hold none. */
     private function board(string $name, int $cards): Project
     {
@@ -72,7 +101,7 @@ final class ShowBoardStatesQueryCountTest extends KernelTestCase
     }
 
     /** @return array{list<string>, int} the statements, and the number of cards that hold a state */
-    private function showing(Project $board): array
+    private function showing(Project $board, CardStateCode $expected = CardStateCode::DocumentInReview): array
     {
         $project = $this->em()->find(Project::class, $board->id) ?? throw new \LogicException('The project is stored.');
         $handler = self::getContainer()->get(ShowBoardHandler::class);
@@ -88,7 +117,7 @@ final class ShowBoardStatesQueryCountTest extends KernelTestCase
             }
         }
         $codes = array_map(static fn ($state): string => $state->reason->code->value, $view->states);
-        self::assertContains(CardStateCode::DocumentInReview->value, $codes);
+        self::assertContains($expected->value, $codes);
 
         return [$statements, \count($view->states)];
     }

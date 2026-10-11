@@ -6,11 +6,14 @@ namespace App\Tests\Module\Board\Service;
 
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Service\CardPullRequestStates;
 use App\Module\Board\Service\CardState;
 use App\Module\Board\Service\CardStateCode;
 use App\Module\Board\Service\CardStateKind;
 use App\Module\Board\Service\CardStates;
+use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Forge\Entity\PullRequestChecks;
@@ -18,6 +21,7 @@ use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Tests\Module\Board\CardStateFixtures;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class CardStatesTest extends KernelTestCase
@@ -344,8 +348,115 @@ final class CardStatesTest extends KernelTestCase
         self::assertSame([], $state->others);
     }
 
+    public function test_a_quiet_draft_pull_request_turns_stuck_after_the_delay_since_the_newest_history_row(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-quiet'));
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($card, '-2 hours');
+        $this->recordHistory($card, '-1 hour');
+
+        $state = $this->stateOf($card);
+
+        self::assertSame(CardStateKind::Stuck, $state?->kind);
+        self::assertSame(CardStateCode::PullRequestIdle, $state->reason->code);
+        self::assertSame(['%number%' => 100 + $card->number], $state->reason->params);
+        self::assertSame(
+            new \DateTimeImmutable('-1 hour')->modify(\sprintf('+%d minutes', BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES))->format('Y-m-d H:i'),
+            $state->reason->since?->format('Y-m-d H:i'),
+        );
+    }
+
+    /** @param array<string, mixed> $read */
+    #[DataProvider('quietCardsThatShowNothing')]
+    public function test_a_quiet_pull_request_that_waits_correctly_shows_no_state(string $name, string $column, string $history, array $read): void
+    {
+        $card = $this->stateCard($this->stateProject('state-quiet-'.$name), $column);
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed, ...$read]);
+        $this->recordHistory($card, $history);
+
+        self::assertNull($this->stateOf($card));
+    }
+
+    /** @return iterable<string, array{string, string, string, array<string, mixed>}> */
+    public static function quietCardsThatShowNothing(): iterable
+    {
+        yield 'inside the delay' => ['fresh', 'in-progress', '-5 minutes', []];
+        yield 'checks still run' => ['pending', 'in-progress', '-1 hour', ['checks' => PullRequestChecks::Pending]];
+        yield 'stacked on a parent' => ['stacked', 'in-progress', '-1 hour', ['baseBranch' => 'card-1-parent']];
+        yield 'column of no pull request rule' => ['column', 'next', '-1 hour', []];
+    }
+
+    public function test_a_quiet_pull_request_of_a_card_with_no_history_shows_no_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-quiet-no-history'));
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+
+        self::assertNull($this->stateOf($card));
+    }
+
+    public function test_a_quiet_pull_request_of_an_unmanaged_card_shows_no_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-quiet-held'));
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($card, '-1 hour');
+        $this->em()->persist(new CardHold($card->project, $card->id ?? throw new \LogicException('A flushed card has an id.'), null, new \DateTimeImmutable()));
+        $this->em()->flush();
+
+        self::assertNull($this->stateOf($card));
+    }
+
+    public function test_a_quiet_pull_request_on_the_epic_branch_turns_stuck(): void
+    {
+        $project = $this->stateProject('state-quiet-epic-branch');
+        $epic = $this->stateCard($project, 'next');
+        $card = $this->stateCard($project);
+        $card->parent = $epic;
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed, 'baseBranch' => 'epic/'.$epic->number]);
+        $this->recordHistory($card, '-1 hour');
+
+        self::assertSame(CardStateCode::PullRequestIdle, $this->stateOf($card, all: true)?->reason->code);
+    }
+
+    public function test_a_quiet_pull_request_of_a_child_whose_epic_has_live_work_shows_no_state(): void
+    {
+        $project = $this->stateProject('state-quiet-epic-work');
+        $epic = $this->stateCard($project, 'next');
+        $card = $this->stateCard($project);
+        $card->parent = $epic;
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($card, '-1 hour');
+        $this->requestWork($epic);
+
+        self::assertNull($this->stateOf($card, all: true));
+    }
+
+    public function test_a_quiet_pull_request_of_an_epic_with_an_unfinished_child_shows_no_state(): void
+    {
+        $project = $this->stateProject('state-quiet-epic-open-child');
+        $epic = $this->stateCard($project);
+        $child = $this->stateCard($project, 'next');
+        $child->parent = $epic;
+        $this->linkPullRequest($epic, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($epic, '-1 hour');
+
+        self::assertNull($this->stateOf($epic));
+    }
+
+    public function test_a_quiet_pull_request_of_a_project_with_automation_off_shows_no_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-quiet-automation-off'));
+        $this->linkPullRequest($card, ['draft' => true, 'checks' => PullRequestChecks::Passed]);
+        $this->recordHistory($card, '-1 hour');
+        $automation = self::getContainer()->get(BoardAutomation::class);
+        self::assertInstanceOf(BoardAutomation::class, $automation);
+        $automation->settingsForUpdate($card->project)->enabled = false;
+        $this->em()->flush();
+
+        self::assertNull($this->stateOf($card));
+    }
+
     /** @param array<string, CardRunWarning> $warnings */
-    private function stateOf(Card $card, array $warnings = []): ?CardState
+    private function stateOf(Card $card, array $warnings = [], bool $all = false): ?CardState
     {
         $this->em()->clear();
         $card = $this->em()->find(Card::class, $card->id) ?? throw new \LogicException('The card is stored.');
@@ -355,7 +466,18 @@ final class CardStatesTest extends KernelTestCase
         self::assertInstanceOf(CardPullRequestStates::class, $pullRequests);
         self::assertInstanceOf(CardStates::class, $states);
 
-        return $states->forCards($card->project, [$card], $pullRequests->forCards([$card]), $warnings)[(string) $card->id] ?? null;
+        $cards = $all ? $this->projectCards($card) : [$card];
+
+        return $states->forCards($card->project, $cards, $pullRequests->forCards($cards), $warnings)[(string) $card->id] ?? null;
+    }
+
+    /** @return list<Card> */
+    private function projectCards(Card $card): array
+    {
+        $repository = self::getContainer()->get(CardRepository::class);
+        self::assertInstanceOf(CardRepository::class, $repository);
+
+        return array_values($repository->findBy(['project' => $card->project]));
     }
 
     private function approvedPullRequest(Card $card, \DateTimeImmutable $readySince): \App\Module\Forge\Entity\ForgePullRequest
