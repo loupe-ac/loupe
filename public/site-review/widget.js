@@ -29,11 +29,11 @@
     // page go to that card, whatever mode the reviewer chose elsewhere.
     const CONTEXT = script.getAttribute('data-context') || '';
     // A preview page can carry a token that signs the widget in with no popup.
-    // A popup grant wins over it, and a 401 for it ends it for this page load.
+    // A popup grant wins over it, and a 401 ends that one token only.
     const PREVIEW_TOKEN = script.getAttribute('data-preview-token') || '';
     const PREVIEW_ENDED =
         'The preview sign-in for this page ended. Sign in, or restart the preview.';
-    let previewEnded = false;
+    let endedPreviewToken = '';
     // Read again rather than kept, because an SPA swap replaces the tag and may
     // carry a different marker. `script` is the one this ran from and goes
     // stale; the document is the source of truth afterwards.
@@ -50,6 +50,27 @@
         return tag ? tag.getAttribute('data-context') || '' : CONTEXT;
     };
     let lastSeenMarker = CONTEXT;
+    // Read again for the reason the marker is: a Turbo visit swaps the tag, and
+    // a restarted preview carries a new token.
+    const pagePreviewToken = () => {
+        const tag = document.querySelector(
+            'script[src*="site-review/widget.js"]',
+        );
+
+        return tag
+            ? tag.getAttribute('data-preview-token') || ''
+            : PREVIEW_TOKEN;
+    };
+    const livePreviewToken = () => {
+        const token = pagePreviewToken();
+
+        return token === endedPreviewToken ? '' : token;
+    };
+    const previewEndedMessage = () =>
+        endedPreviewToken && pagePreviewToken() === endedPreviewToken
+            ? PREVIEW_ENDED
+            : '';
+    let lastSeenPreviewToken = PREVIEW_TOKEN;
     let refreshGeneration = 0;
     // Every comment is saved to the API as it is written and is live from that
     // moment — there is no send step. `comments` mirrors the project's Pending
@@ -497,8 +518,9 @@
     const accessToken = async () => {
         if (!OAUTH) return '';
         if (!grant) {
-            if (PREVIEW_TOKEN && !previewEnded) return PREVIEW_TOKEN;
-            throw signedOutError(previewEnded ? PREVIEW_ENDED : '');
+            const preview = livePreviewToken();
+            if (preview) return preview;
+            throw signedOutError(previewEndedMessage());
         }
         if (grant.expiresAt - OAUTH_EXPIRY_MARGIN_MS <= Date.now())
             await refreshGrant();
@@ -506,12 +528,13 @@
     };
 
     const serverApi = async (method, path, body, retried = false) => {
-        const viaPreview = OAUTH && !grant && !!PREVIEW_TOKEN && !previewEnded;
+        const token = await accessToken();
+        const preview = OAUTH && !grant ? token : '';
         const response = await fetch(`${BACKEND}${path}`, {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${await accessToken()}`,
+                Authorization: `Bearer ${token}`,
             },
             body: body === undefined ? undefined : JSON.stringify(body),
         });
@@ -523,8 +546,8 @@
         }
         if (OAUTH && response.status === 401) {
             setGrant(null);
-            if (viaPreview) previewEnded = true;
-            throw signedOutError(previewEnded ? PREVIEW_ENDED : '');
+            if (preview) endedPreviewToken = preview;
+            throw signedOutError(previewEndedMessage());
         }
         if (!response.ok) {
             // Carry the status so callers can tell a permanent auth/config failure (401/403 —
@@ -5271,7 +5294,17 @@
     };
     // Re-resolve when the page starts naming a different card. Safe to call
     // repeatedly: it does nothing until the marker actually changes.
+    // A new preview token can end the signed-out state that the old one caused.
+    const recheckPreviewToken = () => {
+        const token = pagePreviewToken();
+        if (token === lastSeenPreviewToken) return;
+        lastSeenPreviewToken = token;
+        if (grant || !state.fatal || !livePreviewToken()) return;
+        state.fatal = null;
+        refresh({ firstLoad: true }).then(sync);
+    };
     const recheckMarker = () => {
+        recheckPreviewToken();
         const marker = pageMarker();
         if (marker === lastSeenMarker) return;
         lastSeenMarker = marker;

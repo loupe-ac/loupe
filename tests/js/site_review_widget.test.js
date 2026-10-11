@@ -888,6 +888,39 @@ describe('a preview token', () => {
         expect(used).toHaveLength(1);
     });
 
+    it('signs in again with the new token after a Turbo visit swaps it', async () => {
+        const ROTATED = 'rotated_token_value';
+        const fetchMock = bootWidget({
+            respond: (url, init) =>
+                init.headers.Authorization === `Bearer ${ROTATED}`
+                    ? ok({ comments: [] })
+                    : rejected(401),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+
+        const tag = document.querySelector(
+            'script[src*="site-review/widget.js"]',
+        );
+        window.history.pushState({}, '', '/next');
+        // Turbo swaps the tag after the URL changes.
+        tag.setAttribute('data-preview-token', ROTATED);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await settle();
+        openPanel();
+
+        const sent = fetchMock.mock.calls.map(
+            ([, options]) => options.headers.Authorization,
+        );
+        expect(sent).toEqual([`Bearer ${PREVIEW}`, `Bearer ${ROTATED}`]);
+        expect(panelRoot().getElementById('lp-fatal').style.display).toBe(
+            'none',
+        );
+        expect(alerting()).toBe(false);
+    });
+
     it('sends no token when the page carries none and no grant exists', async () => {
         const fetchMock = bootWidget({
             respond: () => ok({ comments: [] }),
