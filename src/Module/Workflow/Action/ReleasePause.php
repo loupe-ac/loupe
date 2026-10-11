@@ -9,6 +9,7 @@ use App\Module\Workflow\Contract\ActionContext;
 use App\Module\Workflow\Contract\ActionDescription;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\ActionTraits;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
@@ -68,7 +69,10 @@ final readonly class ReleasePause implements Action
     {
         $pause = $this->cardPauses->findActive($context->card->id);
         if (null !== $pause && $pause->reason === ActionOutcome::code($context->string('reason'))) {
-            $this->cardPauses->release($pause, self::RELEASE_REASON);
+            $released = $this->cardPauses->release($pause, self::RELEASE_REASON);
+            if (null !== $released) {
+                $this->cardPauses->recordReleased($released, Actor::System, null);
+            }
         }
 
         return ActionOutcome::done();

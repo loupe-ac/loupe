@@ -176,6 +176,37 @@ root, such as `/usr/local/bin`, cannot update. The bridge then logs
 `update_blocked`, and the agents page shows "Update blocked". When `loupe` is a
 symlink, the directory of the file it points to counts.
 
+## Preview tokens
+
+`loupe preview-token` mints and revokes the sign-in token of a preview site. A
+preview token signs the site-review widget in on a preview page with no popup.
+A token lives 14 days at most.
+
+You rarely run it by hand. `just worktree-up` mints a token for the worktree and
+writes it to `SITE_REVIEW_WIDGET_PREVIEW_TOKEN` in the `.env.local` of the
+worktree. `just worktree-down` revokes it.
+
+```bash
+loupe preview-token mint --project <id> --label <worktree> [--card <cardId>]
+loupe preview-token revoke --project <id> --label <worktree>
+```
+
+`mint` prints the token on one line. It exits with status 1, and prints the
+reason on stderr, when the server refuses. A second `mint` with the same label
+revokes the first token. `revoke` exits with status 0 also when no live token
+has the label.
+
+`--instance <url>` makes the command refuse unless you are signed in to that
+instance. The worktree scripts pass the widget backend, so a CLI that is signed
+in to another instance mints nothing.
+
+A failed mint never stops `just worktree-up`. The script prints one warning
+line and writes an empty token, and the widget shows its Sign in button. The
+warning appears when the CLI is missing, signed out, or signed in to another
+instance than `SITE_REVIEW_WIDGET_BACKEND`.
+
+A project owner sees and revokes every token under Account > Connected apps.
+
 ## Check the install
 
 ```bash

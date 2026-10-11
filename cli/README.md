@@ -1570,6 +1570,21 @@ change. A reload does not read it. [Command-line
 bridge](../docs/extending/cli-bridge.md#agent-account) lists the environment
 that each worker gets.
 
+## `loupe preview-token`
+
+Mints and revokes the preview token that signs the site-review widget in on a
+preview site. `just worktree-up` and `just worktree-down` call it.
+
+```bash
+loupe preview-token mint   --project <id> --label <worktree> [--card <cardId>] [--instance <url>]
+loupe preview-token revoke --project <id> --label <worktree> [--instance <url>]
+```
+
+`mint` prints the token on one line and exits 1 with the reason on stderr when
+the server refuses. A second mint with the same label replaces the first token.
+`revoke` exits 0 also when no live token has the label. `--instance` refuses the
+call unless the login is for that instance.
+
 ## `loupe usage backfill`
 
 Sends the token usage of past worker runs to Loupe. Use it once, for the runs

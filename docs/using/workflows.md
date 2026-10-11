@@ -87,6 +87,12 @@ with "the worker stopped and needs a person". The board marks a card whose
 latest worker run failed or ended with no result, until a later run ends in
 another state.
 
+A pause after a refused or expired request ends by itself when a fact that its
+rule reads changes after the refusal, such as a new head commit. The work then
+starts again. The end of the card's own request does not count as a change, so
+a worker that blocks does not start a new run on the same card. A retry after a
+refusal also waits for its delay.
+
 When the retries run out, the workflow opens one `repair` work request for the
 card. The request names the failed rule in `{ruleId}`, and the last refusal
 code in `{reason}`. A repair worker reads the failed run, fixes the cause, and
@@ -113,7 +119,7 @@ The template sets this behaviour in its `onWorkFailed` block:
 
 ```yaml
 onWorkFailed:
-    retryOn: [failed, timeout]
+    retryOn: [failed, timeout, still-true]
     retries: 3
     backoffMinutes: [2, 3, 5]
     repair: { kind: repair }
@@ -124,6 +130,13 @@ before the repair. `backoffMinutes` gives the wait before each retry. `repair`
 names the kind of the repair request. A template with no `repair` key pauses
 the card when the retries run out. A template with no `onWorkFailed` block
 neither retries nor pauses after a refused request.
+
+A request can also end with no result while its rule still holds. A `request`
+action that sets `stillTrue: retry` counts such an end as a failed try with the
+code `still-true`. The rule then asks again after the next wait, and `retryOn`
+must list `still-true`, or the first such end pauses the card. The Lifecycle
+review rules set it, so a review run that ends with no review, such as one that
+saw a new head, asks for a review of the current head again.
 
 A work request that no bridge takes within 2 hours pauses the card with "no
 bridge took the work". A teardown request is the exception: it expires with no
@@ -136,7 +149,8 @@ release is refused on an unmanaged card. It is also refused on a pause that a
 rule made, because that pause ends only on its own release condition. After a
 release the paused rule runs again with a fresh budget of retries and work. The
 card history records the pause and the release, with the person who released
-it. An agent ends a pause with the `card_pause_release` MCP tool.
+it. A pause that the workflow ends by itself shows in the history too, with
+Loupe as the actor and the reason. An agent ends a pause with the `card_pause_release` MCP tool.
 
 ## Writes to GitHub
 
@@ -224,6 +238,11 @@ children, such as an epic, needs no review. The rules of the template turn the
 review on. A template with none of the rules below asks for no review, and its
 cards follow the other rules.
 
+A review run can end with no review, for example when the head moved after the
+request. The review rules then count the run as a failed try and ask again after
+2, 3 and 5 minutes. After the retries, a repair starts, and then the card
+pauses with an inbox item.
+
 A new head whose change is identical to a reviewed head carries the review. A
 clean merge of the base is the usual case. The check on the new head says that
 the review was carried, and from which commit. It keeps the line notes only when
@@ -246,6 +265,16 @@ and the diff lacks, such as a documentation page. The changelog entry has its
 own CI check, so the review leaves it out. A requirement that nothing builds has
 no file and no line, so it shows in the summary of the check and has no line
 note. The check lists the `spec` findings first.
+
+A finding with a clear rule or root problem opens its body with "Rule:" and the
+rule. It ends with "Also at:" and every other place in the change where the rule
+applies. The reviewer gives the most attention to the commits of earlier fix
+rounds. Each fix commit carries a `Loupe-Fix-Round` trailer, so the reviewer can
+find it.
+
+The fix worker fixes the rule at every place in the pull request, not only the
+place that the finding names. It adds a test that checks the rule. Before it
+pushes, it reviews its own fix with the same checklist as the reviewer.
 
 The fix worker fixes a failed `spec` finding as any other finding. When the
 implementer chose on purpose to depart from a design, the plan document records

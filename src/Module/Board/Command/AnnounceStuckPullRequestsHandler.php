@@ -11,13 +11,17 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * No card changes when the stuck delay of a ready pull request ends, so this refreshes the cards at that moment.
+ * No card changes when the stuck delay of a pull request ends, so this refreshes the cards at that moment.
+ * A ready pull request is announced once. A quiet pull request is announced when its delay ended inside the last window.
  * Answers how many cards it refreshed.
  */
 final readonly class AnnounceStuckPullRequestsHandler
 {
     /** The pull requests announced in one run. */
     public const int BATCH = 200;
+
+    /** How far back a quiet pull request whose delay ended is still announced, in seconds. */
+    public const int QUIET_WINDOW_SECONDS = 300;
 
     public function __construct(
         private StuckPullRequestRepository $stuckPullRequests,
@@ -40,6 +44,16 @@ final readonly class AnnounceStuckPullRequestsHandler
         foreach ($announced as $pullRequestId => $readySince) {
             $this->stuckPullRequests->markAnnounced($pullRequestId, $readySince, $now);
         }
+
+        $after = null;
+        do {
+            $quiet = $this->stuckPullRequests->findQuietDue($now, self::QUIET_WINDOW_SECONDS, self::BATCH, $after);
+            foreach ($quiet as $row) {
+                $this->events->dispatch(new CardChanged(Uuid::fromString($row['projectId']), Uuid::fromString($row['cardId']), CardChanged::UPDATED, false));
+                $after = $row['cardId'];
+                ++$refreshed;
+            }
+        } while (self::BATCH === \count($quiet));
 
         return $refreshed;
     }
