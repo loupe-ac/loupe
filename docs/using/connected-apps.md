@@ -74,6 +74,20 @@ access and the project. **Revoke** removes the access of that app at once: its
 access tokens and its refresh tokens stop working. To connect again, the app
 must ask the user again.
 
+The *Site review widget* row is always on the page. Under it, each live
+preview token has a row with its card, its project, when it expires and when
+the widget last used it. **Revoke** on a row ends that token only. **Revoke
+all** ends every preview token and every widget sign-in of the account.
+
+The *Overview* tab of a card page has a *Preview sign-in* panel. It shows your
+live preview token for that card, when it expires and when the widget last
+used it. **Revoke** there ends the token and returns you to the card. When the
+card has more than one live token, the panel shows the label of each token
+with its own **Revoke**.
+
+An administrator sees the connected apps and the live preview tokens of a user
+on the user page of the admin area. That view is read-only.
+
 Loupe also removes access in these cases:
 
 - The user deletes the project. Every grant for that project stops working.
@@ -82,7 +96,9 @@ Loupe also removes access in these cases:
   fails.
 
 The data export includes `connected_apps.json`. It lists each connected app and
-its access. It contains no token.
+its access, then each live preview token with its project, card, label and
+dates. A token entry carries the project name and the card title as well as
+their ids. It contains no token value.
 
 ## Your GitHub account
 
