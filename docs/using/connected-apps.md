@@ -79,6 +79,10 @@ preview token has a row with its card, its project, when it expires and when
 the widget last used it. **Revoke** on a row ends that token only. **Revoke
 all** ends every preview token and every widget sign-in of the account.
 
+The *Overview* tab of a card page has a *Preview sign-in* panel. It shows your
+live preview token for that card, when it expires and when the widget last
+used it. **Revoke** there ends the token and returns you to the card.
+
 Loupe also removes access in these cases:
 
 - The user deletes the project. Every grant for that project stops working.

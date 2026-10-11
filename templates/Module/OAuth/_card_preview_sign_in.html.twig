@@ -1,0 +1,42 @@
+{# The preview sign-in panel of a card page. Props: tokens (list of PreviewTokenRow of the viewer for this card). #}
+{% set seeAll %}
+<p class="lp-preview-sign-in__note">
+    <a class="lp-workshop-text-link" href="{{ path('app_account_connected_apps') }}" data-preview-sign-in-see-all>{{ 'oauth.preview_sign_in.see_all'|trans }}<twig:ux:icon name="lucide:arrow-up-right" /></a>
+    <span>{{ 'oauth.preview_sign_in.see_all_where'|trans }}</span>
+</p>
+{% endset %}
+{% for token in tokens %}
+<section class="lp-card-overview__section" data-preview-sign-in="{{ token.accessTokenId }}">
+    <div class="lp-section-heading">
+        <h2 class="lp-card-panel__title">{{ 'oauth.preview_sign_in.title'|trans }}</h2>
+        <div data-controller="modal">
+            <twig:Ds:Button variant="danger-ghost" size="sm" type="button" data-action="click->modal#open">{{ 'oauth.connected_apps.action.revoke'|trans }}</twig:Ds:Button>
+            <twig:Ds:Dialog aria-labelledby="revoke-card-preview-token-title-{{ loop.index }}" data-action="cancel->modal#close">
+                <h2 class="lp-dialog-title" id="revoke-card-preview-token-title-{{ loop.index }}">{{ 'oauth.connected_apps.preview_tokens.revoke.title'|trans }}</h2>
+                <p class="lp-dialog-desc">{{ 'oauth.connected_apps.preview_tokens.revoke.description'|trans }}</p>
+                <form method="post" action="{{ path('app_account_preview_token_revoke_to_card', {accessTokenId: token.accessTokenId}) }}" data-turbo-frame="_top">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke-preview-token') }}">
+                    <div class="lp-dialog-actions">
+                        <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.connected_apps.revoke.cancel'|trans }}</twig:Ds:Button>
+                        <twig:Ds:Button variant="danger" type="submit">{{ 'oauth.connected_apps.revoke.confirm'|trans }}</twig:Ds:Button>
+                    </div>
+                </form>
+            </twig:Ds:Dialog>
+        </div>
+    </div>
+    <dl class="lp-card-fields">
+        <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.status'|trans }}</dt><dd><twig:Ds:StatusChip modifier="ok" :label="'oauth.preview_sign_in.active'|trans" /></dd></div>
+        <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.expires'|trans }}</dt><dd>{{ 'oauth.preview_sign_in.expires_in'|trans({'%count%': token.expiresAt|preview_token_days_left}) }}</dd></div>
+        <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.last_used'|trans }}</dt><dd>{{ token.lastUsedAt ? token.lastUsedAt|relative_time : 'oauth.connected_apps.preview_tokens.not_used'|trans }}</dd></div>
+    </dl>
+    {{ seeAll }}
+</section>
+{% else %}
+<section class="lp-card-overview__section" data-preview-sign-in>
+    <div class="lp-section-heading">
+        <h2 class="lp-card-panel__title">{{ 'oauth.preview_sign_in.title'|trans }}</h2>
+    </div>
+    <p class="lp-card-detail__empty">{{ 'oauth.connected_apps.preview_tokens.empty'|trans }}</p>
+    {{ seeAll }}
+</section>
+{% endfor %}

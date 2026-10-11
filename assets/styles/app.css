@@ -5244,6 +5244,13 @@
     .lp-preview-token-row__meta {
         @apply font-mono text-xs text-fg-dim;
     }
+    /* The line under the preview sign-in panel of a card that points to the full list. */
+    .lp-preview-sign-in__note {
+        @apply mt-3 mb-0 flex items-start gap-2 text-xs leading-normal text-fg-mute;
+    }
+    .lp-preview-sign-in__note svg {
+        @apply mt-px shrink-0;
+    }
 
     /* Amber callout. Used for the two things on this page that are warnings
        rather than body copy: the once-only token, and the fact that the widget

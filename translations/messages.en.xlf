@@ -7666,6 +7666,14 @@
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.description"><source>oauth.connected_apps.preview_tokens.revoke_all.description</source><target>Every preview token and every widget sign-in stops working at once. To sign the widget in again, start a new preview or sign in from the widget.</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.confirm"><source>oauth.connected_apps.preview_tokens.revoke_all.confirm</source><target>Revoke all</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.flash.revoked"><source>oauth.connected_apps.preview_tokens.flash.revoked</source><target>The preview token no longer works.</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.title"><source>oauth.preview_sign_in.title</source><target>Preview sign-in</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.status"><source>oauth.preview_sign_in.status</source><target>Status</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.active"><source>oauth.preview_sign_in.active</source><target>Active</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.expires"><source>oauth.preview_sign_in.expires</source><target>Expires</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.expires_in"><source>oauth.preview_sign_in.expires_in</source><target>{0}Today|{1}In %count% day|]1,Inf[In %count% days</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.last_used"><source>oauth.preview_sign_in.last_used</source><target>Last used</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.see_all"><source>oauth.preview_sign_in.see_all</source><target>See all preview tokens</target></trans-unit>
+            <trans-unit id="oauth.preview_sign_in.see_all_where"><source>oauth.preview_sign_in.see_all_where</source><target>in Account &gt; Connected apps.</target></trans-unit>
             <trans-unit id="check.oauth_keys.label"><source>check.oauth_keys.label</source><target>OAuth keys</target></trans-unit>
             <trans-unit id="oauth.system_status.keys.ok"><source>oauth.system_status.keys.ok</source><target>The OAuth signing key pair and the encryption key are set and readable.</target></trans-unit>
             <trans-unit id="oauth.system_status.keys.missing"><source>oauth.system_status.keys.missing</source><target>The OAuth keys are missing or unreadable, so no app can connect. Set OAUTH_PRIVATE_KEY, OAUTH_PUBLIC_KEY and OAUTH_ENCRYPTION_KEY.</target></trans-unit>
