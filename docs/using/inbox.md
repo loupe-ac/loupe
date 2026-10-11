@@ -187,15 +187,23 @@ a document makes Loupe check each card that links it again.
 
 The item has the kind **Waiting**, and it is always blocking.
 
-A card has at most one open automatic item. Its title is the card number and
-the card title. The item links the card and each document that it waits on.
-Its panel lists each current wait as one plain sentence. The sentence says why
-Loupe opened the item, such as "The document "Tech design", version 1, of card
-635 waits for your review." A link beside it opens the page that closes the
-wait: the document review, the pull request, the worker run, or the card for a
-pause. A run wait shows the whole output of the run below the sentence, with the
-stage protocol text removed. The waits that ended show below them, in grey, with
-a sentence that says how they closed, such as "Closed when you acted on it."
+A card has at most one open automatic item. Its title is the card number, the
+reason of the main wait, and the card title, such as "#686 Review worker
+blocked: cannot reach github.com · Let bridge workers read the prototypes". The
+item links the card and each document that it waits on. Its panel lists each
+current wait as one plain sentence. The sentence says why Loupe opened the
+item, such as "The document "Tech design", version 1, of card 635 waits for
+your review." A link beside it opens the page that closes the wait: the
+document review, the pull request, the worker run, or the card for a pause.
+A run wait starts with the first sentence of the run output, such as "The
+review worker on card 686 is blocked: cannot reach github.com". When a
+workflow pause of the card comes from that run, the panel shows no second
+line. The link of the run line then reads "Fix the cause, then resume the
+card" and opens the card. A run wait shows the whole output of the run below
+the sentence, with the stage protocol text and the reason tag removed. The
+body of the item that `inbox_get` returns holds the same sentences. The waits
+that ended show below them, in grey, with a sentence that says how they
+closed, such as "Closed when you acted on it."
 **Dismiss** hides the item. The card still waits until you act on it, and the
 panel says so beside the button.
 
@@ -370,9 +378,14 @@ that ask or item on its project inbox page, where the forms are.
 ## On a card page and a document page
 
 An agent can link an item to cards and documents of the project. The page of
-each linked card and each linked document then shows an **Inbox items** section
-with those items. The section is absent while the flag is off, and on a page
-that no item links to. On a document page it sits above the document.
+each linked card then shows an **Inbox items** section with those items. The
+section is absent while the flag is off, and on a page that no item links to.
+
+A document page shows an hourglass and the card numbers in its byline instead.
+Each number links to its inbox item. Its tooltip reads **Card #N waits on this
+review**, or **Cards #N and #M wait on this review** for two or more cards. The
+item is absent while the flag is off, and when no card waits on the document.
+Answer the item in the inbox.
 
 The project inbox lists linked cards, documents, and the pull requests attached to those cards.
 Each pull request URL appears once per item, even when several linked cards share it.
@@ -382,9 +395,6 @@ Other stored addresses read **Unavailable**, with an explanation and no open act
 A card link opens **Conversation** at the matching inbox item.
 If that item falls outside the ten newest closed items, it replaces the oldest item in that list.
 The section still shows ten closed items, in closing order.
-
-The section is hidden on a version comparison. It shows on an older version of
-a document, and a response from there returns to that version.
 
 The section lists open items first, then closed ones under **Closed**, newest
 close first. It shows at most ten closed items, and a link leads to the inbox
