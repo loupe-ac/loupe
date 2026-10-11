@@ -21,6 +21,12 @@ security:
         install_script:
             pattern: ^/install\.sh$
             security: false
+        # The signed content links of a stored prototype. No security listener,
+        # so no session is read or started and the response sets no cookie. The
+        # signature in the path is the credential.
+        artifact_content:
+            pattern: ^/artifact-content/
+            security: false
         # The suspension gate on these two firewalls is the user_checker, not
         # RequireNotSuspendedListener: that listener exempts ^/api and ^/mcp
         # because an HTML redirect would corrupt a machine client's response.
