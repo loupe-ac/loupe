@@ -47,11 +47,29 @@ final class RevokePreviewTokensHandlerTest extends KernelTestCase
         $target = $this->mint('pr-12');
         $other = $this->mint('pr-13');
 
-        $count = $this->revoke(new RevokePreviewTokensCommand(accessTokenId: $target));
+        $count = $this->revoke(new RevokePreviewTokensCommand(owner: $this->owner, accessTokenId: $target));
 
         self::assertSame(1, $count);
         self::assertTrue($this->isRevoked($target));
         self::assertFalse($this->isRevoked($other));
+    }
+
+    public function test_a_revoke_by_token_id_leaves_another_persons_token_alone(): void
+    {
+        $target = $this->mint('pr-12');
+        $stranger = $this->scenario->createUser('preview-revoke-id-stranger@example.com');
+
+        $count = $this->revoke(new RevokePreviewTokensCommand(owner: $stranger, accessTokenId: $target));
+
+        self::assertSame(0, $count);
+        self::assertFalse($this->isRevoked($target));
+    }
+
+    public function test_a_revoke_by_token_id_names_the_owner(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        $this->revoke(new RevokePreviewTokensCommand(accessTokenId: $this->mint('pr-12')));
     }
 
     public function test_a_revoke_by_card_revokes_every_token_of_the_card(): void
@@ -81,7 +99,7 @@ final class RevokePreviewTokensHandlerTest extends KernelTestCase
             'access_token' => $target,
         ], ['revoked' => 'boolean']);
 
-        $this->revoke(new RevokePreviewTokensCommand(accessTokenId: $target));
+        $this->revoke(new RevokePreviewTokensCommand(owner: $this->owner, accessTokenId: $target));
 
         self::assertTrue((bool) $this->connection->fetchOne("SELECT revoked FROM oauth2_refresh_token WHERE identifier = 'preview-refresh'"));
     }
@@ -91,7 +109,7 @@ final class RevokePreviewTokensHandlerTest extends KernelTestCase
         $live = $this->mint('pr-12');
 
         self::assertSame(0, $this->revoke(new RevokePreviewTokensCommand(owner: $this->owner, handle: (string) $this->project->id, label: 'no-such-label')));
-        self::assertSame(0, $this->revoke(new RevokePreviewTokensCommand(accessTokenId: 'no-such-token')));
+        self::assertSame(0, $this->revoke(new RevokePreviewTokensCommand(owner: $this->owner, accessTokenId: 'no-such-token')));
         self::assertSame(0, $this->revoke(new RevokePreviewTokensCommand(cardId: Uuid::v7())));
         self::assertFalse($this->isRevoked($live));
     }

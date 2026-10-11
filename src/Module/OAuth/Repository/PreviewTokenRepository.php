@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\OAuth\Repository;
 
+use App\Module\OAuth\Command\PreviewTokenRow;
 use App\Module\OAuth\Entity\PreviewToken;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -34,6 +35,29 @@ class PreviewTokenRepository extends ServiceEntityRepository
              WHERE access_token_id = :id AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(mins => :window))',
             ['id' => $accessTokenId, 'window' => self::LAST_USE_WINDOW_MINUTES],
         );
+    }
+
+    /** @return list<PreviewTokenRow> */
+    public function findLiveForUser(Uuid $userId): array
+    {
+        return $this->findLiveWhere('p.user_id = :userId', ['userId' => $userId->toRfc4122()]);
+    }
+
+    /** @return list<PreviewTokenRow> */
+    public function findLiveForUserAndCard(Uuid $userId, Uuid $cardId): array
+    {
+        return $this->findLiveWhere('p.user_id = :userId AND p.card_id = :cardId', [
+            'userId' => $userId->toRfc4122(),
+            'cardId' => $cardId->toRfc4122(),
+        ]);
+    }
+
+    public function findLiveForUserByAccessTokenId(Uuid $userId, string $accessTokenId): ?PreviewTokenRow
+    {
+        return $this->findLiveWhere('p.user_id = :userId AND p.access_token_id = :accessTokenId', [
+            'userId' => $userId->toRfc4122(),
+            'accessTokenId' => $accessTokenId,
+        ])[0] ?? null;
     }
 
     /**
@@ -74,14 +98,53 @@ class PreviewTokenRepository extends ServiceEntityRepository
         return 'preview-token:'.$userId->toRfc4122().':'.$projectId->toRfc4122().':'.$label;
     }
 
-    public function revokeByAccessTokenId(string $accessTokenId): int
+    public function revokeByAccessTokenId(string $accessTokenId, Uuid $userId): int
     {
-        return $this->revokeWhere('p.access_token_id = :accessTokenId', ['accessTokenId' => $accessTokenId]);
+        return $this->revokeWhere('p.access_token_id = :accessTokenId AND p.user_id = :userId', [
+            'accessTokenId' => $accessTokenId,
+            'userId' => $userId->toRfc4122(),
+        ]);
     }
 
     public function revokeByCard(Uuid $cardId): int
     {
         return $this->revokeWhere('p.card_id = :cardId', ['cardId' => $cardId->toRfc4122()]);
+    }
+
+    /**
+     * Reads board_cards by SQL, because OAuth must not depend on Board. A card
+     * of another project, or one deleted since, reads as no card.
+     *
+     * @param array<string, string> $parameters
+     *
+     * @return list<PreviewTokenRow>
+     */
+    private function findLiveWhere(string $condition, array $parameters): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            'SELECT p.access_token_id, p.project_id, pr.name AS project_name, p.card_id, c.number AS card_number, c.title AS card_title,
+                    p.label, a.expiry, p.last_used_at, p.created_at
+             FROM oauth_preview_tokens p
+             JOIN oauth2_access_token a ON a.identifier = p.access_token_id
+             JOIN projects pr ON pr.id = p.project_id
+             LEFT JOIN board_cards c ON c.id = p.card_id AND c.project_id = p.project_id
+             WHERE a.revoked = false AND a.expiry > NOW() AND '.$condition.'
+             ORDER BY p.created_at DESC, p.access_token_id',
+            $parameters,
+        );
+
+        return array_map(static fn (array $row): PreviewTokenRow => new PreviewTokenRow(
+            accessTokenId: trim((string) $row['access_token_id']),
+            projectId: Uuid::fromString((string) $row['project_id']),
+            projectName: (string) $row['project_name'],
+            cardId: null === $row['card_id'] ? null : Uuid::fromString((string) $row['card_id']),
+            cardNumber: null === $row['card_number'] ? null : (int) $row['card_number'],
+            cardTitle: null === $row['card_title'] ? null : (string) $row['card_title'],
+            label: (string) $row['label'],
+            expiresAt: new \DateTimeImmutable((string) $row['expiry']),
+            lastUsedAt: null === $row['last_used_at'] ? null : new \DateTimeImmutable((string) $row['last_used_at']),
+            createdAt: new \DateTimeImmutable((string) $row['created_at']),
+        ), $rows);
     }
 
     /**
