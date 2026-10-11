@@ -144,4 +144,12 @@ class ArtifactRepository extends ServiceEntityRepository
 
         return $state['archivedAt'];
     }
+
+    public function clearArchivedAt(Artifact $artifact): void
+    {
+        $this->getEntityManager()
+            ->createQuery('UPDATE '.Artifact::class.' a SET a.archivedAt = NULL WHERE a = :artifact')
+            ->setParameter('artifact', $artifact)
+            ->execute();
+    }
 }

@@ -38,8 +38,9 @@ final readonly class UnarchiveArtifactHandler
                 return;
             }
 
+            // A direct update, because a loaded entity that missed the archive holds null in its snapshot and flush() would write nothing.
+            $this->artifacts->clearArchivedAt($artifact);
             $artifact->archivedAt = null;
-            $this->em->flush();
             $changed = true;
         });
 

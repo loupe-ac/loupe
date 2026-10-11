@@ -240,6 +240,22 @@ final class ArtifactToolsTest extends KernelTestCase
         self::assertCount(0, $this->audit->sink->events);
     }
 
+    public function test_unarchive_clears_a_stored_archive_that_the_loaded_entity_does_not_show(): void
+    {
+        $project = $this->switchedOnProject('unarchive-stale@example.com');
+        $artifact = $this->artifact($project, 'Widget', [['index.html', 'a', 'text/html']]);
+        $connection = $this->em()->getConnection();
+
+        $connection->executeStatement('UPDATE artifacts SET archived_at = NOW() WHERE id = ?', [$artifact->id], ['uuid']);
+        self::assertNull($artifact->archivedAt);
+
+        $restored = ($this->tool(ArtifactUnarchiveTool::class))((string) $artifact->id);
+
+        self::assertSame(['artifactId' => (string) $artifact->id, 'archived' => false], $restored);
+        self::assertNull($connection->fetchOne('SELECT archived_at FROM artifacts WHERE id = ?', [$artifact->id], ['uuid']));
+        self::assertCount(1, $this->audit->sink->events);
+    }
+
     public function test_an_artifact_of_another_project_reads_as_not_found_for_every_tool(): void
     {
         $this->switchedOnProject('owner-a@example.com');
