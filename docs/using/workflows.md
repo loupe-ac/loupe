@@ -351,8 +351,8 @@ Some rules act from any slot:
    the work requests of the epic, or to the documents of the child, also
    evaluates the child. An older bridge that sends no run key reports a run only
    after it ends, so its run does not hold the children. In a workflow file, the
-   condition `card.parent.document.approved` with a `tag` is true when a document of
-   the parent card has that tag and is approved. The condition `card.parent.in_slot`
+   condition `card.parent.document.approved` with a `tag` is true when the parent
+   card has a document with that tag and every such document is approved. The condition `card.parent.in_slot`
    with a `slot` is true when the parent card sits in that slot.
 4. A child in Next that links no approved tech design asks the owner what to do,
    once the epic has an approved tech design and no work in progress. The rule
