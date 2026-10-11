@@ -38,6 +38,10 @@ for i in $(seq 1 57); do grep -q '^EXIT=' <log> && break; sleep 10; done; grep '
 
 One loop waits 570 seconds at most. When it prints `still-running`, run it again. `EXIT=0` means the command passed. Never end the turn while the command runs.
 
+## Read a linked prototype
+
+Read a file of the repository from disk, and a Loupe document with `document_get`. This harness has no tool for a `claude.ai/artifact/` link.
+
 ## Dispatch a sub-agent
 
 Dispatch a sub-agent with `spawn_agent`. Its arguments include `task_name` and `message`. Wait for it with `wait_agent`.

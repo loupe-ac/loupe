@@ -22,6 +22,10 @@ Use a file-editing tool that targets the worker folder. Confirm the target befor
 
 Use the harness's background process support and poll it in the foreground at least once a minute. Never end the turn while it runs. Preserve the complete log and the exit status. Stop when the command fails.
 
+## Read a linked prototype
+
+Read a file of the repository from disk, and a Loupe document with `document_get`. This harness has no tool for a `claude.ai/artifact/` link.
+
 ## Dispatch a sub-agent
 
 When the harness supports sub-agents, dispatch one with the `senior-dev` instruction and repeat every stage rule in its prompt. Otherwise, perform the task in the worker folder and apply the same instruction.

@@ -207,6 +207,7 @@ final class CardPayloadTest extends KernelTestCase
             'findings' => [['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => 'important', 'title' => 'Null read', 'body' => 'Can be null.']],
             'createdAt' => '2026-10-09T10:00:00+00:00',
             'postedAt' => null,
+            'carriedTo' => [['headSha' => str_repeat('e', 40), 'postedAt' => '2026-10-09T11:00:00+00:00']],
         ];
         $reviews = $this->createMock(CardAgentReviews::class);
         $reviews->expects($this->once())->method('forCards')->with([$card])->willReturn([(string) $link->id => $review]);

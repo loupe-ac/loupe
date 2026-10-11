@@ -8,6 +8,7 @@ use App\Doctrine\Type\MicrosecondDateTimeImmutableType;
 use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\ApprovalCoverage;
+use App\Module\Forge\Service\PullRequestChangeFingerprint;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -130,6 +131,18 @@ class ForgePullRequest
     /** The last head that the forge found the approval does not cover, so it is not asked again. */
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $uncoveredSha = null;
+
+    /** A hash of the change of `changeFingerprintSha` against the base, with the line numbers left out. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $changeFingerprint = null;
+
+    /** A hash of the change of `changeFingerprintSha` against the base, with the line numbers kept. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $linesFingerprint = null;
+
+    /** The head the fingerprints belong to. Null fingerprints with a head mean the forge gave none for it. */
+    #[ORM\Column(length: 64, nullable: true)]
+    public ?string $changeFingerprintSha = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $defaultBranch = null;
@@ -261,6 +274,13 @@ class ForgePullRequest
             ApprovalCoverage::NotCovered => $this->uncoveredSha = $this->headSha,
             ApprovalCoverage::Unknown => null,
         };
+    }
+
+    public function recordChangeFingerprint(string $headSha, ?PullRequestChangeFingerprint $fingerprint): void
+    {
+        $this->changeFingerprintSha = $headSha;
+        $this->changeFingerprint = $fingerprint?->change;
+        $this->linesFingerprint = $fingerprint?->lines;
     }
 
     public function approvalIsStale(): bool

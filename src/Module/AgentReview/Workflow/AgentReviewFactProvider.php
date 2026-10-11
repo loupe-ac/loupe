@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Module\AgentReview\Workflow;
 
 use App\Module\AgentReview\Repository\AgentReviewRepository;
-use App\Module\Board\Repository\CardPullRequestRepository;
+use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Forge\Entity\ForgePullRequest;
@@ -19,8 +19,8 @@ final readonly class AgentReviewFactProvider implements FactProvider
     public function __construct(
         private CardRepository $cards,
         private CardPullRequests $trackedPullRequests,
-        private CardPullRequestRepository $cardPullRequests,
         private AgentReviewRepository $agentReviews,
+        private AgentReviewPosts $posts,
         private CardTypeCatalog $catalog,
     ) {
     }
@@ -56,7 +56,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
         return new AgentReviewFacts(
             $heads,
             $epic,
-            [] !== $this->agentReviews->findUnpostedOfCard($card, $this->cardPullRequests->findOpenGitHubForCard($card)),
+            [] !== $this->posts->dueForCard($card),
         );
     }
 
