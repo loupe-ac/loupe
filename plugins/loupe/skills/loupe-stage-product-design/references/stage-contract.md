@@ -56,6 +56,7 @@ The owner can answer a decision after a worker writes the text of a design. `doc
 A design links a prototype as a claude.ai artifact, a Claude Design canvas, a Loupe document or a repository file. The product design skill also stores a readable copy of each artifact prototype in the repository, under `docs/prototypes/`.
 
 1. Read the readable copy first. The harness adapter says which tool reads each kind of link.
+   When the worker folder has no copy, read it with `git show origin/<branch>:docs/prototypes/<file>`. Try the base branch first, then the branch that the product document names. The implementation pull request deletes the copy, and its base still holds it.
 2. When the stage needs the prototype and no tool reads any link, stop with `STAGE RESULT: blocked: prototype unreadable: <tool> missing`. Name the missing tool, such as `Artifact`.
 3. The first sentence after it is "Store a readable copy of the prototype, then resume this run."
 4. Never name sharing as the cause, unless a tool for that link answered that access is denied.
