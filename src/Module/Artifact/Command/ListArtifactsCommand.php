@@ -10,9 +10,7 @@ final readonly class ListArtifactsCommand
 {
     public function __construct(
         public Project $project,
-        public int $page,
-        public int $perPage,
-        public bool $includeArchived,
+        public bool $includeArchived = false,
     ) {
     }
 }

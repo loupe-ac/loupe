@@ -10,7 +10,8 @@ final readonly class ShowArtifactCommand
 {
     public function __construct(
         public Artifact $artifact,
-        public ?int $versionNumber,
+        /** Null for the latest version. */
+        public ?int $versionNumber = null,
     ) {
     }
 }

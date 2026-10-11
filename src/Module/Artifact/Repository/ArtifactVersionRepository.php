@@ -30,6 +30,37 @@ class ArtifactVersionRepository extends ServiceEntityRepository
     }
 
     /**
+     * The newest version of each artifact, with whoever stored it, in one query.
+     *
+     * @param list<Artifact> $artifacts
+     *
+     * @return array<string, ArtifactVersion> keyed by artifact id
+     */
+    public function findLatestForArtifacts(array $artifacts): array
+    {
+        if ([] === $artifacts) {
+            return [];
+        }
+
+        /** @var list<ArtifactVersion> $versions */
+        $versions = $this->createQueryBuilder('version')
+            ->addSelect('storedBy')
+            ->leftJoin('version.storedBy', 'storedBy')
+            ->where('version.artifact IN (:artifacts)')
+            ->andWhere('version.number = (SELECT MAX(newer.number) FROM '.ArtifactVersion::class.' newer WHERE newer.artifact = version.artifact)')
+            ->setParameter('artifacts', $artifacts)
+            ->getQuery()
+            ->getResult();
+
+        $latest = [];
+        foreach ($versions as $version) {
+            $latest[(string) $version->artifact->id] = $version;
+        }
+
+        return $latest;
+    }
+
+    /**
      * The highest version number of each artifact, in one query.
      *
      * @param list<Artifact> $artifacts

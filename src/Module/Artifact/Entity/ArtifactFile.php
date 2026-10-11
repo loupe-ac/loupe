@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Entity;
 
+use App\Module\Artifact\Repository\ArtifactFileRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: ArtifactFileRepository::class)]
 #[ORM\Table(name: 'artifact_files')]
 #[ORM\UniqueConstraint(name: 'uniq_artifact_file_path', columns: ['version_id', 'path'])]
 class ArtifactFile

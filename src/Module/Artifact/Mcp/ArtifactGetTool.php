@@ -6,8 +6,8 @@ namespace App\Module\Artifact\Mcp;
 
 use App\Exception\DomainErrors;
 use App\Mcp\FlagGatedToolInterface;
-use App\Module\Artifact\Command\ShowArtifactCommand;
-use App\Module\Artifact\Command\ShowArtifactHandler;
+use App\Module\Artifact\Command\DescribeArtifactCommand;
+use App\Module\Artifact\Command\DescribeArtifactHandler;
 use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
@@ -16,14 +16,14 @@ use Mcp\Exception\ToolCallException;
 /**
  * Describes one artifact: its versions, and the files of one version.
  *
- * @phpstan-import-type ArtifactPayload from ShowArtifactHandler
+ * @phpstan-import-type ArtifactPayload from DescribeArtifactHandler
  */
 #[McpTool(name: 'artifact_get', description: 'Describe one stored design artifact: its name, archive state, source link and every version with its file count and size, plus the files of one version (path, content type, size). Defaults to the latest version. Read a file\'s content with artifact_read.')]
 final readonly class ArtifactGetTool implements FlagGatedToolInterface
 {
     public function __construct(
         private ArtifactSubjectResolver $subjects,
-        private ShowArtifactHandler $handler,
+        private DescribeArtifactHandler $handler,
     ) {
     }
 
@@ -38,7 +38,7 @@ final readonly class ArtifactGetTool implements FlagGatedToolInterface
         try {
             $artifact = $this->subjects->requireArtifact($artifactId, McpBoundProjectVoter::ARTIFACT_READ);
 
-            return ($this->handler)(new ShowArtifactCommand($artifact, $versionNumber));
+            return ($this->handler)(new DescribeArtifactCommand($artifact, $versionNumber));
         } catch (DomainErrors) {
             throw new ToolCallException(\sprintf('Artifact "%s" has no version %d.', $artifactId, $versionNumber));
         } catch (ToolCallException $e) {
