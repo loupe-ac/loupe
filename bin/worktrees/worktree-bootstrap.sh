@@ -133,6 +133,51 @@ set_env() {
     ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 }
 
+# Value of KEY in a dotenv file, without quotes. Empty when the file or the key is absent.
+env_value() {
+    grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"' || true
+}
+
+# Mint the preview token that signs the site-review widget in on this
+# preview, and write it to .env.local. It never fails the bootstrap: the bridge
+# runs this before each worker, so a failure here would stop the work of a
+# card. A failed mint writes an empty token, and the widget shows its Sign in
+# button as before.
+mint_preview_token() {
+    local env_file="$root/.env.local" widget_project widget_backend widget_context card token="" why=""
+    widget_project=$(env_value "$env_file" SITE_REVIEW_WIDGET_PROJECT)
+    widget_backend=$(env_value "$env_file" SITE_REVIEW_WIDGET_BACKEND)
+    widget_context=$(env_value "$env_file" SITE_REVIEW_WIDGET_CONTEXT)
+    card=""
+    case "$widget_context" in
+        card:*) card=${widget_context#card:} ;;
+    esac
+    if ! [[ -z $card || $card =~ ^[A-Za-z0-9-]+$ ]]; then
+        card=""
+    fi
+
+    if [ -z "$widget_project" ] || [ -z "$widget_backend" ]; then
+        why="SITE_REVIEW_WIDGET_PROJECT or SITE_REVIEW_WIDGET_BACKEND is empty"
+    elif [ "${widget_backend%/}" = "https://$host" ]; then
+        # The widget backend is this worktree, so the CLI sign-in (one instance) cannot
+        # mint here. A production card id names no card in this database, so pass none.
+        token=$(in_worktree bin/console app:dev:preview-token --project "$widget_project" --label "$slug" 2>/dev/null | tail -1 | tr -d '\r') \
+            || why="app:dev:preview-token failed"
+    elif ! command -v loupe >/dev/null 2>&1; then
+        why="the loupe CLI is not installed"
+    else
+        local args=(preview-token mint --project "$widget_project" --label "$slug" --instance "$widget_backend")
+        [ -n "$card" ] && args+=(--card "$card")
+        token=$(loupe "${args[@]}" 2>/tmp/preview-token-err.$$) || why=$(tail -1 /tmp/preview-token-err.$$)
+        rm -f /tmp/preview-token-err.$$
+    fi
+
+    if [ -z "$token" ]; then
+        echo "worktree-bootstrap: no preview token (${why:-no token printed}). The widget will show its Sign in button." >&2
+    fi
+    set_env "$env_file" SITE_REVIEW_WIDGET_PREVIEW_TOKEN "$token"
+}
+
 # TailwindBundle's cache:clear hook (run by composer's post-install scripts)
 # requires var/tailwind to exist, so it must be created before any composer
 # install below — otherwise re-provisioning a worktree whose var/ was wiped
@@ -257,6 +302,9 @@ in_worktree bin/console league:oauth2-server:generate-keypair --skip-if-exists >
 # copied with .env.local above. The seed prints this worktree's own id, which
 # production has never seen, so use it only when the backend points here too.
 in_worktree bin/console app:dev:seed >/dev/null
+
+# 5b. The preview token. It needs the seed above when the backend is this tree.
+mint_preview_token
 
 # Build this worktree's own CSS now that var/tailwind is local to it.
 in_worktree bin/console tailwind:build >/dev/null
