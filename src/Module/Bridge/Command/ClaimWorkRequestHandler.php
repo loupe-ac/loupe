@@ -13,6 +13,7 @@ use App\Module\Bridge\Service\WorkRequestLease;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
 use App\Outbox\OutboxWriter;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -59,6 +60,8 @@ final readonly class ClaimWorkRequestHandler
                 return WorkRequestRefusal::CapabilityMissing;
             }
 
+            // Conflicts with the project lock of a hold, so a hold that commits first makes the claim below refuse.
+            $this->em->lock($request->project, LockMode::PESSIMISTIC_READ);
             $leaseUntil = $this->lease->until($this->clock->now());
             if (!$this->workRequests->claim($command->workRequestId, $command->bridgeId, Uuid::v4(), $leaseUntil)) {
                 return $this->workRequests->isOfHeldCard($command->workRequestId)

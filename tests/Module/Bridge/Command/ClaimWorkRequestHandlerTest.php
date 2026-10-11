@@ -18,6 +18,7 @@ use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -114,6 +115,32 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame(WorkRequestRefusal::AlreadyClaimed, $result->refusal);
         $this->em()->clear();
         self::assertSame($state, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    /**
+     * A hold locks the project row for update. The claim takes a share lock on
+     * that row before it writes, so the two run one after the other.
+     */
+    public function test_a_claim_locks_the_project_before_it_writes(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-project-lock', WorkRequestState::Open);
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        self::assertNull($this->claim($owner, $bridge, $request)->refusal);
+
+        $statements = [];
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $statements[] = (string) $query['sql'];
+            }
+        }
+        $lock = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'FROM projects') && str_contains($sql, 'FOR SHARE'));
+        $write = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'UPDATE work_requests'));
+        self::assertNotNull($write);
+        self::assertNotNull($lock, 'The claim took no share lock on the project.');
+        self::assertLessThan($write, $lock);
     }
 
     /** @return array{User, Bridge, WorkRequest} */
