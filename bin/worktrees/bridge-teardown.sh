@@ -31,8 +31,14 @@ cd "$main"
 just worktree-down "card-$number"
 
 # A product design keeps a readable prototype copy on this branch, and nothing merges it.
-if git ls-remote --exit-code --heads origin "prototype/$number" >/dev/null; then
+# ls-remote exits 2 when the branch is absent, and with another code when the lookup fails.
+status=0
+git ls-remote --exit-code --heads origin "prototype/$number" >/dev/null || status=$?
+if [ "$status" -eq 0 ]; then
     git push origin --delete "prototype/$number"
+elif [ "$status" -ne 2 ]; then
+    echo "bridge-teardown: the lookup of prototype/$number on origin failed. Run the teardown again." >&2
+    exit 1
 fi
 
 # The merge stage refreshes the epic preview under this lock, and the last child merge can finish the epic.
