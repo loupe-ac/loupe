@@ -36,8 +36,9 @@ func TestParseResolvesACodexAccount(t *testing.T) {
 			t.Fatalf("%s run = %+v, want %+v", kind, got, want)
 		}
 	}
-	// The bridge flags name Claude Code values, so a codex run takes none.
-	if got := entry(t, s, "implement").run; got.PermissionMode != "" || got.Model != "openrouter/free" {
+	// The bridge flags name Claude Code values, so a codex run takes none, and
+	// a worker with no mode gets the workspace sandbox with the network.
+	if got := entry(t, s, "implement").run; got.PermissionMode != "workspace-write" || got.Model != "openrouter/free" {
 		t.Fatalf("implement run = %+v", got)
 	}
 	if got := entry(t, s, "other").run; got.Harness != HarnessClaudeCode || got.PermissionMode != "bypassPermissions" || got.Profile != "" {
@@ -81,7 +82,7 @@ func TestParseAcceptsAnInteractiveEntryOnACodexAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := entry(t, s, "pair").run; got.Harness != HarnessCodex || got.Account != "cdx" {
+	if got := entry(t, s, "pair").run; got.Harness != HarnessCodex || got.Account != "cdx" || got.PermissionMode != "" {
 		t.Fatalf("pair run = %+v", got)
 	}
 }

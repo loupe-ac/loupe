@@ -77,6 +77,7 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 		args = append(args, "-m", spec.Model)
 	}
 	args = append(args, sandboxArgs(spec, resume)...)
+	args = append(args, sessionArgs(spec)...)
 	args = append(args, "--json", "--skip-git-repo-check")
 	if spec.Schema != "" && spec.RunDir != "" {
 		path := filepath.Join(spec.RunDir, schemaFile)
@@ -121,6 +122,16 @@ func sandboxArgs(spec harness.Spec, resume bool) []string {
 	}
 
 	return []string{"-s", spec.PermissionMode}
+}
+
+// sessionArgs hands the run id to `loupe mcp`, which Codex starts with a fixed
+// environment. A dotted key keeps the env and env_vars the config sets.
+func sessionArgs(spec harness.Spec) []string {
+	if spec.SessionID == "" {
+		return nil
+	}
+
+	return []string{"-c", "mcp_servers.loupe.env.LOUPE_SESSION_ID=" + tomlString(spec.SessionID)}
 }
 
 // gitRoots is the git common directory of dir when it lies outside dir, and
@@ -197,7 +208,7 @@ func (h Harness) Interactive(program string, spec harness.Spec) string {
 	if spec.Model != "" {
 		b.WriteString(" -m " + shellQuote(spec.Model))
 	}
-	for _, arg := range sandboxArgs(spec, false) {
+	for _, arg := range append(sandboxArgs(spec, false), sessionArgs(spec)...) {
 		b.WriteString(" " + shellQuote(arg))
 	}
 	if spec.Prompt != "" {

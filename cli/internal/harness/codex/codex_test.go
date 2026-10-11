@@ -86,6 +86,8 @@ func TestWorkerArgs(t *testing.T) {
 	spec := harness.Spec{Dir: t.TempDir(), Model: "openrouter/free", Schema: `{"type":"object"}`, SessionID: runID, Prompt: "- go", RunDir: run, PermissionMode: "workspace-write"}
 	tail := []string{"--json", "--skip-git-repo-check", "--output-schema", filepath.Join(run, schemaFile), "-o", filepath.Join(run, lastMessageFile)}
 	net := []string{"-c", "sandbox_workspace_write.network_access=true"}
+	sess := []string{"-c", `mcp_servers.loupe.env.LOUPE_SESSION_ID="` + runID + `"`}
+	tail = append(sess, tail...)
 
 	for name, tc := range map[string]struct {
 		mode   string
@@ -121,6 +123,13 @@ func TestWorkerArgs(t *testing.T) {
 				t.Fatalf("schema file = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestARunWithNoSessionPassesNoSessionToTheMcpServer(t *testing.T) {
+	cmd := New("", "", "").Worker(harness.Spec{Dir: t.TempDir(), Prompt: "go"})
+	if args := strings.Join(cmd.Args, " "); strings.Contains(args, "mcp_servers") {
+		t.Fatalf("args = %q", cmd.Args)
 	}
 }
 
@@ -163,7 +172,7 @@ func TestInteractiveRunsCodexInTheFolderWithTheRunID(t *testing.T) {
 		"export CODEX_HOME='/home/b'\n",
 		"export LOUPE_SESSION_ID='" + runID + "'\n",
 		"cd -- '/work/it'\\''s' || exit 1\n",
-		"exec '/bin/codex' -p 'openrouter' -m 'openrouter/free' '-s' 'read-only' -- 'do it'\n",
+		"exec '/bin/codex' -p 'openrouter' -m 'openrouter/free' '-s' 'read-only' '-c' 'mcp_servers.loupe.env.LOUPE_SESSION_ID=\"" + runID + "\"' -- 'do it'\n",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("script lacks %q:\n%s", want, body)
