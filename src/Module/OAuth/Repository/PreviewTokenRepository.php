@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\OAuth\Repository;
 
 use App\Module\OAuth\Entity\PreviewToken;
+use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\Persistence\ManagerRegistry;
@@ -32,6 +33,15 @@ class PreviewTokenRepository extends ServiceEntityRepository
             'UPDATE oauth_preview_tokens SET last_used_at = NOW()
              WHERE access_token_id = :id AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(mins => :window))',
             ['id' => $accessTokenId, 'window' => self::LAST_USE_WINDOW_MINUTES],
+        );
+    }
+
+    /** Reads the card table by SQL, because OAuth must not depend on Board. */
+    public function cardBelongsToProject(Uuid $cardId, Project $project): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT 1 FROM board_cards WHERE id = :cardId AND project_id = :projectId',
+            ['cardId' => $cardId->toRfc4122(), 'projectId' => (string) $project->id],
         );
     }
 

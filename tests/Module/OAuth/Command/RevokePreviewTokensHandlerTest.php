@@ -54,14 +54,12 @@ final class RevokePreviewTokensHandlerTest extends KernelTestCase
         self::assertFalse($this->isRevoked($other));
     }
 
-    public function test_a_revoke_by_card_revokes_every_token_of_the_card_of_any_person(): void
+    public function test_a_revoke_by_card_revokes_every_token_of_the_card(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->cardOf($this->project);
         $mine = $this->mint('pr-12', $cardId);
-        $otherPerson = $this->scenario->createUser('preview-card-other@example.com');
-        $otherProject = $this->scenario->createProject($otherPerson, 'Their site');
-        $theirs = $this->mint('pr-12', $cardId, $otherPerson, $otherProject);
-        $otherCard = $this->mint('pr-14', Uuid::v7());
+        $theirs = $this->mint('pr-13', $cardId);
+        $otherCard = $this->mint('pr-14', $this->cardOf($this->project, 2));
         $noCard = $this->mint('pr-15');
 
         $count = $this->revoke(new RevokePreviewTokensCommand(cardId: $cardId));

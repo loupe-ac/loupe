@@ -49,9 +49,11 @@ final class MintPreviewTokenController extends AppController
         try {
             $view = ($this->mintPreviewToken)(new MintPreviewTokenCommand($user, $handle, $payload->label ?? '', $payload->cardId()));
         } catch (DomainErrors $e) {
-            return isset($e->errors['handle'])
-                ? $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND)
-                : $this->json(['error' => 'invalid_label'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+            return match (true) {
+                isset($e->errors['handle']) => $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND),
+                isset($e->errors['card']) => $this->json(['error' => 'card_not_found'], JsonResponse::HTTP_NOT_FOUND),
+                default => $this->json(['error' => 'invalid_label'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
+            };
         }
 
         return $this->json([

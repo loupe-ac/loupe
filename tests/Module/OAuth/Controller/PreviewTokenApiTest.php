@@ -55,7 +55,7 @@ final class PreviewTokenApiTest extends WebTestCase
     {
         $agent = AgentCredential::agentToken(static::getContainer(), $this->owner);
 
-        $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12","card":"'.Uuid::v7().'"}');
+        $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12","card":"'.$this->cardOf($this->project).'"}');
 
         self::assertResponseStatusCodeSame(201);
         $body = $this->json();
@@ -118,6 +118,17 @@ final class PreviewTokenApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(404);
         self::assertSame(['error' => 'project_not_found'], $this->json());
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
+    }
+
+    public function test_a_card_outside_the_project_is_not_found_and_mints_nothing(): void
+    {
+        $agent = AgentCredential::agentToken(static::getContainer(), $this->owner);
+
+        $this->call(Request::METHOD_POST, $this->mintPath((string) $this->project->id), $agent, '{"label":"pr-12","card":"'.Uuid::v7().'"}');
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(['error' => 'card_not_found'], $this->json());
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
 

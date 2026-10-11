@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Module\OAuth;
 
 use App\Module\Account\Entity\User;
+use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
 use App\Module\OAuth\Command\MintPreviewTokenCommand;
 use App\Module\OAuth\Command\MintPreviewTokenHandler;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\OAuthScenario;
 use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /** A signed-in owner with a project, and helpers that read the token tables as the database holds them. */
@@ -27,6 +30,19 @@ trait PreviewTokenScenario
         $this->connection = static::getContainer()->get(Connection::class);
         $this->owner = $this->scenario->createUser($email);
         $this->project = $this->scenario->createProject($this->owner, 'Preview site');
+    }
+
+    /** A card of the project, in a column of its own. */
+    private function cardOf(Project $project, int $number = 1): Uuid
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $column = new BoardColumn($project, 'Doing', 'doing-'.$number, $number);
+        $card = new Card(project: $project, column: $column, title: 'Preview it', body: 'Body', number: $number);
+        $em->persist($column);
+        $em->persist($card);
+        $em->flush();
+
+        return $card->id ?? throw new \LogicException('A flushed card has an id.');
     }
 
     /** @return non-empty-string the access token id */

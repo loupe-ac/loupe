@@ -24,7 +24,7 @@ final class MintPreviewTokenHandlerTest extends KernelTestCase
 
     public function test_the_token_is_a_widget_sign_in_of_the_project_that_lasts_14_days(): void
     {
-        $cardId = Uuid::v7();
+        $cardId = $this->cardOf($this->project);
         $before = new \DateTimeImmutable();
 
         $id = $this->mint('pr-12', $cardId);
@@ -87,6 +87,25 @@ final class MintPreviewTokenHandlerTest extends KernelTestCase
             self::fail('A stranger minted a token.');
         } catch (DomainErrors $e) {
             self::assertSame(['handle' => 'oauth.preview_token.error.project_not_found'], $e->errors);
+        }
+
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
+        self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth2_access_token'));
+    }
+
+    public function test_a_card_of_another_project_or_no_card_at_all_is_refused_and_nothing_is_issued(): void
+    {
+        $otherProject = $this->scenario->createProject($this->owner, 'Second site');
+        $handler = static::getContainer()->get(MintPreviewTokenHandler::class);
+        self::assertInstanceOf(MintPreviewTokenHandler::class, $handler);
+
+        foreach ([$this->cardOf($otherProject), Uuid::v7()] as $cardId) {
+            try {
+                $handler(new MintPreviewTokenCommand($this->owner, (string) $this->project->id, 'pr-12', $cardId));
+                self::fail('A token was minted for a card outside the project.');
+            } catch (DomainErrors $e) {
+                self::assertSame(['card' => 'oauth.preview_token.error.card_not_found'], $e->errors);
+            }
         }
 
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
