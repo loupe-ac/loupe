@@ -58,7 +58,7 @@ final class CardAgentReviewReaderTest extends KernelTestCase
         self::assertSame('2026-10-02T10:00:00+00:00', $summary['createdAt']);
         self::assertNull($summary['postedAt']);
         self::assertSame([], $summary['carriedTo']);
-        self::assertSame([['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => 'important', 'title' => 'Null read', 'body' => 'The value can be null here.', 'category' => 'code']], $summary['findings']);
+        self::assertSame([['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => 'important', 'title' => 'Null read', 'body' => 'The value can be null here.', 'category' => 'code', 'needsPerson' => false]], $summary['findings']);
     }
 
     public function test_the_summary_lists_the_heads_a_review_was_carried_to_oldest_first(): void

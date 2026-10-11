@@ -19,7 +19,7 @@ use Mcp\Exception\ToolCallException;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 
-#[McpTool(name: self::NAME, description: 'Submit the review of a pull request of a card. Only a running review worker of the card can call it: the call must come from the loupe CLI session of a worker run of the review work on this card. Pass the cardId, the URL of a pull request that the card links, the full 40-character commit SHA that you reviewed, a summary, and the findings. Each finding names a file path relative to the repository root, a line range on the reviewed commit, a severity (important, nit or pre-existing), a title and a body. A finding has a category: code (the default) or spec, a gap between the change and the approved design. Only a spec finding can leave out the path and the lines, for a requirement that no code builds. Loupe stores the review against that commit, also when the pull request has a newer head. The result field current says whether the commit matches the last head commit that Loupe read from the forge. That commit can be older than the head on the forge. The review fails when a finding has a severity that the project counts as failing, important by default.')]
+#[McpTool(name: self::NAME, description: 'Submit the review of a pull request of a card. Only a running review worker of the card can call it: the call must come from the loupe CLI session of a worker run of the review work on this card. Pass the cardId, the URL of a pull request that the card links, the full 40-character commit SHA that you reviewed, a summary, and the findings. Each finding names a file path relative to the repository root, a line range on the reviewed commit, a severity (important, nit or pre-existing), a title and a body. A finding has a category: code (the default) or spec, a gap between the change and the approved design. Only a spec finding can leave out the path and the lines, for a requirement that no code builds. A spec finding can also set needsPerson, for a gap that a worker cannot settle from the design and the code alone. Loupe stores the review against that commit, also when the pull request has a newer head. The result field current says whether the commit matches the last head commit that Loupe read from the forge. That commit can be older than the head on the forge. The review fails when a finding has a severity that the project counts as failing, important by default.')]
 final readonly class AgentReviewSubmitTool
 {
     public const string NAME = 'agent_review_submit';
@@ -37,6 +37,7 @@ final readonly class AgentReviewSubmitTool
             'startLine' => ['type' => 'integer', 'minimum' => 1, 'description' => 'the first line of the range, on the reviewed commit, required with a path'],
             'endLine' => ['type' => 'integer', 'minimum' => 1, 'description' => 'the last line of the range, the same as startLine for one line, required with a path'],
             'category' => ['type' => 'string', 'enum' => ['code', 'spec'], 'description' => 'code for a defect of the code, spec for a gap between the change and the approved design, code when left out'],
+            'needsPerson' => ['type' => 'boolean', 'description' => 'true on a spec finding that a worker cannot settle from the design and the code alone, because the design is unclear, contradicts itself or looks wrong against the code, or the change departs from it on purpose with no departure on file. Leave it out for a finding where the code simply does not build what the design says. Only a spec finding can set it'],
             'severity' => ['type' => 'string', 'enum' => ['important', 'nit', 'pre-existing']],
             'title' => ['type' => 'string', 'description' => 'one line that names the problem'],
             'body' => ['type' => 'string', 'description' => 'what is wrong and how to fix it'],
@@ -154,6 +155,10 @@ final readonly class AgentReviewSubmitTool
                     throw new ToolCallException(\sprintf('%s must be a line number not before startLine.', $field('endLine')));
                 }
             }
+            $needsPerson = $item['needsPerson'] ?? false;
+            if (!\is_bool($needsPerson) || ($needsPerson && AgentReviewCategory::Spec !== $parsedCategory)) {
+                throw new ToolCallException(\sprintf('%s must be true or false, and only a spec finding can be true.', $field('needsPerson')));
+            }
             $severity = $item['severity'] ?? null;
             $parsedSeverity = \is_string($severity) ? AgentReviewSeverity::tryFrom($severity) : null;
             if (null === $parsedSeverity) {
@@ -168,7 +173,7 @@ final readonly class AgentReviewSubmitTool
                 throw new ToolCallException(\sprintf('%s must be a string of at most %d characters.', $field('body'), self::MAX_BODY_LENGTH));
             }
 
-            $findings[] = new AgentReviewFinding($path, $startLine, $endLine, $parsedSeverity, $title, trim($body), $parsedCategory);
+            $findings[] = new AgentReviewFinding($path, $startLine, $endLine, $parsedSeverity, $title, trim($body), $parsedCategory, $needsPerson);
         }
 
         return $findings;

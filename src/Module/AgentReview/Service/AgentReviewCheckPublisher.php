@@ -168,7 +168,8 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
             $range = $finding->startLine === $finding->endLine ? (string) $finding->startLine : $finding->startLine.'-'.$finding->endLine;
             $place = $finding->path.':'.$range.' ';
         }
-        $line = \sprintf('- [%s] %s%s', $finding->severity->value, $place, $finding->title);
+        $mark = $finding->needsPerson ? $this->translator->trans('agent_review.check.needs_person').' ' : '';
+        $line = \sprintf('- [%s] %s%s%s', $finding->severity->value, $mark, $place, $finding->title);
         $body = mb_strimwidth(trim(preg_replace('/\s+/', ' ', $finding->body) ?? ''), 0, self::MAX_BODY_WIDTH, '...');
 
         return '' === $body ? $line : $line.': '.$body;

@@ -180,6 +180,26 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         self::assertNull($finding->path);
     }
 
+    public function test_a_spec_finding_can_need_a_person(): void
+    {
+        $this->reviewRun();
+        $this->sendSession($this->sessionId);
+
+        $result = $this->submit([['severity' => 'important', 'category' => 'spec', 'needsPerson' => true, 'title' => 'Unclear design', 'body' => 'The design contradicts itself.']]);
+
+        self::assertTrue($this->stored($result['reviewId'])->findings()[0]->needsPerson);
+    }
+
+    public function test_a_finding_needs_no_person_when_the_marker_is_left_out(): void
+    {
+        $this->reviewRun();
+        $this->sendSession($this->sessionId);
+
+        $result = $this->submit([['severity' => 'important', 'category' => 'spec', 'title' => 'Requirement not built', 'body' => 'No size limit.']]);
+
+        self::assertFalse($this->stored($result['reviewId'])->findings()[0]->needsPerson);
+    }
+
     public function test_nits_alone_pass_under_the_default_severities(): void
     {
         $this->reviewRun();
@@ -281,6 +301,8 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         yield 'body not a string' => [['body' => 3], 'findings[0].body'];
         yield 'unknown category' => [['category' => 'style'], 'findings[0].category'];
         yield 'code finding with no path' => [['path' => null, 'startLine' => null, 'endLine' => null], 'findings[0].path'];
+        yield 'code finding that needs a person' => [['needsPerson' => true], 'findings[0].needsPerson'];
+        yield 'marker not a boolean' => [['category' => 'spec', 'needsPerson' => 'yes'], 'findings[0].needsPerson'];
         yield 'spec finding with lines and no path' => [['category' => 'spec', 'path' => null], 'findings[0].path'];
     }
 

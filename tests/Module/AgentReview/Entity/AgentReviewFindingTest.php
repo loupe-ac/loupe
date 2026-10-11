@@ -17,7 +17,7 @@ final class AgentReviewFindingTest extends TestCase
 
         $array = $finding->toArray();
 
-        self::assertSame(['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => 'pre-existing', 'title' => 'Old bug', 'body' => 'It was already there.', 'category' => 'code'], $array);
+        self::assertSame(['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => 'pre-existing', 'title' => 'Old bug', 'body' => 'It was already there.', 'category' => 'code', 'needsPerson' => false], $array);
         self::assertEquals($finding, AgentReviewFinding::fromArray($array));
     }
 
@@ -62,5 +62,26 @@ final class AgentReviewFindingTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         new AgentReviewFinding(null, 1, 2, AgentReviewSeverity::Nit, 'Title', 'Body', AgentReviewCategory::Spec);
+    }
+
+    public function test_a_stored_finding_with_no_marker_needs_no_person(): void
+    {
+        $finding = AgentReviewFinding::fromArray(['path' => null, 'startLine' => null, 'endLine' => null, 'severity' => 'important', 'title' => 'T', 'body' => 'B', 'category' => 'spec']);
+
+        self::assertFalse($finding->needsPerson);
+    }
+
+    public function test_a_spec_finding_that_needs_a_person_round_trips(): void
+    {
+        $finding = new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, 'Unclear design', 'The design contradicts itself.', AgentReviewCategory::Spec, true);
+
+        self::assertTrue(AgentReviewFinding::fromArray($finding->toArray())->needsPerson);
+    }
+
+    public function test_a_code_finding_cannot_need_a_person(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new AgentReviewFinding('src/Foo.php', 1, 1, AgentReviewSeverity::Important, 'Title', 'Body', AgentReviewCategory::Code, true);
     }
 }
