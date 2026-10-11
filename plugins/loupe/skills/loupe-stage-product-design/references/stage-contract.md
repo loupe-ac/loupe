@@ -69,6 +69,8 @@ End the first line with ` [reason: <code>]`. Take the code from the reason table
 
 After a `not ready` or `blocked:` line, the first sentence says what unblocks the work. Name the next step of a person, such as "Approve the head commit".
 
+When an outside command causes the block, the first sentence after `blocked:` names the failure in a few words, such as "cannot reach github.com: DNS lookup failed". The `summary` then quotes the failed command and its first error line. It names the kind of failure: network or DNS, authentication, permission or scope, rate limit, or sandbox refusal. Each kind needs a different fix. When a host does not resolve or connect, report a network failure. Draw no authentication conclusion from `gh auth status` then, because it cannot check a token without the network.
+
 When the harness asks for a structured result, put the same sentence in `summary`. A `blocked` or `waiting` summary explains the stop for the owner, who reads it whole in the inbox. It says what blocks the work, why it blocks, and the next steps for the owner. It names a card, a pull request or a document in words, and it holds no `STAGE RESULT:` line. Set `reason` to the code of the first line, or to `work-remains` when no form applies yet. Set `status` from the `STAGE RESULT:` form:
 
 | `STAGE RESULT:` form | `status` |
