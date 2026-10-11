@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     BACKEND,
@@ -1238,5 +1239,23 @@ describe('a stored selector that carries a stale class', () => {
         await settle();
 
         expect(chipText()).toBe('1 of 2 elements');
+    });
+});
+
+describe('style sheet colour tokens', () => {
+    it('uses only custom properties that a palette defines', () => {
+        const source = readFileSync('public/site-review/widget.js', 'utf8');
+        const defined = new Set(
+            [...source.matchAll(/'(--[a-z0-9-]+)'\s*:/g)].map(
+                (match) => match[1],
+            ),
+        );
+        const used = new Set(
+            [...source.matchAll(/var\((--[a-z0-9-]+)/g)].map(
+                (match) => match[1],
+            ),
+        );
+
+        expect([...used].filter((name) => !defined.has(name))).toEqual([]);
     });
 });
