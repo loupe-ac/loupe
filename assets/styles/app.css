@@ -942,23 +942,12 @@
    typography plugin's `prose` rules sit in the utilities layer. Every rule is
    scoped under .lp-review, so the landing page's review mock keeps its look. */
 
-.lp-topbar > .lp-review-topbar-actions {
+.lp-topbar > .lp-review-topbar-actions + .lp-topbar__global-actions {
     @apply ml-0;
 }
 @media (width >= 64rem) {
     .lp-topbar > .lp-review-topbar-actions {
-        @apply border-l border-line pl-3.5;
-    }
-}
-/* review_panels_controller.js sets the inset that ends the review action
-   level with the panel column. The fallback is exact where the column is at
-   its widest, 3rem + 48rem + 5rem + 24rem from the left. */
-@media (width >= 75rem) {
-    .lp-topbar:has(> .lp-review-topbar-actions) {
-        padding-right: var(
-            --review-panels-inset,
-            max(calc(var(--spacing) * 7.5), calc(100% - var(--spacing) * 320))
-        );
+        @apply border-r border-line pr-3.5;
     }
 }
 
@@ -1292,10 +1281,9 @@
 }
 
 /* ── Column ─────────────────────────────────────────────────────── */
-/* One text column of 48rem with no card or border, at the left, and the panel
-   column 5rem to its right, which leaves room for the comment markers. The
-   panel column takes 20rem, and grows to 24rem where the room allows. Below
-   75rem the toolbar and the open panels stack above the document. */
+/* A 48rem text column at the left. The panel column ends level with the top
+   bar's right edge, at least 5rem from the text for the comment markers, and
+   takes 20rem to 24rem. Below 75rem the toolbar and panels stack above. */
 .lp-review .lp-review-block {
     --doc-margin: calc(var(--spacing) * 80);
     --doc-margin-max: calc(var(--spacing) * 96);
@@ -1303,7 +1291,7 @@
 }
 @media (width >= 56.25rem) {
     .lp-review .lp-review-block {
-        @apply mx-12 pt-10 pb-40;
+        @apply mr-7.5 ml-12 pt-10 pb-40;
     }
 }
 .lp-review .lp-review-doc__prose {
@@ -1322,6 +1310,10 @@
             100% - var(--doc-margin-gap) - var(--doc-margin)
         );
         --review-column-start: 0rem;
+        --review-panels-width: min(
+            var(--doc-margin-max),
+            100% - var(--review-column) - var(--doc-margin-gap)
+        );
     }
     /* The side-by-side view keeps the compare bar in the text column of the
        other views, so a switch of view moves no control. The sticky wrapper
@@ -1339,15 +1331,8 @@
         );
     }
     .lp-review .lp-review-panels {
-        @apply absolute top-0 bottom-0 mb-0;
-        left: calc(
-            var(--review-column-start) + var(--review-column) +
-                var(--doc-margin-gap)
-        );
-        width: min(
-            var(--doc-margin-max),
-            100% - var(--review-column) - var(--doc-margin-gap)
-        );
+        @apply absolute top-0 right-0 bottom-0 mb-0;
+        width: var(--review-panels-width);
     }
     /* Side by side starts with every panel hidden. An open one takes the panel
        column of the other views, and the version columns shrink beside it. */
@@ -1356,9 +1341,7 @@
             > .lp-review-panels .lp-review-panel:not([hidden])
         )
         > :is(.lp-diff-columns, .lp-diff-notes, .lp-empty) {
-        margin-right: calc(
-            100% - var(--review-column-start) - var(--review-column)
-        );
+        margin-right: calc(var(--review-panels-width) + var(--doc-margin-gap));
     }
     /* The panel column fills the window below the top bar, stays in view, and
        scrolls on its own when the open panels are taller than the window. */
@@ -1368,6 +1351,13 @@
         top: calc(var(--spacing) * 6);
         height: min(calc(100dvh - var(--spacing) * 26), 100%);
         scrollbar-width: thin;
+    }
+    /* The last open panel fills the column to its foot. */
+    .lp-review
+        .lp-review-panel:not([hidden]):not(
+            :has(~ .lp-review-panel:not([hidden]))
+        ) {
+        @apply grow;
     }
 }
 @media (width < 75rem) {
