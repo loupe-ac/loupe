@@ -7,6 +7,7 @@ namespace App\Module\Artifact\Entity;
 use App\Module\Account\Entity\User;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Project\Entity\Project;
+use App\Security\ProjectScopedSubject;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -16,7 +17,7 @@ use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: ArtifactRepository::class)]
 #[ORM\Table(name: 'artifacts')]
-class Artifact
+class Artifact implements ProjectScopedSubject
 {
     public const int MAX_NAME_LENGTH = 255;
 
@@ -64,5 +65,17 @@ class Artifact
         $this->versions->add($version);
 
         return $version;
+    }
+
+    #[\Override]
+    public function scopedProject(): Project
+    {
+        return $this->project;
+    }
+
+    #[\Override]
+    public function scopedSubjectType(): string
+    {
+        return 'artifact';
     }
 }

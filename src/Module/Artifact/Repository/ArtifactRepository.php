@@ -96,6 +96,64 @@ class ArtifactRepository extends ServiceEntityRepository
         return $this->findOneBy(['id' => Uuid::fromString($id), 'project' => $project]);
     }
 
+    /**
+     * One page of the project's artifacts, newest first. Archived ones are left out unless asked for.
+     *
+     * @return list<Artifact>
+     */
+    public function findPageByProject(Project $project, bool $includeArchived, int $limit, int $offset): array
+    {
+        $builder = $this->createQueryBuilder('a')
+            ->andWhere('a.project = :project')
+            ->setParameter('project', $project)
+            ->orderBy('a.createdAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC')
+            ->setMaxResults($limit)
+            ->setFirstResult($offset);
+
+        if (!$includeArchived) {
+            $builder->andWhere('a.archivedAt IS NULL');
+        }
+
+        return array_values($builder->getQuery()->getResult());
+    }
+
+    public function countInProject(Project $project, bool $includeArchived): int
+    {
+        $builder = $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.project = :project')
+            ->setParameter('project', $project);
+
+        if (!$includeArchived) {
+            $builder->andWhere('a.archivedAt IS NULL');
+        }
+
+        return (int) $builder->getQuery()->getSingleScalarResult();
+    }
+
+    /** Reads the stored archive time past the loaded entity, which a row lock does not refresh. */
+    public function archivedAtOf(Artifact $artifact): ?\DateTimeImmutable
+    {
+        /** @var array{archivedAt: ?\DateTimeImmutable} $state */
+        $state = $this->createQueryBuilder('a')
+            ->select('a.archivedAt')
+            ->andWhere('a = :artifact')
+            ->setParameter('artifact', $artifact)
+            ->getQuery()
+            ->getSingleResult();
+
+        return $state['archivedAt'];
+    }
+
+    public function clearArchivedAt(Artifact $artifact): void
+    {
+        $this->getEntityManager()
+            ->createQuery('UPDATE '.Artifact::class.' a SET a.archivedAt = NULL WHERE a = :artifact')
+            ->setParameter('artifact', $artifact)
+            ->execute();
+    }
+
     /** For a route that holds the project as the raw id string, which a map-entity expression cannot turn into the entity. */
     public function findOneByIdAndProjectId(string $id, string $projectId): ?Artifact
     {
