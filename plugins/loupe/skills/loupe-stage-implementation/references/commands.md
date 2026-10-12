@@ -60,7 +60,7 @@ When the profile `Environment` section names a folder check, run it first. When 
 git branch --show-current
 ```
 
-1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>` and `git switch -c card-<number>-<short-slug> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, run the refresh of the profile `Environment` section, when it names one. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
+1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. Then run `git switch -c card-<number>-<short-slug> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, run the refresh of the profile `Environment` section, when it names one. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
 2. When it prints `<base>`, run the same `git switch -c` command.
 3. When it prints a branch that starts `card-<number>-`, keep that branch.
 4. When it prints any other branch, stop with `STAGE RESULT: blocked: worker folder on branch <branch>`.
@@ -68,7 +68,7 @@ git branch --show-current
 ## Reruns
 
 1. A linked document tagged `plan` whose `references` hold the tech design id is the plan. Reuse it, and create no second plan.
-2. An open pull request on a branch that starts `card-<number>-` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request. Run `git branch --show-current`. When HEAD is detached, or on another `card-<number>-` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>` and `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+2. An open pull request on a branch that starts `card-<number>-` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request. Run `git branch --show-current`. When HEAD is detached, or on another `card-<number>-` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`, and run it once more after 2 seconds when it fails. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.
 
@@ -76,7 +76,7 @@ git branch --show-current
 
 The implementation stage and the fix round sync the worker folder with this procedure. Run it in the worker folder, on the head branch `<head>` of the pull request. `<base>` is the base branch of that pull request.
 
-1. Run `git fetch origin <head> <base>`. When the fetch fails, stop with `STAGE RESULT: blocked: local branch diverged from origin`. Then run `git merge --ff-only origin/<head>`. When the merge succeeds, go on at item 7.
+1. Run `git fetch origin <head> <base>`. When the fetch fails, run it once more after 2 seconds. When it fails again, stop with `STAGE RESULT: blocked: local branch diverged from origin`. Then run `git merge --ff-only origin/<head>`. When the merge succeeds, go on at item 7.
 2. The branches diverged. When `git status --porcelain` prints a line, stop with `STAGE RESULT: blocked: local branch diverged from origin`. An earlier run left that work half done, and a person must judge it.
 3. The commits that `git rev-list HEAD ^origin/<head> ^origin/<base>` lists are local work. Treat them as your own work. They go out with your next push, unless item 5 resets them. The list leaves out the base commits that a sync brought in.
 4. Test each of these commits with the script below. A commit is a sync when it has two parents, one of them is an ancestor of `origin/<base>`, and git can make the same merge again with no conflict. `git merge-tree` needs git 2.38 or later. A merge that holds a conflict resolution or a hand edit is not a sync, so the procedure keeps it. The script prints one `content` line for each commit that is not a sync. On a push retry, skip this item and item 5, and merge.
@@ -109,6 +109,8 @@ Run these in the worker folder, in order:
 git fetch origin
 git merge origin/<base>
 ```
+
+When the fetch fails, run it once more after 2 seconds. Another git process that updates the same remote ref makes a fetch fail, and the refs are right afterwards.
 
 When the merge conflicts, resolve it only when the conflict is mechanical and the gate then proves the result. Otherwise run `git merge --abort`, and stop with `STAGE RESULT: blocked: merge conflict with <base> in <files>`.
 
