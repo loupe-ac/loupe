@@ -6,14 +6,12 @@ namespace App\Module\AgentReview\Service;
 
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewCategory;
-use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\AgentReviewPost;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Service\AgentReviewCheck;
 use App\Module\Board\Service\SiteReviewWriteResult;
-use App\Module\Forge\Service\PullRequestCheckConclusion;
 use App\Module\Forge\Service\PullRequestCheckFailed;
 use App\Module\Forge\Service\PullRequestCheckWriters;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,6 +57,7 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
                 continue;
             }
             $target = $review;
+            $conclusion = $due->conclusion();
             $summary = $this->summary($review);
             $annotations = $this->annotations->of($review);
             if ($due->carried) {
@@ -68,12 +67,15 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
                     $annotations = [];
                 }
             }
+            if (null !== $due->approver) {
+                $summary = $this->translator->trans('agent_review.check.overridden', ['%login%' => $due->approver])."\n\n".$summary;
+            }
             try {
                 $runId = $writer->publish(
                     $due->pullRequest,
                     self::NAME,
                     $due->headSha,
-                    AgentReviewConclusion::Failure === $review->conclusion ? PullRequestCheckConclusion::Failure : PullRequestCheckConclusion::Success,
+                    $conclusion,
                     $this->title($review),
                     $summary,
                     $target->checkRunId,
@@ -94,6 +96,8 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
             }
 
             $target->checkRunId = $runId;
+            $target->checkConclusion = $conclusion;
+            $target->checkApprover = $due->approver;
             $target->annotationsPosted = \count($annotations);
             $target->postedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();

@@ -11,7 +11,7 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** The newest agent review of the head of the pull request the rule acts on failed, and no fix round has answered it yet. */
+/** The newest agent review of the head of the pull request the rule acts on failed, no fix round has answered it yet, and no approval overrides it. */
 final readonly class AgentReviewFailed implements Condition
 {
     #[\Override]
@@ -45,7 +45,7 @@ final readonly class AgentReviewFailed implements Condition
 
         $head = $review->boundHead($facts);
 
-        return AgentReviewConclusion::Failure === $head?->conclusion && !$head->answered;
+        return AgentReviewConclusion::Failure === $head?->conclusion && !$head->answered && null === $head->overriddenBy;
     }
 
     #[\Override]
