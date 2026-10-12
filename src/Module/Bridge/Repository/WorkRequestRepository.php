@@ -30,6 +30,13 @@ use Symfony\Component\Uid\Uuid;
  */
 class WorkRequestRepository extends ServiceEntityRepository
 {
+    /** A card request whose card has a hold. The lapse sweep leaves its claim alone. */
+    private const string HELD_CARD = <<<'SQL'
+        (work_requests.subject_type = 'card' AND EXISTS (
+            SELECT 1 FROM bridge_card_holds h
+            WHERE h.project_id = work_requests.project_id AND h.card_id = work_requests.subject_id))
+        SQL;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, WorkRequest::class);
@@ -169,16 +176,29 @@ class WorkRequestRepository extends ServiceEntityRepository
     /**
      * Opens again every claimed request whose lease lapsed. It skips a row
      * that a renewal or a settlement holds, and the next sweep reads it again.
+     * Call it inside a transaction: it share-locks the project of each card
+     * request first, so a hold that commits before the reopen keeps it claimed.
      *
      * @return list<WorkRequest> the reopened requests, read fresh
      */
     public function reopenLapsed(\DateTimeImmutable $now): array
     {
+        $connection = $this->getEntityManager()->getConnection();
+        $lockedProjects = $connection->executeQuery(
+            "SELECT id FROM projects WHERE id IN (
+                SELECT project_id FROM work_requests
+                WHERE state = :claimed AND lease_until <= :now AND subject_type = 'card'
+            ) ORDER BY id FOR SHARE",
+            ['claimed' => WorkRequestState::Claimed->value, 'now' => $now],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        )->fetchFirstColumn();
+
         $sql = <<<'SQL'
             WITH target AS MATERIALIZED (
                 SELECT id
                 FROM work_requests
-                WHERE state = :claimed AND lease_until <= :now
+                WHERE state = :claimed AND lease_until <= :now AND NOT %s
+                    AND (subject_type <> 'card' OR project_id IN (:lockedProjects))
                 ORDER BY id
                 FOR UPDATE SKIP LOCKED
             )
@@ -188,11 +208,12 @@ class WorkRequestRepository extends ServiceEntityRepository
             WHERE work_requests.id = target.id
             RETURNING work_requests.id
             SQL;
+        $sql = \sprintf($sql, self::HELD_CARD);
 
-        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+        $ids = $connection->executeQuery(
             $sql,
-            ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now],
-            ['now' => Types::DATETIME_IMMUTABLE],
+            ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now, 'lockedProjects' => [] === $lockedProjects ? [null] : $lockedProjects],
+            ['now' => Types::DATETIME_IMMUTABLE, 'lockedProjects' => ArrayParameterType::STRING],
         )->fetchFirstColumn();
         if ([] === $ids) {
             return [];
