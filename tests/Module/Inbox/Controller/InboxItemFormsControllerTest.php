@@ -415,6 +415,23 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSame('/projects/'.$this->project->id.'/inbox?side=closed&ask='.$ask->id, $crawler->filter('[data-inbox-status] a')->attr('href'));
     }
 
+    public function test_an_item_of_two_asks_names_the_ask_the_page_shows(): void
+    {
+        $question = $this->question($this->em, $this->project, 1, title: 'Which export format?');
+        $this->askHolding($this->em, $this->project, [$question], createdAt: new \DateTimeImmutable('-2 hours'));
+        $this->askHolding($this->em, $this->project, [$question, $this->question($this->em, $this->project, 2)], createdAt: new \DateTimeImmutable('-1 hour'));
+        $indexer = static::getContainer()->get(InboxSearchIndexer::class);
+        self::assertInstanceOf(InboxSearchIndexer::class, $indexer);
+        $indexer->index($question);
+
+        $this->post($question, 'answer', ['selectedOptions' => '0'], query: 'export');
+
+        $this->client->followRedirect();
+        // The page shows the newer ask, which is still open, so the line counts its items left.
+        self::assertSelectorTextContains('[data-inbox-status]', '1 item of this ask is still open.');
+        self::assertSelectorNotExists('[data-inbox-status] a');
+    }
+
     public function test_marking_a_to_do_done(): void
     {
         $item = $this->todo($this->em, $this->project, 2);

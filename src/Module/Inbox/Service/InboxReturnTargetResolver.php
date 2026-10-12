@@ -150,13 +150,13 @@ final readonly class InboxReturnTargetResolver
     }
 
     /**
-     * The ask the address names when it holds the item, else the oldest ask that holds it.
+     * The ask the address names when it holds the item, else the ask the page shows for the item.
      *
      * @param list<InboxAsk> $asks every ask that holds the item
      */
     private function heldAsk(InboxView $view, array $asks): ?InboxAsk
     {
-        return array_find($asks, static fn (InboxAsk $held): bool => null !== $view->askId && (string) $held->id === (string) $view->askId) ?? $asks[0] ?? null;
+        return array_find($asks, static fn (InboxAsk $held): bool => null !== $view->askId && (string) $held->id === (string) $view->askId) ?? ShownInboxAsk::of($asks);
     }
 
     /**
