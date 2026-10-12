@@ -8068,6 +8068,12 @@
     .lp-artifact-bar__menu {
         @apply relative;
     }
+    .lp-artifact-file__name {
+        @apply max-w-60 truncate;
+    }
+    .lp-artifact-bar [data-artifact-file-link][aria-current='true'] {
+        @apply font-semibold text-ink;
+    }
     /* The more-actions menu holds Download, Archive, the linked cards and the versions. */
     .lp-backlog-menu.lp-artifact-menu {
         @apply w-75 overflow-y-auto;

@@ -8691,6 +8691,8 @@
             <trans-unit id="artifact.viewer.source"><source>artifact.viewer.source</source><target>Source</target></trans-unit>
             <trans-unit id="artifact.viewer.stored_on"><source>artifact.viewer.stored_on</source><target>Stored on %date%</target></trans-unit>
             <trans-unit id="artifact.viewer.frame.title"><source>artifact.viewer.frame.title</source><target>Preview of %name%</target></trans-unit>
+            <trans-unit id="artifact.viewer.files.menu"><source>artifact.viewer.files.menu</source><target>Choose a file</target></trans-unit>
+            <trans-unit id="artifact.viewer.files.heading"><source>artifact.viewer.files.heading</source><target>Pages in this version</target></trans-unit>
             <trans-unit id="artifact.viewer.no_files"><source>artifact.viewer.no_files</source><target>This version holds no file to show.</target></trans-unit>
             <trans-unit id="artifact.error.project_not_found"><source>artifact.error.project_not_found</source><target>The project does not exist.</target></trans-unit>
             <trans-unit id="artifact.error.switched_off"><source>artifact.error.switched_off</source><target>Artifacts are switched off</target></trans-unit>
