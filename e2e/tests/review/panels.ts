@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 export const PANELS_KEY = 'loupe.review.panels';
 
@@ -12,19 +12,27 @@ export function panelButton(page: Page, name: PanelName) {
 }
 
 /**
- * Switches a review panel on, unless it is on already. A new thread opens the
- * Comments panel by itself, so a click can toggle it off again; retry then.
+ * Clicks a toggle until its attribute reads true. The page can set the state
+ * itself between the read and the click, such as a submit that reveals the
+ * Comments panel, and the click then turns it off again.
  */
-export async function showPanel(page: Page, name: PanelName): Promise<void> {
-    const button = panelButton(page, name);
+export async function toggleOn(
+    toggle: Locator,
+    attribute: 'aria-pressed' | 'aria-expanded',
+): Promise<void> {
     await expect(async () => {
-        if ((await button.getAttribute('aria-pressed')) !== 'true') {
-            await button.click();
+        if ((await toggle.getAttribute(attribute)) !== 'true') {
+            await toggle.click();
         }
-        await expect(button).toHaveAttribute('aria-pressed', 'true', {
+        await expect(toggle).toHaveAttribute(attribute, 'true', {
             timeout: 1000,
         });
     }).toPass({ timeout: 10_000 });
+}
+
+/** Switches a review panel on, unless it is on already. */
+export async function showPanel(page: Page, name: PanelName): Promise<void> {
+    await toggleOn(panelButton(page, name), 'aria-pressed');
 }
 
 /** The Comments panel row of the thread whose row shows this text. */

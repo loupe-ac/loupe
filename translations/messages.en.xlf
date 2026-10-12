@@ -7878,8 +7878,8 @@
             <trans-unit id="workflow.waiting.not.card_document"><source>workflow.waiting.not.card_document</source><target>Waiting: the card has a %tag% document.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document_status"><source>workflow.waiting.card_document_status</source><target>Waiting: the card has no %tag% document with the status "%status%".</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_document_status"><source>workflow.waiting.not.card_document_status</source><target>Waiting: the card has a %tag% document with the status "%status%".</target></trans-unit>
-            <trans-unit id="workflow.waiting.card_document_approved"><source>workflow.waiting.card_document_approved</source><target>Waiting: no %tag% document is approved.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.card_document_approved"><source>workflow.waiting.not.card_document_approved</source><target>Waiting: a %tag% document is approved.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_approved"><source>workflow.waiting.card_document_approved</source><target>Waiting: not every %tag% document is approved.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_approved"><source>workflow.waiting.not.card_document_approved</source><target>Waiting: every %tag% document is approved.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document_changes_requested"><source>workflow.waiting.card_document_changes_requested</source><target>Waiting: no reviewer asked for changes on a %tag% document.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_document_changes_requested"><source>workflow.waiting.not.card_document_changes_requested</source><target>Waiting: a reviewer asked for changes on a %tag% document.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_open"><source>workflow.waiting.pr_open</source><target>Waiting: the pull request is not open.</target></trans-unit>
@@ -7916,8 +7916,8 @@
             <trans-unit id="workflow.waiting.not.run_work_active"><source>workflow.waiting.not.run_work_active</source><target>Waiting: a matching work request is still active.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
-            <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: no %tag% document of the parent card is approved.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.parent_document_approved"><source>workflow.waiting.not.parent_document_approved</source><target>Waiting: a %tag% document of the parent card is approved.</target></trans-unit>
+            <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.parent_document_approved"><source>workflow.waiting.not.parent_document_approved</source><target>Waiting: every %tag% document of the parent card is approved.</target></trans-unit>
             <trans-unit id="workflow.ask.unplanned_child"><source>workflow.ask.unplanned_child</source><target>Card #%child% is a child of epic #%epic%, and it links no approved tech design. What must happen to it?</target></trans-unit>
             <trans-unit id="workflow.ask.unplanned_child.link"><source>workflow.ask.unplanned_child.link</source><target>Link the tech design of epic #%epic% to card #%child%</target></trans-unit>
             <trans-unit id="workflow.ask.unplanned_child.design"><source>workflow.ask.unplanned_child.design</source><target>Move card #%child% to Tech design</target></trans-unit>
