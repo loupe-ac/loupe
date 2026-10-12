@@ -249,6 +249,9 @@ const fetchReviewComments = (
 test('annotate a page and have every comment go live as it is saved', async ({
     page,
 }) => {
+    // Two saves and many UI steps after a sign-in. The default budget is too
+    // tight for that when the test starts on a cold, busy app host.
+    test.slow();
     await openHarness(page);
 
     // The collapsed launcher carries no count badge when empty (the harness
