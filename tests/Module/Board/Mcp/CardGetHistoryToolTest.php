@@ -118,6 +118,22 @@ final class CardGetHistoryToolTest extends KernelTestCase
         self::assertSame(['kind' => 'retries', 'ruleId' => 'fix-on-review', 'releaseReason' => null], $legacy['pause'], 'An event written before the release reason was recorded reads null.');
     }
 
+    public function test_an_override_row_reads_its_approver_and_its_head(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-history-override'));
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->card($created['cardId']);
+        $this->events()->record($card, CardEventKind::ReviewOverridden, Actor::System, null, ['pullRequest' => 7, 'approver' => 'ubermuda', 'headSha' => str_repeat('a', 40)], new \DateTimeImmutable('+1 minute'));
+        $this->events()->record($card, CardEventKind::ReviewOverrideEnded, Actor::System, null, ['pullRequest' => 7, 'headSha' => str_repeat('a', 40)], new \DateTimeImmutable('+2 minutes'));
+        $this->em->flush();
+
+        [$ended, $overridden, $creation] = ($this->tool)($created['cardId'])['events'];
+
+        self::assertSame(['review-overridden', 7, ['approver' => 'ubermuda', 'headSha' => str_repeat('a', 40)]], [$overridden['kind'], $overridden['pullRequest'], $overridden['override']]);
+        self::assertSame(['override-ended', 7, ['approver' => null, 'headSha' => str_repeat('a', 40)]], [$ended['kind'], $ended['pullRequest'], $ended['override']]);
+        self::assertNull($creation['override']);
+    }
+
     public function test_a_finished_run_passes_its_whole_detail_through(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-history-run'));

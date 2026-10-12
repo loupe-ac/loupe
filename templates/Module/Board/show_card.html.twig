@@ -83,7 +83,7 @@
                                 </tr>
                                 {% endfor %}
                                 {% for link in card.pullRequests %}
-                                    {% include '@Board/_linked_pull_request.html.twig' with {link: link, state: pullRequestStates.of(link)} only %}
+                                    {% include '@Board/_linked_pull_request.html.twig' with {link: link, state: pullRequestStates.of(link), agentReview: agentReviews[link.id ~ ''] ?? null} only %}
                                 {% endfor %}
                             </tbody>
                         </table>

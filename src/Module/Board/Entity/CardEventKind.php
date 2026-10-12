@@ -17,4 +17,6 @@ enum CardEventKind: string
     case Paused = 'paused';
     case PauseReleased = 'pause-released';
     case Verdict = 'verdict';
+    case ReviewOverridden = 'review-overridden';
+    case ReviewOverrideEnded = 'override-ended';
 }

@@ -6686,6 +6686,8 @@
             <trans-unit id="board.card.history.paused"><source>board.card.history.paused</source><target>%actor% paused the card because %kind%.</target></trans-unit>
             <trans-unit id="board.card.history.pause_released"><source>board.card.history.pause_released</source><target>%actor% released a pause set because %kind%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the site-review widget: %verdict%.</target></trans-unit>
+            <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
+            <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.comment"><source>board.card.history.verdict_kind.comment</source><target>comment</target></trans-unit>
@@ -6744,6 +6746,8 @@
             <trans-unit id="board.card.link.status_unavailable"><source>board.card.link.status_unavailable</source><target>Unavailable</target></trans-unit>
             <trans-unit id="board.card.link.pull_request"><source>board.card.link.pull_request</source><target>Pull request</target></trans-unit>
             <trans-unit id="board.card.link.open_pull_request"><source>board.card.link.open_pull_request</source><target>Open pull request</target></trans-unit>
+            <trans-unit id="board.card.agent_review.overridden"><source>board.card.agent_review.overridden</source><target>Agent review failed, overridden by the approval of %login%.</target></trans-unit>
+            <trans-unit id="board.card.agent_review.findings"><source>board.card.agent_review.findings</source><target>See the findings</target></trans-unit>
             <trans-unit id="board.card.link.state.open"><source>board.card.link.state.open</source><target>Open</target></trans-unit>
             <trans-unit id="board.card.link.state.draft"><source>board.card.link.state.draft</source><target>Draft</target></trans-unit>
             <trans-unit id="board.card.link.state.merged"><source>board.card.link.state.merged</source><target>Merged</target></trans-unit>
@@ -8155,6 +8159,7 @@
             <trans-unit id="agent_review.check.heading.spec"><source>agent_review.check.heading.spec</source><target>Spec: the change against the approved design</target></trans-unit>
             <trans-unit id="agent_review.check.heading.code"><source>agent_review.check.heading.code</source><target>Code</target></trans-unit>
             <trans-unit id="agent_review.check.needs_person"><source>agent_review.check.needs_person</source><target>(waits for the owner)</target></trans-unit>
+            <trans-unit id="agent_review.check.overridden"><source>agent_review.check.overridden</source><target>Overridden by the approval of %login%. The findings below stand.</target></trans-unit>
             <trans-unit id="agent_review.check.carried"><source>agent_review.check.carried</source><target>Carried from %sha%: the change is identical.</target></trans-unit>
             <trans-unit id="agent_review.check.summary_more"><source>agent_review.check.summary_more</source><target>{0} No more findings.|{1} And one more finding.|]1,Inf[ And %count% more findings.</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>

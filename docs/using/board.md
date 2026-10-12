@@ -382,8 +382,9 @@ it from one column to another. When Loupe moved the card on its own, a line
 under the row says why, for example after a pull request merged. An agent's
 move inside a worker run names that run on the same line. The tab also
 records when the automation asked for a fix or stopped, with the reason, when
-a pull request was ready to merge, and when a verdict was sent from the
-site-review widget. A finished agent run shows its
+a pull request was ready to merge, when a verdict was sent from the
+site-review widget, and when an approval started or ended the override of a
+failed agent review. A finished agent run shows its
 rule, its duration and its result, and it links to the run while the run is
 kept.
 
@@ -992,7 +993,8 @@ same way `card_list` does, with 50 events by default and 100 at most. Each event
 carries `kind`, `occurredAt` and `actor`.
 
 `kind` is `created`, `moved`, `fix-requested`, `stopped`, `ready-to-merge`, `synced`,
-`run-finished`, `paused`, `pause-released` or `verdict`. `actor` carries `kind` and `name`. Its `kind` is `human`,
+`run-finished`, `paused`, `pause-released`, `verdict`, `review-overridden` or
+`override-ended`. `actor` carries `kind` and `name`. Its `kind` is `human`,
 `agent`, `reviewer` or `system`. `name` is the current name of the person
 behind the event. It is null when there is no person, such as for a deleted
 account or the app itself.
@@ -1011,6 +1013,11 @@ writes `pause-released`. On a `pause-released` event, `pause` also holds
 `releaseReason`, such as `facts-changed`, `released-by-rule` or
 `released-by-person`. An event from before the app recorded this reason holds
 null.
+
+A `review-overridden` or `override-ended` event sets `pullRequest` and
+`override`. `override` holds the `headSha` of the head that the event names,
+and on a `review-overridden` event the `approver` login. `approver` is null on an
+`override-ended` event.
 
 The history starts empty. A change made before Loupe began to record history
 has no event.
@@ -1177,6 +1184,16 @@ a nit as a warning, and a pre-existing finding as a notice. The check fails when
 a finding has a severity from the `agentReviewFailingSeverities` value of the
 workflow template. The Lifecycle template asks for the review. See
 [Agent review](workflows.md#agent-review).
+
+An approval of the pull request that comes after a failed review overrides it.
+Loupe then sets the same check to neutral, with a first line in its summary that
+names the approver, and keeps the findings in the check. A required check counts
+a neutral result as passing. The card page shows "Agent review failed,
+overridden by the approval of" and the approver's GitHub login under the pull
+request, with a link to the check. The History tab gets one row when the
+override starts and one when it ends. The override ends when the approval goes
+away, such as after a dismissal, and the check returns to failure. An approval in
+the Loupe inbox does not reach GitHub, so it does not override.
 
 ### A person deletes a card, an agent does not
 

@@ -11,6 +11,7 @@ use App\Module\AgentReview\Entity\AgentReviewCategory;
 use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\AgentReview\Mcp\AgentReviewSubmitTool;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
+use App\Module\AgentReview\Service\AgentReviewOverrideHistory;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
@@ -376,6 +377,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
             $container->get(AgentReviewFailingSeverities::class),
             $this->em,
             $evaluations ?? $container->get(CardEvaluations::class),
+            $container->get(AgentReviewOverrideHistory::class),
             $container->get(Auditor::class),
         );
     }
