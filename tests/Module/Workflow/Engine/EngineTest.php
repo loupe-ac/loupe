@@ -1830,9 +1830,9 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
         $stale = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'implement', null, 'gone', new \DateTimeImmutable(self::NOON));
+        $this->hold($card);
         $this->em()->persist($stale);
         $this->em()->flush();
-        $this->hold($card);
 
         $this->evaluate($card);
 
@@ -1899,9 +1899,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_opens_no_second_request_while_one_is_live(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
         $this->hold($card);
+        $request = $this->openRequestWhileHeld($card);
 
         $this->releaseHold($card, '2026-10-02 12:01:00');
         $this->evaluate($card, '2026-10-02 12:02:00');
@@ -1910,6 +1909,24 @@ final class EngineTest extends KernelTestCase
         self::assertCount(1, $live);
         self::assertSame($request, $live[0]);
         self::assertSame(WorkRequestState::Open, $request->state);
+    }
+
+    public function test_a_hold_cancels_the_open_request_and_a_release_asks_for_the_work_again(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->evaluate($card);
+        $request = $this->liveRequests($card)[0];
+
+        $this->hold($card);
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+
+        $this->releaseHold($card, '2026-10-02 12:01:00');
+        $this->evaluate($card, '2026-10-02 12:02:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($request, $live[0]);
     }
 
     public function test_a_release_opens_a_new_request_when_the_last_one_settled(): void
@@ -1970,9 +1987,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_restarts_the_timeout_of_an_open_request(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
         $this->hold($card);
+        $request = $this->openRequestWhileHeld($card);
 
         $this->releaseHold($card, '2026-10-02 14:30:00');
         $this->evaluate($card, '2026-10-02 15:00:00');
@@ -2005,9 +2021,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_cancels_a_request_whose_rule_no_longer_applies(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
         $this->hold($card);
+        $request = $this->openRequestWhileHeld($card);
         $this->moveTo($card, 'done');
         $this->evaluate($card, '2026-10-02 12:01:00');
         self::assertSame(WorkRequestState::Open, $request->state);
@@ -3776,6 +3791,16 @@ final class EngineTest extends KernelTestCase
     private function activePause(Card $card): ?CardPause
     {
         return $this->service(CardPauseRepository::class)->findActiveForCard($card);
+    }
+
+    /** A request that appears after the hold, which the hold itself could not cancel. */
+    private function openRequestWhileHeld(Card $card): WorkRequest
+    {
+        $request = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'work', null, 'work', new \DateTimeImmutable(self::NOON));
+        $this->em()->persist($request);
+        $this->em()->flush();
+
+        return $request;
     }
 
     private function hold(Card $card): void
