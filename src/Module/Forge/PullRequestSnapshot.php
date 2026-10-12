@@ -41,6 +41,10 @@ final readonly class PullRequestSnapshot
         /** The forge's id of the author account, as a string. Null for a deleted account or one the forge gives no id. */
         public ?string $authorId = null,
         public ?string $authorLogin = null,
+        /** The newest approval that stands, which can be another one than the oldest approval above. */
+        public ?\DateTimeImmutable $latestApprovedAt = null,
+        public ?string $latestApprovalId = null,
+        public ?string $latestApproverLogin = null,
     ) {
     }
 
@@ -53,7 +57,7 @@ final readonly class PullRequestSnapshot
 
     /**
      * Strict, because a loose `==` holds two numeric-looking commit hashes equal.
-     * The times and the approval, branch and author facts are left out, so a fact read first on a stored row announces no change.
+     * The times and the approval, branch and author facts are left out, the newest approval with them, so a fact read first on a stored row announces no change.
      * A default branch that both reads know and that differs counts, because it decides whether the pull request waits for an approval.
      */
     public function equals(self $other): bool
