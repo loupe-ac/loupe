@@ -368,9 +368,9 @@ in every project you own. The link is absent while the flag is off.
 
 The page shows one row for each project you own that has an open item, in
 project name order. Each row shows the first letter of the project, its name,
-the number of open items, and how long the oldest one waits. A row also shows
-**Blocking** when it holds an open item that an agent waits on, in an open ask
-or outside one.
+the number of open items, and how long its oldest open ask or item waits. A row
+also shows **Blocking** when it holds an open item that an agent waits on, in an
+open ask or outside one.
 
 Select a row to open the inbox of its project, where the forms are. The page
 itself is read-only.
