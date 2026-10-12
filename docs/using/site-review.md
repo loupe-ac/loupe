@@ -140,7 +140,7 @@ allowed sites of the project do not limit where a token works.
 On a page that locks a card, the panel shows three buttons when the card has at
 least one open GitHub pull request: **Approve**, **Request changes** and
 **Comment**. The buttons stay hidden on every other page. That includes a page
-that names no card, a card without an open pull request, and the landing demo.
+that names no card and a card without an open pull request.
 
 A button opens a confirm panel. Loupe records nothing until you press **Send**.
 Press **Cancel** to close the panel without a record.

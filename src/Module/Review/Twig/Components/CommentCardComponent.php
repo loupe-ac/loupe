@@ -9,10 +9,9 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 /**
  * The visual body of a comment card, over scalars rather than a Comment.
  *
- * Split out of CommentThread so the landing page's try-it demo can render a
- * prototype card from the same markup with no entity, no ids and no route-bound
- * forms behind it. Those forms are the caller's job: CommentThread passes them
- * through the content block, the demo passes nothing.
+ * Split out of CommentThread so the same markup renders with no entity, no ids
+ * and no route-bound forms behind it. Those forms are the caller's job:
+ * CommentThread passes them through the content block.
  *
  * Props:
  *   domId        string              Value for the element id; also what a Turbo
