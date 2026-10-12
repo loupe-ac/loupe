@@ -309,6 +309,23 @@ refuses a project your login does not cover rather than ignoring the header.
 endpoints and the MCP endpoint, and it covers every project you own, including
 ones you create later.
 
+## `loupe artifact push`
+
+Stores a file, or every file of a folder, as an artifact of a project.
+
+```bash
+loupe artifact push page.html --name "Review page" --card 611
+loupe artifact push prototype/ --artifact <artifact id>
+```
+
+`--name` makes a new artifact, and `--artifact` adds a version to an existing
+one. `--card` links it to a card, `--source-link` records where the files came
+from, and `--project` names the project, as for `loupe status`. The command sends
+the session id from `LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or
+`CODEX_THREAD_ID`, and Loupe refuses a store from a worker run. It prints the
+stable link and the link of the new version. The
+[artifacts page](../docs/using/artifacts.md) has the rules for paths and sizes.
+
 ## `loupe status`
 
 Checks the setup that `loupe mcp` depends on, with one real call.

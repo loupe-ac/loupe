@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardArtifact;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardState;
@@ -18,12 +19,13 @@ use App\Module\Board\Service\PullRequestStates;
 final readonly class CardView
 {
     /**
-     * @param list<CardSiteReviewComment>       $siteReviewLinks
-     * @param list<RelatedCard>                 $relatedCards
-     * @param list<Card>                        $children        empty for a card that is not an epic
-     * @param ?CardProgress                     $progress        null for a card that is not an epic
-     * @param ?CardState                        $state           null for a card in no state, and for a card in a terminal column
-     * @param array<string, AgentReviewSummary> $agentReviews    keyed by the id of the pull request link, with no entry for a link that has no review
+     * @param list<CardSiteReviewComment>                         $siteReviewLinks
+     * @param list<RelatedCard>                                   $relatedCards
+     * @param list<Card>                                          $children        empty for a card that is not an epic
+     * @param ?CardProgress                                       $progress        null for a card that is not an epic
+     * @param ?CardState                                          $state           null for a card in no state, and for a card in a terminal column
+     * @param array<string, AgentReviewSummary>                   $agentReviews    keyed by the id of the pull request link, with no entry for a link that has no review
+     * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts       in link order
      */
     public function __construct(
         public Card $card,
@@ -35,6 +37,7 @@ final readonly class CardView
         public ?CardProgress $progress = null,
         public ?CardState $state = null,
         public array $agentReviews = [],
+        public array $artifacts = [],
     ) {
     }
 }

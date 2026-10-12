@@ -1,0 +1,10 @@
+{# Props: link, label, buttonClass. An icon button that copies the link and shows a check for two seconds. #}
+<span class="lp-copy-icon" data-controller="clipboard"
+      data-clipboard-text-value="{{ link }}"
+      data-clipboard-copied-label-value="{{ 'artifact.viewer.copied'|trans }}">
+    <button type="button" class="{{ buttonClass }}" title="{{ label }}" data-clipboard-target="button" data-action="click->clipboard#copy" data-artifact-copy-link>
+        <twig:ux:icon name="lucide:link" class="lp-copy-icon__idle w-4 h-4" />
+        <twig:ux:icon name="lucide:check" class="lp-copy-icon__done w-4 h-4" />
+        <span class="sr-only" aria-live="polite" data-clipboard-target="label">{{ label }}</span>
+    </button>
+</span>

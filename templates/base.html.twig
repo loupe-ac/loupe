@@ -92,6 +92,16 @@
                         <span class="lp-sidebar__link-label">{{ 'nav.link.documents'|trans }}</span>
                         <span class="lp-sidebar__pill">{{ project_document_count(project) }}</span>
                     </a>
+                    {% if is_feature_enabled('artifacts.enabled') %}
+                    {% set artifactsActive = route starts with 'app_project_artifact' %}
+                    <a href="{{ path('app_project_artifacts', {id: project.id}) }}"
+                       class="lp-sidebar__link{% if artifactsActive %} lp-sidebar__link--active{% endif %}"
+                       {% if artifactsActive %}aria-current="page"{% endif %}>
+                        <twig:ux:icon name="lucide:app-window" />
+                        <span class="lp-sidebar__link-label">{{ 'nav.link.artifacts'|trans }}</span>
+                        <span class="lp-sidebar__pill" data-artifact-nav-count>{{ project_artifact_count(project) }}</span>
+                    </a>
+                    {% endif %}
                     <span class="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">{{ 'bridge.agents.heading'|trans }}</span>
                     <a href="{{ path('app_project_agents', {id: project.id}) }}"
                        class="lp-sidebar__link{% if route == 'app_project_agents' %} lp-sidebar__link--active{% endif %}"

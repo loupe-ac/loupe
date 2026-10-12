@@ -6,6 +6,7 @@ namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardLink;
+use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
@@ -27,6 +28,7 @@ final readonly class ShowCardHandler
         private CardStates $cardStates,
         private CardRunWarnings $runWarnings,
         private CardAgentReviews $agentReviews,
+        private CardArtifactRepository $cardArtifacts,
     ) {
     }
 
@@ -60,6 +62,7 @@ final readonly class ShowCardHandler
             $progress,
             $this->cardStates->forCards($command->card->project, [$command->card], $pullRequestStates, null === $warning ? [] : [$cardId => $warning])[$cardId] ?? null,
             $this->agentReviews->forCards([$command->card]),
+            $this->cardArtifacts->findWithLatestVersionForCards([$command->card])[$cardId] ?? [],
         );
     }
 }

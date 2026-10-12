@@ -81,6 +81,7 @@ export default defineConfig({
             { slug: 'using/board' },
             { slug: 'using/workflows' },
             { slug: 'using/inbox' },
+            { slug: 'using/artifacts' },
             {
               label: 'Activity',
               items: [
@@ -113,6 +114,7 @@ export default defineConfig({
             { slug: 'extending/cli-bridge' },
             { slug: 'extending/bridge-hooks' },
             { slug: 'extending/forge-webhooks' },
+            { slug: 'extending/artifact-tools' },
           ],
         },
         {
@@ -133,6 +135,7 @@ export default defineConfig({
             { slug: 'operating/migrations' },
             { slug: 'operating/post-deploy-checks' },
             { slug: 'operating/sentry' },
+            { slug: 'operating/artifact-content-domain' },
             { slug: 'operating/failed-messages' },
             { slug: 'operating/recovering' },
             { slug: 'operating/backups' },

@@ -7825,6 +7825,163 @@
         @apply truncate;
     }
 
+    /* ── Artifacts ──────────────────────────────────────────────────── */
+
+    /* The archive and copy buttons of a library row sit side by side. */
+    .lp-artifact-table .lp-document-row__actions {
+        @apply gap-1;
+    }
+    /* An icon button that copies a link: the link icon swaps for a check once copied. */
+    .lp-copy-icon {
+        @apply contents;
+    }
+    .lp-copy-icon__done,
+    [data-copied] > .lp-copy-icon__idle {
+        @apply hidden;
+    }
+    [data-copied] > .lp-copy-icon__done {
+        @apply block text-status-ok;
+    }
+    /* The viewer fills the page below the top bar, so the frame takes the
+       height the bar and the band leave. */
+    .lp-main:has(.lp-artifact-viewer) {
+        @apply flex flex-col overflow-hidden;
+    }
+    .lp-artifact-viewer {
+        @apply flex min-h-0 flex-1 flex-col;
+    }
+    /* The viewer alone in its own window, with no app chrome. */
+    .lp-artifact-full-screen__main {
+        @apply flex flex-col overflow-hidden;
+        height: 100dvh;
+    }
+    /* One 44px row: the name, then the icon actions at the right. */
+    .lp-artifact-bar {
+        @apply flex h-11 shrink-0 items-center gap-2 border-b border-line bg-surface-1 pr-2.5 pl-4;
+    }
+    .lp-artifact-bar__name {
+        @apply m-0 min-w-0 truncate font-display text-base font-bold tracking-tight text-ink;
+    }
+    .lp-artifact-bar__actions {
+        @apply ml-auto flex items-center gap-2;
+    }
+    .lp-artifact-bar .lp-btn--icon {
+        @apply size-8 min-h-8;
+    }
+    .lp-artifact-bar__menu {
+        @apply relative;
+    }
+    /* The more-actions menu holds Download, Archive, the linked cards and the versions. */
+    .lp-backlog-menu.lp-artifact-menu {
+        @apply w-75 overflow-y-auto;
+        max-width: calc(100vw - var(--spacing) * 8);
+        max-height: calc(100dvh - var(--spacing) * 32);
+    }
+    .lp-artifact-menu__actions {
+        @apply grid grid-cols-2 gap-1;
+    }
+    .lp-artifact-menu__actions .lp-backlog-menu__item {
+        @apply justify-center;
+    }
+    .lp-artifact-menu__icon {
+        @apply size-4 shrink-0 text-fg-dim;
+    }
+    .lp-artifact-menu__rule {
+        @apply mt-1 mb-2 h-px bg-line;
+    }
+    .lp-artifact-menu__heading {
+        @apply m-0 mb-1 border-b border-line px-2.5 pt-1.5 pb-2 text-xs font-semibold tracking-wider text-fg-mute uppercase;
+    }
+    .lp-artifact-menu__section {
+        @apply mt-2;
+    }
+    /* A heading that opens its section, with a caret that turns when open. */
+    .lp-artifact-menu__toggle {
+        @apply flex cursor-pointer list-none items-center justify-between gap-2 border-transparent transition-colors hover:text-ink;
+    }
+    .lp-artifact-menu__toggle::-webkit-details-marker {
+        display: none;
+    }
+    .lp-artifact-menu__section[data-expanded='true']
+        > .lp-artifact-menu__toggle {
+        @apply border-line;
+    }
+    .lp-artifact-menu__caret {
+        @apply size-3.5 transition-transform;
+    }
+    .lp-artifact-menu__section[data-expanded='true'] .lp-artifact-menu__caret {
+        @apply rotate-90;
+    }
+    .lp-artifact-menu__disclosure {
+        @apply overflow-hidden pt-1;
+    }
+    .lp-artifact-menu__number {
+        @apply shrink-0 font-mono text-xs font-semibold text-fg-dim;
+    }
+    .lp-artifact-menu__card-title {
+        @apply min-w-0 flex-1 truncate;
+    }
+    .lp-artifact-menu__none {
+        @apply m-0 px-2.5 py-2 text-sm text-fg-mute;
+    }
+    /* One version in the menu: its badge, then when it was stored with its notes below. */
+    .lp-backlog-menu__item.lp-artifact-revision {
+        @apply grid items-center gap-x-2 gap-y-1.5 p-2.5;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+    .lp-artifact-revision__head {
+        @apply contents;
+    }
+    .lp-artifact-revision__badge {
+        @apply rounded-md bg-surface-3 px-2 py-0.5 font-mono text-xs font-semibold text-fg-mute;
+    }
+    .lp-artifact-revision__badge--current {
+        @apply bg-accent-faint text-accent-ink;
+    }
+    .lp-artifact-revision__when {
+        @apply font-mono text-xs text-fg-dim;
+    }
+    .lp-artifact-revision__notes {
+        @apply col-start-2 text-sm/snug text-pretty whitespace-normal text-fg;
+    }
+    /* Who stored the version, where it came from, and how the frame is sandboxed: a label column and a value column. */
+    .lp-artifact-details {
+        @apply m-0 grid gap-x-3 px-2.5 pt-1 pb-2 text-xs text-fg-mute;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+    .lp-artifact-details dt {
+        @apply col-start-1 border-t border-line pt-2 font-semibold text-fg-dim;
+    }
+    .lp-artifact-details dd {
+        @apply col-start-2 m-0 border-t border-line pt-2 break-words text-fg;
+    }
+    .lp-artifact-details dt:first-of-type,
+    .lp-artifact-details dt:first-of-type + dd {
+        @apply border-t-0 pt-0;
+    }
+    .lp-artifact-details dd + dd {
+        @apply border-t-0 pt-1 text-fg-mute;
+    }
+    .lp-artifact-details dd + dt,
+    .lp-artifact-details dd + dt + dd {
+        @apply mt-2;
+    }
+    .lp-artifact-details__meta {
+        @apply mt-0.5 block text-fg-mute;
+    }
+    .lp-artifact-details__origin {
+        @apply mt-0.5 block truncate font-mono text-fg;
+    }
+    .lp-artifact-details a {
+        @apply block truncate text-accent-ink underline;
+    }
+    .lp-flash.lp-artifact-band {
+        @apply m-0 shrink-0 rounded-none border-x-0 border-t-0 py-1.5;
+    }
+    .lp-artifact-frame {
+        @apply min-h-0 w-full flex-1 border-0 bg-white;
+    }
+
     /* ── Analytics metrics ─────────────────────────────────────────── */
 
     /* A row of links that reads as one control, such as the variant filter of an experiment. */

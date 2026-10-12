@@ -107,6 +107,10 @@ final readonly class CardWaitText
                 $document = null === $wait->documentId ? null : $this->documents->find($wait->documentId);
                 $params['%title%'] = $document->title ?? '';
                 $params['%version%'] = $wait->versionNumber ?? 0;
+                if (null !== $wait->documentId && null === $document) {
+                    $key = 'review.inbox_wait.document_deleted';
+                    break;
+                }
                 if ($documentLinked && null !== $wait->documentId) {
                     $href = $this->urls->generate('app_document_review', ['projectId' => $projectId, 'documentId' => $wait->documentId]);
                 }

@@ -147,6 +147,7 @@ RUN chown -R www-data:www-data var
 FROM base AS runtime
 
 COPY docker/prod/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/prod/upload.ini /usr/local/etc/php/conf.d/zz-upload.ini
 COPY docker/prod/php-fpm-memory.conf /usr/local/etc/php-fpm.d/zz-memory.conf
 COPY docker/prod/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/prod/supervisord.conf /etc/supervisord.conf

@@ -7,11 +7,13 @@ namespace App\Module\Board\Mcp;
 use App\Module\Board\Command\CardView;
 use App\Module\Board\Command\RelatedCard;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardArtifact;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -41,13 +43,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * @phpstan-type FeedbackAnchorSummary array{selector: string, text: string, quote: ?string, quotePrefix: ?string, quoteSuffix: ?string}
  * @phpstan-type FeedbackSummary array{id: string, url: string, anchors: list<FeedbackAnchorSummary>, body: string, hasDrawing: bool, status: string, context: ?string, createdAt: string}
  * @phpstan-type CardDocumentSummary array{documentId: string, title: string, status: string}
+ * @phpstan-type CardArtifactSummary array{artifactId: string, name: string, versionNumber: int, archived: bool, path: string}
  * @phpstan-type CardRelatedCardSummary array{cardId: string, number: int, title: string, status: string, kind: string}
  * @phpstan-type CardPauseSummary array{pauseId: string, kind: string, reason: string, ruleId: string, since: string}
  * @phpstan-type CardRefSummary array{cardId: string, number: int, title: string, status: string}
  * @phpstan-type CardStateReasonSummary array{kind: string, code: string, reason: string, since: ?string}
  * @phpstan-type CardStateSummary array{kind: string, code: string, since: ?string, reason: string, others: list<CardStateReasonSummary>}
  * @phpstan-type CardListStateSummary array{kind: string, code: string, since: ?string}
- * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
+ * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
  * @phpstan-type CardListSummary array{cardId: string, number: int, title: string, type: string, status: string, reporter: string, parentCardId: ?string, updatedAt: string, state: ?CardListStateSummary}
  */
 final readonly class CardPayload
@@ -63,6 +66,7 @@ final readonly class CardPayload
         private CardStates $cardStates,
         private CardRunWarnings $runWarnings,
         private TranslatorInterface $translator,
+        private CardArtifactRepository $cardArtifacts,
     ) {
     }
 
@@ -76,7 +80,7 @@ final readonly class CardPayload
     {
         $card = $view->card;
 
-        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->state);
+        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->state, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? []);
     }
 
     /**
@@ -100,6 +104,7 @@ final readonly class CardPayload
         $reviews = $this->agentReviews->forCards($cards);
         $pausesByCard = $this->cardPauses->findActiveForCardIds(array_values(array_filter(array_map(static fn (Card $card): ?Uuid => $card->id, $cards))));
         $stateByCard = $this->statesOf($cards, $states, $pausesByCard);
+        $artifactsByCard = $this->cardArtifacts->findWithLatestVersionForCards($cards);
 
         return array_map(
             fn (Card $card): array => $this->render(
@@ -114,6 +119,7 @@ final readonly class CardPayload
                 $reviews,
                 $pausesByCard[(string) $card->id] ?? null,
                 $stateByCard[(string) $card->id] ?? null,
+                $artifactsByCard[(string) $card->id] ?? [],
             ),
             $cards,
         );
@@ -176,14 +182,15 @@ final readonly class CardPayload
     }
 
     /**
-     * @param list<CardSiteReviewComment>       $links
-     * @param list<RelatedCard>                 $relatedCards
-     * @param list<Card>                        $children     empty for a card whose type may not have children
-     * @param array<string, AgentReviewSummary> $reviews      keyed by pull request link id
+     * @param list<CardSiteReviewComment>                         $links
+     * @param list<RelatedCard>                                   $relatedCards
+     * @param list<Card>                                          $children     empty for a card whose type may not have children
+     * @param array<string, AgentReviewSummary>                   $reviews      keyed by pull request link id
+     * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts
      *
      * @return CardSummary
      */
-    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, ?CardState $state): array
+    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, ?CardState $state, array $artifacts): array
     {
         $progress = $this->catalog->forProject($card->project->requireId())->get($card->type)->children
             ? ['done' => \count(array_filter($children, static fn (Card $child): bool => $child->column->terminal)), 'total' => \count($children)]
@@ -223,6 +230,18 @@ final readonly class CardPayload
                     'status' => $link->document->status->value,
                 ],
                 array_values($card->documents->toArray()),
+            ),
+            // The prototypes stored for this card. Read only: an agent stores one
+            // through the CLI, and links it with artifactIds.
+            'artifacts' => array_map(
+                static fn (array $row): array => [
+                    'artifactId' => (string) $row['link']->artifact->id,
+                    'name' => $row['link']->artifact->name,
+                    'versionNumber' => $row['versionNumber'],
+                    'archived' => null !== $row['link']->artifact->archivedAt,
+                    'path' => \sprintf('/projects/%s/artifacts/%s', $row['link']->artifact->project->id, $row['link']->artifact->id),
+                ],
+                $artifacts,
             ),
             // Feedback a reviewer left on this card. Read only: an agent marks
             // one addressed through feedback_mark_addressed.

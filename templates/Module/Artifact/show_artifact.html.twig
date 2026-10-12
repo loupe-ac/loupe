@@ -1,0 +1,162 @@
+{% extends fullScreen ? '@Artifact/_full_screen_layout.html.twig' : 'base.html.twig' %}
+
+{% block title %}{{ 'artifact.viewer.page.title'|trans({'%name%': artifact.name}) }} — {{ 'app.name'|trans }}{% endblock %}
+
+{% block topbar_crumbs %}
+    <a class="lp-topbar__crumb" href="{{ path('app_project_artifacts', {id: project.id}) }}">{{ 'nav.link.artifacts'|trans }}</a>
+    <span class="lp-topbar__sep">/</span>
+    <span class="lp-topbar__here">{{ artifact.name }}</span>
+{% endblock %}
+
+{% block body %}
+{% set versionParams = {id: project.id, artifactId: artifact.id, number: version.number} %}
+{% set shareLink = pinned ? url('app_project_artifact_version', versionParams) : url('app_project_artifact', {id: project.id, artifactId: artifact.id}) %}
+<div class="lp-artifact-viewer{% if fullScreen %} lp-artifact-viewer--full{% endif %}" data-artifact-viewer>
+    <div class="lp-artifact-bar">
+        <h1 class="lp-artifact-bar__name" data-artifact-name>{{ artifact.name }}</h1>
+        {% if artifact.archivedAt is not null %}<twig:Ds:Tag tone="neutral" data-artifact-archived>{{ 'artifact.list.archived'|trans }}</twig:Ds:Tag>{% endif %}
+
+        <div class="lp-artifact-bar__actions">
+            {% if not fullScreen %}
+            <twig:Ds:Button variant="ghost icon" href="{{ pinned ? path('app_project_artifact_version_full', versionParams) : path('app_project_artifact_full', {id: project.id, artifactId: artifact.id}) }}"
+                    target="_blank" rel="noopener" data-turbo="false"
+                    title="{{ 'artifact.viewer.full_screen'|trans }}" aria-label="{{ 'artifact.viewer.full_screen'|trans }}" data-artifact-full-screen>
+                <twig:ux:icon name="lucide:maximize-2" class="w-4 h-4" />
+            </twig:Ds:Button>
+            {% endif %}
+
+            {% include '@Artifact/_copy_link_button.html.twig' with {
+                link: shareLink,
+                label: 'artifact.viewer.copy_link'|trans,
+                buttonClass: ds_button_class('ghost icon'),
+            } only %}
+
+            <div class="lp-artifact-bar__menu" data-controller="popover" data-artifact-menu>
+                <twig:Ds:Button type="button" variant="ghost icon"
+                        title="{{ 'artifact.viewer.menu'|trans }}"
+                        aria-label="{{ 'artifact.viewer.menu'|trans }}"
+                        aria-expanded="false"
+                        aria-controls="artifact-menu"
+                        data-popover-target="trigger"
+                        data-action="click->popover#toggle">
+                    <twig:ux:icon name="lucide:ellipsis" class="w-4 h-4" />
+                </twig:Ds:Button>
+                <div id="artifact-menu" class="lp-backlog-menu lp-artifact-menu" data-popover-target="panel" hidden>
+                    <div class="lp-artifact-menu__actions">
+                        <a class="lp-backlog-menu__item" href="{{ path('app_project_artifact_version_download', versionParams) }}" data-turbo="false" data-artifact-download>
+                            <twig:ux:icon name="lucide:arrow-down" class="lp-artifact-menu__icon" />
+                            {{ 'artifact.viewer.download'|trans }}
+                        </a>
+                        {% if artifact.archivedAt is null %}
+                        <form method="post" action="{{ path('app_project_artifact_archive', {id: project.id, artifactId: artifact.id}) }}" data-artifact-archive-form>
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('artifact-archive') }}">
+                            <button type="submit" class="lp-backlog-menu__item">
+                                <twig:ux:icon name="lucide:archive" class="lp-artifact-menu__icon" />
+                                {{ 'artifact.viewer.archive'|trans }}
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{{ path('app_project_artifact_unarchive', {id: project.id, artifactId: artifact.id}) }}" data-artifact-unarchive-form>
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('artifact-unarchive') }}">
+                            <button type="submit" class="lp-backlog-menu__item">
+                                <twig:ux:icon name="lucide:archive-restore" class="lp-artifact-menu__icon" />
+                                {{ 'artifact.viewer.unarchive'|trans }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+
+                    <div class="lp-artifact-menu__rule"></div>
+
+                    <section data-artifact-cards>
+                        <p class="lp-artifact-menu__heading">{{ 'artifact.viewer.cards.heading'|trans }}</p>
+                        {% for card in cards %}
+                        <a class="lp-backlog-menu__item" href="{{ path('app_board_card', {projectId: project.id, cardId: card.id}) }}" data-artifact-card-link>
+                            <span class="lp-artifact-menu__number">#{{ card.number }}</span>
+                            <span class="lp-artifact-menu__card-title">{{ card.title }}</span>
+                        </a>
+                        {% else %}
+                        <p class="lp-artifact-menu__none">{{ 'artifact.viewer.cards.none'|trans }}</p>
+                        {% endfor %}
+                    </section>
+
+                    <details class="lp-artifact-menu__section" data-controller="disclosure" data-artifact-version-picker>
+                        <summary class="lp-artifact-menu__heading lp-artifact-menu__toggle" data-action="click->disclosure#toggle">
+                            <span>{{ 'artifact.viewer.versions.heading'|trans }}</span>
+                            <twig:ux:icon name="lucide:chevron-right" class="lp-artifact-menu__caret" />
+                        </summary>
+                        <div class="lp-artifact-menu__disclosure" data-disclosure-target="content">
+                            {% for entry in versions %}
+                            {% set current = entry.number == version.number %}
+                            <a class="lp-backlog-menu__item lp-artifact-revision" href="{{ path('app_project_artifact_version', {id: project.id, artifactId: artifact.id, number: entry.number}) }}"
+                               data-artifact-version-link="{{ entry.number }}"{% if current %} aria-current="true"{% endif %}>
+                                <span class="lp-artifact-revision__head">
+                                    <span class="lp-artifact-revision__badge{% if current %} lp-artifact-revision__badge--current{% endif %}">{{ 'artifact.viewer.version'|trans({'%number%': entry.number}) }}</span>
+                                    <time class="lp-artifact-revision__when" datetime="{{ entry.createdAt|date('c') }}">{{ entry.createdAt|relative_time }}</time>
+                                </span>
+                                {% if entry.notes is not empty %}
+                                <span class="lp-artifact-revision__notes" data-artifact-version-notes>{{ entry.notes }}</span>
+                                {% elseif entry.number == 1 %}
+                                <span class="lp-artifact-revision__notes">{{ 'artifact.viewer.versions.first'|trans }}</span>
+                                {% endif %}
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </details>
+
+                    <details class="lp-artifact-menu__section" data-controller="disclosure" data-artifact-caption>
+                        <summary class="lp-artifact-menu__heading lp-artifact-menu__toggle" data-action="click->disclosure#toggle">
+                            <span>{{ 'artifact.viewer.details.heading'|trans }}</span>
+                            <twig:ux:icon name="lucide:chevron-right" class="lp-artifact-menu__caret" />
+                        </summary>
+                        <dl class="lp-artifact-menu__disclosure lp-artifact-details" data-disclosure-target="content">
+                            <dt>{{ 'artifact.viewer.stored_by'|trans }}</dt>
+                            <dd>
+                                {% include '@Artifact/_stored_by.html.twig' with {version: version} only %}
+                                <time class="lp-artifact-details__meta" datetime="{{ version.createdAt|date('c') }}" title="{{ version.createdAt|date('Y-m-d H:i:s T') }}">{{ version.createdAt|relative_time }}</time>
+                            </dd>
+                            {% if artifact.sourceLink is not null %}
+                            <dt>{{ 'artifact.viewer.source'|trans }}</dt>
+                            <dd data-artifact-source>
+                                {% if artifact.sourceLink starts with 'https://' or artifact.sourceLink starts with 'http://' %}
+                                <a href="{{ artifact.sourceLink }}" title="{{ artifact.sourceLink }}" target="_blank" rel="noopener noreferrer">{{ artifact.sourceLink }}</a>
+                                {% else %}
+                                {{ artifact.sourceLink }}
+                                {% endif %}
+                                <span class="lp-artifact-details__meta">{{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('Y-m-d')}) }}</span>
+                            </dd>
+                            {% endif %}
+                            <dt>{{ 'artifact.viewer.sandbox'|trans }}</dt>
+                            <dd data-artifact-sandbox>{{ (ownContentOrigin ? 'artifact.viewer.sandbox.content_domain' : 'artifact.viewer.sandbox.sealed')|trans }}</dd>
+                            <dd data-artifact-allowed-origins>
+                                {% if allowedOrigins is empty %}
+                                {{ 'artifact.viewer.allowed.none'|trans }}
+                                {% else %}
+                                {{ 'artifact.viewer.allowed'|trans }}
+                                {% for origin in allowedOrigins %}
+                                <span class="lp-artifact-details__origin" title="{{ origin }}" data-artifact-allowed-origin>{{ origin }}</span>
+                                {% endfor %}
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if not ownContentOrigin %}
+    <twig:Ds:Flash severity="warning" :dismissLabel="'artifact.viewer.band.dismiss'|trans" class="lp-artifact-band" data-artifact-band>{{ 'artifact.viewer.band.text'|trans }}</twig:Ds:Flash>
+    {% endif %}
+
+    {% if contentLink is not null %}
+    <iframe class="lp-artifact-frame" data-artifact-frame
+            src="{{ contentLink }}"
+            title="{{ 'artifact.viewer.frame.title'|trans({'%name%': artifact.name}) }}"
+            sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock{% if ownContentOrigin %} allow-same-origin{% endif %}"
+            referrerpolicy="no-referrer"></iframe>
+    {% else %}
+    <twig:Ds:EmptyState icon="lucide:file-question" :title="'artifact.viewer.no_files'|trans" />
+    {% endif %}
+</div>
+{% endblock %}
