@@ -316,6 +316,10 @@ func TestTheRenderFunctionDrawsWhatTheBuildDraws(t *testing.T) {
 			`<img src="/_blob/{{ id }}" alt="/_blob/abc {{ q }}"><img src="/_blob/abc?size={{ q }}"><a href="/_blob/{{ id }}#x">b</a>`,
 			[]string{`{"id":"abc","q":"v"}`, `{"id":"def","q":"w"}`, `{"id":"def.webp","q":""}`},
 		},
+		"a blob path with a hole in a hidden branch": {
+			`<sc-if value="{{ show }}"><img src="/_blob/{{ id }}"></sc-if><sc-for list="{{ xs }}" as="x"><img src="/_blob/{{ x }}"></sc-for>`,
+			[]string{`{"show":false,"id":"abc","xs":[]}`, `{"show":true,"id":"abc","xs":["def"]}`, `{}`},
+		},
 		"inner html": {
 			`<div class="m" dangerouslySetInnerHTML="{{ m }}"><b>dropped</b></div><p dangerouslySetInnerHTML="{{ s }}"></p><p dangerouslySetInnerHTML="{{ none }}"></p>`,
 			[]string{`{"m":{"__html":"<em>raw</em> & <i>x</i>"},"s":"<u>t</u>"}`, `{}`},
@@ -464,6 +468,31 @@ func TestABlobIdFromAValueKeepsThePageInteractive(t *testing.T) {
 	for _, want := range []string{`<img src="_blob/abc.png"/>`, `R.rb("src", R.bl("" + "\/_blob\/" + t(R.g(s0,"id"))))`, `{"abc":"../_blob/abc.png","abc.png":"../_blob/abc.png"});`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page lacks %s:\n%s", want, page)
+		}
+	}
+}
+
+func TestABlobIdInAHiddenBranchKeepsThePageInteractive(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { go: 1, show: false, id: 'abc' }; } }`
+	res := compile(t, canvas("A.dc.html", scripted(script, `<button onClick="{{ go }}">x</button><sc-if value="{{ show }}"><img src="/_blob/{{ id }}"></sc-if>`)), blobFile("_blob/abc.png"))
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	if page := one(t, res, "index.html"); !strings.Contains(page, `R.bl("" + "\/_blob\/" + t(R.g(s0,"id")))`) {
+		t.Errorf("the redraw cannot reveal the image:\n%s", page)
+	}
+}
+
+func TestABlobIdInAHiddenBranchIsCheckedAfterItsHoleIsFilled(t *testing.T) {
+	for markup, want := range map[string]int{
+		`<sc-if value="{{ no }}"><img src="/_blob/{{ id }}"></sc-if>`:           1,
+		`<sc-if value="{{ no }}"><img src="/_blob/{{ unknown }}"></sc-if>`:      0,
+		`<sc-if value="{{ no }}"><img alt="/_blob/gone {{ unknown }}"></sc-if>`: 1,
+	} {
+		script := `class Component extends DCLogic { renderVals() { return { no: false, id: 'gone' }; } }`
+		res := compile(t, canvas("A.dc.html", scripted(script, markup)), blobFile("_blob/abc.png"))
+		if len(res.Gaps) != want || (want == 1 && res.Gaps[0].Feature != "a blob file that is not in the push") {
+			t.Errorf("%s: gaps = %+v", markup, res.Gaps)
 		}
 	}
 }

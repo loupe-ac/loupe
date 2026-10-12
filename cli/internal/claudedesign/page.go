@@ -524,11 +524,38 @@ func (p *page) attrValueProblems(n *html.Node, scope map[string]any, out []probl
 					problems = append(problems, missingLink(val))
 				}
 			}
+			if len(problems) == 0 && holeRe.MatchString(a.Val) {
+				problems = p.filledBlobProblems(a.Val, scope)
+			}
 			out = append(out, problems...)
 		}
 	}
 
 	return out, marks
+}
+
+// filledBlobProblems checks the blob paths of an attribute after its known
+// holes are filled, as the build and the redraw resolve them. A path that a
+// hole with no known value touches is left alone.
+func (p *page) filledBlobProblems(s string, scope map[string]any) []problem {
+	const unknown = "\x00"
+	filled := holeRe.ReplaceAllStringFunc(s, func(h string) string {
+		v, found := lookup(scope, holeRe.FindStringSubmatch(h)[1])
+		if t, ok := text(v); found && ok {
+			return t
+		}
+
+		return unknown
+	})
+	var out []problem
+	for _, m := range blobRe.FindAllStringSubmatch(filled, -1) {
+		if !strings.Contains(m[2], unknown) {
+			_, problems := p.rewriteBlobs("/_blob/" + m[2])
+			out = append(out, problems...)
+		}
+	}
+
+	return out
 }
 
 // valueProblems gives the problems that known values put in a string. A hole
@@ -607,8 +634,11 @@ func (p *page) elementProblems(n *html.Node, templated bool) []problem {
 				out = append(out, problem{"dangerouslySetInnerHTML without a plain path", a.Val})
 			}
 		default:
-			_, blobProblems := p.rewriteBlobs(a.Val)
-			problems := append(holeProblems(a.Val), blobProblems...)
+			problems := holeProblems(a.Val)
+			if !templated || !holeRe.MatchString(a.Val) {
+				_, blobProblems := p.rewriteBlobs(a.Val)
+				problems = append(problems, blobProblems...)
+			}
 			if a.Key == "href" && len(problems) == 0 && !holeRe.MatchString(a.Val) {
 				if _, ok := p.rewriteLink(a.Val); !ok {
 					problems = append(problems, missingLink(a.Val))
