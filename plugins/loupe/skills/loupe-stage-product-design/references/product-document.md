@@ -46,7 +46,7 @@ Answer the pre-mortem question: "This shipped and failed. Why?" Write each answe
 
 ## Assumptions
 
-List each guess that the author made and the owner did not check. The tech design stage can then challenge it.
+List each guess that the author made and nobody can check yet, such as how users will act. The tech design stage can then challenge it. A guess that the code, a doc, a command or the board history can check is not an assumption. Check it, and write the result in "Current behaviour".
 
 ## Decisions log
 
