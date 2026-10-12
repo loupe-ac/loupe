@@ -70,7 +70,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSelectorTextContains('.lp-inbox-request__meta [data-inbox-card]', '#4');
         self::assertSelectorNotExists('[data-inbox-source="agent"]');
         self::assertSelectorExists('.lp-inbox-request [data-inbox-kind="wait"]');
-        self::assertSelectorTextSame('.lp-inbox-ask__source', 'Loupe');
+        self::assertSelectorTextSame('.lp-inbox-ask__source', 'From Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));
         self::assertCount(0, $crawler->filter('.lp-presence__dot'));
@@ -85,7 +85,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('.lp-inbox-ask__title', '#4 Document version 1 waits for your review · Ship it');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-linked-card="'.$this->card->id.'"]'));
+        self::assertCount(1, $crawler->filter('[data-inbox-linked-panel] [data-linked-card="'.$this->card->id.'"]'));
     }
 
     /** @return iterable<string, array{string}> */

@@ -97,7 +97,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSelectorExists('a[data-controller="inbox-pill"] turbo-frame#inbox-open-count-'.$project->id);
     }
 
-    public function test_linked_card_pull_requests_appear_once_with_honest_status_and_safe_links(): void
+    public function test_linked_card_pull_requests_appear_once_with_safe_links(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-pull-requests');
         $project = $this->inboxProject($this->em, $owner);
@@ -122,14 +122,14 @@ final class ShowInboxControllerTest extends WebTestCase
         $rows = $crawler->filter('[data-linked-pull-request]');
         self::assertCount(2, $rows);
         self::assertStringContainsString('example/app #42', $rows->text());
-        self::assertSame('Not reported', $rows->first()->filter('.lp-tag')->text());
-        $link = $rows->first()->filter('a');
-        self::assertSame('https://github.com/example/app/pull/42', $link->attr('href'));
-        self::assertSame('_blank', $link->attr('target'));
-        self::assertSame('noopener noreferrer', $link->attr('rel'));
-        self::assertSame('Unavailable', $rows->last()->filter('.lp-tag')->text());
+        self::assertSame('Pull request', $rows->first()->filter('.lp-inbox-linked-panel__sub')->text());
+        self::assertSame('a', $rows->first()->nodeName());
+        self::assertSame('https://github.com/example/app/pull/42', $rows->first()->attr('href'));
+        self::assertSame('_blank', $rows->first()->attr('target'));
+        self::assertSame('noopener noreferrer', $rows->first()->attr('rel'));
         self::assertStringContainsString('Not a web address', $rows->last()->text());
-        self::assertCount(0, $rows->last()->filter('a'));
+        self::assertSame('div', $rows->last()->nodeName());
+        self::assertNull($rows->last()->attr('href'));
     }
 
     public function test_the_pill_listens_on_the_owner_inbox_topic(): void
@@ -262,6 +262,8 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(0, $block->filter('.lp-inbox-ask__session'));
         self::assertStringContainsString((string) $ask->sessionId, $block->filter('.lp-presence [role="tooltip"]')->text());
         self::assertSame('the export', $block->filter('.lp-inbox-ask__context strong')->text());
+        // The byline names the kind of the leading item, never a count of the items.
+        self::assertSame('Question', $block->filter('[data-inbox-kind-label]')->text());
         self::assertCount(0, $block->filter('[data-inbox-decline-hint]'));
         // A missing translation renders its key, and the gate does not fail on that.
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
@@ -271,8 +273,8 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $block->filter('form#inbox_decline_'.$question->id.'[action*="/decline"]'));
         self::assertCount(1, $block->filter('#inbox-item-12 input[type="hidden"][name="inbox_decline_'.$question->id.'[closeNote]"]'));
         self::assertCount(0, $block->filter('script'));
-        self::assertSame('item 12', $block->filter('#inbox-item-12 .lp-inbox-item__number')->text());
-        self::assertSame('item 13', $block->filter('#inbox-item-13 .lp-inbox-item__number')->text());
+        self::assertSame('1', $block->filter('#inbox-item-12 .lp-inbox-item__number')->text());
+        self::assertSame('2', $block->filter('#inbox-item-13 .lp-inbox-item__number')->text());
         self::assertCount(2, $block->filter('#inbox-item-12 input[data-form-draft-target="option"]'));
         self::assertCount(1, $block->filter('#inbox-item-12 textarea[name="inbox_answer_'.$question->id.'[answerText]"]'));
         self::assertCount(1, $block->filter('#inbox-item-13 form[name="inbox_done_'.$todo->id.'"]'));
@@ -308,7 +310,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('true', $rows->first()->attr('aria-current'));
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id]'));
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id="'.$first->id.'"]'));
-        self::assertSame('Agent request', $crawler->filter('[data-inbox-ask-id] .lp-inbox-ask__source')->text());
+        self::assertSame('From the agent', $crawler->filter('[data-inbox-ask-id] .lp-inbox-ask__source')->text());
         // The old tab machinery is gone from this page.
         self::assertCount(0, $crawler->filter('[data-controller="panel-tabs"], [role="tab"], [role="tabpanel"]'));
         self::assertSame('false', $crawler->filter('.lp-inbox-split')->attr('data-inbox-picked'));
@@ -711,6 +713,30 @@ final class ShowInboxControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
         self::assertSame('0', $crawler->filter('#inbox-item-1 .lp-inbox-item__answer-text')->text());
+    }
+
+    public function test_a_written_only_question_answers_inside_the_decision_block(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-written');
+        $project = $this->inboxProject($this->em, $owner);
+        $item = $this->question($this->em, $project, 1, [], freeText: true);
+        $this->askHolding($this->em, $project, [$item]);
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
+
+        $block = $crawler->filter('#inbox-item-1 fieldset.lp-decision');
+        self::assertCount(1, $block);
+        self::assertSame('text', $block->attr('data-decision-type'));
+        self::assertStringStartsWith('Your answer', $block->filter('legend')->text());
+        self::assertSame('Write an answer', $block->filter('.lp-decision__kind')->text());
+        self::assertCount(0, $block->filter('.lp-decision__clear, .lp-decision__option'));
+        $field = $block->filter('textarea[name="inbox_answer_'.$item->id.'[answerText]"]');
+        self::assertCount(1, $field);
+        self::assertSame('Your answer', $field->attr('aria-label'));
+        self::assertSame('Write your answer for the agent', $field->attr('placeholder'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 textarea'));
     }
 
     public function test_closed_asks_page(): void

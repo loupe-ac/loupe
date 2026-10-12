@@ -1,0 +1,65 @@
+{#- The "Linked" panel of an ask: each card, document and pull request it links, once, on one line. Props: items (list of InboxItem). -#}
+{% set cards = {} %}
+{% set documents = {} %}
+{% set pullRequests = {} %}
+{% set reviewDocumentId = null %}
+{% for item in items %}
+    {% set review = item.kind.value == 'review' ? inbox_review(item) : null %}
+    {% if review and review.document %}
+        {% set reviewDocumentId = review.document.id ~ '' %}
+        {% set documents = documents|merge({(review.document.id ~ ''): {document: review.document, version: inbox_review_version(review)}}) %}
+    {% endif %}
+    {% if review and review.targetKind.value == 'pull-request' and review.pullRequest %}
+        {% set pullRequests = pullRequests|merge({(review.pullRequest.url): review.pullRequest}) %}
+    {% endif %}
+    {% for link in item.documents %}
+        {% if (link.document.id ~ '') not in documents|keys %}
+            {% set documents = documents|merge({(link.document.id ~ ''): {document: link.document, version: null}}) %}
+        {% endif %}
+    {% endfor %}
+    {% for link in item.cards %}
+        {% if (link.card.id ~ '') not in cards|keys or item.number < cards[link.card.id ~ ''].item.number %}
+            {% set cards = cards|merge({(link.card.id ~ ''): {card: link.card, item: item}}) %}
+        {% endif %}
+        {% for pullRequest in link.card.pullRequests %}
+            {% if pullRequest.url not in pullRequests|keys %}
+                {% set pullRequests = pullRequests|merge({(pullRequest.url): pullRequest}) %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+{% endfor %}
+{% if cards|length > 0 or documents|length > 0 or pullRequests|length > 0 %}
+<aside class="lp-inbox-linked-panel" aria-label="{{ 'inbox.linked.panel'|trans }}" data-inbox-linked-panel>
+    <h3 class="lp-inbox-linked-panel__title">{{ 'inbox.linked.panel'|trans }}</h3>
+    {% for entry in cards %}
+        {% set card = entry.card %}
+        <a class="lp-inbox-linked-panel__row" data-linked-card="{{ card.id }}" data-turbo-frame="_top"
+           href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id, tab: 'conversation', inboxItem: entry.item.number, _fragment: 'inbox-item-' ~ entry.item.number}) }}">
+            <twig:ux:icon name="lucide:layout-list" class="lp-inbox-linked-panel__icon" />
+            <span class="lp-inbox-linked-panel__name">#{{ card.number }} {{ card.title }}</span>
+            <span class="lp-inbox-linked-panel__sub">{{ card.column.label|trans }}</span>
+        </a>
+    {% endfor %}
+    {% for entry in documents %}
+        {% set document = entry.document %}
+        <a class="lp-inbox-linked-panel__row" data-turbo-frame="_top"{% if (document.id ~ '') == reviewDocumentId %} data-inbox-review-document{% endif %}
+           href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}">
+            <twig:ux:icon name="lucide:file-text" class="lp-inbox-linked-panel__icon" />
+            <span class="lp-inbox-linked-panel__name">{{ document.title }}</span>
+            <span class="lp-inbox-linked-panel__sub">
+                {%- if entry.version %}{{ 'inbox.review.version'|trans({'%version%': entry.version}) }} · {% endif -%}
+                {{ document.status.translationKey()|trans }}
+            </span>
+        </a>
+    {% endfor %}
+    {% for pullRequest in pullRequests %}
+        {% set href = safe_pull_request_url(pullRequest.url) %}
+        <{{ href ? 'a' : 'div' }} class="lp-inbox-linked-panel__row" data-linked-pull-request="{{ pullRequest.id }}"
+           {%- if href %} href="{{ href }}" target="_blank" rel="noopener noreferrer"{% endif %}>
+            <twig:ux:icon name="lucide:git-pull-request" class="lp-inbox-linked-panel__icon" />
+            <span class="lp-inbox-linked-panel__name">{{ pullRequest.repository ? pullRequest.repository ~ ' #' ~ pullRequest.number : pullRequest.url }}</span>
+            <span class="lp-inbox-linked-panel__sub">{{ (href ? 'board.card.link.pull_request' : 'board.card.pull_requests.not_linkable')|trans }}</span>
+        </{{ href ? 'a' : 'div' }}>
+    {% endfor %}
+</aside>
+{% endif %}

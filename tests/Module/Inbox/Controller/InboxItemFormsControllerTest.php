@@ -72,7 +72,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('#inbox-item-1', 'It does not post a review to the code host.');
         // The pull request under review is a row of the linked items, not a loose link above the form.
-        self::assertCount(1, $crawler->filter('#inbox-item-1 .lp-inbox-linked-table [data-linked-pull-request]'));
+        self::assertCount(1, $crawler->filter('[data-inbox-linked-panel] [data-linked-pull-request]'));
         self::assertCount(0, $crawler->filter('form[name="'.$name.'"] .lp-inbox-item__jump'));
         $crawler = $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([
             $name.'[verdict]' => 'changes-requested',
@@ -143,7 +143,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
         // The document under review is a row of the linked items, with the version the form reviews.
-        $row = $page->filter('#inbox-item-1 .lp-inbox-linked-table [data-inbox-review-document]');
+        $row = $page->filter('[data-inbox-linked-panel] [data-inbox-review-document]');
         self::assertCount(1, $row);
         self::assertStringContainsString('Inline design', $row->text());
         self::assertStringContainsString('Version 1', $row->text());
@@ -283,9 +283,12 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $item = $this->question($this->em, $this->project, 1, freeText: true);
 
-        $this->post($item, 'answer', ['answerText' => str_repeat('a', AnswerInboxItemRequest::MAX_ANSWER_LENGTH + 1)]);
+        $crawler = $this->post($item, 'answer', ['answerText' => str_repeat('a', AnswerInboxItemRequest::MAX_ANSWER_LENGTH + 1)]);
 
         self::assertResponseStatusCodeSame(422);
+        // The error of the note sits under the decision block, tied to the field.
+        $describedBy = (string) $crawler->filter('#inbox-item-1 fieldset.lp-decision textarea')->attr('aria-describedby');
+        self::assertStringContainsString('too long', $crawler->filter('#'.$describedBy)->text());
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 

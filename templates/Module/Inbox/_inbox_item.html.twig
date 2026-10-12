@@ -8,14 +8,13 @@
     {# A request with one item wears its state on the list row beside it. #}
     {% if showHead ?? true %}
     <div class="lp-inbox-item__head">
-        <span class="lp-inbox-item__number">{{ 'inbox.item.number'|trans({'%number%': item.number}) }}</span>
+        <span class="lp-inbox-item__number" aria-hidden="true">{{ position ?? item.number }}</span>
+        <h3 class="lp-inbox-item__title">{{ item.title }}</h3>
         <span class="lp-inbox-item__kind">{{ ('inbox.item.kind.' ~ item.kind.value)|trans }}</span>
         {% if item.blocking %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
         {% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state} only %}
     </div>
     {% endif %}
-    {# A one-item ask shows the title once, as its own heading. #}
-    {% if showTitle ?? true %}<h3 class="lp-inbox-item__title">{{ item.title }}</h3>{% endif %}
     {# The waits below say what the body of a wait item says, with links. #}
     {% if item.kind.value != 'wait' and item.body|trim is not empty %}
         <div class="prose lp-prose lp-inbox-item__body">{{ item.body|inbox_markdown }}</div>
@@ -40,47 +39,6 @@
                 </li>
             {% endfor %}
         </ul>
-    {% endif %}
-
-    {# The document or pull request under review is a linked item as well, shown once. #}
-    {% set reviewDocument = review ? review.document : null %}
-    {% set reviewPullRequest = review and review.targetKind.value == 'pull-request' ? review.pullRequest : null %}
-    {% set reviewDocumentLinked = reviewDocument and item.documents|filter(link => link.document.id == reviewDocument.id)|length > 0 %}
-    {% if (showLinkedItems ?? false) and (item.cards|length > 0 or item.documents|length > 0 or reviewDocument or reviewPullRequest) %}
-    <div class="lp-inbox-linked-table-wrap">
-        <table class="lp-inbox-linked-table">
-            <caption>{{ 'inbox.linked_items.title'|trans }}</caption>
-            <thead><tr><th>{{ 'inbox.linked_items.item'|trans }}</th><th>{{ 'inbox.linked_items.status'|trans }}</th><th><span class="sr-only">{{ 'inbox.linked_items.open'|trans }}</span></th></tr></thead>
-            <tbody>
-                {% for link in item.cards %}
-                    {% include '@Board/_linked_card_row.html.twig' with {card: link.card, href: path('app_board_card', {projectId: item.project.id, cardId: link.card.id, tab: 'conversation', inboxItem: item.number, _fragment: 'inbox-item-' ~ item.number}), drawer: false} only %}
-                {% endfor %}
-                {% if reviewDocument and not reviewDocumentLinked %}
-                    {% include '@Inbox/_linked_document_row.html.twig' with {document: reviewDocument, project: item.project, version: inbox_review_version(review)} only %}
-                {% endif %}
-                {% for link in item.documents %}
-                <tr{% if reviewDocument and link.document.id == reviewDocument.id %} data-inbox-review-document{% endif %}>
-                    <td><span class="lp-inbox-linked-table__type"><twig:ux:icon name="lucide:file-text" class="w-4 h-4" />{{ 'inbox.linked_items.document'|trans }}</span><strong>{{ link.document.title }}</strong>{% if reviewDocument and link.document.id == reviewDocument.id and inbox_review_version(review) %} <span class="lp-inbox-linked-table__version">{{ 'inbox.review.version'|trans({'%version%': inbox_review_version(review)}) }}</span>{% endif %}</td>
-                    <td><twig:Ds:Tag>{{ link.document.status.translationKey()|trans }}</twig:Ds:Tag></td>
-                    <td><twig:Ds:Button variant="ghost open" href="{{ path('app_document_review', {projectId: item.project.id, documentId: link.document.id}) }}" aria-label="{{ 'inbox.linked_items.open_document'|trans({'%title%': link.document.title}) }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span><twig:ux:icon name="lucide:chevron-right" class="w-4 h-4" /></twig:Ds:Button></td>
-                </tr>
-                {% endfor %}
-                {% set shownPullRequests = [] %}
-                {% if reviewPullRequest %}
-                    {% include '@Board/_linked_pull_request.html.twig' with {link: reviewPullRequest, state: null, agentReview: null} only %}
-                    {% set shownPullRequests = [reviewPullRequest.url] %}
-                {% endif %}
-                {% for cardLink in item.cards %}
-                    {% for link in cardLink.card.pullRequests %}
-                        {% if link.url not in shownPullRequests %}
-                            {% include '@Board/_linked_pull_request.html.twig' with {link: link, state: null, agentReview: null} only %}
-                            {% set shownPullRequests = shownPullRequests|merge([link.url]) %}
-                        {% endif %}
-                    {% endfor %}
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
     {% endif %}
 
     {% if not open %}
@@ -136,19 +94,28 @@
        still takes a response. #}
     {% if not home %}
         <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, item: item.number}) }}" data-turbo-frame="_top">{{ (inbox.acceptsResponse(item) ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
-    {% elseif inbox.acceptsResponse(item) %}
+    {% elseif inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
         <div class="lp-inbox-item__actions">
             {% if item.kind.value in ['question', 'workflow'] %}
                 {% set answerForm = inbox_answer_form(item, refusedForm) %}
                 {% set selectedErrorsId = answerForm.selectedOptions.vars.id ~ '_errors' %}
+                {% set textErrorsId = answerForm.answerText.vars.id ~ '_errors' %}
                 {{ form_start(answerForm, {action: path('app_inbox_item_answer', actionParams), attr: {class: 'lp-form lp-inbox-answer', 'data-controller': 'form-draft', 'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': item.id, 'data-action': 'submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared', 'data-turbo-frame': responseFrame}}) }}
-                    {% if item.options|length > 0 %}
+                    {% set noteAttr = {class: 'lp-decision__note-field', rows: 2, placeholder: 'inbox.answer.placeholder'|trans, 'aria-label': 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'} %}
+                    {% if answerForm.answerText.vars.errors|length > 0 %}{% set noteAttr = noteAttr|merge({'aria-describedby': textErrorsId}) %}{% endif %}
+                    {% set written = item.options|length == 0 %}
+                    {% if not written or item.freeText %}
                         {% set selected = (answerForm.selectedOptions.vars.value ?? '')|split(',') %}
+                        {% if written %}
+                            {% set noteAttr = noteAttr|merge({placeholder: 'inbox.answer.write_placeholder'|trans, 'aria-label': 'inbox.answer.legend'|trans}) %}
+                        {% endif %}
                         {# The controls post under a name outside the form, so the form reads the ticked indexes from selectedOptions, which the controller fills. #}
-                        <fieldset class="lp-decision lp-decision--inbox" data-decision-type="{{ item.multiple ? 'multiple' : 'single' }}" data-action="change->form-draft#select"{% if answerForm.selectedOptions.vars.errors|length > 0 %} aria-describedby="{{ selectedErrorsId }}"{% endif %}>
-                            <legend class="lp-decision__prompt">{{ (item.multiple ? 'inbox.answer.pick_any' : 'inbox.answer.pick_one')|trans }}</legend>
+                        <fieldset class="lp-decision lp-decision--inbox" data-decision-type="{{ written ? 'text' : (item.multiple ? 'multiple' : 'single') }}"{% if not written %} data-action="change->form-draft#select"{% endif %}{% if answerForm.selectedOptions.vars.errors|length > 0 %} aria-describedby="{{ selectedErrorsId }}"{% endif %}>
+                            <legend class="lp-decision__prompt">{{ 'inbox.answer.legend'|trans }}<span class="lp-decision__kind">{{ (written ? 'inbox.answer.write' : (item.multiple ? 'inbox.answer.pick_any' : 'inbox.answer.pick_one'))|trans }}</span></legend>
+                            {% if not written %}
+                            <button type="button" class="lp-decision__clear" data-action="form-draft#clear">{{ 'inbox.answer.clear'|trans }}</button>
                             <div class="lp-decision__options">
                                 {% for option in item.options %}
                                     {% set optionId = 'inbox_option_' ~ item.id ~ '_' ~ loop.index0 %}
@@ -158,15 +125,16 @@
                                     </div>
                                 {% endfor %}
                             </div>
-                            {% if not item.multiple and item.freeText %}
-                                <twig:Ds:Button variant="ghost" size="sm" class="lp-inbox-answer__clear" type="button" data-action="form-draft#clear">{{ 'inbox.answer.clear'|trans }}</twig:Ds:Button>
+                            {% endif %}
+                            {% if item.freeText %}
+                                <div class="lp-decision__note">{{ form_widget(answerForm.answerText, {attr: noteAttr}) }}</div>
                             {% endif %}
                         </fieldset>
                     {% endif %}
                     {{ form_widget(answerForm.selectedOptions) }}
                     <twig:Ds:FieldErrors :fieldView="answerForm.selectedOptions" :id="selectedErrorsId" />
                     {% if item.freeText %}
-                        <twig:Ds:FormField :fieldView="answerForm.answerText" widgetKind="textarea" :widgetAttr="{class: 'lp-inbox-answer__text', rows: 3, placeholder: 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'}" />
+                        <twig:Ds:FieldErrors :fieldView="answerForm.answerText" :id="textErrorsId" />
                     {% endif %}
                     <twig:Ds:FieldErrors :fieldView="answerForm" />
                     {{ form_widget(answerForm._token) }}
