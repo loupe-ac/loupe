@@ -12,6 +12,7 @@ use App\Module\Board\Entity\PullRequestNotice;
 use App\Module\Board\Messenger\PostPullRequestNotice;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
 use App\Module\Board\Service\CardPullRequests;
+use App\Module\Board\Service\PullRequestNoticeQueue;
 use App\Module\Board\Service\StaleApprovalNoticeQueue;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
@@ -157,10 +158,14 @@ final class StaleApprovalNoticeQueueTest extends KernelTestCase
             $container->get(CardPullRequests::class),
             $container->get(PullRequestCommenters::class),
             $container->get(PullRequestNoticeRepository::class),
+            new PullRequestNoticeQueue(
+                $container->get(PullRequestNoticeRepository::class),
+                $this->em,
+                $bus,
+                $container->get(ClockInterface::class),
+                new NullLogger(),
+            ),
             $this->em,
-            $bus,
-            $container->get(ClockInterface::class),
-            new NullLogger(),
         );
 
         try {

@@ -10,6 +10,7 @@ use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\AgentReviewCheck;
+use App\Module\Board\Service\AgentReviewComment;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\FixRunCommentQueue;
 use App\Module\Board\Service\SiteReviewCheckPublisher;
@@ -53,7 +54,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
 {
     public const string KEY = 'forge-write';
     private const array WRITES_WITHOUT_FALLBACK = ['draft', 'ready', 'close', 'open-epic', 'post-review', 'site-review-check', 'agent-review-check', 'review-ready', 'comment'];
-    private const array COMMENTS = ['fix-run', 'stale-approval'];
+    private const array COMMENTS = ['fix-run', 'stale-approval', 'agent-review'];
 
     public function __construct(
         private CardRepository $cards,
@@ -71,6 +72,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         private AgentReviewCheck $agentReviewCheck,
         private FixRunCommentQueue $fixRunComments,
         private StaleApprovalNoticeQueue $staleApprovalNotices,
+        private AgentReviewComment $agentReviewComments,
         private CardEvaluations $evaluations,
         private CardTypeCatalog $catalog,
         private LoggerInterface $logger,
@@ -180,9 +182,17 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             // The queue runs in a savepoint, so a failure leaves the evaluation usable for the later rules.
             // The rule stays true, and the next change of its facts tries again.
             try {
-                $queued = 'fix-run' === $comment ? $this->fixRunComments->queue($card) : $this->staleApprovalNotices->queue($card);
+                $queued = match ($comment) {
+                    'fix-run' => $this->fixRunComments->queue($card),
+                    'agent-review' => $this->agentReviewComments->queue($card),
+                    default => $this->staleApprovalNotices->queue($card),
+                };
             } catch (\Throwable $e) {
-                $this->logger->error('fix-run' === $comment ? 'board.fix_run_comment_queue_failed' : 'board.pull_request_notice_queue_failed', [
+                $this->logger->error(match ($comment) {
+                    'fix-run' => 'board.fix_run_comment_queue_failed',
+                    'agent-review' => 'agent_review.comment_queue_failed',
+                    default => 'board.pull_request_notice_queue_failed',
+                }, [
                     'cardId' => (string) $card->id,
                     'ruleId' => $context->ruleId,
                     'comment' => $comment,
