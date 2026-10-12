@@ -192,6 +192,46 @@ it('keeps focus when a keyed sibling moves after the focused input', () =>
         return R.T(s.q) ? q + other : other + q;
     }));
 
+it('keeps focus when unkeyed wrappers of keyed inputs swap places', () =>
+    focusAcross((s, h, R) => {
+        const q = `<div><input id="q" name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}"></div>`;
+        const other = '<div><input id="other"></div>';
+
+        return R.T(s.q) ? other + q : q + other;
+    }));
+
+it('keeps focus when a keyed input appears before it in its wrapper', () =>
+    focusAcross(
+        (s, h, R) =>
+            `<div>${R.T(s.q) ? '<input id="other">' : ''}<input id="q" name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}"></div>`,
+    ));
+
+it('keeps the value of a keyed input whose unkeyed wrapper moves', async () => {
+    class C extends LoupeView {
+        renderVals() {
+            return {
+                flip: !!this.state.flip,
+                go: () => this.setState({ flip: !this.state.flip }),
+            };
+        }
+    }
+    const a = '<div><input id="a"></div>';
+    const b = '<div><input id="b"></div>';
+    const render = (s, h, R) =>
+        `<button data-on-click="${h(s.go)}"></button>` +
+        (R.T(s.flip) ? b + a : a + b);
+    LoupeView.mount(C, render, {}, ['click'], {});
+    const before = document.querySelector('#a');
+    before.value = 'typed';
+    document.querySelector('button').click();
+    await settle();
+    expect(document.querySelector('#a')).toBe(before);
+    expect(before.value).toBe('typed');
+    expect(
+        Array.from(document.querySelectorAll('input'), (el) => el.id),
+    ).toEqual(['b', 'a']);
+});
+
 it('keeps keyed siblings and their values when they reorder', async () => {
     class C extends LoupeView {
         renderVals() {

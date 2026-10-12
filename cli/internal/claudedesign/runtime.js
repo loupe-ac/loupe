@@ -166,20 +166,36 @@ class LoupeView {
 
     static _keyed(o) {
         return (
-            o.nodeType === 1 && (o.hasAttribute('id') || o.hasAttribute('name'))
+            o.nodeType === 1 &&
+            (LoupeView._key(o) !== null || o.querySelector('[id],[name]') !== null)
         );
+    }
+
+    static _key(o) {
+        return o.hasAttribute('id') || o.hasAttribute('name')
+            ? o.getAttribute('id') + '\u0000' + o.getAttribute('name')
+            : null;
+    }
+
+    static _inner(o) {
+        return Array.from(o.querySelectorAll('[id],[name]'), LoupeView._key);
     }
 
     static _same(o, n) {
         if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName) {
             return false;
         }
+        if (o.nodeType !== 1) {
+            return true;
+        }
+        const key = LoupeView._key(o);
+        if (key !== null || LoupeView._key(n) !== null) {
+            return key === LoupeView._key(n);
+        }
+        const a = LoupeView._inner(o);
+        const b = LoupeView._inner(n);
 
-        return (
-            o.nodeType !== 1 ||
-            (o.getAttribute('id') === n.getAttribute('id') &&
-                o.getAttribute('name') === n.getAttribute('name'))
-        );
+        return a.length === 0 ? b.length === 0 : a.some((k) => b.includes(k));
     }
 
     static _update(o, n) {
