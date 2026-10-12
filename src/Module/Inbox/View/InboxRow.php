@@ -29,11 +29,13 @@ final readonly class InboxRow
     /**
      * @param list<InboxItem> $items   at least one, in the order the ask holds them
      * @param ?string         $outcome the translation suffix of how a closed row ended
+     * @param ?InboxItem      $closing the item that closed the row, which also gives its outcome
      */
     public function __construct(
         public ?InboxAsk $ask,
         public array $items,
         public ?string $outcome = null,
+        public ?InboxItem $closing = null,
     ) {
         $first = $items[0] ?? throw new \LogicException('A row holds at least one item.');
         $open = array_find($items, static fn (InboxItem $item): bool => InboxItemState::Open === $item->state);

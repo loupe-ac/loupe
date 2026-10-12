@@ -13,7 +13,10 @@
 {% set closedSide = constant('App\\Module\\Inbox\\View\\InboxSide::Closed') %}
 {% set openSide = constant('App\\Module\\Inbox\\View\\InboxSide::Open') %}
 {% set section = view.isSearch ? 'search-results' : (view.side == closedSide ? 'closed-asks' : 'open-asks') %}
-<div class="lp-workspace lp-split-page lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor">
+{# A live refresh reads the view again for a page that already shows a status line, and the refresh leaves the flash for the next full visit. #}
+{% set liveRefresh = app.request.headers.has('X-Loupe-Live-Refresh') %}
+{% do mercure_subscribe(inbox_page_topic(inbox.project)) %}
+<div class="lp-workspace lp-split-page lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live">
     <header class="lp-page-header">
         <div class="lp-page-header__copy">
             <h1 class="lp-workspace-title">{{ 'inbox.page.title'|trans }}</h1>
@@ -120,7 +123,7 @@
 
                 <div class="lp-inbox-request-detail lp-split-pane">
                     {# What the last response did, read once. Only this page reads the flash type. #}
-                    {% for status in app.flashes('inbox_status') %}
+                    {% for status in liveRefresh ? [] : app.flashes('inbox_status') %}
                         {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
                         <p class="lp-inbox-status" role="status" data-inbox-status>
                             {% if status.ask %}
@@ -133,6 +136,23 @@
                             {% endif %}
                         </p>
                     {% endfor %}
+                    {# The ask that the page showed open has closed since: say why, and point to the next open ask. Only a live refresh that names the ask asks for it. #}
+                    {% set watched = app.request.headers.get('X-Loupe-Inbox-Watching') %}
+                    {% if watched and inbox.selected and inbox.selected.ask and inbox.selected.ask.closedAt and (inbox.selected.ask.id ~ '') == watched %}
+                        {% set closedOutcome = inbox.selected.outcome ?? 'closed' %}
+                        {% set closedReason = inbox.selected.closing.closeNote ?? null %}
+                        <p class="lp-inbox-status" role="status" data-inbox-closed-notice="{{ closedOutcome }}">
+                            <span>
+                                {%- if closedOutcome in ['withdrawn', 'obsolete'] -%}
+                                    {{ ('inbox.live.closed.' ~ closedOutcome)|trans }}
+                                {%- else -%}
+                                    {{ 'inbox.live.closed.other'|trans({'%outcome%': (closedOutcome == 'closed' ? 'inbox.row.closed' : 'inbox.row.outcome.' ~ closedOutcome)|trans}) }}
+                                {%- endif -%}
+                                {%- if closedReason %} {{ closedReason }}{% endif -%}
+                            </span>
+                            <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).withoutSelection.toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.live.next'|trans }}</a>
+                        </p>
+                    {% endif %}
                     {% if view.isPicked %}
                         <a class="lp-inbox-back"
                            href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"

@@ -5,7 +5,7 @@
 {% set origin = row.origin %}
 <section class="lp-inbox-ask{{ ask and ask.closedAt ? ' lp-inbox-ask--closed' }}"
          id="{{ ask ? 'inbox-ask-' ~ ask.id : 'inbox-panel-' ~ items|first.id }}"
-         {% if ask %}data-inbox-ask-id="{{ ask.id }}"{% endif %}>
+         {% if ask %}data-inbox-ask-id="{{ ask.id }}" data-inbox-ask-open="{{ ask.closedAt ? 'false' : 'true' }}"{% else %}data-inbox-item-number="{{ items|first.number }}"{% endif %}>
     <div class="lp-inbox-ask__main">
         <header class="lp-inbox-ask__summary">
             {# An ask stores no title. Its first item names it, as the request list does. #}

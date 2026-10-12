@@ -420,6 +420,10 @@
         font-weight: 600;
     }
 
+    .lp-core-inbox .lp-inbox-item__actions[data-inbox-locked] {
+        @apply opacity-70;
+    }
+
     .lp-core-inbox .lp-inbox-request-detail {
         min-width: 0;
         background: var(--surface-1);

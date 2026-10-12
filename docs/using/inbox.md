@@ -121,6 +121,23 @@ request.
 When no ask is open, the **Open** side shows **Nothing needs you**, a line on
 what agents ask here, and a link to the closed asks.
 
+### The page follows changes
+
+The page reads the inbox again when an agent, Loupe or another person changes an
+ask while the page is open. Every member who can open the page gets this, not
+only the project owner. A new ask appears in the list, an ask that closes leaves the **Open**
+side, and the counts follow. The page keeps the ask you have open, so a new
+blocking ask never takes its place.
+
+A response you were typing stays in the form. When the agent withdraws the ask
+you have open, or Loupe closes it because it is no longer needed, the ask stays
+on screen. A line says why and links to the next open ask. The choices and the
+buttons lock, and your note stays readable.
+
+The page does not reload while a dialog is open. It reads the inbox when the
+dialog closes. This needs a Mercure hub and the `live_updates.enabled` flag.
+Without them, the page is correct each time it loads.
+
 ### On a phone
 
 At phone width the list and the selected ask take turns. The page shows the

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Controller;
 
 use App\Mercure\LiveUpdates;
+use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
@@ -154,6 +155,76 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame((string) $project->id, $link->attr('data-inbox-pill-project-value'));
         self::assertSame('/projects/'.$project->id.'/inbox/open-count', $link->attr('data-inbox-pill-url-value'));
         self::assertSame('1', $link->filter('turbo-frame[data-inbox-pill-target="frame"] [data-inbox-open-count]')->text());
+    }
+
+    public function test_the_page_listens_on_the_project_inbox_topic_for_live_changes(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-page-topic');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->question($this->em, $project, 1);
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $topics = static::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
+        $pageTopic = $topics->forInbox($project->id ?? throw new \LogicException('The project has no id.'));
+        self::assertContains($pageTopic, self::subscribedTopics($this->client->getResponse()) ?? []);
+        self::assertContains($pageTopic, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
+        self::assertCount(1, $crawler->filter('[data-controller~="inbox-live"]'));
+        // A loose item has no ask, so its pane names the item for the live refresh.
+        self::assertCount(1, $crawler->filter('[data-inbox-item-number="1"]'));
+    }
+
+    public function test_a_live_refresh_says_why_the_watched_ask_closed(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-live-closed');
+        $project = $this->inboxProject($this->em, $owner);
+        $item = $this->question($this->em, $project, 1);
+        $item->state = InboxItemState::Withdrawn;
+        $ask = $this->askHolding($this->em, $project, [$item], closedAt: new \DateTimeImmutable('-1 minute'));
+        $this->setInboxFlag(true);
+        $uri = '/projects/'.$project->id.'/inbox?ask='.$ask->id;
+        $refresh = ['HTTP_X_LOUPE_LIVE_REFRESH' => '1', 'HTTP_TURBO_FRAME' => 'inbox-view'];
+
+        $this->client->loginUser($owner);
+        $this->client->request(Request::METHOD_GET, $uri, server: $refresh + ['HTTP_X_LOUPE_INBOX_WATCHING' => (string) $ask->id]);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-inbox-closed-notice] a[data-turbo-frame="inbox-view"]');
+        self::assertSelectorTextContains('[data-inbox-closed-notice]', 'Withdrawn by the agent.');
+
+        // Guard: the notice answers the watch, not the closed ask. A visit of that ask from the Closed side says nothing.
+        $this->client->request(Request::METHOD_GET, $uri, server: $refresh);
+        self::assertSelectorNotExists('[data-inbox-closed-notice]');
+        $this->client->request(Request::METHOD_GET, $uri);
+        self::assertSelectorNotExists('[data-inbox-closed-notice]');
+    }
+
+    public function test_the_closed_notice_reads_the_reason_of_the_item_that_closed_the_ask(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-live-closing');
+        $project = $this->inboxProject($this->em, $owner);
+        $earlier = $this->answered($this->em, $this->question($this->em, $project, 1));
+        $earlier->closeNote = 'An earlier note.';
+        $closing = $this->question($this->em, $project, 2);
+        $closing->state = InboxItemState::Withdrawn;
+        $closing->closedAt = new \DateTimeImmutable('-1 minute');
+        $closing->closeNote = 'The plan changed.';
+        $ask = $this->askHolding($this->em, $project, [$earlier, $closing], closedAt: new \DateTimeImmutable('-1 minute'));
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$ask->id, server: [
+            'HTTP_X_LOUPE_LIVE_REFRESH' => '1',
+            'HTTP_TURBO_FRAME' => 'inbox-view',
+            'HTTP_X_LOUPE_INBOX_WATCHING' => (string) $ask->id,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-inbox-closed-notice]', 'Withdrawn by the agent. The plan changed.');
+        self::assertSelectorTextNotContains('[data-inbox-closed-notice]', 'An earlier note.');
     }
 
     public function test_the_open_count_frame_renders_the_pill_alone(): void
