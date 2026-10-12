@@ -18,8 +18,21 @@
                     {% endfor %}
                 </div>
             </div>
-        {% else %}
-            <p class="admin-action-help" data-testid="connected-apps-panel-empty">{{ 'oauth.admin.connected_apps.empty'|trans }}</p>
         {% endfor %}
+        {% if previewTokens is not empty %}
+            <div class="admin-action-item admin-action-row" data-testid="connected-apps-panel-preview-tokens">
+                <div class="grow">
+                    <div class="admin-action-title mb-1.5">{{ 'oauth.connected_apps.preview_tokens.app_name'|trans }}</div>
+                    {% for token in previewTokens %}
+                        <p class="admin-action-help">
+                            {%- if token.cardNumber is not null %}#{{ token.cardNumber }} {{ token.cardTitle }}{% else %}{{ 'oauth.connected_apps.preview_tokens.no_card'|trans }}{% endif %} · {{ token.label }} · {{ token.project }} · {{ 'oauth.connected_apps.preview_tokens.expires'|trans({'%count%': token.daysLeft}) -}}
+                        </p>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        {% if apps is empty and previewTokens is empty %}
+            <p class="admin-action-help" data-testid="connected-apps-panel-empty">{{ 'oauth.admin.connected_apps.empty'|trans }}</p>
+        {% endif %}
     </div>
 </div>

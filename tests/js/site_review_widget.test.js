@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     BACKEND,
     bootWidget,
@@ -11,7 +11,9 @@ import {
     rejected,
     resetWidget,
     settle,
+    storageKeyFor,
     ACCESS_TOKEN,
+    PROJECT,
 } from './support/widget_harness.js';
 
 let originalHistory;
@@ -833,6 +835,153 @@ describe('boot', () => {
         expect(panelRoot().getElementById('lp-launch-count').textContent).toBe(
             '1',
         );
+    });
+});
+
+describe('a preview token', () => {
+    const PREVIEW = 'preview_token_value';
+
+    // Earlier tests leave a popup grant in the tab's session storage.
+    beforeEach(() => window.sessionStorage.clear());
+
+    it('signs the widget in when no popup grant exists', async () => {
+        const fetchMock = bootWidget({
+            respond: () => ok({ comments: [] }),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+
+        const [, options] = fetchMock.mock.calls[0];
+        expect(options.headers.Authorization).toBe(`Bearer ${PREVIEW}`);
+        expect(alerting()).toBe(false);
+    });
+
+    it('yields to a popup grant', async () => {
+        const fetchMock = bootWidget({
+            respond: () => ok({ comments: [] }),
+            previewToken: PREVIEW,
+        });
+        await settle();
+
+        const [, options] = fetchMock.mock.calls[0];
+        expect(options.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
+    });
+
+    it('shows the ended line and the sign-in button after a 401', async () => {
+        const fetchMock = bootWidget({
+            respond: () => rejected(401),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+        openPanel();
+
+        const root = panelRoot();
+        expect(root.getElementById('lp-fatal').textContent).toContain(
+            'The preview sign-in for this page ended. Sign in, or restart the preview.',
+        );
+        expect(root.getElementById('lp-sign-in')).not.toBeNull();
+        const used = fetchMock.mock.calls.filter(
+            ([, options]) =>
+                options.headers.Authorization === `Bearer ${PREVIEW}`,
+        );
+        expect(used).toHaveLength(1);
+    });
+
+    it('signs in again with the new token after a Turbo visit swaps it', async () => {
+        const ROTATED = 'rotated_token_value';
+        const fetchMock = bootWidget({
+            respond: (url, init) =>
+                init.headers.Authorization === `Bearer ${ROTATED}`
+                    ? ok({ comments: [] })
+                    : rejected(401),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+
+        const tag = document.querySelector(
+            'script[src*="site-review/widget.js"]',
+        );
+        window.history.pushState({}, '', '/next');
+        // Turbo swaps the tag after the URL changes.
+        tag.setAttribute('data-preview-token', ROTATED);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await settle();
+        openPanel();
+
+        const sent = fetchMock.mock.calls.map(
+            ([, options]) => options.headers.Authorization,
+        );
+        expect(sent).toEqual([`Bearer ${PREVIEW}`, `Bearer ${ROTATED}`]);
+        expect(panelRoot().getElementById('lp-fatal').style.display).toBe(
+            'none',
+        );
+        expect(alerting()).toBe(false);
+    });
+
+    it('falls back to the page token when an expired grant cannot refresh', async () => {
+        window.sessionStorage.setItem(
+            storageKeyFor(PROJECT),
+            JSON.stringify({
+                accessToken: ACCESS_TOKEN,
+                refreshToken: 'wt_test_refresh',
+                expiresAt: Date.now() - 1000,
+            }),
+        );
+        const fetchMock = bootWidget({
+            respond: (url) =>
+                url.endsWith('/oauth/token')
+                    ? rejected(400, { error: 'invalid_grant' })
+                    : ok({ comments: [] }),
+            signedIn: false,
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+
+        const api = fetchMock.mock.calls.filter(
+            ([url]) => !url.endsWith('/oauth/token'),
+        );
+        expect(api[0][1].headers.Authorization).toBe(`Bearer ${PREVIEW}`);
+        expect(alerting()).toBe(false);
+    });
+
+    it('falls back to the page token when a refused grant cannot refresh', async () => {
+        const fetchMock = bootWidget({
+            respond: (url, init) => {
+                if (url.endsWith('/oauth/token'))
+                    return rejected(400, { error: 'invalid_grant' });
+                return init.headers.Authorization === `Bearer ${PREVIEW}`
+                    ? ok({ comments: [] })
+                    : rejected(401);
+            },
+            previewToken: PREVIEW,
+        });
+        await settle();
+        await settle();
+
+        const sent = fetchMock.mock.calls
+            .filter(([url]) => !url.endsWith('/oauth/token'))
+            .map(([, options]) => options.headers.Authorization);
+        expect(sent).toEqual([`Bearer ${ACCESS_TOKEN}`, `Bearer ${PREVIEW}`]);
+        expect(alerting()).toBe(false);
+    });
+
+    it('sends no token when the page carries none and no grant exists', async () => {
+        const fetchMock = bootWidget({
+            respond: () => ok({ comments: [] }),
+            signedIn: false,
+        });
+        await settle();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(alerting()).toBe(false);
+        openPanel();
+        expect(panelRoot().getElementById('lp-sign-in')).not.toBeNull();
     });
 });
 
