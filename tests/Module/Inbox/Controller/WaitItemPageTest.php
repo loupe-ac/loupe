@@ -174,7 +174,8 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $wait = $crawler->filter('#inbox-item-1 [data-inbox-wait]');
         self::assertCount(1, $wait);
-        self::assertStringContainsString('version 1', $wait->text());
+        self::assertStringContainsString('A deleted document, version 1, of card 4 waited for your review.', $wait->text());
+        self::assertStringNotContainsString('""', $wait->text());
         self::assertCount(0, $wait->filter('a'));
     }
 
