@@ -32,7 +32,7 @@ final readonly class PullRequestBehind implements Condition
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest];
+        return [EngineFact::PullRequest, EngineFact::PullRequestHead];
     }
 
     #[\Override]

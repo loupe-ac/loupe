@@ -136,6 +136,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
                 ForgePullRequestState::Closed => $pullRequest->refreshedAt,
             },
             id: $pullRequest->id,
+            headSha: $pullRequest->headSha,
         );
     }
 

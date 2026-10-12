@@ -164,7 +164,7 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.checks_passed' => [new PullRequestChecksPassed(), [], 'pr_checks_passed', [], $one];
         yield 'pr.checks_failed' => [new PullRequestChecksFailed(), [], 'pr_checks_failed', [], $one];
         yield 'pr.conflicting' => [new PullRequestConflicting(), [], 'pr_conflicting', [], $one];
-        yield 'pr.behind' => [new PullRequestBehind(), [], 'pr_behind', [], $one];
+        yield 'pr.behind' => [new PullRequestBehind(), [], 'pr_behind', [], [EngineFact::PullRequest, EngineFact::PullRequestHead]];
         yield 'pr.approval_covers_head' => [new PullRequestApprovalCoversHead(), ['min' => 2], 'pr_approval_covers_head', ['%min%' => '2'], $one];
         yield 'pr.changes_requested' => [new PullRequestChangesRequested(), [], 'pr_changes_requested', [], $one];
         yield 'pr.base_is_merge_target' => [new PullRequestBaseIsMergeTarget(), [], 'pr_base_is_merge_target', [], $one];

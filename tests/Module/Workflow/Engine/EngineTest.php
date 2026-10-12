@@ -53,9 +53,15 @@ use App\Module\Bridge\Workflow\BridgeWorkLedger;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
+use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\ForgePullRequestWrites;
+use App\Module\Forge\Service\PullRequestBaseChangers;
+use App\Module\Forge\Service\PullRequestBranchUpdaters;
+use App\Module\Forge\Service\PullRequestMergers;
+use App\Module\Forge\Service\PullRequestSyncFailed;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Review\Entity\Document;
@@ -99,6 +105,7 @@ use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\ProjectTemplateCopy;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Outbox\OutboxWriter;
+use App\Tests\Module\Board\Workflow\FakeForgeWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Action\FakeRuleAsks;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
@@ -3687,6 +3694,75 @@ final class EngineTest extends KernelTestCase
         self::assertSame(1, $this->ruleState($card, 'draft')->fires);
     }
 
+    public function test_a_synced_pull_request_that_is_behind_again_on_a_new_head_syncs_again(): void
+    {
+        [$card, $pullRequest, $writer] = $this->behindCard();
+        $this->evaluate($card);
+
+        $pullRequest->headSha = self::HEAD_TWO;
+        $pullRequest->syncFromSha = $pullRequest->syncRequestedAt = null;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:01:00');
+
+        self::assertSame([['update', $pullRequest->number, self::HEAD_ONE], ['update', $pullRequest->number, self::HEAD_TWO]], $writer->calls);
+        self::assertSame([2, 0], [$this->ruleState($card, 'update-behind')->fires, $this->ruleState($card, 'update-behind')->attempts]);
+    }
+
+    public function test_a_behind_pull_request_that_nothing_moves_syncs_once(): void
+    {
+        [$card, $pullRequest, $writer] = $this->behindCard();
+
+        $this->evaluate($card);
+        $this->evaluate($card, '2026-10-02 12:01:00');
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertSame([['update', $pullRequest->number, self::HEAD_ONE]], $writer->calls);
+        self::assertSame(1, $this->ruleState($card, 'update-behind')->fires);
+    }
+
+    public function test_a_refused_sync_backs_off_and_does_not_refire_on_the_same_head(): void
+    {
+        [$card, , $writer] = $this->behindCard();
+        $writer->failure = new PullRequestSyncFailed('refused', permanent: true);
+
+        $this->evaluate($card);
+        self::assertSame([1, '2026-10-02 12:10:00'], [$this->ruleState($card, 'update-behind')->attempts, $this->ruleState($card, 'update-behind')->dueAt?->format('Y-m-d H:i:s')]);
+
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        self::assertCount(1, $writer->calls);
+        self::assertSame(1, $this->ruleState($card, 'update-behind')->attempts);
+
+        $this->evaluate($card, '2026-10-02 12:10:00');
+        self::assertCount(2, $writer->calls);
+        self::assertSame(2, $this->ruleState($card, 'update-behind')->attempts);
+    }
+
+    public function test_a_refire_while_the_sync_is_in_flight_is_done_with_no_attempt_and_no_second_write(): void
+    {
+        [$card, $pullRequest, $writer] = $this->behindCard();
+        $this->evaluate($card);
+
+        $pullRequest->checks = PullRequestChecks::Passed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:01:00');
+
+        self::assertCount(1, $writer->calls);
+        self::assertSame([2, 0], [$this->ruleState($card, 'update-behind')->fires, $this->ruleState($card, 'update-behind')->attempts]);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_new_head_does_not_refire_a_rule_that_does_not_read_behind(): void
+    {
+        [$card, $pullRequest] = $this->behindCard([['id' => 'comment', 'when' => ['pr.open' => []], 'then' => ['forge-write' => ['write' => 'comment', 'comment' => 'fix-run']]]]);
+        $this->evaluate($card);
+
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:01:00');
+
+        self::assertSame(1, $this->ruleState($card, 'comment')->fires);
+    }
+
     public function test_a_new_head_pushed_before_the_next_evaluation_gets_its_own_stale_approval_notice(): void
     {
         $card = $this->boundCard([['id' => 'comment-stale-approval', 'when' => ['card.pr.approval_stale' => []], 'then' => ['forge-write' => ['write' => 'comment', 'comment' => 'stale-approval']]]]);
@@ -3762,6 +3838,32 @@ final class EngineTest extends KernelTestCase
         $this->em()->flush();
 
         return $this->card($project, 'next');
+    }
+
+    /**
+     * A card whose approved pull request is behind on HEAD_ONE, with every branch update recorded by a fake forge writer.
+     *
+     * @param list<array<string, mixed>>|null $rules the rules, or the sync rule alone when null
+     *
+     * @return array{Card, ForgePullRequest, FakeForgeWriter}
+     */
+    private function behindCard(?array $rules = null): array
+    {
+        $card = $this->boundCard($rules ?? [['id' => 'update-behind', 'when' => ['pr.behind' => []], 'then' => ['forge-write' => ['write' => 'update-branch', 'fallback' => 'sync']]]]);
+        $writer = new FakeForgeWriter();
+        self::getContainer()->set(ForgePullRequestWrites::class, new ForgePullRequestWrites(
+            new PullRequestMergers([$writer]),
+            new PullRequestBaseChangers([$writer]),
+            new PullRequestBranchUpdaters([$writer]),
+            $this->service(ForgePullRequestRepository::class),
+            $this->em(),
+            new MockClock(self::NOON),
+        ));
+        $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
+        $pullRequest->mergeability = PullRequestMergeability::Behind;
+        $this->em()->flush();
+
+        return [$card, $pullRequest, $writer];
     }
 
     /** Rule "review" holds a live fix, and rule "checks" of the same kind turns true while it runs. */
