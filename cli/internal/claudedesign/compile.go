@@ -65,14 +65,23 @@ func (compiler) Compile(files []api.ArtifactFile, _ artifactcompile.Options) (ar
 	for _, f := range res.Files {
 		taken[f.Path] = true
 	}
+	outs := make([]string, len(boards))
+	collided := make([]string, len(boards))
+	links := map[string]string{}
 	for i, b := range boards {
-		out := pagePath(b.Path, single)
-		page, gaps := compilePage(b.Path, b.Contents)
-		if taken[out] {
-			free := freePath(out, taken)
-			gaps = append(gaps, artifactcompile.Gap{File: b.Path, Line: 1, Feature: "an existing file named " + out, Detail: "the page is written to " + free + " instead; move one of them"})
+		outs[i] = pagePath(b.Path, single)
+		if taken[outs[i]] {
+			collided[i] = outs[i]
+			outs[i] = freePath(outs[i], taken)
+		}
+		taken[outs[i]] = true
+		links[b.Path] = outs[i]
+	}
+	for i, b := range boards {
+		page, gaps := compilePage(b.Path, b.Contents, links)
+		if collided[i] != "" {
+			gaps = append(gaps, artifactcompile.Gap{File: b.Path, Line: 1, Feature: "an existing file named " + collided[i], Detail: "the page is written to " + outs[i] + " instead; move one of them"})
 			page = markTop(page, gaps[len(gaps)-1])
-			out = free
 		}
 		if !single {
 			g := artifactcompile.Gap{File: boards[0].Path, Line: 1, Feature: "more than one artboard", Detail: "pick the first page and rename it to index.html"}
@@ -81,9 +90,8 @@ func (compiler) Compile(files []api.ArtifactFile, _ artifactcompile.Options) (ar
 				gaps = append(gaps, g)
 			}
 		}
-		taken[out] = true
 		res.Gaps = append(res.Gaps, gaps...)
-		res.Files = append(res.Files, api.ArtifactFile{Path: out, ContentType: "text/html; charset=utf-8", Contents: page})
+		res.Files = append(res.Files, api.ArtifactFile{Path: outs[i], ContentType: "text/html; charset=utf-8", Contents: page})
 	}
 	sort.Slice(res.Files, func(i, j int) bool { return res.Files[i].Path < res.Files[j].Path })
 

@@ -86,7 +86,7 @@ func TestAStaticCanvasBecomesIndexHTML(t *testing.T) {
 	assertClean(t, page)
 	for _, want := range []string{
 		`<meta name="viewport" content="width=device-width, initial-scale=1"/>`,
-		`<style>`, `fonts.googleapis.com`, `<h1>Hello</h1>`, `href="Other.html#top"`,
+		`<style>`, `fonts.googleapis.com`, `<h1>Hello</h1>`, `href="index.html#top"`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("missing %q in\n%s", want, page)
@@ -415,5 +415,49 @@ func TestABlobPathFromAValueIsAGap(t *testing.T) {
 				t.Fatalf("page:\n%s", page)
 			}
 		})
+	}
+}
+
+func TestMarkupFromAValueIsCheckedLikeTheCanvas(t *testing.T) {
+	cases := map[string]struct{ markup, feature, kept string }{
+		"an event attribute":   {`<button onclick=\"go()\">x</button>`, "event attribute onclick", `onclick="go()"`},
+		"an embedded artboard": {`<dc-import src=\"P.dc.html\"></dc-import>`, "<dc-import> (an embedded artboard)", `<dc-import`},
+		"a nested inner HTML":  {`<div dangerouslySetInnerHTML=\"{{ x }}\"></div>`, "dangerouslySetInnerHTML inside markup from a value", `dangerouslysetinnerhtml`},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			script := `class Component extends DCLogic { renderVals() { return { m: { __html: "` + c.markup + `" } }; } }`
+			res := compile(t, canvas("A.dc.html", scripted(script, "<p>a</p>\n<div dangerouslySetInnerHTML=\"{{ m }}\"></div>")))
+			if len(res.Gaps) != 1 || res.Gaps[0].Feature != c.feature || res.Gaps[0].Line != 4 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			page := one(t, res, "index.html")
+			if i, j := strings.Index(page, "loupe:gap"), strings.Index(page, c.kept); i < 0 || j < i {
+				t.Fatalf("page:\n%s", page)
+			}
+		})
+	}
+}
+
+func TestALinkToAnArtboardThatIsNotPushedIsAGap(t *testing.T) {
+	for _, href := range []string{"Other.dc.html", "../A.dc.html#top"} {
+		res := compile(t, canvas("site/A.dc.html", wrap(`<a href="`+href+`">o</a>`)))
+		if len(res.Gaps) != 1 || res.Gaps[0].Feature != "a link to an artboard that is not in the push" {
+			t.Fatalf("%s: gaps = %+v", href, res.Gaps)
+		}
+		page := one(t, res, "site/index.html")
+		if i, j := strings.Index(page, "loupe:gap"), strings.Index(page, `href="`+href+`"`); i < 0 || j < i {
+			t.Fatalf("page:\n%s", page)
+		}
+	}
+}
+
+func TestALinkFollowsTheArtboardToItsPage(t *testing.T) {
+	res := compile(t,
+		canvas("site/A.dc.html", wrap(`<a href="A.dc.html?x=1">self</a>`)),
+		canvas("B.dc.html", wrap(`<a href="site/A.dc.html">a</a>`)),
+	)
+	if !strings.Contains(one(t, res, "site/A.html"), `href="A.html?x=1"`) || !strings.Contains(one(t, res, "B.html"), `href="site/A.html"`) {
+		t.Fatalf("files = %+v", res.Files)
 	}
 }

@@ -102,8 +102,8 @@ to a plain page before it stores anything. It runs the script of the canvas on
 your machine, so you install nothing. The folder then holds no canvas file and
 no `support.js`, and the artifact holds the compiled page.
 
-One canvas becomes `index.html`. A link to another canvas, such as
-`href="Pricing.dc.html"`, becomes `href="Pricing.html"`. Other files of the
+One canvas becomes `index.html`. A link to a canvas of the folder, such as
+`href="Pricing.dc.html"`, points at its compiled page. Other files of the
 folder go through unchanged.
 
 The compiler stops at what it cannot compile. It stores nothing and prints one
@@ -117,6 +117,9 @@ These are gaps today:
 
 - An event attribute, such as `onClick` or `onChange`.
 - An embedded artboard, which is any `<dc-...>` tag.
+- One of these two features in markup that `dangerouslySetInnerHTML` fills in.
+  Such markup cannot hold a `dangerouslySetInnerHTML` of its own.
+- A link to a canvas that the folder does not hold.
 - A `<sc-else>` tag.
 - A `/_blob/` path, also one that a script value fills in.
 - A file of the folder with the name of the compiled page, such as

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -49,6 +51,8 @@ type problem struct{ feature, detail string }
 type page struct {
 	file string
 	gaps []artifactcompile.Gap
+	// links gives the page path of each canvas in the push.
+	links map[string]string
 	// kept holds the markers and the source fragments kept after them.
 	kept map[*html.Node]bool
 	// keptSelf holds the nodes that keep source text after a marker. Their
@@ -120,8 +124,8 @@ func isTag(name string) func(*html.Node) bool {
 }
 
 // compilePage compiles one canvas file to a page.
-func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
-	p := &page{file: file, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
+func compilePage(file string, src []byte, links map[string]string) ([]byte, []artifactcompile.Gap) {
+	p := &page{file: file, links: links, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
 		return markTop(src, artifactcompile.Gap{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}),
@@ -484,6 +488,12 @@ func sourceProblems(s string) []problem {
 	return out
 }
 
+func plainHoleOK(s string) bool {
+	_, ok := plainHole(s)
+
+	return ok
+}
+
 // plainHole gives the path of a string that is one plain hole.
 func plainHole(s string) (string, bool) {
 	m := soleRe.FindStringSubmatch(s)
@@ -591,8 +601,12 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 			for _, pr := range problems {
 				marks = append(marks, p.addGap(n, pr))
 			}
-			if a.Key == "href" {
-				val = rewriteLink(val)
+			if a.Key == "href" && len(problems) == 0 {
+				link, ok := p.rewriteLink(val)
+				if !ok {
+					marks = append(marks, p.addGap(n, problem{"a link to an artboard that is not in the push", fmt.Sprintf("href=%q", val)}))
+				}
+				val = link
 			}
 			el.Attr = append(el.Attr, html.Attribute{Namespace: a.Namespace, Key: a.Key, Val: val})
 		}
@@ -604,6 +618,7 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 		}
 		for _, f := range frags {
 			el.AppendChild(f)
+			marks = append(marks, p.checkFragment(f)...)
 		}
 	} else {
 		for _, c := range p.expandChildren(n, scope) {
@@ -639,18 +654,54 @@ func innerHTML(val string, scope map[string]any) (string, *problem) {
 	return s, nil
 }
 
-// rewriteLink points a link to a canvas at the compiled page.
-func rewriteLink(href string) string {
+// checkFragment marks the unsupported features of markup that a value gives.
+// The node stays after its markers, and its children are still checked.
+func (p *page) checkFragment(n *html.Node) []*html.Node {
+	var marks []*html.Node
+	var problems []problem
+	switch n.Type {
+	case html.TextNode:
+		problems = textProblems(n)
+	case html.ElementNode:
+		problems = elementProblems(n)
+		if v, ok := attrOf(n, "dangerouslysetinnerhtml"); ok && plainHoleOK(v) {
+			problems = append(problems, problem{"dangerouslySetInnerHTML inside markup from a value", "write the markup by hand"})
+		}
+	}
+	for _, pr := range problems {
+		marks = append(marks, p.addGap(n, pr))
+	}
+	if len(problems) > 0 {
+		p.keptSelf[n] = true
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		marks = append(marks, p.checkFragment(c)...)
+	}
+
+	return marks
+}
+
+// rewriteLink points a link to a canvas at the compiled page. It is false for
+// a canvas that the push does not hold, and the link then keeps its source.
+func (p *page) rewriteLink(href string) (string, bool) {
 	if strings.Contains(href, "://") || strings.HasPrefix(href, "//") || strings.HasPrefix(href, "/") {
-		return href
+		return href, true
 	}
 	base, rest := href, ""
 	if i := strings.IndexAny(href, "?#"); i >= 0 {
 		base, rest = href[:i], href[i:]
 	}
 	if !strings.HasSuffix(base, canvasSuffix) {
-		return href
+		return href, true
+	}
+	out, ok := p.links[path.Join(path.Dir(p.file), base)]
+	if !ok {
+		return href, false
+	}
+	rel, err := filepath.Rel(filepath.FromSlash(path.Dir(p.file)), filepath.FromSlash(out))
+	if err != nil {
+		return href, false
 	}
 
-	return strings.TrimSuffix(base, canvasSuffix) + ".html" + rest
+	return filepath.ToSlash(rel) + rest, true
 }
