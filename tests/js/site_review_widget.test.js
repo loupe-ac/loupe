@@ -1243,19 +1243,32 @@ describe('a stored selector that carries a stale class', () => {
 });
 
 describe('style sheet colour tokens', () => {
-    it('uses only custom properties that a palette defines', () => {
-        const source = readFileSync('public/site-review/widget.js', 'utf8');
-        const defined = new Set(
-            [...source.matchAll(/'(--[a-z0-9-]+)'\s*:/g)].map(
-                (match) => match[1],
-            ),
+    const source = readFileSync('public/site-review/widget.js', 'utf8');
+    const palette = (name) => {
+        const body = source.match(
+            new RegExp(`const ${name} = \\{([\\s\\S]*?)\\n {4}\\};`),
+        )[1];
+
+        return [...body.matchAll(/'(--[a-z0-9-]+)'\s*:/g)].map(
+            (match) => match[1],
         );
-        const used = new Set(
+    };
+    const used = [
+        ...new Set(
             [...source.matchAll(/var\((--[a-z0-9-]+)/g)].map(
                 (match) => match[1],
             ),
-        );
+        ),
+    ];
 
-        expect([...used].filter((name) => !defined.has(name))).toEqual([]);
-    });
+    it.each(['LIGHT', 'DARK'])(
+        'uses only custom properties that the %s theme defines',
+        (theme) => {
+            const defined = new Set([...palette('CHROME'), ...palette(theme)]);
+
+            expect(used.length).toBeGreaterThan(0);
+            expect(defined.has('--text')).toBe(true);
+            expect(used.filter((name) => !defined.has(name))).toEqual([]);
+        },
+    );
 });
