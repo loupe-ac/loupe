@@ -62,18 +62,44 @@ func (r rebaser) url(u string) string {
 	return relTo(r.to, target) + rest
 }
 
+// srcset rebases the URL of each candidate. It parses the candidates as the
+// HTML standard does, so a comma inside a URL, such as in a data URL, stays.
 func (r rebaser) srcset(s string) string {
-	parts := strings.Split(s, ",")
-	for i, part := range parts {
-		fields := strings.Fields(part)
-		if len(fields) == 0 {
+	var out strings.Builder
+	i := 0
+	for i < len(s) {
+		start := i
+		for i < len(s) && (isHTMLSpace(s[i]) || s[i] == ',') {
+			i++
+		}
+		out.WriteString(s[start:i])
+		start = i
+		for i < len(s) && !isHTMLSpace(s[i]) {
+			i++
+		}
+		u := strings.TrimRight(s[start:i], ",")
+		out.WriteString(r.url(u))
+		out.WriteString(s[start+len(u) : i])
+		if len(u) < i-start {
 			continue
 		}
-		lead := part[:strings.Index(part, fields[0])]
-		parts[i] = lead + r.url(fields[0]) + part[len(lead)+len(fields[0]):]
+		start = i
+		for depth := 0; i < len(s) && (s[i] != ',' || depth > 0); i++ {
+			switch s[i] {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+		}
+		out.WriteString(s[start:i])
 	}
 
-	return strings.Join(parts, ",")
+	return out.String()
+}
+
+func isHTMLSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r'
 }
 
 func (r rebaser) css(s string) string {

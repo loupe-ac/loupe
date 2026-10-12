@@ -268,6 +268,27 @@ func TestAnIndexFromAFolderKeepsItsRelativeLinks(t *testing.T) {
 	}
 }
 
+func TestAnIndexFromAFolderKeepsEachSrcsetURL(t *testing.T) {
+	cases := map[string]struct{ in, want string }{
+		"data URL":             {`data:image/png;base64,AAAA 1x, big.png 2x`, `data:image/png;base64,AAAA 1x, site/big.png 2x`},
+		"data URL last":        {`a.png 1x,data:image/png;base64,AAAA 2x`, `site/a.png 1x,data:image/png;base64,AAAA 2x`},
+		"no descriptor":        {`a.png, b.png 2x`, `site/a.png, site/b.png 2x`},
+		"comma in a file name": {`a,b.png 1x`, `site/a,b.png 1x`},
+		"width descriptors":    {` a.png 100w ,b.png 200w`, ` site/a.png 100w ,site/b.png 200w`},
+	}
+	r := rebaser{from: "site", to: "."}
+	for name, c := range cases {
+		if got := r.srcset(c.in); got != c.want {
+			t.Errorf("%s: srcset(%q) = %q, want %q", name, c.in, got, c.want)
+		}
+	}
+
+	res := compileIndex(t, "site/Home", canvas("site/Home.dc.html", wrap(`<img srcset="data:image/png;base64,AAAA 1x, big.png 2x">`)))
+	if index := one(t, res, "index.html"); !strings.Contains(index, `srcset="data:image/png;base64,AAAA 1x, site/big.png 2x"`) {
+		t.Fatalf("index.html lost a srcset URL:\n%s", index)
+	}
+}
+
 func TestAPageThatWouldReplaceAFileIsAGapAndKeepsBoth(t *testing.T) {
 	cases := map[string]struct {
 		taken []string
