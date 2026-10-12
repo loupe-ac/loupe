@@ -113,6 +113,67 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(1, $this->searchHits('document'));
     }
 
+    public function test_a_card_in_next_with_no_parent_opens_no_wait_for_a_tech_design_in_review(): void
+    {
+        $this->linkedDocument('Tech design');
+        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_child_in_next_opens_a_wait_for_its_tech_design_in_review(): void
+    {
+        $document = $this->linkedDocument('Tech design');
+        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
+        $this->card->parent = $this->epicInImplementation();
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertEquals($document->id, $this->onlyWait($this->onlyWatch())->documentId);
+    }
+
+    public function test_a_child_in_next_with_an_approved_and_a_new_tech_design_waits_on_the_new_one(): void
+    {
+        $approved = $this->linkedDocument('Old tech design');
+        $approved->status = DocumentStatus::Approved;
+        $new = $this->linkedDocument('New tech design');
+        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
+        $this->card->parent = $this->epicInImplementation();
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertEquals($new->id, $this->onlyWait($this->onlyWatch())->documentId);
+    }
+
+    private function epicInImplementation(): Card
+    {
+        $epic = $this->card($this->em, $this->project, 99);
+        $epic->type = 'epic';
+        $epic->column = $this->stageColumn($this->em, $this->project, 'implementation');
+        $approved = $this->untaggedLinkedDocumentOf($epic, 'Epic design');
+        $approved->status = DocumentStatus::Approved;
+        $this->stageDocument($this->em, $approved, $epic);
+        $epic->column = $this->stageColumn($this->em, $this->project, 'implementation');
+        $this->em->flush();
+
+        return $epic;
+    }
+
+    private function untaggedLinkedDocumentOf(Card $card, string $title): Document
+    {
+        $document = new Document($this->project->owner, $this->project, $title);
+        $document->addVersion('# One', '<h1>One</h1>');
+        $this->em->persist($document);
+        $card->documents->add(new CardDocument($card, $document));
+
+        return $document;
+    }
+
     public function test_a_linked_draft_opens_no_wait_until_it_is_published(): void
     {
         $document = $this->linkedDocument('Tech design');

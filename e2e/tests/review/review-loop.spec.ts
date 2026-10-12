@@ -17,7 +17,7 @@ import {
 } from '../fixtures';
 import { submitRedirectingForm } from '../helpers';
 import { coverageScaled } from '../timeouts';
-import { showPanel } from './panels';
+import { showPanel, toggleOn } from './panels';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eReviewLoop1!';
@@ -457,9 +457,7 @@ async function expectThreadVisible(page: Page, index = 0): Promise<void> {
     await showPanel(page, 'Comments');
     const row = page.locator(ROW).nth(index);
     await expect(row).toBeVisible({ timeout: coverageScaled(10000) });
-    if ((await row.getAttribute('aria-expanded')) !== 'true') {
-        await row.click();
-    }
+    await toggleOn(row, 'aria-expanded');
     const thread = page.locator(`#${await row.getAttribute('aria-controls')}`);
     await expect(thread.locator('.lp-comment-thread__detail')).toBeVisible({
         timeout: coverageScaled(10000),
