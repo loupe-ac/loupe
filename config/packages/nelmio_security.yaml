@@ -41,6 +41,9 @@ when@prod:
                 base-uri: ["'self'"]
                 object-src: ["'none'"]
                 frame-ancestors: ["'self'"]
+                # Stored artifacts frame from one sub-address each. Unset, the
+                # placeholder host matches nothing.
+                frame-src: ["'self'", "https://*.%env(default:app.artifact_content_placeholder_host:ARTIFACT_CONTENT_HOST)%"]
                 # The bundle appends 'unsafe-inline' next to the nonce as its
                 # CSP Level 1 fallback; a nonce-aware browser discards it. Not
                 # listed here so the fallback is the only thing adding it.

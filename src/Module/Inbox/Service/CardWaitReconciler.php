@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardPauseRepository;
@@ -38,9 +39,12 @@ use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\FactsBuilder;
+use App\Module\Workflow\Service\VerdictWouldFire;
+use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Doctrine\DBAL\LockMode;
@@ -73,6 +77,8 @@ final readonly class CardWaitReconciler
         private TemplateSource $templates,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private CardWaitText $waitText,
+        private CardDirectory $cardDirectory,
+        private VerdictWouldFire $verdictWouldFire,
         private EpicBranches $epicBranches,
     ) {
     }
@@ -230,9 +236,9 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * A document in review waits on a linked card when the rules of the card's
-     * workflow slot read a tag of the document. An open review of an agent on
-     * the document holds its wait back.
+     * A document in review waits on a linked card when a verdict on it would
+     * make a rule of the card's workflow slot fire. An open review of an agent
+     * on the document holds its wait back.
      *
      * @param list<Uuid> $cardIds
      *
@@ -266,6 +272,7 @@ final readonly class CardWaitReconciler
 
             return [] !== array_intersect($template->documentTagsFor($slot), $tags);
         }));
+        $rows = $this->verdictRows($template, $rows);
         if ([] === $rows) {
             return [];
         }
@@ -285,6 +292,35 @@ final readonly class CardWaitReconciler
         }
 
         return $waits;
+    }
+
+    /**
+     * @param list<array{link: CardDocument, versionNumber: int, versionAt: ?\DateTimeImmutable}> $rows
+     *
+     * @return list<array{link: CardDocument, versionNumber: int, versionAt: ?\DateTimeImmutable}> the rows whose document a verdict would make a rule fire on
+     */
+    private function verdictRows(Template $template, array $rows): array
+    {
+        $byCard = [];
+        foreach ($rows as $row) {
+            $byCard[(string) $row['link']->card->id][] = $row;
+        }
+
+        $kept = [];
+        foreach ($byCard as $cardId => $cardRows) {
+            $snapshot = $this->cardDirectory->find(Uuid::fromString($cardId));
+            if (null === $snapshot) {
+                continue;
+            }
+            $ids = array_flip($this->verdictWouldFire->forCard($snapshot, $template, array_map(static fn (array $row): string => (string) $row['link']->document->id, $cardRows)));
+            foreach ($cardRows as $row) {
+                if (isset($ids[(string) $row['link']->document->id])) {
+                    $kept[] = $row;
+                }
+            }
+        }
+
+        return $kept;
     }
 
     /**

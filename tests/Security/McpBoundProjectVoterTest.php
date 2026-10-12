@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Security;
 
 use App\Module\Account\Entity\User;
+use App\Module\Artifact\Entity\Artifact;
 use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -135,6 +136,39 @@ final class McpBoundProjectVoterTest extends KernelTestCase
         self::assertFalse($this->authorization->isGranted(McpBoundProjectVoter::WORKER_RUN_WRITE, $run));
     }
 
+    private function artifactIn(Project $project): Artifact
+    {
+        $artifact = new Artifact($project, 'Widget tokens '.uniqid());
+        $this->em->persist($artifact);
+        $this->em->flush();
+
+        return $artifact;
+    }
+
+    public function test_grants_an_artifact_of_the_bound_project(): void
+    {
+        $artifact = $this->artifactIn($this->project($this->user('artifact-voter-grant@example.com')));
+        $this->actAsMcpTokenBoundTo($artifact->project);
+
+        self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::ARTIFACT_READ, $artifact));
+        self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::ARTIFACT_WRITE, $artifact));
+    }
+
+    public function test_denies_an_artifact_in_another_project_of_the_same_owner(): void
+    {
+        $owner = $this->user('artifact-voter-cross@example.com');
+        $artifact = $this->artifactIn($this->project($owner));
+        $this->actAsMcpTokenBoundTo($this->project($owner));
+
+        self::assertFalse($this->authorization->isGranted(McpBoundProjectVoter::ARTIFACT_READ, $artifact));
+        self::assertFalse($this->authorization->isGranted(McpBoundProjectVoter::ARTIFACT_WRITE, $artifact));
+
+        $record = $this->auditedVote(McpBoundProjectVoter::ARTIFACT_WRITE, $artifact)->record('artifact.mcp_access_denied');
+        self::assertSame(AuditOutcome::Refused, $record->outcome);
+        self::assertSame('artifact', $record->subject?->type);
+        self::assertSame((string) $artifact->id, $record->subject->id);
+    }
+
     public function test_grants_the_bound_project_for_the_worker_attributes(): void
     {
         $project = $this->project($this->user('run-voter-project-grant@example.com'));
@@ -211,7 +245,7 @@ final class McpBoundProjectVoterTest extends KernelTestCase
      */
     public static function pairings(): iterable
     {
-        $subjects = ['document', 'comment', 'series', 'card', 'project', 'site_review_comment', 'worker_run'];
+        $subjects = ['document', 'comment', 'series', 'card', 'project', 'site_review_comment', 'worker_run', 'artifact'];
         $accepts = [
             McpBoundProjectVoter::DOCUMENT_READ => ['document'],
             McpBoundProjectVoter::DOCUMENT_WRITE => ['document'],
@@ -227,6 +261,8 @@ final class McpBoundProjectVoterTest extends KernelTestCase
             McpBoundProjectVoter::ANALYSIS_READ => ['project'],
             McpBoundProjectVoter::ANALYSIS_WRITE => ['project'],
             McpBoundProjectVoter::PROJECT_WRITE => ['project'],
+            McpBoundProjectVoter::ARTIFACT_READ => ['artifact'],
+            McpBoundProjectVoter::ARTIFACT_WRITE => ['artifact'],
         ];
 
         foreach ($accepts as $attribute => $accepted) {
@@ -263,6 +299,8 @@ final class McpBoundProjectVoterTest extends KernelTestCase
         self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::ANALYSIS_READ, $this->subjectOfType('project', $project)));
         self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::ANALYSIS_WRITE, $this->subjectOfType('project', $project)));
         self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::PROJECT_WRITE, $this->subjectOfType('project', $project)));
+        self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::ARTIFACT_READ, $this->subjectOfType('artifact', $project)));
+        self::assertTrue($this->authorization->isGranted(McpBoundProjectVoter::ARTIFACT_WRITE, $this->subjectOfType('artifact', $project)));
     }
 
     public function test_denies_another_project_of_the_same_owner_for_the_project_attribute(): void
@@ -291,6 +329,10 @@ final class McpBoundProjectVoterTest extends KernelTestCase
 
         if ('worker_run' === $subjectType) {
             return $this->runIn($project);
+        }
+
+        if ('artifact' === $subjectType) {
+            return $this->artifactIn($project);
         }
 
         if ('series' === $subjectType) {

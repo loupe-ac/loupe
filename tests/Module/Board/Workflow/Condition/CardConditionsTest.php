@@ -72,7 +72,9 @@ final class CardConditionsTest extends TestCase
         yield 'document, tagged document with the status' => [new CardDocument(), ['tag' => 'design', 'status' => 'approved'], self::card(documents: [$designInReview, $approvedDesign]), true];
         yield 'document, tagged document with another status' => [new CardDocument(), ['tag' => 'design', 'status' => 'approved'], self::card(documents: [$designInReview, $approvedProduct]), false];
 
-        yield 'approved, tagged document approved' => [new CardDocumentApproved(), ['tag' => 'design'], self::card(documents: [$designInReview, $approvedDesign]), true];
+        yield 'approved, tagged document approved' => [new CardDocumentApproved(), ['tag' => 'design'], self::card(documents: [$approvedDesign, $approvedProduct]), true];
+        yield 'approved, a second tagged document in review' => [new CardDocumentApproved(), ['tag' => 'design'], self::card(documents: [$designInReview, $approvedDesign]), false];
+        yield 'approved, every tagged document approved' => [new CardDocumentApproved(), ['tag' => 'design'], self::card(documents: [$approvedDesign, new DocumentFacts(tags: ['design'], status: 'approved', id: 'other')]), true];
         yield 'approved, other tag approved' => [new CardDocumentApproved(), ['tag' => 'design'], self::card(documents: [$approvedProduct, $designInReview]), false];
         yield 'approved, no document' => [new CardDocumentApproved(), ['tag' => 'design'], self::card(documents: []), false];
 
@@ -80,7 +82,8 @@ final class CardConditionsTest extends TestCase
         yield 'changes requested, tagged document approved' => [new CardDocumentChangesRequested(), ['tag' => 'design'], self::card(documents: [$approvedDesign]), false];
         yield 'changes requested, other tag' => [new CardDocumentChangesRequested(), ['tag' => 'product'], self::card(documents: [$changesOnDesign]), false];
 
-        yield 'parent approved, tagged document of the parent approved' => [new ParentDocumentApproved(), ['tag' => 'design'], self::card(parentDocuments: [$designInReview, $approvedDesign]), true];
+        yield 'parent approved, tagged document of the parent approved' => [new ParentDocumentApproved(), ['tag' => 'design'], self::card(parentDocuments: [$approvedDesign, $approvedProduct]), true];
+        yield 'parent approved, a second tagged document of the parent in review' => [new ParentDocumentApproved(), ['tag' => 'design'], self::card(parentDocuments: [$designInReview, $approvedDesign]), false];
         yield 'parent approved, tagged document of the parent in review' => [new ParentDocumentApproved(), ['tag' => 'design'], self::card(parentDocuments: [$designInReview]), false];
         yield 'parent approved, other tag approved' => [new ParentDocumentApproved(), ['tag' => 'design'], self::card(parentDocuments: [$approvedProduct]), false];
         yield 'parent approved, no parent document' => [new ParentDocumentApproved(), ['tag' => 'design'], self::card(), false];

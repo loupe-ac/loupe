@@ -7,5 +7,9 @@ namespace App\Module\Workflow\Contract;
 /** The statuses a document can have, as a rule names them. */
 final class DocumentStatuses
 {
+    public const string APPROVED = 'approved';
+
+    public const string CHANGES_REQUESTED = 'changes-requested';
+
     public const array ALL = ['in-review', 'approved', 'changes-requested', 'draft'];
 }

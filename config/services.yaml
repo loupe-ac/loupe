@@ -28,6 +28,11 @@ parameters:
     # to a valid token rather than an empty one. Repeating 'self' is a no-op.
     app.default_csp_origin: "'self'"
 
+    # The content domain of stored artifacts. Unset, the host route needs a
+    # value that matches no real request, so the placeholder is a reserved TLD.
+    app.artifact_content_placeholder_host: 'artifact-content.invalid'
+    app.artifact_content_host: '%env(default:app.artifact_content_placeholder_host:ARTIFACT_CONTENT_HOST)%'
+
     # Diagrams load from here once review.mermaid.enabled is on, and script-src
     # lists it. A path prefix, not the host, so an injection cannot load any
     # other npm package from the CDN. The module loads its chunks relative to it.

@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\ListExperimentsCommand;
 use App\Module\Bridge\Command\ListExperimentsHandler;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
@@ -114,7 +115,7 @@ final readonly class StartAnalysisHandler
                 effort: $analysis->effort,
                 prompt: $this->appRules->prompt('analysis'),
             ));
-        } catch (DomainErrors $e) {
+        } catch (DomainErrors|WorkRequestAlreadyLive $e) {
             $analysis->fail(self::REQUEST_REFUSED, $this->clock->now());
             $this->em->flush();
 

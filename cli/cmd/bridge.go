@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -33,9 +32,6 @@ import (
 // all, so a single unanswered request would stall reconnection for good — the
 // bridge would sit there looking healthy and never receive anything again.
 const refreshTimeout = 15 * time.Second
-
-// lookPath resolves the worker binary. Tests replace it.
-var lookPath = exec.LookPath
 
 // apiClient is for short request/response calls only. The SSE subscription must
 // keep its own timeout-free client: a stream is meant to stay open.
@@ -189,12 +185,6 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
-	claude := ""
-	if set.NeedsClaude() {
-		if claude, err = resolveClaude(); err != nil {
-			return err
-		}
-	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -264,7 +254,6 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		source:     newReloadSource(path, defaults, cfg, b.lock),
 		update:     b,
 		hookRunner: newHookRunner(hookList, bridgeID, bl.log),
-		claude:     claude,
 		cursorFile: cursorFile,
 		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,

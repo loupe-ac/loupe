@@ -53,12 +53,11 @@ The owner can answer a decision after a worker writes the text of a design. `doc
 
 ## Read a linked prototype
 
-A design links a prototype as a claude.ai artifact, a Claude Design canvas, a Loupe document or a repository file. The product design skill also stores a readable copy of each artifact prototype on the branch `prototype/<card number>`, under `docs/prototypes/`. Nothing merges that branch.
+A design links a prototype as a stored artifact, a claude.ai artifact, a Claude Design canvas, a Loupe document or a repository file. The product design skill stores each validated prototype in the artifact library of the project.
 
-1. Read the readable copy first. The harness adapter says which tool reads each kind of link.
-   Read it with `git show origin/prototype/<card number>:docs/prototypes/<file>`, as the product document names it. The worker folder and the base branch never hold the copy.
+1. Read a stored artifact first. `card_get` lists the artifacts of the card. Call `artifact_get` for the files, and `artifact_read` for each file you need. The harness adapter says which tool reads each other kind of link.
 2. When the stage needs the prototype and no tool reads any link, stop with `STAGE RESULT: blocked: prototype unreadable: <tool> missing`. Name the missing tool, such as `Artifact`.
-3. The first sentence after it is "Store a readable copy of the prototype, then resume this run."
+3. The first sentence after it is "Store the prototype in the artifact library with `loupe artifact push`, then resume this run."
 4. Never name sharing as the cause, unless a tool for that link answered that access is denied.
 
 ## Final reply

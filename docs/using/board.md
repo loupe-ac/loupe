@@ -450,8 +450,9 @@ An unmanaged card is outside the workflow. The workflow makes no move and
 starts no work on it, and no bridge starts a worker on it. A person may move it
 to any column. A run that is in progress goes on, so stop it as well if it must
 end now. Loupe refuses a resume of a run of the card while the card is
-unmanaged. A run that waits in a queue stays there, and it starts when the card
-is managed again.
+unmanaged. Loupe cancels the work requests of the card that no bridge took yet.
+A run that waits in a queue stays there, and it starts when the card is managed
+again. The workflow then asks for the work that the card still needs.
 
 To make a card unmanaged, select **Make unmanaged** in the runs section of the
 card page. The section then shows **Unmanaged: the workflow makes no move and
@@ -876,12 +877,12 @@ An agent drives the board through the MCP endpoint. See
 | Tool | Arguments |
 |---|---|
 | `board_columns` | None. It also returns the card types of the project. |
-| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds` and `relatedCards` are optional. `origin` is the old name for `reporter` and is deprecated. |
+| `card_create` | `title`, `body` and `type` are required. `status`, `reporter`, `pullRequestUrls`, `documentIds`, `artifactIds` and `relatedCards` are optional. `origin` is the old name for `reporter` and is deprecated. |
 | `card_list` | `status`, `type` and `reporter`, each optional, each a filter. `page`, `perPage` and `full` are optional as well. |
 | `card_search` | `query` is required. `page` and `perPage` are optional. |
 | `card_get` | Exactly one of `cardId` and `number`. |
 | `card_get_history` | Exactly one of `cardId` and `number`. `page` and `perPage` are optional. |
-| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds` and `relatedCards` are optional. |
+| `card_update` | Exactly one of `cardId` and `number` is required. `title`, `body`, `type`, `status`, `pullRequestUrls`, `documentIds`, `artifactIds` and `relatedCards` are optional. |
 | `card_run_open` | `sessionId`, `name` and exactly one of `cardId` and `number` are required. `status` is optional. |
 | `card_run_close` | `sessionId` and exactly one of `cardId` and `number` are required. |
 | `column_create` | `label` is required. |
@@ -1030,6 +1031,18 @@ Such a card always lands in Backlog, and carries no pull request
 link. The widget offers neither, so a page visitor cannot file work straight
 into a column. The widget refuses a card or an epic in a terminal column.
 
+## Artifacts on a card
+
+A card links to any number of artifacts in the same project. Pass `artifactIds`
+to `card_create` or `card_update`, or pass `card` when you push a version of an
+artifact, with the id or the number of the card. `card_get` returns each link as
+`artifacts`, with `artifactId`, `name`, `versionNumber`, `archived` and `path`.
+
+An id that names no artifact of the project is refused, and so is a `card` that
+names no card of the project. `artifactIds` follows the omit-versus-empty rule of
+`documentIds`. A push that names a card links the artifact once, however often
+you push.
+
 ## Documents on a card
 
 A card links to any number of documents in the same project, and the card page
@@ -1051,10 +1064,10 @@ not learn that cards exist.
 ### An approval moves a card
 
 The workflow of the board decides what an approval does. In the Lifecycle
-template, an approved product document, with the tag `product-design`, moves the
-card from Product design to Tech design. An approved tech design, with the tag
-`tech-design`, moves the card from Tech design to Implementation, once the card has no
-open blocker. A blocker is open while it sits in a column that is not terminal,
+template, the card moves from Product design to Tech design when every document
+with the tag `product-design` is approved. It moves from Tech design to
+Implementation when every document with the tag `tech-design` is approved, once
+it has no open blocker. A blocker is open while it sits in a column that is not terminal,
 and only a `blocks` link counts. The Workflow panel shows what the card waits
 for. See [Workflows](workflows.md).
 
