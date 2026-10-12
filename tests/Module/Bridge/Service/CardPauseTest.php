@@ -6,6 +6,8 @@ namespace App\Tests\Module\Bridge\Service;
 
 use App\Module\Bridge\Command\ClaimWorkRequestCommand;
 use App\Module\Bridge\Command\ClaimWorkRequestHandler;
+use App\Module\Bridge\Command\ReleaseCardAgentsCommand;
+use App\Module\Bridge\Command\ReleaseCardAgentsHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -36,6 +38,27 @@ final class CardPauseTest extends KernelTestCase
         self::assertSame(WorkRequestState::Cancelled, $em->find(WorkRequest::class, $open->id)?->state);
         self::assertSame(WorkRequestState::Claimed, $em->find(WorkRequest::class, $claimed->id)?->state);
         self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $other->id)?->state);
+    }
+
+    public function test_a_release_before_the_cancel_keeps_the_open_request(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'pause-release-first@example.com');
+        $project = $this->project($em, $owner, 'Pause Release First');
+        $cardId = Uuid::v7();
+        $request = $this->seedWorkRequest($em, $project, $cardId, 'tech-design');
+        $pause = self::getContainer()->get(CardPause::class);
+        self::assertInstanceOf(CardPause::class, $pause);
+        self::assertTrue($em->wrapInTransaction(static fn (): bool => $pause->take($project, $cardId, $owner, 'agent')));
+
+        $release = self::getContainer()->get(ReleaseCardAgentsHandler::class);
+        self::assertInstanceOf(ReleaseCardAgentsHandler::class, $release);
+        $release(new ReleaseCardAgentsCommand($project, $cardId, $owner, 'agent'));
+        $pause->announce($project, $cardId);
+
+        $em->clear();
+        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
     }
 
     public function test_a_bridge_that_starts_after_the_card_moves_on_gets_no_work(): void

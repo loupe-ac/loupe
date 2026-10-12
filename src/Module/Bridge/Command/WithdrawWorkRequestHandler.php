@@ -12,6 +12,7 @@ use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
 use App\Outbox\OutboxWriter;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -42,10 +43,19 @@ final readonly class WithdrawWorkRequestHandler
         }
 
         $withdrawn = $this->em->wrapInTransaction(function () use ($command): ?WorkRequest {
+            if ($command->onlyIfCardHeld) {
+                $project = $this->workRequests->find($command->workRequestId)?->project;
+                if (null === $project) {
+                    return null;
+                }
+                // Conflicts with the project lock of a release, so a release that commits first keeps the request.
+                $this->em->lock($project, LockMode::PESSIMISTIC_READ);
+            }
             // Locked, so a claim or a settle that races this one waits and then finds the final state.
             $request = $this->workRequests->findOneLocked($command->workRequestId);
             if (null === $request
                 || ($command->onlyIfOpen && WorkRequestState::Open !== $request->state)
+                || ($command->onlyIfCardHeld && !$this->workRequests->isOfHeldCard($command->workRequestId))
                 || !$request->withdraw($command->state, $this->clock->now())) {
                 return null;
             }

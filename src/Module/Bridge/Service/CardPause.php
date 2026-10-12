@@ -59,7 +59,8 @@ final readonly class CardPause
     /**
      * Call it after the commit of a take() that answered true. It cancels the open
      * requests of the card and leaves a claimed one to its worker. A release makes
-     * the engine open each request the card still needs.
+     * the engine open each request the card still needs, so a release that
+     * commits before a cancel keeps that request.
      */
     public function announce(Project $project, Uuid $cardId): void
     {
@@ -71,7 +72,7 @@ final readonly class CardPause
         );
         foreach ($this->workRequests->findLiveForCard($cardId) as $request) {
             if (WorkRequestState::Open === $request->state) {
-                ($this->withdraw)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted request has an id.'), WorkRequestState::Cancelled, onlyIfOpen: true));
+                ($this->withdraw)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted request has an id.'), WorkRequestState::Cancelled, onlyIfOpen: true, onlyIfCardHeld: true));
             }
         }
         $this->runsChanged->runsChanged($project);
