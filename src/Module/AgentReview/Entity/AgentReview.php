@@ -7,6 +7,7 @@ namespace App\Module\AgentReview\Entity;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Service\PullRequestCheckConclusion;
 use App\Module\Project\Entity\Project;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -39,6 +40,14 @@ class AgentReview
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $postedAt = null;
+
+    /** What the check run of $checkRunId shows. Null for a check posted before the override existed: the review conclusion then tells. */
+    #[ORM\Column(length: 20, nullable: true, enumType: PullRequestCheckConclusion::class)]
+    public ?PullRequestCheckConclusion $checkConclusion = null;
+
+    /** The id of the newest approval that the history announced as an override of this review, or null when none stands announced. */
+    #[ORM\Column(nullable: true)]
+    public ?string $overrideAnnouncedFor = null;
 
     /** The change fingerprint of $headSha, so a later head with the same change carries this review. */
     #[ORM\Column(length: 64, nullable: true)]

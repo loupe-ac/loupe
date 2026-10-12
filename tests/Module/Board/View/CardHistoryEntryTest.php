@@ -342,6 +342,27 @@ final class CardHistoryEntryTest extends TestCase
         self::assertNull($entry->run);
     }
 
+    public function test_an_override_names_the_approver_and_the_pull_request(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ReviewOverridden, Actor::System, null, ['pullRequest' => 7, 'approver' => 'ubermuda']));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.review_overridden', ['%login%' => 'ubermuda', '%pr%' => 7]), $entry->sentence);
+    }
+
+    public function test_the_end_of_an_override_names_the_pull_request(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ReviewOverrideEnded, Actor::System, null, ['pullRequest' => 7]));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => 7]), $entry->sentence);
+    }
+
+    public function test_an_override_row_with_no_approver_reads_as_changed(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ReviewOverridden, Actor::System, null, ['pullRequest' => 7]));
+
+        self::assertSame('board.card.history.changed', $entry->sentence->getMessage());
+    }
+
     public function test_a_pause_with_no_rule_has_no_cause_line(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::Paused, Actor::System, null, ['kind' => 'rule']));

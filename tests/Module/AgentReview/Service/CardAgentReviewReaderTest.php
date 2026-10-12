@@ -14,6 +14,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestReview;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -35,6 +36,42 @@ final class CardAgentReviewReaderTest extends KernelTestCase
         $reader = self::getContainer()->get(CardAgentReviews::class);
         self::assertInstanceOf(CardAgentReviews::class, $reader);
         $this->reader = $reader;
+    }
+
+    public function test_an_overridden_review_names_the_approver_and_links_the_check(): void
+    {
+        $project = $this->makeProject('agent-review-reader-override');
+        $card = $this->card($project);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'Acme/Widgets', 7);
+        $review = $this->timedReview($card, $forge, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'), 'old');
+        $review->checkRunId = 4242;
+        $forge->review = PullRequestReview::Approved;
+        $forge->coveredSha = $forge->headSha;
+        $forge->latestApprovedAt = new \DateTimeImmutable('2026-10-02T10:00:00+00:00');
+        $forge->latestApprovalId = 'PRR_1';
+        $forge->latestApproverLogin = 'ubermuda';
+        $this->em->flush();
+
+        $summary = $this->reader->forCards([$card])[(string) $link->id];
+
+        self::assertSame('ubermuda', $summary['overriddenBy']);
+        self::assertSame('https://github.com/acme/widgets/runs/4242', $summary['checkUrl']);
+    }
+
+    public function test_a_review_that_stands_has_no_approver(): void
+    {
+        $project = $this->makeProject('agent-review-reader-stands');
+        $card = $this->card($project);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'Acme/Widgets', 7);
+        $this->timedReview($card, $forge, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'), 'old');
+        $this->em->flush();
+
+        $summary = $this->reader->forCards([$card])[(string) $link->id];
+
+        self::assertNull($summary['overriddenBy']);
+        self::assertNull($summary['checkUrl']);
     }
 
     public function test_the_newest_review_of_a_pull_request_wins(): void

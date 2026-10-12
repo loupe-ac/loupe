@@ -19,6 +19,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Service\AgentReviewCheck;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Service\PullRequestCheckAnnotation;
 use App\Module\Forge\Service\PullRequestCheckAnnotationLevel;
@@ -81,6 +82,44 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
 
         self::assertSame([], $this->writer->published);
         self::assertFalse($again->changed);
+    }
+
+    public function test_an_override_turns_the_posted_check_neutral_and_the_end_turns_it_back_on_the_same_run(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $pullRequest->coveredSha = $pullRequest->headSha;
+        $review = $this->stored($card, $pullRequest, $pullRequest->headSha ?? '', [$this->finding(AgentReviewSeverity::Important)]);
+        $review->checkRunId = 99;
+        $review->checkConclusion = PullRequestCheckConclusion::Failure;
+        $review->annotationsPosted = 1;
+        $review->postedAt = new \DateTimeImmutable('2026-10-09 11:00:00');
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->latestApprovedAt = new \DateTimeImmutable('2026-10-10 10:00:00');
+        $pullRequest->latestApprovalId = 'PRR_1';
+        $pullRequest->latestApproverLogin = 'ubermuda';
+
+        self::assertTrue($this->publisher()->publish($card)->changed);
+
+        self::assertCount(1, $this->writer->published);
+        self::assertSame(PullRequestCheckConclusion::Neutral, $this->writer->published[0]['conclusion']);
+        self::assertSame(99, $this->writer->published[0]['runId']);
+        self::assertSame([], $this->writer->published[0]['annotations']);
+        self::assertStringContainsString('ubermuda', $this->writer->published[0]['summary']);
+        self::assertStringContainsString('Summary of the review.', $this->writer->published[0]['summary']);
+        self::assertSame(PullRequestCheckConclusion::Neutral, $review->checkConclusion);
+
+        $this->writer->published = [];
+        self::assertFalse($this->publisher()->publish($card)->changed);
+        self::assertSame([], $this->writer->published);
+
+        $pullRequest->review = PullRequestReview::None;
+        $pullRequest->latestApprovedAt = $pullRequest->latestApprovalId = $pullRequest->latestApproverLogin = null;
+        self::assertTrue($this->publisher()->publish($card)->changed);
+
+        self::assertSame(PullRequestCheckConclusion::Failure, $this->writer->published[0]['conclusion']);
+        self::assertSame(99, $this->writer->published[0]['runId']);
+        self::assertStringNotContainsString('Overridden', $this->writer->published[0]['summary']);
     }
 
     public function test_a_posted_review_is_skipped(): void

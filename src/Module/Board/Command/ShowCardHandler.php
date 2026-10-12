@@ -9,6 +9,7 @@ use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
+use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardPullRequestStates;
 use App\Module\Board\Service\CardStates;
 use App\Module\Bridge\Service\CardRunWarnings;
@@ -25,6 +26,7 @@ final readonly class ShowCardHandler
         private CardTypeCatalog $catalog,
         private CardStates $cardStates,
         private CardRunWarnings $runWarnings,
+        private CardAgentReviews $agentReviews,
     ) {
     }
 
@@ -57,6 +59,7 @@ final readonly class ShowCardHandler
             $children,
             $progress,
             $this->cardStates->forCards($command->card->project, [$command->card], $pullRequestStates, null === $warning ? [] : [$cardId => $warning])[$cardId] ?? null,
+            $this->agentReviews->forCards([$command->card]),
         );
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Controller;
 
+use App\Module\AgentReview\Entity\AgentReview;
+use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardPullRequest;
@@ -191,6 +193,35 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertCount(1, $row);
         self::assertSame([], $this->chips($row));
         self::assertStringContainsString('Not reported', $row->text());
+    }
+
+    public function test_the_card_page_names_the_approver_of_an_overridden_agent_review_and_links_the_check(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-review-override@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Ship it');
+        $link = $this->link($card, 7);
+        $card->replacePullRequests($link);
+        $row = $this->approved($this->onMain($this->row($em, $project, 7)));
+        $row->latestApprovedAt = new \DateTimeImmutable('+1 hour');
+        $row->latestApprovalId = 'PRR_1';
+        $row->latestApproverLogin = 'ubermuda';
+        $review = new AgentReview($project, $card, $row, 'head7', 'Failed.', AgentReviewConclusion::Failure, []);
+        $review->checkRunId = 4242;
+        $em->persist($review);
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+
+        self::assertResponseIsSuccessful();
+        $note = $crawler->filter('[data-linked-pull-request="'.$link->id.'"] [data-agent-review-override]');
+        self::assertCount(1, $note);
+        self::assertStringContainsString('Agent review failed, overridden by the approval of ubermuda.', $note->text());
+        self::assertSame('https://github.com/loupe/loupe/runs/4242', $note->filter('a')->attr('href'));
     }
 
     private function link(Card $card, int $number): CardPullRequest

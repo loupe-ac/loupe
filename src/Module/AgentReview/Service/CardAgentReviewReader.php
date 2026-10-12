@@ -21,6 +21,7 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
         private ForgePullRequestRepository $forgePullRequests,
         private AgentReviewRepository $agentReviews,
         private AgentReviewPostRepository $agentReviewPosts,
+        private AgentReviewOverride $override,
     ) {
     }
 
@@ -59,8 +60,10 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
         $projectId = $cards[0]->project->id ?? throw new \LogicException('A card project is persisted.');
         $forgeRows = $this->forgePullRequests->findByKeys($projectId, $keys);
         $rowIds = [];
+        $rows = [];
         foreach ($forgeRows as $row) {
             $rowIds[self::key($row->forge, $row->repository, $row->number)] = (string) $row->id;
+            $rows[(string) $row->id] = $row;
         }
 
         $latest = [];
@@ -69,7 +72,9 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
             $latest[$review->card->id.' '.$review->pullRequest->id] = $review;
         }
         $carriedTo = [];
+        $runs = [];
         foreach ($this->agentReviewPosts->findOfReviews($reviews) as $post) {
+            $runs[$post->review->id.' '.$post->headSha] = $post->checkRunId;
             $carriedTo[(string) $post->review->id][] = ['headSha' => $post->headSha, 'postedAt' => $post->postedAt?->format(\DATE_ATOM)];
         }
 
@@ -84,6 +89,9 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
                 if (null === $review) {
                     continue;
                 }
+                $row = $rows[$rowId];
+                $head = mb_strtolower($row->headSha ?? '');
+                $runId = mb_strtolower($review->headSha) === $head ? $review->checkRunId : ($runs[$review->id.' '.$head] ?? null);
                 $summaries[(string) $link->id] = [
                     'reviewId' => (string) $review->id,
                     'headSha' => $review->headSha,
@@ -93,6 +101,8 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
                     'createdAt' => $review->createdAt->format(\DATE_ATOM),
                     'postedAt' => $review->postedAt?->format(\DATE_ATOM),
                     'carriedTo' => $carriedTo[(string) $review->id] ?? [],
+                    'overriddenBy' => $this->override->approverOf($review, $row),
+                    'checkUrl' => null === $runId || 'github' !== $row->forge ? null : \sprintf('https://github.com/%s/runs/%d', implode('/', array_map(rawurlencode(...), explode('/', $row->repository))), $runId),
                 ];
             }
         }

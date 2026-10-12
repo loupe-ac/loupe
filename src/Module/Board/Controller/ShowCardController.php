@@ -43,6 +43,7 @@ final class ShowCardController extends AppController
             'pullRequestStates' => $view->pullRequestStates,
             'history' => $view->history,
             'state' => $view->state,
+            'agentReviews' => $view->agentReviews,
         ]);
         $response->setVary('Turbo-Frame', false);
 
