@@ -1575,13 +1575,13 @@ For each launch, the bridge writes a script to
 `<temp dir>/loupe-sessions/<sessionId>.sh`, with mode `0700`. The script deletes
 itself, changes to the project's `dir`, and runs the harness. On a
 `claude-code` account it runs `claude --session-id <sessionId> -- '<prompt>'`.
-A terminal app can start with a short `PATH`. So the bridge finds `claude` on
-its own `PATH` at start, and writes the absolute path into the script. A launch
-on a `codex` account finds `codex` at the launch, on the `PATH` of the account,
-and fails when it is missing. The bridge refuses to start with no `claude` on
-its `PATH` when a rule runs on a `claude-code` account, or when `rules.yaml`
-names no account. At start, it also deletes
-scripts older than one day.
+A terminal app can start with a short `PATH`. So the bridge finds the program at
+the launch, on the `PATH` of the account, and writes the absolute path into the
+script. The launch fails when the program is missing. An env file can put
+`claude` on that `PATH`, so `claude` need not be on the `PATH` of the bridge.
+A `claude-code` account without `claude` on its `PATH` is turned off by its
+account check, and the other accounts run. The bridge never needs `claude` on
+its own `PATH`. At start, it also deletes scripts older than one day.
 
 The bridge runs the launcher with no shell, and never kills it. An exit with
 code 0 within the timeout is a launch. A launcher that still runs at the timeout

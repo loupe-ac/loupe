@@ -35,22 +35,6 @@ func defaultScriptDir() string {
 	return filepath.Join(os.TempDir(), "loupe-sessions")
 }
 
-// resolveClaude is the absolute path of the default harness's program. The
-// launch script changes directory before it runs it, so a relative path would
-// miss.
-func resolveClaude() (string, error) {
-	return resolveProgram(defaultHarness())
-}
-
-func resolveProgram(h harn.Harness) (string, error) {
-	path, err := lookPath(h.Program())
-	if err != nil {
-		return "", errors.New(h.Program() + " is not installed or not on PATH")
-	}
-
-	return filepath.Abs(path)
-}
-
 // writeLaunchScript writes the script of one session into root and returns its
 // path. O_EXCL refuses a file or a link that is already there.
 func writeLaunchScript(root, sessionID, body string) (string, error) {
@@ -176,7 +160,6 @@ func head(s string, n int) string {
 // launch is one interactive session to open, with what its run needs.
 type launch struct {
 	p       pending
-	claude  string
 	command rules.Launch
 	dir     string
 	// ctx ends when the work request of the launch is no longer the bridge's.
@@ -192,7 +175,7 @@ func (r *router) launchLocked(p pending, ctx context.Context) {
 		return
 	}
 	p.spec.sessionID = r.worker.sessionID()
-	l := launch{p: p, claude: r.claude, command: p.set.Launch(), dir: r.scriptDir, ctx: ctx}
+	l := launch{p: p, command: p.set.Launch(), dir: r.scriptDir, ctx: ctx}
 	if l.dir == "" {
 		l.dir = defaultScriptDir()
 	}
@@ -233,10 +216,13 @@ func (r *router) runLaunch(l launch) {
 	env, err := p.spec.accountEnv()
 	path := ""
 	adapter := p.spec.adapter()
-	program := l.claude
-	if err == nil && adapter.Program() != defaultHarness().Program() {
-		// The bridge resolved the path of the default harness at start alone.
-		program, err = envfile.LookPath(adapter.Program(), env, p.spec.dir)
+	program := ""
+	if err == nil {
+		// The account PATH can differ from the bridge PATH. The script changes
+		// directory before it runs the program, so the path must be absolute.
+		if program, err = envfile.LookPath(adapter.Program(), env, p.spec.dir); err == nil {
+			program, err = filepath.Abs(program)
+		}
 	}
 	if err == nil {
 		path, err = writeLaunchScript(l.dir, p.spec.sessionID, adapter.Interactive(program, p.spec.harnessSpec(env)))
