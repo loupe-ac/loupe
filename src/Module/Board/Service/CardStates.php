@@ -75,6 +75,7 @@ final readonly class CardStates
             $paused ??= $this->cardPauses->findActiveForCardIds($ids);
             $parentIds = array_values(array_unique(array_map(static fn (Card $card): string => (string) $card->parent?->id, array_filter($open, static fn (Card $card): bool => null !== $card->parent))));
             $work = $this->liveWork->forCards($project, array_values(array_unique([...$ids, ...$parentIds])));
+            $runWarnings = $this->withoutWarningsOfMovedCards($runWarnings, $ids);
             $settings = $this->automation->settingsOf($project);
             $delay = new \DateInterval(\sprintf('PT%dM', $settings->stuckDelayMinutes));
 
@@ -117,6 +118,31 @@ final readonly class CardStates
 
             return $states;
         }, data: ['cards' => \count($open)]);
+    }
+
+    /**
+     * A card that moved to another column since its run ended no longer waits on that run.
+     *
+     * @param array<string, CardRunWarning> $runWarnings
+     * @param list<string>                  $ids
+     *
+     * @return array<string, CardRunWarning>
+     */
+    private function withoutWarningsOfMovedCards(array $runWarnings, array $ids): array
+    {
+        $warned = array_values(array_filter($ids, static fn (string $id): bool => null !== ($runWarnings[$id] ?? null)));
+        if ([] === $warned) {
+            return $runWarnings;
+        }
+
+        foreach ($this->cardEvents->findNewestMoveAtOfCards($warned) as $id => $movedAt) {
+            $endedAt = $runWarnings[$id]->endedAt;
+            if (null !== $endedAt && $movedAt >= $endedAt) {
+                unset($runWarnings[$id]);
+            }
+        }
+
+        return $runWarnings;
     }
 
     /**
