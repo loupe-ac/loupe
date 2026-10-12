@@ -89,6 +89,12 @@ test.describe('home page', () => {
         await expect(
             explainer.getByRole('button', { name: /Merge/ }).first(),
         ).toBeVisible();
+        await expect(
+            explainer.getByRole('button', { name: /Agent review/ }),
+        ).toBeVisible();
+        await expect(
+            explainer.getByText(/Loupe merges it on its own/),
+        ).toBeAttached();
 
         await expect
             .poll(async () =>

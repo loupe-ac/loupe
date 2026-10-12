@@ -468,14 +468,14 @@ details p{max-width:70ch; margin:.6em 0}
 .gh-merge{border:1px solid #d1d9e0; border-radius:6px; overflow:hidden}
 .gh-row{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #d1d9e0}
 .gh-row i{width:28px; height:28px; border-radius:50%; display:grid; place-items:center; color:#fff; font-style:normal; font-weight:700; flex:none}
-.gh-row i.ok{background:#1f883d} .gh-row i.purple{background:#8250df}
+.gh-row i.ok{background:#1f883d} .gh-row i.purple{background:#8250df} .gh-row i.wait{background:#bf8700}
 .gh-row b{display:block} .gh-row small{color:#59636e}
-.gh-act{padding:14px 16px; display:flex; gap:10px; align-items:center; background:#fff}
-.gh-btn{display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:14px; padding:6px 14px; border-radius:6px; border:1px solid rgba(31,35,40,.15)}
-.gh-btn.green{background:#1f883d; color:#fff}
-.gh-btn.plain{background:#f6f8fa; color:#1f2328}
-.gh-btn.press{filter:brightness(.88); transform:scale(.97)}
-.gh-msg{margin:0 16px 12px; border:1px solid #d1d9e0; border-radius:6px; padding:8px 10px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:#1f2328; background:#f6f8fa}
+
+
+
+
+
+
 /* intro: the pain before Loupe */
 #intro{position:absolute; inset:0; z-index:45; background:#101310; overflow:hidden; visibility:hidden}
 #intro .glow{position:absolute; inset:0; background:radial-gradient(ellipse at 50% 40%, rgba(212,233,76,.08), transparent 60%)}
@@ -544,12 +544,12 @@ details p{max-width:70ch; margin:.6em 0}
               <div class="gh-merge" id="gh-merge">
                 <div class="gh-row" id="gh-r1"><i class="ok">✓</i><span><b>All checks have passed</b><small>3 successful checks</small></span></div>
                 <div class="gh-row" id="gh-r2"><i class="ok">✓</i><span><b>This branch has no conflicts with the base branch</b><small>Merging can be performed automatically.</small></span></div>
-                <div class="gh-msg" id="gh-msg" hidden>Show the nightly price on search cards (#641)</div>
-                <div class="gh-act" id="gh-act"><span class="gh-btn green" id="gh-btn">Squash and merge</span><span class="gh-btn plain" id="gh-cancel" hidden>Cancel</span></div>
+                <div class="gh-row" id="gh-rv"><i class="wait" id="gh-rv-i">•</i><span><b id="gh-rv-b">Loupe agent review is running</b><small>loupe/agent-review</small></span></div>
+                <div class="gh-row" id="gh-auto" hidden><i class="ok">✓</i><span><b>Loupe merges this pull request</b><small>The checks passed and the agent review approved it.</small></span></div>
                 <div class="gh-row" id="gh-done" hidden><i class="purple"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"/></svg></i><span><b>Pull request successfully merged and closed</b><small>You're all set. The card-42-nightly-price branch can be safely deleted.</small></span></div>
               </div>
             </div>
-            <div class="gh-side"><div><b>Reviewers</b>No reviews</div><div><b>Assignees</b>geoffrey</div><div><b>Labels</b>None yet</div><div><b>Development</b>Successfully merging this pull request may close these issues.</div></div></div>
+            <div class="gh-side"><div><b>Reviewers</b><span id="gh-revs">No reviews</span></div><div><b>Assignees</b>geoffrey</div><div><b>Labels</b>None yet</div><div><b>Development</b>Successfully merging this pull request may close these issues.</div></div></div>
           </div>
         </div>
       </div>
@@ -592,7 +592,7 @@ details p{max-width:70ch; margin:.6em 0}
     <p><strong>0:53 The agent revises.</strong> The loupe bridge runs a fix-round worker. Version 2 adds a scenario for a search with no dates and answers the comment. The reviewer approves it.</p>
     <p><strong>1:05 The build.</strong> The approval moves the card to Tech design, where a worker writes the tech design. After its approval, an implementation worker builds the change, opens pull request 641 and moves the card to In review.</p>
     <p><strong>1:14 Site review.</strong> On the preview of pull request 641, the reviewer opens the Review widget, picks a price badge and notes that it covers the Guest favourite label. The note lands on card #42 as feedback, and a fix worker moves the badge to the bottom of the photo.</p>
-    <p><strong>1:27 Merge.</strong> On GitHub, the pull request is squashed and merged, and card #42 moves to Done by itself.</p>
+    <p><strong>1:27 Agent review and merge.</strong> On GitHub, the Loupe agent review approves pull request 641. The checks pass, so Loupe merges it on its own, and card #42 moves to Done by itself.</p>
     <p><strong>1:34 Shipped.</strong> On driftwood.cabins, every search card shows its price, and the Guest favourite label stays visible.</p>
     <p><strong>1:43</strong> Loupe, the control plane for your agent loop.</p>
   </details>
@@ -693,7 +693,7 @@ const HOLD_TOTAL = HOLDS.reduce((s,h)=>s+h[1],0);
 function warp(tm){ let t=tm; for(const [at,len] of HOLDS){ if(t<at) break; if(t<at+len) return at; t-=len; } return t; }
 const unwarp = m => m + HOLDS.filter(h=>h[0]<m).reduce((s,h)=>s+h[1],0);
 const D = 96 + INTRO + HOLD_TOTAL;
-const CH = [[0,'Intro'],[0,'The board'],[4.2,'Product design'],[25.4,'You review'],[42.8,'The agent revises'],[54.8,'The build'],[62.2,'Site review'],[74.6,'Merge'],[80.2,'Shipped'],[87.4,'Loupe']].map((c,i)=>i===0?c:[+(unwarp(c[0])+INTRO).toFixed(2),c[1]]);
+const CH = [[0,'Intro'],[0,'The board'],[4.2,'Product design'],[25.4,'You review'],[42.8,'The agent revises'],[54.8,'The build'],[62.2,'Site review'],[74.6,'Agent review'],[76.2,'Merge'],[80.2,'Shipped'],[87.4,'Loupe']].map((c,i)=>i===0?c:[+(unwarp(c[0])+INTRO).toFixed(2),c[1]]);
 // [start, kicker, text, corner]: br/bl/tr/tl, placed where the action is not
 const CAPS = [
   [0.2, 'Loupe', 'Work starts as a card on the board.', 'br'],
@@ -710,7 +710,8 @@ const CAPS = [
   [62.2, '05 · Site review', 'Review the running preview. Point at what is wrong.', 'bl'],
   [69.2, '05 · Site review', 'The note lands on the card.', 'bl'],
   [70.6, '05 · Site review', 'A worker picks up the note and fixes it.', 'br'],
-  [74.6, '06 · Merge', 'Merge the pull request.', 'br'],
+  [74.6, '06 · Agent review', 'An agent reviews the pull request.', 'br'],
+  [76.2, '06 · Merge', 'Green checks and an approved review merge it on their own.', 'br'],
   [79.0, '06 · Merge', 'The card moves to Done by itself.', 'br'],
   [80.2, 'Shipped', 'Designed, reviewed, fixed and shipped, without you in every terminal.', 'bl'],
 ];
@@ -1056,13 +1057,14 @@ function renderGithub(t){
   const w=$('#ghwin'); const o=win(t,74.6,79.0,.45); vis(w,o);
   if(o<=0) return;
   tx(w,`translateY(${((1-eout(ramp(t,74.6,75.2)))*30 + eio(ramp(t,78.6,79.0))*20).toFixed(1)}px)`);
-  const confirm = t>=76.1 && t<77.0, merged = t>=77.0;
-  hide($('#gh-msg'), !confirm); hide($('#gh-cancel'), !confirm);
-  txt($('#gh-btn'), confirm ? 'Confirm squash and merge' : 'Squash and merge');
-  tog($('#gh-btn'),'press', (t>=75.95&&t<76.1)||(t>=76.8&&t<77.0));
-  hide($('#gh-act'), merged); hide($('#gh-r1'), merged); hide($('#gh-r2'), merged); hide($('#gh-done'), !merged);
+  const approved = t>=75.7, merged = t>=77.0;
+  tog($('#gh-rv-i'),'wait', !approved); tog($('#gh-rv-i'),'ok', approved); txt($('#gh-rv-i'), approved?'✓':'•');
+  txt($('#gh-rv-b'), approved ? 'Loupe agent review approved' : 'Loupe agent review is running');
+  txt($('#gh-revs'), approved ? 'Loupe agent review ✓' : 'No reviews');
+  hide($('#gh-auto'), !(t>=76.2 && !merged));
+  hide($('#gh-r1'), merged); hide($('#gh-r2'), merged); hide($('#gh-rv'), merged); hide($('#gh-done'), !merged);
   tog($('#gh-pill'),'merged', merged); txt($('#gh-state'), merged?'Merged':'Open');
-  html($('#gh-subtext'), merged ? '<b>geoffrey</b> merged 4 commits into <code>main</code> from <code>card-42-nightly-price</code> just now'
+  html($('#gh-subtext'), merged ? '<b>Loupe</b> merged 4 commits into <code>main</code> from <code>card-42-nightly-price</code> just now'
                                 : '<b>geoffrey</b> wants to merge 4 commits into <code>main</code> from <code>card-42-nightly-price</code>');
 }
 function renderSpot(t){
@@ -1120,10 +1122,9 @@ const CUR = [
   {t:62.9, at:PW('lp-launch-target',.5,.5,-160,-90), v:0}, {t:63.1, v:1}, {t:63.8, at:PW('lp-launch-target',.5,.5)}, {t:64.1},
   {t:64.8, at:P(()=>pv.querySelector('.dw-price'),.5,.5)}, {t:65.6}, {t:66.0, at:off(P(()=>pv.querySelector('.dw-price'),.5,.5),160,60)},
   {t:68.2}, {t:68.7, at:PW('lp-save',.5,.55)}, {t:69.6}, {t:70.0, v:0},
-  {t:75.0, at:P(()=>$('#gh-btn'),.5,.5,-120,90), v:0}, {t:75.2, v:1}, {t:75.9, at:P(()=>$('#gh-btn'),.5,.55)}, {t:76.3}, {t:76.7, at:P(()=>$('#gh-btn'),.5,.55)}, {t:77.4, at:P(()=>$('#gh-btn'),.5,.55,40,60)}, {t:77.8, v:0},
 ];
 (function(){ let at=CUR[0].at, v=CUR[0].v; for(const k of CUR){ if(k.at===undefined) k.at=at; else at=k.at; if(k.v===undefined) k.v=v; else v=k.v; } })();
-const CLICKS=[1.7,3.05,10.15,13.65,15.3,17.65,25.05,31.9,35.4,38.0,38.95,41.5,51.35,52.15,53.0,63.9,65.4,68.85,76.0,76.85];
+const CLICKS=[1.7,3.05,10.15,13.65,15.3,17.65,25.05,31.9,35.4,38.0,38.95,41.5,51.35,52.15,53.0,63.9,65.4,68.85];
 const ptOf = a => typeof a==='function'?a():a;
 function cursorAt(t){
   if(t<CUR[0].t || t>CUR[CUR.length-1].t) return null;
