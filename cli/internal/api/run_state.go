@@ -50,6 +50,17 @@ const (
 	DropReload   = "reload"
 )
 
+// IsClosing reports whether state ends a run. Every state other than queued,
+// resumed, preparing, running and stopping closes it.
+func IsClosing(state string) bool {
+	switch state {
+	case RunQueued, "resumed", RunPreparing, RunRunning, RunStopping:
+		return false
+	}
+
+	return true
+}
+
 // IsOutcome reports whether state is how a worker ended.
 func IsOutcome(state string) bool {
 	switch state {
