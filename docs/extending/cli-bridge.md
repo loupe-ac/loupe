@@ -292,6 +292,15 @@ reports go out in order. A failed send waits one second, then
 twice as long before each later attempt, up to sixty seconds. The bridge gives
 up after ten attempts and logs `report_failed`.
 
+When the bridge gives up on the closing state of a worker run, such as `failed`,
+because Loupe was not reachable, it writes that report to an outbox directory
+beside its cursor file and logs `report_kept`. The next connect sends each kept
+report before the run inventory, and deletes the file when Loupe takes or
+refuses it. A report that Loupe refused is never kept. A kept report that is
+older than seven days is deleted, and the bridge logs `report_dropped`. A report
+made for another Loupe instance or bridge id stays on disk and is never sent.
+The result of a work request stays in memory only.
+
 The bridge logs `report_folded` when Loupe answers 200 to a report the bridge
 sends for the first time. For a state report, Loupe already held that state of
 the run, so the report changed nothing.

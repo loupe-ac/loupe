@@ -39,6 +39,10 @@ type runReports struct {
 	// Each later batch still tries, because agent push can come back on.
 	toolCallsUnsupported atomic.Bool
 
+	// outbox keeps the closing state of a run that the queue could not
+	// deliver. A nil one keeps nothing.
+	outbox *outbox
+
 	// sites caches the projects of the caller, read at sitesAt. now is
 	// time.Now when nil, and tests set it.
 	sitesMu sync.Mutex
@@ -53,12 +57,71 @@ func newRunReports(client runReportClient, log *slog.Logger) *runReports {
 
 // state is one state of the run runID, in the project handle.
 func (s *runReports) state(handle, runID string, report api.RunStateReport) outbound.Report {
-	return outbound.Report{
+	r := outbound.Report{
 		Card: report.CardNumber,
 		Rule: report.Rule,
 		Send: func(ctx context.Context) (bool, error) {
 			return s.client.ReportRunState(ctx, handle, runID, report)
 		},
+	}
+	if s.outbox != nil && api.IsClosing(report.State) {
+		r.Lost = func(reason outbound.LossReason) {
+			if reason != outbound.Unreachable {
+				return
+			}
+			if err := s.outbox.keep(handle, runID, report); err != nil {
+				s.log.Warn("report_keep_failed", "card", report.CardNumber, "rule", report.Rule, "error", err.Error())
+
+				return
+			}
+			s.log.Info("report_kept", "card", report.CardNumber, "rule", report.Rule, "state", report.State)
+		}
+	}
+
+	return r
+}
+
+// replayKept queues each kept report, oldest first, for a bridge that has just
+// connected. A file leaves the outbox when Loupe takes or refuses its report,
+// and stays when Loupe is still not reachable.
+func (s *runReports) replayKept(enqueue func(outbound.Report)) {
+	if s.outbox == nil {
+		return
+	}
+	now := time.Now
+	if s.outbox.now != nil {
+		now = s.outbox.now
+	}
+	kept, bad, err := s.outbox.list()
+	if err != nil {
+		s.log.Warn("outbox_unreadable", "dir", s.outbox.dir, "error", err.Error())
+
+		return
+	}
+	for _, path := range bad {
+		s.log.Warn("outbox_file_unreadable", "file", path)
+	}
+	for _, k := range kept {
+		switch {
+		case now().Sub(k.KeptAt) > keptReportAge:
+			s.log.Warn("report_dropped", "card", k.Report.CardNumber, "rule", k.Rule, "kept_at", k.KeptAt, "message", "kept report is older than the age limit")
+			s.outbox.remove(k.path)
+		case k.BaseURL != s.outbox.baseURL || k.BridgeID != s.outbox.bridgeID:
+			s.log.Warn("report_kept_skipped", "file", k.path, "message", "kept report belongs to another instance or bridge")
+		default:
+			enqueue(outbound.Report{
+				Card: k.Report.CardNumber,
+				Rule: k.Rule,
+				Send: func(ctx context.Context) (bool, error) {
+					created, err := s.client.ReportRunState(ctx, k.Handle, k.RunID, k.Report)
+					if err == nil || errors.Is(err, api.ErrReportRefused) {
+						s.outbox.remove(k.path)
+					}
+
+					return created, err
+				},
+			})
+		}
 	}
 }
 

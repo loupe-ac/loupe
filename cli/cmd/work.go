@@ -622,7 +622,7 @@ func (r *router) settleWork(p pending, state, reason string) {
 		},
 		// The lease of a result that never lands runs out, and the server
 		// offers the request again. Renewing it would hold the request forever.
-		Lost: func() {
+		Lost: func(outbound.LossReason) {
 			r.log.Warn("work_request_result_dropped", attrs...)
 			r.mu.Lock()
 			r.dropClaimLocked(id, token)

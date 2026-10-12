@@ -348,18 +348,27 @@ func TestQueueCountsAReportThatArrivesAfterTheClose(t *testing.T) {
 
 // lostCounter counts the Lost calls of the reports it marks.
 type lostCounter struct {
-	mu    sync.Mutex
-	cards []int
+	mu      sync.Mutex
+	cards   []int
+	reasons []LossReason
 }
 
 func (l *lostCounter) mark(r Report) Report {
-	r.Lost = func() {
+	r.Lost = func(reason LossReason) {
 		l.mu.Lock()
 		defer l.mu.Unlock()
 		l.cards = append(l.cards, r.Card)
+		l.reasons = append(l.reasons, reason)
 	}
 
 	return r
+}
+
+func (l *lostCounter) reasonsRecorded() []LossReason {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return append([]LossReason(nil), l.reasons...)
 }
 
 func (l *lostCounter) recorded() []int {
@@ -383,6 +392,9 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		if got := lost.recorded(); len(got) != 1 || got[0] != 42 {
 			t.Fatalf("lost = %v", got)
 		}
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Unreachable {
+			t.Fatalf("reasons = %v, want unreachable", got)
+		}
 	})
 	t.Run("refused", func(t *testing.T) {
 		h := newHarness(t, 5, fmt.Errorf("%w (HTTP 422)", api.ErrReportRefused))
@@ -393,6 +405,9 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		h.queue.Close()
 		if got := lost.recorded(); len(got) != 1 {
 			t.Fatalf("lost = %v", got)
+		}
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Refused {
+			t.Fatalf("reasons = %v, want refused", got)
 		}
 	})
 	t.Run("delivered", func(t *testing.T) {
@@ -413,6 +428,9 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		if got := lost.recorded(); len(got) != 1 {
 			t.Fatalf("lost = %v", got)
 		}
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Refused {
+			t.Fatalf("reasons = %v, want refused", got)
+		}
 	})
 	t.Run("at the shutdown", func(t *testing.T) {
 		held := make(chan struct{})
@@ -431,6 +449,11 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		h.queue.Close()
 		if got := lost.recorded(); len(got) != 2 {
 			t.Fatalf("lost = %v", got)
+		}
+		for _, reason := range lost.reasonsRecorded() {
+			if reason != Unreachable {
+				t.Fatalf("reasons = %v, want unreachable", lost.reasonsRecorded())
+			}
 		}
 	})
 }

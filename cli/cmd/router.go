@@ -89,6 +89,9 @@ type router struct {
 	// none.
 	replay     func(ctx context.Context, after int64) (api.Replay, error)
 	cursorFile string
+	// outboxDir keeps the final reports that could not be delivered. "" keeps
+	// none.
+	outboxDir string
 	// readHolds reads the held cards on each connect. A nil one reads none.
 	readHolds func(ctx context.Context) ([]api.CardHold, error)
 	// resolvePin asks which variant of an experiment a card runs with, before
@@ -425,6 +428,7 @@ func (r *router) handler() transport.Handler {
 			projects := r.projects
 			r.mu.Unlock()
 			r.log.Info("connected", "topic", r.topic, "projects", projects)
+			r.sendKept()
 			r.sendInventory()
 			if r.update != nil {
 				r.update.markConnected()
@@ -1647,6 +1651,15 @@ func (r *router) emitLocked(p pending, report api.RunStateReport) {
 	// The handle is the project id the event carried, which a rename never
 	// changes.
 	r.reports.Enqueue(r.runs.state(p.event.ProjectID, p.runID, report))
+}
+
+// sendKept queues the final reports an earlier outage kept, ahead of the
+// inventory.
+func (r *router) sendKept() {
+	if !r.reporting() {
+		return
+	}
+	r.runs.replayKept(r.reports.Enqueue)
 }
 
 // sendInventory hands the runs the bridge holds to the queue. It takes mu, so
