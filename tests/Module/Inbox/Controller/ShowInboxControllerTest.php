@@ -91,7 +91,7 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.lp-empty-state', 'Nothing needs you');
-        self::assertSelectorNotExists('.lp-empty-state a');
+        self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"] a[href="/projects/'.$project->id.'/inbox?side=closed"]', 'See the closed asks');
         self::assertSelectorNotExists('[data-inbox-open-count]');
         // The frame stays, so a live reload has somewhere to put a count.
         self::assertSelectorExists('a[data-controller="inbox-pill"] turbo-frame#inbox-open-count-'.$project->id);
@@ -502,6 +502,25 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('Answered', $closed->filter('a.lp-inbox-request[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
     }
 
+    public function test_a_closed_ask_reads_its_outcome_from_the_blocking_item_that_closed_it(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-row-outcome');
+        $project = $this->inboxProject($this->em, $owner);
+        $looseTodo = $this->todo($this->em, $project, 1);
+        $earlier = $this->answered($this->em, $this->question($this->em, $project, 2));
+        $earlier->closedAt = new \DateTimeImmutable('-3 hours');
+        $closing = $this->answered($this->em, $this->question($this->em, $project, 3, title: 'Which retry?'), InboxItemState::Declined);
+        $closing->closedAt = new \DateTimeImmutable('-2 hours');
+        $this->em->flush();
+        $ask = $this->askHolding($this->em, $project, [$looseTodo, $earlier, $closing], closedAt: new \DateTimeImmutable('-2 hours'));
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
+
+        self::assertSame('Declined', $crawler->filter('a.lp-inbox-request[data-inbox-request="'.$ask->id.'"] [data-inbox-outcome]')->text());
+    }
+
     public function test_the_type_filter_keeps_an_ask_when_any_item_has_the_kind(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-type-filter');
@@ -546,7 +565,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('/projects/'.$project->id.'/inbox?side=closed', $search->filter('.lp-filter-clear')->attr('href'));
     }
 
-    public function test_nothing_needs_you_links_to_the_closed_asks_when_there_are_some(): void
+    public function test_nothing_needs_you_links_to_the_closed_asks(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-nothing');
         $project = $this->inboxProject($this->em, $owner);

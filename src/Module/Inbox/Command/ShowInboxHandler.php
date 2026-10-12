@@ -41,7 +41,6 @@ final readonly class ShowInboxHandler
         $view = $command->view;
 
         $openRows = $this->openRows($project);
-        $closedCount = $this->inboxAsks->countClosedForProject($project);
 
         if ($view->isSearch()) {
             $search = $this->inboxAsks->searchRows($project, $view->query, $view->type, $this->inboxItems->searchLanguagesOf($project), $view->page, self::SEARCH_RESULTS_PER_PAGE);
@@ -74,7 +73,6 @@ final readonly class ShowInboxHandler
             rows: $rows,
             selected: $selected,
             openCount: \count($openRows),
-            closedCount: $closedCount,
             total: $total,
             page: $page,
             totalPages: $totalPages,
@@ -182,7 +180,27 @@ final readonly class ShowInboxHandler
             return null;
         }
 
-        return new InboxRow($ask, $items, null === $ask->closedAt ? null : $this->outcomeOf($items[0]));
+        return new InboxRow($ask, $items, null === $ask->closedAt ? null : $this->outcomeOf($this->closingItemOf($items)));
+    }
+
+    /**
+     * The last blocking item to close is the one that closed the ask. An ask
+     * with no closed blocking item falls back to its last closed item, then its first.
+     *
+     * @param non-empty-list<InboxItem> $items
+     */
+    private function closingItemOf(array $items): InboxItem
+    {
+        $closed = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemState::Open !== $item->state));
+        $blocking = array_values(array_filter($closed, static fn (InboxItem $item): bool => $item->blocking));
+        $last = null;
+        foreach ([] === $blocking ? $closed : $blocking as $item) {
+            if (null === $last || $item->closedAt > $last->closedAt) {
+                $last = $item;
+            }
+        }
+
+        return $last ?? $items[0];
     }
 
     private function rowOfItem(InboxItem $item): InboxRow
@@ -190,7 +208,7 @@ final readonly class ShowInboxHandler
         return new InboxRow(null, [$item], $this->outcomeOf($item));
     }
 
-    /** How a closed row ended, read from its first item. A row that is still open has none. */
+    /** How a closed row ended, read from the item that closed it. A row that is still open has none. */
     private function outcomeOf(InboxItem $item): ?string
     {
         return match ($item->state) {

@@ -18,7 +18,6 @@ final readonly class InboxPageView implements InboxItemsView
      * @param list<InboxRow>              $rows           the list as the view filters it, one page of it on the closed side and in a search
      * @param ?InboxRow                   $selected       the row the pane shows, which the list need not hold
      * @param int                         $openCount      every open row, whatever the filter
-     * @param int                         $closedCount    every closed ask, whatever the filter
      * @param int                         $total          the rows the view matches, over all its pages
      * @param list<int|null>              $pageList       page numbers, null for a gap
      * @param array<string, true>         $finalItemIds   items of the selected row that a closed ask holds
@@ -31,7 +30,6 @@ final readonly class InboxPageView implements InboxItemsView
         public array $rows,
         public ?InboxRow $selected,
         public int $openCount,
-        public int $closedCount,
         public int $total,
         public int $page,
         public int $totalPages,

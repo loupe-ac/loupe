@@ -139,9 +139,7 @@
                         <twig:Ds:EmptyState icon="lucide:inbox" iconClass="text-accent w-12 h-12" :title="'inbox.closed.empty'|trans" data-inbox-queue-empty="closed-asks" />
                     {% else %}
                         <twig:Ds:EmptyState icon="lucide:inbox" iconClass="text-accent w-12 h-12" :title="'inbox.empty.title'|trans" :body="'inbox.empty.body'|trans" data-inbox-queue-empty="open-asks">
-                            {% if inbox.closedCount > 0 %}
-                                <a class="lp-empty-state__link" href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(closedSide).toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.empty.closed_link'|trans }}</a>
-                            {% endif %}
+                            <a class="lp-empty-state__link" href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(closedSide).toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.empty.closed_link'|trans }}</a>
                         </twig:Ds:EmptyState>
                     {% endif %}
                 </div>
