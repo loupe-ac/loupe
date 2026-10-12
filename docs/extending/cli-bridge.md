@@ -335,6 +335,22 @@ and to its log file, named by `--log-file`. Each line carries a stable `event`
 key, so `jq` selects what you want. The log file is appended, so it is a history
 across runs.
 
+The bridge logs `connected` when the hub answers with an event stream, and
+`stream_error` when a connection fails. A hub, proxy or login page that answers
+200 with something other than `text/event-stream` is a failure. The error names
+what arrived, such as `hub answered 200 with text/html (325 bytes), expected
+text/event-stream`, and never the body. A stream that ends before the hub sent
+any line, a heartbeat included, is a failure too. After a failure the bridge
+waits before it connects again. The wait starts at 1 second and doubles up to 30
+seconds. Only a stream that delivered a line resets it to 1 second.
+
+The bridge logs `event_dropped` for an event it receives and does not act on.
+`reason` says why. `unknown_type` is a type this bridge version does not know,
+and the bridge logs it at warning level once per type, so a person knows to
+update the bridge. `other_bridge` is a command for another bridge of the same
+account, such as the answer to an ask of a session on another machine. The
+bridge logs it at info level each time.
+
 The bridge needs a Mercure hub to have anything to subscribe to.
 
 ## Accounts
