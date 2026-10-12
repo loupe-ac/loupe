@@ -18,10 +18,29 @@ The domain must be a separate registrable domain. Do not use a sub-domain of
 your app domain. A browser shares cookies and some storage between sibling
 sub-domains. A separate registrable domain gives a hard wall between the app and
 the stored pages. Each artifact also gets its own origin, so two artifacts
-cannot read each other.
+cannot read the browser storage of each other.
+
+Cookies are different. A stored page can set a cookie for the whole content
+domain, and every other artifact on the instance can then read it. Add the
+content domain to the Public Suffix List to stop this, as the next section says.
 
 Only stored files are served on the content domain. Any other path answers 404.
 The content domain reads no session and sets no cookie.
+
+## Public Suffix List
+
+A browser treats each sub-domain of a domain on the
+[Public Suffix List](https://publicsuffix.org/) as a separate site. It then
+refuses a cookie that a stored page sets for the whole content domain.
+`claudeusercontent.com` and `githubusercontent.com` are on the list for this
+reason.
+
+To list your content domain, open a pull request on
+[publicsuffix/list](https://github.com/publicsuffix/list) for its PRIVATE
+section, and follow the guidelines of that repository. The review takes weeks,
+and each browser picks up the change with its next release. Until then, stored
+pages can share cookies with each other. Your Loupe session cookie stays safe in
+every case, because the content domain is a separate site.
 
 ## DNS
 
