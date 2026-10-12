@@ -990,18 +990,45 @@ func wantsInteractive(root, script *html.Node) bool {
 	return false
 }
 
-var (
-	dcLogicRe     = regexp.MustCompile(`\bDCLogic\b`)
-	scriptCloseRe = regexp.MustCompile(`(?i)</(script)`)
-)
+var scriptCloseRe = regexp.MustCompile(`(?i)</(script)`)
 
-// shipScript makes the canvas script safe to put in a script element, and
-// points it at the redraw runtime.
+// dcLogicAlias points the base class of the canvas at the redraw runtime.
+const dcLogicAlias = "const \\u0044CLogic = LoupeView;\n"
+
+// shipScript makes the canvas script safe to put in a script element. Each
+// escape keeps the JavaScript value of the text it replaces.
 func shipScript(src string) string {
-	src = dcLogicRe.ReplaceAllString(src, "LoupeView")
+	src = escapeDCLogic(src)
 	src = scriptCloseRe.ReplaceAllString(src, `<\/${1}`)
 
-	return strings.ReplaceAll(src, "<!--", `<\!--`)
+	return strings.ReplaceAll(src, "<!--", `<\u0021--`)
+}
+
+// escapeDCLogic spells each DCLogic as \u0044CLogic, which is the same
+// identifier, string or pattern. A D that a backslash escapes stays, so the
+// page falls back to its static form.
+func escapeDCLogic(src string) string {
+	var b strings.Builder
+	for {
+		i := strings.Index(src, "DCLogic")
+		if i < 0 {
+			break
+		}
+		slashes := 0
+		for j := i - 1; j >= 0 && src[j] == '\\'; j-- {
+			slashes++
+		}
+		b.WriteString(src[:i])
+		if slashes%2 == 0 {
+			b.WriteString(`\u0044`)
+		} else {
+			b.WriteByte('D')
+		}
+		src = src[i+1:]
+	}
+	b.WriteString(src)
+
+	return b.String()
 }
 
 // linkMap maps each canvas, as a link on this page writes it, to its page.
@@ -1047,7 +1074,7 @@ func (p *page) runtimeScript(root, script *html.Node) *html.Node {
 	if r, moved := p.rebaser(); moved {
 		baseJSON, _ = jsonJS(map[string]string{"from": r.from, "to": r.to})
 	}
-	code := "(function () {\n" + runtimeJS + "\n" + shipScript(scriptSource(script)) + "\n" + render +
+	code := "(function () {\n" + runtimeJS + "\n" + dcLogicAlias + shipScript(scriptSource(script)) + "\n" + render +
 		"\nLoupeView.mount(Component, render, " + props + ", " + evJSON + ", " + linkJSON + ", " + baseJSON + ", " + blobJSON + ");\n})();\n"
 	if strings.Contains(strings.ToLower(code), "</script") {
 		return fail("canvas text left in the output", `"</script" is left in the shipped script`)

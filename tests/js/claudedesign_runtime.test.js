@@ -206,6 +206,62 @@ it('keeps focus when a keyed input appears before it in its wrapper', () =>
             `<div>${R.T(s.q) ? '<input id="other">' : ''}<input id="q" name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}"></div>`,
     ));
 
+const focusUnkeyed = async (render) => {
+    class C extends LoupeView {
+        constructor(p) {
+            super(p);
+            this.state = { q: '' };
+        }
+        renderVals() {
+            return {
+                q: this.state.q,
+                type: (e) => this.setState({ q: e.target.value }),
+            };
+        }
+    }
+    LoupeView.mount(C, render, {}, ['input'], {});
+    const input = document.querySelector('input[data-on-input]');
+    input.focus();
+    input.value = 'ab';
+    input.setSelectionRange(1, 1);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(document.querySelector('input[data-on-input]')).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(1);
+    expect(input.value).toBe('ab');
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(document.querySelector('input[data-on-input]')).toBe(input);
+    expect(document.activeElement).toBe(input);
+};
+
+it('keeps focus on an unkeyed input when another appears before it', () =>
+    focusUnkeyed(
+        (s, h, R) =>
+            `${R.T(s.q) ? '<input value="x">' : ''}<input value="${R.q(s.q)}" data-on-input="${h(s.type)}">`,
+    ));
+
+it('keeps focus on an unkeyed input when another before it disappears', () =>
+    focusUnkeyed(
+        (s, h, R) =>
+            `${R.T(s.q) ? '' : '<input value="x">'}<input value="${R.q(s.q)}" data-on-input="${h(s.type)}">`,
+    ));
+
+it('keeps focus on an unkeyed input when an unkeyed wrapper appears before it', () =>
+    focusUnkeyed(
+        (s, h, R) =>
+            `${R.T(s.q) ? '<div><input></div>' : ''}<div><input value="${R.q(s.q)}" data-on-input="${h(s.type)}"></div>`,
+    ));
+
+it('keeps focus on an unkeyed input when an unkeyed input after it moves before it', () =>
+    focusUnkeyed((s, h, R) => {
+        const q = `<input value="${R.q(s.q)}" data-on-input="${h(s.type)}">`;
+
+        return R.T(s.q) ? '<input value="x">' + q : q + '<input value="x">';
+    }));
+
 it('keeps the value of a keyed input whose unkeyed wrapper moves', async () => {
     class C extends LoupeView {
         renderVals() {

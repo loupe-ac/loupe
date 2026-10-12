@@ -267,8 +267,17 @@ class LoupeView {
 
     static _morph(parent, olds, news, before) {
         let pool = olds.slice();
+        const act = olds.find(
+            (o) => o !== document.body && o.contains(document.activeElement),
+        );
+        const mate = act ? LoupeView._mate(act, olds, news) : null;
         for (const n of news) {
-            const k = pool.findIndex((o) => LoupeView._same(o, n));
+            const k =
+                n === mate
+                    ? pool.indexOf(act)
+                    : pool.findIndex(
+                          (o) => o !== act && LoupeView._same(o, n),
+                      );
             if (k < 0) {
                 parent.insertBefore(n, pool[0] || before || null);
                 continue;
@@ -276,7 +285,7 @@ class LoupeView {
             const o = pool[k];
             const kept = [];
             for (const s of pool.slice(0, k)) {
-                if (LoupeView._keyed(s)) {
+                if (s === act || LoupeView._keyed(s)) {
                     kept.push(s);
                 } else {
                     parent.removeChild(s);
@@ -292,6 +301,36 @@ class LoupeView {
             LoupeView._update(o, n);
         }
         pool.forEach((o) => parent.removeChild(o));
+    }
+
+    // The new node that keeps the node holding focus: the most alike of its
+    // twins, then the one at the same place from the end.
+    static _mate(act, olds, news) {
+        const all = news.filter((n) => LoupeView._same(act, n));
+        if (all.length < 2) {
+            return all[0] || null;
+        }
+        const twins = olds.filter((o) => LoupeView._same(o, act));
+        const near = all[all.length - twins.length + twins.indexOf(act)];
+        const score = all.map((n) => LoupeView._likeness(act, n));
+        const best = Math.max(...score);
+
+        return score[all.indexOf(near)] === best
+            ? near
+            : all[score.indexOf(best)];
+    }
+
+    static _likeness(o, n) {
+        let score = 0;
+        for (const a of Array.from(o.attributes)) {
+            if (n.getAttribute(a.name) === a.value) {
+                score++;
+            }
+        }
+        const field = o.nodeName === 'INPUT' || o.nodeName === 'TEXTAREA';
+        const value = o.nodeName === 'TEXTAREA' ? n.value : n.getAttribute('value');
+
+        return field && value === o.value ? score + 1 : score;
     }
 
     static _keyed(o) {

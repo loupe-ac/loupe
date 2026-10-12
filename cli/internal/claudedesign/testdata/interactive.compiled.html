@@ -9,6 +9,7 @@
 
 <label><input id="agree" type="checkbox"/> I agree</label>
 <p id="status">Please agree</p>
+<p id="kind">dclogic &lt;!--</p>
 <ul>
 
   <li class="todo"><button>Apple</button>
@@ -295,8 +296,17 @@ class LoupeView {
 
     static _morph(parent, olds, news, before) {
         let pool = olds.slice();
+        const act = olds.find(
+            (o) => o !== document.body && o.contains(document.activeElement),
+        );
+        const mate = act ? LoupeView._mate(act, olds, news) : null;
         for (const n of news) {
-            const k = pool.findIndex((o) => LoupeView._same(o, n));
+            const k =
+                n === mate
+                    ? pool.indexOf(act)
+                    : pool.findIndex(
+                          (o) => o !== act && LoupeView._same(o, n),
+                      );
             if (k < 0) {
                 parent.insertBefore(n, pool[0] || before || null);
                 continue;
@@ -304,7 +314,7 @@ class LoupeView {
             const o = pool[k];
             const kept = [];
             for (const s of pool.slice(0, k)) {
-                if (LoupeView._keyed(s)) {
+                if (s === act || LoupeView._keyed(s)) {
                     kept.push(s);
                 } else {
                     parent.removeChild(s);
@@ -320,6 +330,36 @@ class LoupeView {
             LoupeView._update(o, n);
         }
         pool.forEach((o) => parent.removeChild(o));
+    }
+
+    // The new node that keeps the node holding focus: the most alike of its
+    // twins, then the one at the same place from the end.
+    static _mate(act, olds, news) {
+        const all = news.filter((n) => LoupeView._same(act, n));
+        if (all.length < 2) {
+            return all[0] || null;
+        }
+        const twins = olds.filter((o) => LoupeView._same(o, act));
+        const near = all[all.length - twins.length + twins.indexOf(act)];
+        const score = all.map((n) => LoupeView._likeness(act, n));
+        const best = Math.max(...score);
+
+        return score[all.indexOf(near)] === best
+            ? near
+            : all[score.indexOf(best)];
+    }
+
+    static _likeness(o, n) {
+        let score = 0;
+        for (const a of Array.from(o.attributes)) {
+            if (n.getAttribute(a.name) === a.value) {
+                score++;
+            }
+        }
+        const field = o.nodeName === 'INPUT' || o.nodeName === 'TEXTAREA';
+        const value = o.nodeName === 'TEXTAREA' ? n.value : n.getAttribute('value');
+
+        return field && value === o.value ? score + 1 : score;
     }
 
     static _keyed(o) {
@@ -436,8 +476,9 @@ class LoupeView {
     }
 }
 
+const \u0044CLogic = LoupeView;
 
-class Component extends LoupeView {
+class Component extends \u0044CLogic {
   state = { query: '', count: 0, agreed: false, tick: 0, done: {} };
   items = [
     { id: 1, name: 'Apple', tags: ['red', 'sweet'] },
@@ -470,6 +511,7 @@ class Component extends LoupeView {
       items: shown,
       empty: shown.length === 0,
       tick: this.state.tick,
+      kind: '\u0044CLogic'.toLowerCase() + (/^<\u0021--$/u.test('<\u0021--') ? ' <\u0021--' : ''),
       next: '#top',
       note: { __html: '<em>' + shown.length + ' shown</em>' },
     };
@@ -503,6 +545,8 @@ o+="\"/\u003e I agree\u003c/label\u003e";
 }
 o+="\n\u003cp id=\"status\"\u003e";
 o+=R.e(t(R.g(s0,"status")));
+o+="\u003c/p\u003e\n\u003cp id=\"kind\"\u003e";
+o+=R.e(t(R.g(s0,"kind")));
 o+="\u003c/p\u003e\n\u003cul\u003e\n";
 for (const x1 of R.A(R.g(s0,"items"))) {
 const s1 = Object.assign({}, s0, {["item"]: x1});

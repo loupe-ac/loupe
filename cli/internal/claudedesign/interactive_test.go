@@ -45,7 +45,8 @@ func TestAnInteractivePageShipsItsScriptAndNoInlineHandler(t *testing.T) {
 	}
 	for _, want := range []string{
 		"LoupeView.mount(Component, render, {}, [\"click\"], {\"A.dc\\u002ehtml\":\"index.html\"}, null, {});",
-		"class Component extends LoupeView",
+		dcLogicAlias,
+		"class Component extends \\u0044CLogic",
 		"class LoupeView",
 		u003c + `button class=\"b\"`,
 		` data-on-click=\"`,
@@ -115,7 +116,7 @@ func TestAnInteractivePageWithAGapFallsBackToTheStaticPage(t *testing.T) {
 }
 
 func TestCanvasTextInTheScriptFallsBackToTheStaticPage(t *testing.T) {
-	for _, bad := range []string{"Other.dc.html", "{{", "/_blob/x", "support.js", "<sc-x", "DCLogic2 DCLogic_"} {
+	for _, bad := range []string{"Other.dc.html", "{{", "/_blob/x", "support.js", "<sc-x", `'\DCLogic'`} {
 		script := `class Component extends DCLogic { renderVals() { return { go: 1 }; } } // ` + bad
 		res := compile(t, canvas("A.dc.html", scripted(script, `<button onClick="{{ go }}">x</button>`)))
 		page := one(t, res, "index.html")
@@ -140,7 +141,7 @@ func TestAScriptThatClosesItsElementIsShippedSafely(t *testing.T) {
 	if strings.Contains(page, "<!--") {
 		t.Fatalf("a comment start in\n%s", page)
 	}
-	if !strings.Contains(page, "\"<\\!--\"") || !strings.Contains(page, `{"v":"`+u003c+`/script`) {
+	if !strings.Contains(page, `"<\u0021--"`) || !strings.Contains(page, `{"v":"`+u003c+`/script`) {
 		t.Fatalf("script text changed wrongly:\n%s", page)
 	}
 }
@@ -534,5 +535,18 @@ func TestTheRedrawRebasesALinkAsTheBuildDoes(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestTheShippedScriptKeepsTheValueOfEachEscapedText(t *testing.T) {
+	src := `class Component extends DCLogic { renderVals() { return { go: 1, a: ['DCLogic', "\\DCLogic", /^DCLogic<!--$/u.test('DCLogic<!--')].join(" ") }; } }`
+	page := interactivePage(t, src, `<button onClick="{{ go }}">x</button>`)
+	code := page[strings.Index(page, dcLogicAlias):strings.Index(page, "\nLoupeView.mount(")]
+	got, err := goja.New().RunString("class LoupeView {}\n" + code + "\nnew Component().renderVals().a")
+	if err != nil {
+		t.Fatalf("%v in\n%s", err, code)
+	}
+	if want := `DCLogic \DCLogic true`; got.String() != want {
+		t.Fatalf("a = %q, want %q", got.String(), want)
 	}
 }

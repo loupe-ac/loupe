@@ -88,3 +88,13 @@ it('runs componentDidMount and its timer', async () => {
     await settle();
     expect($('#tick').textContent).toBe('3');
 });
+
+it('keeps a canvas string that names the base class after a redraw', async () => {
+    expect($('#kind').textContent).toBe('dclogic <!--');
+    $('#inc').dispatchEvent(
+        new dom.window.MouseEvent('click', { bubbles: true }),
+    );
+    await settle();
+    expect($('#inc').textContent).toBe('Count: 1');
+    expect($('#kind').textContent).toBe('dclogic <!--');
+});
