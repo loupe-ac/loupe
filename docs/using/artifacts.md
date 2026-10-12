@@ -118,10 +118,11 @@ with the newest version of each.
 ## The viewer
 
 Choose an artifact to open the viewer. The page shows the files of one version
-in a frame, under a thin bar with the name of the artifact and three buttons.
+in a frame, under a thin bar with the name of the artifact and its buttons.
 
 | Button | What it does |
 |---|---|
+| File | Lists the pages of the version, when it holds two or more. Choose one to show it in the frame |
 | Open full screen | Opens the artifact in its own window, with only the bar and the frame |
 | Copy link | Copies the link of the page you see |
 | More actions | Opens a menu with the items below |
@@ -154,6 +155,10 @@ cannot read your session or call Loupe as you. Some features that need a normal
 web origin may not work, such as storage in the browser. The viewer shows a
 band that says so. Choose **Dismiss** to hide the band. It returns when you
 open the page again.
+
+The address keeps the page you chose, as `?file=<path>`. Open full screen and
+Copy link carry it, so a link opens the same page for the person who gets it.
+An address that names a file the version does not hold shows a not found page.
 
 Each file comes from a link that Loupe signs and that expires after one hour.
 Reload the page to get a fresh link.

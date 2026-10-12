@@ -38,6 +38,12 @@ final readonly class DevArtifactSeeder
         <script src="app.js"></script></body></html>
         HTML;
 
+    private const string PLANS = <<<'HTML'
+        <!doctype html>
+        <html lang="en"><head><meta charset="utf-8"><title>Plans</title><link rel="stylesheet" href="style.css"></head>
+        <body><h1>Plans</h1><p>The plans page of the prototype.</p></body></html>
+        HTML;
+
     private const string STYLE = 'body{font-family:system-ui,sans-serif;margin:2rem}button{padding:.5rem 1rem}';
 
     private const string SCRIPT = "let n=0;document.getElementById('count').addEventListener('click',e=>{n++;e.target.textContent='Clicked '+n+' times'});";
@@ -67,6 +73,7 @@ final readonly class DevArtifactSeeder
         $first->addFile('style.css', $this->artifactBlobs->findOrCreate($project, self::STYLE), 'text/css');
         $second = $artifact->addVersion(null, 'dev-seed-session', 'Added a button that counts its clicks.');
         $second->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::SECOND), 'text/html');
+        $second->addFile('plans.html', $this->artifactBlobs->findOrCreate($project, self::PLANS), 'text/html');
         $second->addFile('style.css', $this->artifactBlobs->findOrCreate($project, self::STYLE), 'text/css');
         $second->addFile('app.js', $this->artifactBlobs->findOrCreate($project, self::SCRIPT), 'text/javascript');
         $this->em->persist($artifact);

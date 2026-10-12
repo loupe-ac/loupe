@@ -265,6 +265,60 @@ final class ShowArtifactControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function test_the_file_menu_lists_the_pages_and_the_address_picks_one(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('show-files@example.com');
+        $artifact = $this->storedArtifact($project, 'Prototype', [['index.html' => 'a', 'phone.html' => 'b', 'app.js' => 'x']]);
+        [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+        $this->em()->clear();
+        $base = '/projects/'.$projectId.'/artifacts/'.$artifactId;
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $base);
+        self::assertResponseIsSuccessful();
+        self::assertSame(['index.html', 'phone.html'], $crawler->filter('[data-artifact-file-link]')->each(static fn ($link): string => (string) $link->attr('data-artifact-file-link')));
+        self::assertSame('index.html', $crawler->filter('[data-artifact-file-link][aria-current="true"]')->attr('data-artifact-file-link'));
+        self::assertStringEndsWith('/index.html', (string) $crawler->filter('iframe[data-artifact-frame]')->attr('src'));
+        self::assertSame('http://localhost'.$base, $this->copyLink($crawler));
+
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $base.'?file=phone.html');
+        self::assertResponseIsSuccessful();
+        self::assertStringEndsWith('/phone.html', (string) $crawler->filter('iframe[data-artifact-frame]')->attr('src'));
+        self::assertSame('phone.html', $crawler->filter('[data-artifact-file-link][aria-current="true"]')->attr('data-artifact-file-link'));
+        self::assertSame($base.'/full-screen?file=phone.html', $crawler->filter('[data-artifact-full-screen]')->attr('href'));
+        self::assertSame('http://localhost'.$base.'?file=phone.html', $this->copyLink($crawler));
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $base.'?file=');
+        self::assertResponseIsSuccessful();
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $base.'?file=missing.html');
+        self::assertResponseStatusCodeSame(404);
+
+        $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $base.'?file=../index.html');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function test_a_version_with_one_page_shows_no_file_menu(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('show-one-page@example.com');
+        $artifact = $this->storedArtifact($project, 'Single', [['index.html' => 'a', 'app.js' => 'x']]);
+        $path = '/projects/'.$project->id.'/artifacts/'.$artifact->id;
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, $path);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-artifact-file-menu]'));
+    }
+
+    private function copyLink(Crawler $crawler): string
+    {
+        return (string) $crawler->filter('.lp-copy-icon')->attr('data-clipboard-text-value');
+    }
+
     private function bandText(Crawler $crawler): string
     {
         return trim(preg_replace('/\s+/', ' ', $crawler->filter('[data-artifact-band] .lp-flash__message')->text()) ?? '');
