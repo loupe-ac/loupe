@@ -496,6 +496,7 @@ wire_api = "responses"
 The profile names the variable in `env_key`. Put that variable in the
 `envFile` of the account, such as `OPENROUTER_API_KEY=...`. An account with no
 `profile` uses the login of the Codex home folder, which `codex login` makes.
+A profile whose provider uses the OpenAI sign-in also uses that login.
 
 The bridge passes the result schema to Codex with `--output-schema`, in the
 strict form that the OpenAI API needs. Each object sets `additionalProperties`
@@ -635,7 +636,11 @@ A check of a Codex account asks these questions:
 3. Does the profile file exist, when the account sets a `profile`? If it does,
    the variable named by `env_key` in the profile must hold a value in the
    environment of the account.
-4. Does `codex login status` pass, when the account sets no `profile`?
+4. Does `codex login status` pass? The check asks when the account sets no
+   `profile`. It also asks when the profile names no `env_key` and its provider
+   uses the OpenAI sign-in. That is the default `openai` provider, or a provider
+   table with `requires_openai_auth = true`. A local provider such as `ollama`
+   needs no login.
 5. Does Codex see the `loupe` MCP server in each project folder? The check runs
    `codex [-p profile] mcp get loupe --json` there.
 
