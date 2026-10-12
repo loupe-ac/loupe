@@ -197,7 +197,19 @@ func (g *gen) textNode(n *html.Node, d int) error {
 	if n.Parent != nil {
 		parent = n.Parent.Data
 	}
-	if parent == "style" || parent == "script" {
+	if parent == "style" {
+		css, problems := g.p.rewriteBlobs(n.Data)
+		if len(problems) > 0 {
+			return fmt.Errorf("%s: %s", problems[0].feature, problems[0].detail)
+		}
+		if r, ok := g.p.rebaser(); ok {
+			css = r.css(css)
+		}
+		g.text(css)
+
+		return nil
+	}
+	if parent == "script" {
 		g.text(n.Data)
 
 		return nil
@@ -285,6 +297,10 @@ func (g *gen) attr(a html.Attribute, d int) error {
 	for _, s := range segs {
 		hasHole = hasHole || s.hole
 	}
+	r, moved := g.p.rebaser()
+	if hasHole && moved && rebasedAttrs[a.Key] {
+		return fmt.Errorf("%s from a value on a page written to another folder: %q", a.Key, a.Val)
+	}
 	g.text(" " + key + `="`)
 	switch {
 	case a.Key == "href" && hasHole:
@@ -297,9 +313,18 @@ func (g *gen) attr(a html.Attribute, d int) error {
 			}
 		}
 		g.expr("R.q(R.lk(" + strings.Join(parts, " + ") + "))")
-	case a.Key == "href":
-		link, _ := g.p.rewriteLink(a.Val)
-		g.text(htmlEscaper.Replace(link))
+	case !hasHole:
+		val, problems := g.p.rewriteBlobs(a.Val)
+		if len(problems) > 0 {
+			return fmt.Errorf("%s: %s", problems[0].feature, problems[0].detail)
+		}
+		if a.Key == "href" {
+			val, _ = g.p.rewriteLink(val)
+		}
+		if moved {
+			val = r.attr(a.Key, val)
+		}
+		g.text(htmlEscaper.Replace(val))
 	default:
 		for _, s := range segs {
 			if s.hole {

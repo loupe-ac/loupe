@@ -350,3 +350,38 @@ func TestTheCompilerLeavesNoCanvasTextInTheGolden(t *testing.T) {
 	res := compile(t, api.ArtifactFile{Path: "support.js", Contents: []byte("x")}, canvas("Interactive.dc.html", string(fixture(t, "interactive.dc.html"))))
 	assertClean(t, one(t, res, "index.html"))
 }
+
+func TestTheRedrawOfAPageFromAFolderKeepsItsRebasedLinks(t *testing.T) {
+	markup := `<button onClick="{{ go }}">x</button><a href="Pricing.dc.html">p</a><img src="hero.png" srcset="hero.png 1x">` +
+		`<img src="/_blob/abc"><div style="background: url('bg.png')"></div><style>.a { background: url(img/a.png) }</style>`
+	res := compileIndex(t, "site/Home",
+		canvas("site/Home.dc.html", scripted(clickScript, markup)),
+		canvas("site/Pricing.dc.html", wrap(`<p>p</p>`)),
+		blobFile("_blob/abc.png"),
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	page := one(t, res, "index.html")
+	i := strings.Index(page, `<script id="loupe-runtime"`)
+	if i < 0 {
+		t.Fatalf("no runtime:\n%s", page)
+	}
+	shipped := page[i:]
+	for _, want := range []string{
+		`href=\"site/Pricing.html\"`, `src=\"site/hero.png\"`, `srcset=\"site/hero.png 1x\"`, `src=\"_blob/abc.png\"`,
+		`url(\u0026#39;site/bg.png\u0026#39;)`, `url(site/img/a.png)`,
+	} {
+		if !strings.Contains(shipped, want) {
+			t.Errorf("the shipped render lacks %s:\n%s", want, shipped)
+		}
+	}
+}
+
+func TestALinkFromAValueOnAPageFromAFolderFallsBackToTheStaticPage(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { go: 1, p: 'hero.png' }; } }`
+	res := compileIndex(t, "site/Home", canvas("site/Home.dc.html", scripted(script, `<button onClick="{{ go }}">x</button><img src="{{ p }}">`)))
+	if page := one(t, res, "index.html"); strings.Contains(page, "loupe-runtime") {
+		t.Fatalf("page:\n%s", page)
+	}
+}

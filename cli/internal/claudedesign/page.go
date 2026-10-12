@@ -55,6 +55,8 @@ type page struct {
 	links map[string]string
 	// blobs holds the pushed files under _blob/.
 	blobs blobFiles
+	// out is the path the page is written to.
+	out string
 	// kept holds the markers and the source fragments kept after them.
 	kept map[*html.Node]bool
 	// keptSelf holds the nodes that keep source text after a marker. Their
@@ -145,7 +147,7 @@ func compilePage(file, out string, src []byte, links map[string]string, blobs bl
 // buildPage builds a page. retry is true when the page wants to be interactive
 // and has a gap, so the caller must build the static page instead.
 func buildPage(file, out string, src []byte, links map[string]string, blobs blobFiles, mayBeInteractive bool) ([]byte, []artifactcompile.Gap, bool) {
-	p := &page{file: file, links: links, blobs: blobs, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
+	p := &page{file: file, out: out, links: links, blobs: blobs, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
 		return markTop(src, artifactcompile.Gap{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}),
@@ -213,8 +215,8 @@ func buildPage(file, out string, src []byte, links map[string]string, blobs blob
 	htmlEl.AppendChild(body)
 	p.markLeftovers(tree)
 	stripLines(tree)
-	if from, to := path.Dir(file), path.Dir(out); from != to {
-		rebaser{from, to}.tree(tree)
+	if r, moved := p.rebaser(); moved {
+		r.tree(tree)
 	}
 
 	if wantsRuntime {
