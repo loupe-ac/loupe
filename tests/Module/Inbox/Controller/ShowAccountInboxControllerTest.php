@@ -112,8 +112,32 @@ final class ShowAccountInboxControllerTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
         self::assertSelectorTextSame('[data-account-inbox-project="'.$alpha->id.'"] [data-account-inbox-open-count]', '3 open items');
         // The oldest of the project's open asks and loose items, not the newest.
-        self::assertStringContainsString('2h ago', $crawler->filter('[data-account-inbox-project="'.$alpha->id.'"] .lp-account-inbox-card__wait')->text());
-        self::assertStringContainsString('3h ago', $crawler->filter('[data-account-inbox-project="'.$zulu->id.'"] .lp-account-inbox-card__wait')->text());
+        self::assertStringContainsString('2h ago', $crawler->filter('[data-account-inbox-project="'.$alpha->id.'"] .lp-account-inbox-row__wait')->text());
+        self::assertStringContainsString('3h ago', $crawler->filter('[data-account-inbox-project="'.$zulu->id.'"] .lp-account-inbox-row__wait')->text());
+    }
+
+    public function test_a_blocking_open_item_in_an_open_ask_marks_its_project_as_blocking(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'account-inbox-blocking');
+        $blocked = $this->inboxProject($this->em, $owner);
+        $this->askHolding($this->em, $blocked, [$this->question($this->em, $blocked, 1), $this->todo($this->em, $blocked, 2)]);
+        $calm = $this->inboxProject($this->em, $owner);
+        $this->askHolding($this->em, $calm, [$this->todo($this->em, $calm, 1)]);
+        $answered = $this->inboxProject($this->em, $owner);
+        $this->askHolding($this->em, $answered, [$this->answered($this->em, $this->question($this->em, $answered, 1)), $this->todo($this->em, $answered, 2)]);
+        $loose = $this->inboxProject($this->em, $owner);
+        $this->askHolding($this->em, $loose, [$this->question($this->em, $loose, 1)], closedAt: new \DateTimeImmutable('-1 hour'));
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/account/inbox');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(4, $crawler->filter('[data-account-inbox-project]'));
+        self::assertSame('Blocking', $crawler->filter('[data-account-inbox-project="'.$blocked->id.'"] .lp-account-inbox-row__blocking')->text());
+        self::assertSame('Blocking', $crawler->filter('[data-account-inbox-project="'.$loose->id.'"] .lp-account-inbox-row__blocking')->text());
+        self::assertCount(0, $crawler->filter('[data-account-inbox-project="'.$calm->id.'"] .lp-account-inbox-row__blocking'));
+        self::assertCount(0, $crawler->filter('[data-account-inbox-project="'.$answered->id.'"] .lp-account-inbox-row__blocking'));
     }
 
     public function test_the_page_is_read_only(): void

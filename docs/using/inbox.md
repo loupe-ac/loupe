@@ -366,18 +366,14 @@ An agent reads its answers with its own session id as `readerSessionId`.
 Open **All inboxes** in the lower part of the sidebar to see what waits on you
 in every project you own. The link is absent while the flag is off.
 
-The page groups by project, in project name order, and shows each project that
-has an open item. Each project shows how many items it has open, and its name
-links to its inbox. Inside a project, the page lists two things:
+The page shows one row for each project you own that has an open item, in
+project name order. Each row shows the first letter of the project, its name,
+the number of open items, and how long its oldest open ask or item waits. A row
+also shows **Blocking** when it holds an open item that an agent waits on, in an
+open ask or outside one.
 
-1. **Open asks**, oldest first, each with its session, its context and the
-   number, state and title of each item.
-2. **Open items outside an open ask**, such as a to-do from an ask that already
-   closed.
-
-The page is read-only. Select **Answer in the project inbox** on an ask, or
-**Respond in the project inbox** on an item outside an open ask. The link opens
-that ask or item on its project inbox page, where the forms are.
+Select a row to open the inbox of its project, where the forms are. The page
+itself is read-only.
 
 ## On a card page and a document page
 
