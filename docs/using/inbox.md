@@ -159,8 +159,23 @@ Every item that takes a response shows its forms under its text.
   then select **Close this item**. Close any item that you cannot or will not
   answer, including a question whose options do not fit.
 
-The item then shows your response and its new state: answered, done or
-closed.
+### After you send a response
+
+The page opens the next ask. It takes the first ask below the one you closed,
+in the list you looked at. When the closed ask was the last one, it takes the
+ask above it. The filter you used still applies. An ask that still holds an open
+item stays open on the right, so you can answer the next item.
+
+A line above the ask says what happened. It names the ask that closed, such as
+"Answered. "Which format?" is closed.", and links to it with **View it**. When
+the ask stays open, the line counts the items that are left. The line shows
+once, so a reload removes it.
+
+When no ask is left, the page shows **Nothing needs you**. The closed ask is
+still on the **Closed** side.
+
+A search or the **Closed** side keeps the ask you answered. A response sent from
+a card or a document page returns to that page, as before.
 
 Unsent question answers keep their text and selected options when you close and reopen a card drawer in the same browser tab.
 A closing note also survives drawer replacement.

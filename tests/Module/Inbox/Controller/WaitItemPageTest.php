@@ -214,15 +214,15 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('_top', $link->attr('data-turbo-frame'));
     }
 
-    public function test_dismiss_closes_the_item_declined_and_moves_it_to_the_closed_side(): void
+    public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void
     {
         $this->reconcile();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         $this->client->submit($crawler->selectButton('Dismiss')->form());
 
-        // The ask closed with its item, so the page returns to the closed side and names the ask it was on.
-        self::assertStringStartsWith($this->pageUrl().'?side=closed&ask=', (string) $this->client->getResponse()->headers->get('Location'));
+        // The ask closed with its item and no other ask is open, so the page names none.
+        self::assertResponseRedirects($this->pageUrl());
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Declined, $watch->item->state);
         self::assertNotNull($watch->dismissedAt);
@@ -232,6 +232,8 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame(InboxCardWaitEndReason::Dismissed, $wait->endReason);
 
         $crawler = $this->client->followRedirect();
+        self::assertSelectorExists('[data-inbox-queue-empty="open-asks"]');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Closed.');
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
     }
 
