@@ -242,6 +242,85 @@ func TestAKeptReplayStopsAtTheFirstUnansweredReport(t *testing.T) {
 	}
 }
 
+// A connect queues no second replay or inventory while the first still waits,
+// so the reserve places of the queue always hold them.
+func TestAConnectQueuesOneReplayAndOneInventoryAtATime(t *testing.T) {
+	client := &fakeRunClient{}
+	reports, box, _ := lossReports(t, client)
+	_ = box.keep(testProject, "run-1", failedReport())
+	var queued []outbound.Report
+	enqueue := func(r outbound.Report) { queued = append(queued, r) }
+
+	for range 2 {
+		reports.replayKept(enqueue)
+		reports.queueInventory(enqueue, testBridge, nil)
+	}
+	if len(queued) != 2 || !queued[0].Reserved || !queued[1].Reserved {
+		t.Fatalf("queued = %d, want one reserved replay and one reserved inventory", len(queued))
+	}
+
+	if _, err := queued[0].Send(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	queued[1].Lost(outbound.Unreachable)
+	_ = box.keep(testProject, "run-2", failedReport())
+	reports.replayKept(enqueue)
+	reports.queueInventory(enqueue, testBridge, nil)
+	if len(queued) != 4 {
+		t.Fatalf("queued = %d, want a new replay and inventory once the first ones left", len(queued))
+	}
+}
+
+// A connect while earlier reports fill the queue still gets the replay and the
+// inventory through.
+func TestAConnectToAFullQueueKeepsItsReplayAndInventory(t *testing.T) {
+	h := newHarness(t)
+	client := &fakeRunClient{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	queue := outbound.New(ctx, h.router.log)
+	defer queue.Close()
+	h.router.reports = queue
+	h.router.runs = newRunReports(client, h.router.log)
+	box := newTestOutbox(t)
+	box.bridgeID = h.router.bridgeID
+	h.router.runs.outbox = box
+	_ = box.keep(testProject, "run-1", failedReport())
+
+	held, started := make(chan struct{}), make(chan struct{})
+	queue.Enqueue(outbound.Report{Send: func(context.Context) (bool, error) {
+		close(started)
+		<-held
+
+		return true, nil
+	}})
+	<-started
+	filler := outbound.Report{Send: func(context.Context) (bool, error) { return true, nil }}
+	for fillerFits(queue, filler) {
+	}
+
+	h.router.handler().OnConnect()
+	h.router.wg.Wait()
+	close(held)
+	for deadline := time.Now().Add(5 * time.Second); queue.Pending() > 0 && time.Now().Before(deadline); {
+		time.Sleep(time.Millisecond)
+	}
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.puts) != 1 || len(client.inventories) != 1 {
+		t.Fatalf("puts = %v, inventories = %d, want the kept report and the inventory", client.puts, len(client.inventories))
+	}
+}
+
+// fillerFits queues filler, and reports whether the queue took it.
+func fillerFits(queue *outbound.Sender, filler outbound.Report) bool {
+	before := queue.Pending()
+	queue.Enqueue(filler)
+
+	return queue.Pending() > before
+}
+
 func TestAnEmptyOutboxQueuesNothing(t *testing.T) {
 	reports, _, _ := lossReports(t, &fakeRunClient{})
 	var queued int

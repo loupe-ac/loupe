@@ -479,6 +479,41 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 	})
 }
 
+// A full queue loses a normal report, and still takes a reserved one.
+func TestAReservedReportFindsAPlaceInAFullQueue(t *testing.T) {
+	held := make(chan struct{})
+	h := newHarnessWithSend(t, 0, func(context.Context) (bool, error) {
+		<-held
+
+		return true, nil
+	})
+	release := sync.OnceFunc(func() { close(held) })
+	t.Cleanup(release)
+	h.sent = make(chan int, capacity+reserve+1)
+	h.queue.Enqueue(h.report(0))
+	h.next(t, 1)
+	for card := 1; card <= capacity; card++ {
+		h.queue.Enqueue(h.report(card))
+	}
+	lost := &lostCounter{}
+	h.queue.Enqueue(lost.mark(h.report(-1)))
+	reserved := lost.mark(h.report(-2))
+	reserved.Reserved = true
+	h.queue.Enqueue(reserved)
+
+	if got := lost.recorded(); len(got) != 1 || got[0] != -1 {
+		t.Fatalf("lost = %v, want the normal report only", got)
+	}
+	release()
+	var last int
+	for attempt := range capacity + 1 {
+		last = h.next(t, attempt)
+	}
+	if last != -2 {
+		t.Fatalf("last send = %d, want the reserved report", last)
+	}
+}
+
 // Close is called twice on a bridge that shuts down by itself, once by the
 // caller and once by the deferred call.
 func TestQueueTakesASecondClose(t *testing.T) {

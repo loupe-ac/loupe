@@ -47,11 +47,14 @@ type Queue interface {
 // Lost runs once when the queue gives the report up or drops it, never under
 // a lock of the queue. It receives the reason, so a caller can keep a report
 // that a later connect may still land. A nil one does nothing.
+//
+// Reserved lets the report take one of the reserve places when the queue is full.
 type Report struct {
-	Card int
-	Rule string
-	Send func(ctx context.Context) (bool, error)
-	Lost func(reason LossReason)
+	Card     int
+	Rule     string
+	Send     func(ctx context.Context) (bool, error)
+	Lost     func(reason LossReason)
+	Reserved bool
 }
 
 // LossReason says why the queue let a report go.
@@ -90,6 +93,10 @@ type lane struct {
 // capacity bounds the reports that wait in memory. A run sends about four, and
 // a worker runs for minutes, so a full queue means a long outage.
 const capacity = 256
+
+// reserve is the places only a Reserved report takes. A connect queues at most
+// one replay of the outbox and one inventory, so two always fit.
+const reserve = 2
 
 // grace bounds the last delivery a shutdown allows. Ctrl-C kills the workers,
 // and a killed worker writes nothing to its card, so the bridge is the only
@@ -154,7 +161,7 @@ func New(ctx context.Context, log *slog.Logger) *Sender {
 		log:     log,
 		ctx:     ctx,
 		cancel:  cancel,
-		in:      make(chan Report, capacity),
+		in:      make(chan Report, capacity+reserve),
 		done:    make(chan struct{}),
 		backoff: defaultBackoff,
 		after:   time.After,
@@ -183,6 +190,9 @@ func (q *Sender) take(report Report) (bool, LossReason) {
 
 	if q.closed {
 		return false, Refused
+	}
+	if !report.Reserved && len(q.in) >= capacity {
+		return false, Unreachable
 	}
 	// The count rises first, so run never takes it below zero.
 	q.pending.Add(1)

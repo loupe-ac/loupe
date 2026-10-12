@@ -297,6 +297,9 @@ because Loupe was not reachable, it writes that report to an outbox directory
 beside its cursor file and logs `report_kept`. The next connect sends the kept
 reports, oldest first, before the run inventory. They take one place in the
 queue together, and a retry starts at the first report Loupe did not answer.
+The queue keeps two places for the kept reports and the inventory, so a queue
+that an outage filled still takes them. A connect queues neither again while an
+earlier copy still waits.
 The bridge deletes a file when Loupe takes or refuses its report. A report that Loupe refused is never kept. A kept report that is
 older than seven days is deleted, and the bridge logs `report_dropped`. A report
 made for another Loupe instance or bridge id stays on disk and is never sent.

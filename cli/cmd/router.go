@@ -1676,7 +1676,7 @@ func (r *router) sendInventory() {
 		runs = append(runs, run)
 	}
 	slices.SortFunc(runs, func(a, b api.InventoryRun) int { return strings.Compare(a.RunID, b.RunID) })
-	r.reports.Enqueue(r.runs.inventory(r.bridgeID, runs))
+	r.runs.queueInventory(r.reports.Enqueue, r.bridgeID, runs)
 }
 
 // logResult writes what a worker ended as. The bridge owns the worker's
