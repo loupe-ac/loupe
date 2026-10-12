@@ -9,8 +9,8 @@ use App\Module\Workflow\Contract\Actor;
 
 /**
  * Dispatched by TerminalColumnCards inside the transaction that flipped the
- * flag, after the column's cards followed it. A listener must never throw, for
- * the reason CardMoved gives.
+ * flag, after the column's cards followed it. A listener that throws refuses
+ * the flag change.
  */
 final readonly class BoardColumnTerminalChanged
 {

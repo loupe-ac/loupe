@@ -9,6 +9,10 @@ Loupe checks the rules of a card on each change and on a timer. A rule fires
 when its condition turns true. It then moves the card, asks a bridge for work,
 writes to GitHub, or pauses the card.
 
+A card runs one piece of work of each kind at a time. A rule that asks for work
+while another rule's work of the same kind runs opens nothing. It waits for that
+work to end, and then asks for work of its own when its condition still holds.
+
 A bridge does the work that the workflow asks for. It does not decide when work
 runs. See [Command-line bridge](../extending/cli-bridge.md) for how a bridge
 maps each kind of work to an agent.
@@ -194,8 +198,8 @@ back to Implementation at once when it has no open blocker.
 
 | Slot | The workflow |
 |---|---|
-| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. An approved product document, with the tag `product-design`, moves the card to Tech design |
-| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. An approved tech design, with the tag `tech-design`, moves the card to Implementation once the card has no open blocker |
+| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design |
+| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
@@ -297,8 +301,8 @@ Four conditions of the **Agent review** group read the reviews:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried |
-| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried |
+| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review |
+| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has ended done after that review began, until the next review lands |
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
 
@@ -343,16 +347,16 @@ Some rules act from any slot:
 2. A card in the Backlog whose pull request reopens moves to Implementation.
 3. A child of an epic starts only when it links an approved tech design and its
    epic sits in Implementation. A child in Next moves to Implementation when it
-   has a document with the tag `tech-design` and the status approved, it has no
-   open blocker, and it has no pull request. It waits while the epic has work in
+   has a document with the tag `tech-design`, every such document is approved,
+   it has no open blocker, and it has no pull request. It waits while the epic has work in
    progress. That work is any open worker run of the epic, and any work that the
    workflow requested for the epic and no bridge finished. When the last such
    work ends, the epic evaluates its children again, in any column. A change to
    the work requests of the epic, or to the documents of the child, also
    evaluates the child. An older bridge that sends no run key reports a run only
    after it ends, so its run does not hold the children. In a workflow file, the
-   condition `card.parent.document.approved` with a `tag` is true when a document of
-   the parent card has that tag and is approved. The condition `card.parent.in_slot`
+   condition `card.parent.document.approved` with a `tag` is true when the parent
+   card has a document with that tag and every such document is approved. The condition `card.parent.in_slot`
    with a `slot` is true when the parent card sits in that slot.
 4. A child in Next that links no approved tech design asks the owner what to do,
    once the epic has an approved tech design and no work in progress. The rule

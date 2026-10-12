@@ -7,6 +7,7 @@ namespace App\Tests\Module\Bridge\Command;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
@@ -181,8 +182,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         try {
             $this->open($project, $cardId, kind: 'fix', context: new WorkRequestContext(43, null, 'def5678', 'checks-failed'));
             self::fail('Expected a refusal.');
-        } catch (DomainErrors $e) {
-            self::assertSame(['card' => OpenWorkRequestHandler::LIVE], $e->errors);
+        } catch (WorkRequestAlreadyLive) {
         }
 
         $this->em()->clear();
@@ -284,14 +284,14 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         $this->boot();
         $project = $this->scenario('open-twice');
         $cardId = Uuid::v7();
-        $this->open($project, $cardId);
+        $this->open($project, $cardId, ruleId: 'first-rule');
         $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
 
         try {
-            $this->open($project, $cardId);
+            $this->open($project, $cardId, ruleId: 'second-rule');
             self::fail('Expected a refusal.');
-        } catch (DomainErrors $e) {
-            self::assertSame(['card' => OpenWorkRequestHandler::LIVE], $e->errors);
+        } catch (WorkRequestAlreadyLive $e) {
+            self::assertSame('first-rule', $e->ruleId);
         }
         self::assertSame([], $changes->events());
 
@@ -334,14 +334,14 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         $cardId = Uuid::v7();
         $this->open($project, $cardId);
         $blind = $this->createStub(WorkRequestRepository::class);
-        $blind->method('hasLive')->willReturn(false);
+        $blind->method('liveRuleId')->willReturn(null);
         $handler = new OpenWorkRequestHandler($blind, $this->service(OutboxWriter::class), $this->em(), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([]));
 
         try {
             $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, 'implement', null, 'implement-on-entry', new WorkRequestContext()));
             self::fail('Expected a refusal.');
-        } catch (DomainErrors $e) {
-            self::assertSame(['card' => OpenWorkRequestHandler::LIVE], $e->errors);
+        } catch (WorkRequestAlreadyLive $e) {
+            self::assertNull($e->ruleId);
         }
 
         self::assertSame(1, $this->countRequests());

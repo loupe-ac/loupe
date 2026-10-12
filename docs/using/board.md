@@ -450,8 +450,9 @@ An unmanaged card is outside the workflow. The workflow makes no move and
 starts no work on it, and no bridge starts a worker on it. A person may move it
 to any column. A run that is in progress goes on, so stop it as well if it must
 end now. Loupe refuses a resume of a run of the card while the card is
-unmanaged. A run that waits in a queue stays there, and it starts when the card
-is managed again.
+unmanaged. Loupe cancels the work requests of the card that no bridge took yet.
+A run that waits in a queue stays there, and it starts when the card is managed
+again. The workflow then asks for the work that the card still needs.
 
 To make a card unmanaged, select **Make unmanaged** in the runs section of the
 card page. The section then shows **Unmanaged: the workflow makes no move and
@@ -1063,10 +1064,10 @@ not learn that cards exist.
 ### An approval moves a card
 
 The workflow of the board decides what an approval does. In the Lifecycle
-template, an approved product document, with the tag `product-design`, moves the
-card from Product design to Tech design. An approved tech design, with the tag
-`tech-design`, moves the card from Tech design to Implementation, once the card has no
-open blocker. A blocker is open while it sits in a column that is not terminal,
+template, the card moves from Product design to Tech design when every document
+with the tag `product-design` is approved. It moves from Tech design to
+Implementation when every document with the tag `tech-design` is approved, once
+it has no open blocker. A blocker is open while it sits in a column that is not terminal,
 and only a `blocks` link counts. The Workflow panel shows what the card waits
 for. See [Workflows](workflows.md).
 

@@ -7,6 +7,7 @@ namespace App\Tests\Module\Insights\Command;
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Command\ListExperimentsHandler;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\Metric\MetricRange;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -198,6 +199,37 @@ final class StartAnalysisHandlerTest extends KernelTestCase
         self::assertSame(AnalysisState::Failed, $analyses[0]->state);
         self::assertSame(StartAnalysisHandler::REQUEST_REFUSED, $analyses[0]->reason);
         self::assertNull($analyses[0]->workRequestId);
+    }
+
+    public function test_a_live_work_request_of_the_kind_fails_the_analysis_as_refused(): void
+    {
+        $project = $this->scenarioProject('start-analysis-bridge-live');
+        $live = $this->createStub(WorkRequestRepository::class);
+        $live->method('liveRuleId')->willReturn('another-rule');
+        $opener = new OpenWorkRequestHandler(
+            $live,
+            $this->service(OutboxWriter::class),
+            $this->em(),
+            new MockClock(self::NOW),
+            $this->service(Auditor::class),
+            $this->service(WorkRequestAnnouncer::class),
+            $this->service(WorkerRunRepository::class),
+            $this->service(WorkSubjectHandlers::class),
+        );
+        $handler = new StartAnalysisHandler($this->em(), $opener, $this->service(AnalysisSettings::class), new MockClock(self::NOW), $this->service(Auditor::class), $this->service(ListExperimentsHandler::class), $this->service(AppRules::class));
+
+        try {
+            $handler(new StartAnalysisCommand($project, AnalysisTopic::Cost, MetricRange::All));
+            self::fail('Expected a refusal.');
+        } catch (WorkRequestAlreadyLive $e) {
+            self::assertSame('another-rule', $e->ruleId);
+        }
+
+        $this->em()->clear();
+        $analyses = $this->analyses()->findBy(['project' => (string) $project->id]);
+        self::assertCount(1, $analyses);
+        self::assertSame(AnalysisState::Failed, $analyses[0]->state);
+        self::assertSame(StartAnalysisHandler::REQUEST_REFUSED, $analyses[0]->reason);
     }
 
     public function test_a_work_request_that_fails_to_open_fails_the_analysis_and_rethrows(): void

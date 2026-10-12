@@ -89,6 +89,9 @@ type router struct {
 	// none.
 	replay     func(ctx context.Context, after int64) (api.Replay, error)
 	cursorFile string
+	// outboxDir keeps the final reports that could not be delivered. "" keeps
+	// none.
+	outboxDir string
 	// readHolds reads the held cards on each connect. A nil one reads none.
 	readHolds func(ctx context.Context) ([]api.CardHold, error)
 	// resolvePin asks which variant of an experiment a card runs with, before
@@ -161,9 +164,7 @@ type router struct {
 	// to their end. They take no slot.
 	commandRuns int
 	closed      bool
-	// claude is the absolute path a launch script runs, which a reload swaps
-	// with the set. launching counts the launches whose report is not queued.
-	claude    string
+	// launching counts the launches whose report is not queued.
 	launching int
 	// stopped closes at shutdown, so a resume that waits wakes at once.
 	stopped chan struct{}
@@ -425,6 +426,7 @@ func (r *router) handler() transport.Handler {
 			projects := r.projects
 			r.mu.Unlock()
 			r.log.Info("connected", "topic", r.topic, "projects", projects)
+			r.sendKept()
 			r.sendInventory()
 			if r.update != nil {
 				r.update.markConnected()
@@ -1649,6 +1651,15 @@ func (r *router) emitLocked(p pending, report api.RunStateReport) {
 	r.reports.Enqueue(r.runs.state(p.event.ProjectID, p.runID, report))
 }
 
+// sendKept queues the final reports an earlier outage kept, ahead of the
+// inventory.
+func (r *router) sendKept() {
+	if !r.reporting() {
+		return
+	}
+	r.runs.replayKept(r.reports.Enqueue)
+}
+
 // sendInventory hands the runs the bridge holds to the queue. It takes mu, so
 // the inventory lands after every state queued before it.
 func (r *router) sendInventory() {
@@ -1663,7 +1674,7 @@ func (r *router) sendInventory() {
 		runs = append(runs, run)
 	}
 	slices.SortFunc(runs, func(a, b api.InventoryRun) int { return strings.Compare(a.RunID, b.RunID) })
-	r.reports.Enqueue(r.runs.inventory(r.bridgeID, runs))
+	r.runs.queueInventory(r.reports.Enqueue, r.bridgeID, runs)
 }
 
 // logResult writes what a worker ended as. The bridge owns the worker's
