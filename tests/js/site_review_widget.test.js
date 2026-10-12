@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
     BACKEND,
@@ -1239,4 +1240,35 @@ describe('a stored selector that carries a stale class', () => {
 
         expect(chipText()).toBe('1 of 2 elements');
     });
+});
+
+describe('style sheet colour tokens', () => {
+    const source = readFileSync('public/site-review/widget.js', 'utf8');
+    const palette = (name) => {
+        const body = source.match(
+            new RegExp(`const ${name} = \\{([\\s\\S]*?)\\n {4}\\};`),
+        )[1];
+
+        return [...body.matchAll(/'(--[a-z0-9-]+)'\s*:/g)].map(
+            (match) => match[1],
+        );
+    };
+    const used = [
+        ...new Set(
+            [...source.matchAll(/var\((--[a-z0-9-]+)/g)].map(
+                (match) => match[1],
+            ),
+        ),
+    ];
+
+    it.each(['LIGHT', 'DARK'])(
+        'uses only custom properties that the %s theme defines',
+        (theme) => {
+            const defined = new Set([...palette('CHROME'), ...palette(theme)]);
+
+            expect(used.length).toBeGreaterThan(0);
+            expect(defined.has('--text')).toBe(true);
+            expect(used.filter((name) => !defined.has(name))).toEqual([]);
+        },
+    );
 });
