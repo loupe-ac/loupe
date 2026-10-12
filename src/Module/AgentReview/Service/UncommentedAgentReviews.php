@@ -9,8 +9,8 @@ use App\Module\Board\Repository\PullRequestNoticeRepository;
 use Psr\Clock\ClockInterface;
 
 /**
- * Picks the reviews that need a summary comment: a review with findings whose own check landed in the last hour and that has no notice.
- * The window keeps the reviews of before a deploy out. A review carried to a later head has no check of its own on that head, so it counts once, under its own id.
+ * Picks the reviews that need a summary comment: a review with findings whose first check on its own head landed in the last hour and that has no notice.
+ * The window keeps the reviews of before a deploy out. A review carried to a later head never counts, because its comment was due on its own head.
  */
 final readonly class UncommentedAgentReviews
 {
@@ -32,10 +32,10 @@ final readonly class UncommentedAgentReviews
         $since = $this->clock->now()->modify(self::RECENT);
         $due = [];
         foreach ($latest as $review) {
-            if (null === $review->postedAt || $review->postedAt < $since || [] === $review->findings) {
+            $pullRequest = $review->pullRequest;
+            if (null === $review->postedAt || $review->postedAt < $since || [] === $review->findings || mb_strtolower($review->headSha) !== mb_strtolower($pullRequest->headSha ?? '')) {
                 continue;
             }
-            $pullRequest = $review->pullRequest;
             $projectId = $pullRequest->project->id ?? throw new \LogicException('A stored pull request has a project id.');
             if ($this->pullRequestNotices->hasKey($projectId, $pullRequest->forge, $pullRequest->repository, $pullRequest->number, AgentReviewNoticeBody::key($review->id ?? throw new \LogicException('A stored review has an id.')))) {
                 continue;

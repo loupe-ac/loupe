@@ -313,7 +313,22 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertSame([], $this->build($card)->uncommented);
     }
 
-    public function test_only_the_newest_review_of_a_head_counts_and_a_carried_review_counts_under_its_own_id(): void
+    public function test_a_review_carried_to_a_later_head_needs_no_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $review = $this->review($card, $pullRequest, new \DateTimeImmutable('-5 minutes'));
+        $review->changeFingerprint = 'change-1';
+        $pullRequest->headSha = $pullRequest->changeFingerprintSha = str_repeat('e', 40);
+        $pullRequest->changeFingerprint = 'change-1';
+
+        $facts = $this->build($card);
+
+        self::assertSame(AgentReviewConclusion::Failure, $facts->heads[0]->conclusion);
+        self::assertSame([], $facts->uncommented);
+    }
+
+    public function test_only_the_newest_review_of_a_head_counts(): void
     {
         $card = $this->card($this->project);
         $pullRequest = $this->linked($card, 7);

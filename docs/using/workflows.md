@@ -334,7 +334,7 @@ Six conditions of the **Agent review** group read the reviews:
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.overridden` | the card is not an epic, every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
-| `agent_review.uncommented` | the newest review of an open pull request has at least one finding, its own check landed in the last hour, and it has no summary comment yet. A clean review, a carried review and a review older than one hour never count |
+| `agent_review.uncommented` | the newest review of an open pull request has at least one finding, its first check on its own head landed in the last hour, and it has no summary comment yet. A clean review, a carried review and a review older than one hour never count |
 
 A review fails when it has a finding of a severity that the template counts as
 failing. The `agentReviewFailingSeverities` value of the template lists those
@@ -519,7 +519,7 @@ every column. They read conditions of the Agent review group:
 | `post-widget-review` | `card.site_review.verdict_unsent`: a verdict of the card has a pull request that no review settled yet | `post-review` |
 | `sync-site-review-check` | `card.site_review.check_stale`: an open GitHub pull request of the card has no check for its head commit, a check with another result than the one the card now wants, or a check that lists other notes than the card now carries | `site-review-check` |
 | `sync-agent-review-check` | `agent_review.unposted`: a stored agent review of the card has no check on the forge yet, on its own head or on a head it was carried to | `agent-review-check` |
-| `comment-agent-review` | `agent_review.uncommented`: the newest review of an open pull request has findings, its own check landed in the last hour, and it has no summary comment | `comment`, with `comment: agent-review` |
+| `comment-agent-review` | `agent_review.uncommented`: the newest review of an open pull request has findings, its first check on its own head landed in the last hour, and it has no summary comment | `comment`, with `comment: agent-review` |
 
 The review is posted under the reviewer's own account. The reviewer connects
 that account from the widget. A review that the connection cannot send, because

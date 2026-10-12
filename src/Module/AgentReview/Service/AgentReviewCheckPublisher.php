@@ -99,7 +99,7 @@ final readonly class AgentReviewCheckPublisher implements AgentReviewCheck
             $target->checkConclusion = $conclusion;
             $target->checkApprover = $due->approver;
             $target->annotationsPosted = \count($annotations);
-            $target->postedAt = \DateTimeImmutable::createFromInterface($this->clock->now());
+            $target->postedAt ??= \DateTimeImmutable::createFromInterface($this->clock->now());
             $this->em->flush();
             $changed = true;
         }
