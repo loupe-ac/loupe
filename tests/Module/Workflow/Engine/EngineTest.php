@@ -2241,6 +2241,77 @@ final class EngineTest extends KernelTestCase
         self::assertSame([(string) $card->id], array_values(array_unique($changed)));
     }
 
+    public function test_a_lifecycle_fix_round_that_pushes_nothing_asks_for_a_new_review_and_a_second_failure_asks_for_fix_round_2(): void
+    {
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound('engine-no-push-fix');
+        $this->finish($this->liveRequestOfKind($card, 'fix'), '2026-10-02 12:20:00');
+
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $review = $this->liveRequestOfKind($card, 'review');
+        self::assertSame(['agent-review', self::HEAD_ONE], [$review->ruleId, $pullRequest->headSha]);
+        self::assertSame(['review'], $this->liveKinds($card));
+        self::assertFalse($this->ruleState($card, 'fix-agent-review')->truth, 'An answered review no longer reads as failed.');
+
+        $this->finish($review, '2026-10-02 12:30:00');
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:29:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $fix = $this->liveRequestOfKind($card, 'fix');
+        self::assertSame(['fix-agent-review', 'agent-review'], [$fix->ruleId, $fix->context->reason]);
+        self::assertSame(2, $this->ruleState($card, 'fix-agent-review')->fires);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_lifecycle_fix_round_that_pushes_asks_for_a_review_of_the_new_head(): void
+    {
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound('engine-push-fix');
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->finish($this->liveRequestOfKind($card, 'fix'), '2026-10-02 12:20:00');
+
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        self::assertSame(['review'], $this->liveKinds($card));
+        self::assertSame('agent-review', $this->liveRequestOfKind($card, 'review')->ruleId);
+        self::assertFalse($this->ruleState($card, 'fix-agent-review')->truth, 'The new head has no review yet.');
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    /**
+     * A lifecycle card in Implementation whose review of HEAD_ONE failed at 12:04, with fix round 1 live.
+     *
+     * @return array{Card, ForgePullRequest}
+     */
+    private function failedAgentReviewWithFixRound(string $slug): array
+    {
+        self::bootKernel();
+        $project = $this->workflowProject($slug);
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-progress');
+        $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
+        $pullRequest->draft = true;
+        $this->em()->flush();
+        $this->evaluate($card);
+
+        $this->finish($this->liveRequestOfKind($card, 'review'), '2026-10-02 12:05:00');
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:04:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+
+        $fix = $this->liveRequestOfKind($card, 'fix');
+        self::assertSame(['fix-agent-review', 'agent-review'], [$fix->ruleId, $fix->context->reason]);
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+
+        return [$card, $pullRequest];
+    }
+
+    private function agentReview(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $at): void
+    {
+        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', $conclusion, [], createdAt: new \DateTimeImmutable($at));
+        $review->postedAt = new \DateTimeImmutable($at);
+        $this->em()->persist($review);
+        $this->em()->flush();
+    }
+
     public function test_a_lifecycle_card_that_a_person_moves_to_the_backlog_stays_there_until_its_pull_request_reopens(): void
     {
         self::bootKernel();
