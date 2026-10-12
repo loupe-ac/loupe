@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -45,6 +46,10 @@ class ArtifactVersion
         /** The session id the CLI sent, when it sent one. */
         #[ORM\Column(length: 255, nullable: true)]
         public readonly ?string $storedBySession = null,
+
+        /** What changed in this version, as the person or agent that stored it wrote it. */
+        #[ORM\Column(type: Types::TEXT, nullable: true)]
+        public ?string $notes = null,
 
         #[ORM\Column]
         public readonly \DateTimeImmutable $createdAt = new \DateTimeImmutable(),

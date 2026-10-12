@@ -43,6 +43,7 @@ final readonly class ArtifactExporter implements UserDataExporterInterface
                     fn (ArtifactVersion $version): array => [
                         'number' => $version->number,
                         'storedBySession' => $version->storedBySession,
+                        'notes' => $version->notes,
                         'createdAt' => $version->createdAt->format(\DateTimeInterface::ATOM),
                         'files' => array_values(array_map($this->file(...), $version->files->toArray())),
                     ],

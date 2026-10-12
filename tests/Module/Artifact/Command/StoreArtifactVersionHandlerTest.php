@@ -108,6 +108,25 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         self::assertNull($version->storedBySession);
     }
 
+    /** @return iterable<string, array{?string, ?string}> */
+    public static function notes(): iterable
+    {
+        yield 'kept' => ['Tightened the header spacing.', 'Tightened the header spacing.'];
+        yield 'trimmed' => ["  New pricing table.\n", 'New pricing table.'];
+        yield 'blank means none' => ["  \n", null];
+        yield 'absent means none' => [null, null];
+    }
+
+    #[DataProvider('notes')]
+    public function test_the_notes_of_a_version_are_trimmed_and_blank_ones_are_dropped(?string $notes, ?string $expected): void
+    {
+        $project = $this->setUpProject('store-notes@example.com');
+
+        $version = $this->store($project, name: 'Widget tokens', notes: $notes);
+
+        self::assertSame($expected, $version->notes);
+    }
+
     public function test_a_worker_session_is_refused_and_nothing_is_stored(): void
     {
         $project = $this->setUpProject('store-worker@example.com');
@@ -285,6 +304,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         ?string $sessionId = null,
         ?array $files = null,
         array $flags = [],
+        ?string $notes = null,
     ): ArtifactVersion {
         return $this->handler($flags)(new StoreArtifactVersionCommand(
             $project->owner,
@@ -294,6 +314,7 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
             $sourceLink,
             $sessionId,
             $files ?? [new ArtifactFileInput('index.html', 'hello', 'text/html')],
+            notes: $notes,
         ));
     }
 

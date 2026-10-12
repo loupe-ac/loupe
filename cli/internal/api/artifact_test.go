@@ -36,6 +36,7 @@ func TestPushArtifactSendsTheFilesTheFieldsAndTheSession(t *testing.T) {
 	stored, err := New(server.URL, "secret", server.Client()).PushArtifact(context.Background(), artifactProjectID, ArtifactPush{
 		Name:       "Widget tokens",
 		SourceLink: "https://example.test/canvas",
+		Notes:      "Tightened the header.",
 		Card:       "707",
 		Session:    "sess-1",
 		Files: []ArtifactFile{
@@ -52,7 +53,7 @@ func TestPushArtifactSendsTheFilesTheFieldsAndTheSession(t *testing.T) {
 	if got := fields["paths[]"]; len(got) != 2 || got[0] != "index.html" || got[1] != "css/app.css" {
 		t.Fatalf("paths = %v", got)
 	}
-	if fields["name"][0] != "Widget tokens" || fields["card"][0] != "707" || fields["sourceLink"][0] != "https://example.test/canvas" {
+	if fields["name"][0] != "Widget tokens" || fields["card"][0] != "707" || fields["sourceLink"][0] != "https://example.test/canvas" || fields["notes"][0] != "Tightened the header." {
 		t.Fatalf("fields = %v", fields)
 	}
 	if _, ok := fields["artifactId"]; ok {

@@ -27,7 +27,7 @@ final class ArtifactExporterTest extends KernelTestCase
         $artifact = new Artifact($project, 'Widget tokens', $project->owner, 'https://design.example/canvas', new \DateTimeImmutable('2026-10-01 09:00:00'));
         $first = $artifact->addVersion($project->owner, 'session-1');
         $first->addFile('index.html', $blobs->findOrCreate($project, '<p>Grüße</p>'), 'text/html');
-        $second = $artifact->addVersion();
+        $second = $artifact->addVersion(notes: 'Added the logo.');
         $second->addFile('logo.png', $blobs->findOrCreate($project, $png), 'image/png');
         $second->addFile('data.bin', $blobs->findOrCreate($project, "\xff\xfe\x00"), 'application/octet-stream');
         $em->persist($artifact);
@@ -48,6 +48,7 @@ final class ArtifactExporterTest extends KernelTestCase
         self::assertNull($rows[0]['archivedAt']);
         self::assertSame([1, 2], array_column($rows[0]['versions'], 'number'));
         self::assertSame('session-1', $rows[0]['versions'][0]['storedBySession']);
+        self::assertSame([null, 'Added the logo.'], array_column($rows[0]['versions'], 'notes'));
         self::assertSame([
             'path' => 'index.html',
             'contentType' => 'text/html',

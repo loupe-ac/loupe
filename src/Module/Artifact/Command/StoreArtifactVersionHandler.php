@@ -78,6 +78,11 @@ final readonly class StoreArtifactVersionHandler
             }
         }
 
+        $notes = trim($command->notes ?? '');
+        if ('' === $notes) {
+            $notes = null;
+        }
+
         $card = trim($command->card ?? '');
         if ('' !== $card && !$this->cardLinks->cardExists($project, $card)) {
             $errors['card'] = 'artifact.error.card_not_found';
@@ -89,7 +94,7 @@ final readonly class StoreArtifactVersionHandler
             throw new DomainErrors($errors);
         }
 
-        $version = $this->em->wrapInTransaction(function () use ($command, $project, $existing, $session, $card): ArtifactVersion {
+        $version = $this->em->wrapInTransaction(function () use ($command, $project, $existing, $session, $card, $notes): ArtifactVersion {
             if (null !== $existing) {
                 // The lock makes two stores at once take turns. No refresh: Doctrine cannot refresh the readonly
                 // properties, and the lazy version list loads after the lock, so the next number is current.
@@ -100,7 +105,7 @@ final readonly class StoreArtifactVersionHandler
                 $this->em->persist($artifact);
             }
 
-            $version = $artifact->addVersion($command->owner, $session);
+            $version = $artifact->addVersion($command->owner, $session, $notes);
             foreach ($command->files as $file) {
                 $version->addFile($file->path, $this->artifactBlobs->findOrCreate($project, $file->contents), $file->contentType);
             }

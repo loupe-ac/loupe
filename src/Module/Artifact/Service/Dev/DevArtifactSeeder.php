@@ -23,6 +23,8 @@ final readonly class DevArtifactSeeder
 {
     public const string NAME = 'Pricing page prototype';
 
+    public const string SOURCE_LINK = 'https://claude.ai/design/p/00000000-0000-0000-0000-000000000000?file=Example.dc.html';
+
     private const string FIRST = <<<'HTML'
         <!doctype html>
         <html lang="en"><head><meta charset="utf-8"><title>Pricing</title><link rel="stylesheet" href="style.css"></head>
@@ -59,11 +61,11 @@ final readonly class DevArtifactSeeder
             return false;
         }
 
-        $artifact = new Artifact($project, self::NAME, $project->owner, 'https://design.example/canvas/pricing');
-        $first = $artifact->addVersion($project->owner);
+        $artifact = new Artifact($project, self::NAME, $project->owner, self::SOURCE_LINK);
+        $first = $artifact->addVersion($project->owner, notes: 'First draft of the pricing page.');
         $first->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::FIRST), 'text/html');
         $first->addFile('style.css', $this->artifactBlobs->findOrCreate($project, self::STYLE), 'text/css');
-        $second = $artifact->addVersion(null, 'dev-seed-session');
+        $second = $artifact->addVersion(null, 'dev-seed-session', 'Added a button that counts its clicks.');
         $second->addFile('index.html', $this->artifactBlobs->findOrCreate($project, self::SECOND), 'text/html');
         $second->addFile('style.css', $this->artifactBlobs->findOrCreate($project, self::STYLE), 'text/css');
         $second->addFile('app.js', $this->artifactBlobs->findOrCreate($project, self::SCRIPT), 'text/javascript');

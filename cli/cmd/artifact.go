@@ -38,7 +38,7 @@ func newArtifactCmd() *cobra.Command {
 
 // artifactPushOptions are the flags of `loupe artifact push`.
 type artifactPushOptions struct {
-	name, artifact, card, sourceLink, project string
+	name, artifact, card, sourceLink, notes, project string
 }
 
 func newArtifactPushCmd() *cobra.Command {
@@ -70,6 +70,7 @@ func newArtifactPushCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.artifact, "artifact", "", "the `id` of an existing artifact, to store a new version of it")
 	cmd.Flags().StringVar(&o.card, "card", "", "link the artifact to this card, by `number` or id")
 	cmd.Flags().StringVar(&o.sourceLink, "source-link", "", "where the files came from, such as a design canvas link")
+	cmd.Flags().StringVar(&o.notes, "notes", "", "what changed in this version")
 	cmd.Flags().StringVar(&o.project, "project", "", "project id to store in (else "+projectfile.Name+" in this directory)")
 
 	return cmd
@@ -101,6 +102,7 @@ func pushArtifact(cmd *cobra.Command, path string, o artifactPushOptions) error 
 		Name:       o.name,
 		ArtifactID: o.artifact,
 		SourceLink: o.sourceLink,
+		Notes:      o.notes,
 		Card:       strings.TrimPrefix(o.card, "#"),
 		Session:    mcpSession(),
 		Files:      files,

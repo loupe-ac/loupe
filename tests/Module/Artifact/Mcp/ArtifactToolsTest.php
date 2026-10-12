@@ -95,7 +95,7 @@ final class ArtifactToolsTest extends KernelTestCase
     {
         $project = $this->switchedOnProject('get@example.com');
         $artifact = $this->artifact($project, 'Widget', [['index.html', 'hello', 'text/html'], ['app.css', 'x', 'text/css']], 'https://design.example/c');
-        $artifact->addVersion(storedBySession: 'session-1')->addFile('index.html', $this->blob($project, 'hello two'), 'text/html');
+        $artifact->addVersion(storedBySession: 'session-1', notes: 'Shorter greeting.')->addFile('index.html', $this->blob($project, 'hello two'), 'text/html');
         $this->em()->flush();
 
         $result = ($this->tool(ArtifactGetTool::class))((string) $artifact->id);
@@ -107,6 +107,7 @@ final class ArtifactToolsTest extends KernelTestCase
         self::assertSame([2, 1], array_column($result['versions'], 'fileCount'));
         self::assertSame([6, 9], array_column($result['versions'], 'totalBytes'));
         self::assertSame([false, true], array_column($result['versions'], 'storedInSession'));
+        self::assertSame([null, 'Shorter greeting.'], array_column($result['versions'], 'notes'));
         self::assertSame(2, $result['selectedVersion']);
         self::assertSame([['path' => 'index.html', 'contentType' => 'text/html', 'size' => 9]], $result['files']);
 

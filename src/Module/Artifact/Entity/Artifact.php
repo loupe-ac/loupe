@@ -59,9 +59,9 @@ class Artifact implements ProjectScopedSubject
         $this->versions = new ArrayCollection();
     }
 
-    public function addVersion(?User $storedBy = null, ?string $storedBySession = null): ArtifactVersion
+    public function addVersion(?User $storedBy = null, ?string $storedBySession = null, ?string $notes = null): ArtifactVersion
     {
-        $version = new ArtifactVersion($this, $this->versions->count() + 1, $storedBy, $storedBySession);
+        $version = new ArtifactVersion($this, $this->versions->count() + 1, $storedBy, $storedBySession, $notes);
         $this->versions->add($version);
 
         return $version;

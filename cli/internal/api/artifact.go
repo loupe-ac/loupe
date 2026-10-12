@@ -33,7 +33,9 @@ type ArtifactPush struct {
 	Name       string
 	ArtifactID string
 	SourceLink string
-	Card       string
+	// Notes says what changed in this version, or "".
+	Notes string
+	Card  string
 	// Session is the id of the agent session that stores the files, or "".
 	Session string
 	Files   []ArtifactFile
@@ -78,7 +80,7 @@ func (c *Client) PushArtifact(ctx context.Context, handle string, push ArtifactP
 
 	var body bytes.Buffer
 	form := multipart.NewWriter(&body)
-	fields := [][2]string{{"name", push.Name}, {"artifactId", push.ArtifactID}, {"sourceLink", push.SourceLink}, {"card", push.Card}}
+	fields := [][2]string{{"name", push.Name}, {"artifactId", push.ArtifactID}, {"sourceLink", push.SourceLink}, {"notes", push.Notes}, {"card", push.Card}}
 	for _, f := range fields {
 		if f[1] == "" {
 			continue

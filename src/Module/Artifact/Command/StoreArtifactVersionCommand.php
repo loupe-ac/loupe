@@ -23,6 +23,8 @@ final readonly class StoreArtifactVersionCommand
         public array $files,
         /** The id or the number of a card of the project to link the artifact to. Null links none. */
         public ?string $card = null,
+        /** What changed in this version. Blank stores none. */
+        public ?string $notes = null,
     ) {
     }
 }

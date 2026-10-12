@@ -10,7 +10,7 @@ use App\Module\Artifact\Entity\ArtifactVersion;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
 
 /**
- * @phpstan-type ArtifactPayload array{artifactId: string, name: string, archived: bool, archivedAt: ?string, sourceLink: ?string, createdAt: string, path: string, versions: list<array{number: int, storedAt: string, storedInSession: bool, fileCount: int, totalBytes: int}>, selectedVersion: ?int, files: list<array{path: string, contentType: string, size: int}>}
+ * @phpstan-type ArtifactPayload array{artifactId: string, name: string, archived: bool, archivedAt: ?string, sourceLink: ?string, createdAt: string, path: string, versions: list<array{number: int, storedAt: string, storedInSession: bool, notes: ?string, fileCount: int, totalBytes: int}>, selectedVersion: ?int, files: list<array{path: string, contentType: string, size: int}>}
  */
 final readonly class DescribeArtifactHandler
 {
@@ -48,6 +48,7 @@ final readonly class DescribeArtifactHandler
                     'number' => $summary['version']->number,
                     'storedAt' => $summary['version']->createdAt->format(\DateTimeInterface::ATOM),
                     'storedInSession' => null !== $summary['version']->storedBySession,
+                    'notes' => $summary['version']->notes,
                     'fileCount' => $summary['fileCount'],
                     'totalBytes' => $summary['totalBytes'],
                 ],

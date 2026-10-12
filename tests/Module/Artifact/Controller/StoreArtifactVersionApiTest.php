@@ -46,7 +46,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $project = $this->switchedOnProject('route-ok@example.com');
         $token = $this->token($project);
 
-        $this->post($client, $project, $token, ['name' => 'Widget tokens', 'paths' => ['index.html', 'css/app.css']], [
+        $this->post($client, $project, $token, ['name' => 'Widget tokens', 'notes' => ' First draft. ', 'paths' => ['index.html', 'css/app.css']], [
             'index.html' => '<h1>Hi</h1>',
             'css/app.css' => 'body{}',
         ]);
@@ -68,6 +68,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
             $contents[$file->path] = $file->blob->contents();
         }
         self::assertEquals(['css/app.css' => 'body{}', 'index.html' => '<h1>Hi</h1>'], $contents);
+        self::assertSame('First draft.', $version->notes);
     }
 
     public function test_it_adds_a_version_to_an_artifact_and_keeps_the_session_id(): void
@@ -79,7 +80,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $artifactId = $this->json($client)['artifactId'];
         $session = (string) Uuid::v4();
 
-        $this->post($client, $project, $token, ['artifactId' => $artifactId, 'paths' => ['index.html']], ['index.html' => 'v2'], $session);
+        $this->post($client, $project, $token, ['artifactId' => $artifactId, 'notes' => '   ', 'paths' => ['index.html']], ['index.html' => 'v2'], $session);
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(2, $this->json($client)['versionNumber']);
@@ -88,6 +89,19 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         $latest = $this->versionRepository()->findLatest($artifact);
         self::assertInstanceOf(ArtifactVersion::class, $latest);
         self::assertSame($session, $latest->storedBySession);
+        self::assertNull($latest->notes);
+    }
+
+    public function test_it_refuses_notes_over_2000_characters_and_stores_nothing(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('route-notes@example.com');
+        $token = $this->token($project);
+
+        $this->post($client, $project, $token, ['name' => 'X', 'notes' => str_repeat('a', 2001), 'paths' => ['a.html']], ['a.html' => 'a']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->artifactRepository()->count([]));
     }
 
     public function test_a_request_with_no_token_is_refused(): void
