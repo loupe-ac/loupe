@@ -21,6 +21,10 @@ final readonly class EvaluateCardsOnCardMoved
 
     public function __invoke(CardMoved $event): void
     {
+        if (!$this->trigger->isOn()) {
+            return;
+        }
+
         $cardId = (string) ($event->card->id ?? throw new \LogicException('A moved card has an id.'));
         $this->trigger->forCards([$cardId, ...$this->cards->findRelatedForEvaluation([$cardId])]);
     }
