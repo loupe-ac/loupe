@@ -82,8 +82,9 @@ module "app" {
   default_uri   = var.default_uri
 
   # The content domain of stored prototypes. One wildcard entry covers the root
-  # domain and every sub-address, and its certificate needs TXT records that the
-  # operator renews. A domain added in the console is dropped by the next apply.
+  # domain and every sub-address. With a DigitalOcean zone, App Platform writes
+  # its records and TXT challenge. A domain added in the console is dropped by
+  # the next apply.
   extra_domains = var.artifact_content_host == "" ? [] : [{
     name     = var.artifact_content_host
     type     = "ALIAS"

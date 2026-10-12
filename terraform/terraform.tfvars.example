@@ -82,8 +82,8 @@ db_server_version = "18" # the cluster's actual PG major version
 # analytics_collect_origin = "https://gateway.umami.is"
 
 # --- Optional: content domain for stored prototypes ---
-# A domain of its own, never a sub-domain of the app domain. App Platform needs
-# TXT records for its wildcard certificate, and the tokens expire.
+# A domain of its own, never a sub-domain of the app domain. With a DigitalOcean
+# zone, App Platform writes the wildcard certificate's TXT records itself.
 # artifact_content_host = "example-content.com"
 # artifact_content_zone = "example-content.com"
 

@@ -47,18 +47,25 @@ every case, because the content domain is a separate site.
 Create a wildcard record for the content domain, and point it at the same place
 as your app domain.
 
-- With a DigitalOcean DNS zone, add a `*` record of type `A` or `CNAME` to the
-  zone of the content domain.
-- With another DNS host, add the same `*` record. A bare `A` record for the
-  domain itself is optional.
+- On App Platform with a DigitalOcean DNS zone, add nothing. The Terraform
+  module adds the domain with `wildcard = true`, and App Platform writes the
+  root, `*` and challenge records into the zone.
+- With another DNS host, add a `*` record of type `A` or `CNAME`. A bare `A`
+  record for the domain itself is optional.
 
 ## Certificate
 
 You need a wildcard certificate for `*.<content host>`. A wildcard certificate
-needs a DNS challenge. The challenge adds TXT records to the zone, and these
-records expire. Renew the certificate and check the TXT records at least 30 days
-before the certificate ends. When the certificate lapses, every artifact frame
-fails to load.
+needs a DNS challenge, which adds TXT records to the zone.
+
+- On App Platform with a DigitalOcean DNS zone, App Platform adds the TXT
+  records and issues the certificate itself.
+- With another DNS host, App Platform shows the TXT records under Networking,
+  Domains, "Use TXT records to verify". Add them to your zone. The tokens
+  expire, and App Platform sends an email 30 days before. Add the new records
+  each time.
+
+When the certificate lapses, every artifact frame fails to load.
 
 ## Set the host
 
