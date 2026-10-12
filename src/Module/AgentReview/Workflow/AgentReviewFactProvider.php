@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\AgentReview\Workflow;
 
+use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
 use App\Module\AgentReview\Service\AgentReviewOverride;
 use App\Module\AgentReview\Service\AgentReviewPosts;
+use App\Module\AgentReview\Service\UncommentedAgentReviews;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -25,6 +27,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
         private AgentReviewRepository $agentReviews,
         private AgentReviewPosts $posts,
         private AgentReviewOverride $override,
+        private UncommentedAgentReviews $uncommented,
         private WorkRequestRepository $workRequests,
         private CardTypeCatalog $catalog,
     ) {
@@ -71,6 +74,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
             $heads,
             $epic,
             [] !== $this->posts->dueForCard($card),
+            array_map(static fn (AgentReview $review): string => (string) $review->id, $this->uncommented->among($latest)),
         );
     }
 
@@ -84,6 +88,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
         return [
             $facts->epic,
             $facts->unposted,
+            $facts->uncommented,
             array_map(static fn (ReviewedHead $head): array => [$head->pullRequestId, $head->headSha, $head->conclusion?->value, $head->answered, $head->overriddenBy], $facts->heads),
         ];
     }

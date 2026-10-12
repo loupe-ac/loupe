@@ -222,7 +222,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             provided: [AgentReviewFacts::class => new AgentReviewFacts([
                 new ReviewedHead((string) $passed->id, str_repeat('a', 40), AgentReviewConclusion::Success),
                 new ReviewedHead((string) $needing->id, str_repeat('b', 40), $conclusion),
-            ], epic: false, unposted: false)],
+            ], epic: false, unposted: false, uncommented: [])],
         );
         $rule = array_find($this->lifecycle()->rulesFor('implementation'), static fn ($rule): bool => $ruleId === $rule->id);
         self::assertNotNull($rule);
@@ -295,7 +295,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
             pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, approvalsCoveringHead: $approvals, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id),
             run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
-            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false)],
+            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false, uncommented: [])],
         );
     }
 

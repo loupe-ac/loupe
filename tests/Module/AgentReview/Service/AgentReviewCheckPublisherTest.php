@@ -120,6 +120,7 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertSame(PullRequestCheckConclusion::Failure, $this->writer->published[0]['conclusion']);
         self::assertSame(99, $this->writer->published[0]['runId']);
         self::assertStringNotContainsString('Overridden', $this->writer->published[0]['summary']);
+        self::assertEquals(new \DateTimeImmutable('2026-10-09 11:00:00'), $review->postedAt);
     }
 
     public function test_a_new_overriding_approver_renames_the_neutral_check_on_the_same_run(): void
