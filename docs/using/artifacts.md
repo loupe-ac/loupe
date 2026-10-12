@@ -81,6 +81,7 @@ loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337 -
 | `--card` | Link the artifact to a card, by its number or its id |
 | `--source-link` | Where the files came from, such as a design canvas link |
 | `--notes` | What changed in this version |
+| `--index` | The artboard that becomes `index.html` when the folder holds several canvases. See "Pushing a Claude Design canvas". |
 | `--out` | Write the compiled files to an empty or new folder, and store nothing. See "Pushing a Claude Design canvas". |
 | `--project` | The project id. Without it the command reads `.loupe.yaml`, then the one project your login covers. |
 
@@ -115,6 +116,25 @@ One canvas becomes `index.html`. A link to a canvas of the folder, such as
 `href="Pricing.dc.html"`, points at its compiled page. Other files of the
 folder go through unchanged.
 
+A folder can hold several canvases, one for each artboard. Pass
+`--index <artboard>` to name the one that becomes `index.html`, at the root of
+the artifact, so the viewer opens it first. Each other canvas becomes
+`<Name>.html` beside its source. When the index canvas sits in a subfolder, the
+command changes the relative links of its page, so each link still reaches
+the same file. The value is
+the path of a canvas with or without `.dc.html`, such as `site/Home`. It can
+also be a base name, such as `Home`, when one canvas only has that name. A name
+that matches no canvas, or more than one, stops the command and lists the
+canvases. With one canvas the flag must name that canvas. A link to the index
+artboard points at `index.html`.
+
+A blob is a file that Claude Design stores outside the canvas, for example an
+image. The canvas refers to it as `/_blob/<id>`. Put the file in the folder as
+`_blob/<id>.<ext>`, at the root of the folder. The compiler then replaces each
+`/_blob/<id>` in an attribute, such as `src`, `href`, `poster`, `srcset` or
+`style`, and in a `<style>` block, with a link from the page to that file. The
+command keeps the blob files in the artifact.
+
 The compiler stops at what it cannot compile. It stores nothing and prints one
 line for each gap:
 
@@ -134,13 +154,19 @@ These are gaps today:
   Such markup cannot hold a `dangerouslySetInnerHTML` of its own.
 - A link to a canvas that the folder does not hold.
 - A `<sc-else>` tag.
-- A `/_blob/` path, also one that a script value fills in.
+- A `/_blob/` path that no file of the folder answers. The file is
+  `_blob/<id>.<ext>` or `_blob/<id>`, and two files with one id also count as
+  a gap.
+- A `/_blob/` path that is not a plain id, such as one with `..` or a `/` in it.
+- A `/_blob/` path in text or in a `<script>`, and one that a script value fills
+  in.
 - A file of the folder with the name of the compiled page, such as
   `index.html`. The page is then written to `index.compiled.html`.
-- More than one canvas file in the folder.
+- More than one canvas file in the folder, when the push has no `--index`.
 - A hole that is not a plain path, such as `{{ a + b }}`.
 - Canvas text left in the compiled page.
-- Canvas text, such as `{{` or `/_blob/`, in a text file beside the canvas.
+- Canvas text, such as `{{` or a raw `/_blob/` path, in a text file beside the
+  canvas. A relative link such as `../_blob/x.png` is no gap.
   The command copies that file and marks each gap in its comment syntax:
   `/* loupe:gap ... */` in CSS and JavaScript, the HTML comment in HTML,
   SVG, XML and Markdown, and a plain `loupe:gap ...` line in any other file.
@@ -153,9 +179,8 @@ though it wrote the files. Finish each gap by hand, remove its comment, and push
 the folder. A push that still holds `loupe:gap` in a text file is refused, with
 or without a canvas.
 
-Two things come later: the `--index` flag, which names the first page of
-several canvases, and a folder with several canvases. A folder with several
-canvases writes one page for each, and marks the folder as a gap.
+An embedded artboard stays a gap, also when the folder holds the canvas that it
+names. Paste the markup of that artboard by hand.
 
 ## The library
 

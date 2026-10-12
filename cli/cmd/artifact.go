@@ -41,7 +41,7 @@ func newArtifactCmd() *cobra.Command {
 
 // artifactPushOptions are the flags of `loupe artifact push`.
 type artifactPushOptions struct {
-	name, artifact, card, sourceLink, notes, project, out string
+	name, artifact, card, sourceLink, notes, project, out, index string
 }
 
 func newArtifactPushCmd() *cobra.Command {
@@ -59,6 +59,11 @@ func newArtifactPushCmd() *cobra.Command {
 			"Only an interactive session stores an artifact. The command sends the id of the " +
 			"session that runs it, from LOUPE_SESSION_ID, CLAUDE_CODE_SESSION_ID or " +
 			"CODEX_THREAD_ID, and Loupe refuses a store from a worker run.\n\n" +
+			"A folder with a Claude Design canvas, a .dc.html file, is compiled to plain pages " +
+			"before it is stored. One canvas becomes index.html. With several canvases, --index " +
+			"names the one that becomes index.html, by its path with or without .dc.html, or by " +
+			"its base name. The others become <name>.html. Blob files stay in the folder as " +
+			"_blob/<id>.<ext>.\n\n" +
 			"--card links the artifact to a card, by its number or its id. The project comes from " +
 			"--project, else from " + projectfile.Name + " in this directory, else from the single " +
 			"project your login covers.\n\n" +
@@ -75,6 +80,7 @@ func newArtifactPushCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.sourceLink, "source-link", "", "where the files came from, such as a design canvas link")
 	cmd.Flags().StringVar(&o.notes, "notes", "", "what changed in this version")
 	cmd.Flags().StringVar(&o.out, "out", "", "write the compiled files to this empty or new `folder` and store nothing")
+	cmd.Flags().StringVar(&o.index, "index", "", "the `artboard` that becomes index.html when the folder holds several canvases")
 	cmd.Flags().StringVar(&o.project, "project", "", "project id to store in (else "+projectfile.Name+" in this directory)")
 
 	return cmd
@@ -93,7 +99,7 @@ func pushArtifact(cmd *cobra.Command, path string, o artifactPushOptions) error 
 	if err != nil {
 		return err
 	}
-	compiled, err := artifactcompile.Run(files, artifactcompile.Options{})
+	compiled, err := artifactcompile.Run(files, artifactcompile.Options{Index: o.index})
 	if err != nil {
 		return err
 	}
