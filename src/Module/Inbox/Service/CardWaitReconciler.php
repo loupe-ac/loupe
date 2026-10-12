@@ -134,7 +134,8 @@ final readonly class CardWaitReconciler
 
                 if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now)) {
                     $countChanged = true;
-                } elseif (null !== $card && $this->rewrite($watch, $card, $now)) {
+                }
+                if (null !== $card && $this->rewrite($watch, $card, $now)) {
                     $rewritten[] = $watch->item;
                 }
             }
@@ -526,10 +527,17 @@ final readonly class CardWaitReconciler
         $item->documents->add(new InboxItemDocument($item, $document, $now));
     }
 
-    /** Writes the title and the body from the card and the open waits, and returns whether either changed. */
+    /**
+     * Writes the title and the body from the card and the open waits, or from the waits that just ended when
+     * the item closed, and returns whether either changed.
+     */
     private function rewrite(InboxCardWatch $watch, Card $card, \DateTimeImmutable $now): bool
     {
-        $open = array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
+        $waits = $watch->waits->toArray();
+        $open = array_filter($waits, static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
+        if (null !== $watch->closedAt) {
+            $open = array_filter($waits, static fn (InboxCardWait $wait): bool => $wait->endedAt === $now);
+        }
         usort($open, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, $a->key()] <=> [$b->startedAt, $b->key()]);
         $title = $this->waitText->title($open, $card->number, $card->title, InboxItem::MAX_TITLE_LENGTH);
         $body = $this->waitText->body($open);

@@ -201,6 +201,26 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
     }
 
+    public function test_a_deleted_document_closes_the_item_and_rewrites_its_saved_text(): void
+    {
+        $document = $this->linkedDocument('Tech design');
+        $this->reconcile();
+        $this->em->remove($document);
+        $this->em->flush();
+        $this->em->clear();
+        $project = $this->em->find(Project::class, $this->project->id);
+        self::assertInstanceOf(Project::class, $project);
+
+        $this->reconciler->reconcile($project, [(string) $this->card->id]);
+
+        $this->em->clear();
+        $watch = $this->onlyWatch();
+        self::assertSame(InboxItemState::Done, $watch->item->state);
+        self::assertSame('#12 Deleted document version 1 · Ship it', $watch->item->title);
+        self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
+        self::assertStringNotContainsString('Tech design', $watch->item->body);
+    }
+
     public function test_a_card_in_a_terminal_column_closes_the_item_obsolete(): void
     {
         $this->linkedDocument('Tech design');
