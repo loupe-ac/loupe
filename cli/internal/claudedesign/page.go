@@ -398,7 +398,7 @@ func (p *page) pruned(n *html.Node) []*html.Node {
 		case html.TextNode:
 			problems = textProblems(c)
 		case html.ElementNode:
-			problems = elementProblems(c)
+			problems = p.elementProblems(c)
 		}
 		for _, pr := range problems {
 			marks = append(marks, p.addGap(c, pr))
@@ -419,7 +419,7 @@ func (p *page) pruned(n *html.Node) []*html.Node {
 
 // elementProblems gives the problems of an element that hold whatever the
 // values, as the expansion finds them.
-func elementProblems(n *html.Node) []problem {
+func (p *page) elementProblems(n *html.Node) []problem {
 	var out []problem
 	switch {
 	case n.Data == "sc-else":
@@ -448,11 +448,21 @@ func elementProblems(n *html.Node) []problem {
 				out = append(out, problem{"dangerouslySetInnerHTML without a plain path", a.Val})
 			}
 		default:
-			out = append(out, sourceProblems(a.Val)...)
+			problems := sourceProblems(a.Val)
+			if a.Key == "href" && len(problems) == 0 && !holeRe.MatchString(a.Val) {
+				if _, ok := p.rewriteLink(a.Val); !ok {
+					problems = append(problems, missingLink(a.Val))
+				}
+			}
+			out = append(out, problems...)
 		}
 	}
 
 	return out
+}
+
+func missingLink(href string) problem {
+	return problem{"a link to an artboard that is not in the push", fmt.Sprintf("href=%q", href)}
 }
 
 // controlAttr says whether an attribute steers an <sc-for> or an <sc-if>.
@@ -604,7 +614,7 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 			if a.Key == "href" && len(problems) == 0 {
 				link, ok := p.rewriteLink(val)
 				if !ok {
-					marks = append(marks, p.addGap(n, problem{"a link to an artboard that is not in the push", fmt.Sprintf("href=%q", val)}))
+					marks = append(marks, p.addGap(n, missingLink(val)))
 				}
 				val = link
 			}
@@ -654,8 +664,9 @@ func innerHTML(val string, scope map[string]any) (string, *problem) {
 	return s, nil
 }
 
-// checkFragment marks the unsupported features of markup that a value gives.
-// The node stays after its markers, and its children are still checked.
+// checkFragment marks the unsupported features of markup that a value gives,
+// and points its links to a pushed artboard at the compiled page. The node
+// stays after its markers, and its children are still checked.
 func (p *page) checkFragment(n *html.Node) []*html.Node {
 	var marks []*html.Node
 	var problems []problem
@@ -663,9 +674,16 @@ func (p *page) checkFragment(n *html.Node) []*html.Node {
 	case html.TextNode:
 		problems = textProblems(n)
 	case html.ElementNode:
-		problems = elementProblems(n)
+		problems = p.elementProblems(n)
 		if v, ok := attrOf(n, "dangerouslysetinnerhtml"); ok && plainHoleOK(v) {
 			problems = append(problems, problem{"dangerouslySetInnerHTML inside markup from a value", "write the markup by hand"})
+		}
+		if len(problems) == 0 {
+			for i, a := range n.Attr {
+				if a.Key == "href" {
+					n.Attr[i].Val, _ = p.rewriteLink(a.Val)
+				}
+			}
 		}
 	}
 	for _, pr := range problems {

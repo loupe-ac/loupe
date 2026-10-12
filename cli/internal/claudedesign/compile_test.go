@@ -305,6 +305,7 @@ func TestAnUnsupportedFeatureInABranchThatDoesNotRenderIsAGap(t *testing.T) {
 		"an expression":     {"<sc-if value=\"{{ no }}\"><p>{{ a + b }}</p></sc-if>", "a hole that is not a plain path"},
 		"a nested sc-if":    {"<sc-if value=\"{{ no }}\"><sc-if value=\"{{ a || b }}\"><p>x</p></sc-if></sc-if>", "<sc-if> without a plain value"},
 		"an inner html":     {"<sc-if value=\"{{ no }}\"><div dangerouslySetInnerHTML=\"{{ a + b }}\"></div></sc-if>", "dangerouslySetInnerHTML without a plain path"},
+		"a missing link":    {"<sc-if value=\"{{ no }}\"><a href=\"Other.dc.html\">o</a></sc-if>", "a link to an artboard that is not in the push"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -423,6 +424,7 @@ func TestMarkupFromAValueIsCheckedLikeTheCanvas(t *testing.T) {
 		"an event attribute":   {`<button onclick=\"go()\">x</button>`, "event attribute onclick", `onclick="go()"`},
 		"an embedded artboard": {`<dc-import src=\"P.dc.html\"></dc-import>`, "<dc-import> (an embedded artboard)", `<dc-import`},
 		"a nested inner HTML":  {`<div dangerouslySetInnerHTML=\"{{ x }}\"></div>`, "dangerouslySetInnerHTML inside markup from a value", `dangerouslysetinnerhtml`},
+		"a missing link":       {`<a href=\"Other.dc.html\">o</a>`, "a link to an artboard that is not in the push", `href="Other.dc.html"`},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -459,5 +461,13 @@ func TestALinkFollowsTheArtboardToItsPage(t *testing.T) {
 	)
 	if !strings.Contains(one(t, res, "site/A.html"), `href="A.html?x=1"`) || !strings.Contains(one(t, res, "B.html"), `href="site/A.html"`) {
 		t.Fatalf("files = %+v", res.Files)
+	}
+}
+
+func TestALinkInMarkupFromAValueFollowsTheArtboard(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { m: { __html: "<a href=\"A.dc.html#x\">a</a>" } }; } }`
+	res := compile(t, canvas("A.dc.html", scripted(script, `<div dangerouslySetInnerHTML="{{ m }}"></div>`)))
+	if len(res.Gaps) != 0 || !strings.Contains(one(t, res, "index.html"), `href="index.html#x"`) {
+		t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, one(t, res, "index.html"))
 	}
 }
