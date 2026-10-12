@@ -297,8 +297,8 @@ Four conditions of the **Agent review** group read the reviews:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried |
-| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried |
+| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review |
+| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has ended done after that review began, until the next review lands |
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
 

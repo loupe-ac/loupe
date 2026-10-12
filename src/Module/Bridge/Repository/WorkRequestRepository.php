@@ -392,6 +392,32 @@ class WorkRequestRepository extends ServiceEntityRepository
         return $found;
     }
 
+    /**
+     * When the newest fix request for the agent review of each pull request of the card ended done.
+     *
+     * @return array<int, \DateTimeImmutable> keyed by pull request number
+     */
+    public function findAgentReviewFixesSettled(Uuid $cardId): array
+    {
+        /** @var list<array{number: string|int|null, settled: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT (context::jsonb ->> 'pullRequestNumber') AS number, MAX(settled_at) AS settled FROM work_requests
+             WHERE subject_type = :subject AND subject_id = :card AND state = :done AND kind = 'fix'
+               AND (context::jsonb ->> 'reason') = 'agent-review' AND settled_at IS NOT NULL
+             GROUP BY (context::jsonb ->> 'pullRequestNumber')",
+            ['subject' => WorkSubject::CARD, 'card' => $cardId->toRfc4122(), 'done' => WorkRequestState::Done->value],
+        )->fetchAllAssociative();
+
+        $settled = [];
+        foreach ($rows as $row) {
+            if (null !== $row['number']) {
+                $settled[(int) $row['number']] = new \DateTimeImmutable($row['settled']);
+            }
+        }
+
+        return $settled;
+    }
+
     /** The request of the card that opened last, in any state. */
     public function findLatestForCard(Uuid $cardId): ?WorkRequest
     {
