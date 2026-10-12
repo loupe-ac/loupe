@@ -715,6 +715,30 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('0', $crawler->filter('#inbox-item-1 .lp-inbox-item__answer-text')->text());
     }
 
+    public function test_a_written_only_question_answers_inside_the_decision_block(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-written');
+        $project = $this->inboxProject($this->em, $owner);
+        $item = $this->question($this->em, $project, 1, [], freeText: true);
+        $this->askHolding($this->em, $project, [$item]);
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
+
+        $block = $crawler->filter('#inbox-item-1 fieldset.lp-decision');
+        self::assertCount(1, $block);
+        self::assertSame('text', $block->attr('data-decision-type'));
+        self::assertStringStartsWith('Your answer', $block->filter('legend')->text());
+        self::assertSame('Write an answer', $block->filter('.lp-decision__kind')->text());
+        self::assertCount(0, $block->filter('.lp-decision__clear, .lp-decision__option'));
+        $field = $block->filter('textarea[name="inbox_answer_'.$item->id.'[answerText]"]');
+        self::assertCount(1, $field);
+        self::assertSame('Your answer', $field->attr('aria-label'));
+        self::assertSame('Write your answer for the agent', $field->attr('placeholder'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 textarea'));
+    }
+
     public function test_closed_asks_page(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-paging');

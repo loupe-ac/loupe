@@ -161,10 +161,8 @@ test('an inbox card link reveals its matching request in Conversation', async ({
         await page.setViewportSize({ width, height: 900 });
         await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
         await page
-            .locator(`#inbox-item-${questionNumber}`)
-            .getByRole('link', {
-                name: 'Open Find the matching request conversation',
-            })
+            .locator('[data-inbox-linked-panel] a[data-linked-card]')
+            .filter({ hasText: 'Find the matching request' })
             .click();
         await expect(page).toHaveURL(
             `${cardUrl}?tab=conversation&inboxItem=${questionNumber}#inbox-item-${questionNumber}`,

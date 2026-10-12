@@ -280,9 +280,12 @@ final class InboxItemFormsControllerTest extends WebTestCase
     {
         $item = $this->question($this->em, $this->project, 1, freeText: true);
 
-        $this->post($item, 'answer', ['answerText' => str_repeat('a', AnswerInboxItemRequest::MAX_ANSWER_LENGTH + 1)]);
+        $crawler = $this->post($item, 'answer', ['answerText' => str_repeat('a', AnswerInboxItemRequest::MAX_ANSWER_LENGTH + 1)]);
 
         self::assertResponseStatusCodeSame(422);
+        // The error of the note sits under the decision block, tied to the field.
+        $describedBy = (string) $crawler->filter('#inbox-item-1 fieldset.lp-decision textarea')->attr('aria-describedby');
+        self::assertStringContainsString('too long', $crawler->filter('#'.$describedBy)->text());
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }
 

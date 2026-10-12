@@ -169,7 +169,8 @@ Every item that takes a response shows its forms under its text.
   turns pale lime. Pick an option, write a note for the agent, or do both, as
   the question allows. Then select **Send answer**. Select **Clear choice** at
   the right of the block heading to remove your pick. The page needs JavaScript
-  to send the options you pick.
+  to send the options you pick. A question with no options shows the same
+  block with one field, where you write your answer.
 - **Mark a to-do done.** Select **Mark complete**.
 - **Decline an item.** Write an optional note for the agent in the note field,
   then select **Decline**. Decline any item that you cannot or will not answer,

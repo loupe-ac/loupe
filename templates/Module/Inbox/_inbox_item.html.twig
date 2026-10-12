@@ -101,13 +101,20 @@
             {% if item.kind.value in ['question', 'workflow'] %}
                 {% set answerForm = inbox_answer_form(item, refusedForm) %}
                 {% set selectedErrorsId = answerForm.selectedOptions.vars.id ~ '_errors' %}
+                {% set textErrorsId = answerForm.answerText.vars.id ~ '_errors' %}
                 {{ form_start(answerForm, {action: path('app_inbox_item_answer', actionParams), attr: {class: 'lp-form lp-inbox-answer', 'data-controller': 'form-draft', 'data-form-draft-owner-value': app.user.id, 'data-form-draft-key-value': item.id, 'data-action': 'submit->form-draft#start turbo:before-fetch-response->form-draft#response form-draft:cleared@document->form-draft#cleared', 'data-turbo-frame': responseFrame}}) }}
                     {% set noteAttr = {class: 'lp-decision__note-field', rows: 2, placeholder: 'inbox.answer.placeholder'|trans, 'aria-label': 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'} %}
-                    {% if item.options|length > 0 %}
+                    {% if answerForm.answerText.vars.errors|length > 0 %}{% set noteAttr = noteAttr|merge({'aria-describedby': textErrorsId}) %}{% endif %}
+                    {% set written = item.options|length == 0 %}
+                    {% if not written or item.freeText %}
                         {% set selected = (answerForm.selectedOptions.vars.value ?? '')|split(',') %}
+                        {% if written %}
+                            {% set noteAttr = noteAttr|merge({placeholder: 'inbox.answer.write_placeholder'|trans, 'aria-label': 'inbox.answer.legend'|trans}) %}
+                        {% endif %}
                         {# The controls post under a name outside the form, so the form reads the ticked indexes from selectedOptions, which the controller fills. #}
-                        <fieldset class="lp-decision lp-decision--inbox" data-decision-type="{{ item.multiple ? 'multiple' : 'single' }}" data-action="change->form-draft#select"{% if answerForm.selectedOptions.vars.errors|length > 0 %} aria-describedby="{{ selectedErrorsId }}"{% endif %}>
-                            <legend class="lp-decision__prompt">{{ 'inbox.answer.legend'|trans }}<span class="lp-decision__kind">{{ (item.multiple ? 'inbox.answer.pick_any' : 'inbox.answer.pick_one')|trans }}</span></legend>
+                        <fieldset class="lp-decision lp-decision--inbox" data-decision-type="{{ written ? 'text' : (item.multiple ? 'multiple' : 'single') }}"{% if not written %} data-action="change->form-draft#select"{% endif %}{% if answerForm.selectedOptions.vars.errors|length > 0 %} aria-describedby="{{ selectedErrorsId }}"{% endif %}>
+                            <legend class="lp-decision__prompt">{{ 'inbox.answer.legend'|trans }}<span class="lp-decision__kind">{{ (written ? 'inbox.answer.write' : (item.multiple ? 'inbox.answer.pick_any' : 'inbox.answer.pick_one'))|trans }}</span></legend>
+                            {% if not written %}
                             <button type="button" class="lp-decision__clear" data-action="form-draft#clear">{{ 'inbox.answer.clear'|trans }}</button>
                             <div class="lp-decision__options">
                                 {% for option in item.options %}
@@ -118,6 +125,7 @@
                                     </div>
                                 {% endfor %}
                             </div>
+                            {% endif %}
                             {% if item.freeText %}
                                 <div class="lp-decision__note">{{ form_widget(answerForm.answerText, {attr: noteAttr}) }}</div>
                             {% endif %}
@@ -125,10 +133,8 @@
                     {% endif %}
                     {{ form_widget(answerForm.selectedOptions) }}
                     <twig:Ds:FieldErrors :fieldView="answerForm.selectedOptions" :id="selectedErrorsId" />
-                    {% if item.freeText and item.options|length == 0 %}
-                        <twig:Ds:FormField :fieldView="answerForm.answerText" widgetKind="textarea" :widgetAttr="noteAttr" />
-                    {% elseif item.freeText %}
-                        <twig:Ds:FieldErrors :fieldView="answerForm.answerText" />
+                    {% if item.freeText %}
+                        <twig:Ds:FieldErrors :fieldView="answerForm.answerText" :id="textErrorsId" />
                     {% endif %}
                     <twig:Ds:FieldErrors :fieldView="answerForm" />
                     {{ form_widget(answerForm._token) }}

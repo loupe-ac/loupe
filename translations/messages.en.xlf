@@ -6931,6 +6931,8 @@
             <trans-unit id="inbox.row.outcome.withdrawn"><source>inbox.row.outcome.withdrawn</source><target>Withdrawn</target></trans-unit>
             <trans-unit id="inbox.row.outcome.obsolete"><source>inbox.row.outcome.obsolete</source><target>No longer needed</target></trans-unit>
             <trans-unit id="inbox.answer.legend"><source>inbox.answer.legend</source><target>Your answer</target></trans-unit>
+            <trans-unit id="inbox.answer.write"><source>inbox.answer.write</source><target>Write an answer</target></trans-unit>
+            <trans-unit id="inbox.answer.write_placeholder"><source>inbox.answer.write_placeholder</source><target>Write your answer for the agent</target></trans-unit>
             <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
