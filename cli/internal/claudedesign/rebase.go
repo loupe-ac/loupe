@@ -15,17 +15,35 @@ var cssURLRe = regexp.MustCompile(`url\(\s*(['"]?)([^'")\s]*)(['"]?)\s*\)`)
 // another folder than its canvas, so each still reaches the same file.
 type rebaser struct{ from, to string }
 
+// rebasedAttrs holds the attributes whose links the rebaser points again.
+var rebasedAttrs = map[string]bool{"href": true, "src": true, "poster": true, "action": true, "data": true, "srcset": true, "style": true}
+
+// rebaser gives the rebaser of a page written to another folder than its
+// canvas, and false when the two folders are the same.
+func (p *page) rebaser() (rebaser, bool) {
+	r := rebaser{path.Dir(p.file), path.Dir(p.out)}
+
+	return r, r.from != r.to
+}
+
+// attr rebases the links of one attribute value.
+func (r rebaser) attr(key, val string) string {
+	switch key {
+	case "srcset":
+		return r.srcset(val)
+	case "style":
+		return r.css(val)
+	case "href", "src", "poster", "action", "data":
+		return r.url(val)
+	}
+
+	return val
+}
+
 func (r rebaser) tree(n *html.Node) {
 	if n.Type == html.ElementNode {
 		for i, a := range n.Attr {
-			switch a.Key {
-			case "href", "src", "poster", "action", "data":
-				n.Attr[i].Val = r.url(a.Val)
-			case "srcset":
-				n.Attr[i].Val = r.srcset(a.Val)
-			case "style":
-				n.Attr[i].Val = r.css(a.Val)
-			}
+			n.Attr[i].Val = r.attr(a.Key, a.Val)
 		}
 		if n.Data == "style" {
 			for c := n.FirstChild; c != nil; c = c.NextSibling {

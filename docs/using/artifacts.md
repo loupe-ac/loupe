@@ -103,6 +103,16 @@ to a plain page before it stores anything. It runs the script of the canvas on
 your machine, so you install nothing. The folder then holds no canvas file and
 no `support.js`, and the artifact holds the compiled page.
 
+A canvas with a script keeps its clicks and its typed input. The compiled page
+first shows the page that the build drew, so a reader that runs no script sees a
+full page. The page also holds one inline script. That script holds the logic
+of the canvas, a small Loupe redraw runtime, and the template as a render
+function. When a click or a keystroke calls `setState`, the page draws again and
+keeps the focus and the caret of a text field. An `onChange` on a text field
+runs on each keystroke, as in React. Timers and `componentDidMount`
+also run. A canvas with a script and no event, timer or mount hook compiles to
+plain markup, with no script.
+
 One canvas becomes `index.html`. A link to a canvas of the folder, such as
 `href="Pricing.dc.html"`, points at its compiled page. Other files of the
 folder go through unchanged.
@@ -112,7 +122,8 @@ A folder can hold several canvases, one for each artboard. Pass
 the artifact, so the viewer opens it first. Each other canvas becomes
 `<Name>.html` beside its source. When the index canvas sits in a subfolder, the
 command changes the relative links of its page, so each link still reaches
-the same file. The value is
+the same file. An interactive page also changes each link that a value of its
+script gives, every time it redraws. The value is
 the path of a canvas with or without `.dc.html`, such as `site/Home`. It can
 also be a base name, such as `Home`, when one canvas only has that name. A name
 that matches no canvas, or more than one, stops the command and lists the
@@ -123,8 +134,10 @@ A blob is a file that Claude Design stores outside the canvas, for example an
 image. The canvas refers to it as `/_blob/<id>`. Put the file in the folder as
 `_blob/<id>.<ext>`, at the root of the folder. The compiler then replaces each
 `/_blob/<id>` in an attribute, such as `src`, `href`, `poster`, `srcset` or
-`style`, and in a `<style>` block, with a link from the page to that file. The
-command keeps the blob files in the artifact.
+`style`, and in a `<style>` block, with a link from the page to that file. A
+hole can give the id, such as `/_blob/{{ id }}`. An interactive page then
+points the path at the file again at each redraw. The command keeps the blob
+files in the artifact.
 
 The compiler stops at what it cannot compile. It stores nothing and prints one
 line for each gap:
@@ -135,7 +148,11 @@ cannot compile Main.dc.html, line 148: event attribute onclick is not supported.
 
 These are gaps today:
 
-- An event attribute, such as `onClick` or `onChange`.
+- An event attribute whose value is not one plain hole, such as
+  `onclick="go()"`, and any event attribute in markup that
+  `dangerouslySetInnerHTML` fills in.
+- An event attribute of a page that has another gap. The page then compiles
+  with no script, so fix the other gap first.
 - An embedded artboard, which is any `<dc-...>` tag.
 - One of these two features in markup that `dangerouslySetInnerHTML` fills in.
   Such markup cannot hold a `dangerouslySetInnerHTML` of its own.

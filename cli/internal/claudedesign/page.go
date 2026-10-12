@@ -55,11 +55,18 @@ type page struct {
 	links map[string]string
 	// blobs holds the pushed files under _blob/.
 	blobs blobFiles
+	// out is the path the page is written to.
+	out string
 	// kept holds the markers and the source fragments kept after them.
 	kept map[*html.Node]bool
 	// keptSelf holds the nodes that keep source text after a marker. Their
 	// children are still checked.
 	keptSelf map[*html.Node]bool
+	// interactive says that an event attribute with a plain hole is not a gap,
+	// because the page ships a redraw runtime that binds it.
+	interactive bool
+	// props holds the prop defaults of the canvas script.
+	props map[string]any
 }
 
 func (p *page) addGap(n *html.Node, pr problem) *html.Node {
@@ -125,19 +132,32 @@ func isTag(name string) func(*html.Node) bool {
 	return func(n *html.Node) bool { return n.Data == name }
 }
 
-// compilePage compiles one canvas file to the page at out.
+// compilePage compiles one canvas file to the page at out. A page with events
+// or timers ships its script and a redraw runtime. A page with any gap falls
+// back to the static page, with the event attributes as gaps and no script.
 func compilePage(file, out string, src []byte, links map[string]string, blobs blobFiles) ([]byte, []artifactcompile.Gap) {
-	p := &page{file: file, links: links, blobs: blobs, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
+	built, gaps, retry := buildPage(file, out, src, links, blobs, true)
+	if retry {
+		built, gaps, _ = buildPage(file, out, src, links, blobs, false)
+	}
+
+	return built, gaps
+}
+
+// buildPage builds a page. retry is true when the page wants to be interactive
+// and has a gap, so the caller must build the static page instead.
+func buildPage(file, out string, src []byte, links map[string]string, blobs blobFiles, mayBeInteractive bool) ([]byte, []artifactcompile.Gap, bool) {
+	p := &page{file: file, out: out, links: links, blobs: blobs, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
 		return markTop(src, artifactcompile.Gap{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}),
-			[]artifactcompile.Gap{{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}}
+			[]artifactcompile.Gap{{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}}, false
 	}
 	root := find(doc, isTag("x-dc"))
 	if root == nil {
 		g := artifactcompile.Gap{File: file, Line: 1, Feature: "a file with no <x-dc> element", Detail: "the file is not a canvas"}
 
-		return markTop(src, g), []artifactcompile.Gap{g}
+		return markTop(src, g), []artifactcompile.Gap{g}, false
 	}
 
 	scope := map[string]any{}
@@ -145,6 +165,7 @@ func compilePage(file, out string, src []byte, links map[string]string, blobs bl
 	if script != nil {
 		scope = p.scriptScope(script)
 	}
+	wantsRuntime := mayBeInteractive && script != nil && wantsInteractive(root, script)
 
 	head := &html.Node{Type: html.ElementNode, Data: "head"}
 	body := &html.Node{Type: html.ElementNode, Data: "body"}
@@ -179,9 +200,11 @@ func compilePage(file, out string, src []byte, links map[string]string, blobs bl
 
 			continue
 		}
+		p.interactive = wantsRuntime
 		for _, n := range p.expandNode(c, scope) {
 			dest.AppendChild(n)
 		}
+		p.interactive = false
 	}
 
 	tree := &html.Node{Type: html.DocumentNode}
@@ -192,18 +215,29 @@ func compilePage(file, out string, src []byte, links map[string]string, blobs bl
 	htmlEl.AppendChild(body)
 	p.markLeftovers(tree)
 	stripLines(tree)
-	if from, to := path.Dir(file), path.Dir(out); from != to {
-		rebaser{from, to}.tree(tree)
+	if r, moved := p.rebaser(); moved {
+		r.tree(tree)
+	}
+
+	if wantsRuntime {
+		if len(p.gaps) == 0 {
+			if s := p.runtimeScript(root, script); s != nil {
+				body.AppendChild(s)
+			}
+		}
+		if len(p.gaps) > 0 {
+			return nil, nil, true
+		}
 	}
 
 	var buf bytes.Buffer
 	if err := html.Render(&buf, tree); err != nil {
 		g := artifactcompile.Gap{File: file, Line: 1, Feature: "a page that does not render", Detail: err.Error()}
 
-		return markTop(src, g), []artifactcompile.Gap{g}
+		return markTop(src, g), []artifactcompile.Gap{g}, false
 	}
 
-	return buf.Bytes(), p.gaps
+	return buf.Bytes(), p.gaps, false
 }
 
 // markLeftovers marks the canvas text left in the page, outside the source
@@ -292,6 +326,15 @@ func stripLines(n *html.Node) {
 	}
 }
 
+func scriptSource(script *html.Node) string {
+	var src strings.Builder
+	for c := script.FirstChild; c != nil; c = c.NextSibling {
+		src.WriteString(c.Data)
+	}
+
+	return src.String()
+}
+
 // scriptScope reads the prop defaults, runs the script, and gives the values.
 func (p *page) scriptScope(script *html.Node) map[string]any {
 	props := map[string]any{}
@@ -308,11 +351,8 @@ func (p *page) scriptScope(script *html.Node) map[string]any {
 			}
 		}
 	}
-	var src strings.Builder
-	for c := script.FirstChild; c != nil; c = c.NextSibling {
-		src.WriteString(c.Data)
-	}
-	vals, err := runScript(src.String(), props)
+	p.props = props
+	vals, err := runScript(scriptSource(script), props)
 	if err != nil {
 		p.gaps = append(p.gaps, artifactcompile.Gap{File: p.file, Line: lineOf(script), Feature: "a script that fails", Detail: scriptMessage(err)})
 
@@ -405,7 +445,7 @@ func (p *page) pruned(n *html.Node, scope map[string]any) []*html.Node {
 				problems = valueProblems(c.Data, scope)
 			}
 		case html.ElementNode:
-			problems = p.elementProblems(c)
+			problems = p.elementProblems(c, true)
 			var inner []*html.Node
 			problems, inner = p.attrValueProblems(c, scope, problems)
 			marks = append(marks, inner...)
@@ -484,11 +524,38 @@ func (p *page) attrValueProblems(n *html.Node, scope map[string]any, out []probl
 					problems = append(problems, missingLink(val))
 				}
 			}
+			if len(problems) == 0 && holeRe.MatchString(a.Val) {
+				problems = p.filledBlobProblems(a.Val, scope)
+			}
 			out = append(out, problems...)
 		}
 	}
 
 	return out, marks
+}
+
+// filledBlobProblems checks the blob paths of an attribute after its known
+// holes are filled, as the build and the redraw resolve them. A path that a
+// hole with no known value touches is left alone.
+func (p *page) filledBlobProblems(s string, scope map[string]any) []problem {
+	const unknown = "\x00"
+	filled := holeRe.ReplaceAllStringFunc(s, func(h string) string {
+		v, found := lookup(scope, holeRe.FindStringSubmatch(h)[1])
+		if t, ok := text(v); found && ok {
+			return t
+		}
+
+		return unknown
+	})
+	var out []problem
+	for _, m := range blobRe.FindAllStringSubmatch(filled, -1) {
+		if !strings.Contains(m[2], unknown) {
+			_, problems := p.rewriteBlobs("/_blob/" + m[2])
+			out = append(out, problems...)
+		}
+	}
+
+	return out
 }
 
 // valueProblems gives the problems that known values put in a string. A hole
@@ -534,8 +601,9 @@ func fillKnown(s string, scope map[string]any) (string, bool) {
 }
 
 // elementProblems gives the problems of an element that hold whatever the
-// values, as the expansion finds them.
-func (p *page) elementProblems(n *html.Node) []problem {
+// values, as the expansion finds them. A templated element is one that the
+// page redraws, so an interactive page binds its plain event holes.
+func (p *page) elementProblems(n *html.Node, templated bool) []problem {
 	var out []problem
 	switch {
 	case n.Data == "sc-else":
@@ -558,14 +626,19 @@ func (p *page) elementProblems(n *html.Node) []problem {
 		switch {
 		case a.Key == lineAttr, strings.HasPrefix(a.Key, "hint-placeholder-"), controlAttr(n, a.Key):
 		case eventAttrRe.MatchString(a.Key):
-			out = append(out, eventProblem(a))
+			if !(templated && p.interactive && plainHoleOK(a.Val)) {
+				out = append(out, eventProblem(a))
+			}
 		case a.Key == "dangerouslysetinnerhtml":
 			if _, ok := plainHole(a.Val); !ok {
 				out = append(out, problem{"dangerouslySetInnerHTML without a plain path", a.Val})
 			}
 		default:
-			_, blobProblems := p.rewriteBlobs(a.Val)
-			problems := append(holeProblems(a.Val), blobProblems...)
+			problems := holeProblems(a.Val)
+			if !templated || !holeRe.MatchString(a.Val) {
+				_, blobProblems := p.rewriteBlobs(a.Val)
+				problems = append(problems, blobProblems...)
+			}
 			if a.Key == "href" && len(problems) == 0 && !holeRe.MatchString(a.Val) {
 				if _, ok := p.rewriteLink(a.Val); !ok {
 					problems = append(problems, missingLink(a.Val))
@@ -747,6 +820,9 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 			el.Attr = append(el.Attr, a)
 		case strings.HasPrefix(a.Key, "hint-placeholder-"):
 		case eventAttrRe.MatchString(a.Key):
+			if p.interactive && plainHoleOK(a.Val) {
+				continue
+			}
 			marks = append(marks, p.addGap(n, eventProblem(a)))
 			el.Attr = append(el.Attr, a)
 		case a.Key == "dangerouslysetinnerhtml":
@@ -826,7 +902,7 @@ func (p *page) checkFragment(n *html.Node) []*html.Node {
 	case html.TextNode:
 		problems = p.textProblems(n)
 	case html.ElementNode:
-		problems = p.elementProblems(n)
+		problems = p.elementProblems(n, false)
 		if v, ok := attrOf(n, "dangerouslysetinnerhtml"); ok && plainHoleOK(v) {
 			problems = append(problems, problem{"dangerouslySetInnerHTML inside markup from a value", "write the markup by hand"})
 		}
@@ -874,4 +950,140 @@ func (p *page) rewriteLink(href string) (string, bool) {
 	}
 
 	return filepath.ToSlash(rel) + rest, true
+}
+
+var timerRe = regexp.MustCompile(`componentDidMount|setInterval|setTimeout`)
+
+// wantsInteractive says whether a canvas needs its script at run time: the
+// template binds an event to a plain hole, or the script starts timers or
+// runs a mount hook.
+func wantsInteractive(root, script *html.Node) bool {
+	if timerRe.MatchString(scriptSource(script)) {
+		return true
+	}
+	var walk func(*html.Node) bool
+	walk = func(n *html.Node) bool {
+		if n.Type == html.ElementNode {
+			for _, a := range n.Attr {
+				if eventAttrRe.MatchString(a.Key) && plainHoleOK(a.Val) {
+					return true
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if walk(c) {
+				return true
+			}
+		}
+
+		return false
+	}
+	for c := root.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode && c.Data == "helmet" {
+			continue
+		}
+		if walk(c) {
+			return true
+		}
+	}
+
+	return false
+}
+
+var scriptCloseRe = regexp.MustCompile(`(?i)</(script)`)
+
+// dcLogicAlias points the base class of the canvas at the redraw runtime.
+const dcLogicAlias = "const \\u0044CLogic = LoupeView;\n"
+
+// shipScript makes the canvas script safe to put in a script element. Each
+// escape keeps the JavaScript value of the text it replaces.
+func shipScript(src string) string {
+	src = escapeDCLogic(src)
+	src = scriptCloseRe.ReplaceAllString(src, `<\/${1}`)
+
+	return strings.ReplaceAll(src, "<!--", `<\u0021--`)
+}
+
+// escapeDCLogic spells each DCLogic as \u0044CLogic, which is the same
+// identifier, string or pattern. A D that a backslash escapes stays, so the
+// page falls back to its static form.
+func escapeDCLogic(src string) string {
+	var b strings.Builder
+	for {
+		i := strings.Index(src, "DCLogic")
+		if i < 0 {
+			break
+		}
+		slashes := 0
+		for j := i - 1; j >= 0 && src[j] == '\\'; j-- {
+			slashes++
+		}
+		b.WriteString(src[:i])
+		if slashes%2 == 0 {
+			b.WriteString(`\u0044`)
+		} else {
+			b.WriteByte('D')
+		}
+		src = src[i+1:]
+	}
+	b.WriteString(src)
+
+	return b.String()
+}
+
+// linkMap maps each canvas, as a link on this page writes it, to its page.
+func (p *page) linkMap() map[string]string {
+	dir := filepath.FromSlash(path.Dir(p.file))
+	out := map[string]string{}
+	for canvas, page := range p.links {
+		key, err := filepath.Rel(dir, filepath.FromSlash(canvas))
+		if err != nil {
+			continue
+		}
+		val, err := filepath.Rel(dir, filepath.FromSlash(page))
+		if err != nil {
+			continue
+		}
+		out[filepath.ToSlash(key)] = filepath.ToSlash(val)
+	}
+
+	return out
+}
+
+// runtimeScript builds the script element of an interactive page. It adds a
+// gap, and gives nil, when the shipped text holds text a page must not hold.
+func (p *page) runtimeScript(root, script *html.Node) *html.Node {
+	line := lineOf(script)
+	fail := func(feature, detail string) *html.Node {
+		p.gaps = append(p.gaps, artifactcompile.Gap{File: p.file, Line: line, Feature: feature, Detail: detail})
+
+		return nil
+	}
+	render, events, blobs, err := p.genRender(root)
+	if err != nil {
+		return fail("a template the redraw cannot write", err.Error())
+	}
+	props, perr := jsonJS(p.props)
+	if perr != nil {
+		return fail("data-props that is not JSON", perr.Error())
+	}
+	evJSON, _ := jsonJS(events)
+	linkJSON, _ := jsonJS(p.linkMap())
+	blobJSON, _ := jsonJS(blobs)
+	baseJSON := "null"
+	if r, moved := p.rebaser(); moved {
+		baseJSON, _ = jsonJS(map[string]string{"from": r.from, "to": r.to})
+	}
+	code := "(function () {\n" + runtimeJS + "\n" + dcLogicAlias + shipScript(scriptSource(script)) + "\n" + render +
+		"\nLoupeView.mount(Component, render, " + props + ", " + evJSON + ", " + linkJSON + ", " + baseJSON + ", " + blobJSON + ");\n})();\n"
+	if strings.Contains(strings.ToLower(code), "</script") {
+		return fail("canvas text left in the output", `"</script" is left in the shipped script`)
+	}
+	if bad := forbiddenIn(code); bad != "" {
+		return fail("canvas text left in the output", fmt.Sprintf("%q is left in the shipped script", bad))
+	}
+	el := &html.Node{Type: html.ElementNode, Data: "script", Attr: []html.Attribute{{Key: "id", Val: "loupe-runtime"}}}
+	el.AppendChild(&html.Node{Type: html.TextNode, Data: code})
+
+	return el
 }

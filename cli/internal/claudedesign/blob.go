@@ -76,6 +76,19 @@ func (p *page) rewriteBlobs(s string) (string, []problem) {
 	return out.String(), nil
 }
 
+// blobMap maps each blob id that resolves to one file to its link from the
+// folder of the page, as rewriteBlobs points it.
+func (p *page) blobMap() map[string]string {
+	out := map[string]string{}
+	for id, files := range p.blobs {
+		if len(files) == 1 && !strings.Contains(id, "..") {
+			out[id] = relTo(path.Dir(p.file), files[0])
+		}
+	}
+
+	return out
+}
+
 // relTo gives the link from a folder to a path of the push.
 func relTo(dir, target string) string {
 	rel, err := filepath.Rel(filepath.FromSlash(dir), filepath.FromSlash(target))
