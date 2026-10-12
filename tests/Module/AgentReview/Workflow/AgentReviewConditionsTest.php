@@ -38,6 +38,12 @@ final class AgentReviewConditionsTest extends TestCase
         yield 'due: bound head reviewed, another head without review' => [new AgentReviewDue(), self::review([$success, self::head(null, self::OTHER)]), false];
         yield 'due: every head reviewed' => [new AgentReviewDue(), self::review([$success, $failure]), false];
 
+        $answered = self::head(AgentReviewConclusion::Failure, answered: true);
+        yield 'due: failed review answered by a fix round' => [new AgentReviewDue(), self::review([$answered]), true];
+        yield 'due: failed review answered on another head only' => [new AgentReviewDue(), self::review([$failure, self::head(AgentReviewConclusion::Failure, self::OTHER, true)]), false];
+        yield 'due: epic with an answered review' => [new AgentReviewDue(), self::review([$answered], epic: true), false];
+        yield 'failed: failed review answered by a fix round' => [new AgentReviewFailed(), self::review([$answered]), false];
+        yield 'passed: failed review answered by a fix round' => [new AgentReviewPassed(), self::review([$answered]), false];
         yield 'failed: head without review' => [new AgentReviewFailed(), self::review([$none]), false];
         yield 'failed: every head passed' => [new AgentReviewFailed(), self::review([$success]), false];
         yield 'failed: bound head failed' => [new AgentReviewFailed(), self::review([self::head(AgentReviewConclusion::Success, self::OTHER), $failure]), true];
@@ -86,9 +92,9 @@ final class AgentReviewConditionsTest extends TestCase
         }
     }
 
-    private static function head(?AgentReviewConclusion $conclusion, string $pullRequestId = self::BOUND): ReviewedHead
+    private static function head(?AgentReviewConclusion $conclusion, string $pullRequestId = self::BOUND, bool $answered = false): ReviewedHead
     {
-        return new ReviewedHead($pullRequestId, str_repeat('a', 40), $conclusion);
+        return new ReviewedHead($pullRequestId, str_repeat('a', 40), $conclusion, $answered);
     }
 
     /** @param list<ReviewedHead> $heads */

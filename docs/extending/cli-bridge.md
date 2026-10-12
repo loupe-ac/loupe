@@ -496,6 +496,7 @@ wire_api = "responses"
 The profile names the variable in `env_key`. Put that variable in the
 `envFile` of the account, such as `OPENROUTER_API_KEY=...`. An account with no
 `profile` uses the login of the Codex home folder, which `codex login` makes.
+A profile whose provider uses the OpenAI sign-in also uses that login.
 
 The bridge passes the result schema to Codex with `--output-schema`, in the
 strict form that the OpenAI API needs. Each object sets `additionalProperties`
@@ -635,7 +636,11 @@ A check of a Codex account asks these questions:
 3. Does the profile file exist, when the account sets a `profile`? If it does,
    the variable named by `env_key` in the profile must hold a value in the
    environment of the account.
-4. Does `codex login status` pass, when the account sets no `profile`?
+4. Does `codex login status` pass? The check asks when the account sets no
+   `profile`. It also asks when the profile names no `env_key` and its provider
+   uses the OpenAI sign-in. That is the default `openai` provider, or a provider
+   table with `requires_openai_auth = true`. A local provider such as `ollama`
+   needs no login.
 5. Does Codex see the `loupe` MCP server in each project folder? The check runs
    `codex [-p profile] mcp get loupe --json` there.
 
@@ -1577,13 +1582,13 @@ For each launch, the bridge writes a script to
 `<temp dir>/loupe-sessions/<sessionId>.sh`, with mode `0700`. The script deletes
 itself, changes to the project's `dir`, and runs the harness. On a
 `claude-code` account it runs `claude --session-id <sessionId> -- '<prompt>'`.
-A terminal app can start with a short `PATH`. So the bridge finds `claude` on
-its own `PATH` at start, and writes the absolute path into the script. A launch
-on a `codex` account finds `codex` at the launch, on the `PATH` of the account,
-and fails when it is missing. The bridge refuses to start with no `claude` on
-its `PATH` when a rule runs on a `claude-code` account, or when `rules.yaml`
-names no account. At start, it also deletes
-scripts older than one day.
+A terminal app can start with a short `PATH`. So the bridge finds the program at
+the launch, on the `PATH` of the account, and writes the absolute path into the
+script. The launch fails when the program is missing. An env file can put
+`claude` on that `PATH`, so `claude` need not be on the `PATH` of the bridge.
+A `claude-code` account without `claude` on its `PATH` is turned off by its
+account check, and the other accounts run. The bridge never needs `claude` on
+its own `PATH`. At start, it also deletes scripts older than one day.
 
 The bridge runs the launcher with no shell, and never kills it. An exit with
 code 0 within the timeout is a launch. A launcher that still runs at the timeout
