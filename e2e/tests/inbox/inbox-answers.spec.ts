@@ -244,7 +244,7 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(sidebarPill).toHaveText('2');
 
     const question = page.locator(`#inbox-item-${inbox.questionNumber}`);
-    await expect(question).toContainText(`item ${inbox.questionNumber}`);
+    await expect(question).toContainText('Which format should the export use?');
     await question.getByText('CSV', { exact: true }).click();
     await question
         .getByLabel('Note for the agent')
