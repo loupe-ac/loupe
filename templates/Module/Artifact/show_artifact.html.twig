@@ -111,25 +111,31 @@
                         </summary>
                         <dl class="lp-artifact-menu__disclosure lp-artifact-details" data-disclosure-target="content">
                             <dt>{{ 'artifact.viewer.stored_by'|trans }}</dt>
-                            <dd>{% include '@Artifact/_stored_by.html.twig' with {version: version} only %} · <time datetime="{{ version.createdAt|date('c') }}" title="{{ version.createdAt|date('Y-m-d H:i:s T') }}">{{ version.createdAt|relative_time }}</time></dd>
+                            <dd>
+                                {% include '@Artifact/_stored_by.html.twig' with {version: version} only %}
+                                <time class="lp-artifact-details__meta" datetime="{{ version.createdAt|date('c') }}" title="{{ version.createdAt|date('Y-m-d H:i:s T') }}">{{ version.createdAt|relative_time }}</time>
+                            </dd>
                             {% if artifact.sourceLink is not null %}
                             <dt>{{ 'artifact.viewer.source'|trans }}</dt>
                             <dd data-artifact-source>
                                 {% if artifact.sourceLink starts with 'https://' or artifact.sourceLink starts with 'http://' %}
-                                <a href="{{ artifact.sourceLink }}" target="_blank" rel="noopener noreferrer">{{ artifact.sourceLink }}</a>
+                                <a href="{{ artifact.sourceLink }}" title="{{ artifact.sourceLink }}" target="_blank" rel="noopener noreferrer">{{ artifact.sourceLink }}</a>
                                 {% else %}
                                 {{ artifact.sourceLink }}
                                 {% endif %}
-                                · {{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('Y-m-d')}) }}
+                                <span class="lp-artifact-details__meta">{{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('Y-m-d')}) }}</span>
                             </dd>
                             {% endif %}
                             <dt>{{ 'artifact.viewer.sandbox'|trans }}</dt>
-                            <dd class="lp-artifact-details__mono" data-artifact-sandbox>{{ (ownContentOrigin ? 'artifact.viewer.sandbox.content_domain' : 'artifact.viewer.sandbox.sealed')|trans }}</dd>
+                            <dd data-artifact-sandbox>{{ (ownContentOrigin ? 'artifact.viewer.sandbox.content_domain' : 'artifact.viewer.sandbox.sealed')|trans }}</dd>
                             <dd data-artifact-allowed-origins>
                                 {% if allowedOrigins is empty %}
                                 {{ 'artifact.viewer.allowed.none'|trans }}
                                 {% else %}
-                                {{ 'artifact.viewer.allowed'|trans }} {{ allowedOrigins|join(', ') }}
+                                {{ 'artifact.viewer.allowed'|trans }}
+                                {% for origin in allowedOrigins %}
+                                <span class="lp-artifact-details__origin" title="{{ origin }}" data-artifact-allowed-origin>{{ origin }}</span>
+                                {% endfor %}
                                 {% endif %}
                             </dd>
                         </dl>

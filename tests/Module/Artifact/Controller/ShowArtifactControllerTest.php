@@ -38,6 +38,7 @@ final class ShowArtifactControllerTest extends WebTestCase
         self::assertMatchesRegularExpression('#^/artifact-content/'.$latestId.'/\d+/[a-f0-9]{64}/index\.html$#', (string) $frame->attr('src'));
         self::assertSame(self::BAND, $this->bandText($crawler));
         self::assertStringContainsString('https://fonts.googleapis.com', $crawler->filter('[data-artifact-allowed-origins]')->text());
+        self::assertContains('https://fonts.googleapis.com', $crawler->filter('[data-artifact-allowed-origin]')->each(static fn ($origin): string => trim($origin->text())));
         self::assertSame('Dismiss', trim($crawler->filter('[data-artifact-band] .lp-flash__dismiss')->text()));
         self::assertSame(
             ['/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/2', '/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/1'],
