@@ -155,10 +155,10 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 	if err := checkEventStream(resp); err != nil {
 		return lastID, false, err
 	}
+	connectedAt := time.Now()
 	if h.OnConnect != nil {
 		h.OnConnect()
 	}
-	connectedAt := time.Now()
 
 	sc := bufio.NewScanner(resp.Body)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)

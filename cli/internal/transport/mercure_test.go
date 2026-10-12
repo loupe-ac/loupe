@@ -824,7 +824,8 @@ func TestSubscribeResetsTheBackoffAfterAHeartbeat(t *testing.T) {
 }
 
 // A stream that ends cleanly after a line reports its life and the events it
-// delivered, so the caller can log how long the hub kept it open.
+// delivered, so the caller can log how long the hub kept it open. The life
+// includes the OnConnect work, because the hub holds the stream meanwhile.
 func TestSubscribeReportsACleanClose(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -846,15 +847,16 @@ func TestSubscribeReportsACleanClose(t *testing.T) {
 		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
 			func(context.Context) (string, error) { return "jwt", nil },
 			Handler{
-				OnClose: func(lived time.Duration, events int) { got <- closed{lived, events} },
-				OnError: func(err error) { errs <- err },
+				OnConnect: func() { time.Sleep(200 * time.Millisecond) },
+				OnClose:   func(lived time.Duration, events int) { got <- closed{lived, events} },
+				OnError:   func(err error) { errs <- err },
 			})
 	}()
 
 	select {
 	case c := <-got:
-		if c.events != 2 || c.lived > 4*time.Second {
-			t.Fatalf("OnClose(%s, %d), want 2 events", c.lived, c.events)
+		if c.events != 2 || c.lived < 200*time.Millisecond || c.lived > 4*time.Second {
+			t.Fatalf("OnClose(%s, %d), want 2 events and the OnConnect time counted", c.lived, c.events)
 		}
 	case err := <-errs:
 		t.Fatalf("clean close reported as error %v", err)
