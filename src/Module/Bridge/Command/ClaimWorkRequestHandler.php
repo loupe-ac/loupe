@@ -8,10 +8,13 @@ use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestLease;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -36,6 +39,8 @@ final readonly class ClaimWorkRequestHandler
         private ClockInterface $clock,
         private Auditor $auditor,
         private WorkRequestAnnouncer $announcer,
+        private CardHolds $cardHolds,
+        private ProjectRepository $projects,
     ) {
     }
 
@@ -57,6 +62,12 @@ final readonly class ClaimWorkRequestHandler
             }
             if (!$bridge->canRun($request)) {
                 return WorkRequestRefusal::CapabilityMissing;
+            }
+
+            // Serialises with a hold, which locks the project row: a claim that reads the hold sees every hold committed before it.
+            $this->projects->lockKeyShare($request->project);
+            if (WorkSubject::CARD === $request->subjectType && $this->cardHolds->isHeld($request->project, $request->subjectId)) {
+                return WorkRequestRefusal::CardHeld;
             }
 
             $leaseUntil = $this->lease->until($this->clock->now());
