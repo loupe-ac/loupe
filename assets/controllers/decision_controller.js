@@ -1,8 +1,13 @@
 import { Controller } from '@hotwired/stimulus';
 import { renderStreamMessage } from '@hotwired/turbo';
 import { on } from '../lib/live.js';
+import {
+    generateCsrfHeaders,
+    generateCsrfToken,
+} from './csrf_protection_controller.js';
 
 const NOTE_DELAY = 800;
+const RUNNING_SAVE_LIMIT = 3000;
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 const CONNECTED_ATTRIBUTE = 'data-decision-connected';
 
@@ -43,6 +48,7 @@ export default class extends Controller {
         this.timers = new Map();
         this.inFlight = null;
         this.heldVisit = null;
+        this.leaving = false;
         this.beforeVisit = (event) => this.holdVisit(event);
         this.beforeCache = () => this.keepDrafts();
         this.beforeUnload = (event) => {
@@ -86,6 +92,59 @@ export default class extends Controller {
         document.removeEventListener('turbo:before-cache', this.beforeCache);
         window.removeEventListener('beforeunload', this.beforeUnload);
         for (const timer of this.timers.values()) clearTimeout(timer);
+        this.sendRemaining();
+    }
+
+    // Back and Forward are restoration visits, which fire neither
+    // `turbo:before-visit` nor `beforeunload`. The hidden form has left the
+    // page, so a waiting save goes out as a plain request instead.
+    sendRemaining() {
+        if (!this.hasFormTarget) return;
+        this.leaving = true;
+        for (const block of [...this.timers.keys()]) this.saveIfChanged(block);
+        const running = this.inFlight;
+        const wait = running ? this.awaitRunningSave() : null;
+        for (const [block, state] of this.queue) {
+            if (wait && running.block === block)
+                wait.then(() => this.sendDetached(block, state));
+            else this.sendDetached(block, state);
+        }
+        this.queue.clear();
+    }
+
+    // Stimulus stops calling `saved()` after disconnect, so the form's own
+    // event settles the wait. A stuck save releases it after a time limit.
+    awaitRunningSave() {
+        const form = this.formTarget;
+        return new Promise((resolve) => {
+            const done = () => {
+                clearTimeout(limit);
+                form.removeEventListener('turbo:submit-end', done);
+                resolve();
+            };
+            const limit = setTimeout(done, RUNNING_SAVE_LIMIT);
+            form.addEventListener('turbo:submit-end', done);
+        });
+    }
+
+    sendDetached(block, state) {
+        const form = this.formTarget;
+        this.decisionIdTarget.value = block.dataset.decisionId;
+        this.fill(this.optionsTarget, state.indexes);
+        this.noteTarget.value = state.note;
+        this.clearTarget.checked = state.clear;
+        generateCsrfToken(form);
+        // The form is detached, so `requestSubmit()` has nothing to submit.
+        // eslint-disable-next-line no-restricted-syntax
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { Accept: STREAM_TYPE, ...generateCsrfHeaders(form) },
+            credentials: 'same-origin',
+            keepalive: true,
+        }).catch(() => {
+            // The page is gone, so nothing can show the failure.
+        });
     }
 
     // A queued save needs this page to submit it, so the visit waits for the
@@ -255,7 +314,7 @@ export default class extends Controller {
     }
 
     flush() {
-        if (this.inFlight || this.queue.size === 0) return;
+        if (this.leaving || this.inFlight || this.queue.size === 0) return;
         const [block, state] = this.queue.entries().next().value;
         this.queue.delete(block);
         this.inFlight = { block, state };
