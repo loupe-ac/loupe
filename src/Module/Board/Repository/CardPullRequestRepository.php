@@ -99,7 +99,8 @@ class CardPullRequestRepository extends ServiceEntityRepository
         /** @var list<array{forge: Forge, repository: string, number: int, cardNumber: int|string}> $rows */
         $rows = $query->andWhere($any)->getQuery()->getResult();
         foreach ($rows as $row) {
-            $found[$row['forge']->value.'/'.$row['repository'].'/'.$row['number']] = (int) $row['cardNumber'];
+            $key = $row['forge']->value.'/'.$row['repository'].'/'.$row['number'];
+            $found[$key] = min($found[$key] ?? \PHP_INT_MAX, (int) $row['cardNumber']);
         }
 
         return $found;
