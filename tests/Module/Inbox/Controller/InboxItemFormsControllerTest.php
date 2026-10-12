@@ -400,6 +400,21 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertResponseRedirects($this->pageUrl().'?side=open&q=export&item=1');
     }
 
+    public function test_an_ask_closed_from_a_search_keeps_the_status_link_to_it(): void
+    {
+        $question = $this->question($this->em, $this->project, 1, title: 'Which export format?');
+        $ask = $this->askHolding($this->em, $this->project, [$question]);
+        $indexer = static::getContainer()->get(InboxSearchIndexer::class);
+        self::assertInstanceOf(InboxSearchIndexer::class, $indexer);
+        $indexer->index($question);
+
+        $this->post($question, 'answer', ['selectedOptions' => '0'], query: 'export');
+
+        $crawler = $this->client->followRedirect();
+        self::assertSelectorTextContains('[data-inbox-status]', 'Answered. "Which export format?" is closed.');
+        self::assertSame('/projects/'.$this->project->id.'/inbox?side=closed&ask='.$ask->id, $crawler->filter('[data-inbox-status] a')->attr('href'));
+    }
+
     public function test_marking_a_to_do_done(): void
     {
         $item = $this->todo($this->em, $this->project, 2);

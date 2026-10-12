@@ -84,6 +84,8 @@ final readonly class InboxReturnTargetResolver
         $ordered = InboxSide::Open === $view->side && !$view->isSearch();
         $rowKeys = $ordered ? ($before->rowKeys ?? $this->rowKeys($item->project, $view)) : [];
         $acted = $ordered ? $this->actedRow($view, $item, $asks, $rowKeys) : null;
+        // The status line names the ask in every view, also where the list does not move on.
+        $actedAsk = $ordered ? ($acted[1] ?? null) : $this->heldAsk($view, $asks);
 
         if (null !== $before && null !== $acted) {
             $view = $this->nextView($item, $view, $before->rowKeys, $acted);
@@ -106,7 +108,7 @@ final readonly class InboxReturnTargetResolver
 
         $pageQuery = $view->toQuery();
 
-        return new InboxReturnTarget(InboxReturnTarget::INBOX_ROUTE, ['id' => $projectId, ...$pageQuery], ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery, $rowKeys, $acted[1] ?? null);
+        return new InboxReturnTarget(InboxReturnTarget::INBOX_ROUTE, ['id' => $projectId, ...$pageQuery], ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery, $rowKeys, $actedAsk);
     }
 
     /**
@@ -145,6 +147,16 @@ final readonly class InboxReturnTargetResolver
         }
 
         return \in_array('item-'.$item->number, $rowKeys, true) ? ['item-'.$item->number, null] : null;
+    }
+
+    /**
+     * The ask the address names when it holds the item, else the oldest ask that holds it.
+     *
+     * @param list<InboxAsk> $asks every ask that holds the item
+     */
+    private function heldAsk(InboxView $view, array $asks): ?InboxAsk
+    {
+        return array_find($asks, static fn (InboxAsk $held): bool => null !== $view->askId && (string) $held->id === (string) $view->askId) ?? $asks[0] ?? null;
     }
 
     /**
