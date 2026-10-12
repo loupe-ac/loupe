@@ -316,6 +316,39 @@ final class GitHubPullRequestStateMapperTest extends TestCase
         self::assertSame($approvalId, $snapshot->approvalId);
     }
 
+    /** @return iterable<string, array{mixed, ?string, ?string, ?string}> */
+    public static function latestApprovals(): iterable
+    {
+        $first = ['id' => 'PRR_first', 'state' => 'APPROVED', 'submittedAt' => '2026-09-20T10:00:00Z', 'author' => ['login' => 'riley'], 'commit' => ['oid' => 'aaa1111']];
+        $second = ['id' => 'PRR_second', 'state' => 'APPROVED', 'submittedAt' => '2026-09-21T09:00:00Z', 'author' => ['login' => 'ubermuda'], 'commit' => ['oid' => 'bbb2222']];
+
+        yield 'no reviews field' => [null, null, null, null];
+        yield 'only a change request' => [['nodes' => [['state' => 'CHANGES_REQUESTED'] + $first]], null, null, null];
+        yield 'one approval' => [['nodes' => [$first]], '2026-09-20 10:00:00', 'PRR_first', 'riley'];
+        yield 'the newest of two approvals' => [['nodes' => [$first, $second]], '2026-09-21 09:00:00', 'PRR_second', 'ubermuda'];
+        yield 'the newest of two approvals in the other order' => [['nodes' => [$second, $first]], '2026-09-21 09:00:00', 'PRR_second', 'ubermuda'];
+        yield 'a deleted account reads as ghost' => [['nodes' => [['author' => null] + $second]], '2026-09-21 09:00:00', 'PRR_second', 'ghost'];
+        yield 'a malformed time is skipped' => [['nodes' => [['submittedAt' => 'yesterday'] + $second, $first]], '2026-09-20 10:00:00', 'PRR_first', 'riley'];
+        yield 'a missing id is skipped' => [['nodes' => [array_diff_key($second, ['id' => true]), $first]], '2026-09-20 10:00:00', 'PRR_first', 'riley'];
+    }
+
+    #[DataProvider('latestApprovals')]
+    public function test_the_newest_approval_gives_its_time_id_and_login(mixed $reviews, ?string $approvedAt, ?string $approvalId, ?string $login): void
+    {
+        $node = self::pullRequest604();
+        if (null === $reviews) {
+            unset($node['latestOpinionatedReviews']);
+        } else {
+            $node['latestOpinionatedReviews'] = $reviews;
+        }
+
+        $snapshot = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null);
+
+        self::assertSame($approvedAt, $snapshot->latestApprovedAt?->format('Y-m-d H:i:s'));
+        self::assertSame($approvalId, $snapshot->latestApprovalId);
+        self::assertSame($login, $snapshot->latestApproverLogin);
+    }
+
     public function test_an_approval_counts_whatever_the_review_decision(): void
     {
         $node = self::pullRequest604();

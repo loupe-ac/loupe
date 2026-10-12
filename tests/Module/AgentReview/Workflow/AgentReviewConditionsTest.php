@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewOverridden;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewPassed;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewUnposted;
 use App\Module\AgentReview\Workflow\ReviewedHead;
@@ -57,6 +58,19 @@ final class AgentReviewConditionsTest extends TestCase
         yield 'passed: one head failed' => [new AgentReviewPassed(), self::review([$success, $failure]), false];
         yield 'passed: every head passed' => [new AgentReviewPassed(), self::review([$success, self::head(AgentReviewConclusion::Success, self::OTHER)]), true];
 
+        $overridden = self::head(AgentReviewConclusion::Failure, overriddenBy: 'ubermuda');
+        yield 'due: failed review overridden by an approval' => [new AgentReviewDue(), self::review([$overridden]), false];
+        yield 'due: overridden review that a fix round answered' => [new AgentReviewDue(), self::review([self::head(AgentReviewConclusion::Failure, answered: true, overriddenBy: 'ubermuda')]), false];
+        yield 'failed: failed review overridden by an approval' => [new AgentReviewFailed(), self::review([$overridden]), false];
+        yield 'passed: failed review overridden by an approval' => [new AgentReviewPassed(), self::review([$overridden]), false];
+        yield 'overridden: a failed review overridden' => [new AgentReviewOverridden(), self::review([$overridden]), true];
+        yield 'overridden: beside a passed head' => [new AgentReviewOverridden(), self::review([$overridden, self::head(AgentReviewConclusion::Success, self::OTHER)]), true];
+        yield 'overridden: every head passed' => [new AgentReviewOverridden(), self::review([$success]), false];
+        yield 'overridden: another head still failed' => [new AgentReviewOverridden(), self::review([$overridden, self::head(AgentReviewConclusion::Failure, self::OTHER)]), false];
+        yield 'overridden: another head has no review' => [new AgentReviewOverridden(), self::review([$overridden, self::head(null, self::OTHER)]), false];
+        yield 'overridden: a failed review nobody approved' => [new AgentReviewOverridden(), self::review([$failure]), false];
+        yield 'overridden: no pull request head' => [new AgentReviewOverridden(), self::review([]), false];
+        yield 'overridden: epic' => [new AgentReviewOverridden(), self::review([$overridden], epic: true), false];
         yield 'unposted: all posted' => [new AgentReviewUnposted(), self::review([$success]), false];
         yield 'unposted: a review waits' => [new AgentReviewUnposted(), self::review([$success], unposted: true), true];
     }
@@ -85,16 +99,16 @@ final class AgentReviewConditionsTest extends TestCase
 
     public function test_each_condition_has_a_key_and_a_waiting_message_for_both_senses(): void
     {
-        foreach ([new AgentReviewDue(), new AgentReviewFailed(), new AgentReviewPassed(), new AgentReviewUnposted()] as $condition) {
+        foreach ([new AgentReviewDue(), new AgentReviewFailed(), new AgentReviewPassed(), new AgentReviewOverridden(), new AgentReviewUnposted()] as $condition) {
             self::assertStringStartsWith('agent_review.', $condition::key());
             self::assertSame('workflow.source.agent_review', $condition::source());
             self::assertNotSame($condition->waitingFor([])->getMessage(), $condition->waitingFor([], negated: true)->getMessage());
         }
     }
 
-    private static function head(?AgentReviewConclusion $conclusion, string $pullRequestId = self::BOUND, bool $answered = false): ReviewedHead
+    private static function head(?AgentReviewConclusion $conclusion, string $pullRequestId = self::BOUND, bool $answered = false, ?string $overriddenBy = null): ReviewedHead
     {
-        return new ReviewedHead($pullRequestId, str_repeat('a', 40), $conclusion, $answered);
+        return new ReviewedHead($pullRequestId, str_repeat('a', 40), $conclusion, $answered, $overriddenBy);
     }
 
     /** @param list<ReviewedHead> $heads */
