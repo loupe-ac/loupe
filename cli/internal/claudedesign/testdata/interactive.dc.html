@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+.done{text-decoration:line-through}
+</style>
+</helmet>
+
+<h1>{{ title }}</h1>
+<input id="q" type="text" value="{{ query }}" onInput="{{ onQuery }}">
+<button id="inc" onClick="{{ onInc }}">Count: {{ count }}</button>
+<sc-if value="{{ agreed }}"><label><input id="agree" type="checkbox" checked onChange="{{ onAgree }}"> I agree</label></sc-if>
+<sc-if value="{{ notAgreed }}"><label><input id="agree" type="checkbox" onChange="{{ onAgree }}"> I agree</label></sc-if>
+<p id="status">{{ status }}</p>
+<ul>
+<sc-for list="{{ items }}" as="item">
+  <li class="{{ item.cls }}"><button onClick="{{ item.toggle }}">{{ item.name }}</button>
+  <sc-for list="{{ item.tags }}" as="tag"><i>{{ tag }}</i></sc-for></li>
+</sc-for>
+</ul>
+<sc-if value="{{ empty }}"><p>No match</p></sc-if>
+<p>Tick: <span id="tick">{{ tick }}</span></p>
+<a id="next" href="{{ next }}">next</a> <a href="Interactive.dc.html#top">top</a>
+<div id="note" dangerouslySetInnerHTML="{{ note }}"></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;label&quot;:{&quot;editor&quot;:&quot;string&quot;,&quot;default&quot;:&quot;Fruit &lt;list&gt; &amp; more&quot;}}">
+class Component extends DCLogic {
+  state = { query: '', count: 0, agreed: false, tick: 0, done: {} };
+  items = [
+    { id: 1, name: 'Apple', tags: ['red', 'sweet'] },
+    { id: 2, name: 'Banana', tags: ['yellow'] },
+    { id: 3, name: 'Cherry', tags: [] },
+  ];
+  componentDidMount() {
+    this.timer = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 1000);
+  }
+  renderVals() {
+    const q = this.state.query.toLowerCase();
+    const shown = this.items
+      .filter(i => i.name.toLowerCase().indexOf(q) >= 0)
+      .map(i => ({
+        name: i.name,
+        tags: i.tags,
+        cls: this.state.done[i.id] ? 'done' : 'todo',
+        toggle: () => this.setState(s => ({ done: Object.assign({}, s.done, { [i.id]: !s.done[i.id] }) })),
+      }));
+    return {
+      title: this.props.label,
+      query: this.state.query,
+      onQuery: e => this.setState({ query: e.target.value }),
+      count: this.state.count,
+      onInc: () => this.setState(s => ({ count: s.count + 1 })),
+      agreed: this.state.agreed,
+      notAgreed: !this.state.agreed,
+      onAgree: e => this.setState({ agreed: e.target.checked }),
+      status: this.state.agreed ? 'Thanks' : 'Please agree',
+      items: shown,
+      empty: shown.length === 0,
+      tick: this.state.tick,
+      next: '#top',
+      note: { __html: '<em>' + shown.length + ' shown</em>' },
+    };
+  }
+}
+</script>
+</body>
+</html>

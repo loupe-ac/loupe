@@ -1,0 +1,363 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>
+.done{text-decoration:line-through}
+</style></head><body>
+
+
+<h1>Fruit &lt;list&gt; &amp; more</h1>
+<input id="q" type="text" value=""/>
+<button id="inc">Count: 0</button>
+
+<label><input id="agree" type="checkbox"/> I agree</label>
+<p id="status">Please agree</p>
+<ul>
+
+  <li class="todo"><button>Apple</button>
+  <i>red</i><i>sweet</i></li>
+
+  <li class="todo"><button>Banana</button>
+  <i>yellow</i></li>
+
+  <li class="todo"><button>Cherry</button>
+  </li>
+
+</ul>
+
+<p>Tick: <span id="tick">0</span></p>
+<a href="#top" id="next">next</a> <a href="index.html#top">top</a>
+<div id="note"><em>3 shown</em></div>
+<script id="loupe-runtime">(function () {
+class LoupeView {
+    constructor(props) {
+        this.props = props || {};
+        this.state = {};
+        this.handlers = [];
+        this._render = null;
+        this._links = {};
+        this._queued = false;
+    }
+
+    setState(patch) {
+        const next =
+            typeof patch === 'function' ? patch(this.state, this.props) : patch;
+        this.state = Object.assign({}, this.state, next);
+        if (!this._render || this._queued) {
+            return;
+        }
+        this._queued = true;
+        queueMicrotask(() => {
+            this._queued = false;
+            this._draw();
+        });
+    }
+
+    static mount(Component, render, props, events, links) {
+        const view = new Component(props);
+        view._render = render;
+        view._links = links || {};
+        view._draw();
+        (events || []).forEach((name) => {
+            document.body.addEventListener(
+                name,
+                (e) => view._dispatch(e),
+                true,
+            );
+        });
+        if (typeof view.componentDidMount === 'function') {
+            view.componentDidMount();
+        }
+
+        return view;
+    }
+
+    static helpers(links) {
+        const map = links || {};
+        const escape = (value, quotes) => {
+            let s = value === null || value === undefined ? '' : String(value);
+            s = s
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return quotes
+                ? s.replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+                : s;
+        };
+
+        return {
+            g(scope, path) {
+                let cur = scope;
+                for (const key of String(path).split('.')) {
+                    if (cur === null || cur === undefined) {
+                        return undefined;
+                    }
+                    cur = cur[key];
+                }
+
+                return cur;
+            },
+            e: (v) => escape(v, false),
+            q: (v) => escape(v, true),
+            T: (v) => !!v,
+            A: (v) => (Array.isArray(v) ? v : []),
+            lk(href) {
+                const text = String(href);
+                const cut = text.search(/[?#]/);
+                const base = cut < 0 ? text : text.slice(0, cut);
+                if (!Object.prototype.hasOwnProperty.call(map, base)) {
+                    return href;
+                }
+
+                return map[base] + (cut < 0 ? '' : text.slice(cut));
+            },
+            raw(v) {
+                if (v === null || v === undefined) {
+                    return '';
+                }
+
+                return typeof v === 'object'
+                    ? String(v.__html ?? '')
+                    : String(v);
+            },
+        };
+    }
+
+    _draw() {
+        const vals = this.renderVals ? this.renderVals() : {};
+        this.handlers = [];
+        const h = (fn) => {
+            this.handlers.push(typeof fn === 'function' ? fn : null);
+
+            return String(this.handlers.length - 1);
+        };
+        const html = this._render(vals, h, LoupeView.helpers(this._links));
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        const body = document.body;
+        const keep = body.querySelector(':scope > #loupe-runtime');
+        const olds = Array.from(body.childNodes).filter((n) => n !== keep);
+        LoupeView._morph(
+            body,
+            olds,
+            Array.from(template.content.childNodes),
+            keep,
+        );
+    }
+
+    _dispatch(e) {
+        const attr = 'data-on-' + e.type;
+        let el = e.target;
+        while (el && el.nodeType === 1) {
+            if (el.hasAttribute(attr)) {
+                const fn = this.handlers[Number(el.getAttribute(attr))];
+                if (typeof fn === 'function') {
+                    try {
+                        fn.call(this, e);
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            }
+            if (!e.bubbles || e.cancelBubble || el === document.body) {
+                break;
+            }
+            el = el.parentNode;
+        }
+    }
+
+    static _morph(parent, olds, news, before) {
+        const count = Math.max(olds.length, news.length);
+        for (let i = 0; i < count; i++) {
+            const o = olds[i];
+            const n = news[i];
+            if (!n) {
+                parent.removeChild(o);
+            } else if (!o) {
+                parent.insertBefore(n, before || null);
+            } else if (o.nodeType === n.nodeType && o.nodeName === n.nodeName) {
+                LoupeView._update(o, n);
+            } else {
+                parent.replaceChild(n, o);
+            }
+        }
+    }
+
+    static _update(o, n) {
+        if (o.nodeType !== 1) {
+            if (o.data !== n.data) {
+                o.data = n.data;
+            }
+
+            return;
+        }
+        LoupeView._syncAttributes(o, n);
+        if (o.nodeName === 'TEXTAREA') {
+            LoupeView._setValue(o, n.value);
+
+            return;
+        }
+        LoupeView._morph(
+            o,
+            Array.from(o.childNodes),
+            Array.from(n.childNodes),
+            null,
+        );
+        LoupeView._syncProperties(o, n);
+    }
+
+    static _syncAttributes(o, n) {
+        for (const a of Array.from(o.attributes)) {
+            if (!n.hasAttribute(a.name)) {
+                o.removeAttribute(a.name);
+            }
+        }
+        for (const a of Array.from(n.attributes)) {
+            if (o.getAttribute(a.name) !== a.value) {
+                o.setAttribute(a.name, a.value);
+            }
+        }
+    }
+
+    static _syncProperties(o, n) {
+        const name = o.nodeName;
+        if (name === 'OPTION') {
+            if (n.hasAttribute('selected') && !o.selected) {
+                o.selected = true;
+            }
+        } else if (name === 'INPUT') {
+            if (o.type === 'checkbox' || o.type === 'radio') {
+                if (n.hasAttribute('checked') !== o.checked) {
+                    o.checked = n.hasAttribute('checked');
+                }
+            } else if (n.hasAttribute('value')) {
+                LoupeView._setValue(o, n.getAttribute('value'));
+            }
+        }
+    }
+
+    static _setValue(o, value) {
+        if (o.value === value) {
+            return;
+        }
+        const focused = o === document.activeElement;
+        let start = null;
+        let end = null;
+        if (focused) {
+            try {
+                start = o.selectionStart;
+                end = o.selectionEnd;
+            } catch (err) {
+                start = null;
+            }
+        }
+        o.value = value;
+        if (focused && start !== null) {
+            const max = o.value.length;
+            try {
+                o.setSelectionRange(Math.min(start, max), Math.min(end, max));
+            } catch (err) {
+                return;
+            }
+        }
+    }
+}
+
+
+class Component extends LoupeView {
+  state = { query: '', count: 0, agreed: false, tick: 0, done: {} };
+  items = [
+    { id: 1, name: 'Apple', tags: ['red', 'sweet'] },
+    { id: 2, name: 'Banana', tags: ['yellow'] },
+    { id: 3, name: 'Cherry', tags: [] },
+  ];
+  componentDidMount() {
+    this.timer = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 1000);
+  }
+  renderVals() {
+    const q = this.state.query.toLowerCase();
+    const shown = this.items
+      .filter(i => i.name.toLowerCase().indexOf(q) >= 0)
+      .map(i => ({
+        name: i.name,
+        tags: i.tags,
+        cls: this.state.done[i.id] ? 'done' : 'todo',
+        toggle: () => this.setState(s => ({ done: Object.assign({}, s.done, { [i.id]: !s.done[i.id] }) })),
+      }));
+    return {
+      title: this.props.label,
+      query: this.state.query,
+      onQuery: e => this.setState({ query: e.target.value }),
+      count: this.state.count,
+      onInc: () => this.setState(s => ({ count: s.count + 1 })),
+      agreed: this.state.agreed,
+      notAgreed: !this.state.agreed,
+      onAgree: e => this.setState({ agreed: e.target.checked }),
+      status: this.state.agreed ? 'Thanks' : 'Please agree',
+      items: shown,
+      empty: shown.length === 0,
+      tick: this.state.tick,
+      next: '#top',
+      note: { __html: '<em>' + shown.length + ' shown</em>' },
+    };
+  }
+}
+
+function render(s0, h, R) {
+var o = "";
+function t(v) { return v == null ? "" : "" + v; }
+o+="\n\n\n\u003ch1\u003e";
+o+=R.e(t(R.g(s0,"title")));
+o+="\u003c/h1\u003e\n\u003cinput id=\"q\" type=\"text\" value=\"";
+o+=R.q(t(R.g(s0,"query")));
+o+="\" data-on-input=\"";
+o+=h(R.g(s0,"onQuery"));
+o+="\"/\u003e\n\u003cbutton id=\"inc\" data-on-click=\"";
+o+=h(R.g(s0,"onInc"));
+o+="\"\u003eCount: ";
+o+=R.e(t(R.g(s0,"count")));
+o+="\u003c/button\u003e\n";
+if (R.T(R.g(s0,"agreed"))) {
+o+="\u003clabel\u003e\u003cinput id=\"agree\" type=\"checkbox\" checked=\"\" data-on-change=\"";
+o+=h(R.g(s0,"onAgree"));
+o+="\"/\u003e I agree\u003c/label\u003e";
+}
+o+="\n";
+if (R.T(R.g(s0,"notAgreed"))) {
+o+="\u003clabel\u003e\u003cinput id=\"agree\" type=\"checkbox\" data-on-change=\"";
+o+=h(R.g(s0,"onAgree"));
+o+="\"/\u003e I agree\u003c/label\u003e";
+}
+o+="\n\u003cp id=\"status\"\u003e";
+o+=R.e(t(R.g(s0,"status")));
+o+="\u003c/p\u003e\n\u003cul\u003e\n";
+for (const x1 of R.A(R.g(s0,"items"))) {
+const s1 = Object.assign({}, s0, {["item"]: x1});
+o+="\n  \u003cli class=\"";
+o+=R.q(t(R.g(s1,"item.cls")));
+o+="\"\u003e\u003cbutton data-on-click=\"";
+o+=h(R.g(s1,"item.toggle"));
+o+="\"\u003e";
+o+=R.e(t(R.g(s1,"item.name")));
+o+="\u003c/button\u003e\n  ";
+for (const x2 of R.A(R.g(s1,"item.tags"))) {
+const s2 = Object.assign({}, s1, {["tag"]: x2});
+o+="\u003ci\u003e";
+o+=R.e(t(R.g(s2,"tag")));
+o+="\u003c/i\u003e";
+}
+o+="\u003c/li\u003e\n";
+}
+o+="\n\u003c/ul\u003e\n";
+if (R.T(R.g(s0,"empty"))) {
+o+="\u003cp\u003eNo match\u003c/p\u003e";
+}
+o+="\n\u003cp\u003eTick: \u003cspan id=\"tick\"\u003e";
+o+=R.e(t(R.g(s0,"tick")));
+o+="\u003c/span\u003e\u003c/p\u003e\n\u003ca href=\"";
+o+=R.q(R.lk("" + t(R.g(s0,"next"))));
+o+="\" id=\"next\"\u003enext\u003c/a\u003e \u003ca href=\"index.html#top\"\u003etop\u003c/a\u003e\n\u003cdiv id=\"note\"\u003e";
+o+=R.raw(R.g(s0,"note"));
+o+="\u003c/div\u003e\n";
+return o;
+}
+LoupeView.mount(Component, render, {"label":"Fruit \u003clist\u003e \u0026 more"}, ["change","click","input"], {"Interactive.dc\u002ehtml":"index.html"});
+})();
+</script></body></html>

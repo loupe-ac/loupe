@@ -102,6 +102,15 @@ to a plain page before it stores anything. It runs the script of the canvas on
 your machine, so you install nothing. The folder then holds no canvas file and
 no `support.js`, and the artifact holds the compiled page.
 
+A canvas with a script keeps its clicks and its typed input. The compiled page
+first shows the page that the build drew, so a reader that runs no script sees a
+full page. The page also holds one inline script. That script holds the logic
+of the canvas, a small Loupe redraw runtime, and the template as a render
+function. When a click or a keystroke calls `setState`, the page draws again and
+keeps the focus and the caret of a text field. Timers and `componentDidMount`
+also run. A canvas with a script and no event, timer or mount hook compiles to
+plain markup, with no script.
+
 One canvas becomes `index.html`. A link to a canvas of the folder, such as
 `href="Pricing.dc.html"`, points at its compiled page. Other files of the
 folder go through unchanged.
@@ -115,7 +124,11 @@ cannot compile Main.dc.html, line 148: event attribute onclick is not supported.
 
 These are gaps today:
 
-- An event attribute, such as `onClick` or `onChange`.
+- An event attribute whose value is not one plain hole, such as
+  `onclick="go()"`, and any event attribute in markup that
+  `dangerouslySetInnerHTML` fills in.
+- An event attribute of a page that has another gap. The page then compiles
+  with no script, so fix the other gap first.
 - An embedded artboard, which is any `<dc-...>` tag.
 - One of these two features in markup that `dangerouslySetInnerHTML` fills in.
   Such markup cannot hold a `dangerouslySetInnerHTML` of its own.

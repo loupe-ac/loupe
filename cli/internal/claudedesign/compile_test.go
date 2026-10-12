@@ -57,6 +57,15 @@ func scripted(script, markup string) string {
 	return "<html><head></head><body>\n<x-dc>\n" + markup + "\n</x-dc>\n<script type=\"text/x-dc\" data-dc-script>\n" + script + "\n</script>\n</body></html>"
 }
 
+// staticPart gives the page without the shipped script.
+func staticPart(page string) string {
+	if i := strings.Index(page, `<script id="loupe-runtime"`); i >= 0 {
+		return page[:i]
+	}
+
+	return page
+}
+
 func assertClean(t *testing.T, page string) {
 	t.Helper()
 	for _, bad := range forbidden {
@@ -106,7 +115,7 @@ func TestAScriptedCanvasIsFilled(t *testing.T) {
 	if len(res.Gaps) != 0 {
 		t.Fatalf("gaps = %+v", res.Gaps)
 	}
-	page := one(t, res, "index.html")
+	page := staticPart(one(t, res, "index.html"))
 	assertClean(t, page)
 	for _, want := range []string{
 		"<h1>Plan &amp; &#34;go&#34;</h1>",
@@ -171,7 +180,7 @@ func TestEachGapKindIsNamedWithItsLine(t *testing.T) {
 		line          int
 		marker        string
 	}{
-		"an event attribute": {scripted(script, "<p>a</p>\n<button onClick=\"{{ go }}\">x</button>"), "event attribute onclick", 4, `<!-- loupe:gap event attribute onclick: `},
+		"an event attribute": {scripted(script, "<p>a</p>\n<button onClick=\"go()\">x</button>"), "event attribute onclick", 4, `<!-- loupe:gap event attribute onclick: `},
 		"a dc tag":           {wrap("<p>a</p>\n<dc-import src=\"Pricing.dc.html\"></dc-import>"), "<dc-import> (an embedded artboard)", 4, `<!-- loupe:gap <dc-import>`},
 		"sc-else":            {wrap("<p>a</p>\n<sc-else><p>no</p></sc-else>"), "<sc-else>", 4, `<!-- loupe:gap <sc-else>`},
 		"a blob path":        {wrap("<p>a</p>\n<img src=\"/_blob/abc.png\">"), "a /_blob/ path", 4, `<!-- loupe:gap a /_blob/ path`},
