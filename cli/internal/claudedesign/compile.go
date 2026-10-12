@@ -56,8 +56,12 @@ func (compiler) Compile(files []api.ArtifactFile, _ artifactcompile.Options) (ar
 			boards = append(boards, f)
 		case isSupportScript(f.Path):
 		default:
+			gaps := companionGaps(f)
+			if len(gaps) > 0 {
+				f.Contents = markCompanion(f, gaps)
+			}
 			res.Files = append(res.Files, f)
-			res.Gaps = append(res.Gaps, companionGaps(f)...)
+			res.Gaps = append(res.Gaps, gaps...)
 		}
 	}
 	sort.Slice(boards, func(i, j int) bool { return boards[i].Path < boards[j].Path })
@@ -147,4 +151,36 @@ func companionGaps(f api.ArtifactFile) []artifactcompile.Gap {
 	}
 
 	return gaps
+}
+
+// markCompanion writes a gap marker before each gap line of a companion file,
+// in the comment syntax of its type, so the file stays valid.
+func markCompanion(f api.ArtifactFile, gaps []artifactcompile.Gap) []byte {
+	at := map[int][]string{}
+	for _, g := range gaps {
+		at[g.Line] = append(at[g.Line], companionMarker(f.Path, g))
+	}
+	lines := strings.Split(string(f.Contents), "\n")
+	var out []string
+	for i, line := range lines {
+		out = append(out, at[i+1]...)
+		out = append(out, line)
+	}
+
+	return []byte(strings.Join(out, "\n"))
+}
+
+// companionMarker is the gap marker in the comment syntax of a file type. A
+// type with no known comment syntax gets the marker as a plain line.
+func companionMarker(p string, g artifactcompile.Gap) string {
+	switch strings.ToLower(path.Ext(p)) {
+	case ".css", ".js", ".mjs", ".cjs", ".ts":
+		text := strings.TrimSuffix(strings.TrimPrefix(Marker(g), "<!-- "), " -->")
+
+		return "/* " + strings.ReplaceAll(text, "*/", "* /") + " */"
+	case ".html", ".htm", ".svg", ".xml", ".md":
+		return Marker(g)
+	default:
+		return strings.TrimSuffix(strings.TrimPrefix(Marker(g), "<!-- "), " -->")
+	}
 }

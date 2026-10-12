@@ -521,3 +521,31 @@ func TestACompanionFileIsCheckedForCanvasText(t *testing.T) {
 		t.Fatalf("gaps = %+v", res.Gaps)
 	}
 }
+
+func TestACompanionGapIsMarkedInTheCommentSyntaxOfItsFile(t *testing.T) {
+	res := compile(t,
+		canvas("A.dc.html", wrap("<p>a</p>")),
+		api.ArtifactFile{Path: "notes.html", Contents: []byte("<p>ok</p>\n<h1>{{ title }}</h1>")},
+		api.ArtifactFile{Path: "style.css", Contents: []byte("a {}\nbody { background: url(/_blob/x); }")},
+		api.ArtifactFile{Path: "data.json", Contents: []byte(`{"a": "{{ b }}"}`)},
+		api.ArtifactFile{Path: "clean.js", Contents: []byte("const a = 1;")},
+	)
+	want := map[string]string{
+		"notes.html": "<p>ok</p>\n<!-- loupe:gap canvas text left in the output: \"{{\" is left in the file -->\n<h1>{{ title }}</h1>",
+		"style.css":  "a {}\n/* loupe:gap canvas text left in the output: \"/_blob/\" is left in the file */\nbody { background: url(/_blob/x); }",
+		"data.json":  "loupe:gap canvas text left in the output: \"{{\" is left in the file\n{\"a\": \"{{ b }}\"}",
+		"clean.js":   "const a = 1;",
+	}
+	for name, body := range want {
+		if got := one(t, res, name); got != body {
+			t.Fatalf("%s:\n%s", name, got)
+		}
+	}
+}
+
+func TestACssMarkerCannotCloseItsComment(t *testing.T) {
+	got := companionMarker("a.css", artifactcompile.Gap{Feature: "x */ y", Detail: "z"})
+	if got != "/* loupe:gap x * / y: z */" {
+		t.Fatalf("got = %q", got)
+	}
+}

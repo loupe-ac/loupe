@@ -128,8 +128,9 @@ These are gaps today:
 - A hole that is not a plain path, such as `{{ a + b }}`.
 - Canvas text left in the compiled page.
 - Canvas text, such as `{{` or `/_blob/`, in a text file beside the canvas.
-  The command copies that file unchanged and puts no comment in it, so the
-  error names its line.
+  The command copies that file and marks each gap in its comment syntax:
+  `/* loupe:gap ... */` in CSS and JavaScript, the HTML comment in HTML,
+  SVG, XML and Markdown, and a plain `loupe:gap ...` line in any other file.
 
 Run the command again with `--out <folder>` to see the pages. It writes the
 compiled files to the folder and stores nothing. The folder must be empty or
