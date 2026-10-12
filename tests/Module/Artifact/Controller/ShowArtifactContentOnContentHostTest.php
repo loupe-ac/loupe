@@ -132,6 +132,31 @@ final class ShowArtifactContentOnContentHostTest extends WebTestCase
         self::assertStringNotContainsString('allow-same-origin', (string) $client->getResponse()->headers->get('Content-Security-Policy'));
     }
 
+    public function test_the_content_route_declares_no_host_so_a_build_time_host_cannot_break_it(): void
+    {
+        $router = static::getContainer()->get('router');
+        $route = $router->getRouteCollection()->get('app_artifact_content_host');
+
+        self::assertNotNull($route);
+        self::assertSame('', $route->getHost());
+    }
+
+    public function test_a_content_path_on_the_app_domain_answers_404(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('host-appdomain@example.com');
+        $artifact = $this->storedArtifact($project, 'Prototype', [['index.html' => 'x']]);
+        $versionId = (string) $this->versionNumbered($artifact, 1)->id;
+        $label = $this->label($artifact->id);
+        $expires = time() + 600;
+        $signature = $this->signer()->sign($versionId, $expires, $label);
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $client->request(Request::METHOD_GET, \sprintf('/%s/%d/%s/index.html', $versionId, $expires, $signature));
+        self::assertResponseStatusCodeSame(404);
+    }
+
     private function setHost(string $host): void
     {
         putenv('' === $host ? 'ARTIFACT_CONTENT_HOST' : 'ARTIFACT_CONTENT_HOST='.$host);
