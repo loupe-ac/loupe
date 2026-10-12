@@ -6,6 +6,14 @@
     <form method="post" action="{{ path('app_admin_waitlist_invite') }}" id="invite-selected-form">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('admin-waitlist-invite') }}">
     </form>
+    <section class="mb-4" aria-label="{{ 'account.admin.waitlist.counts.title'|trans }}" data-waitlist-pick-counts>
+        <h2 class="text-sm font-medium text-fg">{{ 'account.admin.waitlist.counts.title'|trans }}</h2>
+        <ul class="mt-2 flex flex-wrap gap-2">
+            {% for pick, count in pickCounts %}
+                <li class="admin-badge {{ count > 0 ? 'admin-badge-count' : 'admin-badge-neutral' }}" data-pick="{{ pick }}">{{ ('account.form.waitlist_join_form.picks.choice.' ~ pick)|trans }}: {{ count }}</li>
+            {% endfor %}
+        </ul>
+    </section>
     <twig:UbermudaAdmin:AdminList
         title="{{ 'account.admin.waitlist.title'|trans }}"
         :total="total"
@@ -40,6 +48,7 @@
                 <th><twig:UbermudaAdmin:AdminListSortLink route="app_admin_waitlist_list" column="email" label="{{ 'account.admin.waitlist.column.email'|trans }}" :currentSort="sort" :currentDir="dir" :filters="filters" /></th>
                 <th><twig:UbermudaAdmin:AdminListSortLink route="app_admin_waitlist_list" column="createdAt" label="{{ 'account.admin.waitlist.column.joined'|trans }}" :currentSort="sort" :currentDir="dir" :filters="filters" /></th>
                 <th><twig:UbermudaAdmin:AdminListSortLink route="app_admin_waitlist_list" column="invitedAt" label="{{ 'account.admin.waitlist.column.invited'|trans }}" :currentSort="sort" :currentDir="dir" :filters="filters" /></th>
+                <th>{{ 'account.admin.waitlist.column.picks'|trans }}</th>
                 <th>{{ 'account.admin.waitlist.column.status'|trans }}</th>
                 <th></th>
             </tr>
@@ -56,6 +65,14 @@
                     <td>{{ entry.email }}</td>
                     <td>{{ entry.createdAt|date('Y-m-d H:i') }}</td>
                     <td>{{ entry.invitedAt ? entry.invitedAt|date('Y-m-d H:i') : '—' }}</td>
+                    <td data-waitlist-picks>
+                        {% for pick in entry.picks %}
+                            <span class="admin-badge admin-badge-neutral">{{ ('account.form.waitlist_join_form.picks.choice.' ~ pick)|trans }}</span>
+                        {% endfor %}
+                        {% if entry.otherPick %}
+                            <span class="text-sm text-fg-mute">{{ entry.otherPick }}</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if entry.convertedAt %}
                             <span class="admin-badge admin-badge-on">{{ 'account.admin.waitlist.status.converted'|trans }}</span>

@@ -3,6 +3,7 @@
 {% block title %}{{ 'account.waitlist.joined.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block auth_body %}
+<turbo-frame id="waitlist-notify">
 <div class="flex flex-col items-center gap-3 py-4 text-center">
     <div class="auth-icon-badge">
         <twig:UX:Icon name="lucide:mail" class="w-5 h-5" aria-hidden="true" />
@@ -15,4 +16,5 @@
     </div>
     <a href="{{ path('app_login') }}" class="auth-link text-sm font-medium mt-1">{{ 'account.waitlist.joined.back'|trans }}</a>
 </div>
+</turbo-frame>
 {% endblock %}

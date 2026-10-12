@@ -81,7 +81,9 @@ final class JoinWaitlistController extends AppController
             assert($data instanceof WaitlistJoinRequest);
 
             ($this->joinWaitlist)(new JoinWaitlistCommand(
-                $data->email ?: throw new \LogicException('Email is required after form validation.'),
+                email: $data->email ?: throw new \LogicException('Email is required after form validation.'),
+                picks: array_values($data->picks),
+                other: $data->other,
             ));
 
             // Post/Redirect/Get: Turbo Drive throws "Form responses must redirect

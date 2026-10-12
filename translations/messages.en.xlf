@@ -466,6 +466,58 @@
                 <source>account.form.waitlist_join_form.email.placeholder</source>
                 <target>you@company.com</target>
             </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.label">
+                <source>account.form.waitlist_join_form.picks.label</source>
+                <target>Which forges and agents do you use?</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.gitlab">
+                <source>account.form.waitlist_join_form.picks.choice.gitlab</source>
+                <target>GitLab</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.bitbucket">
+                <source>account.form.waitlist_join_form.picks.choice.bitbucket</source>
+                <target>Bitbucket</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.gitea">
+                <source>account.form.waitlist_join_form.picks.choice.gitea</source>
+                <target>Gitea</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.forgejo">
+                <source>account.form.waitlist_join_form.picks.choice.forgejo</source>
+                <target>Forgejo</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.github-enterprise">
+                <source>account.form.waitlist_join_form.picks.choice.github-enterprise</source>
+                <target>GitHub Enterprise</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.cursor">
+                <source>account.form.waitlist_join_form.picks.choice.cursor</source>
+                <target>Cursor</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.gemini-cli">
+                <source>account.form.waitlist_join_form.picks.choice.gemini-cli</source>
+                <target>Gemini CLI</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.opencode">
+                <source>account.form.waitlist_join_form.picks.choice.opencode</source>
+                <target>OpenCode</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.aider">
+                <source>account.form.waitlist_join_form.picks.choice.aider</source>
+                <target>Aider</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.pi">
+                <source>account.form.waitlist_join_form.picks.choice.pi</source>
+                <target>Pi</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.other.label">
+                <source>account.form.waitlist_join_form.other.label</source>
+                <target>Something else?</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.other.placeholder">
+                <source>account.form.waitlist_join_form.other.placeholder</source>
+                <target>Name a forge or an agent</target>
+            </trans-unit>
             <trans-unit id="account.waitlist.page.title">
                 <source>account.waitlist.page.title</source>
                 <target>Join the waitlist</target>
@@ -3182,6 +3234,10 @@
                 <source>account.admin.waitlist.empty</source>
                 <target>No waitlist entries yet.</target>
             </trans-unit>
+            <trans-unit id="account.admin.waitlist.counts.title">
+                <source>account.admin.waitlist.counts.title</source>
+                <target>Entries per pick</target>
+            </trans-unit>
             <trans-unit id="account.admin.waitlist.column.email">
                 <source>account.admin.waitlist.column.email</source>
                 <target>Email</target>
@@ -3193,6 +3249,10 @@
             <trans-unit id="account.admin.waitlist.column.invited">
                 <source>account.admin.waitlist.column.invited</source>
                 <target>Invited</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.column.picks">
+                <source>account.admin.waitlist.column.picks</source>
+                <target>Picks</target>
             </trans-unit>
             <trans-unit id="account.admin.waitlist.column.status">
                 <source>account.admin.waitlist.column.status</source>

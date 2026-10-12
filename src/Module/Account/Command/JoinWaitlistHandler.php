@@ -27,6 +27,8 @@ final readonly class JoinWaitlistHandler
     {
         $existingEntry = $this->waitlistEntries->findOneByEmail($command->email);
         if (null !== $existingEntry) {
+            $other = trim($command->other ?? '');
+
             // needsInvite() is permanently false on a CONVERTED row, so a
             // disabled account re-joining would dead-end un-invitable forever;
             // reopen it and queue it at the back for that case alone. Converted
@@ -36,9 +38,19 @@ final readonly class JoinWaitlistHandler
                 $existingUser = $this->users->findOneByEmail($command->email);
                 if (null !== $existingUser && $existingUser->isDisabled()) {
                     $existingEntry->reopen();
+                    $existingEntry->mergePicks($command->picks, $other);
                     $this->em->flush();
 
                     $this->record('account.waitlist_rejoined', $existingEntry);
+
+                    return;
+                }
+            } elseif ([] !== $command->picks || '' !== $other) {
+                $existingUser = $this->users->findOneByEmail($command->email);
+                if ((null === $existingUser || $existingUser->isDisabled()) && $existingEntry->mergePicks($command->picks, $other)) {
+                    $this->em->flush();
+
+                    $this->record('account.waitlist_picks_merged', $existingEntry);
 
                     return;
                 }
@@ -70,6 +82,7 @@ final readonly class JoinWaitlistHandler
         }
 
         $entry = new WaitlistEntry($command->email);
+        $entry->mergePicks($command->picks, trim($command->other ?? ''));
 
         try {
             $this->em->persist($entry);

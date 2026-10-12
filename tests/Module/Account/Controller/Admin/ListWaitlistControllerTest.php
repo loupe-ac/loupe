@@ -6,6 +6,7 @@ namespace App\Tests\Module\Account\Controller\Admin;
 
 use App\Module\Account\Entity\User;
 use App\Module\Account\Entity\WaitlistEntry;
+use App\Module\Account\Entity\WaitlistPick;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,30 @@ final class ListWaitlistControllerTest extends WebTestCase
 
         $this->assertResponseIsSuccessful();
         $this->assertSelectorTextContains('body', 'Waitlist');
+    }
+
+    public function test_admin_sees_the_picks_and_the_text_of_each_row_and_the_counts(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $admin = $this->seedUser($em, 'waitlist-picks-admin@admin-test.example.com', ['ROLE_ADMIN']);
+        $entry = new WaitlistEntry('picks-row@example.com');
+        $entry->mergePicks([WaitlistPick::GitLab, WaitlistPick::Pi], '<b>Jujutsu</b>');
+        $em->persist($entry);
+        $em->flush();
+        $entryId = (string) $entry->id;
+
+        $client->loginUser($admin);
+        $crawler = $client->request(Request::METHOD_GET, '/admin/waitlist');
+
+        $this->assertResponseIsSuccessful();
+        $row = $crawler->filter('[data-waitlist-entry-id="'.$entryId.'"] [data-waitlist-picks]');
+        $this->assertStringContainsString('GitLab', $row->text());
+        $this->assertStringContainsString('Pi', $row->text());
+        $this->assertStringContainsString('<b>Jujutsu</b>', $row->text());
+        $this->assertSelectorNotExists('[data-waitlist-picks] b');
+        $this->assertCount(\count(WaitlistPick::cases()), $crawler->filter('[data-waitlist-pick-counts] [data-pick]'));
+        $this->assertStringContainsString('GitLab: ', $crawler->filter('[data-waitlist-pick-counts] [data-pick="gitlab"]')->text());
     }
 
     public function test_logged_in_non_admin_gets_403(): void
