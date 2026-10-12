@@ -501,3 +501,23 @@ func TestALinkInMarkupFromAValueFollowsTheArtboard(t *testing.T) {
 		t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, one(t, res, "index.html"))
 	}
 }
+
+func TestACompanionFileIsCheckedForCanvasText(t *testing.T) {
+	res := compile(t,
+		canvas("A.dc.html", wrap("<p>a</p>")),
+		api.ArtifactFile{Path: "notes.html", Contents: []byte("<p>ok</p>\n<h1>{{ title }}</h1>")},
+		api.ArtifactFile{Path: "style.css", Contents: []byte("body { background: url(/_blob/x); }")},
+		api.ArtifactFile{Path: "clean.js", Contents: []byte("const a = 1;")},
+		api.ArtifactFile{Path: "logo.png", Contents: []byte("\x89PNG\x00{{")},
+	)
+	if len(res.Gaps) != 2 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	got := map[string]int{}
+	for _, g := range res.Gaps {
+		got[g.File] = g.Line
+	}
+	if got["notes.html"] != 2 || got["style.css"] != 1 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}

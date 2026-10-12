@@ -127,6 +127,9 @@ These are gaps today:
 - More than one canvas file in the folder.
 - A hole that is not a plain path, such as `{{ a + b }}`.
 - Canvas text left in the compiled page.
+- Canvas text, such as `{{` or `/_blob/`, in a text file beside the canvas.
+  The command copies that file unchanged and puts no comment in it, so the
+  error names its line.
 
 Run the command again with `--out <folder>` to see the pages. It writes the
 compiled files to the folder and stores nothing. The folder must be empty or

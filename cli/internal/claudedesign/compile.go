@@ -3,6 +3,7 @@
 package claudedesign
 
 import (
+	"bytes"
 	"fmt"
 	"path"
 	"sort"
@@ -56,6 +57,7 @@ func (compiler) Compile(files []api.ArtifactFile, _ artifactcompile.Options) (ar
 		case isSupportScript(f.Path):
 		default:
 			res.Files = append(res.Files, f)
+			res.Gaps = append(res.Gaps, companionGaps(f)...)
 		}
 	}
 	sort.Slice(boards, func(i, j int) bool { return boards[i].Path < boards[j].Path })
@@ -126,3 +128,23 @@ func Marker(g artifactcompile.Gap) string {
 
 // forbidden is text a compiled page must not hold.
 var forbidden = []string{canvasSuffix, "{{", "<sc-", "DCLogic", "support.js", "/_blob/"}
+
+// companionGaps checks a text file pushed beside the canvas for canvas text,
+// because the compiler copies it unchanged.
+func companionGaps(f api.ArtifactFile) []artifactcompile.Gap {
+	if bytes.IndexByte(f.Contents[:min(len(f.Contents), 8000)], 0) >= 0 {
+		return nil
+	}
+	var gaps []artifactcompile.Gap
+	for i, line := range strings.Split(string(f.Contents), "\n") {
+		for _, bad := range forbidden {
+			if strings.Contains(line, bad) {
+				gaps = append(gaps, artifactcompile.Gap{File: f.Path, Line: i + 1, Feature: "canvas text left in the output", Detail: fmt.Sprintf("%q is left in the file", bad)})
+
+				break
+			}
+		}
+	}
+
+	return gaps
+}
