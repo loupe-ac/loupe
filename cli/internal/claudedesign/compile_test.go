@@ -348,3 +348,24 @@ func TestAMarkerKeepsTheSourceOfAnUnsupportedValue(t *testing.T) {
 		})
 	}
 }
+
+func TestTheOriginalHeadIsCheckedLikeTheCanvas(t *testing.T) {
+	cases := map[string]struct{ head, feature, source string }{
+		"a blob link":     {`<link rel="icon" href="/_blob/logo.png">`, "a /_blob/ path", `href="/_blob/logo.png"`},
+		"a blob in style": {`<style>a { background: url(/_blob/x.png) }</style>`, "a /_blob/ path", "url(/_blob/x.png)"},
+		"an expression":   {`<title>{{ a + 1 }}</title>`, "a hole that is not a plain path", "{{ a + 1 }}"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, canvas("A.dc.html", "<html><head>\n"+c.head+"\n</head><body>\n<x-dc><p>a</p></x-dc>\n</body></html>"))
+			if len(res.Gaps) != 1 || res.Gaps[0].Feature != c.feature || res.Gaps[0].Line != 2 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			page := one(t, res, "index.html")
+			i := strings.Index(page, "<!-- loupe:gap "+c.feature)
+			if strings.Count(page, "<!-- loupe:gap") != 1 || i < 0 || !strings.Contains(markerRe.ReplaceAllString(page[i:], ""), c.source) {
+				t.Fatalf("page:\n%s", page)
+			}
+		})
+	}
+}

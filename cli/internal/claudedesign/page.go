@@ -144,17 +144,21 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 	body := &html.Node{Type: html.ElementNode, Data: "body"}
 	head.AppendChild(&html.Node{Type: html.ElementNode, Data: "meta", Attr: []html.Attribute{{Key: "charset", Val: "utf-8"}}})
 	head.AppendChild(&html.Node{Type: html.ElementNode, Data: "meta", Attr: []html.Attribute{{Key: "name", Val: "viewport"}, {Key: "content", Val: "width=device-width, initial-scale=1"}}})
+	scriptGaps := p.gaps
 	if oldHead := find(doc, isTag("head")); oldHead != nil {
 		for c := oldHead.FirstChild; c != nil; c = c.NextSibling {
-			if !dropFromHead(c) && !blank(c) {
-				head.AppendChild(cloneDeep(c))
+			if dropFromHead(c) || blank(c) {
+				continue
+			}
+			for _, n := range p.expandNode(c, scope) {
+				head.AppendChild(n)
 			}
 		}
 	}
-	for _, g := range p.gaps {
+	for _, g := range scriptGaps {
 		body.AppendChild(p.marker(g))
 	}
-	if len(p.gaps) > 0 {
+	if len(scriptGaps) > 0 {
 		body.AppendChild(p.keep(cloneDeep(script)))
 	}
 	for c := root.FirstChild; c != nil; c = c.NextSibling {
