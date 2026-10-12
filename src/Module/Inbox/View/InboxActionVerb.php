@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Inbox\View;
+
+/** What the owner did to an item, as the status line says it. */
+enum InboxActionVerb: string
+{
+    case Answered = 'answered';
+    case Done = 'done';
+    case Declined = 'declined';
+    case Reviewed = 'reviewed';
+
+    /** The flash that the card tab and the document page show instead of the status line. */
+    public function flashKey(): string
+    {
+        return match ($this) {
+            self::Answered => 'inbox.flash.answered',
+            self::Done => 'inbox.flash.done',
+            self::Declined => 'inbox.flash.declined',
+            self::Reviewed => 'inbox.review.submitted',
+        };
+    }
+}

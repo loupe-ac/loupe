@@ -6937,6 +6937,14 @@
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
             <trans-unit id="inbox.linked.panel"><source>inbox.linked.panel</source><target>Linked</target></trans-unit>
+            <trans-unit id="inbox.status.verb.answered"><source>inbox.status.verb.answered</source><target>Answered</target></trans-unit>
+            <trans-unit id="inbox.status.verb.done"><source>inbox.status.verb.done</source><target>Marked done</target></trans-unit>
+            <trans-unit id="inbox.status.verb.declined"><source>inbox.status.verb.declined</source><target>Closed</target></trans-unit>
+            <trans-unit id="inbox.status.verb.reviewed"><source>inbox.status.verb.reviewed</source><target>Review recorded</target></trans-unit>
+            <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%. "%title%" is closed.</target></trans-unit>
+            <trans-unit id="inbox.status.ask_left"><source>inbox.status.ask_left</source><target>{0}%verb%.|{1}%verb%. 1 item of this ask is still open.|]1,Inf[%verb%. %count% items of this ask are still open.</target></trans-unit>
+            <trans-unit id="inbox.status.item"><source>inbox.status.item</source><target>%verb%: item %number%.</target></trans-unit>
+            <trans-unit id="inbox.status.view"><source>inbox.status.view</source><target>View it</target></trans-unit>
             <trans-unit id="inbox.pane.back"><source>inbox.pane.back</source><target>All asks</target></trans-unit>
             <trans-unit id="inbox.pane.missing"><source>inbox.pane.missing</source><target>This ask does not exist. Pick one from the list.</target></trans-unit>
             <trans-unit id="inbox.closed.empty"><source>inbox.closed.empty</source><target>No ask is closed yet.</target></trans-unit>

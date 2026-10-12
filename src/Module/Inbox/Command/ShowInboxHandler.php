@@ -14,6 +14,7 @@ use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\ShownInboxAsk;
 use App\Module\Inbox\View\InboxPageView;
 use App\Module\Inbox\View\InboxRow;
 use App\Module\Inbox\View\InboxSide;
@@ -162,15 +163,7 @@ final readonly class ShowInboxHandler
     /** An open ask that holds the item, else the newest closed one, else null. */
     private function askOfItem(InboxItem $item): ?InboxAsk
     {
-        $asks = $this->inboxAsks->findHolding($item);
-        $open = array_find($asks, static fn (InboxAsk $ask): bool => null === $ask->closedAt);
-        if (null !== $open) {
-            return $open;
-        }
-
-        usort($asks, static fn (InboxAsk $a, InboxAsk $b): int => ($b->closedAt <=> $a->closedAt) ?: ((string) $a->id <=> (string) $b->id));
-
-        return $asks[0] ?? null;
+        return ShownInboxAsk::of($this->inboxAsks->findHolding($item));
     }
 
     private function rowOfAsk(InboxAsk $ask): ?InboxRow
