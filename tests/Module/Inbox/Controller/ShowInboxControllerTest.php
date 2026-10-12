@@ -97,7 +97,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSelectorExists('a[data-controller="inbox-pill"] turbo-frame#inbox-open-count-'.$project->id);
     }
 
-    public function test_linked_card_pull_requests_appear_once_with_honest_status_and_safe_links(): void
+    public function test_linked_card_pull_requests_appear_once_with_safe_links(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-pull-requests');
         $project = $this->inboxProject($this->em, $owner);
@@ -122,14 +122,14 @@ final class ShowInboxControllerTest extends WebTestCase
         $rows = $crawler->filter('[data-linked-pull-request]');
         self::assertCount(2, $rows);
         self::assertStringContainsString('example/app #42', $rows->text());
-        self::assertSame('Not reported', $rows->first()->filter('.lp-tag')->text());
-        $link = $rows->first()->filter('a');
-        self::assertSame('https://github.com/example/app/pull/42', $link->attr('href'));
-        self::assertSame('_blank', $link->attr('target'));
-        self::assertSame('noopener noreferrer', $link->attr('rel'));
-        self::assertSame('Unavailable', $rows->last()->filter('.lp-tag')->text());
+        self::assertSame('Pull request', $rows->first()->filter('.lp-inbox-linked-panel__sub')->text());
+        self::assertSame('a', $rows->first()->nodeName());
+        self::assertSame('https://github.com/example/app/pull/42', $rows->first()->attr('href'));
+        self::assertSame('_blank', $rows->first()->attr('target'));
+        self::assertSame('noopener noreferrer', $rows->first()->attr('rel'));
         self::assertStringContainsString('Not a web address', $rows->last()->text());
-        self::assertCount(0, $rows->last()->filter('a'));
+        self::assertSame('div', $rows->last()->nodeName());
+        self::assertNull($rows->last()->attr('href'));
     }
 
     public function test_the_pill_listens_on_the_owner_inbox_topic(): void
@@ -271,8 +271,8 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $block->filter('form#inbox_decline_'.$question->id.'[action*="/decline"]'));
         self::assertCount(1, $block->filter('#inbox-item-12 input[type="hidden"][name="inbox_decline_'.$question->id.'[closeNote]"]'));
         self::assertCount(0, $block->filter('script'));
-        self::assertSame('item 12', $block->filter('#inbox-item-12 .lp-inbox-item__number')->text());
-        self::assertSame('item 13', $block->filter('#inbox-item-13 .lp-inbox-item__number')->text());
+        self::assertSame('1', $block->filter('#inbox-item-12 .lp-inbox-item__number')->text());
+        self::assertSame('2', $block->filter('#inbox-item-13 .lp-inbox-item__number')->text());
         self::assertCount(2, $block->filter('#inbox-item-12 input[data-form-draft-target="option"]'));
         self::assertCount(1, $block->filter('#inbox-item-12 textarea[name="inbox_answer_'.$question->id.'[answerText]"]'));
         self::assertCount(1, $block->filter('#inbox-item-13 form[name="inbox_done_'.$todo->id.'"]'));
@@ -308,7 +308,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('true', $rows->first()->attr('aria-current'));
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id]'));
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id="'.$first->id.'"]'));
-        self::assertSame('Agent request', $crawler->filter('[data-inbox-ask-id] .lp-inbox-ask__source')->text());
+        self::assertSame('From the agent', $crawler->filter('[data-inbox-ask-id] .lp-inbox-ask__source')->text());
         // The old tab machinery is gone from this page.
         self::assertCount(0, $crawler->filter('[data-controller="panel-tabs"], [role="tab"], [role="tabpanel"]'));
         self::assertSame('false', $crawler->filter('.lp-inbox-split')->attr('data-inbox-picked'));

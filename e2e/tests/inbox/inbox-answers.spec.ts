@@ -246,7 +246,9 @@ test('the owner answers a question and declines a to-do', async ({
     const question = page.locator(`#inbox-item-${inbox.questionNumber}`);
     await expect(question).toContainText(`item ${inbox.questionNumber}`);
     await question.getByText('CSV', { exact: true }).click();
-    await question.getByLabel('Your answer').fill('The importer reads CSV.');
+    await question
+        .getByLabel('Note for the agent')
+        .fill('The importer reads CSV.');
     await question.getByRole('button', { name: 'Send answer' }).click();
 
     await expect(page.locator('.lp-flash')).toContainText(
@@ -263,8 +265,10 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(sidebarPill).toHaveText('1');
 
     // The to-do still blocks the ask, so the answer can still change, here to text alone.
-    await question.getByRole('button', { name: 'Clear the option' }).click();
-    await question.getByLabel('Your answer').fill('Text alone this time.');
+    await question.getByRole('button', { name: 'Clear choice' }).click();
+    await question
+        .getByLabel('Note for the agent')
+        .fill('Text alone this time.');
     await question.getByRole('button', { name: 'Change the answer' }).click();
     await expect(question.locator('[data-inbox-choices]')).toHaveCount(0);
     await expect(question.locator('[data-inbox-response]')).toContainText(
@@ -272,11 +276,13 @@ test('the owner answers a question and declines a to-do', async ({
     );
 
     await question.getByText('CSV', { exact: true }).click();
-    await question.getByLabel('Your answer').fill('An unsent correction.');
+    await question
+        .getByLabel('Note for the agent')
+        .fill('An unsent correction.');
 
     // A to-do takes no prose, so closing it carries no note.
     const todo = page.locator(`#inbox-item-${inbox.todoNumber}`);
-    await todo.getByRole('button', { name: 'Close this item' }).click();
+    await todo.getByRole('button', { name: 'Decline' }).click();
 
     await expect(page.locator('.lp-flash')).toContainText(
         `Item ${inbox.todoNumber} is closed.`,

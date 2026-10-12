@@ -4981,10 +4981,6 @@
             <trans-unit id="inbox.presence.label.quiet"><source>inbox.presence.label.quiet</source><target>Agent bridge quiet</target></trans-unit>
             <trans-unit id="inbox.presence.label.none"><source>inbox.presence.label.none</source><target>Agent without a bridge</target></trans-unit>
             <trans-unit id="inbox.presence.label.closed"><source>inbox.presence.label.closed</source><target>Agent session</target></trans-unit>
-            <trans-unit id="inbox.item.number">
-                <source>inbox.item.number</source>
-                <target>item %number%</target>
-            </trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>
                 <target>Question</target>
@@ -5299,7 +5295,7 @@
             </trans-unit>
             <trans-unit id="inbox.answer.clear">
                 <source>inbox.answer.clear</source>
-                <target>Clear the option</target>
+                <target>Clear choice</target>
             </trans-unit>
             <trans-unit id="inbox.answer.submit">
                 <source>inbox.answer.submit</source>
@@ -5351,7 +5347,7 @@
             </trans-unit>
             <trans-unit id="inbox.decline.submit">
                 <source>inbox.decline.submit</source>
-                <target>Close this item</target>
+                <target>Decline</target>
             </trans-unit>
             <trans-unit id="inbox.flash.answered">
                 <source>inbox.flash.answered</source>
@@ -6910,7 +6906,7 @@
             <trans-unit id="bridge.worker_runs.worker_pool_label"><source>bridge.worker_runs.worker_pool_label</source><target>%pool% pool</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.duration"><source>bridge.worker_runs.column.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.started"><source>bridge.worker_runs.column.started</source><target>Started</target></trans-unit>
-            <trans-unit id="inbox.answer.placeholder"><source>inbox.answer.placeholder</source><target>Add a detail or write a different answer…</target></trans-unit>
+            <trans-unit id="inbox.answer.placeholder"><source>inbox.answer.placeholder</source><target>Note for the agent (optional)</target></trans-unit>
             <trans-unit id="inbox.view.label"><source>inbox.view.label</source><target>Ask list</target></trans-unit>
             <trans-unit id="inbox.view.open"><source>inbox.view.open</source><target>Open · %count%</target></trans-unit>
             <trans-unit id="inbox.view.closed"><source>inbox.view.closed</source><target>Closed</target></trans-unit>
@@ -6934,15 +6930,18 @@
             <trans-unit id="inbox.row.outcome.declined"><source>inbox.row.outcome.declined</source><target>Declined</target></trans-unit>
             <trans-unit id="inbox.row.outcome.withdrawn"><source>inbox.row.outcome.withdrawn</source><target>Withdrawn</target></trans-unit>
             <trans-unit id="inbox.row.outcome.obsolete"><source>inbox.row.outcome.obsolete</source><target>No longer needed</target></trans-unit>
+            <trans-unit id="inbox.answer.legend"><source>inbox.answer.legend</source><target>Your answer</target></trans-unit>
+            <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
+            <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
+            <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
+            <trans-unit id="inbox.ask.items"><source>inbox.ask.items</source><target>%count% items</target></trans-unit>
+            <trans-unit id="inbox.linked.panel"><source>inbox.linked.panel</source><target>Linked</target></trans-unit>
             <trans-unit id="inbox.pane.back"><source>inbox.pane.back</source><target>All asks</target></trans-unit>
             <trans-unit id="inbox.pane.missing"><source>inbox.pane.missing</source><target>This ask does not exist. Pick one from the list.</target></trans-unit>
             <trans-unit id="inbox.closed.empty"><source>inbox.closed.empty</source><target>No ask is closed yet.</target></trans-unit>
             <trans-unit id="inbox.empty.title"><source>inbox.empty.title</source><target>Nothing needs you</target></trans-unit>
             <trans-unit id="inbox.empty.body"><source>inbox.empty.body</source><target>Agents ask you here when they need a decision, a review or a to-do.</target></trans-unit>
             <trans-unit id="inbox.empty.closed_link"><source>inbox.empty.closed_link</source><target>See the closed asks</target></trans-unit>
-            <trans-unit id="inbox.source.agent"><source>inbox.source.agent</source><target>Agent request</target></trans-unit>
-            <trans-unit id="inbox.source.loupe"><source>inbox.source.loupe</source><target>Loupe</target></trans-unit>
-            <trans-unit id="inbox.linked_items.title"><source>inbox.linked_items.title</source><target>Linked items</target></trans-unit>
             <trans-unit id="inbox.linked_items.item"><source>inbox.linked_items.item</source><target>Item</target></trans-unit>
             <trans-unit id="inbox.linked_items.status"><source>inbox.linked_items.status</source><target>Status</target></trans-unit>
             <trans-unit id="inbox.linked_items.open"><source>inbox.linked_items.open</source><target>Open</target></trans-unit>

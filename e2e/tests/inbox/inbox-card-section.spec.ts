@@ -530,14 +530,14 @@ for (const surface of ['page', 'drawer']) {
 
         await question.getByText('CSV', { exact: true }).click();
         await question
-            .getByLabel('Your answer')
+            .getByLabel('Note for the agent')
             .fill('The importer reads CSV.');
         if (surface === 'drawer') {
             await drawer.getByRole('link', { name: 'Close card' }).click();
             await expect(drawer).toBeHidden();
             await page.getByRole('link', { name: /Ship the export/ }).click();
             await drawer.getByRole('tab', { name: 'Conversation' }).click();
-            await expect(question.getByLabel('Your answer')).toHaveValue(
+            await expect(question.getByLabel('Note for the agent')).toHaveValue(
                 'The importer reads CSV.',
             );
             await expect(
@@ -575,19 +575,21 @@ for (const surface of ['page', 'drawer']) {
         );
         // Decline carries whatever stands in the item's own answer field.
         await question
-            .getByLabel('Your answer')
+            .getByLabel('Note for the agent')
             .fill('Wait for the new importer.');
         if (surface === 'drawer') {
             await drawer.getByRole('link', { name: 'Close card' }).click();
             await expect(drawer).toBeHidden();
             await page.getByRole('link', { name: /Ship the export/ }).click();
             await drawer.getByRole('tab', { name: 'Conversation' }).click();
-            await expect(question.getByLabel('Your answer')).toBeVisible();
-            await expect(question.getByLabel('Your answer')).toHaveValue(
+            await expect(
+                question.getByLabel('Note for the agent'),
+            ).toBeVisible();
+            await expect(question.getByLabel('Note for the agent')).toHaveValue(
                 'Wait for the new importer.',
             );
         }
-        await question.getByRole('button', { name: 'Close this item' }).click();
+        await question.getByRole('button', { name: 'Decline' }).click();
         await expect(page.locator('.lp-flash')).toContainText(
             `Item ${questionNumber} is closed.`,
         );

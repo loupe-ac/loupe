@@ -96,14 +96,27 @@ to-do, card wait and workflow question. Hover over an icon to read its name. A
 filter keeps an ask when any of its items has that type.
 
 Select a row to read its ask on the right. The ask takes its heading from its
-first item. The agent's note follows, then the items. An ask with one item
-shows that title once. The document or pull request that a review item names is
-a row of the item's linked items, with the version under review. Replies under
-an item show each author's initial, name and time.
+first item. A grey line under the heading shows the type icon, the type and the
+age of the ask, such as **Question · 3 weeks ago**. A closed ask also shows when
+it closed.
 
-The agent's avatar carries a dot for its bridge: green while the bridge sends
-heartbeats, amber when it is quiet, and grey when no bridge started the
-session. Hover over or focus the avatar to read the details and the session id.
+A bold **From the agent** heading opens the message of the ask. An ask that
+Loupe opened, such as a card wait or a workflow question, says **From Loupe**.
+The items follow the message. An ask with one item shows that title once. An
+ask with two or more items gives each item its own section, with a number, its
+title and its type. Replies under an item show each author's initial, name and
+time.
+
+The agent's avatar beside **From the agent** carries a dot for its bridge:
+green while the bridge sends heartbeats, amber when it is quiet, and grey when
+no bridge started the session. Hover over or focus the avatar to read the
+details and the session id.
+
+A **Linked** panel sits beside the ask, or under it on a narrow screen. The
+panel shows each card, document and pull request that the ask links, once, on
+one line with its type icon. A review shows the version under review on the
+document line. Select a line to open the card, the document or the pull
+request.
 
 When no ask is open, the **Open** side shows **Nothing needs you**, a line on
 what agents ask here, and a link to the closed asks.
@@ -151,13 +164,21 @@ interval. See [Bridge heartbeat API](../reference/bridge-heartbeat.md).
 
 Every item that takes a response shows its forms under its text.
 
-- **Answer a question.** Pick an option, write an answer, or do both, as the
-  question allows. Then select **Send answer**. The page needs JavaScript to
-  send the options you pick.
+- **Answer a question.** The **Your answer** block lists the options, and says
+  whether you pick one or any. A hovered option turns grey, and a picked option
+  turns pale lime. Pick an option, write a note for the agent, or do both, as
+  the question allows. Then select **Send answer**. Select **Clear choice** at
+  the right of the block heading to remove your pick. The page needs JavaScript
+  to send the options you pick.
 - **Mark a to-do done.** Select **Mark complete**.
-- **Close an item.** Write an optional note for the agent in the answer field,
-  then select **Close this item**. Close any item that you cannot or will not
-  answer, including a question whose options do not fit.
+- **Decline an item.** Write an optional note for the agent in the note field,
+  then select **Decline**. Decline any item that you cannot or will not answer,
+  including a question whose options do not fit. A workflow question has no
+  **Decline**, because Loupe needs one of its options.
+
+The buttons sit at the right of the item, with the main button last. Only the
+project owner sees them. Another member who can see the project reads the ask
+and sees no buttons.
 
 The item then shows your response and its new state: answered, done or
 closed.
@@ -192,7 +213,7 @@ behind it finishes. Such an item takes no response from you.
 
 ## Review requests
 
-Open the linked document or pull request before choosing **Approve** or **Request changes**.
+Open the linked document or pull request before choosing **Approve** or **Request changes** in the **Your verdict** block.
 In a document review, Request changes needs a note only when the version has no open comment.
 A pull request review always needs a note that explains what to change.
 Select **Submit review** in the inbox, or on the card that links the request.
@@ -432,10 +453,10 @@ review**, or **Cards #N and #M wait on this review** for two or more cards. The
 item is absent while the flag is off, and when no card waits on the document.
 Answer the item in the inbox.
 
-The project inbox lists linked cards, documents, and the pull requests attached to those cards.
-Each pull request URL appears once per item, even when several linked cards share it.
-Web links open on the code host. Their status reads **Not reported** because Loupe does not fetch code-host status.
-Other stored addresses read **Unavailable**, with an explanation and no open action.
+The **Linked** panel of the project inbox lists linked cards, documents, and the pull requests attached to those cards.
+Each card, document and pull request URL appears once per ask, even when several items or cards share it.
+Web links open on the code host. Loupe does not fetch code-host status.
+Other stored addresses show a note that they are not web addresses, and have no link.
 
 A card link opens **Conversation** at the matching inbox item.
 If that item falls outside the ten newest closed items, it replaces the oldest item in that list.
