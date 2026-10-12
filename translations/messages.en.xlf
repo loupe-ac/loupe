@@ -5070,6 +5070,10 @@
                 <source>landing.footer.source_label</source>
                 <target>Source code on GitHub</target>
             </trans-unit>
+            <trans-unit id="landing.footer.x_label">
+                <source>landing.footer.x_label</source>
+                <target>Loupe on X</target>
+            </trans-unit>
             <trans-unit id="landing.footer.product">
                 <source>landing.footer.product</source>
                 <target>Product</target>

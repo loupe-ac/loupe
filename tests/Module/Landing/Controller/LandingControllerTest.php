@@ -58,6 +58,18 @@ final class LandingControllerTest extends WebTestCase
         }
     }
 
+    public function test_home_page_footer_links_to_the_loupe_x_account_and_not_to_bluesky(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home-footer a[href="https://x.com/loupehq"]');
+        self::assertSelectorNotExists('.lp-home-footer a[href*="x.com/ubermuda"]');
+        self::assertSelectorNotExists('.lp-home-footer a[href*="bsky.app"]');
+    }
+
     public function test_home_page_notify_form_posts_the_picks_to_the_waitlist(): void
     {
         $client = static::createClient();
