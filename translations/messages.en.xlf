@@ -6827,6 +6827,8 @@
             <trans-unit id="board.card_state.remedy.work_requested"><source>board.card_state.remedy.work_requested</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.forge_request_pending"><source>board.card_state.remedy.forge_request_pending</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.held_by_blocker"><source>board.card_state.remedy.held_by_blocker</source><target>Finish the blocking card, or remove the block.</target></trans-unit>
+            <trans-unit id="board.card_state.remedy.waits_for_parent_card"><source>board.card_state.remedy.waits_for_parent_card</source><target>Nothing. When the parent pull request merges, Loupe moves this one onto its target branch.</target></trans-unit>
+            <trans-unit id="board.card_state.remedy.waits_for_parent_branch"><source>board.card_state.remedy.waits_for_parent_branch</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
             <trans-unit id="board.card_state.others"><source>board.card_state.others</source><target>Also applies</target></trans-unit>
             <trans-unit id="board.card_state.stuck"><source>board.card_state.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="board.card_state.needs_you"><source>board.card_state.needs_you</source><target>Needs you</target></trans-unit>
@@ -6845,6 +6847,8 @@
             <trans-unit id="board.card_state.reason.run_open"><source>board.card_state.reason.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="board.card_state.reason.forge_request_pending"><source>board.card_state.reason.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
             <trans-unit id="board.card_state.reason.held_by_blocker"><source>board.card_state.reason.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>
+            <trans-unit id="board.card_state.reason.waits_for_parent_card"><source>board.card_state.reason.waits_for_parent_card</source><target>Waits for card #%parent_number% (pull request #%pull_request%) to merge, before pull request #%number% can merge.</target></trans-unit>
+            <trans-unit id="board.card_state.reason.waits_for_parent_branch"><source>board.card_state.reason.waits_for_parent_branch</source><target>Pull request #%number% waits for branch %branch% to merge.</target></trans-unit>
             <trans-unit id="board.card_state.open_card"><source>board.card_state.open_card</source><target>Open card</target></trans-unit>
             <trans-unit id="board.card.badge.unmanaged"><source>board.card.badge.unmanaged</source><target>Unmanaged</target></trans-unit>
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>

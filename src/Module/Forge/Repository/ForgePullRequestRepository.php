@@ -177,6 +177,34 @@ final class ForgePullRequestRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @param list<array{forge: string, repository: string, headBranch: string}> $keys
+     *
+     * @return list<ForgePullRequest> every row of the project whose head is one of the branches, in number order
+     */
+    public function findByHeadBranches(Uuid $projectId, array $keys): array
+    {
+        if ([] === $keys) {
+            return [];
+        }
+        $query = $this->createQueryBuilder('pr')
+            ->andWhere('pr.project = :project')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->orderBy('pr.number', 'ASC');
+        $any = $query->expr()->orX();
+        foreach (array_values($keys) as $i => $key) {
+            $any->add("pr.forge = :forge$i AND pr.repository = :repository$i AND pr.headBranch = :headBranch$i");
+            $query->setParameter("forge$i", $key['forge'])
+                ->setParameter("repository$i", mb_strtolower($key['repository']))
+                ->setParameter("headBranch$i", $key['headBranch']);
+        }
+
+        /** @var list<ForgePullRequest> $rows */
+        $rows = $query->andWhere($any)->getQuery()->getResult();
+
+        return $rows;
+    }
+
     /** Re-reads a row this entity manager already holds, so the lock never guards stale fields. */
     public function findForUpdate(Uuid $id): ?ForgePullRequest
     {

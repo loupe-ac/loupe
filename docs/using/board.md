@@ -192,7 +192,7 @@ is in a state. The mark says what the card needs now:
 | **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result, a pull request has failed checks or a conflict and no fix is under way, a pull request has been ready to merge for longer than the stuck delay and no merge rule matches it, or an open pull request in Implementation or In review has had no card history for longer than the stuck delay and no other reason applies. A pull request that waits for its parent, or whose checks still run, never shows this. The remedy is to read the card history |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
 | **Working** | Work waits for a bridge to take it, a worker runs on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
-| **Waiting** | A card that blocks this card is still open |
+| **Waiting** | A card that blocks this card is still open, or a pull request that is ready to merge is stacked on another pull request and waits for it to merge. The tile names that card, or the branch when no card owns it |
 
 When several states apply, the tile shows the first in the order **Stuck**,
 **Needs you**, **Working**, **Waiting**. Hover the mark, or focus it, to read
@@ -975,7 +975,8 @@ in a terminal column. Otherwise it holds `kind` (`stuck`, `needs-you`, `working`
 or `waiting`), `code`, and `since`. `code` names the reason, such as `paused`,
 `run-stopped`, `checks-failed`, `conflicting`, `ready-not-merged`,
 `pull-request-idle`, `document-in-review`, `waits-for-approval`, `open-question`, `run-open`,
-`work-requested`, `forge-request-pending` or `held-by-blocker`. `since` is the
+`work-requested`, `forge-request-pending`, `held-by-blocker`, `waits-for-parent-card` or
+`waits-for-parent-branch`. `since` is the
 time that reason began, or null when Loupe stores none. `card_get`,
 `card_list` with `full`, `card_create`, `card_update` and `card_run_open` also
 return `reason`, one sentence in English, and `others`, the other reasons that
