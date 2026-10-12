@@ -26,6 +26,10 @@ rules:
       when: { agent_review.unposted: {} }
       then: { forge-write: { write: agent-review-check } }
 
+    - id: comment-agent-review
+      when: { agent_review.uncommented: {} }
+      then: { forge-write: { write: comment, comment: agent-review } }
+
 # Work the app asks a bridge for outside the engine. Each entry ships a prompt.
 requests:
     - id: insights.analysis

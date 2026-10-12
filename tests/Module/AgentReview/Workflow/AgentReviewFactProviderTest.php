@@ -6,17 +6,20 @@ namespace App\Tests\Module\AgentReview\Workflow;
 
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
+use App\Module\AgentReview\Service\AgentReviewNoticeBody;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewOverridden;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewPassed;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewUncommented;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewUnposted;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
+use App\Module\Board\Entity\PullRequestNotice;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
@@ -65,7 +68,7 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         $card = $this->card($this->project);
         $this->em->flush();
 
-        self::assertEquals(new AgentReviewFacts([], false, false), $this->build($card));
+        self::assertEquals(new AgentReviewFacts([], false, false, []), $this->build($card));
     }
 
     public function test_an_open_pull_request_head_without_a_review_has_no_conclusion(): void
@@ -255,6 +258,90 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         return FactsMother::facts(
             pullRequest: FactsMother::pullRequest(id: $pullRequest->id ?? throw new \LogicException('The pull request is flushed.')),
             provided: [AgentReviewFacts::class => $this->build($card)],
+        );
+    }
+
+    public function test_a_review_with_findings_whose_own_check_landed_in_the_hour_needs_a_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $review = $this->review($card, $pullRequest, new \DateTimeImmutable('-10 minutes'));
+
+        $facts = $this->build($card);
+
+        self::assertSame([(string) $review->id], $facts->uncommented);
+        self::assertTrue(new AgentReviewUncommented()->evaluate($this->factsOf($pullRequest, $facts), []));
+    }
+
+    public function test_a_clean_review_needs_no_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Clean.', AgentReviewConclusion::Success, []);
+        $review->postedAt = new \DateTimeImmutable();
+        $this->em->persist($review);
+
+        self::assertSame([], $this->build($card)->uncommented);
+    }
+
+    public function test_a_review_with_no_check_of_its_own_needs_no_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+
+        self::assertSame([], $this->build($card)->uncommented);
+    }
+
+    public function test_a_review_whose_check_is_older_than_an_hour_needs_no_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest, new \DateTimeImmutable('-61 minutes'));
+
+        self::assertSame([], $this->build($card)->uncommented);
+    }
+
+    public function test_a_review_that_has_its_notice_needs_no_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $review = $this->review($card, $pullRequest, new \DateTimeImmutable());
+        $this->em->flush();
+        $this->em->persist(new PullRequestNotice($this->project, $pullRequest->id ?? throw new \LogicException('Flushed.'), 'github', $pullRequest->repository, $pullRequest->number, AgentReviewNoticeBody::key($review->id ?? throw new \LogicException('Flushed.')), new \DateTimeImmutable()));
+
+        self::assertSame([], $this->build($card)->uncommented);
+    }
+
+    public function test_only_the_newest_review_of_a_head_counts_and_a_carried_review_counts_under_its_own_id(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $older = $this->review($card, $pullRequest, new \DateTimeImmutable('-20 minutes'));
+        $newer = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Newer.', AgentReviewConclusion::Failure, $older->findings(), createdAt: new \DateTimeImmutable('+1 minute'));
+        $newer->postedAt = new \DateTimeImmutable('-5 minutes');
+        $this->em->persist($newer);
+
+        self::assertSame([(string) $newer->id], $this->build($card)->uncommented);
+    }
+
+    public function test_the_fingerprint_changes_when_a_review_needs_a_comment(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $review = $this->review($card, $pullRequest);
+        $before = $this->fingerprint($card);
+
+        $review->postedAt = new \DateTimeImmutable();
+
+        self::assertNotEquals($before, $this->fingerprint($card));
+    }
+
+    private function factsOf(ForgePullRequest $pullRequest, AgentReviewFacts $facts): Facts
+    {
+        return FactsMother::facts(
+            pullRequest: FactsMother::pullRequest(id: $pullRequest->id ?? throw new \LogicException('The pull request is flushed.')),
+            provided: [AgentReviewFacts::class => $facts],
         );
     }
 

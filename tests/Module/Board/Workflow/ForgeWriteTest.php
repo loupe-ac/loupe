@@ -6,6 +6,8 @@ namespace App\Tests\Module\Board\Workflow;
 
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
+use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\AgentReview\Service\AgentReviewAnnotations;
 use App\Module\AgentReview\Service\AgentReviewCheckPublisher;
 use App\Module\AgentReview\Service\AgentReviewPosts;
@@ -24,6 +26,7 @@ use App\Module\Board\Repository\CardVerdictDeliveryRepository;
 use App\Module\Board\Repository\PullRequestCommentRepository;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
 use App\Module\Board\Repository\SiteReviewCheckStateRepository;
+use App\Module\Board\Service\AgentReviewComment;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Board\Service\FixRunCommentQueue;
 use App\Module\Board\Service\SiteReviewCheckPublisher;
@@ -430,6 +433,40 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertEquals([new EvaluateCard((string) $card->id)], $this->queuedEvaluations());
     }
 
+    public function test_an_agent_review_comment_queues_the_notice_and_a_fresh_evaluation_of_the_card(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', AgentReviewConclusion::Failure, [new AgentReviewFinding('src/A.php', 1, 2, AgentReviewSeverity::Important, 'Null read', 'Body.')]);
+        $review->postedAt = new \DateTimeImmutable();
+        $this->em()->persist($review);
+        $this->em()->flush();
+        $this->transport()->reset();
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'comment', fallback: null, comment: 'agent-review'));
+
+        $notices = $this->service(PullRequestNoticeRepository::class)->findBy(['forgePullRequestId' => $pullRequest->id]);
+        self::assertCount(1, $notices);
+        self::assertSame('agent-review:'.$review->id, $notices[0]->noticeKey);
+        self::assertEquals([new EvaluateCard((string) $card->id)], $this->queuedEvaluations());
+    }
+
+    public function test_a_failing_agent_review_comment_queue_is_logged_and_done(): void
+    {
+        $card = $this->card($this->project(), 'in-review');
+        $queue = $this->createStub(AgentReviewComment::class);
+        $queue->method('queue')->willThrowException(new \RuntimeException('queue down'));
+        $logger = new RecordingLogger();
+        $this->transport()->reset();
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'comment', fallback: null, comment: 'agent-review', logger: $logger, agentReviewComments: $queue));
+
+        self::assertCount(1, $logger->records);
+        self::assertSame('agent_review.comment_queue_failed', $logger->records[0]['message']);
+        self::assertSame('agent-review', $logger->records[0]['context']['comment']);
+        self::assertSame([], $this->queuedEvaluations());
+    }
+
     public function test_a_failing_comment_queue_is_logged_and_done_and_leaves_the_evaluation_usable(): void
     {
         $card = $this->card($this->project(), 'in-review');
@@ -478,6 +515,7 @@ final class ForgeWriteTest extends KernelTestCase
 
         self::assertEquals(ActionOutcome::done(), $this->write($card, 'comment', fallback: null, comment: 'fix-run'));
         self::assertEquals(ActionOutcome::done(), $this->write($card, 'comment', fallback: null, comment: 'stale-approval'));
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'comment', fallback: null, comment: 'agent-review'));
 
         self::assertSame([], $this->queuedEvaluations());
     }
@@ -776,7 +814,7 @@ final class ForgeWriteTest extends KernelTestCase
         return $project;
     }
 
-    private function write(Card $card, string $write, ?string $fallback = 'fallback', bool $writers = true, ?Facts $facts = null, ?string $comment = null, ?FixRunCommentQueue $fixRunComments = null, ?RecordingLogger $logger = null): ActionOutcome
+    private function write(Card $card, string $write, ?string $fallback = 'fallback', bool $writers = true, ?Facts $facts = null, ?string $comment = null, ?FixRunCommentQueue $fixRunComments = null, ?RecordingLogger $logger = null, ?AgentReviewComment $agentReviewComments = null): ActionOutcome
     {
         $registered = $writers ? [$this->writer] : [];
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
@@ -828,6 +866,7 @@ final class ForgeWriteTest extends KernelTestCase
             ),
             $fixRunComments ?? $this->service(FixRunCommentQueue::class),
             $this->service(StaleApprovalNoticeQueue::class),
+            $agentReviewComments ?? $this->service(AgentReviewComment::class),
             $this->service(EvaluationTrigger::class),
             new ShippedCardTypes(),
             $logger ?? new RecordingLogger(),
