@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
 )
 
 func write(t *testing.T, path, body string) {
@@ -125,5 +128,136 @@ func TestADirectLinkIsRefused(t *testing.T) {
 		if _, err := collectArtifactFiles(link); err == nil || !strings.Contains(err.Error(), "not a regular file") {
 			t.Fatalf("%s: err = %v", target, err)
 		}
+	}
+}
+
+const canvasPage = "<html><head></head><body>\n<x-dc>\n<p>{{ title }}</p>\n</x-dc>\n" +
+	"<script type=\"text/x-dc\" data-dc-script>\nclass Component extends DCLogic { renderVals() { return { title: 'Hi' }; } }\n</script>\n</body></html>"
+
+func runArtifact(t *testing.T, args ...string) (stdout string, err error) {
+	t.Helper()
+	root := newRootCmd()
+	var buf strings.Builder
+	root.SetOut(&buf)
+	root.SetArgs(append([]string{"artifact", "push"}, args...))
+	err = root.Execute()
+
+	return buf.String(), err
+}
+
+func TestOutWritesTheCompiledPageAndStoresNothing(t *testing.T) {
+	src, out := t.TempDir(), filepath.Join(t.TempDir(), "out")
+	write(t, filepath.Join(src, "Main.dc.html"), canvasPage)
+	write(t, filepath.Join(src, "support.js"), "x")
+	write(t, filepath.Join(src, "img", "a.png"), "png")
+
+	stdout, err := runArtifact(t, src, "--out", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := os.ReadFile(filepath.Join(out, "index.html"))
+	if err != nil || !strings.Contains(string(page), "<p>Hi</p>") {
+		t.Fatalf("page = %s, err = %v", page, err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "img", "a.png")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "support.js")); err == nil {
+		t.Fatal("support.js was written")
+	}
+	if !strings.Contains(stdout, "Nothing is stored") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestOutWithAGapWritesMarkersAndFails(t *testing.T) {
+	src, out := t.TempDir(), filepath.Join(t.TempDir(), "out")
+	write(t, filepath.Join(src, "Main.dc.html"), "<html><body>\n<x-dc>\n<button onClick=\"{{ go }}\">x</button>\n</x-dc>\n</body></html>")
+
+	_, err := runArtifact(t, src, "--out", out)
+	if err == nil || !strings.Contains(err.Error(), "1 gap marked") {
+		t.Fatalf("err = %v", err)
+	}
+	page, _ := os.ReadFile(filepath.Join(out, "index.html"))
+	if !strings.Contains(string(page), "<!-- loupe:gap event attribute onclick") {
+		t.Fatalf("page = %s", page)
+	}
+}
+
+func TestOutRefusesAFolderThatIsNotEmpty(t *testing.T) {
+	src, out := t.TempDir(), t.TempDir()
+	write(t, filepath.Join(src, "Main.dc.html"), canvasPage)
+	write(t, filepath.Join(out, "keep.txt"), "x")
+
+	if _, err := runArtifact(t, src, "--out", out); err == nil || !strings.Contains(err.Error(), "not empty") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestOutWritesNothingOutsideItsFolder(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out")
+	for _, p := range []string{"../evil.html", "/abs.html", "a/../../evil.html"} {
+		cmd := newArtifactPushCmd()
+		err := writeCompiled(cmd, out, artifactcompile.Result{Files: []api.ArtifactFile{{Path: p}}})
+		if err == nil || !strings.Contains(err.Error(), "outside") {
+			t.Fatalf("%s: err = %v", p, err)
+		}
+	}
+	if _, err := os.Stat(out); err == nil {
+		t.Fatal("the folder was created")
+	}
+}
+
+func TestAGapWithoutOutStoresNothingAndNamesEachGap(t *testing.T) {
+	gaps := []artifactcompile.Gap{
+		{File: "Main.dc.html", Line: 12, Feature: "event attribute onclick"},
+		{File: "Main.dc.html", Line: 30, Feature: "<sc-else>"},
+	}
+	lines := strings.Split(gapError(gaps).Error(), "\n")
+	if len(lines) != 2 || lines[0] != "cannot compile Main.dc.html, line 12: event attribute onclick is not supported. Run again with --out <folder> to get the pages with each gap marked." {
+		t.Fatalf("lines = %q", lines)
+	}
+}
+
+func TestACanvasWithAGapNeedsNoRemoteToBeRefused(t *testing.T) {
+	src := t.TempDir()
+	write(t, filepath.Join(src, "Main.dc.html"), "<html><body>\n<x-dc>\n<sc-else></sc-else>\n</x-dc>\n</body></html>")
+	t.Setenv("HOME", t.TempDir())
+
+	_, err := runArtifact(t, src, "--name", "N")
+	if err == nil || !strings.Contains(err.Error(), "cannot compile Main.dc.html, line 3: <sc-else> is not supported. Run again with --out <folder>") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestAPlainFolderPassesOutUnchanged(t *testing.T) {
+	src, out := t.TempDir(), filepath.Join(t.TempDir(), "out")
+	write(t, filepath.Join(src, "index.html"), "<h1>{{ not a canvas }}</h1>")
+
+	if _, err := runArtifact(t, src, "--out", out); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(filepath.Join(out, "index.html"))
+	if string(got) != "<h1>{{ not a canvas }}</h1>" {
+		t.Fatalf("got = %s", got)
+	}
+}
+
+func TestAPlainFolderWithAGapMarkerIsRefused(t *testing.T) {
+	src := t.TempDir()
+	write(t, filepath.Join(src, "index.html"), "<!-- loupe:gap event attribute onclick: x -->")
+	write(t, filepath.Join(src, "pic.png"), "\x00loupe:gap")
+	t.Setenv("HOME", t.TempDir())
+
+	_, err := runArtifact(t, src, "--name", "N")
+	if err == nil || !strings.Contains(err.Error(), "index.html still holds a loupe:gap comment") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestABinaryFileWithMarkerTextIsNotAGapMarker(t *testing.T) {
+	files := []api.ArtifactFile{{Path: "pic.png", Contents: []byte("\x00loupe:gap")}}
+	if got := fileWithGapMarker(files); got != "" {
+		t.Fatalf("got = %q", got)
 	}
 }

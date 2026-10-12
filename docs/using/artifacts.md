@@ -81,6 +81,7 @@ loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337 -
 | `--card` | Link the artifact to a card, by its number or its id |
 | `--source-link` | Where the files came from, such as a design canvas link |
 | `--notes` | What changed in this version |
+| `--out` | Write the compiled files to an empty or new folder, and store nothing. See "Pushing a Claude Design canvas". |
 | `--project` | The project id. Without it the command reads `.loupe.yaml`, then the one project your login covers. |
 
 Pass `--name` or `--artifact`, never both. A file is stored under its base name.
@@ -92,6 +93,47 @@ The command sends the id of the session that runs it, read from
 `LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or `CODEX_THREAD_ID`. A worker run
 cannot store, so run the command from an interactive session. It prints the
 artifact id, the version number, the stable link and the link of that version.
+
+## Pushing a Claude Design canvas
+
+A Claude Design canvas, a `.dc.html` file, shows as a broken page outside
+Claude Design. When the pushed folder holds a canvas, the command compiles it
+to a plain page before it stores anything. It runs the script of the canvas on
+your machine, so you install nothing. The folder then holds no canvas file and
+no `support.js`, and the artifact holds the compiled page.
+
+One canvas becomes `index.html`. A link to another canvas, such as
+`href="Pricing.dc.html"`, becomes `href="Pricing.html"`. Other files of the
+folder go through unchanged.
+
+The compiler stops at what it cannot compile. It stores nothing and prints one
+line for each gap:
+
+```text
+cannot compile Main.dc.html, line 148: event attribute onclick is not supported. Run again with --out <folder> to get the pages with each gap marked.
+```
+
+These are gaps today:
+
+- An event attribute, such as `onClick` or `onChange`.
+- An embedded artboard, which is any `<dc-...>` tag.
+- A `<sc-else>` tag.
+- A `/_blob/` path.
+- More than one canvas file in the folder.
+- A hole that is not a plain path, such as `{{ a + b }}`.
+- Canvas text left in the compiled page.
+
+Run the command again with `--out <folder>` to see the pages. It writes the
+compiled files to the folder and stores nothing. The folder must be empty or
+new. Each gap has a comment, `<!-- loupe:gap <feature>: <detail> -->`, before
+the markup it covers. The command exits with an error when a gap exists, even
+though it wrote the files. Finish each gap by hand, remove its comment, and push
+the folder. A folder with no canvas that still holds `loupe:gap` in a text file
+is refused.
+
+Two things come later: the `--index` flag, which names the first page of
+several canvases, and a folder with several canvases. A folder with several
+canvases writes one page for each, and marks the folder as a gap.
 
 ## The library
 
