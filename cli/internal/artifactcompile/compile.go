@@ -10,7 +10,8 @@ type Compiler interface {
 	Compile(files []api.ArtifactFile, opts Options) (Result, error)
 }
 
-// Options carries the choices of the caller. B3 will use Index.
+// Options carries the choices of the caller. Index names the artboard that
+// becomes index.html.
 type Options struct{ Index string }
 
 // Gap is one thing a compiler cannot compile. Line is a line of File.
