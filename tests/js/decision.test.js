@@ -137,11 +137,13 @@ const streamed = {
 };
 
 function finish(detail = { success: true, fetchResponse: streamed }) {
-    document
-        .querySelector('form')
-        .dispatchEvent(
-            new CustomEvent('turbo:submit-end', { bubbles: true, detail }),
-        );
+    const formElement = document.querySelector('form');
+    formElement.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            bubbles: true,
+            detail: { formSubmission: { formElement }, ...detail },
+        }),
+    );
 }
 
 function check(id, index) {
@@ -1161,4 +1163,104 @@ it('settles the promise of a read that answers after it disconnects', async () =
     await vi.advanceTimersByTimeAsync(0);
     expect(renderStreamMessage).not.toHaveBeenCalled();
     expect(result.settled).toBe(true);
+});
+
+const leave = async () => {
+    document.body.replaceChildren();
+    await vi.advanceTimersByTimeAsync(0);
+};
+
+const saves = () => fetch.mock.calls.filter(([url]) => url !== SUMMARY);
+
+const savedBody = ([, init]) => ({
+    decisionId: init.body.get('f[decisionId]'),
+    note: init.body.get('f[note]'),
+    indexes: init.body.getAll('f[optionIndexes][0]'),
+});
+
+it('sends a waiting note when the page goes away', async () => {
+    await mount();
+    type('a', 'Late note');
+    await vi.advanceTimersByTimeAsync(300);
+    await leave();
+
+    expect(saves()).toHaveLength(1);
+    const [, init] = saves()[0];
+    expect(savedBody(saves()[0])).toMatchObject({
+        decisionId: 'a',
+        note: 'Late note',
+    });
+    expect(init).toMatchObject({
+        method: 'POST',
+        keepalive: true,
+        credentials: 'same-origin',
+    });
+    expect(init.headers.Accept).toContain('turbo-stream');
+    expect(sent).toHaveLength(0);
+});
+
+it('sends a queued pick behind a running save, after it ends', async () => {
+    await mount();
+    check('a', 0);
+    check('b', 1);
+    await leave();
+
+    expect(sent).toHaveLength(1);
+    expect(savedBody(saves()[0])).toMatchObject({
+        decisionId: 'b',
+        indexes: ['1'],
+    });
+});
+
+it('waits for a running save of the same decision, then sends it', async () => {
+    await mount();
+    const formElement = document.querySelector('form');
+    check('a', 0);
+    check('a', 1);
+    await leave();
+    expect(saves()).toHaveLength(0);
+
+    formElement.dispatchEvent(
+        new CustomEvent('turbo:submit-end', {
+            detail: { formSubmission: { formElement } },
+        }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(saves()).toHaveLength(1);
+    expect(savedBody(saves()[0])).toMatchObject({
+        decisionId: 'a',
+        indexes: ['0'],
+    });
+    expect(saves()[0][1].body.getAll('f[optionIndexes][1]')).toEqual(['1']);
+});
+
+it('releases a stuck running save after the time limit', async () => {
+    await mount();
+    check('a', 0);
+    check('a', 1);
+    await leave();
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(saves()).toHaveLength(1);
+});
+
+it('sends nothing on disconnect when no save waits', async () => {
+    await mount();
+    await leave();
+
+    expect(saves()).toHaveLength(0);
+});
+
+it('repeats the CSRF steps of a form submit', async () => {
+    await mount();
+    const field = document.createElement('input');
+    field.name = '_csrf_token';
+    field.setAttribute('value', 'csrf-token-name');
+    document.querySelector('form').append(field);
+    type('a', 'Late note');
+    await leave();
+
+    const [, init] = saves()[0];
+    expect(init.body.get('_csrf_token')).toMatch(/^[-_/+a-zA-Z0-9]{24,}$/);
+    expect(Object.values(init.headers)).toContain(init.body.get('_csrf_token'));
 });

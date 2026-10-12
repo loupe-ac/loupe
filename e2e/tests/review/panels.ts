@@ -27,7 +27,7 @@ export async function toggleOn(
         await expect(toggle).toHaveAttribute(attribute, 'true', {
             timeout: 1000,
         });
-    }).toPass();
+    }).toPass({ timeout: 10_000 });
 }
 
 /** Switches a review panel on, unless it is on already. */

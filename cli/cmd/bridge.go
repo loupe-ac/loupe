@@ -247,6 +247,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return err
 	}
+	outboxDir, err := outboxPath(path)
+	if err != nil {
+		return err
+	}
 
 	// A failing account turns off its entries, and never stops the start.
 	accounts := checkAccounts(cmd.Context(), set)
@@ -262,6 +266,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		hookRunner: newHookRunner(hookList, bridgeID, bl.log),
 		claude:     claude,
 		cursorFile: cursorFile,
+		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
 		pushLogin:  checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log),
 	}
@@ -414,6 +419,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	queue := outbound.New(ctx, r.log)
 	r.reports = queue
 	r.runs = newRunReports(apiClient(cfg), r.log)
+	if r.outboxDir != "" {
+		r.runs.outbox = &outbox{dir: r.outboxDir, baseURL: cfg.BaseURL, bridgeID: r.bridgeID}
+	}
 	defer queue.Close()
 
 	set := r.rules()

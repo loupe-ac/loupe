@@ -339,6 +339,7 @@ A click on an option saves it at once. Each block also has a note field. Use it
 to explain your choice, or to write your own answer with no option picked. The
 **Decisions** panel counts a note with no pick as an answer. The
 note saves 800 ms after you stop typing, and again when you leave the field.
+A save that still waits goes out when you press Back or Forward.
 **Clear choice** sits at the top right of the block, beside the "Pick one" or
 "Pick any" chip. It removes the pick and keeps the note. A flash above the document shows "Saved." or
 "Cleared." after each save, and the reason when a save fails.
