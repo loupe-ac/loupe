@@ -18,9 +18,9 @@ final class ListArtifactsControllerTest extends WebTestCase
         $client = static::createClient();
         $project = $this->switchedOnProject('list-owner@example.com');
         $older = $this->storedArtifact($project, 'Older prototype', [['index.html' => 'a']], $project->owner);
-        $newer = $this->storedArtifact($project, 'Newer prototype', [['index.html' => 'b'], ['index.html' => 'c']], null, 'session-1');
-        $this->linkedCard($project, $newer, 'Build it', 1);
-        $this->linkedCard($project, $newer, 'Polish it', 2);
+        $newer = $this->storedArtifact($project, 'Newer prototype', [['index.html' => 'b'], ['index.html' => 'c', 'style.css' => 'd']], null, 'session-1', 'https://claude.ai/design/p/abc?file=Options.dc.html');
+        $this->linkedCard($project, $newer, 'Polish it', 12);
+        $this->linkedCard($project, $newer, 'Build it', 11);
         $projectId = (string) $project->id;
         $newerId = (string) $newer->id;
         $this->em()->clear();
@@ -32,14 +32,21 @@ final class ListArtifactsControllerTest extends WebTestCase
         $rows = $crawler->filter('[data-artifact-id]');
         self::assertCount(2, $rows);
         $row = $crawler->filter('[data-artifact-id="'.$newerId.'"]');
-        self::assertSame('Newer prototype', trim($row->filter('.lp-data-table__title')->text()));
+        self::assertSame('Newer prototype', trim($row->filter('.lp-document-row__title')->text()));
         self::assertSame('v2', trim($row->filter('[data-artifact-version]')->text()));
-        self::assertSame('2', trim($row->filter('[data-artifact-card-count]')->text()));
+        self::assertSame('2 files', trim($row->filter('[data-artifact-file-count]')->text()));
+        self::assertSame('Claude Design canvas', trim($row->filter('[data-artifact-source]')->text()));
+        self::assertSame('#11 +1', trim($row->filter('[data-artifact-card-count]')->text()));
         self::assertSame('Claude, interactive session', trim($row->filter('[data-artifact-stored-by]')->text()));
-        self::assertSame('/projects/'.$projectId.'/artifacts/'.$newerId, $row->filter('a.lp-data-table__target')->attr('href'));
+        self::assertSame('/projects/'.$projectId.'/artifacts/'.$newerId, $row->filter('a.lp-document-row__link')->attr('href'));
+        self::assertStringEndsWith('/projects/'.$projectId.'/artifacts/'.$newerId, (string) $row->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
         $other = $crawler->filter('[data-artifact-id="'.$older->id.'"]');
         self::assertSame('Riley Chen', trim($other->filter('[data-artifact-stored-by]')->text()));
-        self::assertSame('0', trim($other->filter('[data-artifact-card-count]')->text()));
+        self::assertSame('—', trim($other->filter('[data-artifact-card-count]')->text()));
+        self::assertSame('1 file', trim($other->filter('[data-artifact-file-count]')->text()));
+        self::assertSame('—', trim($other->filter('[data-artifact-source]')->text()));
+        self::assertSame('2 artifacts', trim($crawler->filter('[data-artifact-count]')->text()));
+        self::assertSame('2', trim($crawler->filter('[data-artifact-nav-count]')->text()));
         self::assertCount(0, $crawler->filter('[data-artifact-empty]'));
     }
 
@@ -59,7 +66,7 @@ final class ListArtifactsControllerTest extends WebTestCase
 
         self::assertSame(
             ['First made', 'Second made'],
-            $crawler->filter('.lp-data-table__title')->each(static fn ($node): string => trim($node->text())),
+            $crawler->filter('.lp-document-row__title')->each(static fn ($node): string => trim($node->text())),
         );
     }
 
@@ -77,13 +84,34 @@ final class ListArtifactsControllerTest extends WebTestCase
         $client->loginUser($project->owner);
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts');
         self::assertCount(1, $crawler->filter('[data-artifact-id]'));
-        self::assertSame('Show archived', trim($crawler->filter('[data-artifact-archived-toggle]')->text()));
-        self::assertSame('/projects/'.$projectId.'/artifacts?archived=1', $crawler->filter('[data-artifact-archived-toggle]')->attr('href'));
+        $toggle = $crawler->filter('input[data-artifact-archived-toggle]');
+        self::assertSame('archived', $toggle->attr('name'));
+        self::assertNull($toggle->attr('checked'));
+        self::assertStringContainsString('Show archived', $crawler->filter('.lp-filter-switch')->text());
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts?archived=1');
         self::assertCount(2, $crawler->filter('[data-artifact-id]'));
         self::assertCount(1, $crawler->filter('[data-artifact-archived]'));
-        self::assertSame('Hide archived', trim($crawler->filter('[data-artifact-archived-toggle]')->text()));
+        self::assertNotNull($crawler->filter('input[data-artifact-archived-toggle]')->attr('checked'));
+        self::assertCount(1, $crawler->filter('form[action$="/'.$archived->id.'/unarchive"] [data-artifact-row-archive]'));
+    }
+
+    public function test_archiving_from_a_row_returns_to_the_library_and_keeps_the_archived_view(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('list-row-archive@example.com');
+        $artifact = $this->storedArtifact($project, 'Row archive', [['index.html' => 'a']]);
+        [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+        $this->em()->clear();
+
+        $client->loginUser($project->owner);
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts');
+        $client->submit($crawler->filter('[data-artifact-row-archive]')->form());
+        self::assertResponseRedirects('/projects/'.$projectId.'/artifacts');
+
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts?archived=1');
+        $client->submit($crawler->filter('form[action$="/'.$artifactId.'/unarchive"] [data-artifact-row-archive]')->form());
+        self::assertResponseRedirects('/projects/'.$projectId.'/artifacts?archived=1');
     }
 
     public function test_a_project_with_no_artifact_shows_the_empty_state(): void
@@ -144,6 +172,7 @@ final class ListArtifactsControllerTest extends WebTestCase
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/documents');
         $link = $crawler->filter('a.lp-sidebar__link[href="/projects/'.$projectId.'/artifacts"]');
         self::assertCount(1, $link);
-        self::assertSame('Artifacts', trim($link->text()));
+        self::assertSame('Artifacts', trim($link->filter('.lp-sidebar__link-label')->text()));
+        self::assertSame('0', trim($link->filter('[data-artifact-nav-count]')->text()));
     }
 }

@@ -51,6 +51,7 @@ these fields.
 | `name` | The name of a new artifact |
 | `artifactId` | The id of an existing artifact, to store a new version of it |
 | `sourceLink` | Optional. Where the files came from. |
+| `notes` | Optional. What changed in this version, up to 2000 characters. |
 | `card` | Optional. The id or number of a card to link the artifact to. |
 
 Send `name` for a new artifact, or `artifactId` for a new version. The request
@@ -70,7 +71,7 @@ itself, so an agent writes only the command and not the content of each file.
 
 ```bash
 loupe artifact push review-page.html --name "Review page" --card 611
-loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337
+loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337 --notes "Moved the prices into a table"
 ```
 
 | Flag | Meaning |
@@ -79,6 +80,7 @@ loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337
 | `--artifact` | The id of an existing artifact, to store a new version of it |
 | `--card` | Link the artifact to a card, by its number or its id |
 | `--source-link` | Where the files came from, such as a design canvas link |
+| `--notes` | What changed in this version |
 | `--project` | The project id. Without it the command reads `.loupe.yaml`, then the one project your login covers. |
 
 Pass `--name` or `--artifact`, never both. A file is stored under its base name.
@@ -93,32 +95,44 @@ artifact id, the version number, the stable link and the link of that version.
 
 ## The library
 
-When the flag is on, the sidebar of a project shows an **Artifacts** link. It
-opens the library at `/projects/{project}/artifacts`. The library lists each
-artifact with its name, the number of its newest version, the number of cards
-that link to it, who stored that version, and when. The artifact with the
-newest version comes first.
+When the flag is on, the sidebar of a project shows an **Artifacts** link with
+the number of artifacts that are not archived. It opens the library at
+`/projects/{project}/artifacts`. Each row shows the name of the artifact, its
+newest version, the number of files in that version, and where the files came
+from, such as a Claude Design canvas or a claude.ai artifact. It also shows who
+stored the newest version, the first card that links to it with the number of
+other cards, and when it was stored. The artifact with the newest version comes
+first.
 
 An artifact that an agent stored from an interactive session shows
 "Claude, interactive session" as the author. Only the owner of the project can
 open the library.
 
-An archived artifact is hidden. Choose **Show archived** to list it, and
-**Hide archived** to hide it again.
+The two buttons at the end of a row copy the link of the artifact and archive
+it. An archived artifact is hidden. Turn on **Show archived** to list it, and
+restore it with the same button.
+
+A card page lists the artifacts that link to the card, under **Artifacts**,
+with the newest version of each.
 
 ## The viewer
 
 Choose an artifact to open the viewer. The page shows the files of one version
-in a frame, under a thin bar with these controls.
+in a frame, under a thin bar with the name of the artifact and three buttons.
 
-| Control | What it does |
+| Button | What it does |
 |---|---|
-| Name | The name of the artifact |
-| Version | Lists every version. Choose one to open it. |
-| Linked cards | Shows how many cards link to the artifact. Choose it to list the cards. |
-| Download | Gives you the files of the version you see, as a zip file |
+| Open full screen | Opens the artifact in its own window, with only the bar and the frame |
 | Copy link | Copies the link of the page you see |
-| More actions | Archives the artifact, or restores it |
+| More actions | Opens a menu with the items below |
+
+| Menu item | What it does |
+|---|---|
+| Download | Gives you the files of the version you see, as a zip file |
+| Archive | Archives the artifact, or restores an archived one |
+| Linked cards | Lists the cards that link to the artifact. Choose one to open it. |
+| Revision notes | Lists every version with its notes. Choose one to open it. |
+| Details | Names who stored the version, its source, and how the frame is sandboxed |
 
 The link `/projects/{project}/artifacts/{artifact}` always opens the newest
 version. The link `/projects/{project}/artifacts/{artifact}/versions/{number}`

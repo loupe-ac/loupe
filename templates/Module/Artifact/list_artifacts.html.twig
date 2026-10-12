@@ -9,44 +9,100 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-artifact-library">
-    <header class="lp-artifact-library__header">
+<div class="lp-workspace lp-core-prototype-page lp-core-documents">
+    <header class="lp-page-header">
         <div class="lp-page-header__copy">
             <h1 class="lp-workspace-title lp-workspace-title--doc">{{ 'artifact.list.heading'|trans }}</h1>
             <p class="lp-workspace-desc">{{ 'artifact.list.description'|trans }}</p>
         </div>
-        {% if includeArchived %}
-            <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_project_artifacts', {id: project.id}) }}" data-artifact-archived-toggle>{{ 'artifact.list.hide_archived'|trans }}</twig:Ds:Button>
-        {% else %}
-            <twig:Ds:Button variant="ghost" size="sm" href="{{ path('app_project_artifacts', {id: project.id, archived: 1}) }}" data-artifact-archived-toggle>{{ 'artifact.list.show_archived'|trans }}</twig:Ds:Button>
-        {% endif %}
     </header>
 
+    {% if items is not empty or includeArchived %}
+    <div class="lp-list-filters">
+        <form method="get" action="{{ path('app_project_artifacts', {id: project.id}) }}" data-controller="autosearch" class="lp-filter-form">
+            <label class="lp-filter-switch">
+                <input type="checkbox"
+                       class="lp-switch"
+                       role="switch"
+                       name="archived"
+                       value="1"
+                       {{ includeArchived ? 'checked' }}
+                       data-artifact-archived-toggle
+                       data-action="change->autosearch#search">
+                {{ 'artifact.list.show_archived'|trans }}
+            </label>
+        </form>
+        <span class="lp-filter-count" data-artifact-count>{{ 'artifact.list.count'|trans({'%count%': items|length}) }}</span>
+    </div>
+    {% endif %}
+
     {% if items is empty %}
-        <twig:Ds:EmptyState data-artifact-empty icon="lucide:package" :title="'artifact.list.empty.title'|trans" :body="'artifact.list.empty.body'|trans" />
+        <twig:Ds:EmptyState data-artifact-empty icon="lucide:app-window" :title="'artifact.list.empty.title'|trans" :body="'artifact.list.empty.body'|trans" />
     {% else %}
-        <twig:DataTable modifier="artifacts" :columns="[
-            {label: 'artifact.list.column.name'|trans},
-            {label: 'artifact.list.column.version'|trans},
-            {label: 'artifact.list.column.cards'|trans, align: 'end'},
-            {label: 'artifact.list.column.stored_by'|trans},
-            {label: 'artifact.list.column.stored'|trans},
-        ]">
-            {% for item in items %}
-            <div class="lp-data-table__row" data-artifact-id="{{ item.artifact.id }}">
-                <div class="lp-data-table__cell lp-data-table__primary">
-                    <a class="lp-data-table__target" href="{{ path('app_project_artifact', {id: project.id, artifactId: item.artifact.id}) }}">
-                        <span class="lp-data-table__title">{{ item.artifact.name }}</span>
-                    </a>
-                    {% if item.artifact.archivedAt is not null %}<twig:Ds:Tag tone="neutral" data-artifact-archived>{{ 'artifact.list.archived'|trans }}</twig:Ds:Tag>{% endif %}
+    <div class="lp-document-table lp-artifact-table" role="table" aria-label="{{ 'artifact.list.heading'|trans }}">
+        <div class="lp-document-table__head" role="row">
+            <span role="columnheader">{{ 'artifact.list.column.name'|trans }}</span>
+            <span role="columnheader">{{ 'artifact.list.column.source'|trans }}</span>
+            <span role="columnheader">{{ 'artifact.list.column.stored_by'|trans }}</span>
+            <span role="columnheader">{{ 'artifact.list.column.cards'|trans }}</span>
+            <span role="columnheader">{{ 'artifact.list.column.stored'|trans }}</span>
+            <span class="sr-only" role="columnheader">{{ 'artifact.list.column.actions'|trans }}</span>
+        </div>
+        <div class="lp-document-list" role="rowgroup">
+        {% for item in items %}
+        {% set artifact = item.artifact %}
+        {% set archived = artifact.archivedAt is not null %}
+        <div class="lp-document-row{% if archived %} lp-document-row--archived{% endif %}" role="row" data-artifact-id="{{ artifact.id }}">
+            <a href="{{ path('app_project_artifact', {id: project.id, artifactId: artifact.id}) }}" class="lp-document-row__link" aria-label="{{ artifact.name }}"></a>
+            <div class="lp-document-row__main" role="cell">
+                <div class="lp-document-row__head">
+                    <twig:ux:icon name="lucide:app-window" class="lp-document-row__icon w-4 h-4 shrink-0" />
+                    <span class="lp-document-row__title">{{ artifact.name }}</span>
+                    <span class="lp-document-row__version" data-artifact-version>{{ 'artifact.viewer.version'|trans({'%number%': item.latest.number}) }}</span>
                 </div>
-                <span class="lp-data-table__cell" data-artifact-version>{{ 'artifact.viewer.version'|trans({'%number%': item.latest.number}) }}</span>
-                <span class="lp-data-table__cell lp-data-table__cell--end" data-artifact-card-count>{{ item.linkedCardCount }}</span>
-                <span class="lp-data-table__cell" data-artifact-stored-by>{% include '@Artifact/_stored_by.html.twig' with {version: item.latest} only %}</span>
-                <span class="lp-data-table__cell"><time datetime="{{ item.latest.createdAt|date('c') }}" title="{{ item.latest.createdAt|date('Y-m-d H:i:s T') }}">{{ item.latest.createdAt|relative_time }}</time></span>
+                <div class="lp-document-row__meta">
+                    <span data-artifact-file-count>{{ 'artifact.list.files'|trans({'%count%': item.fileCount}) }}</span>
+                    {% if archived %}<span class="lp-document-row__archived" data-artifact-archived>{{ 'artifact.list.archived'|trans }}</span>{% endif %}
+                </div>
             </div>
-            {% endfor %}
-        </twig:DataTable>
+            <div class="lp-document-row__status" role="cell" data-artifact-source>
+                {% if item.source is not null %}<twig:Ds:Tag>{{ item.source.translationKey|trans }}</twig:Ds:Tag>{% else %}<span aria-label="{{ 'artifact.list.no_source'|trans }}">—</span>{% endif %}
+            </div>
+            <span class="lp-document-row__author" role="cell" data-artifact-stored-by>{% include '@Artifact/_stored_by.html.twig' with {version: item.latest} only %}</span>
+            <span class="lp-document-row__linked-card" role="cell" data-artifact-card-count>
+                {% if item.linkedCards is not null %}
+                    #{{ item.linkedCards.firstNumber }}{% if item.linkedCards.count > 1 %} +{{ item.linkedCards.count - 1 }}{% endif %}
+                {% else %}
+                    <span aria-label="{{ 'artifact.list.no_card'|trans }}">—</span>
+                {% endif %}
+            </span>
+            <time class="lp-document-row__updated" role="cell" datetime="{{ item.latest.createdAt|date('c') }}" title="{{ item.latest.createdAt|date('Y-m-d H:i:s T') }}">{{ item.latest.createdAt|relative_time }}</time>
+            <div class="lp-document-row__actions" role="cell">
+                {% include '@Artifact/_copy_link_button.html.twig' with {
+                    link: url('app_project_artifact', {id: project.id, artifactId: artifact.id}),
+                    label: 'artifact.list.copy_link'|trans({'%name%': artifact.name}),
+                    buttonClass: 'lp-document-row__action',
+                } only %}
+                {# Both states are written out, because the icon importer sees only literal names. #}
+                <form method="post" class="lp-document-row__action-form"
+                      action="{{ path(archived ? 'app_project_artifact_unarchive' : 'app_project_artifact_archive', {id: project.id, artifactId: artifact.id}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token(archived ? 'artifact-unarchive' : 'artifact-archive') }}">
+                    <input type="hidden" name="from" value="library">
+                    {% if includeArchived %}<input type="hidden" name="archived" value="1">{% endif %}
+                    <button type="submit" class="lp-document-row__action" data-artifact-row-archive
+                            aria-label="{{ (archived ? 'artifact.list.unarchive' : 'artifact.list.archive')|trans({'%name%': artifact.name}) }}">
+                        {% if archived %}
+                        <twig:ux:icon name="lucide:archive-restore" class="w-4 h-4" />
+                        {% else %}
+                        <twig:ux:icon name="lucide:archive" class="w-4 h-4" />
+                        {% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        </div>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

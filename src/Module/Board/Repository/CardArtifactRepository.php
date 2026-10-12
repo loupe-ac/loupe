@@ -56,17 +56,18 @@ class CardArtifactRepository extends ServiceEntityRepository
     /**
      * @param list<Artifact> $artifacts
      *
-     * @return array<string, int> keyed by artifact id; an artifact with no link is absent
+     * @return array<string, array{count: int, firstNumber: int}> keyed by artifact id; an artifact with no link is absent
      */
-    public function countByArtifacts(array $artifacts): array
+    public function tallyByArtifacts(array $artifacts): array
     {
         if ([] === $artifacts) {
             return [];
         }
 
-        /** @var list<array{id: mixed, total: mixed}> $rows */
+        /** @var list<array{id: mixed, total: mixed, firstNumber: mixed}> $rows */
         $rows = $this->createQueryBuilder('link')
-            ->select('IDENTITY(link.artifact) AS id, COUNT(link.id) AS total')
+            ->select('IDENTITY(link.artifact) AS id, COUNT(link.id) AS total, MIN(card.number) AS firstNumber')
+            ->join('link.card', 'card')
             ->where('link.artifact IN (:artifacts)')
             ->setParameter('artifacts', $artifacts)
             ->groupBy('link.artifact')
@@ -75,7 +76,7 @@ class CardArtifactRepository extends ServiceEntityRepository
 
         $counts = [];
         foreach ($rows as $row) {
-            $counts[(string) $row['id']] = (int) $row['total'];
+            $counts[(string) $row['id']] = ['count' => (int) $row['total'], 'firstNumber' => (int) $row['firstNumber']];
         }
 
         return $counts;

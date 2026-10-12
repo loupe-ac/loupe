@@ -6,6 +6,7 @@ namespace App\Tests\Module\Board\Service;
 
 use App\Module\Artifact\Service\ArtifactLinkedCardsInterface;
 use App\Module\Artifact\Service\LinkedCard;
+use App\Module\Artifact\Service\LinkedCardTally;
 use App\Tests\Module\Artifact\ArtifactScenario;
 use App\Tests\Module\Artifact\LinkedCardScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -32,8 +33,11 @@ final class BoardArtifactLinkedCardsTest extends KernelTestCase
 
         $repository = $this->em()->getRepository($busy::class);
         $artifacts = [$repository->find($busy->id), $repository->find($quiet->id), $repository->find($lonely->id)];
-        self::assertEquals([(string) $busy->id => 2, (string) $quiet->id => 1], $links->countFor(array_values(array_filter($artifacts))));
-        self::assertSame([], $links->countFor([]));
+        self::assertEquals(
+            [(string) $busy->id => new LinkedCardTally(2, 1), (string) $quiet->id => new LinkedCardTally(1, 3)],
+            $links->tallyFor(array_values(array_filter($artifacts))),
+        );
+        self::assertSame([], $links->tallyFor([]));
         self::assertEquals(
             [new LinkedCard((string) $first->id, 1, 'First'), new LinkedCard((string) $second->id, 2, 'Second')],
             $links->cardsOf($artifacts[0] ?? throw new \LogicException('gone')),

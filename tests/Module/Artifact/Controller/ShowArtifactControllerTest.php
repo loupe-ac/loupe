@@ -30,7 +30,8 @@ final class ShowArtifactControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('Widget tokens', trim($crawler->filter('[data-artifact-name]')->text()));
-        self::assertSame('v2 · latest', trim($crawler->filter('[data-artifact-current-version]')->text()));
+        self::assertSame('2', $crawler->filter('[data-artifact-version-link][aria-current="true"]')->attr('data-artifact-version-link'));
+        self::assertStringEndsWith('/projects/'.$projectId.'/artifacts/'.$artifactId.'/full-screen', (string) $crawler->filter('[data-artifact-full-screen]')->attr('href'));
         $frame = $crawler->filter('iframe[data-artifact-frame]');
         self::assertCount(1, $frame);
         self::assertSame('allow-scripts allow-forms allow-popups allow-pointer-lock', $frame->attr('sandbox'));
@@ -84,12 +85,50 @@ final class ShowArtifactControllerTest extends WebTestCase
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/1');
         self::assertResponseIsSuccessful();
-        self::assertSame('v1', trim($crawler->filter('[data-artifact-current-version]')->text()));
+        self::assertSame('1', $crawler->filter('[data-artifact-version-link][aria-current="true"]')->attr('data-artifact-version-link'));
+        self::assertStringEndsWith('/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/1/full-screen', (string) $crawler->filter('[data-artifact-full-screen]')->attr('href'));
         self::assertStringContainsString('/artifact-content/'.$firstId.'/', (string) $crawler->filter('iframe')->attr('src'));
         self::assertStringEndsWith('/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/1', (string) $crawler->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId);
         self::assertStringEndsWith('/projects/'.$projectId.'/artifacts/'.$artifactId, (string) $crawler->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
+    }
+
+    public function test_the_full_screen_window_shows_the_bar_and_frame_with_no_app_chrome(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('show-full@example.com');
+        $artifact = $this->storedArtifact($project, 'Alone', [['index.html' => 'one'], ['index.html' => 'two']]);
+        [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+        $this->em()->clear();
+        $client->loginUser($project->owner);
+
+        foreach (['/full-screen' => '2', '/versions/1/full-screen' => '1'] as $suffix => $number) {
+            $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId.$suffix);
+            self::assertResponseIsSuccessful();
+            self::assertSame('Alone', trim($crawler->filter('[data-artifact-name]')->text()));
+            self::assertCount(1, $crawler->filter('iframe[data-artifact-frame]'));
+            self::assertCount(0, $crawler->filter('.lp-sidebar'));
+            self::assertCount(0, $crawler->filter('.lp-topbar'));
+            self::assertCount(0, $crawler->filter('[data-artifact-full-screen]'));
+            self::assertSame($number, $crawler->filter('[data-artifact-version-link][aria-current="true"]')->attr('data-artifact-version-link'));
+        }
+    }
+
+    public function test_the_menu_lists_the_revision_notes_of_each_version(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('show-notes@example.com');
+        $artifact = $this->storedArtifact($project, 'Noted', [['index.html' => 'one'], ['index.html' => 'two']]);
+        $this->versionNumbered($artifact, 2)->notes = 'Moved the verdict bar into the toolbar.';
+        $this->em()->flush();
+        [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+        $this->em()->clear();
+        $client->loginUser($project->owner);
+
+        $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId);
+        self::assertSame('Moved the verdict bar into the toolbar.', trim($crawler->filter('[data-artifact-version-link="2"] [data-artifact-version-notes]')->text()));
+        self::assertStringContainsString('First version', $crawler->filter('[data-artifact-version-link="1"]')->text());
     }
 
     public function test_the_frame_opens_the_first_html_file_then_the_first_file_when_there_is_no_index(): void
@@ -121,7 +160,6 @@ final class ShowArtifactControllerTest extends WebTestCase
         $client->loginUser($project->owner);
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId);
-        self::assertSame('1 linked card', trim($crawler->filter('[data-artifact-cards] [data-artifact-card-count]')->text()));
         $link = $crawler->filter('[data-artifact-card-link]');
         self::assertCount(1, $link);
         self::assertSame('/projects/'.$projectId.'/board/cards/'.$cardId, $link->attr('href'));
@@ -129,7 +167,7 @@ final class ShowArtifactControllerTest extends WebTestCase
         self::assertStringContainsString('Build the widget', $link->text());
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$bareId);
-        self::assertSame('No linked cards', trim($crawler->filter('[data-artifact-cards] [data-artifact-card-count]')->text()));
+        self::assertSame('No card links to this artifact.', trim($crawler->filter('[data-artifact-cards] .lp-artifact-menu__none')->text()));
         self::assertCount(0, $crawler->filter('[data-artifact-card-link]'));
     }
 

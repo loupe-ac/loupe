@@ -12,9 +12,9 @@ interface ArtifactLinkedCardsInterface
     /**
      * @param list<Artifact> $artifacts
      *
-     * @return array<string, int> keyed by artifact id; an artifact with no link is absent
+     * @return array<string, LinkedCardTally> keyed by artifact id; an artifact with no link is absent
      */
-    public function countFor(array $artifacts): array;
+    public function tallyFor(array $artifacts): array;
 
     /** @return list<LinkedCard> in card number order */
     public function cardsOf(Artifact $artifact): array;

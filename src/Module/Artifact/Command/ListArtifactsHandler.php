@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Command;
 
+use App\Module\Artifact\Repository\ArtifactFileRepository;
 use App\Module\Artifact\Repository\ArtifactRepository;
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
 use App\Module\Artifact\Service\ArtifactLinkedCardsInterface;
+use App\Module\Artifact\Service\ArtifactSourceKind;
 
 final readonly class ListArtifactsHandler
 {
     public function __construct(
         private ArtifactRepository $artifacts,
         private ArtifactVersionRepository $artifactVersions,
+        private ArtifactFileRepository $artifactFiles,
         private ArtifactLinkedCardsInterface $linkedCards,
     ) {
     }
@@ -21,7 +24,8 @@ final readonly class ListArtifactsHandler
     {
         $artifacts = $this->artifacts->findByProject($command->project, $command->includeArchived);
         $latest = $this->artifactVersions->findLatestForArtifacts($artifacts);
-        $counts = $this->linkedCards->countFor($artifacts);
+        $tallies = $this->linkedCards->tallyFor($artifacts);
+        $fileCounts = $this->artifactFiles->countByVersions(array_values($latest));
 
         $items = [];
         foreach ($artifacts as $artifact) {
@@ -30,7 +34,13 @@ final readonly class ListArtifactsHandler
             if (!isset($latest[$key])) {
                 continue;
             }
-            $items[] = new ArtifactListItem($artifact, $latest[$key], $counts[$key] ?? 0);
+            $items[] = new ArtifactListItem(
+                $artifact,
+                $latest[$key],
+                $tallies[$key] ?? null,
+                $fileCounts[(string) $latest[$key]->id] ?? 0,
+                ArtifactSourceKind::fromLink($artifact->sourceLink),
+            );
         }
 
         // Newest activity first, so a fresh version lifts its artifact to the top.

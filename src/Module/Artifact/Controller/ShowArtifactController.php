@@ -31,6 +31,20 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     requirements: ['artifactId' => Requirement::UUID, 'number' => Requirement::POSITIVE_INT],
     methods: ['GET'],
 )]
+#[Route(
+    '/projects/{id:project}/artifacts/{artifactId}/full-screen',
+    name: 'app_project_artifact_full',
+    requirements: ['artifactId' => Requirement::UUID],
+    defaults: ['fullScreen' => true],
+    methods: ['GET'],
+)]
+#[Route(
+    '/projects/{id:project}/artifacts/{artifactId}/versions/{number}/full-screen',
+    name: 'app_project_artifact_version_full',
+    requirements: ['artifactId' => Requirement::UUID, 'number' => Requirement::POSITIVE_INT],
+    defaults: ['fullScreen' => true],
+    methods: ['GET'],
+)]
 final class ShowArtifactController extends AppController
 {
     public function __construct(
@@ -41,6 +55,7 @@ final class ShowArtifactController extends AppController
     public function __invoke(
         #[MapEntity(expr: 'repository.findOneByIdAndProjectId(artifactId, project)')] Artifact $artifact,
         ?int $number = null,
+        bool $fullScreen = false,
     ): Response {
         $view = ($this->showArtifact)(new ShowArtifactCommand($artifact, $number))
             ?? throw $this->createNotFoundException('The artifact has no such version.');
@@ -50,7 +65,7 @@ final class ShowArtifactController extends AppController
             'artifact' => $view->artifact,
             'version' => $view->version,
             'pinned' => null !== $number,
-            'latestNumber' => $view->latestNumber,
+            'fullScreen' => $fullScreen,
             'versions' => $view->versions,
             'cards' => $view->cards,
             'contentLink' => $view->contentLink,

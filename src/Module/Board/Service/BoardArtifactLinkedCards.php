@@ -7,6 +7,7 @@ namespace App\Module\Board\Service;
 use App\Module\Artifact\Entity\Artifact;
 use App\Module\Artifact\Service\ArtifactLinkedCardsInterface;
 use App\Module\Artifact\Service\LinkedCard;
+use App\Module\Artifact\Service\LinkedCardTally;
 use App\Module\Board\Repository\CardArtifactRepository;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 
@@ -19,9 +20,12 @@ final readonly class BoardArtifactLinkedCards implements ArtifactLinkedCardsInte
     }
 
     #[\Override]
-    public function countFor(array $artifacts): array
+    public function tallyFor(array $artifacts): array
     {
-        return $this->cardArtifacts->countByArtifacts($artifacts);
+        return array_map(
+            static fn (array $row): LinkedCardTally => new LinkedCardTally($row['count'], $row['firstNumber']),
+            $this->cardArtifacts->tallyByArtifacts($artifacts),
+        );
     }
 
     #[\Override]

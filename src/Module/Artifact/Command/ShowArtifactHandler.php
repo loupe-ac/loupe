@@ -42,7 +42,6 @@ final readonly class ShowArtifactHandler
         return new ShowArtifactView(
             $artifact,
             $version,
-            $latest->number,
             array_reverse(array_values($artifact->versions->toArray())),
             $this->linkedCards->cardsOf($artifact),
             null === $entry ? null : $this->signer->linkFor($version, $entry->path),

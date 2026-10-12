@@ -13,7 +13,6 @@ final readonly class ShowArtifactView
     public function __construct(
         public Artifact $artifact,
         public ArtifactVersion $version,
-        public int $latestNumber,
         /** @var list<ArtifactVersion> newest first */
         public array $versions,
         /** @var list<LinkedCard> */
