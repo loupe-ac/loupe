@@ -132,10 +132,11 @@ final readonly class CardWaitReconciler
                     $countChanged = true;
                 }
 
-                if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now)) {
+                $ended = [];
+                if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now, $ended)) {
                     $countChanged = true;
                 }
-                if (null !== $card && $this->rewrite($watch, $card, $now)) {
+                if (null !== $card && $this->rewrite($watch, $card, $ended, $now)) {
                     $rewritten[] = $watch->item;
                 }
             }
@@ -451,8 +452,9 @@ final readonly class CardWaitReconciler
      * item when no wait is left, and returns whether it did.
      *
      * @param array<string, WantedCardWait> $want
+     * @param list<InboxCardWait>           $ended receives the waits this call ended
      */
-    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, InboxProjectSettings $switches, \DateTimeImmutable $now): bool
+    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, InboxProjectSettings $switches, \DateTimeImmutable $now, array &$ended): bool
     {
         $open = [];
         foreach ($watch->waits as $wait) {
@@ -467,6 +469,7 @@ final readonly class CardWaitReconciler
                 $wait->endedAt = $now;
                 $wait->endReason = InboxCardWaitEndReason::Resolved === $cause && !$switches->isOn($wait->trigger) ? InboxCardWaitEndReason::SwitchedOff : $cause;
                 $obsolete = $obsolete || InboxCardWaitEndReason::Resolved !== $wait->endReason;
+                $ended[] = $wait;
                 unset($open[$key]);
             }
         }
@@ -528,16 +531,16 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * Writes the title and the body from the card and the open waits, or from the waits that just ended when
-     * the item closed, and returns whether either changed.
+     * Writes the title and the body from the card and the open waits, or from the waits this reconcile ended
+     * when the item closed, and returns whether either changed.
+     *
+     * @param list<InboxCardWait> $ended
      */
-    private function rewrite(InboxCardWatch $watch, Card $card, \DateTimeImmutable $now): bool
+    private function rewrite(InboxCardWatch $watch, Card $card, array $ended, \DateTimeImmutable $now): bool
     {
-        $waits = $watch->waits->toArray();
-        $open = array_filter($waits, static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
-        if (null !== $watch->closedAt) {
-            $open = array_filter($waits, static fn (InboxCardWait $wait): bool => $wait->endedAt === $now);
-        }
+        $open = null !== $watch->closedAt
+            ? $ended
+            : array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
         usort($open, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, $a->key()] <=> [$b->startedAt, $b->key()]);
         $title = $this->waitText->title($open, $card->number, $card->title, InboxItem::MAX_TITLE_LENGTH);
         $body = $this->waitText->body($open);
