@@ -275,7 +275,10 @@ services:
       MERCURE_SUBSCRIBER_JWT_KEY: "${MERCURE_JWT_SECRET:-}"
       # A browser on the app's host subscribes with a cookie, which needs its
       # origin named. The hub host must share a parent domain with the app.
-      MERCURE_EXTRA_DIRECTIVES: "cors_origins ${DEFAULT_URI:-}"
+      # The write timeout keeps a subscription open for up to an hour.
+      MERCURE_EXTRA_DIRECTIVES: |-
+        cors_origins ${DEFAULT_URI:-}
+        write_timeout 3600s
 
 volumes:
   database_data:
