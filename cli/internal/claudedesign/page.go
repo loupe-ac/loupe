@@ -381,40 +381,153 @@ func (p *page) expandFor(n *html.Node, scope map[string]any) []*html.Node {
 	}
 
 	if len(items) == 0 {
-		return p.pruned(n)
+		return p.pruned(n, without(scope, as))
 	}
 
 	return out
 }
 
 // pruned drops a branch that does not render. An unsupported feature inside it
-// is still a gap, so the branch then stays as source after its markers.
-func (p *page) pruned(n *html.Node) []*html.Node {
+// is still a gap, also one that a known value puts there, so the branch then
+// stays as source after its markers.
+func (p *page) pruned(n *html.Node, scope map[string]any) []*html.Node {
 	var marks []*html.Node
-	var walk func(*html.Node)
-	walk = func(c *html.Node) {
+	var walk func(*html.Node, map[string]any)
+	walk = func(c *html.Node, scope map[string]any) {
 		var problems []problem
 		switch c.Type {
 		case html.TextNode:
 			problems = textProblems(c)
+			if len(problems) == 0 && (c.Parent == nil || (c.Parent.Data != "style" && c.Parent.Data != "script")) {
+				problems = valueProblems(c.Data, scope)
+			}
 		case html.ElementNode:
 			problems = p.elementProblems(c)
+			var inner []*html.Node
+			problems, inner = p.attrValueProblems(c, scope, problems)
+			marks = append(marks, inner...)
+			if as, _ := attrOf(c, "as"); c.Data == "sc-for" && as != "" {
+				scope = without(scope, as)
+			}
 		}
 		for _, pr := range problems {
 			marks = append(marks, p.addGap(c, pr))
 		}
 		for k := c.FirstChild; k != nil; k = k.NextSibling {
-			walk(k)
+			walk(k, scope)
 		}
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		walk(c)
+		walk(c, scope)
 	}
 	if len(marks) == 0 {
 		return nil
 	}
 
 	return append(marks, p.keep(cloneDeep(n)))
+}
+
+// without gives the values with one name hidden, such as the item of a loop
+// whose value no pruned branch knows.
+func without(scope map[string]any, name string) map[string]any {
+	if _, ok := scope[name]; !ok {
+		return scope
+	}
+	out := make(map[string]any, len(scope))
+	for k, v := range scope {
+		if k != name {
+			out[k] = v
+		}
+	}
+
+	return out
+}
+
+// attrValueProblems adds the problems that known values put in the attributes
+// of an element that does not render. Markup from a value comes back as the
+// markers of its own gaps.
+func (p *page) attrValueProblems(n *html.Node, scope map[string]any, out []problem) ([]problem, []*html.Node) {
+	var marks []*html.Node
+	for _, a := range n.Attr {
+		switch {
+		case a.Key == lineAttr, strings.HasPrefix(a.Key, "hint-placeholder-"), controlAttr(n, a.Key), eventAttrRe.MatchString(a.Key):
+		case a.Key == "dangerouslysetinnerhtml":
+			path, ok := plainHole(a.Val)
+			if !ok {
+				continue
+			}
+			if _, found := lookup(scope, path); !found {
+				continue
+			}
+			markup, pr := innerHTML(a.Val, scope)
+			if pr != nil {
+				out = append(out, *pr)
+
+				continue
+			}
+			host := &html.Node{Type: html.ElementNode, DataAtom: n.DataAtom, Data: n.Data, Namespace: n.Namespace, Attr: n.Attr}
+			frags, err := html.ParseFragment(strings.NewReader(markup), host)
+			if err != nil {
+				out = append(out, problem{"dangerouslySetInnerHTML that does not parse", err.Error()})
+			}
+			for _, f := range frags {
+				host.AppendChild(f)
+				marks = append(marks, p.checkFragment(f)...)
+			}
+		default:
+			problems := valueProblems(a.Val, scope)
+			if val, known := fillKnown(a.Val, scope); a.Key == "href" && known && holeRe.MatchString(a.Val) && len(problems) == 0 && len(sourceProblems(a.Val)) == 0 {
+				if _, ok := p.rewriteLink(val); !ok {
+					problems = append(problems, missingLink(val))
+				}
+			}
+			out = append(out, problems...)
+		}
+	}
+
+	return out, marks
+}
+
+// valueProblems gives the problems that known values put in a string. A hole
+// with no known value is left alone, because the branch may never fill it.
+func valueProblems(s string, scope map[string]any) []problem {
+	if !holeRe.MatchString(s) || len(sourceProblems(s)) > 0 {
+		return nil
+	}
+	var out []problem
+	for _, m := range holeRe.FindAllStringSubmatch(s, -1) {
+		v, found := lookup(scope, m[1])
+		if !found {
+			continue
+		}
+		t, ok := text(v)
+		if !ok {
+			out = append(out, problem{"a hole whose value is not text", m[0]})
+		} else if strings.Contains(t, "/_blob/") {
+			out = append(out, problem{"a /_blob/ path", m[0] + " gives " + t})
+		}
+	}
+
+	return out
+}
+
+// fillKnown fills the holes of a string from known values. known is false when
+// a hole has no known text.
+func fillKnown(s string, scope map[string]any) (string, bool) {
+	known := true
+	out := holeRe.ReplaceAllStringFunc(s, func(h string) string {
+		v, found := lookup(scope, holeRe.FindStringSubmatch(h)[1])
+		t, ok := text(v)
+		if !found || !ok {
+			known = false
+
+			return h
+		}
+
+		return t
+	})
+
+	return out, known
 }
 
 // elementProblems gives the problems of an element that hold whatever the
@@ -525,7 +638,7 @@ func (p *page) expandIf(n *html.Node, scope map[string]any) []*html.Node {
 		return p.rawGap(n, problem{"<sc-if> without a plain value", fmt.Sprintf("value=%q", val)})
 	}
 	if v, found := lookup(scope, path); !found || !truthy(v) {
-		return p.pruned(n)
+		return p.pruned(n, scope)
 	}
 
 	return p.expandChildren(n, scope)

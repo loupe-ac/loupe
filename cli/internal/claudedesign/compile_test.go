@@ -320,6 +320,36 @@ func TestAnUnsupportedFeatureInABranchThatDoesNotRenderIsAGap(t *testing.T) {
 	}
 }
 
+func TestAValueInABranchThatDoesNotRenderIsChecked(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { no: false, none: [], target: "Other.dc.html", img: "/_blob/x.png", m: { __html: "<button onclick=\"go()\">x</button>" } }; } }`
+	cases := map[string]struct{ markup, feature string }{
+		"a missing link":   {`<sc-if value="{{ no }}"><a href="{{ target }}">o</a></sc-if>`, "a link to an artboard that is not in the push"},
+		"a blob in text":   {`<sc-if value="{{ no }}"><p>{{ img }}</p></sc-if>`, "a /_blob/ path"},
+		"a blob attribute": {`<sc-for list="{{ none }}" as="i"><img src="{{ img }}"></sc-for>`, "a /_blob/ path"},
+		"inner html":       {`<sc-if value="{{ no }}"><div dangerouslySetInnerHTML="{{ m }}"></div></sc-if>`, "event attribute onclick"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, canvas("A.dc.html", scripted(script, "<p>a</p>\n"+c.markup)))
+			if len(res.Gaps) != 1 || res.Gaps[0].Feature != c.feature || res.Gaps[0].Line != 4 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			if !strings.Contains(one(t, res, "index.html"), "<!-- loupe:gap "+c.feature) {
+				t.Fatalf("no marker in\n%s", one(t, res, "index.html"))
+			}
+		})
+	}
+}
+
+func TestAnUnknownValueInABranchThatDoesNotRenderIsNoGap(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { none: [], i: "/_blob/x.png" }; } }`
+	markup := `<sc-for list="{{ none }}" as="i"><a href="{{ missing }}">{{ i }}</a><sc-for list="{{ none }}" as="j"><p>{{ j }}</p></sc-for></sc-for>`
+	res := compile(t, canvas("A.dc.html", scripted(script, markup)))
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}
+
 func TestABranchThatDoesNotRenderAndHoldsNoGapIsDropped(t *testing.T) {
 	res := compile(t, canvas("A.dc.html", scripted(`class Component extends DCLogic { renderVals() { return { no: false }; } }`, `<sc-if value="{{ no }}"><p>hidden</p></sc-if>`)))
 	if len(res.Gaps) != 0 || strings.Contains(one(t, res, "index.html"), "hidden") {
