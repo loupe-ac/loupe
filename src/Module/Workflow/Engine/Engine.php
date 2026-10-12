@@ -688,8 +688,9 @@ final readonly class Engine
         switch ($outcome->kind) {
             case ActionOutcomeKind::Done:
                 // Another rule's request does other work, so the rule tries again on each pass until it opens its own.
+                // A request that settled before the read below can be that other request, so only the rule's own live request closes the edge.
                 // The join counts nothing, and keeps the refusal that a retry read, so that refusal is not counted twice.
-                if ($outcome->alreadyLive && $this->joinsAnotherRule($run, $rule)) {
+                if ($outcome->alreadyLive && !$this->ownsLiveRequest($run, $rule)) {
                     $state->truth = false;
 
                     return true;
@@ -750,13 +751,13 @@ final readonly class Engine
         }
     }
 
-    /** Answers whether the live request of the work kind of the rule belongs to another rule. */
-    private function joinsAnotherRule(Evaluation $run, Rule $rule): bool
+    /** Answers whether the live request of the work kind of the rule belongs to the rule itself. */
+    private function ownsLiveRequest(Evaluation $run, Rule $rule): bool
     {
         $kind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
         $live = array_find($this->ledger->live($run->card->id), static fn (WorkView $request): bool => $request->kind === $kind);
 
-        return null !== $live && $live->ruleId !== $rule->id;
+        return null !== $live && $live->ruleId === $rule->id;
     }
 
     /** Logs each source that failed, unless it had already failed in the previous build of this evaluation. A source that is off is not an error. */

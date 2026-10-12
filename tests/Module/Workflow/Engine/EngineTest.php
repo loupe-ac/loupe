@@ -150,6 +150,8 @@ final class EngineTest extends KernelTestCase
 
     private ?CardEvaluations $evaluations = null;
 
+    private bool $hideLiveWork = false;
+
     private FakeRuleAsks $asks;
 
     #[\Override]
@@ -203,6 +205,28 @@ final class EngineTest extends KernelTestCase
         self::assertSame('checks', $live[0]->ruleId);
         $state = $this->ruleState($card, 'checks');
         self::assertSame([1, 0], [$state->fires, $state->attempts]);
+    }
+
+    public function test_a_rule_that_joins_a_request_which_settles_before_the_engine_reads_it_fires_its_own(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('review', self::ALWAYS, kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+        ]);
+        $this->evaluate($card);
+        $review = $this->liveRequestOfKind($card, 'fix');
+
+        $this->setType($card, 'bug');
+        $this->hideLiveWork = true;
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->hideLiveWork = false;
+        self::assertFalse($this->ruleState($card, 'checks')->truth);
+
+        $this->finish($review, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        self::assertSame('checks', $this->liveRequestOfKind($card, 'fix')->ruleId);
+        self::assertSame(1, $this->ruleState($card, 'checks')->fires);
     }
 
     public function test_a_rule_that_joined_another_rules_request_opens_nothing_when_it_no_longer_holds(): void
@@ -3768,6 +3792,14 @@ final class EngineTest extends KernelTestCase
         );
         $opener = $this->opener();
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
+        $ledger = new LiveHidingWorkLedger(new BridgeWorkLedger(
+            $workRequests,
+            $this->service(WorkerRunRepository::class),
+            new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
+            $this->service(CardHolds::class),
+            $this->service(ProjectRepository::class),
+        ));
+        $ledger->hiding = $this->hideLiveWork;
 
         $engineEvents = new EventDispatcher();
         $engineEvents->addListener(CardPaused::class, function (CardPaused $event): void {
@@ -3792,13 +3824,7 @@ final class EngineTest extends KernelTestCase
             ),
             new FactFingerprint(),
             $this->service(WorkflowRuleStateRepository::class),
-            new BridgeWorkLedger(
-                $workRequests,
-                $this->service(WorkerRunRepository::class),
-                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
-                $this->service(CardHolds::class),
-                $this->service(ProjectRepository::class),
-            ),
+            $ledger,
             $this->service(WorkflowAutomation::class),
             $this->service(WorkflowPendingBaselineRepository::class),
             $boardPauses,
