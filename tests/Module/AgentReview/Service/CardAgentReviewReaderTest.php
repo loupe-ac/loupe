@@ -14,6 +14,7 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestReview;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -35,6 +36,71 @@ final class CardAgentReviewReaderTest extends KernelTestCase
         $reader = self::getContainer()->get(CardAgentReviews::class);
         self::assertInstanceOf(CardAgentReviews::class, $reader);
         $this->reader = $reader;
+    }
+
+    public function test_an_overridden_review_names_the_approver_and_links_the_check(): void
+    {
+        $project = $this->makeProject('agent-review-reader-override');
+        $card = $this->card($project);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'Acme/Widgets', 7);
+        $review = $this->timedReview($card, $forge, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'), 'old');
+        $review->checkRunId = 4242;
+        $forge->review = PullRequestReview::Approved;
+        $forge->coveredSha = $forge->headSha;
+        $forge->latestApprovedAt = new \DateTimeImmutable('2026-10-02T10:00:00+00:00');
+        $forge->latestApprovalId = 'PRR_1';
+        $forge->latestApproverLogin = 'ubermuda';
+        $this->em->flush();
+
+        $summary = $this->reader->forCards([$card])[(string) $link->id];
+
+        self::assertSame('ubermuda', $summary['overriddenBy']);
+        self::assertSame('https://github.com/acme/widgets/runs/4242', $summary['checkUrl']);
+    }
+
+    public function test_an_approval_of_a_newer_head_does_not_override_the_review_of_an_older_head(): void
+    {
+        $project = $this->makeProject('agent-review-reader-stale-head');
+        $card = $this->card($project);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'acme/widgets', 7);
+        $this->timedReview($card, $forge, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'), 'old');
+        $this->approve($forge, str_repeat('b', 40));
+        $this->em->flush();
+
+        self::assertNull($this->reader->forCards([$card])[(string) $link->id]['overriddenBy']);
+    }
+
+    public function test_an_approval_overrides_a_review_that_the_change_fingerprint_carries_to_the_head(): void
+    {
+        $project = $this->makeProject('agent-review-reader-carried-head');
+        $card = $this->card($project);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'acme/widgets', 7);
+        $review = $this->timedReview($card, $forge, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'), 'old');
+        $review->changeFingerprint = 'same-change';
+        $this->approve($forge, str_repeat('b', 40));
+        $forge->changeFingerprint = 'same-change';
+        $forge->changeFingerprintSha = str_repeat('b', 40);
+        $this->em->flush();
+
+        self::assertSame('ubermuda', $this->reader->forCards([$card])[(string) $link->id]['overriddenBy']);
+    }
+
+    public function test_a_review_that_stands_has_no_approver(): void
+    {
+        $project = $this->makeProject('agent-review-reader-stands');
+        $card = $this->card($project);
+        $forge = $this->pullRequest($project, 7);
+        $link = $this->link($card, 'Acme/Widgets', 7);
+        $this->timedReview($card, $forge, new \DateTimeImmutable('2026-10-01T10:00:00+00:00'), 'old');
+        $this->em->flush();
+
+        $summary = $this->reader->forCards([$card])[(string) $link->id];
+
+        self::assertNull($summary['overriddenBy']);
+        self::assertNull($summary['checkUrl']);
     }
 
     public function test_the_newest_review_of_a_pull_request_wins(): void
@@ -145,6 +211,16 @@ final class CardAgentReviewReaderTest extends KernelTestCase
         $this->em->persist($link);
 
         return $link;
+    }
+
+    private function approve(ForgePullRequest $forge, string $head): void
+    {
+        $forge->headSha = $head;
+        $forge->review = PullRequestReview::Approved;
+        $forge->coveredSha = $head;
+        $forge->latestApprovedAt = new \DateTimeImmutable('2026-10-02T10:00:00+00:00');
+        $forge->latestApprovalId = 'PRR_1';
+        $forge->latestApproverLogin = 'ubermuda';
     }
 
     private function timedReview(Card $card, ForgePullRequest $forge, \DateTimeImmutable $createdAt, string $summary): AgentReview
