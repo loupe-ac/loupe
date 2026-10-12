@@ -11,8 +11,10 @@ use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Form\MarkInboxItemDoneFormType;
 use App\Module\Inbox\Security\InboxItemVoter;
+use App\Module\Inbox\Service\InboxActionFeedback;
 use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\Service\InboxReturnTargetResolver;
+use App\Module\Inbox\View\InboxActionVerb;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -37,6 +39,7 @@ final class MarkInboxItemDoneController extends AppController
         private readonly FormFactoryInterface $formFactory,
         private readonly InboxAvailability $inbox,
         private readonly InboxReturnTargetResolver $returnTargets,
+        private readonly InboxActionFeedback $feedback,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -54,10 +57,9 @@ final class MarkInboxItemDoneController extends AppController
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 ($this->markDone)(new MarkInboxItemDoneCommand($item));
-                $this->addFlash('success', $this->translator->trans('inbox.flash.done', ['%number%' => $item->number]));
-
                 // Read again, because a saved response can move the item to the completed queue.
-                $saved = $this->returnTargets->resolve($request, $item);
+                $saved = $this->returnTargets->resolve($request, $item, $return);
+                $this->feedback->saved($saved, $item, InboxActionVerb::Done);
 
                 return $this->redirectToRoute($saved->route, $saved->routeParameters);
             } catch (DomainErrors $e) {

@@ -119,6 +119,20 @@
                 </div>
 
                 <div class="lp-inbox-request-detail lp-split-pane">
+                    {# What the last response did, read once. Only this page reads the flash type. #}
+                    {% for status in app.flashes('inbox_status') %}
+                        {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
+                        <p class="lp-inbox-status" role="status" data-inbox-status>
+                            {% if status.ask %}
+                                <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb, '%title%': status.title}) }}</span>
+                                <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
+                            {% elseif status.left > 0 %}
+                                <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>
+                            {% else %}
+                                <span>{{ 'inbox.status.item'|trans({'%verb%': verb, '%number%': status.number}) }}</span>
+                            {% endif %}
+                        </p>
+                    {% endfor %}
                     {% if view.isPicked %}
                         <a class="lp-inbox-back"
                            href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"

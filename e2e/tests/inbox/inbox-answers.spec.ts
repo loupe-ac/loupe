@@ -249,8 +249,8 @@ test('the owner answers a question and declines a to-do', async ({
     await question.getByLabel('Your answer').fill('The importer reads CSV.');
     await question.getByRole('button', { name: 'Send answer' }).click();
 
-    await expect(page.locator('.lp-flash')).toContainText(
-        `Item ${inbox.questionNumber} is answered.`,
+    await expect(page.locator('[data-inbox-status]')).toContainText(
+        'Answered. 1 item of this ask is still open.',
     );
     // The picked option only reaches the server through the answer controller.
     await expect(question.locator('[data-inbox-choices] li')).toHaveText([
@@ -278,9 +278,14 @@ test('the owner answers a question and declines a to-do', async ({
     const todo = page.locator(`#inbox-item-${inbox.todoNumber}`);
     await todo.getByRole('button', { name: 'Close this item' }).click();
 
-    await expect(page.locator('.lp-flash')).toContainText(
-        `Item ${inbox.todoNumber} is closed.`,
+    // No other ask is open, so the page names none and the status line links to the closed one.
+    await expect(page.locator('[data-inbox-status]')).toContainText(
+        'is closed.',
     );
+    await expect(
+        page.locator('[data-inbox-queue-empty="open-asks"]'),
+    ).toBeVisible();
+    await page.getByRole('link', { name: 'View it' }).click();
     await expect(todo).toContainText('Closed');
     await expect(sidebarPill).toHaveCount(0);
 
