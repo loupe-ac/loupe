@@ -164,20 +164,37 @@ class LoupeView {
     }
 
     static _morph(parent, olds, news, before) {
-        const count = Math.max(olds.length, news.length);
-        for (let i = 0; i < count; i++) {
-            const o = olds[i];
-            const n = news[i];
-            if (!n) {
-                parent.removeChild(o);
-            } else if (!o) {
-                parent.insertBefore(n, before || null);
-            } else if (o.nodeType === n.nodeType && o.nodeName === n.nodeName) {
-                LoupeView._update(o, n);
-            } else {
-                parent.replaceChild(n, o);
+        let j = 0;
+        for (const n of news) {
+            let k = j;
+            while (k < olds.length && !LoupeView._same(olds[k], n)) {
+                k++;
             }
+            if (k === olds.length) {
+                parent.insertBefore(n, olds[j] || before || null);
+                continue;
+            }
+            for (; j < k; j++) {
+                parent.removeChild(olds[j]);
+            }
+            LoupeView._update(olds[j], n);
+            j++;
         }
+        for (; j < olds.length; j++) {
+            parent.removeChild(olds[j]);
+        }
+    }
+
+    static _same(o, n) {
+        if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName) {
+            return false;
+        }
+
+        return (
+            o.nodeType !== 1 ||
+            (o.getAttribute('id') === n.getAttribute('id') &&
+                o.getAttribute('name') === n.getAttribute('name'))
+        );
     }
 
     static _update(o, n) {

@@ -128,6 +128,54 @@ it('filters a list on input while the input keeps focus and caret', async () => 
     expect(input.value).toBe('ban');
 });
 
+const focusAcross = async (render) => {
+    class C extends LoupeView {
+        constructor(p) {
+            super(p);
+            this.state = { q: '' };
+        }
+        renderVals() {
+            return {
+                q: this.state.q,
+                type: (e) => this.setState({ q: e.target.value }),
+            };
+        }
+    }
+    LoupeView.mount(C, render, {}, ['input'], {});
+    const input = document.querySelector('input[name="q"]');
+    input.focus();
+    input.value = 'ab';
+    input.setSelectionRange(1, 1);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(document.querySelector('input[name="q"]')).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(1);
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    expect(document.querySelector('input[name="q"]')).toBe(input);
+    expect(document.activeElement).toBe(input);
+};
+
+it('keeps focus when a sibling appears before the input', () =>
+    focusAcross(
+        (s, h, R) =>
+            `${R.T(s.q) ? '<div>hint</div>' : ''}<input name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}">`,
+    ));
+
+it('keeps focus when an unnamed input appears before the input', () =>
+    focusAcross(
+        (s, h, R) =>
+            `${R.T(s.q) ? '<input value="x">' : ''}<input name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}">`,
+    ));
+
+it('keeps focus when a sibling before the input disappears', () =>
+    focusAcross(
+        (s, h, R) =>
+            `${R.T(s.q) ? '' : '<p>empty</p>'}<input name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}">`,
+    ));
+
 it('syncs a checkbox from the new markup', async () => {
     class C extends LoupeView {
         renderVals() {
