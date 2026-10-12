@@ -96,6 +96,15 @@ test.describe('home page', () => {
             explainer.getByText(/Loupe merges it on its own/),
         ).toBeAttached();
 
+        const chapters = await explainer
+            .locator('.chap span')
+            .allTextContents();
+        expect(
+            chapters.filter((name) =>
+                ['Agent review', 'Site review', 'Merge'].includes(name),
+            ),
+        ).toEqual(['Agent review', 'Site review', 'Merge']);
+
         await expect
             .poll(async () =>
                 frame.evaluate(
