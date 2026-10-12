@@ -1505,8 +1505,10 @@ calls `card_release`. The two events have the same payload.
 
 The bridge keeps the hold, starts no worker on a held card, and starts the
 queued runs of the card on the release. A worker that runs when the hold starts
-goes on. The workflow also cancels the work requests of a held card, and the
-bridge stops the run of a cancelled request.
+goes on, and so does the request it runs for. Loupe cancels each open work
+request of the card when the hold starts. It offers no request of a held card
+to a bridge, and it refuses a claim of one with `card_held`. It does not
+reopen a lapsed claim of a held card until the hold ends.
 
 `GET /api/card-holds` returns the held cards of every project that the user
 owns, in the order of the holds.

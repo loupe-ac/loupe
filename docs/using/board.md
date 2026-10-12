@@ -450,8 +450,9 @@ An unmanaged card is outside the workflow. The workflow makes no move and
 starts no work on it, and no bridge starts a worker on it. A person may move it
 to any column. A run that is in progress goes on, so stop it as well if it must
 end now. Loupe refuses a resume of a run of the card while the card is
-unmanaged. A run that waits in a queue stays there, and it starts when the card
-is managed again.
+unmanaged. Loupe cancels the work requests of the card that no bridge took yet.
+A run that waits in a queue stays there, and it starts when the card is managed
+again. The workflow then asks for the work that the card still needs.
 
 To make a card unmanaged, select **Make unmanaged** in the runs section of the
 card page. The section then shows **Unmanaged: the workflow makes no move and

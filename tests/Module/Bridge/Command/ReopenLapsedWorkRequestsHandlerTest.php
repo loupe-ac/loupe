@@ -12,11 +12,13 @@ use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Uid\Uuid;
@@ -92,6 +94,56 @@ final class ReopenLapsedWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame([], $changes->events());
 
         self::assertSame([], $this->outboxPayloads());
+    }
+
+    /**
+     * A hold locks the project row for update. The sweep takes a share lock on
+     * that row before it writes, so a hold that commits first keeps the claim.
+     */
+    public function test_a_sweep_locks_the_project_of_a_card_request_before_it_writes(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'reopen-lock@example.com'), 'Reopen Lock');
+        $this->claimed($project, '2026-10-01 12:29:59');
+        $queries = self::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $queries);
+        $queries->reset();
+
+        self::assertSame(1, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
+
+        $statements = [];
+        foreach ($queries->getData() as $connectionQueries) {
+            foreach ($connectionQueries as $query) {
+                $statements[] = (string) $query['sql'];
+            }
+        }
+        $lock = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'FROM projects') && str_contains($sql, 'FOR SHARE'));
+        $write = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'UPDATE work_requests'));
+        self::assertNotNull($write);
+        self::assertNotNull($lock, 'The sweep took no share lock on the project.');
+        self::assertLessThan($write, $lock);
+    }
+
+    public function test_a_lapsed_claim_of_another_subject_opens_again_with_no_card_request(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'reopen-subject@example.com'), 'Reopen Subject');
+        $request = $this->seedWorkRequest(
+            $em,
+            $project,
+            state: WorkRequestState::Claimed,
+            bridgeId: Uuid::v4(),
+            claimToken: Uuid::v4(),
+            leaseUntil: new \DateTimeImmutable('2026-10-01 12:29:59'),
+            subject: new WorkSubject('analysis', Uuid::v7()),
+        );
+
+        self::assertSame(1, $this->handler()(new ReopenLapsedWorkRequestsCommand()));
+
+        $em->clear();
+        self::assertSame(WorkRequestState::Open, $em->find(WorkRequest::class, $request->id)?->state);
     }
 
     private function claimed(Project $project, string $leaseUntil): WorkRequest
