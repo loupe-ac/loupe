@@ -40,6 +40,7 @@ final readonly class GitHubPullRequestStateMapper
         $mergeable = $pullRequest['mergeable'] ?? null;
         $mergeStateStatus = $pullRequest['mergeStateStatus'] ?? null;
         [$approvedAt, $approvalSha, $approvalId] = $this->approval($pullRequest);
+        [$latestApprovedAt, $latestApprovalId, $latestApproverLogin] = $this->latestApproval($pullRequest);
         [$checks, $failedChecks] = $this->checks($pullRequest, $rules, 'BLOCKED' === $mergeStateStatus);
         $mergeability = match (true) {
             'CONFLICTING' === $mergeable, 'DIRTY' === $mergeStateStatus => PullRequestMergeability::Conflicting,
@@ -72,6 +73,9 @@ final readonly class GitHubPullRequestStateMapper
             headBranch: $this->headBranch($pullRequest),
             authorId: $this->authorId($pullRequest),
             authorLogin: $this->authorLogin($pullRequest),
+            latestApprovedAt: $latestApprovedAt,
+            latestApprovalId: $latestApprovalId,
+            latestApproverLogin: $latestApproverLogin,
         );
     }
 
@@ -131,6 +135,32 @@ final readonly class GitHubPullRequestStateMapper
         }
 
         return $oldest;
+    }
+
+    /**
+     * The time, review id and login of the newest approval that stands. GitHub shows a deleted account as `ghost`, so the login is never empty.
+     *
+     * @param array<mixed> $pullRequest
+     *
+     * @return array{?\DateTimeImmutable, ?string, ?string}
+     */
+    private function latestApproval(array $pullRequest): array
+    {
+        $nodes = $pullRequest['latestOpinionatedReviews']['nodes'] ?? [];
+        $newest = [null, null, null];
+        foreach (\is_array($nodes) ? $nodes : [] as $node) {
+            if (!\is_array($node) || 'APPROVED' !== ($node['state'] ?? null)) {
+                continue;
+            }
+            $time = $this->time($node['submittedAt'] ?? null);
+            $id = $node['id'] ?? null;
+            $login = $node['author']['login'] ?? null;
+            if (null !== $time && \is_string($id) && '' !== $id && (null === $newest[0] || $time > $newest[0])) {
+                $newest = [$time, $id, \is_string($login) && '' !== $login ? $login : 'ghost'];
+            }
+        }
+
+        return $newest;
     }
 
     /** @param array<mixed> $pullRequest */

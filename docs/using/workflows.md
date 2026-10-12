@@ -247,6 +247,19 @@ request. The review rules then count the run as a failed try and ask again after
 2, 3 and 5 minutes. After the retries, a repair starts, and then the card
 pauses with an inbox item.
 
+An approval of the pull request on the forge can override a failed review. The
+approval must cover the current head, as the merge rule asks, and it must come
+after Loupe stored the review. The workflow then treats the review as accepted.
+The card moves to In review, a draft is marked ready, and the pull request
+merges once its other conditions hold. No fix round starts for the findings. When
+the approval is dismissed, or someone requests changes, the override ends and the
+failed review blocks the card again. An approval in the Loupe inbox does not
+override, because the inbox does not post it to the forge. An epic child needs an
+approval to override, because it merges with no approval otherwise. A fix round
+that already runs when the approval arrives finishes. A push from it makes a new
+head, which needs its own review. A fix round that ends with no push does not
+ask for a new review of an overridden head.
+
 A new head whose change is identical to a reviewed head carries the review. A
 clean merge of the base is the usual case. The check on the new head says that
 the review was carried, and from which commit. It keeps the line notes only when
@@ -297,13 +310,14 @@ worker pushes only after you answer. A finding where the code simply does not
 build what the design says goes to the fix worker alone. It creates no document
 and no inbox item.
 
-Four conditions of the **Agent review** group read the reviews:
+Five conditions of the **Agent review** group read the reviews:
 
 | Condition | True when |
 |---|---|
-| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review |
-| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has ended done after that review began, until the next review lands |
+| `agent_review.due` | the card is not an epic, and the head commit of the pull request that the rule acts on has no review, own or carried. It is also true when the newest review failed and a fix round for the agent review ended done after that review began, so the same commit gets a new review. It is false while an approval overrides the review |
+| `agent_review.failed` | the newest review of the head commit of the pull request that the rule acts on failed, own or carried. It is false once a fix round for the agent review has ended done after that review began, until the next review lands. It is also false while an approval overrides the review |
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
+| `agent_review.overridden` | the card is not an epic, every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
 
 A review fails when it has a finding of a severity that the template counts as
@@ -314,8 +328,8 @@ older head commit does not count.
 
 To turn the review off, remove the rules `agent-review`,
 `agent-review-in-review`, `fix-agent-review`, `fix-agent-review-in-review` and
-`review-ready` from the template. Also remove `agent_review.passed` from the
-rules that move or merge a card.
+`review-ready` from the template. Also remove `agent_review.passed` and
+`agent_review.overridden` from the rules that move or merge a card.
 
 Lifecycle uses the conditions in these rules:
 
@@ -326,7 +340,7 @@ Lifecycle uses the conditions in these rules:
 | `review-ready` | Implementation | Marks a draft pull request ready, when its review passed, its checks passed, it has no conflict and no request for changes. It uses the `review-ready` write |
 
 The limit of 10 is fixed in the template. The rules `reviewable`, `merge-ready` and `merge-ready-epic-child`
-also need `agent_review.passed`. The app rule `sync-agent-review-check` posts the
+also need `agent_review.passed` or `agent_review.overridden`. The app rule `sync-agent-review-check` posts the
 check of each stored review. See [Rules the app adds](#rules-the-app-adds).
 
 A person who turns a ready pull request back into a draft makes `review-ready`

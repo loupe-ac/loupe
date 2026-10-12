@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Service\AgentReviewOverrideHistory;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Service\CardPullRequests;
@@ -41,6 +42,7 @@ final readonly class SubmitAgentReviewHandler
         private AgentReviewFailingSeverities $failingSeverities,
         private EntityManagerInterface $em,
         private CardEvaluations $evaluations,
+        private AgentReviewOverrideHistory $overrideHistory,
         private Auditor $auditor,
     ) {
     }
@@ -89,6 +91,7 @@ final readonly class SubmitAgentReviewHandler
         }
         $this->em->persist($review);
         $this->em->flush();
+        $this->overrideHistory->sync($pullRequest);
 
         $reviewId = $review->id ?? throw new \LogicException('A flushed review has an id.');
         $this->auditor->record(

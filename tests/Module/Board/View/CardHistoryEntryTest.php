@@ -342,6 +342,37 @@ final class CardHistoryEntryTest extends TestCase
         self::assertNull($entry->run);
     }
 
+    public function test_an_override_names_the_approver_the_pull_request_and_the_head(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ReviewOverridden, Actor::System, null, ['pullRequest' => 7, 'approver' => 'ubermuda', 'headSha' => 'abcdef1234567890']));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.review_overridden', ['%login%' => 'ubermuda', '%pr%' => 7, '%sha%' => 'abcdef1']), $entry->sentence);
+    }
+
+    public function test_the_end_of_an_override_names_the_pull_request_and_the_head(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ReviewOverrideEnded, Actor::System, null, ['pullRequest' => 7, 'headSha' => 'abcdef1234567890']));
+
+        self::assertEquals(new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => 7, '%sha%' => 'abcdef1']), $entry->sentence);
+    }
+
+    /** @return iterable<string, array{CardEventKind, array<string, mixed>}> */
+    public static function incompleteOverrideRows(): iterable
+    {
+        yield 'an override with no approver' => [CardEventKind::ReviewOverridden, ['pullRequest' => 7, 'headSha' => 'abcdef1']];
+        yield 'an override with no head' => [CardEventKind::ReviewOverridden, ['pullRequest' => 7, 'approver' => 'ubermuda']];
+        yield 'an end with no head' => [CardEventKind::ReviewOverrideEnded, ['pullRequest' => 7]];
+    }
+
+    /** @param array<string, mixed> $detail */
+    #[DataProvider('incompleteOverrideRows')]
+    public function test_an_incomplete_override_row_reads_as_changed(CardEventKind $kind, array $detail): void
+    {
+        $entry = CardHistoryEntry::of($this->event($kind, Actor::System, null, $detail));
+
+        self::assertSame('board.card.history.changed', $entry->sentence->getMessage());
+    }
+
     public function test_a_pause_with_no_rule_has_no_cause_line(): void
     {
         $entry = CardHistoryEntry::of($this->event(CardEventKind::Paused, Actor::System, null, ['kind' => 'rule']));

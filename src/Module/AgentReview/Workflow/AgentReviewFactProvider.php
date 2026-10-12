@@ -6,6 +6,7 @@ namespace App\Module\AgentReview\Workflow;
 
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Repository\AgentReviewRepository;
+use App\Module\AgentReview\Service\AgentReviewOverride;
 use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
@@ -23,6 +24,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
         private CardPullRequests $trackedPullRequests,
         private AgentReviewRepository $agentReviews,
         private AgentReviewPosts $posts,
+        private AgentReviewOverride $override,
         private WorkRequestRepository $workRequests,
         private CardTypeCatalog $catalog,
     ) {
@@ -52,7 +54,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
         ));
         $latest = $this->agentReviews->findLatestOfHeads(array_values(array_filter($open, static fn (ForgePullRequest $pullRequest): bool => null !== $pullRequest->headSha)));
         $fixed = $this->workRequests->findAgentReviewFixesSettled($snapshot->id);
-        $heads = array_map(static function (ForgePullRequest $pullRequest) use ($latest, $fixed): ReviewedHead {
+        $heads = array_map(function (ForgePullRequest $pullRequest) use ($latest, $fixed): ReviewedHead {
             $review = $latest[(string) $pullRequest->id] ?? null;
             $settled = $fixed[$pullRequest->number] ?? null;
 
@@ -61,6 +63,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
                 $pullRequest->headSha ?? '',
                 $review?->conclusion,
                 AgentReviewConclusion::Failure === $review?->conclusion && null !== $settled && $settled > $review->createdAt,
+                null === $review ? null : $this->override->approverOf($review, $pullRequest),
             );
         }, $open);
 
@@ -81,7 +84,7 @@ final readonly class AgentReviewFactProvider implements FactProvider
         return [
             $facts->epic,
             $facts->unposted,
-            array_map(static fn (ReviewedHead $head): array => [$head->pullRequestId, $head->headSha, $head->conclusion?->value, $head->answered], $facts->heads),
+            array_map(static fn (ReviewedHead $head): array => [$head->pullRequestId, $head->headSha, $head->conclusion?->value, $head->answered, $head->overriddenBy], $facts->heads),
         ];
     }
 
