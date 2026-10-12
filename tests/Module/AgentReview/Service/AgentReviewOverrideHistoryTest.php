@@ -13,6 +13,7 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestReview;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -70,6 +71,17 @@ final class AgentReviewOverrideHistoryTest extends KernelTestCase
 
         $kinds = array_map(static fn (CardEvent $event): CardEventKind => $event->kind, $this->events($card));
         self::assertSame([CardEventKind::ReviewOverridden, CardEventKind::ReviewOverrideEnded], $kinds);
+    }
+
+    public function test_a_merge_writes_no_end(): void
+    {
+        [$card, $pullRequest] = $this->overridden();
+        $this->sync($pullRequest);
+
+        $pullRequest->state = PullRequestState::Merged;
+        $this->sync($pullRequest);
+
+        self::assertCount(1, $this->events($card));
     }
 
     public function test_a_review_that_stands_writes_nothing(): void

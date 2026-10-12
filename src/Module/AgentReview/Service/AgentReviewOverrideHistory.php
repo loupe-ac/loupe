@@ -10,6 +10,7 @@ use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Workflow\Contract\Actor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -31,6 +32,11 @@ final readonly class AgentReviewOverrideHistory
 
     public function sync(ForgePullRequest $pullRequest): void
     {
+        // A merged or closed pull request leaves the override as it stood, so a merge writes no end.
+        if (PullRequestState::Open !== $pullRequest->state) {
+            return;
+        }
+
         $latest = null === $pullRequest->headSha ? null : ($this->agentReviews->findLatestOfHeads([$pullRequest])[(string) $pullRequest->id] ?? null);
 
         /** @var array<string, AgentReview> $reviews */
