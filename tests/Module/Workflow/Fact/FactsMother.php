@@ -39,10 +39,12 @@ use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\FactProvider;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\ForgeRequest;
 use App\Module\Workflow\Contract\LegacyFingerprintGroup;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestList;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Contract\StackParent;
 use App\Module\Workflow\Contract\Unreadable;
 use Symfony\Component\Uid\Uuid;
 
@@ -151,6 +153,7 @@ final class FactsMother
         return new CardInputs($slot, $type, $hasOpenBlocker, $isChild, $childCount, $openChildCount, $documents, $childMergedIntoEpicBranch, $parentDocuments, $parentSlot);
     }
 
+    /** @param list<ForgeRequest> $forgeRequests */
     public static function pullRequest(
         PullRequestState $state = PullRequestState::Open,
         bool $draft = false,
@@ -166,6 +169,16 @@ final class FactsMother
         ?\DateTimeImmutable $closedAt = null,
         ?Uuid $id = null,
         ?string $headSha = null,
+        ?int $number = null,
+        ?StackParent $stackParent = null,
+        bool $waitsForApproval = false,
+        bool $readyToMerge = false,
+        ?\DateTimeImmutable $readySince = null,
+        ?\DateTimeImmutable $checksFailedSince = null,
+        ?\DateTimeImmutable $checksPendingSince = null,
+        ?\DateTimeImmutable $conflictingSince = null,
+        ?\DateTimeImmutable $waitsForApprovalSince = null,
+        array $forgeRequests = [],
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -182,6 +195,16 @@ final class FactsMother
             closedAt: $closedAt,
             id: $id,
             headSha: $headSha,
+            number: $number,
+            stackParent: $stackParent,
+            waitsForApproval: $waitsForApproval,
+            readyToMerge: $readyToMerge,
+            readySince: $readySince,
+            checksFailedSince: $checksFailedSince,
+            checksPendingSince: $checksPendingSince,
+            conflictingSince: $conflictingSince,
+            waitsForApprovalSince: $waitsForApprovalSince,
+            forgeRequests: $forgeRequests,
         );
     }
 

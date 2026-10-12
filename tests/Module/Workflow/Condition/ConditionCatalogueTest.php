@@ -50,11 +50,16 @@ final class ConditionCatalogueTest extends KernelTestCase
         'pr.changes_requested' => 'workflow.source.forge',
         'pr.checks_failed' => 'workflow.source.forge',
         'pr.checks_passed' => 'workflow.source.forge',
+        'pr.checks_pending' => 'workflow.source.forge',
         'pr.conflicting' => 'workflow.source.forge',
         'pr.draft' => 'workflow.source.forge',
+        'pr.forge_request_pending' => 'workflow.source.forge',
         'pr.open' => 'workflow.source.forge',
         'pr.parent_merged' => 'workflow.source.forge',
+        'pr.ready_for' => 'workflow.source.forge',
+        'pr.stack_parent' => 'workflow.source.forge',
         'pr.stacked' => 'workflow.source.forge',
+        'pr.waits_for_approval' => 'workflow.source.forge',
     ];
 
     /** The keys whose waiting sentence id is not the key with underscores. */
