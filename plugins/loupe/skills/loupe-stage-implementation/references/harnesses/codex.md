@@ -40,7 +40,7 @@ One loop waits 570 seconds at most. When it prints `still-running`, run it again
 
 ## Read a linked prototype
 
-Read a file of the repository from disk, and a Loupe document with `document_get`. This harness has no tool for a `claude.ai/artifact/` link.
+Read a stored artifact with `artifact_get` and `artifact_read`, a file of the repository from disk, and a Loupe document with `document_get`. This harness has no tool for a `claude.ai/artifact/` link.
 
 ## Dispatch a sub-agent
 
