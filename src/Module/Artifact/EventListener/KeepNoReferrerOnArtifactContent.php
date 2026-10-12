@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\EventListener;
 
+use App\Module\Artifact\Controller\ShowArtifactContentController;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 
@@ -16,7 +17,7 @@ final readonly class KeepNoReferrerOnArtifactContent
 {
     public function __invoke(ResponseEvent $event): void
     {
-        if ('app_artifact_content' === $event->getRequest()->attributes->get('_route')) {
+        if (\in_array($event->getRequest()->attributes->get('_route'), [ShowArtifactContentController::ROUTE_SEALED, ShowArtifactContentController::ROUTE_HOST], true)) {
             $event->getResponse()->headers->set('Referrer-Policy', 'no-referrer');
         }
     }

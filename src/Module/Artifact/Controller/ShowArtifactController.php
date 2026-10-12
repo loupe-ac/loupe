@@ -53,7 +53,9 @@ final class ShowArtifactController extends AppController
             'latestNumber' => $view->latestNumber,
             'versions' => $view->versions,
             'cards' => $view->cards,
-            'contentPath' => $view->contentPath,
+            'contentLink' => $view->contentLink,
+            'ownContentOrigin' => $view->ownContentOrigin,
+            'allowedOrigins' => $view->allowedOrigins,
         ]);
     }
 }

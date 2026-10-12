@@ -103,7 +103,9 @@
         </div>
     </div>
 
+    {% if not ownContentOrigin %}
     <twig:Ds:Flash severity="warning" :dismissLabel="'artifact.viewer.band.dismiss'|trans" class="lp-artifact-band" data-artifact-band>{{ 'artifact.viewer.band.text'|trans }}</twig:Ds:Flash>
+    {% endif %}
 
     <p class="lp-artifact-caption" data-artifact-caption>
         <span>{{ 'artifact.viewer.stored_by'|trans }} {% include '@Artifact/_stored_by.html.twig' with {version: version} only %}</span>
@@ -119,13 +121,20 @@
             · {{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('Y-m-d')}) }}
         </span>
         {% endif %}
+        <span data-artifact-allowed-origins>
+            {% if allowedOrigins is empty %}
+            {{ 'artifact.viewer.allowed.none'|trans }}
+            {% else %}
+            {{ 'artifact.viewer.allowed'|trans }} {{ allowedOrigins|join(', ') }}
+            {% endif %}
+        </span>
     </p>
 
-    {% if contentPath is not null %}
+    {% if contentLink is not null %}
     <iframe class="lp-artifact-frame" data-artifact-frame
-            src="{{ contentPath }}"
+            src="{{ contentLink }}"
             title="{{ 'artifact.viewer.frame.title'|trans({'%name%': artifact.name}) }}"
-            sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock"
+            sandbox="allow-scripts allow-forms allow-popups allow-pointer-lock{% if ownContentOrigin %} allow-same-origin{% endif %}"
             referrerpolicy="no-referrer"></iframe>
     {% else %}
     <twig:Ds:EmptyState icon="lucide:file-question" :title="'artifact.viewer.no_files'|trans" />

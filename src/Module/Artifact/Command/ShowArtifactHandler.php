@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Artifact\Command;
 
 use App\Module\Artifact\Repository\ArtifactVersionRepository;
+use App\Module\Artifact\Service\ArtifactAllowedOrigins;
+use App\Module\Artifact\Service\ArtifactContentHost;
 use App\Module\Artifact\Service\ArtifactContentSigner;
 use App\Module\Artifact\Service\ArtifactLinkedCardsInterface;
 
@@ -14,6 +16,8 @@ final readonly class ShowArtifactHandler
         private ArtifactVersionRepository $artifactVersions,
         private ArtifactLinkedCardsInterface $linkedCards,
         private ArtifactContentSigner $signer,
+        private ArtifactContentHost $contentHost,
+        private ArtifactAllowedOrigins $allowedOrigins,
     ) {
     }
 
@@ -41,7 +45,9 @@ final readonly class ShowArtifactHandler
             $latest->number,
             array_reverse(array_values($artifact->versions->toArray())),
             $this->linkedCards->cardsOf($artifact),
-            null === $entry ? null : $this->signer->pathFor($version, $entry->path),
+            null === $entry ? null : $this->signer->linkFor($version, $entry->path),
+            null !== $this->contentHost->host,
+            $this->allowedOrigins->origins(),
         );
     }
 }

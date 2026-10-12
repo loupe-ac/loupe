@@ -18,8 +18,12 @@ final readonly class ShowArtifactView
         public array $versions,
         /** @var list<LinkedCard> */
         public array $cards,
-        /** Signed path of the file the frame opens, or null when the version holds no file. */
-        public ?string $contentPath,
+        /** Signed link of the file the frame opens, or null when the version holds no file. */
+        public ?string $contentLink,
+        /** True when the link points at the content domain. */
+        public bool $ownContentOrigin,
+        /** @var list<string> sites a stored page may load from */
+        public array $allowedOrigins,
     ) {
     }
 }

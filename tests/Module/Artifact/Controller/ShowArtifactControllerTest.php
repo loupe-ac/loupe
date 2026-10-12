@@ -36,12 +36,40 @@ final class ShowArtifactControllerTest extends WebTestCase
         self::assertSame('allow-scripts allow-forms allow-popups allow-pointer-lock', $frame->attr('sandbox'));
         self::assertMatchesRegularExpression('#^/artifact-content/'.$latestId.'/\d+/[a-f0-9]{64}/index\.html$#', (string) $frame->attr('src'));
         self::assertSame(self::BAND, $this->bandText($crawler));
+        self::assertStringContainsString('https://fonts.googleapis.com', $crawler->filter('[data-artifact-allowed-origins]')->text());
         self::assertSame('Dismiss', trim($crawler->filter('[data-artifact-band] .lp-flash__dismiss')->text()));
         self::assertSame(
             ['/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/2', '/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/1'],
             $crawler->filter('[data-artifact-version-link]')->each(static fn ($link): string => (string) $link->attr('href')),
         );
         self::assertSame('/projects/'.$projectId.'/artifacts/'.$artifactId.'/versions/2/download', $crawler->filter('[data-artifact-download]')->attr('href'));
+    }
+
+    public function test_a_content_domain_frames_the_sub_address_with_its_own_origin_and_drops_the_band(): void
+    {
+        $previous = getenv('ARTIFACT_CONTENT_HOST');
+        putenv('ARTIFACT_CONTENT_HOST=content.example');
+        $_ENV['ARTIFACT_CONTENT_HOST'] = $_SERVER['ARTIFACT_CONTENT_HOST'] = 'content.example';
+
+        try {
+            $client = static::createClient();
+            $project = $this->switchedOnProject('show-host@example.com');
+            $artifact = $this->storedArtifact($project, 'Widget tokens', [['index.html' => 'one']]);
+            [$projectId, $artifactId] = [(string) $project->id, (string) $artifact->id];
+            $this->em()->clear();
+
+            $client->loginUser($project->owner);
+            $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$artifactId);
+
+            self::assertResponseIsSuccessful();
+            $frame = $crawler->filter('iframe[data-artifact-frame]');
+            self::assertSame('allow-scripts allow-forms allow-popups allow-pointer-lock allow-same-origin', $frame->attr('sandbox'));
+            self::assertStringStartsWith('https://'.str_replace('-', '', $artifactId).'.content.example/', (string) $frame->attr('src'));
+            self::assertCount(0, $crawler->filter('[data-artifact-band]'));
+        } finally {
+            putenv(false === $previous ? 'ARTIFACT_CONTENT_HOST' : 'ARTIFACT_CONTENT_HOST='.$previous);
+            $_ENV['ARTIFACT_CONTENT_HOST'] = $_SERVER['ARTIFACT_CONTENT_HOST'] = false === $previous ? '' : $previous;
+        }
     }
 
     public function test_a_pinned_link_opens_that_version_and_copies_the_pinned_link(): void

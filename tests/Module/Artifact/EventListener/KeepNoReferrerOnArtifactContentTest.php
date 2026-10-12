@@ -22,6 +22,15 @@ final class KeepNoReferrerOnArtifactContentTest extends TestCase
         self::assertSame('no-referrer', $response->headers->get('Referrer-Policy'));
     }
 
+    public function test_it_restores_no_referrer_on_the_content_domain_route_too(): void
+    {
+        $response = new Response('x', Response::HTTP_OK, ['Referrer-Policy' => 'strict-origin-when-cross-origin']);
+
+        $this->dispatch('app_artifact_content_host', $response);
+
+        self::assertSame('no-referrer', $response->headers->get('Referrer-Policy'));
+    }
+
     public function test_it_leaves_every_other_route_alone(): void
     {
         $response = new Response('x', Response::HTTP_OK, ['Referrer-Policy' => 'strict-origin-when-cross-origin']);
