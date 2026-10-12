@@ -122,6 +122,46 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         self::assertStringNotContainsString('Overridden', $this->writer->published[0]['summary']);
     }
 
+    public function test_a_new_overriding_approver_renames_the_neutral_check_on_the_same_run(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $pullRequest->coveredSha = $pullRequest->headSha;
+        $review = $this->stored($card, $pullRequest, $pullRequest->headSha ?? '', [$this->finding(AgentReviewSeverity::Important)]);
+        $review->checkRunId = 99;
+        $review->postedAt = new \DateTimeImmutable('2026-10-09 11:00:00');
+        $this->approve($pullRequest, 'PRR_1', 'first-approver');
+        $this->publisher()->publish($card);
+        self::assertSame('first-approver', $review->checkApprover);
+
+        $this->writer->published = [];
+        $this->approve($pullRequest, 'PRR_2', 'second-approver');
+        self::assertTrue($this->publisher()->publish($card)->changed);
+
+        self::assertCount(1, $this->writer->published);
+        self::assertSame([PullRequestCheckConclusion::Neutral, 99], [$this->writer->published[0]['conclusion'], $this->writer->published[0]['runId']]);
+        self::assertStringContainsString('second-approver', $this->writer->published[0]['summary']);
+        self::assertSame('second-approver', $review->checkApprover);
+    }
+
+    public function test_a_new_overriding_approver_renames_the_neutral_carried_check(): void
+    {
+        $card = $this->card($this->project);
+        [$review, $pullRequest] = $this->carried($card, 'lines-1', [$this->finding(AgentReviewSeverity::Important)]);
+        $pullRequest->coveredSha = self::MERGED;
+        $this->approve($pullRequest, 'PRR_1', 'first-approver');
+        $this->publisher()->publish($card);
+
+        $this->writer->published = [];
+        $this->approve($pullRequest, 'PRR_2', 'second-approver');
+        self::assertTrue($this->publisher()->publish($card)->changed);
+
+        self::assertCount(1, $this->writer->published);
+        self::assertSame([PullRequestCheckConclusion::Neutral, 101], [$this->writer->published[0]['conclusion'], $this->writer->published[0]['runId']]);
+        self::assertStringContainsString('second-approver', $this->writer->published[0]['summary']);
+        self::assertSame('second-approver', $this->posts($review)[0]->checkApprover);
+    }
+
     public function test_a_posted_review_is_skipped(): void
     {
         $card = $this->card($this->project);
@@ -429,6 +469,14 @@ final class AgentReviewCheckPublisherTest extends KernelTestCase
         $pullRequest->linesFingerprint = $mergedLines;
 
         return [$review, $pullRequest];
+    }
+
+    private function approve(ForgePullRequest $pullRequest, string $approvalId, string $login): void
+    {
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->latestApprovedAt = new \DateTimeImmutable('2026-10-10 10:00:00');
+        $pullRequest->latestApprovalId = $approvalId;
+        $pullRequest->latestApproverLogin = $login;
     }
 
     /** @return list<AgentReviewPost> */

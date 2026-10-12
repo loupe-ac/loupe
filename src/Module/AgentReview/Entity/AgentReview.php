@@ -45,6 +45,10 @@ class AgentReview
     #[ORM\Column(length: 20, nullable: true, enumType: PullRequestCheckConclusion::class)]
     public ?PullRequestCheckConclusion $checkConclusion = null;
 
+    /** The login of the approver that the check of $checkRunId names as the override, or null when it names none. */
+    #[ORM\Column(nullable: true)]
+    public ?string $checkApprover = null;
+
     /** The id of the newest approval that the history announced as an override of this review, or null when none stands announced. */
     #[ORM\Column(nullable: true)]
     public ?string $overrideAnnouncedFor = null;

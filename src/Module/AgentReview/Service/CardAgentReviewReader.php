@@ -71,6 +71,8 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
         foreach ($reviews as $review) {
             $latest[$review->card->id.' '.$review->pullRequest->id] = $review;
         }
+        // Only a review of the current head, or one its change fingerprint carries there, can be overridden.
+        $ofHeads = $this->agentReviews->findLatestOfHeads($forgeRows);
         $carriedTo = [];
         $runs = [];
         foreach ($this->agentReviewPosts->findOfReviews($reviews) as $post) {
@@ -101,7 +103,7 @@ final readonly class CardAgentReviewReader implements CardAgentReviews
                     'createdAt' => $review->createdAt->format(\DATE_ATOM),
                     'postedAt' => $review->postedAt?->format(\DATE_ATOM),
                     'carriedTo' => $carriedTo[(string) $review->id] ?? [],
-                    'overriddenBy' => $this->override->approverOf($review, $row),
+                    'overriddenBy' => ($ofHeads[$rowId] ?? null) === $review ? $this->override->approverOf($review, $row) : null,
                     'checkUrl' => null === $runId || 'github' !== $row->forge ? null : \sprintf('https://github.com/%s/runs/%d', implode('/', array_map(rawurlencode(...), explode('/', $row->repository))), $runId),
                 ];
             }

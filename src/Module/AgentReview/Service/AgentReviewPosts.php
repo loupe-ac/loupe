@@ -24,7 +24,7 @@ final readonly class AgentReviewPosts
     /**
      * The reviews of the card that no check shows on their own head, then the reviews of the card that the
      * current head of an open GitHub pull request carries and that no check shows on that head. A check that shows
-     * another conclusion than its review now earns, such as after an override starts or ends, is due again. Oldest review first.
+     * another conclusion or approver than its review now earns, such as after an override starts, ends or changes hands, is due again. Oldest review first.
      *
      * @return list<DuePost>
      */
@@ -48,7 +48,7 @@ final readonly class AgentReviewPosts
                 $carried[] = [$review, $pullRequest, $head];
             } elseif (null !== $review->postedAt) {
                 $own = new DuePost($review, $pullRequest, $head, false, null, $this->override->approverOf($review, $pullRequest));
-                if ($own->shown() !== $own->conclusion()) {
+                if ($own->stale()) {
                     $due[] = $own;
                 }
             }
@@ -61,7 +61,7 @@ final readonly class AgentReviewPosts
         foreach ($carried as [$review, $pullRequest, $head]) {
             $post = $posts[$review->id.' '.$head] ?? null;
             $carriedDue = new DuePost($review, $pullRequest, $head, true, $post, $this->override->approverOf($review, $pullRequest));
-            if (null === $post?->postedAt || $carriedDue->shown() !== $carriedDue->conclusion()) {
+            if (null === $post?->postedAt || $carriedDue->stale()) {
                 $due[] = $carriedDue;
             }
         }

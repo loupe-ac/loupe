@@ -36,6 +36,10 @@ class AgentReviewPost
     #[ORM\Column(length: 20, nullable: true, enumType: PullRequestCheckConclusion::class)]
     public ?PullRequestCheckConclusion $checkConclusion = null;
 
+    /** The login of the approver that the check run names as the override, or null when it names none. */
+    #[ORM\Column(nullable: true)]
+    public ?string $checkApprover = null;
+
     /** Lower-case, so one head has one row whatever case it came in. */
     #[ORM\Column(length: 64)]
     public readonly string $headSha;

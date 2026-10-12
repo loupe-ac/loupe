@@ -35,6 +35,13 @@ final readonly class DuePost
         };
     }
 
+    /** Whether the check shows another conclusion than the review now earns, or names another approver. */
+    public function stale(): bool
+    {
+        return $this->shown() !== $this->conclusion()
+            || ($this->carried ? $this->post?->checkApprover : $this->review->checkApprover) !== $this->approver;
+    }
+
     /** What the check of this review shows now. A check posted before overrides existed shows the review conclusion. */
     public function shown(): PullRequestCheckConclusion
     {
