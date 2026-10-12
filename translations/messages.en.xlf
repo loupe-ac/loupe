@@ -8203,6 +8203,13 @@
             <trans-unit id="agent_review.check.overridden"><source>agent_review.check.overridden</source><target>Overridden by the approval of %login%. The findings below stand.</target></trans-unit>
             <trans-unit id="agent_review.check.carried"><source>agent_review.check.carried</source><target>Carried from %sha%: the change is identical.</target></trans-unit>
             <trans-unit id="agent_review.check.summary_more"><source>agent_review.check.summary_more</source><target>{0} No more findings.|{1} And one more finding.|]1,Inf[ And %count% more findings.</target></trans-unit>
+            <trans-unit id="agent_review.comment.verdict"><source>agent_review.comment.verdict</source><target>**Loupe agent review** of `%sha%`: %result%</target></trans-unit>
+            <trans-unit id="agent_review.comment.passed"><source>agent_review.comment.passed</source><target>passed</target></trans-unit>
+            <trans-unit id="agent_review.comment.failed"><source>agent_review.comment.failed</source><target>failed</target></trans-unit>
+            <trans-unit id="agent_review.comment.spec"><source>agent_review.comment.spec</source><target>Spec</target></trans-unit>
+            <trans-unit id="agent_review.comment.more"><source>agent_review.comment.more</source><target>{0} …and no more findings on the check.|{1} …and one more finding on the check.|]1,Inf[ …and %count% more findings on the check.</target></trans-unit>
+            <trans-unit id="agent_review.comment.links"><source>agent_review.comment.links</source><target>[See the check](%check_url%) · [Open the card](%card_url%)</target></trans-unit>
+            <trans-unit id="agent_review.comment.card_link"><source>agent_review.comment.card_link</source><target>[Open the card](%card_url%)</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
             <trans-unit id="artifact.list.page.title"><source>artifact.list.page.title</source><target>Artifacts</target></trans-unit>
             <trans-unit id="artifact.list.heading"><source>artifact.list.heading</source><target>Artifacts</target></trans-unit>
