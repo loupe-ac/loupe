@@ -23,6 +23,8 @@ enum CardStateCode: string
     case ForgeRequestPending = 'forge-request-pending';
 
     case HeldByBlocker = 'held-by-blocker';
+    case WaitsForParentCard = 'waits-for-parent-card';
+    case WaitsForParentBranch = 'waits-for-parent-branch';
 
     public function rank(): int
     {
@@ -35,7 +37,7 @@ enum CardStateCode: string
             self::Paused, self::RunStopped, self::ChecksFailed, self::Conflicting, self::ReadyNotMerged, self::PullRequestIdle => CardStateKind::Stuck,
             self::DocumentInReview, self::WaitsForApproval, self::OpenQuestion => CardStateKind::NeedsYou,
             self::RunOpen, self::WorkRequested, self::ForgeRequestPending => CardStateKind::Working,
-            self::HeldByBlocker => CardStateKind::Waiting,
+            self::HeldByBlocker, self::WaitsForParentCard, self::WaitsForParentBranch => CardStateKind::Waiting,
         };
     }
 
