@@ -43,13 +43,11 @@ use Ubermuda\FeatureFlagsBundle\Attribute\RequireFeatureFlag;
     '/{versionId}/{expires}/{signature}/{path}',
     name: self::ROUTE_HOST,
     requirements: [
-        'label' => '[a-f0-9]{32}',
         'versionId' => Requirement::UUID,
         'expires' => Requirement::DIGITS,
         'signature' => '[a-f0-9]{64}',
         'path' => '.+',
     ],
-    host: '{label}.%app.artifact_content_host%',
     methods: ['GET'],
     stateless: true,
 )]
@@ -66,10 +64,12 @@ final class ShowArtifactContentController extends AppController
     ) {
     }
 
-    public function __invoke(Request $request, string $versionId, string $expires, string $signature, string $path, ?string $label = null): Response
+    public function __invoke(Request $request, string $versionId, string $expires, string $signature, string $path): Response
     {
-        if (null !== $label && $this->contentHost->labelOfRequestHost($request->getHost()) !== $label) {
-            throw $this->createNotFoundException('The address is not a content address.');
+        $label = null;
+        if (self::ROUTE_HOST === $request->attributes->get('_route')) {
+            $label = $this->contentHost->labelOfRequestHost($request->getHost())
+                ?? throw $this->createNotFoundException('The address is not a content address.');
         }
 
         if (!$this->signer->isValid($versionId, (int) $expires, $signature, $label ?? '')) {
