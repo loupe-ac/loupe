@@ -7,10 +7,15 @@ namespace App\Module\Board\Command;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardArtifact;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardState;
 use App\Module\Board\Service\PullRequestStates;
 
-/** Everything one card page renders. */
+/**
+ * Everything one card page renders.
+ *
+ * @phpstan-import-type AgentReviewSummary from CardAgentReviews
+ */
 final readonly class CardView
 {
     /**
@@ -19,6 +24,7 @@ final readonly class CardView
      * @param list<Card>                                          $children        empty for a card that is not an epic
      * @param ?CardProgress                                       $progress        null for a card that is not an epic
      * @param ?CardState                                          $state           null for a card in no state, and for a card in a terminal column
+     * @param array<string, AgentReviewSummary>                   $agentReviews    keyed by the id of the pull request link, with no entry for a link that has no review
      * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts       in link order
      */
     public function __construct(
@@ -30,6 +36,7 @@ final readonly class CardView
         public array $children = [],
         public ?CardProgress $progress = null,
         public ?CardState $state = null,
+        public array $agentReviews = [],
         public array $artifacts = [],
     ) {
     }

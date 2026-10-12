@@ -155,7 +155,9 @@ rules:
               - pr.checks_passed: {}
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
-              - agent_review.passed: {}
+              - any:
+                    - agent_review.passed: {}
+                    - agent_review.overridden: {}
       then: { move: { to: in-review } }
 
     - id: fix-in-implementation
@@ -224,7 +226,9 @@ rules:
           all:
               - not: { card.type: { type: epic } }
               - pr.draft: {}
-              - agent_review.passed: {}
+              - any:
+                    - agent_review.passed: {}
+                    - agent_review.overridden: {}
               - pr.checks_passed: {}
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
@@ -340,7 +344,9 @@ rules:
               - not: { pr.conflicting: {} }
               - not: { pr.changes_requested: {} }
               - not: { pr.behind: {} }
-              - agent_review.passed: {}
+              - any:
+                    - agent_review.passed: {}
+                    - agent_review.overridden: {}
       then: { forge-write: { write: merge, fallback: merge } }
 
     - id: merge-ready-epic-child
@@ -356,7 +362,9 @@ rules:
               - not: { pr.changes_requested: {} }
               - not: { pr.behind: {} }
               - not: { card.parent.run.active: {} }
-              - agent_review.passed: {}
+              - any:
+                    - agent_review.passed: {}
+                    - agent_review.overridden: {}
       then: { forge-write: { write: merge, fallback: merge } }
 
     - id: epic-to-review

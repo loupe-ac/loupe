@@ -10,6 +10,7 @@ use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewOverridden;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewPassed;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewUnposted;
 use App\Module\AgentReview\Workflow\ReviewedHead;
@@ -21,6 +22,7 @@ use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Facts;
@@ -120,6 +122,60 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertFalse(new AgentReviewDue()->evaluate($facts, []));
         self::assertTrue(new AgentReviewFailed()->evaluate($facts, []));
         self::assertFalse(new AgentReviewPassed()->evaluate($facts, []));
+    }
+
+    public function test_an_approval_of_the_head_after_a_failed_review_overrides_it(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->approve($pullRequest, '+1 hour');
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertSame('ubermuda', $this->build($card)->heads[0]->overriddenBy);
+        self::assertTrue(new AgentReviewOverridden()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewFailed()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewDue()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewPassed()->evaluate($facts, []));
+    }
+
+    public function test_the_override_ends_with_the_approval_and_changes_the_fingerprint(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->approve($pullRequest, '+1 hour');
+        $provider = $this->provider();
+        $withApproval = $provider->fingerprint($this->build($card));
+
+        $pullRequest->review = PullRequestReview::None;
+        $pullRequest->latestApprovedAt = $pullRequest->latestApprovalId = $pullRequest->latestApproverLogin = null;
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertNull($this->build($card)->heads[0]->overriddenBy);
+        self::assertNotSame($withApproval, $provider->fingerprint($this->build($card)));
+        self::assertFalse(new AgentReviewOverridden()->evaluate($facts, []));
+        self::assertTrue(new AgentReviewFailed()->evaluate($facts, []));
+    }
+
+    public function test_an_approval_that_came_before_the_review_does_not_override_it(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->approve($pullRequest, '-1 hour');
+
+        self::assertNull($this->build($card)->heads[0]->overriddenBy);
+    }
+
+    private function approve(ForgePullRequest $pullRequest, string $at): void
+    {
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->coveredSha = $pullRequest->headSha;
+        $pullRequest->latestApprovedAt = new \DateTimeImmutable($at);
+        $pullRequest->latestApprovalId = 'PRR_latest';
+        $pullRequest->latestApproverLogin = 'ubermuda';
     }
 
     public function test_a_hand_resolved_conflict_with_another_change_is_due(): void

@@ -15,6 +15,7 @@ final class ConditionCatalogueTest extends KernelTestCase
     private const array SOURCES = [
         'agent_review.due' => 'workflow.source.agent_review',
         'agent_review.failed' => 'workflow.source.agent_review',
+        'agent_review.overridden' => 'workflow.source.agent_review',
         'agent_review.passed' => 'workflow.source.agent_review',
         'agent_review.unposted' => 'workflow.source.agent_review',
         'card.blocker.open' => 'workflow.source.board',

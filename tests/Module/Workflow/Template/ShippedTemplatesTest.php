@@ -259,6 +259,21 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], approvals: 1)));
     }
 
+    public function test_an_approval_that_overrides_a_failed_agent_review_lets_the_card_go_on(): void
+    {
+        $toReview = $this->call('move', ['to' => 'in-review']);
+        $ready = $this->call('forge-write', ['write' => 'review-ready']);
+        $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
+
+        $implementation = self::withAgentReview('implementation', [AgentReviewConclusion::Failure], overriddenBy: 'ubermuda');
+        self::assertContainsEquals($toReview, $this->actions($implementation));
+        self::assertContainsEquals($ready, $this->actions(self::withAgentReview('implementation', [AgentReviewConclusion::Failure], draft: true, overriddenBy: 'ubermuda')));
+        self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Failure], approvals: 1, overriddenBy: 'ubermuda')));
+        self::assertNotContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Failure], approvals: 1)));
+        $fixes = array_filter($this->actions($implementation), static fn (ActionCall $action): bool => 'request' === $action->key && 'fix' === ($action->params['kind'] ?? null));
+        self::assertSame([], array_values($fixes));
+    }
+
     public function test_an_epic_child_waits_for_the_agent_review_before_it_merges_into_the_epic_branch(): void
     {
         $merge = $this->call('forge-write', ['write' => 'merge', 'fallback' => 'merge']);
@@ -271,10 +286,10 @@ final class ShippedTemplatesTest extends KernelTestCase
      * @param list<AgentReviewConclusion|null> $conclusions     the newest review conclusion of each open pull request head
      * @param list<string>                     $activeWorkKinds
      */
-    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = []): Facts
+    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null): Facts
     {
         $id = Uuid::v7();
-        $heads = array_map(static fn (?AgentReviewConclusion $conclusion): ReviewedHead => new ReviewedHead((string) $id, str_repeat('a', 40), $conclusion), $conclusions);
+        $heads = array_map(static fn (?AgentReviewConclusion $conclusion): ReviewedHead => new ReviewedHead((string) $id, str_repeat('a', 40), $conclusion, overriddenBy: $overriddenBy), $conclusions);
 
         return FactsMother::facts(
             card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
