@@ -31,6 +31,7 @@ import {
     hubStubbedTest as test,
     signWidgetIn,
     siteReviewGrantKey,
+    siteReviewPanelSettled,
     siteReviewModeKey,
     suppressToolbar,
 } from '../fixtures';
@@ -169,6 +170,7 @@ const openHarness = async (
  * container, which is longer than the 5 second budget those assertions get.
  */
 const clickSave = async (page: Page): Promise<void> => {
+    await siteReviewPanelSettled(page);
     await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -406,6 +408,7 @@ const startNote = async (page: Page, body: string): Promise<void> => {
         .getByRole('button', { name: 'Add note' })
         .click();
     await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await siteReviewPanelSettled(page);
 };
 
 const HARNESS_REVIEW_TITLE = 'Review: /dev/site-review-harness';
@@ -485,6 +488,7 @@ test('the mode comes before the first pick', async ({ page }) => {
     const picker = page.locator('#lp-picker');
     await expect(picker).toBeVisible();
     await expect(pickToast).toBeHidden();
+    await siteReviewPanelSettled(page);
     await picker
         .getByRole('button', { name: 'A new card for each note' })
         .click();
@@ -648,6 +652,7 @@ for (const changeDraft of [false, true]) {
             }
         });
 
+        await siteReviewPanelSettled(page);
         await page.getByRole('button', { name: 'Save' }).click();
         await expect(
             page
