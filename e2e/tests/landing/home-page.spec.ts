@@ -78,6 +78,44 @@ test.describe('home page', () => {
         await expect(board).toHaveAttribute('aria-pressed', 'true');
     });
 
+    test('steps through the explainer and ends on the automatic merge', async ({
+        page,
+    }) => {
+        await page.goto('/');
+
+        const explainer = page.getByRole('group', {
+            name: /Loupe Explainer/,
+        });
+        await explainer.scrollIntoViewIfNeeded();
+        await explainer.getByRole('button', { name: 'Pause' }).click();
+        await expect(
+            explainer.getByRole('button', { name: 'Play' }),
+        ).toBeVisible();
+
+        const scene = explainer.locator(
+            '.landing-explainer__scene[aria-hidden="false"]',
+        );
+        await expect(scene).toContainText('Product design');
+
+        await explainer.getByRole('button', { name: 'Next step' }).click();
+        await expect(scene).toContainText('Tech design');
+
+        await explainer
+            .getByRole('button', { name: /^Step 4: Agent review/ })
+            .click();
+        await expect(scene).toContainText('Agent review');
+        await expect(scene).toContainText('Changes requested, 1 finding');
+
+        await explainer.getByRole('button', { name: 'Next step' }).click();
+        await expect(scene).toContainText('Site review');
+
+        await explainer.getByRole('button', { name: 'Next step' }).click();
+        await expect(scene).toContainText('merges on its own');
+
+        await explainer.getByRole('button', { name: 'Next step' }).click();
+        await expect(scene).toContainText('Product design');
+    });
+
     test('starts with the "Use something else?" block closed', async ({
         page,
     }) => {
