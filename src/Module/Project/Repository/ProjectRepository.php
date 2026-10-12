@@ -11,6 +11,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -37,6 +38,16 @@ class ProjectRepository extends ServiceEntityRepository
         );
         $project->agentFirstSeenAt = $now;
         $this->getEntityManager()->getUnitOfWork()->setOriginalEntityProperty(spl_object_id($project), 'agentFirstSeenAt', $now);
+    }
+
+    /** Waits for a writer that holds the row, and blocks one, until the transaction ends. */
+    public function lockKeyShare(Project $project): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'SELECT 1 FROM projects WHERE id = :id FOR KEY SHARE',
+            ['id' => $project->id],
+            ['id' => UuidType::NAME],
+        );
     }
 
     /** @return list<Project> */
