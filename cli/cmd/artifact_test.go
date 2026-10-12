@@ -273,3 +273,34 @@ func TestABinaryFileWithMarkerTextIsNotAGapMarker(t *testing.T) {
 		t.Fatalf("got = %q", got)
 	}
 }
+
+func TestIndexNamesThePageThatBecomesIndexHTML(t *testing.T) {
+	src, out := t.TempDir(), filepath.Join(t.TempDir(), "out")
+	write(t, filepath.Join(src, "Main.dc.html"), "<html><body><x-dc><p>Main</p></x-dc></body></html>")
+	write(t, filepath.Join(src, "Other.dc.html"), "<html><body><x-dc><p>Other</p></x-dc></body></html>")
+
+	if _, err := runArtifact(t, src, "--out", out, "--index", "Other"); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{"index.html": "Other", "Main.html": "Main"} {
+		got, err := os.ReadFile(filepath.Join(out, name))
+		if err != nil || !strings.Contains(string(got), "<p>"+want+"</p>") {
+			t.Fatalf("%s = %q, err = %v", name, got, err)
+		}
+	}
+}
+
+func TestSeveralCanvasesWithoutIndexAreAGapAndAnUnknownIndexIsRefused(t *testing.T) {
+	src := t.TempDir()
+	write(t, filepath.Join(src, "Main.dc.html"), "<html><body><x-dc><p>Main</p></x-dc></body></html>")
+	write(t, filepath.Join(src, "Other.dc.html"), "<html><body><x-dc><p>Other</p></x-dc></body></html>")
+
+	_, err := runArtifact(t, src, "--name", "N")
+	if err == nil || !strings.Contains(err.Error(), "more than one artboard with no --index is not supported") {
+		t.Fatalf("err = %v", err)
+	}
+	_, err = runArtifact(t, src, "--out", filepath.Join(t.TempDir(), "b"), "--index", "Nope")
+	if err == nil || !strings.Contains(err.Error(), "--index Nope names no artboard") || !strings.Contains(err.Error(), "Main.dc.html, Other.dc.html") {
+		t.Fatalf("err = %v", err)
+	}
+}

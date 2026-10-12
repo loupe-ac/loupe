@@ -25,7 +25,13 @@ func fixture(t *testing.T, name string) []byte {
 
 func compile(t *testing.T, files ...api.ArtifactFile) artifactcompile.Result {
 	t.Helper()
-	res, err := compiler{}.Compile(files, artifactcompile.Options{})
+
+	return compileIndex(t, "", files...)
+}
+
+func compileIndex(t *testing.T, index string, files ...api.ArtifactFile) artifactcompile.Result {
+	t.Helper()
+	res, err := compiler{}.Compile(files, artifactcompile.Options{Index: index})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,10 +65,8 @@ func scripted(script, markup string) string {
 
 func assertClean(t *testing.T, page string) {
 	t.Helper()
-	for _, bad := range forbidden {
-		if strings.Contains(page, bad) {
-			t.Errorf("page holds %q:\n%s", bad, page)
-		}
+	if bad := forbiddenIn(page); bad != "" {
+		t.Errorf("page holds %q:\n%s", bad, page)
 	}
 }
 
@@ -174,7 +178,7 @@ func TestEachGapKindIsNamedWithItsLine(t *testing.T) {
 		"an event attribute": {scripted(script, "<p>a</p>\n<button onClick=\"{{ go }}\">x</button>"), "event attribute onclick", 4, `<!-- loupe:gap event attribute onclick: `},
 		"a dc tag":           {wrap("<p>a</p>\n<dc-import src=\"Pricing.dc.html\"></dc-import>"), "<dc-import> (an embedded artboard)", 4, `<!-- loupe:gap <dc-import>`},
 		"sc-else":            {wrap("<p>a</p>\n<sc-else><p>no</p></sc-else>"), "<sc-else>", 4, `<!-- loupe:gap <sc-else>`},
-		"a blob path":        {wrap("<p>a</p>\n<img src=\"/_blob/abc.png\">"), "a /_blob/ path", 4, `<!-- loupe:gap a /_blob/ path`},
+		"a blob path":        {wrap("<p>a</p>\n<img src=\"/_blob/abc.png\">"), "a blob file that is not in the push", 4, `<!-- loupe:gap a blob file that is not in the push`},
 		"an expression":      {scripted(script, "<p>a</p>\n<p>{{ go + 1 }}</p>"), "a hole that is not a plain path", 4, `<!-- loupe:gap a hole that is not a plain path`},
 		"an object":          {scripted(script, "<p>a</p>\n<p>{{ o }}</p>"), "a hole whose value is not text", 4, `<!-- loupe:gap a hole whose value`},
 		"leftover text":      {wrap("<p>a</p>\n<p>see Pricing.dc.html</p>"), "canvas text left in the output", 0, `<!-- loupe:gap canvas text left in the output`},
@@ -215,15 +219,15 @@ func TestAMarkerHoldsNoDoubleDash(t *testing.T) {
 	}
 }
 
-func TestSeveralArtboardsAreOneGapAndKeepTheirNames(t *testing.T) {
+func TestSeveralArtboardsWithNoIndexAreOneGapAndKeepTheirNames(t *testing.T) {
 	res := compile(t,
 		canvas("B.dc.html", wrap(`<a href="A.dc.html">a</a>`)),
 		canvas("A.dc.html", wrap("<p>a</p>")),
 	)
-	if len(res.Gaps) != 1 || res.Gaps[0].Feature != "more than one artboard" || res.Gaps[0].File != "A.dc.html" {
+	if len(res.Gaps) != 1 || res.Gaps[0].Feature != "more than one artboard with no --index" || res.Gaps[0].File != "A.dc.html" {
 		t.Fatalf("gaps = %+v", res.Gaps)
 	}
-	if !strings.Contains(one(t, res, "A.html"), "loupe:gap more than one artboard") || !strings.Contains(one(t, res, "B.html"), `href="A.html"`) {
+	if !strings.Contains(one(t, res, "A.html"), "loupe:gap more than one artboard with no - -index: run again with - -index") || !strings.Contains(one(t, res, "B.html"), `href="A.html"`) {
 		t.Fatal("pages not marked or linked")
 	}
 }
@@ -300,8 +304,8 @@ func TestAnUnsupportedFeatureInABranchThatDoesNotRenderIsAGap(t *testing.T) {
 		"a false sc-if":     {"<sc-if value=\"{{ no }}\"><div><button onclick=\"go()\">x</button></div></sc-if>", "event attribute onclick"},
 		"an empty sc-for":   {"<sc-for list=\"{{ none }}\" as=\"i\"><dc-import src=\"B.dc.html\"></dc-import></sc-for>", "<dc-import> (an embedded artboard)"},
 		"a nested sc-else":  {"<sc-if value=\"{{ no }}\"><sc-else><p>x</p></sc-else></sc-if>", "<sc-else>"},
-		"a blob path":       {"<sc-if value=\"{{ no }}\"><img src=\"/_blob/x.png\"></sc-if>", "a /_blob/ path"},
-		"a blob in a style": {"<sc-for list=\"{{ none }}\" as=\"i\"><style>a { background: url(/_blob/x.png) }</style></sc-for>", "a /_blob/ path"},
+		"a blob path":       {"<sc-if value=\"{{ no }}\"><img src=\"/_blob/x.png\"></sc-if>", "a blob file that is not in the push"},
+		"a blob in a style": {"<sc-for list=\"{{ none }}\" as=\"i\"><style>a { background: url(/_blob/x.png) }</style></sc-for>", "a blob file that is not in the push"},
 		"an expression":     {"<sc-if value=\"{{ no }}\"><p>{{ a + b }}</p></sc-if>", "a hole that is not a plain path"},
 		"a nested sc-if":    {"<sc-if value=\"{{ no }}\"><sc-if value=\"{{ a || b }}\"><p>x</p></sc-if></sc-if>", "<sc-if> without a plain value"},
 		"an inner html":     {"<sc-if value=\"{{ no }}\"><div dangerouslySetInnerHTML=\"{{ a + b }}\"></div></sc-if>", "dangerouslySetInnerHTML without a plain path"},
@@ -408,8 +412,8 @@ func TestAMarkerKeepsTheSourceOfAnUnsupportedValue(t *testing.T) {
 
 func TestTheOriginalHeadIsCheckedLikeTheCanvas(t *testing.T) {
 	cases := map[string]struct{ head, feature, source string }{
-		"a blob link":     {`<link rel="icon" href="/_blob/logo.png">`, "a /_blob/ path", `href="/_blob/logo.png"`},
-		"a blob in style": {`<style>a { background: url(/_blob/x.png) }</style>`, "a /_blob/ path", "url(/_blob/x.png)"},
+		"a blob link":     {`<link rel="icon" href="/_blob/logo.png">`, "a blob file that is not in the push", `href="/_blob/logo.png"`},
+		"a blob in style": {`<style>a { background: url(/_blob/x.png) }</style>`, "a blob file that is not in the push", "url(/_blob/x.png)"},
 		"an expression":   {`<title>{{ a + 1 }}</title>`, "a hole that is not a plain path", "{{ a + 1 }}"},
 	}
 	for name, c := range cases {
@@ -547,5 +551,272 @@ func TestACssMarkerCannotCloseItsComment(t *testing.T) {
 	got := companionMarker("a.css", artifactcompile.Gap{Feature: "x */ y", Detail: "z"})
 	if got != "/* loupe:gap x * / y: z */" {
 		t.Fatalf("got = %q", got)
+	}
+}
+
+func blobFile(name string) api.ArtifactFile {
+	return api.ArtifactFile{Path: name, ContentType: "image/png", Contents: []byte("\x89PNG\x00")}
+}
+
+func TestIndexChoosesThePageThatBecomesIndexHTML(t *testing.T) {
+	files := func() []api.ArtifactFile {
+		return []api.ArtifactFile{
+			canvas("site/Home.dc.html", wrap(`<a href="Pricing.dc.html">p</a><a href="../Top.dc.html">t</a>`)),
+			canvas("site/Pricing.dc.html", wrap(`<a href="Home.dc.html">h</a>`)),
+			canvas("Top.dc.html", wrap(`<a href="site/Home.dc.html">h</a>`)),
+		}
+	}
+	cases := map[string]struct {
+		index string
+		paths []string
+	}{
+		"a full path":                 {"site/Home.dc.html", []string{"Top.html", "site/Pricing.html", "site/index.html"}},
+		"a path with no suffix":       {"site/Pricing", []string{"Top.html", "site/Home.html", "site/index.html"}},
+		"a unique base name":          {"Top", []string{"index.html", "site/Home.html", "site/Pricing.html"}},
+		"a base name with its suffix": {"Home.dc.html", []string{"Top.html", "site/Pricing.html", "site/index.html"}},
+		"a dotted path":               {"./Top.dc.html", []string{"index.html", "site/Home.html", "site/Pricing.html"}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compileIndex(t, c.index, files()...)
+			if len(res.Gaps) != 0 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			var paths []string
+			for _, f := range res.Files {
+				paths = append(paths, f.Path)
+			}
+			if strings.Join(paths, ",") != strings.Join(c.paths, ",") {
+				t.Fatalf("paths = %v", paths)
+			}
+		})
+	}
+}
+
+func TestALinkToTheIndexArtboardPointsAtIndexHTML(t *testing.T) {
+	res := compileIndex(t, "Home",
+		canvas("Pricing.dc.html", wrap(`<a href="Home.dc.html#top">h</a>`)),
+		canvas("Home.dc.html", wrap(`<a href="Pricing.dc.html">p</a>`)),
+		canvas("sub/Deep.dc.html", wrap(`<a href="../Home.dc.html">h</a>`)),
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	for page, want := range map[string]string{
+		"Pricing.html":  `href="index.html#top"`,
+		"index.html":    `href="Pricing.html"`,
+		"sub/Deep.html": `href="../index.html"`,
+	} {
+		if !strings.Contains(one(t, res, page), want) {
+			t.Errorf("%s lacks %s:\n%s", page, want, one(t, res, page))
+		}
+	}
+}
+
+func TestAnIndexNeedsAnArtboardItNames(t *testing.T) {
+	two := []api.ArtifactFile{canvas("a/Main.dc.html", wrap("x")), canvas("b/Main.dc.html", wrap("x")), canvas("Other.dc.html", wrap("x"))}
+	cases := map[string]struct {
+		index string
+		files []api.ArtifactFile
+		want  string
+	}{
+		"an unknown name":            {"Nope", two, `--index Nope names no artboard. The push holds: Other.dc.html, a/Main.dc.html, b/Main.dc.html`},
+		"a name with a wrong path":   {"c/Main", two, `--index c/Main names no artboard`},
+		"an ambiguous base name":     {"Main", two, `--index Main names more than one artboard: a/Main.dc.html, b/Main.dc.html`},
+		"one canvas and a wrong one": {"Other", []api.ArtifactFile{canvas("Main.dc.html", wrap("x"))}, `--index Other names no artboard. The push holds: Main.dc.html`},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := compiler{}.Compile(c.files, artifactcompile.Options{Index: c.index})
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+}
+
+func TestOneCanvasWithItsIndexNeedsNoGap(t *testing.T) {
+	res := compileIndex(t, "Main.dc.html", canvas("Main.dc.html", wrap("<p>a</p>")))
+	if len(res.Gaps) != 0 || len(res.Files) != 1 || res.Files[0].Path != "index.html" {
+		t.Fatalf("res = %+v", res)
+	}
+}
+
+func TestTheIndexKeepsItsNameWhenAnotherArtboardWouldTakeIt(t *testing.T) {
+	res := compileIndex(t, "Main", canvas("Main.dc.html", wrap("<p>main</p>")), canvas("index.dc.html", wrap("<p>other</p>")))
+	if !strings.Contains(one(t, res, "index.html"), "<p>main</p>") {
+		t.Fatalf("files = %+v", res.Files)
+	}
+	if len(res.Gaps) != 1 || res.Gaps[0].File != "index.dc.html" || !strings.Contains(one(t, res, "index.compiled.html"), "<p>other</p>") {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}
+
+func TestABlobPathBecomesALinkToTheBlobFile(t *testing.T) {
+	cases := map[string]struct{ markup, want string }{
+		"in src":               {`<img src="/_blob/abc">`, `<img src="_blob/abc.png"/>`},
+		"in src with its ext":  {`<img src="/_blob/abc.png">`, `<img src="_blob/abc.png"/>`},
+		"in href":              {`<a href="/_blob/doc.pdf">d</a>`, `<a href="_blob/doc.pdf">d</a>`},
+		"in poster":            {`<video poster="/_blob/abc"></video>`, `poster="_blob/abc.png"`},
+		"in srcset":            {`<img srcset="/_blob/abc 1x, /_blob/abc 2x">`, `srcset="_blob/abc.png 1x, _blob/abc.png 2x"`},
+		"in a style attribute": {`<div style="background: url(/_blob/abc) no-repeat">x</div>`, `style="background: url(_blob/abc.png) no-repeat"`},
+		"with a quoted url":    {`<div style="background: url(&#39;/_blob/abc&#39;)">x</div>`, `url(&#39;_blob/abc.png&#39;)`},
+		"with a query":         {`<img src="/_blob/abc?v=1">`, `src="_blob/abc.png?v=1"`},
+		"in a style block":     {`<style>a { background: url(/_blob/abc) } b { background: url("/_blob/abc") }</style>`, `a { background: url(_blob/abc.png) } b { background: url("_blob/abc.png") }`},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, canvas("A.dc.html", wrap(c.markup)), blobFile("_blob/abc.png"), blobFile("_blob/doc.pdf"))
+			if len(res.Gaps) != 0 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			page := one(t, res, "index.html")
+			assertClean(t, page)
+			if !strings.Contains(page, c.want) {
+				t.Fatalf("no %q in\n%s", c.want, page)
+			}
+			one(t, res, "_blob/abc.png")
+		})
+	}
+}
+
+func TestABlobPathInTheHeadBecomesALink(t *testing.T) {
+	res := compile(t,
+		canvas("A.dc.html", "<html><head>\n<link rel=\"icon\" href=\"/_blob/abc\">\n<style>a { background: url(/_blob/abc) }</style>\n</head><body>\n<x-dc><p>a</p></x-dc>\n</body></html>"),
+		blobFile("_blob/abc.png"),
+	)
+	page := one(t, res, "index.html")
+	if len(res.Gaps) != 0 || !strings.Contains(page, `href="_blob/abc.png"`) || !strings.Contains(page, "url(_blob/abc.png)") {
+		t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, page)
+	}
+}
+
+func TestABlobLinkIsRelativeToTheFolderOfThePage(t *testing.T) {
+	res := compile(t,
+		canvas("site/deep/A.dc.html", wrap(`<img src="/_blob/abc"><style>a { background: url(/_blob/abc) }</style>`)),
+		blobFile("_blob/abc.png"),
+	)
+	page := one(t, res, "site/deep/index.html")
+	if len(res.Gaps) != 0 || strings.Count(page, "../../_blob/abc.png") != 2 {
+		t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, page)
+	}
+	assertClean(t, page)
+}
+
+func TestABlobFileStaysInTheOutput(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", wrap(`<img src="/_blob/abc">`)), blobFile("_blob/abc.png"), blobFile("_blob/unused.png"))
+	if one(t, res, "_blob/abc.png") == "" || one(t, res, "_blob/unused.png") == "" {
+		t.Fatal("blob file left out")
+	}
+}
+
+func TestABlobPathThatCannotResolveIsAGapAndKeepsItsSource(t *testing.T) {
+	cases := map[string]struct {
+		markup, feature, source string
+		files                   []api.ArtifactFile
+	}{
+		"a missing file":                  {`<img src="/_blob/gone">`, "a blob file that is not in the push", `src="/_blob/gone"`, []api.ArtifactFile{blobFile("_blob/abc.png")}},
+		"no blob folder":                  {`<img src="/_blob/abc">`, "a blob file that is not in the push", `src="/_blob/abc"`, nil},
+		"a nested file":                   {`<img src="/_blob/abc">`, "a blob file that is not in the push", `src="/_blob/abc"`, []api.ArtifactFile{blobFile("_blob/sub/abc.png")}},
+		"a blob beside the canvas":        {`<img src="/_blob/abc">`, "a blob file that is not in the push", `src="/_blob/abc"`, []api.ArtifactFile{blobFile("abc.png")}},
+		"a traversal":                     {`<img src="/_blob/../secret.png">`, "a /_blob/ path that is not a plain id", `src="/_blob/../secret.png"`, []api.ArtifactFile{blobFile("secret.png")}},
+		"a hidden traversal":              {`<img src="/_blob/a..b">`, "a /_blob/ path that is not a plain id", `src="/_blob/a..b"`, nil},
+		"an absolute path":                {`<img src="/_blob//etc/passwd">`, "a /_blob/ path that is not a plain id", `src="/_blob//etc/passwd"`, nil},
+		"a nested id":                     {`<img src="/_blob/sub/abc">`, "a /_blob/ path that is not a plain id", `src="/_blob/sub/abc"`, []api.ArtifactFile{blobFile("_blob/sub/abc.png")}},
+		"an empty id":                     {`<img src="/_blob/">`, "a /_blob/ path that is not a plain id", `src="/_blob/"`, nil},
+		"two files, one id":               {`<img src="/_blob/abc">`, "a blob id that more than one file has", `src="/_blob/abc"`, []api.ArtifactFile{blobFile("_blob/abc.png"), blobFile("_blob/abc.jpg")}},
+		"one good, one missing":           {`<img srcset="/_blob/abc 1x, /_blob/gone 2x">`, "a blob file that is not in the push", `srcset="/_blob/abc 1x, /_blob/gone 2x"`, []api.ArtifactFile{blobFile("_blob/abc.png")}},
+		"a missing file in a style block": {`<style>a { background: url(/_blob/gone) }</style>`, "a blob file that is not in the push", `url(/_blob/gone)`, nil},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, append([]api.ArtifactFile{canvas("A.dc.html", wrap("<p>a</p>\n"+c.markup))}, c.files...)...)
+			if len(res.Gaps) != 1 || res.Gaps[0].Feature != c.feature || res.Gaps[0].File != "A.dc.html" || res.Gaps[0].Line != 4 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			page := one(t, res, "index.html")
+			i, j := strings.Index(page, "<!-- loupe:gap "+c.feature), strings.Index(page, c.source)
+			if strings.Count(page, "<!-- loupe:gap") != 1 || i < 0 || j < i {
+				t.Fatalf("page:\n%s", page)
+			}
+		})
+	}
+}
+
+func TestABlobPathInTextIsStillAGap(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", wrap("<p>see /_blob/abc</p>")), blobFile("_blob/abc.png"))
+	if len(res.Gaps) != 1 || res.Gaps[0].Feature != "a /_blob/ path" {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}
+
+func TestABlobPathInAScriptTagIsStillAGap(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", "<html><head>\n<script>var a = '/_blob/abc';</script>\n</head><body>\n<x-dc><p>a</p></x-dc>\n</body></html>"), blobFile("_blob/abc.png"))
+	if len(res.Gaps) != 1 || res.Gaps[0].Feature != "a /_blob/ path" {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}
+
+func TestABlobPathFromAValueStaysAGapEvenWhenTheFileIsPushed(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { img: "/_blob/abc" }; } }`
+	res := compile(t, canvas("A.dc.html", scripted(script, `<img src="{{ img }}">`)), blobFile("_blob/abc.png"))
+	if len(res.Gaps) != 1 || res.Gaps[0].Feature != "a /_blob/ path" {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}
+
+func TestABlobPathInABranchThatDoesNotRenderIsChecked(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { no: false }; } }`
+	markup := `<sc-if value="{{ no }}"><img src="/_blob/abc"></sc-if>`
+	res := compile(t, canvas("A.dc.html", scripted(script, markup)), blobFile("_blob/abc.png"))
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+}
+
+func TestAnArtboardInAFolderUsesTheBlobsOfThePushRoot(t *testing.T) {
+	res := compileIndex(t, "site/Home",
+		canvas("site/Home.dc.html", wrap(`<img src="/_blob/abc">`)),
+		canvas("site/About.dc.html", wrap(`<img src="/_blob/abc">`)),
+		blobFile("_blob/abc.png"),
+		blobFile("site/_blob/abc.png"),
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	for _, page := range []string{"site/index.html", "site/About.html"} {
+		if !strings.Contains(one(t, res, page), `src="../_blob/abc.png"`) {
+			t.Fatalf("%s:\n%s", page, one(t, res, page))
+		}
+	}
+}
+
+func TestOnlyARawBlobPathIsForbidden(t *testing.T) {
+	cases := map[string]bool{
+		`<img src="/_blob/x">`:      true,
+		`url(/_blob/x)`:             true,
+		`"/_blob/x"`:                true,
+		`//_blob/x`:                 true,
+		`/_blob/x`:                  true,
+		`../_blob/x.png`:            false,
+		`_blob/x.png`:               false,
+		`<img src="../../_blob/x">`: false,
+		`url(../_blob/x.png)`:       false,
+		`site/_blob/x.png`:          false,
+	}
+	for in, bad := range cases {
+		if got := forbiddenIn(in) == "/_blob/"; got != bad {
+			t.Errorf("%q: forbidden = %v", in, got)
+		}
+	}
+}
+
+func TestACompanionFileWithARelativeBlobLinkIsNoGap(t *testing.T) {
+	res := compile(t,
+		canvas("A.dc.html", wrap("<p>a</p>")),
+		api.ArtifactFile{Path: "style.css", Contents: []byte("a { background: url(_blob/x.png) }\nb { background: url(../_blob/x.png) }")},
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
 	}
 }
