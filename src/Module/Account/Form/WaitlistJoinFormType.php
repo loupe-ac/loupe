@@ -15,6 +15,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /** @extends AbstractType<WaitlistJoinRequest> */
 final class WaitlistJoinFormType extends AbstractType
 {
+    /** The home page renders this form twice, so the dialog copy takes its own name and field ids. */
+    public const string MODAL_NAME = 'waitlist_modal_form';
+
     #[\Override]
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {

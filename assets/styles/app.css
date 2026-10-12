@@ -6335,232 +6335,7 @@
         @apply relative z-10 mt-14;
     }
     .landing-explainer {
-        @apply relative flex flex-col w-full max-w-5xl mx-auto overflow-hidden rounded-2xl bg-chrome-raised border border-chrome-line md:aspect-video;
-    }
-    .landing-explainer__stage {
-        @apply grid flex-1 min-h-0 list-none m-0 p-0;
-    }
-    .landing-explainer__scene {
-        @apply col-start-1 row-start-1 grid content-center items-center gap-5 p-5 md:grid-cols-5 md:gap-8 md:p-8;
-        transition:
-            opacity var(--duration-slow) var(--ease-standard),
-            visibility var(--duration-slow) var(--ease-standard);
-    }
-    .landing-explainer__scene[aria-hidden='true'] {
-        @apply invisible opacity-0;
-    }
-    .landing-explainer__copy {
-        @apply flex flex-col gap-2 md:col-span-2;
-    }
-    .landing-explainer__visual {
-        @apply min-w-0 md:col-span-3;
-    }
-    .landing-explainer__step {
-        @apply flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-accent;
-    }
-    .landing-explainer__title {
-        @apply m-0 font-display text-3xl font-extrabold leading-tight tracking-tight text-white;
-    }
-    .landing-explainer__text {
-        @apply m-0 text-base leading-relaxed text-chrome-mute;
-    }
-
-    .landing-explainer__window {
-        @apply flex flex-col overflow-hidden rounded-xl border border-line-strong bg-surface-1 text-sm text-ink;
-    }
-    .landing-explainer__bar {
-        @apply flex h-8 shrink-0 items-center gap-1.5 border-b border-line bg-surface-3 px-3;
-    }
-    .landing-explainer__bar i {
-        @apply h-2.5 w-2.5 rounded-full bg-line-strong;
-    }
-    .landing-explainer__bar span {
-        @apply mx-auto min-w-0 max-w-3/4 truncate rounded-md bg-surface-1 px-2.5 py-0.5 font-mono text-xs text-fg-mute;
-    }
-    .landing-explainer__bar b {
-        @apply font-medium text-ink;
-    }
-    .landing-explainer__body {
-        @apply flex flex-col gap-3 p-4;
-    }
-    .landing-explainer__heading {
-        @apply m-0 font-display text-base font-extrabold leading-snug tracking-tight;
-    }
-    .landing-explainer__mono {
-        @apply font-mono text-xs font-normal text-fg-mute;
-    }
-    .landing-explainer__line {
-        @apply m-0 leading-relaxed;
-    }
-    .landing-explainer__mark {
-        @apply bg-accent-soft text-ink;
-    }
-    .landing-explainer__note,
-    .landing-explainer__finding {
-        @apply m-0 rounded-lg border border-line bg-surface-3 p-2.5 leading-relaxed;
-    }
-    .landing-explainer__finding {
-        @apply mt-2;
-    }
-    .landing-explainer__list {
-        @apply m-0 flex list-none flex-col gap-2 p-0;
-    }
-    .landing-explainer__list li {
-        @apply border-b border-line-faint pb-2 leading-snug;
-    }
-    .landing-explainer__swap {
-        @apply grid;
-    }
-    .landing-explainer__before,
-    .landing-explainer__after {
-        @apply col-start-1 row-start-1 flex flex-col items-start gap-1.5;
-    }
-    .landing-explainer__before {
-        @apply invisible;
-    }
-    .landing-explainer__after {
-        @apply visible;
-    }
-
-    .landing-explainer__terminal {
-        @apply flex flex-col overflow-hidden rounded-xl border border-chrome-line bg-chrome font-mono text-xs leading-relaxed text-chrome-fg;
-    }
-    .landing-explainer__terminal-bar {
-        @apply flex h-7 items-center gap-1.5 border-b border-chrome-line bg-chrome-raised px-3 text-chrome-dim;
-    }
-    .landing-explainer__terminal-bar i {
-        @apply h-2.5 w-2.5 rounded-full bg-chrome-control;
-    }
-    .landing-explainer__terminal-bar span {
-        @apply mx-auto;
-    }
-    .landing-explainer__terminal-body {
-        @apply flex flex-col gap-2 p-4;
-    }
-    .landing-explainer__terminal-body p {
-        @apply m-0;
-    }
-    .landing-explainer__terminal-result {
-        @apply text-accent;
-    }
-
-    .landing-explainer__body--site {
-        @apply gap-3;
-    }
-    .landing-explainer__cabin {
-        @apply flex flex-col gap-1.5;
-    }
-    .landing-explainer__photo {
-        @apply relative h-28 overflow-hidden rounded-lg bg-surface-3;
-    }
-    .landing-explainer__label {
-        @apply absolute left-2 top-2 rounded-sm bg-surface-1 px-1.5 py-0.5 text-xs font-semibold;
-    }
-    .landing-explainer__badge {
-        @apply absolute bottom-2 left-2 rounded-sm border border-accent-border bg-accent px-1.5 py-0.5 text-sm font-semibold text-ink;
-    }
-    .landing-explainer__widget {
-        @apply rounded-lg border border-line p-2.5 text-xs;
-    }
-    .landing-explainer__widget-label,
-    .landing-explainer__widget-foot {
-        @apply text-fg-dim;
-    }
-    .landing-explainer__widget-text {
-        @apply text-sm text-ink;
-    }
-
-    .landing-explainer__checks {
-        @apply m-0 flex list-none flex-col gap-2 p-0;
-    }
-    .landing-explainer__checks li {
-        @apply flex items-center gap-2;
-    }
-    .landing-explainer__tick {
-        @apply h-4 w-4 shrink-0 text-status-ok-deep;
-    }
-    .landing-explainer__merged {
-        @apply flex items-center gap-2 rounded-lg border border-accent-border bg-accent-faint p-2.5;
-    }
-    .landing-explainer__merge-icon {
-        @apply h-4 w-4 shrink-0;
-    }
-    .landing-explainer__card {
-        @apply flex items-center gap-2 rounded-lg border border-line p-2.5;
-    }
-    .landing-explainer__card-title {
-        @apply mr-auto min-w-0 truncate font-display font-semibold;
-    }
-
-    .landing-explainer__controls {
-        @apply flex shrink-0 items-center gap-2 border-t border-chrome-line px-4 py-2;
-    }
-    .landing-explainer__toggle {
-        @apply mr-auto min-w-16 cursor-pointer rounded-lg border border-chrome-line bg-transparent px-3 py-1.5 text-sm font-semibold text-chrome-fg transition-colors hover:bg-chrome-control;
-    }
-    .landing-explainer__step-button {
-        @apply inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-chrome-line bg-transparent text-chrome-fg transition-colors hover:bg-chrome-control;
-    }
-    .landing-explainer__dots {
-        @apply flex items-center;
-    }
-    .landing-explainer__dot {
-        @apply flex h-8 w-6 cursor-pointer items-center justify-center border-0 bg-transparent p-0;
-    }
-    .landing-explainer__dot::before {
-        content: '';
-        @apply block h-2.5 w-2.5 rounded-full bg-chrome-control transition-colors;
-    }
-    .landing-explainer__dot:hover::before {
-        @apply bg-chrome-dim;
-    }
-    .landing-explainer__dot[aria-current='step']::before {
-        @apply bg-accent;
-    }
-    .landing-explainer__toggle:focus-visible,
-    .landing-explainer__step-button:focus-visible,
-    .landing-explainer__dot:focus-visible {
-        @apply outline-2 outline-offset-2 outline-accent;
-    }
-
-    @media (prefers-reduced-motion: no-preference) {
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__reveal {
-            animation: lp-explainer-reveal var(--duration-slow)
-                var(--ease-standard) both;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__reveal--first {
-            animation-delay: 400ms;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__reveal--second {
-            animation-delay: 1500ms;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__reveal--third {
-            animation-delay: 2600ms;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__reveal--fourth {
-            animation-delay: 3700ms;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__before {
-            visibility: visible;
-            animation: lp-explainer-leave var(--duration-slow)
-                var(--ease-standard) 5200ms forwards;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__after {
-            animation: lp-explainer-reveal var(--duration-slow)
-                var(--ease-standard) 5200ms both;
-        }
-        .landing-explainer__scene[aria-hidden='false']
-            .landing-explainer__badge {
-            animation: lp-explainer-badge 600ms var(--ease-standard) 5200ms
-                backwards;
-        }
+        @apply block w-full max-w-5xl mx-auto aspect-video border-0 rounded-2xl;
     }
 
     .lp-home-section {
@@ -6651,20 +6426,24 @@
         @apply relative h-full shrink-0 grow-0 basis-full;
     }
     .lp-home-caption {
-        @apply absolute right-3 bottom-3 z-10 flex max-w-60 flex-col gap-1.5 rounded-xl bg-chrome px-4 py-3 font-display text-sm font-bold leading-snug text-white sm:max-w-xs sm:text-base;
+        @apply absolute right-3 bottom-3 z-10 flex max-w-60 flex-col gap-1.5 rounded-2xl bg-chrome/85 px-4 py-3 font-display text-sm font-bold leading-snug text-white shadow-xl sm:right-6 sm:bottom-8 sm:max-w-xs sm:px-4.5 sm:pt-3.5 sm:pb-4 sm:text-lg sm:leading-tight;
     }
     .lp-home-caption--left {
-        @apply left-3 right-auto;
+        @apply left-3 right-auto sm:left-6;
     }
     .lp-home-caption__kicker {
-        @apply font-mono text-xs font-normal uppercase tracking-wider text-accent;
+        @apply flex items-center gap-2 font-mono text-xs font-normal uppercase tracking-widest text-accent;
+    }
+    .lp-home-caption__kicker::before {
+        content: '';
+        @apply h-1.5 w-1.5 shrink-0 rounded-full bg-accent;
     }
     .lp-home-mono {
         @apply font-mono text-xs;
     }
 
     .lp-home-window {
-        @apply absolute inset-x-4 top-4 bottom-4 flex flex-col overflow-hidden rounded-xl bg-surface-1 border border-line-strong sm:inset-x-16;
+        @apply absolute inset-x-4 top-4 bottom-4 isolate flex flex-col overflow-hidden rounded-xl bg-surface-1 border border-line-strong shadow-2xl sm:inset-x-1/16 sm:inset-y-1/12;
     }
     .lp-home-window__bar {
         @apply flex items-center gap-1.5 h-8 shrink-0 px-3 bg-surface-3 border-b border-line;
@@ -6692,22 +6471,25 @@
     }
 
     .lp-home-board {
-        @apply flex min-h-0 flex-1 gap-2.5 p-3 sm:p-4;
+        @apply flex gap-2.5 p-3 sm:p-4;
     }
     .lp-home-board__lane {
-        @apply flex min-w-0 flex-1 flex-col gap-1.5 rounded-xl bg-surface-3 p-2;
+        @apply flex min-h-45 min-w-0 flex-1 flex-col gap-1.5 rounded-xl bg-surface-3 p-2;
     }
     .lp-home-board__lane-title {
-        @apply px-1 py-0.5 text-xs font-bold;
+        @apply truncate px-1 py-0.5 text-xs font-bold;
     }
     .lp-home-board__card {
-        @apply flex flex-col gap-1.5 rounded-lg bg-surface-1 px-2.5 py-2;
+        @apply flex flex-col gap-1.5 rounded-lg bg-surface-1 px-2.5 py-2 shadow-xs;
     }
     .lp-home-board__card-head {
         @apply flex items-center justify-between gap-1;
     }
+    .lp-home-board__card-head .lp-home-mono {
+        @apply font-semibold text-fg-dim;
+    }
     .lp-home-board__card-head .lp-tag {
-        @apply max-sm:hidden;
+        @apply shrink-0 whitespace-nowrap px-1.5 py-px max-sm:hidden;
     }
     .lp-home-board__card-title {
         @apply font-display text-xs font-semibold leading-snug;
@@ -6725,15 +6507,44 @@
     .lp-home-rule--head {
         @apply font-mono text-xs uppercase tracking-wider text-fg-dim;
     }
+    .lp-home-rule:last-child {
+        @apply border-b-0;
+    }
 
     .lp-home-terminal {
-        @apply absolute inset-x-4 top-4 bottom-4 flex flex-col overflow-hidden rounded-xl bg-chrome border border-chrome-line font-mono text-xs leading-relaxed text-chrome-fg sm:left-16 sm:right-16;
+        @apply absolute inset-x-4 top-4 bottom-4 flex flex-col overflow-hidden rounded-xl bg-chrome border border-chrome-line font-mono text-xs leading-relaxed text-chrome-fg shadow-2xl sm:right-auto sm:left-1/16 sm:inset-y-1/12 sm:w-7/10;
     }
     .lp-home-terminal__bar {
         @apply flex items-center gap-1.5 h-7 shrink-0 px-3 bg-chrome-raised border-b border-chrome-line text-chrome-dim;
     }
     .lp-home-terminal__bar i {
-        @apply w-2.5 h-2.5 rounded-full bg-chrome-control;
+        @apply w-2.5 h-2.5 rounded-full bg-red-400;
+    }
+    .lp-home-terminal__bar i:nth-child(2) {
+        @apply bg-amber-400;
+    }
+    .lp-home-terminal__bar i:nth-child(3) {
+        @apply bg-green-500;
+    }
+    .lp-home-terminal__welcome {
+        @apply rounded-lg border border-orange-400 px-2.5 py-1.5;
+    }
+    .lp-home-terminal__welcome::before {
+        content: '✻ ';
+        @apply text-orange-400;
+    }
+    .lp-home-terminal__call::before {
+        content: '⏺ ';
+        @apply text-green-500;
+    }
+    .lp-home-terminal__result {
+        @apply pl-4 text-chrome-dim;
+    }
+    .lp-home-terminal__result::before {
+        content: '⎿  ';
+    }
+    .lp-home-terminal__reply::before {
+        content: '⏺ ';
     }
     .lp-home-terminal__bar span {
         @apply mx-auto;
@@ -6761,16 +6572,32 @@
         @apply flex gap-4 p-4 sm:p-5;
     }
     .lp-home-doc__prose {
-        @apply min-w-0 flex-1 text-sm leading-loose text-ink;
+        @apply min-w-0 flex-1 text-sm leading-relaxed text-ink;
     }
     .lp-home-doc__prose p {
         @apply m-0 mb-3;
+    }
+    .lp-home-doc__prose p + p {
+        @apply relative mt-6;
+    }
+    .lp-home-doc__toolbar {
+        @apply absolute -top-6 left-7 hidden overflow-hidden rounded-lg bg-chrome text-xs text-chrome-fg shadow-toolbar sm:flex;
+    }
+    .lp-home-doc__toolbar span {
+        @apply px-2.5 py-1;
+    }
+    .lp-home-doc__toolbar span:first-child {
+        @apply bg-chrome-control;
     }
     .lp-home-doc__mark {
         @apply border-b-2 border-review-anchor-line bg-review-anchor text-inherit;
     }
     .lp-home-doc__note {
-        @apply hidden shrink-0 flex-col gap-1 self-start rounded-xl border border-line bg-surface-1 p-3 text-xs leading-normal sm:flex sm:w-2/5;
+        @apply relative hidden shrink-0 flex-col gap-1 self-start rounded-xl border border-line bg-surface-1 p-3 text-xs leading-normal sm:mt-10 sm:flex sm:w-2/5;
+    }
+    .lp-home-doc__note::before {
+        content: '';
+        @apply absolute top-3.5 -left-4.5 w-4.5 border-t-2 border-review-anchor-line;
     }
     .lp-home-doc__note b {
         @apply text-ink;
@@ -6802,10 +6629,10 @@
         @apply bg-status-ok-bg px-3 py-1 text-status-ok-deep;
     }
     .lp-home-diff__finding {
-        @apply m-2.5 rounded-lg bg-surface-3 p-2.5 font-sans text-sm text-ink;
+        @apply m-2.5 rounded-lg bg-tone-pink-bg p-2.5 font-sans text-sm text-ink;
     }
     .lp-home-diff__finding b {
-        @apply text-accent-ink;
+        @apply text-tone-pink;
     }
 
     .lp-home-site__head {
@@ -6817,24 +6644,50 @@
     .lp-home-site__head span {
         @apply hidden text-fg-mute sm:inline;
     }
+    .lp-home-site {
+        @apply relative flex-1;
+    }
+    .lp-home-site::after {
+        content: '';
+        @apply absolute inset-0 z-10 bg-chrome/40;
+    }
     .lp-home-site__grid {
-        @apply grid grid-cols-2 gap-3 p-4;
+        @apply grid grid-cols-2 gap-3 p-4 sm:grid-cols-3;
     }
     .lp-home-site__cabin {
-        @apply flex flex-col gap-0.5 rounded-xl border border-line p-3 text-sm;
+        @apply flex flex-col rounded-xl border border-line text-sm;
     }
     .lp-home-site__cabin::before {
         content: '';
-        @apply mb-2 block h-12 rounded-lg bg-surface-3 sm:h-16;
+        @apply block h-12 rounded-t-xl bg-line sm:h-20;
     }
-    .lp-home-site__cabin span {
+    .lp-home-site__cabin:first-child::before {
+        @apply bg-line-strong;
+    }
+    .lp-home-site__cabin--extra {
+        @apply max-sm:hidden;
+    }
+    .lp-home-site__cabin-body {
+        @apply flex flex-col gap-0.5 px-3 py-2.5;
+    }
+    .lp-home-site__cabin-body > span {
         @apply text-xs text-fg-mute;
     }
-    .lp-home-site__cabin .lp-home-site__price {
-        @apply mt-1.5 self-start rounded-sm bg-surface-1 px-1.5 py-0.5 text-sm font-semibold text-ink outline-2 outline-offset-2 outline-dashed outline-accent;
+    .lp-home-site__target {
+        @apply relative z-20 mt-2 self-start;
+    }
+    .lp-home-site__price {
+        @apply block rounded-sm bg-surface-1 px-1.5 py-0.5 text-sm font-semibold text-ink outline-2 outline-offset-2 outline-dashed outline-accent;
     }
     .lp-home-site__note {
-        @apply absolute right-3 bottom-3 flex w-48 flex-col gap-2 rounded-xl border border-line bg-surface-1 p-3 text-xs shadow-card sm:w-56;
+        @apply absolute -top-3.5 left-full ml-3.5 flex w-44 flex-col gap-2 rounded-xl border border-line bg-surface-1 p-3 text-xs shadow-card sm:w-64;
+    }
+    .lp-home-site__note::before {
+        content: '';
+        @apply absolute top-4.5 -left-1.5 h-3 w-3 rotate-45 border-b border-l border-line bg-surface-1;
+    }
+    .lp-home-site__widget {
+        @apply absolute right-4 bottom-3.5 z-20 rounded-full bg-chrome px-3 py-1.5 text-xs font-semibold text-chrome-fg ring-2 ring-accent;
     }
     .lp-home-site__note-label {
         @apply text-fg-dim;
@@ -7037,6 +6890,20 @@
     }
     .lp-home-chip__input {
         @apply absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0;
+    }
+
+    /** The one waitlist dialog that every waitlist button of the home page opens. */
+    .lp-home-waitlist-dialog {
+        @apply max-w-md;
+    }
+    .lp-home-waitlist-dialog__close {
+        @apply absolute top-4 right-4;
+    }
+    .lp-home-waitlist-dialog__title {
+        @apply pr-10;
+    }
+    .lp-home-waitlist-dialog__form {
+        @apply flex flex-col gap-4;
     }
 
     .lp-home-ways {
@@ -8826,36 +8693,6 @@
         box-shadow:
             inset 0 0 0 100vmax transparent,
             0 0 0 0.6rem transparent;
-    }
-}
-
-@keyframes lp-explainer-reveal {
-    from {
-        opacity: 0;
-        transform: translateY(calc(var(--spacing) * 2));
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes lp-explainer-leave {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
-        visibility: hidden;
-    }
-}
-
-@keyframes lp-explainer-badge {
-    from {
-        transform: translateY(calc(var(--spacing) * -17));
-    }
-    to {
-        transform: translateY(0);
     }
 }
 

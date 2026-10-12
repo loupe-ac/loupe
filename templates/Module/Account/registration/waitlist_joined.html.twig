@@ -3,6 +3,11 @@
 {% block title %}{{ 'account.waitlist.joined.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block auth_body %}
+{% if modal %}
+<turbo-frame id="waitlist-modal">
+    {% include 'waitlist/_modal_joined.html.twig' only %}
+</turbo-frame>
+{% else %}
 <turbo-frame id="waitlist-notify">
 <div class="flex flex-col items-center gap-3 py-4 text-center">
     <div class="auth-icon-badge">
@@ -17,4 +22,5 @@
     <a href="{{ path('app_login') }}" class="auth-link text-sm font-medium mt-1">{{ 'account.waitlist.joined.back'|trans }}</a>
 </div>
 </turbo-frame>
+{% endif %}
 {% endblock %}

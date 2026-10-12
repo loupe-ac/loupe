@@ -11,6 +11,6 @@
         <a href="#opensource" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.open_source'|trans }}</a>
         <a href="{{ app_docs_url }}/" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.docs'|trans }}</a>
         <a href="{{ path('app_login') }}" class="lp-home-nav__link">{{ 'landing.nav.login'|trans }}</a>
-        <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_waitlist_join') }}">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_waitlist_join') }}" data-action="click->modal#open">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
     </nav>
 </header>

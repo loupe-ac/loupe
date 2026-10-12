@@ -21,7 +21,7 @@
                     <li><a href="#workflow" class="lp-home-footer__link">{{ 'landing.nav.workflow'|trans }}</a></li>
                     <li><a href="#features" class="lp-home-footer__link">{{ 'landing.nav.features'|trans }}</a></li>
                     <li><a href="#integrations" class="lp-home-footer__link">{{ 'landing.nav.works_with'|trans }}</a></li>
-                    <li><a href="{{ path('app_waitlist_join') }}" class="lp-home-footer__link">{{ 'landing.cta.join'|trans }}</a></li>
+                    <li><a href="{{ path('app_waitlist_join') }}" class="lp-home-footer__link" data-action="click->modal#open">{{ 'landing.cta.join'|trans }}</a></li>
                 </ul>
             </nav>
             <nav class="lp-home-footer__column" aria-label="{{ 'landing.footer.resources'|trans }}">

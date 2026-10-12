@@ -12,6 +12,7 @@ use App\Module\Account\Form\WaitlistJoinRequest;
 use App\Module\Account\Service\RegistrationGate;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
@@ -31,6 +32,12 @@ use Ubermuda\AuditBundle\AuditOutcome;
     defaults: ['notify' => true],
     methods: ['GET', 'POST'],
 )]
+#[Route(
+    '/waitlist/modal',
+    name: 'app_waitlist_modal',
+    defaults: ['modal' => true],
+    methods: ['GET', 'POST'],
+)]
 final class JoinWaitlistController extends AppController
 {
     public function __construct(
@@ -38,13 +45,14 @@ final class JoinWaitlistController extends AppController
         private readonly JoinWaitlistHandler $joinWaitlist,
         private readonly TranslatorInterface $translator,
         private readonly Auditor $auditor,
+        private readonly FormFactoryInterface $formFactory,
 
         #[Autowire(service: 'limiter.waitlist_join')]
         private readonly RateLimiterFactory $waitlistJoinLimiter,
     ) {
     }
 
-    public function __invoke(Request $request, bool $notify = false): Response
+    public function __invoke(Request $request, bool $notify = false, bool $modal = false): Response
     {
         // A waitlist only means something on an instance that intends to let
         // people in eventually. With sign-up switched off — or the install
@@ -69,14 +77,20 @@ final class JoinWaitlistController extends AppController
         // added to the waitlist by the resolver, so show the confirmation
         // directly instead of asking the visitor to submit the form again.
         if ($request->query->getBoolean('joined')) {
-            return $this->render('@Account/registration/waitlist_joined.html.twig');
+            return $this->render('@Account/registration/waitlist_joined.html.twig', ['modal' => $modal]);
         }
 
-        // The home page Notify me form posts here too. It keeps its own route,
-        // so a failed submit re-renders the chips and posts back to the same URL.
-        $form = $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest(), $notify ? [
-            'action' => $this->generateUrl('app_waitlist_notify'),
-        ] : []);
+        // The home page Notify me form and waitlist dialog post here too. Each
+        // keeps its own route, so a failed submit re-renders its own frame.
+        $form = match (true) {
+            $modal => $this->formFactory->createNamed(WaitlistJoinFormType::MODAL_NAME, WaitlistJoinFormType::class, new WaitlistJoinRequest(), [
+                'action' => $this->generateUrl('app_waitlist_modal'),
+            ]),
+            $notify => $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest(), [
+                'action' => $this->generateUrl('app_waitlist_notify'),
+            ]),
+            default => $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest()),
+        };
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -84,7 +98,7 @@ final class JoinWaitlistController extends AppController
             if (!$limiter->consume(1)->isAccepted()) {
                 $form->get('email')->addError(new FormError($this->translator->trans('account.waitlist.error.throttled')));
 
-                return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify]);
+                return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify, 'modal' => $modal]);
             }
 
             $data = $form->getData();
@@ -100,9 +114,9 @@ final class JoinWaitlistController extends AppController
             // to another location" for a direct 200 on a non-frame submission.
             // Always the same response, joined or already-listed, so the endpoint
             // enumerates nothing.
-            return $this->redirectToRoute('app_waitlist_join', ['joined' => 1]);
+            return $this->redirectToRoute($modal ? 'app_waitlist_modal' : 'app_waitlist_join', ['joined' => 1]);
         }
 
-        return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify]);
+        return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify, 'modal' => $modal]);
     }
 }

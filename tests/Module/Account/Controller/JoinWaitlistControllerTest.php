@@ -213,12 +213,74 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('long@example.com'));
     }
 
+    public function test_the_modal_form_renders_the_email_field_alone_inside_the_modal_frame(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $client->request(Request::METHOD_GET, '/waitlist/modal');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorExists('turbo-frame#waitlist-modal form[action="/waitlist/modal"] input[name="waitlist_modal_form[email]"]');
+        $this->assertSelectorNotExists('input[type="checkbox"]');
+        $this->assertSelectorNotExists('input[name="waitlist_modal_form[other]"]');
+    }
+
+    public function test_a_modal_submit_joins_and_redirects_to_the_modal_confirmation(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => 'modal@example.com'], '/waitlist/modal', 'waitlist_modal_form');
+
+        $this->assertResponseRedirects('/waitlist/modal?joined=1');
+        $entry = static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('modal@example.com');
+        $this->assertNotNull($entry);
+        $this->assertSame([], $entry->picks);
+
+        $client->request(Request::METHOD_GET, '/waitlist/modal?joined=1');
+        $this->assertSelectorTextContains('turbo-frame#waitlist-modal', "You're on the list");
+        $this->assertSelectorNotExists('turbo-frame#waitlist-notify');
+    }
+
+    public function test_an_invalid_modal_submit_re_renders_the_modal_form_with_the_error(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => 'not-an-email'], '/waitlist/modal', 'waitlist_modal_form');
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorExists('turbo-frame#waitlist-modal form[action="/waitlist/modal"]');
+        $this->assertSelectorTextContains('turbo-frame#waitlist-modal', 'This value is not a valid email address.');
+        $this->assertNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('not-an-email'));
+    }
+
+    public function test_the_modal_route_redirects_to_register_when_the_gate_is_open(): void
+    {
+        $client = static::createClient();
+        InstalledInstance::ensure(static::getContainer());
+
+        $client->request(Request::METHOD_GET, '/waitlist/modal');
+
+        $this->assertResponseRedirects('/register');
+    }
+
+    public function test_the_modal_route_404s_while_sign_up_is_not_allowed(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/waitlist/modal');
+
+        $this->assertResponseStatusCodeSame(404);
+    }
+
     /** @param array<string, mixed> $fields */
-    private function post(KernelBrowser $client, array $fields, string $path = '/waitlist'): void
+    private function post(KernelBrowser $client, array $fields, string $path = '/waitlist', string $formName = 'waitlist_join_form'): void
     {
         $crawler = $client->request(Request::METHOD_GET, $path);
-        $token = $crawler->filter('input[name="waitlist_join_form[_token]"]')->attr('value');
-        $client->request(Request::METHOD_POST, $path, ['waitlist_join_form' => [...$fields, '_token' => $token]]);
+        $token = $crawler->filter('input[name="'.$formName.'[_token]"]')->attr('value');
+        $client->request(Request::METHOD_POST, $path, [$formName => [...$fields, '_token' => $token]]);
     }
 
     private function closeRegistration(): void

@@ -72,6 +72,21 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorExists('.lp-home-ask__body[hidden]');
     }
 
+    public function test_every_waitlist_button_opens_the_one_waitlist_dialog(): void
+    {
+        $client = static::createClient();
+
+        $crawler = $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        $ctas = $crawler->filter('a[href="/waitlist"]');
+        self::assertGreaterThan(0, $ctas->count());
+        self::assertSame($ctas->count(), $crawler->filter('a[href="/waitlist"][data-action="click->modal#open"]')->count());
+        self::assertSelectorCount(1, '[data-controller~="modal"] dialog.lp-dialog');
+        self::assertSelectorExists('dialog turbo-frame#waitlist-modal form[action="/waitlist/modal"] input[name="waitlist_modal_form[email]"]');
+        self::assertSelectorNotExists('turbo-frame#waitlist-modal input[type="checkbox"]');
+    }
+
     public function test_anonymous_visitor_is_sent_to_login_where_the_gate_hides_the_page(): void
     {
         $client = static::createClient();

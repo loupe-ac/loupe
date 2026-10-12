@@ -4402,242 +4402,6 @@
                 <source>landing.hero.explainer_label</source>
                 <target>Loupe Explainer: one card moves through the workflow</target>
             </trans-unit>
-            <trans-unit id="landing.explainer.step">
-                <source>landing.explainer.step</source>
-                <target>Step %number% of %total%</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.play">
-                <source>landing.explainer.play</source>
-                <target>Play</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.pause">
-                <source>landing.explainer.pause</source>
-                <target>Pause</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.previous">
-                <source>landing.explainer.previous</source>
-                <target>Previous step</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.next">
-                <source>landing.explainer.next</source>
-                <target>Next step</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.steps">
-                <source>landing.explainer.steps</source>
-                <target>Explainer steps</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.dot">
-                <source>landing.explainer.dot</source>
-                <target>Step %number%: %title%</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.product_design.title">
-                <source>landing.explainer.scene.product_design.title</source>
-                <target>Product design</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.product_design.text">
-                <source>landing.explainer.scene.product_design.text</source>
-                <target>Card #42 moves to Product design. An agent drafts the document. You comment on a missing case, then approve version 2.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.tech_design.title">
-                <source>landing.explainer.scene.tech_design.title</source>
-                <target>Tech design</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.tech_design.text">
-                <source>landing.explainer.scene.tech_design.text</source>
-                <target>An agent writes the technical design from the approved product. You read it and approve.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.implementation.title">
-                <source>landing.explainer.scene.implementation.title</source>
-                <target>Implementation</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.implementation.text">
-                <source>landing.explainer.scene.implementation.text</source>
-                <target>A worker builds the approved design and opens pull request #641. The card moves to In review.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.agent_review.title">
-                <source>landing.explainer.scene.agent_review.title</source>
-                <target>Agent review</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.agent_review.text">
-                <source>landing.explainer.scene.agent_review.text</source>
-                <target>A second agent checks the change against the design. It finds one gap, and a fix round closes it before you look.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.site_review.title">
-                <source>landing.explainer.scene.site_review.title</source>
-                <target>Site review</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.site_review.text">
-                <source>landing.explainer.scene.site_review.text</source>
-                <target>You try the change on a preview. The price badge covers the Guest favourite label, so you leave a note with the widget. A fix worker moves the badge.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.done.title">
-                <source>landing.explainer.scene.done.title</source>
-                <target>Done</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.scene.done.text">
-                <source>landing.explainer.scene.done.text</source>
-                <target>Every rule is met, so the pull request merges on its own. Nobody clicks merge, and card #42 moves to Done.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.heading">
-                <source>landing.explainer.product.heading</source>
-                <target>Product design: Show the nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.requirement_before">
-                <source>landing.explainer.product.requirement_before</source>
-                <target>R1: Each search card shows</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.requirement_marked">
-                <source>landing.explainer.product.requirement_marked</source>
-                <target>the nightly price and the total for the dates.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.note_author">
-                <source>landing.explainer.product.note_author</source>
-                <target>Geoffrey</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.note">
-                <source>landing.explainer.product.note</source>
-                <target>No scenario covers a search with no dates.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.requested">
-                <source>landing.explainer.product.requested</source>
-                <target>Changes requested</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.approved">
-                <source>landing.explainer.product.approved</source>
-                <target>Version 2 approved</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.product.revised">
-                <source>landing.explainer.product.revised</source>
-                <target>Adds a scenario for a search with no dates.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.tech.heading">
-                <source>landing.explainer.tech.heading</source>
-                <target>Tech design: Show the nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.tech.point_first">
-                <source>landing.explainer.tech.point_first</source>
-                <target>Search cards read the nightly rate and the stay total.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.tech.point_second">
-                <source>landing.explainer.tech.point_second</source>
-                <target>A search with no dates shows the nightly rate only.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.tech.point_third">
-                <source>landing.explainer.tech.point_third</source>
-                <target>One browser test covers the search page.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.tech.waiting">
-                <source>landing.explainer.tech.waiting</source>
-                <target>Waiting for you</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.tech.approved">
-                <source>landing.explainer.tech.approved</source>
-                <target>Approved</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.build.started">
-                <source>landing.explainer.build.started</source>
-                <target>Worker started: implement card #42</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.build.edited">
-                <source>landing.explainer.build.edited</source>
-                <target>Edited 7 files, all checks pass</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.build.opened">
-                <source>landing.explainer.build.opened</source>
-                <target>Opened pull request #641</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.build.moved">
-                <source>landing.explainer.build.moved</source>
-                <target>Card #42 moved to In review</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.heading">
-                <source>landing.explainer.review.heading</source>
-                <target>Show the nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.requested">
-                <source>landing.explainer.review.requested</source>
-                <target>Changes requested, 1 finding</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.agent">
-                <source>landing.explainer.review.agent</source>
-                <target>Review agent:</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.finding">
-                <source>landing.explainer.review.finding</source>
-                <target>The approved design puts the total for the dates first. This shows only the nightly price.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.passed">
-                <source>landing.explainer.review.passed</source>
-                <target>Review passed</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.worker">
-                <source>landing.explainer.review.worker</source>
-                <target>Fix round:</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.review.fix">
-                <source>landing.explainer.review.fix</source>
-                <target>The card now shows the total for the dates first.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.label">
-                <source>landing.explainer.site.label</source>
-                <target>Guest favourite</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.price">
-                <source>landing.explainer.site.price</source>
-                <target>$180 / night</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.cabin">
-                <source>landing.explainer.site.cabin</source>
-                <target>Pine Hollow cabin</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.selected">
-                <source>landing.explainer.site.selected</source>
-                <target>Selected element: price badge</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.note">
-                <source>landing.explainer.site.note</source>
-                <target>The badge covers the Guest favourite label.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.saves">
-                <source>landing.explainer.site.saves</source>
-                <target>Saves to card #42</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.fixed">
-                <source>landing.explainer.site.fixed</source>
-                <target>Fixed, approved</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.site.fix">
-                <source>landing.explainer.site.fix</source>
-                <target>A fix worker moved the badge to the bottom of the photo.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.checks">
-                <source>landing.explainer.done.checks</source>
-                <target>All checks have passed</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.agent_review">
-                <source>landing.explainer.done.agent_review</source>
-                <target>Agent review passed</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.site_review">
-                <source>landing.explainer.done.site_review</source>
-                <target>Site review approved</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.merged">
-                <source>landing.explainer.done.merged</source>
-                <target>Merged by Loupe.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.merged_note">
-                <source>landing.explainer.done.merged_note</source>
-                <target>No one clicked merge.</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.card">
-                <source>landing.explainer.done.card</source>
-                <target>Show the nightly price on search cards</target>
-            </trans-unit>
-            <trans-unit id="landing.explainer.done.column">
-                <source>landing.explainer.done.column</source>
-                <target>Done</target>
-            </trans-unit>
             <trans-unit id="landing.workflow.title">
                 <source>landing.workflow.title</source>
                 <target>One workflow, end to end.</target>
@@ -4954,6 +4718,18 @@
                 <source>landing.slide.document.note</source>
                 <target>Put the total first. That is what guests compare.</target>
             </trans-unit>
+            <trans-unit id="landing.slide.document.toolbar_comment">
+                <source>landing.slide.document.toolbar_comment</source>
+                <target>Comment</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.toolbar_suggest">
+                <source>landing.slide.document.toolbar_suggest</source>
+                <target>Suggest</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.toolbar_strike">
+                <source>landing.slide.document.toolbar_strike</source>
+                <target>Strike</target>
+            </trans-unit>
             <trans-unit id="landing.slide.inbox.heading">
                 <source>landing.slide.inbox.heading</source>
                 <target>Needs you</target>
@@ -5017,6 +4793,18 @@
             <trans-unit id="landing.slide.site_review.cabin_second_meta">
                 <source>landing.slide.site_review.cabin_second_meta</source>
                 <target>4.7 stars, sleeps 2</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_third">
+                <source>landing.slide.site_review.cabin_third</source>
+                <target>Cedar ridge</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_third_meta">
+                <source>landing.slide.site_review.cabin_third_meta</source>
+                <target>4.8 stars, sleeps 6</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.widget">
+                <source>landing.slide.site_review.widget</source>
+                <target>Review</target>
             </trans-unit>
             <trans-unit id="landing.slide.site_review.selected">
                 <source>landing.slide.site_review.selected</source>
@@ -5208,6 +4996,18 @@
             </trans-unit>
             <trans-unit id="landing.ask.close">
                 <source>landing.ask.close</source>
+                <target>Close</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.title">
+                <source>landing.waitlist_dialog.title</source>
+                <target>Join the private beta waitlist</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.body">
+                <source>landing.waitlist_dialog.body</source>
+                <target>Leave your email. We send you an invite when a place opens.</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.close">
+                <source>landing.waitlist_dialog.close</source>
                 <target>Close</target>
             </trans-unit>
             <trans-unit id="landing.ask.group.forges">

@@ -16,9 +16,11 @@
 </div>
 
 <div class="{{ notify ? 'lp-home-ask' }}">
-<turbo-frame id="waitlist-notify">
+<turbo-frame id="{{ modal ? 'waitlist-modal' : 'waitlist-notify' }}">
     {% if notify %}
         {% include 'waitlist/_notify_form.html.twig' with {notifyForm: form} only %}
+    {% elseif modal %}
+        {% include 'waitlist/_modal_form.html.twig' with {modalForm: form} only %}
     {% else %}
     {% do form.picks.setRendered %}
     {% do form.other.setRendered %}

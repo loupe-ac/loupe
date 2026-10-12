@@ -11,6 +11,7 @@ use App\Module\Account\Form\WaitlistJoinRequest;
 use App\Module\Landing\Service\HomePageGate;
 use App\Module\Project\Command\ShowHomeCommand;
 use App\Module\Project\Command\ShowHomeHandler;
+use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -20,6 +21,7 @@ class LandingController extends AppController
     public function __construct(
         private readonly ShowHomeHandler $showHome,
         private readonly HomePageGate $homePageGate,
+        private readonly FormFactoryInterface $formFactory,
     ) {
     }
 
@@ -35,6 +37,9 @@ class LandingController extends AppController
             return $this->render('@Landing/landing.html.twig', [
                 'notifyForm' => $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest(), [
                     'action' => $this->generateUrl('app_waitlist_notify'),
+                ])->createView(),
+                'modalForm' => $this->formFactory->createNamed(WaitlistJoinFormType::MODAL_NAME, WaitlistJoinFormType::class, new WaitlistJoinRequest(), [
+                    'action' => $this->generateUrl('app_waitlist_modal'),
                 ])->createView(),
             ]);
         }

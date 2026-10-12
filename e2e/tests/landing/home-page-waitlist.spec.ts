@@ -44,7 +44,7 @@ async function entryRow(admin: Page, email: string) {
     return admin.locator('tr[data-waitlist-entry-id]', { hasText: email });
 }
 
-test('a waitlist button leads a visitor to the waitlist and they join', async ({
+test('a waitlist button opens the waitlist dialog and the visitor joins', async ({
     page: admin,
 }) => {
     await setRegistrationCap(admin, 1);
@@ -55,10 +55,19 @@ test('a waitlist button leads a visitor to the waitlist and they join', async ({
     await guest
         .getByRole('link', { name: 'Join the private beta waitlist' })
         .click();
-    await expect(guest).toHaveURL(/\/waitlist$/);
-    await guest.getByLabel('Email address').fill(email);
-    await guest.getByRole('button', { name: 'Join the waitlist' }).click();
-    await expect(guest.getByText("You're on the list")).toBeVisible();
+    const dialog = guest.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(guest).toHaveURL(/\/$/);
+
+    await dialog.getByRole('button', { name: 'Join the waitlist' }).click();
+    await expect(dialog).toContainText('This value should not be blank.');
+
+    await dialog.getByLabel('Email address').fill(email);
+    await dialog.getByRole('button', { name: 'Join the waitlist' }).click();
+    await expect(dialog.getByText("You're on the list")).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Close' }).first().click();
+    await expect(dialog).toBeHidden();
 
     await expect(await entryRow(admin, email)).toHaveCount(1);
 });
@@ -72,7 +81,7 @@ test('Notify me keeps the picks and the free text next to the email', async ({
     await guest.getByLabel('GitLab').check();
     await guest.getByLabel('Cursor').check();
     await guest.getByLabel('Something else').fill('Jujutsu');
-    await guest.getByLabel('Email').fill(email);
+    await guest.locator('#waitlist-notify').getByLabel('Email').fill(email);
     await guest.getByRole('button', { name: 'Notify me' }).click();
     await expect(guest.getByText("You're on the list")).toBeVisible();
 
@@ -96,13 +105,13 @@ test('an email that is already listed keeps its place and adds picks', async ({
 
     await openAsk(guest);
     await guest.getByLabel('GitLab').check();
-    await guest.getByLabel('Email').fill(email);
+    await guest.locator('#waitlist-notify').getByLabel('Email').fill(email);
     await guest.getByRole('button', { name: 'Notify me' }).click();
     await expect(guest.getByText("You're on the list")).toBeVisible();
 
     await openAsk(guest);
     await guest.getByLabel('Bitbucket').check();
-    await guest.getByLabel('Email').fill(email);
+    await guest.locator('#waitlist-notify').getByLabel('Email').fill(email);
     await guest.getByRole('button', { name: 'Notify me' }).click();
     await expect(guest.getByText("You're on the list")).toBeVisible();
 
@@ -146,7 +155,7 @@ test('an empty Notify me keeps the chips, and the retry joins', async ({
         'This value should not be blank.',
     );
     await guest.getByLabel('Gitea').check();
-    await guest.getByLabel('Email').fill(email);
+    await guest.locator('#waitlist-notify').getByLabel('Email').fill(email);
     await guest.getByRole('button', { name: 'Notify me' }).click();
     await expect(guest.getByText("You're on the list")).toBeVisible();
 

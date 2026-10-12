@@ -5,7 +5,7 @@
 {% block meta_description %}<meta name="description" content="{{ 'landing.meta.description'|trans }}">{% endblock %}
 
 {% block body_unauthenticated %}
-<div class="lp-home">
+<div class="lp-home" data-controller="modal">
     {% include '@Landing/landing/_nav.html.twig' only %}
 
     <main id="main-content" tabindex="-1">
@@ -19,5 +19,6 @@
     </main>
 
     {% include '@Landing/landing/_footer.html.twig' only %}
+    {% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm} only %}
 </div>
 {% endblock %}

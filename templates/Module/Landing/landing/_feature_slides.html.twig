@@ -8,7 +8,7 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'board' }}</b></span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/…/' }}<b>{{ 'board' }}</b></span></div>
         <div class="lp-home-board">
             {% for lane in lanes %}
                 <div class="lp-home-board__lane">
@@ -31,7 +31,7 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'workflow' }}</b></span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/…/' }}<b>{{ 'workflow' }}</b></span></div>
         <div class="lp-home-window__body">
             <div class="lp-home-window__heading">{{ 'landing.slide.rules.heading'|trans }}</div>
             <div class="lp-home-rule lp-home-rule--head">
@@ -50,12 +50,17 @@
     <div class="lp-home-terminal">
         <div class="lp-home-terminal__bar"><i></i><i></i><i></i><span>{{ 'claude · driftwood' }}</span></div>
         <div class="lp-home-terminal__body">
-            <div>{{ '> /loupe:product-design 42' }}</div>
-            <div><b>{{ 'loupe - card_get' }}</b> <span class="lp-home-terminal__dim">{{ '(card: 42)' }}</span></div>
-            <div class="lp-home-terminal__dim">#42 {{ 'landing.slide.session.card_title'|trans }}</div>
-            <div><b>{{ 'loupe - card_run_open' }}</b> <span class="lp-home-terminal__dim">{{ '(status: "product-design")' }}</span></div>
-            <div class="lp-home-terminal__dim">{{ 'landing.slide.session.run_open'|trans }}</div>
-            <div>{{ 'landing.slide.session.question'|trans }}</div>
+            <div class="lp-home-terminal__welcome">{{ 'Welcome to Claude Code!' }}</div>
+            <div><span class="lp-home-terminal__dim">{{ '> ' }}</span>{{ '/loupe:product-design 42' }}</div>
+            <div>
+                <div class="lp-home-terminal__call"><b>{{ 'loupe - card_get' }}</b> <span class="lp-home-terminal__dim">{{ '(card: 42)' }}</span></div>
+                <div class="lp-home-terminal__result">#42 {{ 'landing.slide.session.card_title'|trans }}</div>
+            </div>
+            <div>
+                <div class="lp-home-terminal__call"><b>{{ 'loupe - card_run_open' }}</b> <span class="lp-home-terminal__dim">{{ '(status: "product-design")' }}</span></div>
+                <div class="lp-home-terminal__result">{{ 'landing.slide.session.run_open'|trans }}</div>
+            </div>
+            <div class="lp-home-terminal__reply">{{ 'landing.slide.session.question'|trans }}</div>
         </div>
     </div>
     <div class="lp-home-caption"><span class="lp-home-caption__kicker">{{ 'landing.features.sessions.title'|trans }}</span>{{ 'landing.features.sessions.caption'|trans }}</div>
@@ -63,7 +68,7 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'review' }}</b></span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/…/documents/' }}<b>{{ 'product-design' }}</b>{{ '/review' }}</span></div>
         <div class="lp-home-doc__head">
             <b>{{ 'landing.slide.document.title'|trans }}</b>
             <span class="lp-home-doc__version">{{ 'v1' }}</span>
@@ -72,7 +77,9 @@
         <div class="lp-home-doc__body">
             <div class="lp-home-doc__prose">
                 <p>{{ 'landing.slide.document.paragraph_first'|trans }}</p>
-                <p>{{ 'landing.slide.document.paragraph_second_before'|trans }} <mark class="lp-home-doc__mark">{{ 'landing.slide.document.paragraph_second_marked'|trans }}</mark>{{ 'landing.slide.document.paragraph_second_after'|trans }}</p>
+                <p>
+                    <span class="lp-home-doc__toolbar" aria-hidden="true"><span>{{ 'landing.slide.document.toolbar_comment'|trans }}</span><span>{{ 'landing.slide.document.toolbar_suggest'|trans }}</span><span>{{ 'landing.slide.document.toolbar_strike'|trans }}</span></span>
+                    {{ 'landing.slide.document.paragraph_second_before'|trans }} <mark class="lp-home-doc__mark">{{ 'landing.slide.document.paragraph_second_marked'|trans }}</mark>{{ 'landing.slide.document.paragraph_second_after'|trans }}</p>
             </div>
             <div class="lp-home-doc__note"><b>{{ 'landing.slide.document.note_author'|trans }}</b>{{ 'landing.slide.document.note'|trans }}</div>
         </div>
@@ -82,7 +89,7 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'inbox' }}</b></span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/…/' }}<b>{{ 'inbox' }}</b></span></div>
         <div class="lp-home-window__body">
             <div class="lp-home-window__heading">{{ 'landing.slide.inbox.heading'|trans }} <span class="lp-home-mono lp-home-window__count">3</span></div>
             <div class="lp-home-rows">
@@ -97,7 +104,7 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'github.com/driftwood/' }}<b>{{ 'pull/412' }}</b></span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'github.com/…/driftwood/' }}<b>{{ 'pull/412' }}</b></span></div>
         <div class="lp-home-window__body lp-home-window__body--stack">
             <div class="lp-home-check">
                 <span class="lp-home-check__dot"></span>
@@ -106,7 +113,7 @@
             </div>
             <div class="lp-home-diff">
                 <div class="lp-home-diff__file">{{ 'SearchCard.tsx' }}</div>
-                <div class="lp-home-diff__added">{{ '+ <Price nightly={cabin.nightly} />' }}</div>
+                <div class="lp-home-diff__added">{{ '+ <Price nightly={cabin.nightly} />'|e }}</div>
                 <div class="lp-home-diff__finding"><b>{{ 'landing.slide.agent_review.finding_label'|trans }}</b> {{ 'landing.slide.agent_review.finding'|trans }}</div>
             </div>
         </div>
@@ -116,22 +123,28 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'pr-42.' }}<b>{{ 'preview' }}</b>{{ '.driftwood.test' }}</span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'pr-42.' }}<b>{{ 'preview' }}</b>{{ '.driftwood.test/search' }}</span></div>
         <div class="lp-home-site">
             <div class="lp-home-site__head"><b>{{ 'driftwood' }}</b><span>{{ 'landing.slide.site_review.tagline'|trans }}</span></div>
             <div class="lp-home-site__grid">
                 <div class="lp-home-site__cabin">
-                    <b>{{ 'landing.slide.site_review.cabin_first'|trans }}</b>
-                    <span>{{ 'landing.slide.site_review.cabin_first_meta'|trans }}</span>
-                    <span class="lp-home-site__price">{{ 'landing.slide.site_review.price'|trans }}</span>
+                    <div class="lp-home-site__cabin-body">
+                        <b>{{ 'landing.slide.site_review.cabin_first'|trans }}</b>
+                        <span>{{ 'landing.slide.site_review.cabin_first_meta'|trans }}</span>
+                        <div class="lp-home-site__target">
+                            <span class="lp-home-site__price">{{ 'landing.slide.site_review.price'|trans }}</span>
+                            <div class="lp-home-site__note">
+                                <span class="lp-home-site__note-label">{{ 'landing.slide.site_review.selected'|trans }}</span>
+                                <span class="lp-home-site__note-text">{{ 'landing.slide.site_review.note'|trans }}</span>
+                                <span class="lp-home-site__note-foot"><span>{{ 'landing.slide.site_review.saves'|trans }}</span><b>{{ 'landing.slide.site_review.submit'|trans }}</b></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="lp-home-site__cabin"><b>{{ 'landing.slide.site_review.cabin_second'|trans }}</b><span>{{ 'landing.slide.site_review.cabin_second_meta'|trans }}</span></div>
+                <div class="lp-home-site__cabin"><div class="lp-home-site__cabin-body"><b>{{ 'landing.slide.site_review.cabin_second'|trans }}</b><span>{{ 'landing.slide.site_review.cabin_second_meta'|trans }}</span></div></div>
+                <div class="lp-home-site__cabin lp-home-site__cabin--extra"><div class="lp-home-site__cabin-body"><b>{{ 'landing.slide.site_review.cabin_third'|trans }}</b><span>{{ 'landing.slide.site_review.cabin_third_meta'|trans }}</span></div></div>
             </div>
-            <div class="lp-home-site__note">
-                <span class="lp-home-site__note-label">{{ 'landing.slide.site_review.selected'|trans }}</span>
-                <span class="lp-home-site__note-text">{{ 'landing.slide.site_review.note'|trans }}</span>
-                <span class="lp-home-site__note-foot"><span>{{ 'landing.slide.site_review.saves'|trans }}</span><b>{{ 'landing.slide.site_review.submit'|trans }}</b></span>
-            </div>
+            <span class="lp-home-site__widget" aria-hidden="true">{{ 'landing.slide.site_review.widget'|trans }}</span>
         </div>
     </div>
     <div class="lp-home-caption lp-home-caption--left"><span class="lp-home-caption__kicker">{{ 'landing.features.site_review.title'|trans }}</span>{{ 'landing.features.site_review.caption'|trans }}</div>
@@ -139,7 +152,7 @@
 
 <div class="lp-home-slide" data-landing-features-target="slide">
     <div class="lp-home-window">
-        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'analytics' }}</b></span></div>
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/…/' }}<b>{{ 'analytics' }}</b></span></div>
         <div class="lp-home-window__body">
             <div class="lp-home-chart__filters">
                 <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.metric'|trans }}</span>

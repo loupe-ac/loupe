@@ -12,7 +12,7 @@
         </span>
     </button>
     <div id="landing-ask-body" class="lp-home-ask__body" data-landing-ask-target="body" hidden>
-        <turbo-frame id="waitlist-notify">
+        <turbo-frame id="waitlist-notify" data-controller="frame-missing-visit" data-action="turbo:frame-missing->frame-missing-visit#visit">
             {% include 'waitlist/_notify_form.html.twig' with {notifyForm: notifyForm} only %}
         </turbo-frame>
     </div>
