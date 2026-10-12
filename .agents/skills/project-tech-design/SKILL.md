@@ -27,6 +27,8 @@ Run the search. Count the result. Put the number in the document.
 
 Say what you could not verify. Silence reads as confidence.
 
+A claim about a library, an API, a database or speed needs proof too. Read the current docs, or run a proof of concept, as "Facts and recommendations" of the stage skill says.
+
 ## Separate the trigger from the problem
 
 The trigger is the event that made you look. The problem is what the code gets wrong.

@@ -35,7 +35,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 Put each item in its section of the product document.
 
 - A technical choice that Q6 parks goes in "For tech design".
-- A guess that the owner did not check goes in "Assumptions" (A4).
+- A guess that no code, doc, command or board history can check goes in "Assumptions" (A4). Check every other guess first, as Q1 of `question-rules.md` says.
 - Each question and its answer go in "Decisions log" (A5).
 - A decision that the owner defers goes in "Open questions" (Q8).
 - A deferred decision in "Open questions" gets the worked example of `../loupe-documents/references/design-structure.md` "Decisions", and no "How each option works" list. A question in chat gets no example.

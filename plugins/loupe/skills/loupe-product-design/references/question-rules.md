@@ -5,6 +5,9 @@ Each rule has a stable ID, so a comment can cite it.
 ## Rules
 
 1. Q1: Find facts yourself. Code, existing behaviour, docs and board history are facts. Look them up, with a subagent when that helps. A subagent only reads. It asks the owner nothing, and it changes no card and no document. Never ask the owner for a fact. Ask the owner only for decisions.
+   - Check each fact before you use it in a question, a recommendation or the document. Read the code to the end of the path, or run the command that shows the fact. A file or a field name that looks right is not a check.
+   - Never put an unchecked fact in the premise of a question. The owner answers the premise, so a wrong premise makes a wrong decision.
+   - When the owner corrects a fact after a question, ask that question again.
 2. Q2: Give every question a recommendation. Each question carries a recommended answer and a one-line reason why it matters. The recommendation says what the option does, in plain words, never only its label. Say when your confidence is low.
 3. Q3: Ask one question at a time. Ask one question per turn. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing. Never bundle two decisions in one question. State the context of the question in the question, because the owner can answer after a gap.
 4. Q4: Ask for disagreement. A recommended answer makes it easy to agree with everything. The owner can agree with several answers in a row. Then name the answer you are least sure of, and ask again.
@@ -13,7 +16,7 @@ Each rule has a stable ID, so a comment can cite it.
 7. Q7: Ask for priorities as trade-off pairs. Take each pair from this feature, such as an early first release against a complete permission model. Ask one pair per question, and recommend a side (Q2). Never ask the owner to rank goals that face no trade-off.
 8. Q8: Defer a decision only on the owner's word. A decision goes to "Open questions" as a decision fence only when the owner's answer defers it, such as "decide later". Never defer a question yourself.
 
-Write each answer in the "Decisions log" section, with the question. Write each Q7 answer in the "Priorities" section too. Write each decision that the owner defers in the "Open questions" section. Write each guess that you did not ask about in the "Assumptions" section.
+Write each answer in the "Decisions log" section, with the question. Write each Q7 answer in the "Priorities" section too. Write each decision that the owner defers in the "Open questions" section. Write a guess in the "Assumptions" section only when no code, doc, command or board history can check it, such as how users will act. Check every other guess, and write the result as a fact.
 
 ## Coverage checklist
 
