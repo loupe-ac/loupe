@@ -33,7 +33,7 @@ final class DevArtifactSeederTest extends KernelTestCase
         self::assertCount(1, $artifacts);
         self::assertCount(2, $artifacts[0]->versions);
         $latest = $this->versionNumbered($artifacts[0], 2);
-        self::assertSame(['app.js', 'index.html', 'style.css'], array_map(static fn ($file): string => $file->path, $latest->files->toArray()));
+        self::assertSame(['app.js', 'index.html', 'plans.html', 'style.css'], array_map(static fn ($file): string => $file->path, $latest->files->toArray()));
         self::assertSame('index.html', $latest->entryFile()?->path);
         self::assertSame(DevArtifactSeeder::SOURCE_LINK, $artifacts[0]->sourceLink);
         self::assertNotNull($this->versionNumbered($artifacts[0], 1)->notes);

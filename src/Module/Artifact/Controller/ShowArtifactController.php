@@ -12,6 +12,7 @@ use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Artifact\Security\ArtifactVoter;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -56,9 +57,10 @@ final class ShowArtifactController extends AppController
         #[MapEntity(expr: 'repository.findOneByIdAndProjectId(artifactId, project)')] Artifact $artifact,
         ?int $number = null,
         bool $fullScreen = false,
+        #[MapQueryParameter] ?string $file = null,
     ): Response {
-        $view = ($this->showArtifact)(new ShowArtifactCommand($artifact, $number))
-            ?? throw $this->createNotFoundException('The artifact has no such version.');
+        $view = ($this->showArtifact)(new ShowArtifactCommand($artifact, $number, '' === $file ? null : $file))
+            ?? throw $this->createNotFoundException('The artifact has no such version or file.');
 
         return $this->render('@Artifact/show_artifact.html.twig', [
             'project' => $artifact->project,
@@ -68,6 +70,9 @@ final class ShowArtifactController extends AppController
             'fullScreen' => $fullScreen,
             'versions' => $view->versions,
             'cards' => $view->cards,
+            'files' => $view->files,
+            'file' => $view->file,
+            'mainFile' => $view->mainFile,
             'contentLink' => $view->contentLink,
             'ownContentOrigin' => $view->ownContentOrigin,
             'allowedOrigins' => $view->allowedOrigins,
