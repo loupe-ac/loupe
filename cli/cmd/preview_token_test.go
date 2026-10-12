@@ -105,3 +105,25 @@ func TestPreviewTokenClientAsksForLoginWhenSignedOut(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestPreviewTokenClientSendsTheCliVersion(t *testing.T) {
+	useLoginConfigHome(t)
+	var agent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agent = r.Header.Get("User-Agent")
+		fmt.Fprint(w, `{"token":"pt_1"}`)
+	}))
+	t.Cleanup(server.Close)
+	if err := config.Save(testLogin(server.URL)); err != nil {
+		t.Fatal(err)
+	}
+
+	client, err := previewTokenClient(previewTokenFlags{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = client.MintPreviewToken(t.Context(), "p", "l", "")
+	if agent != userAgent() {
+		t.Fatalf("User-Agent = %q, want %q", agent, userAgent())
+	}
+}

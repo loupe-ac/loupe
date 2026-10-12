@@ -672,6 +672,9 @@ func TestAnUnsetMaxWorkersFlagLogsNoWarning(t *testing.T) {
 	if len(started) != 1 || num(t, started[0], "max_workers") != 4 || started[0]["worker_pools"] != "default=3,quick=1" {
 		t.Fatalf("bridge_started = %v", started)
 	}
+	if started[0]["version"] != cliVersion() {
+		t.Fatalf("bridge_started version = %v, want %q", started[0]["version"], cliVersion())
+	}
 }
 
 // The same value in the flag and in the file still warns, because the flag
