@@ -502,6 +502,35 @@ test('a note saves after typing stops and reaches the review payload', async ({
     ).toHaveValue(NOTE);
 });
 
+test('a note typed just before Back is still saved', async ({ page }) => {
+    await signedInReviewer(page, 'back');
+    const { documentId, reviewUrl } = await seedDocument(
+        page,
+        'Decision — Back',
+    );
+    await page.goto('/projects');
+    await page.evaluate((url) => {
+        (
+            window as unknown as { Turbo: { visit(to: string): void } }
+        ).Turbo.visit(url);
+    }, reviewUrl);
+    await expect(page).toHaveURL(reviewUrl);
+
+    const block = page.locator(`[data-decision-id="${DECISION_ID}"]`);
+    const note = block.getByRole('textbox', { name: 'Note', exact: true });
+    await note.fill(NOTE);
+    // Back lands inside the 800 ms typing delay, so only the send on
+    // disconnect can store the note.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/projects$/);
+
+    await expect
+        .poll(async () => (await readNoted(page, documentId))?.note, {
+            timeout: coverageScaled(15000),
+        })
+        .toBe(NOTE);
+});
+
 test('Clear choice removes the pick and keeps the note', async ({ page }) => {
     await signedInReviewer(page, 'clear');
     const { documentId, reviewUrl } = await seedDocument(

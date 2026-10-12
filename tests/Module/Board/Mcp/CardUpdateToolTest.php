@@ -279,6 +279,38 @@ final class CardUpdateToolTest extends KernelTestCase
         self::assertNull($cleared['parent']);
     }
 
+    public function test_clear_parent_true_clears_the_parent_and_false_keeps_it(): void
+    {
+        $created = $this->card('card-update-clear-parent');
+        $epic = ($this->createTool)('Epic', 'Body', 'epic');
+        ($this->tool)($created['cardId'], parentCardId: $epic['cardId']);
+
+        $kept = ($this->tool)($created['cardId'], clearParent: false);
+        self::assertSame($epic['cardId'], $kept['parent']['cardId'] ?? null);
+
+        $cleared = ($this->tool)($created['cardId'], clearParent: true);
+        self::assertNull($cleared['parent']);
+    }
+
+    public function test_clear_parent_with_a_parent_card_id_is_refused_and_the_parent_stays(): void
+    {
+        $created = $this->card('card-update-clear-parent-refused');
+        $epic = ($this->createTool)('Epic', 'Body', 'epic');
+        $other = ($this->createTool)('Other epic', 'Body', 'epic');
+        ($this->tool)($created['cardId'], parentCardId: $epic['cardId']);
+
+        try {
+            ($this->tool)($created['cardId'], title: 'Renamed', parentCardId: $other['cardId'], clearParent: true);
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertSame('Pass clearParent or parentCardId, not both.', $e->getMessage());
+        }
+
+        $after = ($this->tool)($created['cardId']);
+        self::assertSame($epic['cardId'], $after['parent']['cardId'] ?? null);
+        self::assertSame($created['title'], $after['title']);
+    }
+
     public function test_an_epic_reads_its_children_and_its_progress(): void
     {
         $this->card('card-update-epic-payload');
