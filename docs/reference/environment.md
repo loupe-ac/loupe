@@ -68,6 +68,12 @@ The App Platform module serves the hub under the app's own host, so neither
 rule applies there. The Content-Security-Policy allows `MERCURE_PUBLIC_URL` in
 `connect-src`.
 
+The hub keeps one subscription open for up to one hour, through
+`write_timeout 3600s` in its `MERCURE_EXTRA_DIRECTIVES`. `terraform/main.tf`
+and `docker/compose/prod.yaml` both set it. Without it, the hub closes each
+subscription after 8 to 10 minutes, and each bridge then connects again and
+catches up.
+
 ## Install and first administrator
 
 | Variable | Purpose | Add by hand? |
