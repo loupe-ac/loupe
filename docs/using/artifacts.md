@@ -118,7 +118,9 @@ These are gaps today:
 - An event attribute, such as `onClick` or `onChange`.
 - An embedded artboard, which is any `<dc-...>` tag.
 - A `<sc-else>` tag.
-- A `/_blob/` path.
+- A `/_blob/` path, also one that a script value fills in.
+- A file of the folder with the name of the compiled page, such as
+  `index.html`. The page is then written to `index.compiled.html`.
 - More than one canvas file in the folder.
 - A hole that is not a plain path, such as `{{ a + b }}`.
 - Canvas text left in the compiled page.

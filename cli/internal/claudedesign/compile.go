@@ -3,6 +3,7 @@
 package claudedesign
 
 import (
+	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -68,8 +69,10 @@ func (compiler) Compile(files []api.ArtifactFile, _ artifactcompile.Options) (ar
 		out := pagePath(b.Path, single)
 		page, gaps := compilePage(b.Path, b.Contents)
 		if taken[out] {
-			gaps = append(gaps, artifactcompile.Gap{File: b.Path, Line: 1, Feature: "an existing file named " + out, Detail: "the page would replace it"})
+			free := freePath(out, taken)
+			gaps = append(gaps, artifactcompile.Gap{File: b.Path, Line: 1, Feature: "an existing file named " + out, Detail: "the page is written to " + free + " instead; move one of them"})
 			page = markTop(page, gaps[len(gaps)-1])
+			out = free
 		}
 		if !single {
 			g := artifactcompile.Gap{File: boards[0].Path, Line: 1, Feature: "more than one artboard", Detail: "pick the first page and rename it to index.html"}
@@ -85,6 +88,17 @@ func (compiler) Compile(files []api.ArtifactFile, _ artifactcompile.Options) (ar
 	sort.Slice(res.Files, func(i, j int) bool { return res.Files[i].Path < res.Files[j].Path })
 
 	return res, nil
+}
+
+// freePath gives a path beside out that no other file takes.
+func freePath(out string, taken map[string]bool) string {
+	stem := strings.TrimSuffix(out, ".html") + ".compiled"
+	free := stem + ".html"
+	for i := 2; taken[free]; i++ {
+		free = fmt.Sprintf("%s-%d.html", stem, i)
+	}
+
+	return free
 }
 
 // markTop writes a gap marker at the start of a page.
@@ -103,4 +117,4 @@ func Marker(g artifactcompile.Gap) string {
 }
 
 // forbidden is text a compiled page must not hold.
-var forbidden = []string{canvasSuffix, "{{", "<sc-", "DCLogic", "support.js"}
+var forbidden = []string{canvasSuffix, "{{", "<sc-", "DCLogic", "support.js", "/_blob/"}

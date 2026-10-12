@@ -527,6 +527,11 @@ func interpolate(s string, scope map[string]any) (string, []problem) {
 
 			return h
 		}
+		if strings.Contains(t, "/_blob/") {
+			problems = append(problems, problem{"a /_blob/ path", h + " gives " + t})
+
+			return h
+		}
 
 		return t
 	})
@@ -540,8 +545,12 @@ func (p *page) expandText(n *html.Node, scope map[string]any) []*html.Node {
 		for _, pr := range textProblems(n) {
 			out = append(out, p.addGap(n, pr))
 		}
+		t := cloneDeep(n)
+		if len(out) > 0 {
+			p.keptSelf[t] = true
+		}
 
-		return append(out, cloneDeep(n))
+		return append(out, t)
 	}
 	s, problems := interpolate(n.Data, scope)
 	var out []*html.Node
@@ -622,6 +631,9 @@ func innerHTML(val string, scope map[string]any) (string, *problem) {
 	s, ok := text(v)
 	if !ok {
 		return "", &problem{"dangerouslySetInnerHTML without markup text", val}
+	}
+	if strings.Contains(s, "/_blob/") {
+		return "", &problem{"a /_blob/ path", val + " gives " + s}
 	}
 
 	return s, nil

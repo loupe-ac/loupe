@@ -233,10 +233,36 @@ func TestACanvasInAFolderBecomesItsIndex(t *testing.T) {
 	one(t, res, "site/index.html")
 }
 
-func TestAPageThatWouldReplaceAFileIsAGap(t *testing.T) {
-	res := compile(t, canvas("Main.dc.html", wrap("<p>a</p>")), api.ArtifactFile{Path: "index.html", Contents: []byte("old")})
-	if len(res.Gaps) != 1 || !strings.Contains(res.Gaps[0].Feature, "index.html") {
-		t.Fatalf("gaps = %+v", res.Gaps)
+func TestAPageThatWouldReplaceAFileIsAGapAndKeepsBoth(t *testing.T) {
+	cases := map[string]struct {
+		taken []string
+		page  string
+	}{
+		"index.html":                  {[]string{"index.html"}, "index.compiled.html"},
+		"index.compiled.html as well": {[]string{"index.html", "index.compiled.html"}, "index.compiled-2.html"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			files := []api.ArtifactFile{canvas("Main.dc.html", wrap("<p>a</p>"))}
+			for _, p := range c.taken {
+				files = append(files, api.ArtifactFile{Path: p, Contents: []byte("old " + p)})
+			}
+			res := compile(t, files...)
+			if len(res.Gaps) != 1 || !strings.Contains(res.Gaps[0].Feature, "index.html") || !strings.Contains(res.Gaps[0].Detail, c.page) {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			if len(res.Files) != len(c.taken)+1 {
+				t.Fatalf("files = %+v", res.Files)
+			}
+			for _, p := range c.taken {
+				if one(t, res, p) != "old "+p {
+					t.Fatalf("%s was replaced", p)
+				}
+			}
+			if page := one(t, res, c.page); !strings.HasPrefix(page, "<!-- loupe:gap an existing file named index.html") {
+				t.Fatalf("page:\n%s", page)
+			}
+		})
 	}
 }
 
@@ -364,6 +390,28 @@ func TestTheOriginalHeadIsCheckedLikeTheCanvas(t *testing.T) {
 			page := one(t, res, "index.html")
 			i := strings.Index(page, "<!-- loupe:gap "+c.feature)
 			if strings.Count(page, "<!-- loupe:gap") != 1 || i < 0 || !strings.Contains(markerRe.ReplaceAllString(page[i:], ""), c.source) {
+				t.Fatalf("page:\n%s", page)
+			}
+		})
+	}
+}
+
+func TestABlobPathFromAValueIsAGap(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { img: "/_blob/x.png", h: '<img src="/_blob/x.png">' }; } }`
+	cases := map[string]struct{ markup, source string }{
+		"in text":         {"<p>{{ img }}</p>", "{{ img }}"},
+		"in an attribute": {`<img src="{{ img }}">`, `src="{{ img }}"`},
+		"in inner html":   {`<div dangerouslySetInnerHTML="{{ h }}"></div>`, `dangerouslysetinnerhtml="{{ h }}"`},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, canvas("A.dc.html", scripted(script, c.markup)))
+			if len(res.Gaps) != 1 || res.Gaps[0].Feature != "a /_blob/ path" {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			page := one(t, res, "index.html")
+			rest := markerRe.ReplaceAllString(page, "")
+			if strings.Count(page, "<!-- loupe:gap") != 1 || strings.Contains(rest, "/_blob/") || !strings.Contains(rest, c.source) {
 				t.Fatalf("page:\n%s", page)
 			}
 		})
