@@ -81,7 +81,7 @@ final readonly class CardStates
             $projectId = $project->requireId();
             $parentNumbers = [];
             foreach ($open as $card) {
-                if (null !== $card->parent) {
+                if (null !== $card->parent && [] !== $card->pullRequests->toArray()) {
                     $parentNumbers[$card->parent->number] = $card->parent->number;
                 }
             }
@@ -274,11 +274,11 @@ final readonly class CardStates
     {
         $wanted = [];
         foreach ($open as $card) {
-            $epicBranch = null === $card->parent ? null : $epicBranches[$card->parent->number] ?? null;
             foreach ($card->pullRequests as $link) {
                 $view = $pullRequests->of($link);
                 if (null === $view || null === $view->refreshedAt || PullRequestState::Open !== $view->state || !$view->readyToMerge || null === $view->readySince
-                    || $view->mergeInFlight || null !== $view->forgeRequestedAt || null === $link->repository || null === $view->baseBranch || !self::isStacked($view, $epicBranch)) {
+                    || $view->mergeInFlight || null !== $view->forgeRequestedAt || null === $link->repository || null === $view->baseBranch
+                    || !self::isStacked($view, null === $card->parent ? null : $epicBranches[$card->parent->number] ?? null)) {
                     continue;
                 }
                 $wanted[self::stackKey($link, $view)] = ['forge' => $link->forge->value, 'repository' => mb_strtolower($link->repository), 'headBranch' => $view->baseBranch];
