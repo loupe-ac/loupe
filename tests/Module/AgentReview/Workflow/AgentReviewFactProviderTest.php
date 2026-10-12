@@ -16,13 +16,19 @@ use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Facts;
 use App\Tests\Module\AgentReview\AgentReviewScenario;
 use App\Tests\Module\Workflow\Fact\FactsMother;
+use App\Tests\Support\AgentCredential;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -127,6 +133,54 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertTrue(new AgentReviewDue()->evaluate($facts, []));
         self::assertFalse(new AgentReviewPassed()->evaluate($facts, []));
         self::assertFalse(new AgentReviewUnposted()->evaluate($facts, []));
+    }
+
+    public function test_a_fix_round_for_the_review_that_ended_done_after_it_answers_it(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->fix($card, 7, '+1 hour');
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertTrue($this->build($card)->heads[0]->answered);
+        self::assertTrue(new AgentReviewDue()->evaluate($facts, []));
+        self::assertFalse(new AgentReviewFailed()->evaluate($facts, []));
+    }
+
+    /** @return iterable<string, array{string, WorkRequestState, int, string}> */
+    public static function fixesThatAnswerNothing(): iterable
+    {
+        yield 'it settled before the review' => ['agent-review', WorkRequestState::Done, 7, '-1 hour'];
+        yield 'it was refused' => ['agent-review', WorkRequestState::Refused, 7, '+1 hour'];
+        yield 'it answered failed checks' => ['checks-failed', WorkRequestState::Done, 7, '+1 hour'];
+        yield 'it belongs to another pull request' => ['agent-review', WorkRequestState::Done, 8, '+1 hour'];
+    }
+
+    #[DataProvider('fixesThatAnswerNothing')]
+    public function test_a_fix_round_that_does_not_answer_the_review_changes_nothing(string $reason, WorkRequestState $state, int $number, string $settled): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->fix($card, $number, $settled, $reason, $state);
+
+        $facts = $this->conditionFacts($card, $pullRequest);
+
+        self::assertFalse($this->build($card)->heads[0]->answered);
+        self::assertFalse(new AgentReviewDue()->evaluate($facts, []));
+        self::assertTrue(new AgentReviewFailed()->evaluate($facts, []));
+    }
+
+    private function fix(Card $card, int $number, string $settledAt, string $reason = 'agent-review', WorkRequestState $state = WorkRequestState::Done): void
+    {
+        $subject = WorkSubject::card($card->id ?? throw new \LogicException('The card is flushed.'));
+        $request = new WorkRequest(AgentCredential::managed($this->em, $this->project, $this->project->id), $subject->type, $subject->id, $card->number, 'fix', null, 'fix-agent-review', new \DateTimeImmutable());
+        $request->state = $state;
+        $request->settledAt = new \DateTimeImmutable($settledAt);
+        $request->context = new WorkRequestContext(pullRequestNumber: $number, reason: $reason);
+        $this->em->persist($request);
     }
 
     /** A posted review of the head aaaa… with the fingerprint change-1, and a new head whose fingerprint is $headChange. */
