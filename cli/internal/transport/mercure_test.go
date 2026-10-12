@@ -22,6 +22,7 @@ func TestSubscribeAsksForEveryTopicOnOneConnection(t *testing.T) {
 		case got <- r.URL.Query()["topic"]:
 		default:
 		}
+		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
@@ -478,6 +479,7 @@ func TestSubscribeSendsTheSeededLastEventIDFirst(t *testing.T) {
 			case got <- r.Header.Values("Last-Event-ID"):
 			default:
 			}
+			w.Header().Set("Content-Type", "text/event-stream")
 			w.WriteHeader(http.StatusOK)
 		}))
 
@@ -615,4 +617,311 @@ func TestSubscribeHandsEachEventOverWithItsID(t *testing.T) {
 	}
 	cancel()
 	<-done
+}
+
+// A 200 that is not an event stream, such as an HTML page from a proxy, is an
+// error before OnConnect, so the caller does not treat it as a connection. The
+// error names the media type and the size, never the body.
+func TestSubscribeRefusesAnAnswerThatIsNotAnEventStream(t *testing.T) {
+	for name, tc := range map[string]struct {
+		contentType []string
+		want        string
+	}{
+		"html":        {[]string{"text/html"}, "with text/html (20 bytes)"},
+		"no header":   {nil, "with no content type (20 bytes)"},
+		"unparseable": {[]string{"garbage;;"}, `with content type "garbage;;" (20 bytes)`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				// A nil entry stops the server from sniffing a type from the body.
+				w.Header()["Content-Type"] = tc.contentType
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("<html>sign in</html>"))
+			}))
+			defer srv.Close()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			errs := make(chan error, 10)
+			connects := 0
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+					func(context.Context) (string, error) { return "jwt", nil },
+					Handler{
+						OnConnect: func() { connects++ },
+						OnError: func(err error) {
+							select {
+							case errs <- err:
+							default:
+							}
+						},
+					})
+			}()
+
+			select {
+			case err := <-errs:
+				msg := err.Error()
+				if !strings.Contains(msg, tc.want) || !strings.Contains(msg, "expected text/event-stream") || strings.Contains(msg, "sign in") {
+					t.Fatalf("err = %q, want it to contain %q", msg, tc.want)
+				}
+			case <-time.After(4 * time.Second):
+				t.Fatal("no error reported")
+			}
+			cancel()
+			<-done
+			if connects != 0 {
+				t.Fatalf("OnConnect ran %d time(s)", connects)
+			}
+		})
+	}
+}
+
+// A media type with parameters is still an event stream.
+func TestSubscribeAcceptsAnEventStreamWithACharset(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("data: a\n\n"))
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		<-r.Context().Done()
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	got := make(chan string, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+			func(context.Context) (string, error) { return "jwt", nil },
+			Handler{OnData: func(data []byte) {
+				select {
+				case got <- string(data):
+				default:
+				}
+			}})
+	}()
+
+	select {
+	case data := <-got:
+		if data != "a" {
+			t.Fatalf("data = %q", data)
+		}
+	case <-time.After(4 * time.Second):
+		t.Fatal("no event delivered")
+	}
+	cancel()
+	<-done
+}
+
+// A stream that ends with nothing received is an error, and does not reset the
+// backoff, so a hub that closes every stream at once is not retried each second.
+func TestSubscribeBacksOffFromAnEmptyStream(t *testing.T) {
+	var (
+		mu       sync.Mutex
+		attempts []time.Time
+		errs     []string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		attempts = append(attempts, time.Now())
+		mu.Unlock()
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+			func(context.Context) (string, error) { return "jwt", nil },
+			Handler{OnError: func(err error) {
+				mu.Lock()
+				errs = append(errs, err.Error())
+				mu.Unlock()
+			}})
+	}()
+
+	deadline := time.After(5 * time.Second)
+	for {
+		mu.Lock()
+		n := len(attempts)
+		mu.Unlock()
+		if n >= 3 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("hub saw %d connection(s), want 3", n)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	cancel()
+	<-done
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(errs) == 0 || !strings.Contains(errs[0], "nothing received") {
+		t.Fatalf("errs = %q", errs)
+	}
+	if gap := attempts[2].Sub(attempts[1]); gap < 1900*time.Millisecond {
+		t.Fatalf("second wait = %s, want the backoff to grow to 2s", gap)
+	}
+}
+
+// A stream that delivers only a heartbeat still resets the backoff, so the
+// wait before each reconnect stays at one second.
+func TestSubscribeResetsTheBackoffAfterAHeartbeat(t *testing.T) {
+	var (
+		mu       sync.Mutex
+		attempts []time.Time
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		attempts = append(attempts, time.Now())
+		mu.Unlock()
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(":\n"))
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+			func(context.Context) (string, error) { return "jwt", nil }, Handler{})
+	}()
+
+	deadline := time.After(5 * time.Second)
+	for {
+		mu.Lock()
+		n := len(attempts)
+		mu.Unlock()
+		if n >= 3 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("hub saw %d connection(s), want 3", n)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	cancel()
+	<-done
+
+	mu.Lock()
+	defer mu.Unlock()
+	if gap := attempts[2].Sub(attempts[1]); gap >= 1800*time.Millisecond {
+		t.Fatalf("second wait = %s, want the backoff reset to 1s", gap)
+	}
+}
+
+// A stream that ends cleanly after a line reports its life and the events it
+// delivered, so the caller can log how long the hub kept it open. The life
+// includes the OnConnect work, because the hub holds the stream meanwhile.
+func TestSubscribeReportsACleanClose(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(":\n\ndata: a\n\ndata: b\n\n"))
+	}))
+	defer srv.Close()
+
+	type closed struct {
+		lived  time.Duration
+		events int
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	got := make(chan closed, 10)
+	errs := make(chan error, 10)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+			func(context.Context) (string, error) { return "jwt", nil },
+			Handler{
+				OnConnect: func() { time.Sleep(200 * time.Millisecond) },
+				OnClose:   func(lived time.Duration, events int) { got <- closed{lived, events} },
+				OnError:   func(err error) { errs <- err },
+			})
+	}()
+
+	select {
+	case c := <-got:
+		if c.events != 2 || c.lived < 200*time.Millisecond || c.lived > 4*time.Second {
+			t.Fatalf("OnClose(%s, %d), want 2 events and the OnConnect time counted", c.lived, c.events)
+		}
+	case err := <-errs:
+		t.Fatalf("clean close reported as error %v", err)
+	case <-time.After(4 * time.Second):
+		t.Fatal("no close reported")
+	}
+	cancel()
+	<-done
+}
+
+// A stream that ends with a read error, or with nothing received, is an error
+// and never a clean close.
+func TestSubscribeReportsNoCleanCloseOnAnErrorEnd(t *testing.T) {
+	for name, body := range map[string]func(w http.ResponseWriter){
+		"empty": func(http.ResponseWriter) {},
+		"cut": func(w http.ResponseWriter) {
+			_, _ = w.Write([]byte("data: a\n\n"))
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				_ = conn.Close()
+			}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.WriteHeader(http.StatusOK)
+				body(w)
+			}))
+			defer srv.Close()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			closes := make(chan struct{}, 10)
+			errs := make(chan error, 10)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+					func(context.Context) (string, error) { return "jwt", nil },
+					Handler{
+						OnClose: func(time.Duration, int) { closes <- struct{}{} },
+						OnError: func(err error) {
+							select {
+							case errs <- err:
+							default:
+							}
+						},
+					})
+			}()
+
+			select {
+			case <-errs:
+			case <-closes:
+				t.Fatal("an error end was reported as a clean close")
+			case <-time.After(4 * time.Second):
+				t.Fatal("no error reported")
+			}
+			cancel()
+			<-done
+			if len(closes) != 0 {
+				t.Fatal("an error end was reported as a clean close")
+			}
+		})
+	}
 }

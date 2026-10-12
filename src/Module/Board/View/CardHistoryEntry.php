@@ -73,6 +73,12 @@ final readonly class CardHistoryEntry
             CardEventKind::Paused => self::pause($event, $actor, $detail, 'lucide:circle-pause', 'board.card.history.paused'),
             CardEventKind::PauseReleased => self::pause($event, $actor, $detail, 'lucide:circle-play', 'board.card.history.pause_released'),
             CardEventKind::Verdict => self::verdict($event, $actor, $detail),
+            CardEventKind::ReviewOverridden => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['approver'] ?? null) && \is_string($detail['headSha'] ?? null)
+                ? new self('lucide:shield-check', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.review_overridden', ['%login%' => $detail['approver'], '%pr%' => $detail['pullRequest'], '%sha%' => mb_substr($detail['headSha'], 0, 7)]))
+                : null,
+            CardEventKind::ReviewOverrideEnded => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['headSha'] ?? null)
+                ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => $detail['pullRequest'], '%sha%' => mb_substr($detail['headSha'], 0, 7)]))
+                : null,
         };
 
         return $entry ?? new self('lucide:history', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.changed', ['%actor%' => $actor]));

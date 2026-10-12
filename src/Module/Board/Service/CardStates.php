@@ -6,8 +6,10 @@ namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
+use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
+use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Repository\CardHoldRepository;
 use App\Module\Bridge\Service\CardLiveWork;
@@ -16,11 +18,13 @@ use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestState;
+use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CardStateHints;
 use App\Observability\RequestTimeline;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * The state each card of a board page shows: Stuck, Needs you, Working or Waiting. It reads the facts
@@ -40,6 +44,8 @@ final readonly class CardStates
         private CardEventRepository $cardEvents,
         private CardHoldRepository $cardHolds,
         private CardRepository $cards,
+        private ForgePullRequestRepository $forgePullRequests,
+        private CardPullRequestRepository $cardPullRequests,
         private CardStateHints $hints,
         private ClockInterface $clock,
         private RequestTimeline $timeline,
@@ -69,13 +75,24 @@ final readonly class CardStates
             $paused ??= $this->cardPauses->findActiveForCardIds($ids);
             $parentIds = array_values(array_unique(array_map(static fn (Card $card): string => (string) $card->parent?->id, array_filter($open, static fn (Card $card): bool => null !== $card->parent))));
             $work = $this->liveWork->forCards($project, array_values(array_unique([...$ids, ...$parentIds])));
+            $runWarnings = $this->withoutWarningsOfMovedCards($runWarnings, $ids);
             $settings = $this->automation->settingsOf($project);
             $delay = new \DateInterval(\sprintf('PT%dM', $settings->stuckDelayMinutes));
+
+            $projectId = $project->requireId();
+            $parentNumbers = [];
+            foreach ($open as $card) {
+                if (null !== $card->parent && [] !== $card->pullRequests->toArray()) {
+                    $parentNumbers[$card->parent->number] = $card->parent->number;
+                }
+            }
+            $epicBranches = [] === $parentNumbers ? [] : $this->hints->epicBranchesOf($projectId, array_values($parentNumbers));
+            $stackParents = $this->stackParentsOf($projectId, $open, $pullRequests, $epicBranches);
 
             $reasons = [];
             foreach ($open as $card) {
                 $id = (string) $card->id;
-                foreach ($this->reasonsOf($card, $paused[$id] ?? null, $runWarnings[$id] ?? null, $work[$id] ?? [], $pullRequests, $now, $delay) as $reason) {
+                foreach ($this->reasonsOf($card, $paused[$id] ?? null, $runWarnings[$id] ?? null, $work[$id] ?? [], $pullRequests, $now, $delay, $stackParents) as $reason) {
                     self::add($reasons, $id, $reason);
                 }
             }
@@ -88,7 +105,7 @@ final readonly class CardStates
             }
 
             if ($settings->enabled) {
-                $this->addQuietPullRequests($project, $open, $reasons, $work, $pullRequests, $now, $delay);
+                $this->addQuietPullRequests($project, $open, $reasons, $work, $pullRequests, $now, $delay, $epicBranches);
             }
 
             $states = [];
@@ -104,11 +121,37 @@ final readonly class CardStates
     }
 
     /**
-     * @param list<CardLiveWorkItem> $work
+     * A card that moved to another column since its run ended no longer waits on that run.
+     *
+     * @param array<string, CardRunWarning> $runWarnings
+     * @param list<string>                  $ids
+     *
+     * @return array<string, CardRunWarning>
+     */
+    private function withoutWarningsOfMovedCards(array $runWarnings, array $ids): array
+    {
+        $warned = array_values(array_filter($ids, static fn (string $id): bool => null !== ($runWarnings[$id] ?? null)));
+        if ([] === $warned) {
+            return $runWarnings;
+        }
+
+        foreach ($this->cardEvents->findNewestMoveAtOfCards($warned) as $id => $movedAt) {
+            $endedAt = $runWarnings[$id]->endedAt;
+            if (null !== $endedAt && $movedAt >= $endedAt) {
+                unset($runWarnings[$id]);
+            }
+        }
+
+        return $runWarnings;
+    }
+
+    /**
+     * @param list<CardLiveWorkItem>                              $work
+     * @param array<string, array{pullRequest: ?int, card: ?int}> $stackParents
      *
      * @return list<CardStateReason>
      */
-    private function reasonsOf(Card $card, ?CardPause $pause, ?CardRunWarning $warning, array $work, PullRequestStates $pullRequests, \DateTimeImmutable $now, \DateInterval $delay): array
+    private function reasonsOf(Card $card, ?CardPause $pause, ?CardRunWarning $warning, array $work, PullRequestStates $pullRequests, \DateTimeImmutable $now, \DateInterval $delay, array $stackParents): array
     {
         $reasons = [];
         if (null !== $pause) {
@@ -150,10 +193,15 @@ final readonly class CardStates
             if ($waitsForApproval) {
                 $reasons[] = new CardStateReason(CardStateCode::WaitsForApproval, $params, $view->waitsForApprovalSince);
             }
-            if ($view->readyToMerge && null !== $view->readySince && !$waitsForApproval && !$view->mergeInFlight && !$mergeLive) {
-                $stuckAt = $view->readySince->add($delay);
-                if ($stuckAt <= $now) {
-                    $reasons[] = new CardStateReason(CardStateCode::ReadyNotMerged, $params, $stuckAt);
+            if ($view->readyToMerge && null !== $view->readySince && !$waitsForApproval && !$view->mergeInFlight && !$mergeLive && null === $view->forgeRequestedAt) {
+                $parent = $stackParents[self::stackKey($link, $view)] ?? null;
+                if (null !== $parent) {
+                    $reasons[] = self::waitsForParent($parent, $params, $view->baseBranch, $view->readySince);
+                } else {
+                    $stuckAt = $view->readySince->add($delay);
+                    if ($stuckAt <= $now) {
+                        $reasons[] = new CardStateReason(CardStateCode::ReadyNotMerged, $params, $stuckAt);
+                    }
                 }
             }
             if (null !== $view->forgeRequestedAt) {
@@ -170,8 +218,9 @@ final readonly class CardStates
      * @param list<Card>                                    $open
      * @param array<string, array<string, CardStateReason>> $reasons
      * @param array<string, list<CardLiveWorkItem>>         $work
+     * @param array<int, string>                            $epicBranches the epic branch of each parent card number
      */
-    private function addQuietPullRequests(Project $project, array $open, array &$reasons, array $work, PullRequestStates $pullRequests, \DateTimeImmutable $now, \DateInterval $delay): void
+    private function addQuietPullRequests(Project $project, array $open, array &$reasons, array $work, PullRequestStates $pullRequests, \DateTimeImmutable $now, \DateInterval $delay, array $epicBranches): void
     {
         $candidates = array_filter($open, static fn (Card $card): bool => !isset($reasons[(string) $card->id]) && [] !== $card->pullRequests->toArray());
         if ([] === $candidates) {
@@ -188,13 +237,6 @@ final readonly class CardStates
         $held = array_flip($this->cardHolds->findCardIdsOfProject($project));
         $newest = $this->cardEvents->findNewestOccurredAtOfCards(array_values($ids));
         $unfinishedParents = array_flip($this->cards->findIdsWithOpenChildren(array_values($ids)));
-        $parentNumbers = [];
-        foreach ($candidates as $card) {
-            if (null !== $card->parent) {
-                $parentNumbers[$card->parent->number] = $card->parent->number;
-            }
-        }
-        $epicBranches = $this->hints->epicBranchesOf($projectId, array_values($parentNumbers));
 
         foreach ($candidates as $card) {
             $id = (string) $card->id;
@@ -212,14 +254,91 @@ final readonly class CardStates
                 if (null === $view || null === $view->refreshedAt || PullRequestState::Open !== $view->state || PullRequestChecks::Pending === $view->checks) {
                     continue;
                 }
-                $stacked = null !== $view->defaultBranch && $view->baseBranch !== $view->defaultBranch && $view->baseBranch !== $epicBranch;
-                if (!$stacked) {
+                if (!self::isStacked($view, $epicBranch)) {
                     self::add($reasons, $id, new CardStateReason(CardStateCode::PullRequestIdle, ['%number%' => $link->number ?? 0], $stuckAt));
 
                     break;
                 }
             }
         }
+    }
+
+    /** A pull request is stacked when its base is neither the default branch nor the epic branch of its card. */
+    private static function isStacked(PullRequestStateView $view, ?string $epicBranch): bool
+    {
+        return null !== $view->defaultBranch && $view->baseBranch !== $view->defaultBranch && $view->baseBranch !== $epicBranch;
+    }
+
+    private static function stackKey(CardPullRequest $link, PullRequestStateView $view): string
+    {
+        return $link->forge->value.'/'.mb_strtolower($link->repository ?? '').'/'.$view->baseBranch;
+    }
+
+    /**
+     * @param array{pullRequest: ?int, card: ?int} $parent
+     * @param array<string, int>                   $params
+     */
+    private static function waitsForParent(array $parent, array $params, ?string $base, \DateTimeImmutable $since): CardStateReason
+    {
+        if (null !== $parent['pullRequest'] && null !== $parent['card']) {
+            return new CardStateReason(CardStateCode::WaitsForParentCard, [...$params, '%parent_number%' => $parent['card'], '%pull_request%' => $parent['pullRequest']], $since);
+        }
+
+        return new CardStateReason(CardStateCode::WaitsForParentBranch, [...$params, '%branch%' => $base ?? ''], $since);
+    }
+
+    /**
+     * The open pull request that owns the base branch of each ready, stacked pull request, in two queries at most.
+     * A base with no stored pull request counts as a branch that waits. A base whose pull requests all merged or closed has no entry.
+     *
+     * @param list<Card>         $open
+     * @param array<int, string> $epicBranches
+     *
+     * @return array<string, array{pullRequest: ?int, card: ?int}> stack key => the parent
+     */
+    private function stackParentsOf(Uuid $projectId, array $open, PullRequestStates $pullRequests, array $epicBranches): array
+    {
+        $wanted = [];
+        foreach ($open as $card) {
+            foreach ($card->pullRequests as $link) {
+                $view = $pullRequests->of($link);
+                if (null === $view || null === $view->refreshedAt || PullRequestState::Open !== $view->state || !$view->readyToMerge || null === $view->readySince
+                    || $view->mergeInFlight || null !== $view->forgeRequestedAt || null === $link->repository || null === $view->baseBranch
+                    || !self::isStacked($view, null === $card->parent ? null : $epicBranches[$card->parent->number] ?? null)) {
+                    continue;
+                }
+                $wanted[self::stackKey($link, $view)] = ['forge' => $link->forge->value, 'repository' => mb_strtolower($link->repository), 'headBranch' => $view->baseBranch];
+            }
+        }
+        if ([] === $wanted) {
+            return [];
+        }
+
+        $openRows = [];
+        $seen = [];
+        foreach ($this->forgePullRequests->findByHeadBranches($projectId, array_values($wanted)) as $row) {
+            $key = $row->forge.'/'.$row->repository.'/'.$row->headBranch;
+            $seen[$key] = true;
+            if (PullRequestState::Open === $row->state && !isset($openRows[$key])) {
+                $openRows[$key] = $row;
+            }
+        }
+        $cardNumbers = $this->cardPullRequests->findCardNumbersOfPullRequests($projectId, array_values(array_map(
+            static fn ($row): array => ['forge' => $row->forge, 'repository' => $row->repository, 'number' => $row->number],
+            $openRows,
+        )));
+
+        $parents = [];
+        foreach (array_keys($wanted) as $key) {
+            if (isset($openRows[$key])) {
+                $row = $openRows[$key];
+                $parents[$key] = ['pullRequest' => $row->number, 'card' => $cardNumbers[$row->forge.'/'.$row->repository.'/'.$row->number] ?? null];
+            } elseif (!isset($seen[$key])) {
+                $parents[$key] = ['pullRequest' => null, 'card' => null];
+            }
+        }
+
+        return $parents;
     }
 
     /**

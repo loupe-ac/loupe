@@ -122,6 +122,16 @@ class ForgePullRequest
     #[ORM\Column(length: 64, nullable: true)]
     public ?string $approvalSha = null;
 
+    /** When the newest approval that stands was submitted, which an agent review override compares with the time of the review. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $latestApprovedAt = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $latestApprovalId = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public ?string $latestApproverLogin = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     public ?string $approvalId = null;
 
@@ -263,6 +273,9 @@ class ForgePullRequest
         $this->approvedAt = $snapshot->approvedAt;
         $this->approvalSha = $snapshot->approvalSha;
         $this->approvalId = $snapshot->approvalId;
+        $this->latestApprovedAt = $snapshot->latestApprovedAt;
+        $this->latestApprovalId = $snapshot->latestApprovalId;
+        $this->latestApproverLogin = $snapshot->latestApproverLogin;
         $this->defaultBranch = $snapshot->defaultBranch;
         $this->headParents = $snapshot->headParents;
     }
@@ -345,6 +358,9 @@ class ForgePullRequest
             $this->headBranch,
             $this->authorId,
             $this->authorLogin,
+            $this->latestApprovedAt,
+            $this->latestApprovalId,
+            $this->latestApproverLogin,
         );
     }
 }

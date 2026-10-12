@@ -963,10 +963,10 @@ func TestAReorderInsideNextStartsNoWorker(t *testing.T) {
 	}
 }
 
-// TestUnknownTypeIsDroppedQuietly keeps an older binary usable against a newer
-// server, which publishes types this build has never heard of. A type no rule
-// names is one of them.
-func TestUnknownTypeIsDroppedQuietly(t *testing.T) {
+// TestUnknownTypeIsDroppedAsUnknown keeps an older binary usable against a
+// newer server, which publishes types this build has never heard of. A type no
+// rule names is one of them. It logs a drop, never a malformed event.
+func TestUnknownTypeIsDroppedAsUnknown(t *testing.T) {
 	for _, payload := range []string{
 		`{"type":"board.card_created","projectId":"` + testProject + `","cardNumber":87}`,
 		`{"type":"site_review.submitted"}`,
@@ -976,7 +976,7 @@ func TestUnknownTypeIsDroppedQuietly(t *testing.T) {
 		h.router.onData([]byte(payload))
 		h.router.wg.Wait()
 
-		if h.log.String() != "" {
+		if line := h.only(t, "event_dropped"); len(h.lines(t)) != 1 || str(t, line, "reason") != "unknown_type" {
 			t.Fatalf("%s was reported: %q", payload, h.log.String())
 		}
 		if calls := h.worker.recorded(); len(calls) != 0 {
@@ -1028,6 +1028,19 @@ func TestAStreamErrorIsReported(t *testing.T) {
 	}
 	if got := str(t, h.only(t, "stream_error"), "error"); got != "hub returned HTTP 401" {
 		t.Fatalf("stream_error = %q", got)
+	}
+}
+
+// A clean close logs the life of the stream and its event count, so a person
+// can tell a hub limit from a dropped connection.
+func TestACleanStreamCloseIsReported(t *testing.T) {
+	h := newHarness(t)
+
+	h.router.handler().OnClose(475*time.Second+600*time.Millisecond, 3)
+
+	closed := h.only(t, "stream_closed")
+	if fmt.Sprint(closed["lived_s"]) != "475" || fmt.Sprint(closed["events"]) != "3" {
+		t.Fatalf("stream_closed = %v", closed)
 	}
 }
 

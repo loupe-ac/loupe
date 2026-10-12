@@ -17,12 +17,14 @@ final readonly class AgentReviewPosts
         private CardPullRequestRepository $cardPullRequests,
         private AgentReviewRepository $agentReviews,
         private AgentReviewPostRepository $agentReviewPosts,
+        private AgentReviewOverride $override,
     ) {
     }
 
     /**
      * The reviews of the card that no check shows on their own head, then the reviews of the card that the
-     * current head of an open GitHub pull request carries and that no check shows on that head. Oldest review first.
+     * current head of an open GitHub pull request carries and that no check shows on that head. A check that shows
+     * another conclusion or approver than its review now earns, such as after an override starts, ends or changes hands, is due again. Oldest review first.
      *
      * @return list<DuePost>
      */
@@ -30,7 +32,7 @@ final readonly class AgentReviewPosts
     {
         $open = $this->cardPullRequests->findOpenGitHubForCard($card);
         $due = array_map(
-            static fn (AgentReview $review): DuePost => new DuePost($review, $review->pullRequest, $review->headSha, false),
+            fn (AgentReview $review): DuePost => new DuePost($review, $review->pullRequest, $review->headSha, false, null, mb_strtolower($review->headSha) === mb_strtolower($review->pullRequest->headSha ?? '') ? $this->override->approverOf($review, $review->pullRequest) : null),
             $this->agentReviews->findUnpostedOfCard($card, $open),
         );
 
@@ -39,8 +41,16 @@ final readonly class AgentReviewPosts
         foreach ($open as $pullRequest) {
             $review = $latest[(string) $pullRequest->id] ?? null;
             $head = mb_strtolower($pullRequest->headSha ?? '');
-            if (null !== $review && $review->card->id?->equals($card->id) && mb_strtolower($review->headSha) !== $head) {
+            if (null === $review || !$review->card->id?->equals($card->id)) {
+                continue;
+            }
+            if (mb_strtolower($review->headSha) !== $head) {
                 $carried[] = [$review, $pullRequest, $head];
+            } elseif (null !== $review->postedAt) {
+                $own = new DuePost($review, $pullRequest, $head, false, null, $this->override->approverOf($review, $pullRequest));
+                if ($own->stale()) {
+                    $due[] = $own;
+                }
             }
         }
 
@@ -50,8 +60,9 @@ final readonly class AgentReviewPosts
         }
         foreach ($carried as [$review, $pullRequest, $head]) {
             $post = $posts[$review->id.' '.$head] ?? null;
-            if (null === $post?->postedAt) {
-                $due[] = new DuePost($review, $pullRequest, $head, true, $post);
+            $carriedDue = new DuePost($review, $pullRequest, $head, true, $post, $this->override->approverOf($review, $pullRequest));
+            if (null === $post?->postedAt || $carriedDue->stale()) {
+                $due[] = $carriedDue;
             }
         }
 

@@ -98,6 +98,19 @@ class AgentReviewRepository extends ServiceEntityRepository
         return $latest;
     }
 
+    /** @return list<AgentReview> the reviews of the pull request that the history announced as overridden and has not ended */
+    public function findAnnouncedOfPullRequest(ForgePullRequest $pullRequest): array
+    {
+        /** @var list<AgentReview> $reviews */
+        $reviews = $this->createQueryBuilder('r')
+            ->where('r.pullRequest = :pullRequest AND r.overrideAnnouncedFor IS NOT NULL')
+            ->setParameter('pullRequest', $pullRequest)
+            ->getQuery()
+            ->getResult();
+
+        return $reviews;
+    }
+
     /**
      * @param list<Card>             $cards
      * @param list<ForgePullRequest> $pullRequests

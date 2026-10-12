@@ -187,6 +187,8 @@ type router struct {
 	// reload can map a slug to another project.
 	unmapped map[string]bool
 	gone     map[string]bool
+	// unknownTypes remembers the event types already logged as unknown.
+	unknownTypes map[string]bool
 
 	// paused stops dispatch, and frozen also holds back the events and the
 	// finished runs that arrive after a freeze, for resume to replay. live
@@ -439,6 +441,9 @@ func (r *router) handler() transport.Handler {
 				r.syncHolds()
 			}
 		},
+		OnClose: func(lived time.Duration, events int) {
+			r.log.Info("stream_closed", "lived_s", int(lived.Seconds()), "events", events)
+		},
 		OnError:     func(err error) { r.log.Error("stream_error", "error", err.Error()) },
 		OnEvent:     r.onEvent,
 		OnID:        r.onID,
@@ -448,8 +453,8 @@ func (r *router) handler() transport.Handler {
 
 // onData routes one Mercure payload.
 //
-// A type no rule names is dropped in silence: a newer server publishes types
-// an older binary never heard of, which is normal. A command goes to its own
+// A type no rule names is dropped with one warning per type: a newer server
+// publishes types an older binary never heard of. A command goes to its own
 // intake.
 func (r *router) onData(data []byte) {
 	r.route(data, false)
@@ -460,8 +465,10 @@ func (r *router) onData(data []byte) {
 func (r *router) route(data []byte, replayed bool) {
 	// Every bridge of the account receives an ask event, and only the one that
 	// started the session can resume it. Another bridge's event is not ours to
-	// validate, so it is dropped before Parse can log it.
+	// validate, so it is dropped before Parse can log it as malformed.
 	if event.ForAnotherBridge(data, r.bridgeID) {
+		r.log.Info("event_dropped", "reason", "other_bridge", "type", event.CommandType)
+
 		return
 	}
 	e, err := event.Parse(data)
@@ -477,6 +484,19 @@ func (r *router) route(data []byte, replayed bool) {
 			return
 		}
 		if errors.Is(err, event.ErrUnknownType) {
+			r.mu.Lock()
+			first := !r.unknownTypes[e.Type]
+			if first {
+				if r.unknownTypes == nil {
+					r.unknownTypes = map[string]bool{}
+				}
+				r.unknownTypes[e.Type] = true
+			}
+			r.mu.Unlock()
+			if first {
+				r.log.Warn("event_dropped", "reason", "unknown_type", "type", e.Type)
+			}
+
 			return
 		}
 		r.log.Error("event_malformed", "error", err.Error())

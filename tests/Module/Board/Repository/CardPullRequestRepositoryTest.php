@@ -112,6 +112,21 @@ final class CardPullRequestRepositoryTest extends KernelTestCase
         self::assertSame([], $this->links()->findCardIdsWithOpenGitHubPullRequest($other));
     }
 
+    public function test_find_card_numbers_of_pull_requests_takes_the_lowest_card_across_repository_case_variants(): void
+    {
+        $project = $this->makeProject('links-numbers-case');
+        foreach ([[3, 'acme/widgets'], [1, 'Acme/Widgets'], [2, 'ACME/WIDGETS'], [4, 'acme/Widgets']] as [$number, $repository]) {
+            $card = new Card($project, $this->column($project, 'backlog'), 'Card '.$number, '', $number);
+            $this->em->persist($card);
+            $this->em->persist(new CardPullRequest($card, "https://github.com/$repository/pull/5", Forge::GitHub, $repository, 5));
+        }
+        $this->em->flush();
+
+        $found = $this->links()->findCardNumbersOfPullRequests($project->id ?? throw new \LogicException('Flushed.'), [['forge' => 'github', 'repository' => 'acme/widgets', 'number' => 5]]);
+
+        self::assertSame(['github/acme/widgets/5' => 1], $found);
+    }
+
     private function links(): CardPullRequestRepository
     {
         $links = self::getContainer()->get(CardPullRequestRepository::class);

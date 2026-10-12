@@ -106,7 +106,7 @@ func dropReasons(t *testing.T, h *harness) []string {
 const refusedNoRun = "refused " + noOpenRun
 
 // A command starts no run, even when a kind of work has its name. Another
-// bridge's command is dropped in silence.
+// bridge's command is dropped with one event_dropped line and nothing else.
 func TestACommandMatchesNoRule(t *testing.T) {
 	for name, bridgeID := range map[string]string{"this bridge": testBridgeID, "another bridge": foreignBridge} {
 		t.Run(name, func(t *testing.T) {
@@ -119,8 +119,8 @@ func TestACommandMatchesNoRule(t *testing.T) {
 			}
 			received := len(h.events(t, "command_received"))
 			if bridgeID == foreignBridge {
-				if log := strings.TrimSpace(h.log.String()); log != "" {
-					t.Fatalf("log = %s, want nothing", log)
+				if lines := h.lines(t); len(lines) != 1 || lines[0]["event"] != "event_dropped" {
+					t.Fatalf("log = %v, want one event_dropped line", lines)
 				}
 			} else if received != 1 {
 				t.Fatalf("command_received lines = %d, want 1", received)
@@ -558,5 +558,37 @@ func TestAHeartbeatDropLogsAtDebug(t *testing.T) {
 	want := []string{"heartbeat duplicate DEBUG", "heartbeat expired DEBUG", "event expired INFO"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("command_dropped = %v, want %v", got, want)
+	}
+}
+
+// Each event of another bridge logs its drop at INFO.
+func TestAnEventOfAnotherBridgeLogsItsDrop(t *testing.T) {
+	h := newHarness(t)
+	payload := commandPayload(testCommand(testCommandID, api.CommandStopRun, foreignBridge, soon()))
+
+	h.send(payload)
+	h.send(payload)
+
+	got := h.events(t, "event_dropped")
+	if len(got) != 2 {
+		t.Fatalf("event_dropped lines = %v, want 2", got)
+	}
+	for _, line := range got {
+		if str(t, line, "level") != "INFO" || str(t, line, "reason") != "other_bridge" || str(t, line, "type") != event.CommandType {
+			t.Fatalf("event_dropped = %v", line)
+		}
+	}
+}
+
+// An unknown type logs one warning, and a repeat of the type logs none.
+func TestAnUnknownEventTypeWarnsOnce(t *testing.T) {
+	h := newHarness(t)
+
+	h.send(`{"type":"future.event"}`)
+	h.send(`{"type":"future.event"}`)
+
+	line := h.only(t, "event_dropped")
+	if str(t, line, "level") != "WARN" || str(t, line, "reason") != "unknown_type" || str(t, line, "type") != "future.event" {
+		t.Fatalf("event_dropped = %v", line)
 	}
 }

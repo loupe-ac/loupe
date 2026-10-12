@@ -3,6 +3,8 @@
 // so it works from behind NAT with no inbound path. A dropped connection is
 // retried with capped backoff from Last-Event-ID, and OnConnect runs before the
 // first line, so a caller can catch up there on what the hub no longer holds.
+// Only a stream that delivers a line resets the backoff, so a hub that answers
+// and closes at once is not retried every second.
 package transport
 
 import (
@@ -10,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,10 +22,11 @@ import (
 // Handler receives stream lifecycle and data callbacks. Any may be nil.
 // LastEventID seeds the resume point of the first connection. OnID receives
 // each new resume point, after the event's OnData, and "" when an empty id
-// clears it. OnEvent, when set, replaces OnData and also receives the event's
-// own id, "" when the event carries none.
+// clears it. OnEvent replaces OnData and also receives the event's id, or "".
+// OnClose receives the life and event count of a stream that ended cleanly.
 type Handler struct {
 	OnConnect   func()
+	OnClose     func(lived time.Duration, events int)
 	OnData      func([]byte)
 	OnEvent     func(id string, data []byte)
 	OnError     func(error)
@@ -83,7 +87,6 @@ func Subscribe(ctx context.Context, hc *http.Client, hubURL string, topics []str
 			return ctx.Err()
 		}
 
-		connected := false
 		jwt, err := token(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
@@ -105,25 +108,16 @@ func Subscribe(ctx context.Context, hc *http.Client, hubURL string, topics []str
 			continue
 		}
 
-		lastID, err = stream(ctx, hc, target, jwt, lastID, Handler{
-			OnData:  h.OnData,
-			OnEvent: h.OnEvent,
-			OnID:    h.OnID,
-			OnConnect: func() {
-				connected = true
-				if h.OnConnect != nil {
-					h.OnConnect()
-				}
-			},
-		})
+		var received bool
+		lastID, received, err = stream(ctx, hc, target, jwt, lastID, h)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		if err != nil && h.OnError != nil {
 			h.OnError(err)
 		}
-		if connected {
-			backoff = time.Second // a real connection resets backoff
+		if received {
+			backoff = time.Second
 		}
 
 		select {
@@ -138,11 +132,11 @@ func Subscribe(ctx context.Context, hc *http.Client, hubURL string, topics []str
 // stream consumes one connection. lastID, when non-empty, is sent as
 // Last-Event-ID so the hub replays whatever was published while we were
 // disconnected. It returns the most recent id seen so the caller can resume
-// from it.
-func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h Handler) (string, error) {
+// from it, and whether the hub sent any line, a heartbeat included.
+func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h Handler) (string, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return lastID, err
+		return lastID, false, err
 	}
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	req.Header.Set("Accept", "text/event-stream")
@@ -152,12 +146,16 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 
 	resp, err := hc.Do(req)
 	if err != nil {
-		return lastID, err
+		return lastID, false, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return lastID, fmt.Errorf("hub returned HTTP %d", resp.StatusCode)
+		return lastID, false, fmt.Errorf("hub returned HTTP %d", resp.StatusCode)
 	}
+	if err := checkEventStream(resp); err != nil {
+		return lastID, false, err
+	}
+	connectedAt := time.Now()
 	if h.OnConnect != nil {
 		h.OnConnect()
 	}
@@ -175,12 +173,16 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 
 	var data strings.Builder
 	pendingID, haveID := "", false
+	received := false
+	events := 0
 	for sc.Scan() {
+		received = true
 		idle.Reset(readTimeout)
 		line := sc.Text()
 		switch {
 		case line == "": // event boundary
 			if data.Len() > 0 {
+				events++
 				switch {
 				case h.OnEvent != nil:
 					id := ""
@@ -215,5 +217,37 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 		}
 	}
 
-	return lastID, sc.Err()
+	if err := sc.Err(); err != nil {
+		return lastID, received, err
+	}
+	if !received {
+		return lastID, false, fmt.Errorf("stream ended after %s with nothing received", time.Since(connectedAt).Round(100*time.Millisecond))
+	}
+	if h.OnClose != nil {
+		h.OnClose(time.Since(connectedAt), events)
+	}
+
+	return lastID, true, nil
+}
+
+// checkEventStream refuses a 200 that is not an event stream, such as a login
+// page from a proxy. The error names the media type and size, never the body.
+func checkEventStream(resp *http.Response) error {
+	raw := resp.Header.Get("Content-Type")
+	media, _, err := mime.ParseMediaType(raw)
+	if err == nil && media == "text/event-stream" {
+		return nil
+	}
+	switch {
+	case raw == "":
+		media = "no content type"
+	case err != nil:
+		media = fmt.Sprintf("content type %q", raw)
+	}
+	size := "unknown length"
+	if resp.ContentLength >= 0 {
+		size = fmt.Sprintf("%d bytes", resp.ContentLength)
+	}
+
+	return fmt.Errorf("hub answered %d with %s (%s), expected text/event-stream", resp.StatusCode, media, size)
 }

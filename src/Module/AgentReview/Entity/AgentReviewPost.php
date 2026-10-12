@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\AgentReview\Entity;
 
 use App\Module\AgentReview\Repository\AgentReviewPostRepository;
+use App\Module\Forge\Service\PullRequestCheckConclusion;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -30,6 +31,14 @@ class AgentReviewPost
 
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $postedAt = null;
+
+    /** What the check run shows. Null for a check posted before the override existed: the review conclusion then tells. */
+    #[ORM\Column(length: 20, nullable: true, enumType: PullRequestCheckConclusion::class)]
+    public ?PullRequestCheckConclusion $checkConclusion = null;
+
+    /** The login of the approver that the check run names as the override, or null when it names none. */
+    #[ORM\Column(nullable: true)]
+    public ?string $checkApprover = null;
 
     /** Lower-case, so one head has one row whatever case it came in. */
     #[ORM\Column(length: 64)]
