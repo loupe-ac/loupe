@@ -122,7 +122,9 @@ test('Notify me with no email shows the email error and stores nothing', async (
     await guest.getByLabel('Something else').fill(`no-email-${RUN}`);
     await guest.getByRole('button', { name: 'Notify me' }).click();
 
-    await expect(guest.locator('#waitlist-notify')).toContainText(/email/i);
+    await expect(guest.locator('#waitlist-notify')).toContainText(
+        'This value should not be blank.',
+    );
     await expect(guest.getByLabel('Forgejo')).toBeChecked();
     await expect(guest.getByLabel('Something else')).toHaveValue(
         `no-email-${RUN}`,
@@ -140,7 +142,9 @@ test('an empty Notify me keeps the chips, and the retry joins', async ({
     await openAsk(guest);
     await guest.getByRole('button', { name: 'Notify me' }).click();
 
-    await expect(guest.locator('#waitlist-notify')).toContainText(/email/i);
+    await expect(guest.locator('#waitlist-notify')).toContainText(
+        'This value should not be blank.',
+    );
     await guest.getByLabel('Gitea').check();
     await guest.getByLabel('Email').fill(email);
     await guest.getByRole('button', { name: 'Notify me' }).click();
