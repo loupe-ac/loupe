@@ -22,10 +22,11 @@ import (
 // Handler receives stream lifecycle and data callbacks. Any may be nil.
 // LastEventID seeds the resume point of the first connection. OnID receives
 // each new resume point, after the event's OnData, and "" when an empty id
-// clears it. OnEvent, when set, replaces OnData and also receives the event's
-// own id, "" when the event carries none.
+// clears it. OnEvent replaces OnData and also receives the event's id, or "".
+// OnClose receives the life and event count of a stream that ended cleanly.
 type Handler struct {
 	OnConnect   func()
+	OnClose     func(lived time.Duration, events int)
 	OnData      func([]byte)
 	OnEvent     func(id string, data []byte)
 	OnError     func(error)
@@ -173,6 +174,7 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 	var data strings.Builder
 	pendingID, haveID := "", false
 	received := false
+	events := 0
 	for sc.Scan() {
 		received = true
 		idle.Reset(readTimeout)
@@ -180,6 +182,7 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 		switch {
 		case line == "": // event boundary
 			if data.Len() > 0 {
+				events++
 				switch {
 				case h.OnEvent != nil:
 					id := ""
@@ -219,6 +222,9 @@ func stream(ctx context.Context, hc *http.Client, target, jwt, lastID string, h 
 	}
 	if !received {
 		return lastID, false, fmt.Errorf("stream ended after %s with nothing received", time.Since(connectedAt).Round(100*time.Millisecond))
+	}
+	if h.OnClose != nil {
+		h.OnClose(time.Since(connectedAt), events)
 	}
 
 	return lastID, true, nil

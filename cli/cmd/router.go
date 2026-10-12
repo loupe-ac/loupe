@@ -439,6 +439,9 @@ func (r *router) handler() transport.Handler {
 				r.syncHolds()
 			}
 		},
+		OnClose: func(lived time.Duration, events int) {
+			r.log.Info("stream_closed", "lived_s", int(lived.Seconds()), "events", events)
+		},
 		OnError:     func(err error) { r.log.Error("stream_error", "error", err.Error()) },
 		OnEvent:     r.onEvent,
 		OnID:        r.onID,

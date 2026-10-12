@@ -1031,6 +1031,19 @@ func TestAStreamErrorIsReported(t *testing.T) {
 	}
 }
 
+// A clean close logs the life of the stream and its event count, so a person
+// can tell a hub limit from a dropped connection.
+func TestACleanStreamCloseIsReported(t *testing.T) {
+	h := newHarness(t)
+
+	h.router.handler().OnClose(475*time.Second+600*time.Millisecond, 3)
+
+	closed := h.only(t, "stream_closed")
+	if fmt.Sprint(closed["lived_s"]) != "475" || fmt.Sprint(closed["events"]) != "3" {
+		t.Fatalf("stream_closed = %v", closed)
+	}
+}
+
 // lockProbe records, for each line whose event it names, that it saw the line
 // and whether router mu was free as the line was written.
 type lockProbe struct {

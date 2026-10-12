@@ -114,6 +114,9 @@ module "app" {
   enable_mercure     = var.mercure_jwt_secret != ""
   mercure_jwt_secret = var.mercure_jwt_secret
   mercure_image_tag  = "v0.24"
+  # The hub closes each subscription before its write timeout, 600s by default,
+  # and every close costs each bridge a reconnect and a catch-up.
+  mercure_extra_directives = "write_timeout 3600s"
 
   # Everything the module does not set itself. Values come from variables.tf so
   # secrets stay out of this file; see terraform.tfvars.example.
