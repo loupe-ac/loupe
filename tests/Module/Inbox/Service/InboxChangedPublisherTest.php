@@ -6,6 +6,7 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Mercure\LiveUpdatePublisher;
 use App\Mercure\LiveUpdates;
+use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Board\Command\DeleteBoardColumnCommand;
 use App\Module\Board\Command\DeleteBoardColumnHandler;
@@ -32,7 +33,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\CardWaitReconciler;
-use App\Module\Inbox\Service\InboxOpenCountPublisher;
+use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Workflow\Contract\Actor;
@@ -55,7 +56,7 @@ use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
 
-final class InboxOpenCountPublisherTest extends KernelTestCase
+final class InboxChangedPublisherTest extends KernelTestCase
 {
     use InboxFixtures;
 
@@ -64,6 +65,9 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
 
     /** @var list<Update> */
     private array $published = [];
+
+    /** @var list<Update> */
+    private array $pagePublished = [];
 
     protected function setUp(): void
     {
@@ -85,7 +89,7 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
 
     public function test_an_ask_signals_the_owner_inbox_topic_at_terminate(): void
     {
-        $this->service(AskInboxHandler::class)(new AskInboxCommand($this->project, Uuid::v4(), [
+        $view = $this->service(AskInboxHandler::class)(new AskInboxCommand($this->project, Uuid::v4(), [
             new AskInboxItem(InboxItemKind::Question, 'Which column?', freeText: true),
             new AskInboxItem(InboxItemKind::Todo, 'Review pull request 482'),
         ]));
@@ -95,6 +99,8 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
         $this->assertPublishedAtTerminate(1);
         // No count, which could arrive out of order, and no text an agent wrote.
         $this->assertSignalsTheProject($this->published[0]);
+        $this->assertSignalsThePage($this->pagePublished[0], (string) $view->ask->id);
+        self::assertCount(1, $this->pagePublished);
     }
 
     public function test_an_answer_a_done_and_a_decline_each_signal(): void
@@ -251,7 +257,7 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
             },
         );
 
-        new InboxOpenCountPublisher($this->topics(), $live)->countChanged($this->project);
+        new InboxChangedPublisher($this->topics(), $this->service(ProjectTopicBuilder::class), $live)->changed($this->project);
         $live->publish();
 
         self::assertFalse($hubBuilt);
@@ -273,7 +279,7 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
             ),
         );
 
-        new InboxOpenCountPublisher($this->topics(), $live)->countChanged($this->project);
+        new InboxChangedPublisher($this->topics(), $this->service(ProjectTopicBuilder::class), $live)->changed($this->project);
         $live->publish();
 
         $ownerId = $this->project->owner->id ?? throw new \LogicException('The owner has no id.');
@@ -298,6 +304,14 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
         $dispatcher->dispatch(new TerminateEvent(self::$kernel, Request::create('/'), new Response()), KernelEvents::TERMINATE);
 
         self::assertCount($expected, $this->published);
+    }
+
+    private function assertSignalsThePage(Update $update, string $askId = ''): void
+    {
+        $projectId = $this->project->id ?? throw new \LogicException('The project has no id.');
+        self::assertSame([$this->service(ProjectTopicBuilder::class)->forInbox($projectId)], $update->getTopics());
+        self::assertTrue($update->isPrivate());
+        self::assertSame(\sprintf('{"type":"inbox.changed","askIds":[%s],"origin":null}', '' === $askId ? '' : '"'.$askId.'"'), $update->getData());
     }
 
     private function assertSignalsTheProject(Update $update): void
@@ -355,8 +369,11 @@ final class InboxOpenCountPublisherTest extends KernelTestCase
             new StaticTokenProvider('token'),
             function (Update $update): string {
                 // A column delete also refreshes the board, on a topic of its own.
-                if (str_contains($update->getData(), InboxOpenCountPublisher::TYPE)) {
+                if (str_contains($update->getData(), InboxChangedPublisher::TYPE)) {
                     $this->published[] = $update;
+                }
+                if (str_contains($update->getData(), InboxChangedPublisher::PAGE_TYPE)) {
+                    $this->pagePublished[] = $update;
                 }
 
                 return 'id';

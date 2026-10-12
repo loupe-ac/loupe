@@ -36,7 +36,7 @@ final readonly class InboxItemCloser
         private InboxAskRepository $inboxAsks,
         private InboxItemRepository $inboxItems,
         private InboxAskCloser $askCloser,
-        private InboxOpenCountPublisher $openCount,
+        private InboxChangedPublisher $inboxChanged,
         private InboxCardTileRefresher $cardTiles,
     ) {
     }
@@ -100,7 +100,7 @@ final readonly class InboxItemCloser
             throw new DomainErrors($outcome);
         }
         if ($outcome) {
-            $this->openCount->countChanged($item->project);
+            $this->inboxChanged->changed($item->project);
             $this->cardTiles->refresh($item);
         }
     }

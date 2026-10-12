@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Twig;
 
+use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxCardWait;
@@ -48,6 +49,7 @@ final class InboxExtension extends AbstractExtension
         private readonly MarkdownRenderer $markdown,
         private readonly InboxItemRepository $inboxItems,
         private readonly UserTopicBuilder $topics,
+        private readonly ProjectTopicBuilder $projectTopics,
         private readonly InboxReviewLookup $inboxReviews,
         private readonly ReviewRepository $reviews,
         private readonly DocumentVersionRepository $documentVersions,
@@ -74,6 +76,7 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_refusals', $this->refusals(...)),
             new TwigFunction('project_inbox_open_count', $this->openCount(...)),
             new TwigFunction('inbox_topic', $this->topic(...)),
+            new TwigFunction('inbox_page_topic', $this->pageTopic(...)),
         ];
     }
 
@@ -238,5 +241,11 @@ final class InboxExtension extends AbstractExtension
     public function topic(User $user): string
     {
         return $this->topics->forInbox($user->id ?? throw new \LogicException('User has no id.'));
+    }
+
+    /** The topic the inbox pages of a project listen on for changes of the asks. */
+    public function pageTopic(Project $project): string
+    {
+        return $this->projectTopics->forInbox($project->id ?? throw new \LogicException('Project has no id.'));
     }
 }
