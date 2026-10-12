@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
 	"runtime"
 
 	"github.com/spf13/cobra"
+	"github.com/ubermuda/loupe/cli/internal/api"
 )
 
 // commit and dirty are injected at link time with `-ldflags -X`. The build
@@ -45,6 +47,16 @@ func cliVersion() string {
 	}
 
 	return buildID()
+}
+
+// userAgent names this build in the requests the CLI sends to Loupe.
+func userAgent() string {
+	return "loupe-cli/" + cliVersion()
+}
+
+// withUserAgent sends each request with the User-Agent of this build.
+func withUserAgent(base http.RoundTripper) http.RoundTripper {
+	return api.UserAgent{Value: userAgent(), Base: base}
 }
 
 func newVersionCmd() *cobra.Command {
