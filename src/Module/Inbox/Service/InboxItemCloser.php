@@ -102,6 +102,8 @@ final readonly class InboxItemCloser
         if ($outcome) {
             $this->inboxChanged->changed($item->project);
             $this->cardTiles->refresh($item);
+        } else {
+            $this->inboxChanged->pageChanged($item->project);
         }
     }
 

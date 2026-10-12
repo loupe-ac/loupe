@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Service;
 
+use App\Exception\DomainErrors;
 use App\Mercure\LiveUpdatePublisher;
 use App\Mercure\LiveUpdates;
 use App\Mercure\ProjectTopicBuilder;
@@ -158,23 +159,45 @@ final class InboxChangedPublisherTest extends KernelTestCase
         $this->assertSignalsTheProject($this->published[0]);
     }
 
-    public function test_a_changed_answer_and_a_join_leave_the_count_alone_and_publish_nothing(): void
+    public function test_a_changed_answer_and_a_join_leave_the_count_alone_and_signal_the_page(): void
+    {
+        $item = $this->item($this->em, $this->project, 1);
+        $this->em->flush();
+        $this->service(AnswerInboxItemHandler::class)(new AnswerInboxItemCommand($item, '0', ''));
+        $this->assertPublishedAtTerminate(1);
+        self::assertCount(1, $this->pagePublished);
+
+        $this->service(AnswerInboxItemHandler::class)(new AnswerInboxItemCommand($item, '1', ''));
+        $this->assertPublishedAtTerminate(1);
+        self::assertCount(2, $this->pagePublished);
+        $this->assertSignalsThePage($this->pagePublished[1]);
+
+        $open = $this->item($this->em, $this->project, 2);
+        $this->em->flush();
+        $joined = $this->service(JoinInboxAskHandler::class)(new JoinInboxAskCommand($open, Uuid::v4()));
+        $this->assertPublishedAtTerminate(1);
+        self::assertTrue($joined->added);
+        self::assertCount(3, $this->pagePublished);
+        $this->assertSignalsThePage($this->pagePublished[2], (string) $joined->ask->id);
+        // Guard: the second answer wrote.
+        self::assertSame([1], $this->reload($item)->selectedOptions);
+    }
+
+    public function test_a_refused_join_signals_nothing(): void
     {
         $item = $this->item($this->em, $this->project, 1);
         $this->em->flush();
         $this->service(AnswerInboxItemHandler::class)(new AnswerInboxItemCommand($item, '0', ''));
         $this->assertPublishedAtTerminate(1);
 
-        $this->service(AnswerInboxItemHandler::class)(new AnswerInboxItemCommand($item, '1', ''));
-        $open = $this->item($this->em, $this->project, 2);
-        $this->em->flush();
-        $this->assertPublishedAtTerminate(1);
-        $joined = $this->service(JoinInboxAskHandler::class)(new JoinInboxAskCommand($open, Uuid::v4()));
+        try {
+            $this->service(JoinInboxAskHandler::class)(new JoinInboxAskCommand($item, Uuid::v4()));
+            self::fail('A closed item cannot join an ask.');
+        } catch (DomainErrors) {
+        }
 
-        // Guard: both calls wrote, so only the publish stayed away.
-        self::assertTrue($joined->added);
-        self::assertSame([1], $this->reload($item)->selectedOptions);
         $this->assertPublishedAtTerminate(1);
+        self::assertCount(1, $this->pagePublished);
     }
 
     public function test_a_card_move_that_makes_an_item_obsolete_publishes_after_the_move_commits(): void

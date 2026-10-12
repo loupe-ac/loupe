@@ -123,9 +123,9 @@ what agents ask here, and a link to the closed asks.
 
 ### The page follows changes
 
-The page reads the inbox again when an agent or Loupe changes an ask while the
-page is open. Every member who can open the page gets this, not only the project
-owner. A new ask appears in the list, an ask that closes leaves the **Open**
+The page reads the inbox again when an agent, Loupe or another person changes an
+ask while the page is open. Every member who can open the page gets this, not
+only the project owner. A new ask appears in the list, an ask that closes leaves the **Open**
 side, and the counts follow. The page keeps the ask you have open, so a new
 blocking ask never takes its place.
 

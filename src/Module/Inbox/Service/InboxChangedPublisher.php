@@ -40,6 +40,18 @@ final readonly class InboxChangedPublisher
         $projectId = $project->id ?? throw new \LogicException('Project has no id.');
         $ownerId = $project->owner->id ?? throw new \LogicException('Project owner has no id.');
         $this->publisher->queue($this->userTopics->forInbox($ownerId), ['type' => self::TYPE, 'projectId' => (string) $projectId]);
+        $this->pageChanged($project, $askIds);
+    }
+
+    /**
+     * The view changed and no item opened or closed, so only the inbox pages
+     * read it again.
+     *
+     * @param list<Uuid> $askIds the asks that changed, when the caller holds them
+     */
+    public function pageChanged(Project $project, array $askIds = []): void
+    {
+        $projectId = $project->id ?? throw new \LogicException('Project has no id.');
         $this->publisher->queue($this->projectTopics->forInbox($projectId), [
             'type' => self::PAGE_TYPE,
             'askIds' => array_map(static fn (Uuid $askId): string => (string) $askId, $askIds),
