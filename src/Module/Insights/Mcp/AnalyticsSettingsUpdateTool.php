@@ -17,7 +17,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type AnalyticsSettingsPayload from AnalyticsSettingsGetTool
  */
-#[McpTool(name: self::NAME, description: 'Change the analysis settings of this project. Pass only the values you change: an argument you leave out keeps its value. defaultModel is the model a new analysis takes when it names none, one word such as sonnet or opus. defaultEffort is low, medium, high, xhigh or max. Pass an empty string as defaultModel or defaultEffort to clear the project value, so the instance default applies. collectFullText says whether the bridge sends the full text of each tool call. subcommandPrograms is the list of programs whose second word joins the signature of a shell command, such as git or npm. Pass at most 50 names of letters, digits and . _ + - and pass an empty list to clear the project list, so the instance list applies. The response is the settings, as analytics_settings_get answers them.')]
+#[McpTool(name: self::NAME, description: 'Change the analysis settings of this project. Pass only the values you change: an argument you leave out keeps its value. defaultModel is the model a new analysis takes when it names none, one word such as sonnet or opus. defaultEffort is low, medium, high, xhigh or max. Pass clearDefaultModel or clearDefaultEffort true to clear the project value, so the instance default applies. An empty string also clears it. collectFullText says whether the bridge sends the full text of each tool call. subcommandPrograms is the list of programs whose second word joins the signature of a shell command, such as git or npm. Pass at most 50 names of letters, digits and . _ + - and pass an empty list to clear the project list, so the instance list applies. The response is the settings, as analytics_settings_get answers them.')]
 final readonly class AnalyticsSettingsUpdateTool
 {
     public const string NAME = 'analytics_settings_update';
@@ -32,15 +32,30 @@ final readonly class AnalyticsSettingsUpdateTool
 
     /**
      * @param string|null   $defaultModel       the model, or an empty string to clear it
+     * @param bool|null     $clearDefaultModel  true clears the project model; do not pass it with defaultModel
      * @param string|null   $defaultEffort      low, medium, high, xhigh or max, or an empty string to clear it
+     * @param bool|null     $clearDefaultEffort true clears the project effort; do not pass it with defaultEffort
      * @param bool|null     $collectFullText    whether the bridge sends the full text of each tool call
      * @param string[]|null $subcommandPrograms the programs whose second word joins a shell signature, or an empty list to clear them
      *
      * @return AnalyticsSettingsPayload
      */
-    public function __invoke(?string $defaultModel = null, ?string $defaultEffort = null, ?bool $collectFullText = null, ?array $subcommandPrograms = null): array
+    public function __invoke(?string $defaultModel = null, ?bool $clearDefaultModel = null, ?string $defaultEffort = null, ?bool $clearDefaultEffort = null, ?bool $collectFullText = null, ?array $subcommandPrograms = null): array
     {
         try {
+            if (true === $clearDefaultModel) {
+                if (null !== $defaultModel && '' !== $defaultModel) {
+                    throw new ToolCallException('Pass clearDefaultModel or defaultModel, not both.');
+                }
+                $defaultModel = '';
+            }
+            if (true === $clearDefaultEffort) {
+                if (null !== $defaultEffort && '' !== $defaultEffort) {
+                    throw new ToolCallException('Pass clearDefaultEffort or defaultEffort, not both.');
+                }
+                $defaultEffort = '';
+            }
+
             $project = $this->subjects->requireWritableProject();
 
             try {
