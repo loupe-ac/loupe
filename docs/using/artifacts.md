@@ -136,8 +136,8 @@ compiled files to the folder and stores nothing. The folder must be empty or
 new. Each gap has a comment, `<!-- loupe:gap <feature>: <detail> -->`, before
 the markup it covers. The command exits with an error when a gap exists, even
 though it wrote the files. Finish each gap by hand, remove its comment, and push
-the folder. A folder with no canvas that still holds `loupe:gap` in a text file
-is refused.
+the folder. A push that still holds `loupe:gap` in a text file is refused, with
+or without a canvas.
 
 Two things come later: the `--index` flag, which names the first page of
 several canvases, and a folder with several canvases. A folder with several

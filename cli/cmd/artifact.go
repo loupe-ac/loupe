@@ -104,10 +104,8 @@ func pushArtifact(cmd *cobra.Command, path string, o artifactPushOptions) error 
 	if len(compiled.Gaps) > 0 {
 		return gapError(compiled.Gaps)
 	}
-	if !compiled.Compiled {
-		if name := fileWithGapMarker(files); name != "" {
-			return fmt.Errorf("%s still holds a loupe:gap comment. Finish that gap and remove the comment, then push again", name)
-		}
+	if name := fileWithGapMarker(files); name != "" {
+		return fmt.Errorf("%s still holds a loupe:gap comment. Finish that gap and remove the comment, then push again", name)
 	}
 
 	cfg, err := config.Load()

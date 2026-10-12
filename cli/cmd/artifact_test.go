@@ -255,6 +255,18 @@ func TestAPlainFolderWithAGapMarkerIsRefused(t *testing.T) {
 	}
 }
 
+func TestACanvasWithACompanionGapMarkerIsRefused(t *testing.T) {
+	src := t.TempDir()
+	write(t, filepath.Join(src, "Main.dc.html"), "<html><body><x-dc><p>Hi</p></x-dc></body></html>")
+	write(t, filepath.Join(src, "notes.html"), "<!-- loupe:gap event attribute onclick: x -->")
+	t.Setenv("HOME", t.TempDir())
+
+	_, err := runArtifact(t, src, "--name", "N")
+	if err == nil || !strings.Contains(err.Error(), "notes.html still holds a loupe:gap comment") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestABinaryFileWithMarkerTextIsNotAGapMarker(t *testing.T) {
 	files := []api.ArtifactFile{{Path: "pic.png", Contents: []byte("\x00loupe:gap")}}
 	if got := fileWithGapMarker(files); got != "" {
