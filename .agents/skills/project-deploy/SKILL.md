@@ -109,9 +109,11 @@ for rc in json.load(sys.stdin)['resource_changes']:
 "
 ```
 
-To ship code and an infrastructure change together, push the image first and then
-apply. One rollout carries both, because the apply's deployment pulls the tag you
-just pushed.
+To ship code and an infrastructure change together, apply the plan first. Then
+run `just deploy`, or `create-deployment --force-rebuild` when the image is
+already pushed. That makes two rollouts. The apply's deployment keeps the cached
+image even when you pushed a new `prod` tag before it, as the 2026-10-12 release
+of `2f0d20fe5` showed.
 
 ## Verify what is actually live
 
