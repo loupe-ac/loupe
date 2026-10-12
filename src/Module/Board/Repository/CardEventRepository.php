@@ -211,6 +211,38 @@ class CardEventRepository extends ServiceEntityRepository
         return $newest;
     }
 
+    /**
+     * @param list<string> $cardIds RFC 4122 ids
+     *
+     * @return array<string, \DateTimeImmutable> card id => the time of its newest column move; a card never moved has no key
+     */
+    public function findNewestMoveAtOfCards(array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        $connection = $this->getEntityManager()->getConnection();
+        $platform = $connection->getDatabasePlatform();
+        $type = Type::getType(Types::DATETIME_IMMUTABLE);
+
+        $newest = [];
+        /** @var list<array{card_id: string, newest: string}> $rows */
+        $rows = $connection->fetchAllAssociative(
+            'SELECT card_id, MAX(occurred_at) AS newest FROM board_card_events WHERE card_id IN (:cards) AND kind = :kind GROUP BY card_id',
+            ['cards' => $cardIds, 'kind' => CardEventKind::Moved->value],
+            ['cards' => ArrayParameterType::STRING],
+        );
+        foreach ($rows as $row) {
+            $at = $type->convertToPHPValue($row['newest'], $platform);
+            if ($at instanceof \DateTimeImmutable) {
+                $newest[$row['card_id']] = $at;
+            }
+        }
+
+        return $newest;
+    }
+
     /** The type the card was created with, or null when its `created` row records none. */
     public function createdType(Card $card): ?string
     {

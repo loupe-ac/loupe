@@ -371,6 +371,39 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-09-27 12:00:10'), $this->reload($row)->refreshedAt);
     }
 
+    public function test_a_second_approval_and_a_dismissal_of_the_newest_approval_are_announced(): void
+    {
+        $row = $this->approvedRow();
+        $second = new PullRequestSnapshot(
+            headSha: 'approved1',
+            mergeability: PullRequestMergeability::Mergeable,
+            review: PullRequestReview::Approved,
+            approvalSha: 'approved1',
+            approvalId: 'review1',
+            latestApprovedAt: new \DateTimeImmutable('2026-09-27 12:30:00'),
+            latestApprovalId: 'review2',
+            latestApproverLogin: 'ubermuda',
+        );
+        $dismissed = new PullRequestSnapshot(headSha: 'approved1', mergeability: PullRequestMergeability::Mergeable, review: PullRequestReview::Approved, approvalSha: 'approved1', approvalId: 'review1');
+        $this->reader->answers = [$second, $second, $dismissed];
+
+        $this->handle($row, self::NOW);
+        self::assertCount(1, $this->changes);
+        $stored = $this->reload($row);
+        self::assertSame('review2', $stored->latestApprovalId);
+        self::assertSame('ubermuda', $stored->latestApproverLogin);
+        self::assertSame('2026-09-27 12:30:00', $stored->latestApprovedAt?->format('Y-m-d H:i:s'));
+
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+        self::assertCount(1, $this->changes);
+
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:01:30');
+        self::assertCount(2, $this->changes);
+        self::assertNull($this->reload($row)->latestApprovalId);
+    }
+
     public function test_a_head_that_the_approval_covers_moves_the_covered_sha(): void
     {
         $row = $this->approvedRow();
