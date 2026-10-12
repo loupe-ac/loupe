@@ -13,7 +13,7 @@ use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** A document of the parent card carries the tag and is approved. */
+/** The parent card has a document with the tag, and every document of the parent with the tag is approved. */
 final readonly class ParentDocumentApproved implements Condition
 {
     #[\Override]
@@ -45,10 +45,12 @@ final readonly class ParentDocumentApproved implements Condition
     {
         $tag = ParameterValue::string($params, 'tag');
 
-        return array_any(
+        $tagged = array_filter(
             $facts->get(ParentDocumentsFacts::class)->documents,
-            static fn ($document): bool => DocumentStatus::Approved->value === $document->status && \in_array($tag, $document->tags, true),
+            static fn ($document): bool => \in_array($tag, $document->tags, true),
         );
+
+        return [] !== $tagged && array_all($tagged, static fn ($document): bool => DocumentStatus::Approved->value === $document->status);
     }
 
     #[\Override]

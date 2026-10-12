@@ -45,10 +45,12 @@ final readonly class CardDocumentApproved implements Condition, ReadsDocumentTag
     {
         $tag = ParameterValue::string($params, 'tag');
 
-        return array_any(
+        $tagged = array_filter(
             $facts->get(DocumentsFacts::class)->documents,
-            static fn ($document): bool => DocumentStatus::Approved->value === $document->status && \in_array($tag, $document->tags, true),
+            static fn ($document): bool => \in_array($tag, $document->tags, true),
         );
+
+        return [] !== $tagged && array_all($tagged, static fn ($document): bool => DocumentStatus::Approved->value === $document->status);
     }
 
     #[\Override]
