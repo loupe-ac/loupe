@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
+	_ "github.com/ubermuda/loupe/cli/internal/claudedesign"
 	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
@@ -38,7 +41,7 @@ func newArtifactCmd() *cobra.Command {
 
 // artifactPushOptions are the flags of `loupe artifact push`.
 type artifactPushOptions struct {
-	name, artifact, card, sourceLink, notes, project string
+	name, artifact, card, sourceLink, notes, project, out string
 }
 
 func newArtifactPushCmd() *cobra.Command {
@@ -71,18 +74,38 @@ func newArtifactPushCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.card, "card", "", "link the artifact to this card, by `number` or id")
 	cmd.Flags().StringVar(&o.sourceLink, "source-link", "", "where the files came from, such as a design canvas link")
 	cmd.Flags().StringVar(&o.notes, "notes", "", "what changed in this version")
+	cmd.Flags().StringVar(&o.out, "out", "", "write the compiled files to this empty or new `folder` and store nothing")
 	cmd.Flags().StringVar(&o.project, "project", "", "project id to store in (else "+projectfile.Name+" in this directory)")
 
 	return cmd
 }
 
 func pushArtifact(cmd *cobra.Command, path string, o artifactPushOptions) error {
-	if (o.name == "") == (o.artifact == "") {
+	if o.out == "" && (o.name == "") == (o.artifact == "") {
 		return errors.New("pass --name for a new artifact, or --artifact for a new version of an existing one, and not both")
+	}
+	if o.out != "" {
+		if err := checkOutFolder(o.out); err != nil {
+			return err
+		}
 	}
 	files, err := collectArtifactFiles(path)
 	if err != nil {
 		return err
+	}
+	compiled, err := artifactcompile.Run(files, artifactcompile.Options{})
+	if err != nil {
+		return err
+	}
+	files = compiled.Files
+	if o.out != "" {
+		return writeCompiled(cmd, o.out, compiled)
+	}
+	if len(compiled.Gaps) > 0 {
+		return gapError(compiled.Gaps)
+	}
+	if name := fileWithGapMarker(files); name != "" {
+		return fmt.Errorf("%s still holds a loupe:gap comment. Finish that gap and remove the comment, then push again", name)
 	}
 
 	cfg, err := config.Load()
@@ -125,6 +148,75 @@ func plural(n int, one, many string) string {
 	}
 
 	return many
+}
+
+// gapError names each gap, one line each.
+func gapError(gaps []artifactcompile.Gap) error {
+	lines := make([]string, 0, len(gaps))
+	for _, g := range gaps {
+		lines = append(lines, fmt.Sprintf("cannot compile %s, line %d: %s is not supported. Run again with --out <folder> to get the pages with each gap marked.", g.File, g.Line, g.Feature))
+	}
+
+	return errors.New(strings.Join(lines, "\n"))
+}
+
+// fileWithGapMarker gives the first text file that holds a gap marker.
+func fileWithGapMarker(files []api.ArtifactFile) string {
+	for _, f := range files {
+		if bytes.Contains(f.Contents, []byte("loupe:gap")) && !bytes.Contains(f.Contents[:min(len(f.Contents), 8000)], []byte{0}) {
+			return f.Path
+		}
+	}
+
+	return ""
+}
+
+// checkOutFolder refuses a folder that holds anything.
+func checkOutFolder(dir string) error {
+	entries, err := os.ReadDir(dir)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("--out %s: %w", dir, err)
+	case len(entries) > 0:
+		return fmt.Errorf("--out %s is not empty. Name an empty or new folder", dir)
+	}
+
+	return nil
+}
+
+// writeCompiled writes the files of a compile run inside dir and stores
+// nothing. A gap makes the command fail, after the files are written.
+func writeCompiled(cmd *cobra.Command, dir string, res artifactcompile.Result) error {
+	for _, f := range res.Files {
+		if !filepath.IsLocal(filepath.FromSlash(f.Path)) {
+			return fmt.Errorf("refusing to write %s outside %s", f.Path, dir)
+		}
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	out := cmd.OutOrStdout()
+	for _, f := range res.Files {
+		full := filepath.Join(dir, filepath.FromSlash(f.Path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(full, f.Contents, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "Wrote %s\n", full)
+	}
+	fmt.Fprintf(out, "Wrote %d %s to %s. Nothing is stored.\n", len(res.Files), plural(len(res.Files), "file", "files"), dir)
+	if len(res.Gaps) == 0 {
+		return nil
+	}
+	for _, g := range res.Gaps {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%s, line %d: %s (%s)\n", g.File, g.Line, g.Feature, g.Detail)
+	}
+
+	return fmt.Errorf("%d %s marked with a loupe:gap comment in %s. Finish each by hand, then push the folder", len(res.Gaps), plural(len(res.Gaps), "gap", "gaps"), dir)
 }
 
 // artifactLink joins the instance address and a path the server answered.
