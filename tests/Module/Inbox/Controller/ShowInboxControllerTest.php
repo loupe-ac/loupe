@@ -202,6 +202,31 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSelectorNotExists('[data-inbox-closed-notice]');
     }
 
+    public function test_the_closed_notice_reads_the_reason_of_the_item_that_closed_the_ask(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-live-closing');
+        $project = $this->inboxProject($this->em, $owner);
+        $earlier = $this->answered($this->em, $this->question($this->em, $project, 1));
+        $earlier->closeNote = 'An earlier note.';
+        $closing = $this->question($this->em, $project, 2);
+        $closing->state = InboxItemState::Withdrawn;
+        $closing->closedAt = new \DateTimeImmutable('-1 minute');
+        $closing->closeNote = 'The plan changed.';
+        $ask = $this->askHolding($this->em, $project, [$earlier, $closing], closedAt: new \DateTimeImmutable('-1 minute'));
+        $this->setInboxFlag(true);
+
+        $this->client->loginUser($owner);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$ask->id, server: [
+            'HTTP_X_LOUPE_LIVE_REFRESH' => '1',
+            'HTTP_TURBO_FRAME' => 'inbox-view',
+            'HTTP_X_LOUPE_INBOX_WATCHING' => (string) $ask->id,
+        ]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-inbox-closed-notice]', 'Withdrawn by the agent. The plan changed.');
+        self::assertSelectorTextNotContains('[data-inbox-closed-notice]', 'An earlier note.');
+    }
+
     public function test_the_open_count_frame_renders_the_pill_alone(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-pill-frame');

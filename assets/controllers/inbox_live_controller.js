@@ -83,11 +83,11 @@ export default class extends Controller {
         );
         const url = new URL(address);
         // A view with no ask in its address shows the first row, which a new ask can take over.
-        if (
-            pane &&
+        const pinned =
+            pane !== null &&
             !url.searchParams.has('ask') &&
-            !url.searchParams.has('item')
-        ) {
+            !url.searchParams.has('item');
+        if (pinned) {
             if (pane.dataset.inboxAskId) {
                 url.searchParams.set('ask', pane.dataset.inboxAskId);
             } else {
@@ -152,6 +152,9 @@ export default class extends Controller {
         if (!current || !fresh) {
             return;
         }
+        if (pinned) {
+            keepUnpicked(fresh);
+        }
         keepNotices(current, fresh);
         lockClosedForms(current, fresh);
         this.morph(current, fresh);
@@ -207,6 +210,17 @@ export default class extends Controller {
             );
         }
     }
+}
+
+/**
+ * The read names the shown ask, so the answer renders it picked. The address
+ * names no pick, so the view stays unpicked, and a phone keeps the list.
+ */
+function keepUnpicked(fresh) {
+    fresh
+        .querySelector('[data-inbox-picked]')
+        ?.setAttribute('data-inbox-picked', 'false');
+    fresh.querySelector('.lp-inbox-back')?.remove();
 }
 
 /**

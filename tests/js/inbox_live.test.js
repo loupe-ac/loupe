@@ -251,3 +251,52 @@ it('holds the read while a dialog is open and reads when it closes', async () =>
     await vi.advanceTimersByTimeAsync(0);
     expect(fetch).toHaveBeenCalledTimes(1);
 });
+
+function split(picked, html) {
+    const back = picked
+        ? '<a class="lp-inbox-back" href="/inbox">Back</a>'
+        : '';
+
+    return html.replace(
+        '<div class="lp-inbox-rows">',
+        `<div class="lp-inbox-split" data-inbox-picked="${picked}">${back}<div class="lp-inbox-rows">`,
+    );
+}
+
+it('keeps a view with no pick in its address unpicked, so a phone keeps the list', async () => {
+    await mount(split(false, view()));
+    answer(
+        split(
+            true,
+            view({
+                rows: [row(ASK, 'Which column?'), row('next', 'A new ask')],
+            }),
+        ),
+    );
+    changed();
+    await settle();
+
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get('ask')).toBe(ASK);
+    expect(document.querySelectorAll('.lp-inbox-request')).toHaveLength(2);
+    expect(
+        document.querySelector('[data-inbox-picked]').dataset.inboxPicked,
+    ).toBe('false');
+    expect(document.querySelector('.lp-inbox-back')).toBeNull();
+});
+
+it('keeps a view picked when its address names the ask', async () => {
+    window.history.replaceState(null, '', `/inbox?ask=${ASK}`);
+    try {
+        await mount(split(true, view()));
+        answer(split(true, view()));
+        changed();
+        await settle();
+
+        expect(
+            document.querySelector('[data-inbox-picked]').dataset.inboxPicked,
+        ).toBe('true');
+        expect(document.querySelector('.lp-inbox-back')).not.toBeNull();
+    } finally {
+        window.history.replaceState(null, '', '/');
+    }
+});

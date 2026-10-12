@@ -1,7 +1,7 @@
 /**
  * Browser coverage for the live inbox page: an ask that an agent opens shows in
  * the list of an open page without a reload, and an item that closes in another
- * browser locks the form that holds a typed note while the note stays. The hub
+ * browser keeps a typed note, and the form locks once its ask closes. The hub
  * delivers the signal, so the run needs a hub.
  */
 
@@ -29,7 +29,7 @@ test.afterAll(async ({ request }) => {
     await setFlag(request, 'inbox.enabled', false);
 });
 
-test('a new ask appears, and an item closed elsewhere locks the typed form', async ({
+test('a new ask appears, and an ask closed elsewhere locks the typed form', async ({
     browser,
     request,
 }) => {
@@ -76,13 +76,26 @@ test('a new ask appears, and an item closed elsewhere locks the typed form', asy
     const question = actor.locator(`#inbox-item-${first.questionNumber}`);
     await question.getByText('JSON', { exact: true }).click();
     await question.getByRole('button', { name: 'Send answer' }).click();
-    await expect(actor.locator('[data-inbox-status]')).toBeVisible({
-        timeout: 15_000,
-    });
+    await expect(actor.locator('[data-inbox-status]')).toContainText(
+        'still open',
+        { timeout: 15_000 },
+    );
 
-    await expect(note).toHaveValue('Use CSV, the importer reads it faster', {
+    // The to-do still blocks the ask, and an answered question stays editable until its ask closes.
+    await expect(note).toHaveValue('Use CSV, the importer reads it faster');
+    await expect(note).toHaveJSProperty('readOnly', false);
+
+    const todo = actor.locator(`#inbox-item-${first.todoNumber}`);
+    await todo.getByRole('button', { name: 'Mark complete' }).click();
+    await expect(actor.locator('[data-inbox-status]')).toContainText(
+        'is closed',
+        { timeout: 15_000 },
+    );
+
+    await expect(watcher.locator('[data-inbox-closed-notice]')).toBeVisible({
         timeout: 15_000,
     });
+    await expect(note).toHaveValue('Use CSV, the importer reads it faster');
     await expect(note).toHaveJSProperty('readOnly', true);
     expect(
         await watcher.evaluate(

@@ -173,7 +173,12 @@ final readonly class ShowInboxHandler
             return null;
         }
 
-        return new InboxRow($ask, $items, null === $ask->closedAt ? null : $this->outcomeOf($this->closingItemOf($items)));
+        if (null === $ask->closedAt) {
+            return new InboxRow($ask, $items);
+        }
+        $closing = $this->closingItemOf($items);
+
+        return new InboxRow($ask, $items, $this->outcomeOf($closing), $closing);
     }
 
     /**
@@ -198,7 +203,7 @@ final readonly class ShowInboxHandler
 
     private function rowOfItem(InboxItem $item): InboxRow
     {
-        return new InboxRow(null, [$item], $this->outcomeOf($item));
+        return new InboxRow(null, [$item], $this->outcomeOf($item), InboxItemState::Open === $item->state ? null : $item);
     }
 
     /** How a closed row ended, read from the item that closed it. A row that is still open has none. */
