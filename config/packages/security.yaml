@@ -8,6 +8,11 @@ security:
                 class: App\Module\Account\Entity\User
 
     firewalls:
+        # Every request to the content domain of stored artifacts. No security
+        # listener, so no session is read and no cookie is set.
+        artifact_content_host:
+            request_matcher: App\Module\Artifact\Security\ArtifactContentHostRequestMatcher
+            security: false
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false

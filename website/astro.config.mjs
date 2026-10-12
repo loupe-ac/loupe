@@ -134,6 +134,7 @@ export default defineConfig({
             { slug: 'operating/migrations' },
             { slug: 'operating/post-deploy-checks' },
             { slug: 'operating/sentry' },
+            { slug: 'operating/artifact-content-domain' },
             { slug: 'operating/failed-messages' },
             { slug: 'operating/recovering' },
             { slug: 'operating/backups' },

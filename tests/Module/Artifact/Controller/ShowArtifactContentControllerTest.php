@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Artifact\Controller;
 
-use App\Module\Artifact\Controller\ShowArtifactContentController;
 use App\Module\Artifact\Service\ArtifactContentSigner;
 use App\Tests\Module\Artifact\ArtifactScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -28,9 +27,11 @@ final class ShowArtifactContentControllerTest extends WebTestCase
         self::assertSame('<script>1</script>', $client->getResponse()->getContent());
         $headers = $client->getResponse()->headers;
         self::assertStringStartsWith('text/html', (string) $headers->get('Content-Type'));
-        self::assertSame([ShowArtifactContentController::CONTENT_SECURITY_POLICY], $headers->all('content-security-policy'));
-        self::assertStringNotContainsString('allow-same-origin', (string) $headers->get('Content-Security-Policy'));
-        self::assertSame(["sandbox allow-scripts allow-forms allow-popups allow-pointer-lock; frame-ancestors 'self'"], $headers->all('content-security-policy'));
+        $policy = (string) $headers->get('Content-Security-Policy');
+        self::assertCount(1, $headers->all('content-security-policy'));
+        self::assertStringStartsWith("sandbox allow-scripts allow-forms allow-popups allow-pointer-lock; frame-ancestors 'self'; default-src 'self' data: blob: 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com", $policy);
+        self::assertStringEndsWith("; form-action 'self'", $policy);
+        self::assertStringNotContainsString('allow-same-origin', $policy);
         self::assertSame('no-referrer', $headers->get('Referrer-Policy'));
         self::assertSame('nosniff', $headers->get('X-Content-Type-Options'));
         self::assertSame('*', $headers->get('Access-Control-Allow-Origin'));
@@ -141,6 +142,26 @@ final class ShowArtifactContentControllerTest extends WebTestCase
         self::assertNotNull($secret->id);
     }
 
+    public function test_with_no_content_domain_a_sub_address_link_serves_nothing(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('content-unset@example.com');
+        $artifact = $this->storedArtifact($project, 'Prototype', [['index.html' => 'x']]);
+        $versionId = (string) $this->versionNumbered($artifact, 1)->id;
+        $label = str_replace('-', '', (string) $artifact->id);
+        $signer = $this->signer();
+        $expires = time() + 600;
+        $this->em()->clear();
+
+        foreach (['artifact-content.invalid', 'content.example'] as $host) {
+            foreach ([$signer->sign($versionId, $expires, $label), $signer->sign($versionId, $expires)] as $signature) {
+                $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, \sprintf('https://%s.%s/%s/%d/%s/index.html', $label, $host, $versionId, $expires, $signature));
+                self::assertNotSame(200, $client->getResponse()->getStatusCode());
+                self::assertNotSame('x', $client->getResponse()->getContent());
+            }
+        }
+    }
+
     public function test_it_answers_404_while_the_flag_is_off(): void
     {
         $client = static::createClient();
@@ -167,6 +188,6 @@ final class ShowArtifactContentControllerTest extends WebTestCase
     {
         self::assertInstanceOf(\App\Module\Artifact\Entity\ArtifactVersion::class, $version);
 
-        return $this->signer()->pathFor($version, $path);
+        return $this->signer()->linkFor($version, $path);
     }
 }

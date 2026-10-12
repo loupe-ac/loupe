@@ -8189,6 +8189,11 @@
             <trans-unit id="artifact.viewer.unarchive"><source>artifact.viewer.unarchive</source><target>Unarchive</target></trans-unit>
             <trans-unit id="artifact.viewer.band.text"><source>artifact.viewer.band.text</source><target>Limited preview: some interactive parts may not work. Your operator can set a content domain for the full view.</target></trans-unit>
             <trans-unit id="artifact.viewer.band.dismiss"><source>artifact.viewer.band.dismiss</source><target>Dismiss</target></trans-unit>
+            <trans-unit id="artifact.viewer.allowed"><source>artifact.viewer.allowed</source><target>The page may load from:</target></trans-unit>
+            <trans-unit id="artifact.viewer.allowed.none"><source>artifact.viewer.allowed.none</source><target>The page may load only its own files.</target></trans-unit>
+            <trans-unit id="check.artifact_content_domain.label"><source>check.artifact_content_domain.label</source><target>Artifact content domain</target></trans-unit>
+            <trans-unit id="artifact.system_status.content_domain.configured"><source>artifact.system_status.content_domain.configured</source><target>The content domain is set, so stored pages run with their own origin.</target></trans-unit>
+            <trans-unit id="artifact.system_status.content_domain.missing"><source>artifact.system_status.content_domain.missing</source><target>Artifacts are on and ARTIFACT_CONTENT_HOST is empty. Stored pages show in a limited preview, and scripts that need storage or cookies fail. Set ARTIFACT_CONTENT_HOST to a separate domain with a wildcard DNS record.</target></trans-unit>
             <trans-unit id="artifact.viewer.stored_by"><source>artifact.viewer.stored_by</source><target>Stored by</target></trans-unit>
             <trans-unit id="artifact.viewer.source"><source>artifact.viewer.source</source><target>Source</target></trans-unit>
             <trans-unit id="artifact.viewer.stored_on"><source>artifact.viewer.stored_on</source><target>Stored on %date%</target></trans-unit>
