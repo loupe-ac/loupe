@@ -34,8 +34,7 @@ Open **Inbox** in the project sidebar. An amber count next to the link shows how
 many items are still open. The link is absent while the flag is off.
 
 The header keeps its View activity link visible on narrow screens, including
-with enlarged text. It wraps below the title when needed. The count of what
-waits sits at the end of the search row.
+with enlarged text. It wraps below the title when needed.
 
 The count changes without a reload when an agent asks, when you or an agent
 close an item, and when a finished card makes an item obsolete. It goes away at
@@ -43,43 +42,89 @@ zero. This needs a Mercure hub and the `live_updates.enabled` flag. Without
 them, the count is correct each time a page loads. See
 [Mercure hub](../extending/mercure.md).
 
-The search field keeps its compact width beside **Clear**.
-After a search, the result count remains visible without covering either control.
+The page has two columns: a list of asks on the left and the selected ask on
+the right. The list column opens with an **Open · N** and **Closed** switch, a
+search field and a type filter.
 
-**Open** and **Completed** are the two queues of the page. Each queue shows its
-requests in a list, and the selected request beside that list.
+### The address holds the view
 
-The **Open** queue lists the open asks first, oldest first, then the open items
-that no open ask holds. No agent waits on such an item, but nobody has closed
-it yet. A to-do from an ask that already closed is the usual case.
+The address of the page describes what you see, so a reload or a shared link
+shows the same view. The page reads these values from the query string:
 
-The **Completed** queue lists the closed asks, newest close first, ten to a
-page. Its address is `?queue=completed`.
+- `side` is `open` or `closed`. The address `?queue=completed` of an old link
+  reads as `side=closed`.
+- `type` is `question`, `review`, `todo`, `wait` or `workflow`. Without it the
+  list shows every type.
+- `q` is the search.
+- `ask` is the id of the selected ask.
+- `item` is the number of an item. The page opens the open ask that holds the
+  item, else the newest closed ask that holds it, else the item on its own.
+- `page` is the page of the closed asks or of the search results.
 
-A list row shows the source, the time, the title, the summary and one label,
-which is **Blocking**, the kind of the item, or its state. The request beside
-the list takes its heading from its first item, as the list row does. The
-agent's note follows, then the items. An ask with one item shows that title
-once. The document or pull request that a review item names is a row of the
-item's linked items, with the version under review. Replies under an item show
-each author's initial, name and time.
+A value that does not parse falls back to its default. An `ask` of another
+project selects nothing.
+
+A click on a row, the switch, a filter, the search or the pager reloads the
+list and the selected ask without reloading the page, and it adds a step to
+the browser history. The back button returns to the view before. Each visit
+from the sidebar starts on **Open** with every type and no search.
+
+An old link of the form `#inbox-item-12` still works. The page turns it into
+`?item=12`.
+
+### The list
+
+The **Open** side lists the open asks and the open items that no open ask
+holds. No agent waits on such an item, but nobody has closed it yet. A to-do
+from an ask that already closed is the usual case. Such an item is a row of its
+own. An ask that holds an open blocking item comes first, then the others. Each
+group is oldest first. The **Open** side shows every row.
+
+The **Closed** side lists the closed asks, newest close first, ten to a page.
+
+A row is one ask. It shows the icon of the first open item of the ask, and the
+icon of the first item of a closed ask. The title of the first item follows.
+A grey line below the title shows the first linked card and the age, such as
+"#1 Checkout · 2h". An ask with more cards shows "+2" after the first. An ask
+with no card shows its source, **Agent** or **Loupe**, instead. An ask that
+holds an open blocking item ends the line with **Blocking**. A closed ask shows
+how it ended: answered, approved, changes requested, done, dismissed, declined,
+withdrawn or no longer needed.
+
+The type filter has **All** and one icon for each type: question, review,
+to-do, card wait and workflow question. Hover over an icon to read its name. A
+filter keeps an ask when any of its items has that type.
+
+Select a row to read its ask on the right. The ask takes its heading from its
+first item. The agent's note follows, then the items. An ask with one item
+shows that title once. The document or pull request that a review item names is
+a row of the item's linked items, with the version under review. Replies under
+an item show each author's initial, name and time.
 
 The agent's avatar carries a dot for its bridge: green while the bridge sends
 heartbeats, amber when it is quiet, and grey when no bridge started the
 session. Hover over or focus the avatar to read the details and the session id.
 
-An item can show in both queues, for example in a closed ask and as an open
-item outside one. Its forms show once, in the queue that still takes a
-response, and the other place links there.
+When no ask is open, the **Open** side shows **Nothing needs you**, a line on
+what agents ask here, and a link to the closed asks.
+
+### On a phone
+
+At phone width the list and the selected ask take turns. The page shows the
+list until you select a row. Then it shows the ask, with an **All asks** link
+above it. The link returns to the list.
 
 ## Searching
 
-Type in the search field above the asks. The page then lists the items whose
-title or body holds your words, best match first, 25 to a page. Closed items
-match too. The search matches whole words in the search language of the
-project, so in English "exports" also finds "export". An item in the results
-shows its forms when it still takes a response. The results use the same list
-and request layout as the queues. Select **Clear** to go back to the queues.
+Type in the search field above the list. The page then lists the asks that hold
+an item whose title or body holds your words, best match first, 25 to a page.
+An ask ranks by its best item. Closed asks match too, and an open item that no
+open ask holds is a row of its own. The search matches whole words in the
+search language of the project, so in English "exports" also finds "export".
+The type filter still applies to the results.
+
+During a search neither side of the switch is pressed. A closed ask shows how
+it ended in its grey line. Select **Clear** to return to the side you were on.
 
 ## When a bridge goes quiet
 

@@ -66,8 +66,10 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.lp-inbox-request__byline', 'Loupe');
-        self::assertSelectorTextNotContains('.lp-inbox-request__byline', 'Agent request');
+        // The wait links its card, so the row names the card and the pane names the sender.
+        self::assertSelectorTextContains('.lp-inbox-request__meta [data-inbox-card]', '#4');
+        self::assertSelectorNotExists('[data-inbox-source="agent"]');
+        self::assertSelectorExists('.lp-inbox-request [data-inbox-kind="wait"]');
         self::assertSelectorTextSame('.lp-inbox-ask__source', 'Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));
@@ -133,7 +135,7 @@ final class WaitItemPageTest extends WebTestCase
         $results = $crawler->filter('[data-inbox-section="search-results"]');
         self::assertCount(1, $results->filter('[data-inbox-item]'));
         self::assertCount(1, $results->filter('[data-inbox-item="'.$item->number.'"]'));
-        self::assertCount(1, $crawler->filter('.lp-inbox-request__byline [data-inbox-source="loupe"]'));
+        self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-source="agent"]'));
     }
 
@@ -212,14 +214,15 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('_top', $link->attr('data-turbo-frame'));
     }
 
-    public function test_dismiss_closes_the_item_declined_and_moves_it_to_completed(): void
+    public function test_dismiss_closes_the_item_declined_and_moves_it_to_the_closed_side(): void
     {
         $this->reconcile();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         $this->client->submit($crawler->selectButton('Dismiss')->form());
 
-        self::assertResponseRedirects($this->pageUrl().'?queue=completed#inbox-item-1');
+        // The ask closed with its item, so the page returns to the closed side and names the ask it was on.
+        self::assertStringStartsWith($this->pageUrl().'?side=closed&ask=', (string) $this->client->getResponse()->headers->get('Location'));
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Declined, $watch->item->state);
         self::assertNotNull($watch->dismissedAt);

@@ -175,16 +175,23 @@ for (const workspace of [
     });
 }
 
-test('the project inbox filter row keeps its unboxed layout', async ({
+test('the list head keeps the switch, the search and the type filter in reach', async ({
     page,
 }) => {
-    const filters = page.locator('.lp-needs-you .lp-list-filters');
+    const head = page.locator('.lp-inbox-list-head');
     for (const width of [1440, 1150, 950, 780, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        await expect(filters).toBeVisible();
-        await expect(filters).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-        await expect(filters).toHaveCSS('padding', '0px');
-        await expect(filters).toHaveCSS('margin-bottom', '20px');
+        await expect(head).toBeVisible();
+        await expect(head.locator('.lp-tabs__tab')).toHaveCount(2);
+        await expect(head.locator('#inbox-search')).toBeVisible();
+        await expect(head.locator('[data-inbox-type]')).toHaveCount(6);
+        expect(
+            await page.evaluate(
+                () =>
+                    document.documentElement.scrollWidth -
+                    document.documentElement.clientWidth,
+            ),
+        ).toBeLessThanOrEqual(1);
     }
 });
 
@@ -193,7 +200,7 @@ test('inbox search keeps Clear reachable before and after filtering', async ({
 }) => {
     const search = page.locator('#inbox-search');
     const clear = page.locator('.lp-filter-clear');
-    const filters = page.locator('.lp-list-filters');
+    const head = page.locator('.lp-inbox-list-head');
     async function verifyLayout(): Promise<void> {
         for (const width of [1440, 1150, 950, 780, 390]) {
             await page.setViewportSize({ width, height: 900 });
@@ -201,46 +208,26 @@ test('inbox search keeps Clear reachable before and after filtering', async ({
             await expect(clear).toBeVisible();
             const searchBox = await search.boundingBox();
             const clearBox = await clear.boundingBox();
-            const filtersBox = await filters.boundingBox();
+            const headBox = await head.boundingBox();
             expect(searchBox).not.toBeNull();
             expect(clearBox).not.toBeNull();
-            expect(filtersBox).not.toBeNull();
-            expect(searchBox!.width).toBe(270);
-            expect(clearBox!.x - searchBox!.x - searchBox!.width).toBe(8);
-            expect(clearBox!.y + clearBox!.height / 2).toBe(
-                searchBox!.y + searchBox!.height / 2,
-            );
+            expect(headBox).not.toBeNull();
             expect(clearBox!.x + clearBox!.width).toBeLessThanOrEqual(
-                filtersBox!.x + filtersBox!.width,
+                headBox!.x + headBox!.width,
             );
             for (const count of await page.locator('.lp-filter-count').all()) {
                 const countBox = await count.boundingBox();
                 expect(countBox).not.toBeNull();
                 expect(countBox!.x + countBox!.width).toBeLessThanOrEqual(
-                    filtersBox!.x + filtersBox!.width,
+                    headBox!.x + headBox!.width,
                 );
-                const overlapWidth =
-                    Math.min(
-                        countBox!.x + countBox!.width,
-                        clearBox!.x + clearBox!.width,
-                    ) - Math.max(countBox!.x, clearBox!.x);
-                const overlapHeight =
-                    Math.min(
-                        countBox!.y + countBox!.height,
-                        clearBox!.y + clearBox!.height,
-                    ) - Math.max(countBox!.y, clearBox!.y);
-                expect(
-                    Math.min(overlapWidth, overlapHeight),
-                ).toBeLessThanOrEqual(0);
             }
         }
     }
     await verifyLayout();
     await search.fill('unmatched-inbox-query');
     await expect(page.locator('[data-inbox-search-empty]')).toBeVisible();
-    await expect(page.locator('.lp-filter-count')).toHaveText(
-        'No item matches',
-    );
+    await expect(page.locator('.lp-filter-count')).toHaveText('No ask matches');
     await verifyLayout();
     await clear.click();
     await expect(search).toHaveValue('');

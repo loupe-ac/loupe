@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Repository;
 
+use App\Doctrine\SearchLanguage;
 use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\Types\Types;
@@ -196,13 +199,16 @@ class InboxAskRepository extends ServiceEntityRepository
         return intdiv($ahead, $perPage) + 1;
     }
 
-    public function countClosedForProject(Project $project): int
+    /** @param ?InboxItemKind $kind counts only the asks that hold an item of the kind */
+    public function countClosedForProject(Project $project, ?InboxItemKind $kind = null): int
     {
-        return (int) $this->createQueryBuilder('a')
+        $qb = $this->createQueryBuilder('a')
             ->select('COUNT(a.id)')
             ->andWhere('a.project = :project')
             ->andWhere('a.closedAt IS NOT NULL')
-            ->setParameter('project', $project)
+            ->setParameter('project', $project);
+
+        return (int) $this->holdingKind($qb, $kind)
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -213,15 +219,18 @@ class InboxAskRepository extends ServiceEntityRepository
      * The page is cut on ids first: a limit on the fetch-joined query would
      * count item rows, not asks.
      *
+     * @param ?InboxItemKind $kind keeps only the asks that hold an item of the kind
+     *
      * @return list<InboxAsk>
      */
-    public function findClosedPageForProject(Project $project, int $offset, int $limit): array
+    public function findClosedPageForProject(Project $project, int $offset, int $limit, ?InboxItemKind $kind = null): array
     {
-        $ids = array_column($this->createQueryBuilder('a')
+        $idQuery = $this->createQueryBuilder('a')
             ->select('a.id')
             ->andWhere('a.project = :project')
             ->andWhere('a.closedAt IS NOT NULL')
-            ->setParameter('project', $project)
+            ->setParameter('project', $project);
+        $ids = array_column($this->holdingKind($idQuery, $kind)
             ->orderBy('a.closedAt', 'DESC')
             ->addOrderBy('a.id', 'ASC')
             ->setFirstResult($offset)
@@ -293,6 +302,95 @@ class InboxAskRepository extends ServiceEntityRepository
             ->setParameter('sessionId', $sessionId, UuidType::NAME)
             ->getQuery()
             ->execute();
+    }
+
+    /**
+     * One page of the asks that hold an item matching a full-text query, and of
+     * the matching items that stand alone, best match first. An item stands
+     * alone when it is open and no open ask holds it, or when no ask holds it.
+     * An ask ranks as its best item. The kind keeps an ask when any of its
+     * items has it.
+     *
+     * The ids and ranks of every hit are read first, so one page counts asks
+     * and items rather than the item rows a join would return.
+     *
+     * @param list<SearchLanguage> $languages the languages the project's items are indexed with
+     */
+    public function searchRows(Project $project, string $query, ?InboxItemKind $kind, array $languages, int $page, int $perPage): InboxSearchPage
+    {
+        $entityManager = $this->getEntityManager();
+
+        $asks = $entityManager->createQueryBuilder()
+            ->select('IDENTITY(l.ask) AS id', 'MAX('.InboxSearchPredicate::rank('i').') AS rank', 'MAX(i.number) AS number')
+            ->from(InboxAskItem::class, 'l')
+            ->join('l.item', 'i')
+            ->join('l.ask', 'a')
+            ->andWhere('a.project = :project')
+            ->groupBy('l.ask')
+            ->setParameter('project', $project);
+        $asks->andWhere(InboxSearchPredicate::match($asks, 'i', $languages, $query));
+        $this->holdingKind($asks, $kind);
+
+        $items = $entityManager->createQueryBuilder()
+            ->select('i.id AS id', InboxSearchPredicate::rank('i').' AS rank', 'i.number AS number')
+            ->from(InboxItem::class, 'i')
+            ->andWhere('i.project = :project')
+            ->andWhere(\sprintf('((i.state = :open AND NOT EXISTS (SELECT 1 FROM %1$s lo JOIN lo.ask ao WHERE lo.item = i AND ao.closedAt IS NULL)) OR NOT EXISTS (SELECT 1 FROM %1$s la WHERE la.item = i))', InboxAskItem::class))
+            ->setParameter('project', $project)
+            ->setParameter('open', InboxItemState::Open);
+        $items->andWhere(InboxSearchPredicate::match($items, 'i', $languages, $query));
+        if (null !== $kind) {
+            $items->andWhere('i.kind = :kind')->setParameter('kind', $kind);
+        }
+
+        $hits = [];
+        foreach ($asks->getQuery()->getArrayResult() as $row) {
+            $hits[] = ['ask' => true, 'id' => (string) $row['id'], 'rank' => (float) $row['rank'], 'number' => (int) $row['number']];
+        }
+        foreach ($items->getQuery()->getArrayResult() as $row) {
+            $hits[] = ['ask' => false, 'id' => (string) $row['id'], 'rank' => (float) $row['rank'], 'number' => (int) $row['number']];
+        }
+        usort($hits, static fn (array $a, array $b): int => [$b['rank'], $b['number'], $a['id']] <=> [$a['rank'], $a['number'], $b['id']]);
+
+        $total = \count($hits);
+        $page = min(max(1, $page), max(1, (int) ceil($total / $perPage)));
+        $pageHits = \array_slice($hits, ($page - 1) * $perPage, $perPage);
+
+        $askIds = array_column(array_filter($pageHits, static fn (array $hit): bool => $hit['ask']), 'id');
+        $itemIds = array_column(array_filter($pageHits, static fn (array $hit): bool => !$hit['ask']), 'id');
+        $loaded = [];
+        if ([] !== $askIds) {
+            foreach ($this->withItems()->andWhere('a.id IN (:ids)')->setParameter('ids', $askIds)->getQuery()->getResult() as $ask) {
+                $loaded['a'.$ask->id] = $ask;
+            }
+        }
+        if ([] !== $itemIds) {
+            foreach ($entityManager->createQueryBuilder()->select('i')->from(InboxItem::class, 'i')->andWhere('i.id IN (:ids)')->setParameter('ids', $itemIds)->getQuery()->getResult() as $item) {
+                $loaded['i'.$item->id] = $item;
+            }
+        }
+
+        $rows = [];
+        foreach ($pageHits as $hit) {
+            $row = $loaded[($hit['ask'] ? 'a' : 'i').$hit['id']] ?? null;
+            if (null !== $row) {
+                $rows[] = $row;
+            }
+        }
+
+        return new InboxSearchPage($rows, $total, $page);
+    }
+
+    /** Keeps the asks of the query that hold an item of the kind, when there is one. */
+    private function holdingKind(QueryBuilder $qb, ?InboxItemKind $kind): QueryBuilder
+    {
+        if (null === $kind) {
+            return $qb;
+        }
+
+        return $qb
+            ->andWhere(\sprintf('EXISTS (SELECT 1 FROM %s lk JOIN lk.item ik WHERE lk.ask = a AND ik.kind = :kind)', InboxAskItem::class))
+            ->setParameter('kind', $kind);
     }
 
     private function withItems(): QueryBuilder

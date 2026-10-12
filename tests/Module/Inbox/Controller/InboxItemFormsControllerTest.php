@@ -66,7 +66,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
             $this->em->persist($entity);
         }
         $this->em->flush();
-        $this->askHolding($this->em, $this->project, [$item]);
+        $ask = $this->askHolding($this->em, $this->project, [$item]);
         $name = 'inbox_review_'.$item->id;
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
@@ -82,8 +82,8 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSelectorTextContains('#inbox-item-1', 'Explain the changes you request in a review note.');
         self::assertSelectorExists('input[name="'.$name.'[verdict]"][value="changes-requested"]:checked');
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([$name.'[note]' => 'Add a retry limit.']));
-        // The ask closed with its last blocking item, so the request is completed now.
-        self::assertResponseRedirects($this->completedUrl().'#inbox-item-1');
+        // The ask closed with its last blocking item, so the request is on the closed side now.
+        self::assertResponseRedirects($this->completedUrl().'&ask='.$ask->id);
         $this->client->followRedirect();
         self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Changes requested');
         self::assertSelectorTextContains('#inbox-item-1', 'Add a retry limit.');
@@ -136,7 +136,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
             $this->em->persist($entity);
         }
         $this->em->flush();
-        $this->askHolding($this->em, $this->project, [$item]);
+        $ask = $this->askHolding($this->em, $this->project, [$item]);
         $name = 'inbox_document_review_'.$item->id;
         $page = $this->client->request(Request::METHOD_GET, $this->pageUrl());
         self::assertResponseIsSuccessful();
@@ -165,7 +165,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
             $name.'[verdict]' => 'changes-requested',
             $name.'[note]' => 'Clarify the second version.',
         ]));
-        self::assertResponseRedirects($this->completedUrl().'#inbox-item-1');
+        self::assertResponseRedirects($this->completedUrl().'&ask='.$ask->id);
         $this->client->followRedirect();
         self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Changes requested');
         self::assertSelectorTextContains('#inbox-item-1', 'Version 2');
@@ -237,7 +237,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-6 .lp-inbox-item__buttons [form]'));
         $this->client->submit($crawler->filter('form[name="'.$name.'"]')->form([$name.'[selectedOptions]' => '2']));
 
-        self::assertResponseRedirects($this->completedUrl().'#inbox-item-6');
+        self::assertResponseRedirects($this->completedUrl().'&ask='.$ask->id);
         self::assertSame([2], $this->reload($item)->selectedOptions);
         $crawler = $this->client->request(Request::METHOD_GET, $this->completedUrl());
         self::assertCount(0, $crawler->filter('form[name="'.$name.'"]'));
@@ -255,6 +255,25 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $describedBy = (string) $crawler->filter('#inbox-item-1 fieldset')->attr('aria-describedby');
         self::assertSelectorTextContains('#'.$describedBy, 'This question takes one option only.');
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
+    }
+
+    public function test_a_refused_answer_from_an_ask_that_is_not_first_shows_its_error_on_that_ask(): void
+    {
+        $first = $this->question($this->em, $this->project, 1);
+        $second = $this->question($this->em, $this->project, 2);
+        $this->askHolding($this->em, $this->project, [$first], createdAt: new \DateTimeImmutable('-2 hours'));
+        $secondAsk = $this->askHolding($this->em, $this->project, [$second]);
+
+        // The page posts the ask it shows, and the refusal must open that ask, not the first row.
+        $crawler = $this->post($second, 'answer', ['selectedOptions' => '0,1'], ask: (string) $secondAsk->id, type: 'question');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertCount(1, $crawler->filter('[data-inbox-ask-id="'.$secondAsk->id.'"]'));
+        self::assertSelectorTextContains('#inbox-item-2', 'This question takes one option only.');
+        self::assertCount(0, $crawler->filter('#inbox-item-1'));
+        self::assertSame('true', $crawler->filter('[data-inbox-type="question"]')->attr('aria-current'));
+        // The forms of the pane post with the same view again.
+        self::assertStringContainsString('ask='.$secondAsk->id, (string) $crawler->filter('form[name="inbox_answer_'.$second->id.'"]')->attr('action'));
     }
 
     public function test_an_answer_past_the_length_limit_is_invalid(): void
@@ -291,7 +310,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         // redirect has to name it or the page hides the answer just given.
         $this->post($second, 'answer', ['selectedOptions' => '0']);
 
-        self::assertResponseRedirects($this->completedUrl().'#inbox-item-2');
+        self::assertResponseRedirects($this->completedUrl().'&item=2');
     }
 
     public function test_a_completed_item_outside_every_ask_names_no_request(): void
@@ -300,15 +319,15 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         $this->post($item, 'done', []);
 
-        // No ask holds this one, so neither queue shows it once it closes. A
-        // fragment would send the owner hunting for it instead of back to the
+        // No ask holds this one, so neither side shows it once it closes. Naming
+        // it would send the owner hunting for it instead of back to the
         // work that is left.
         self::assertResponseRedirects($this->pageUrl());
     }
 
-    public function test_switching_queues_lands_on_the_page_that_holds_the_request(): void
+    public function test_switching_sides_lands_on_the_page_that_holds_the_request(): void
     {
-        // The oldest ask closed first, so it sits past the first completed page.
+        // The oldest ask closed first, so it sits past the first closed page.
         $todo = $this->todo($this->em, $this->project, 1);
         $this->askHolding($this->em, $this->project, [$todo], closedAt: new \DateTimeImmutable('-1 year'));
         for ($number = 2; $number <= ShowInboxHandler::CLOSED_ASKS_PER_PAGE + 1; ++$number) {
@@ -322,7 +341,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         $this->post($todo, 'done', []);
 
-        self::assertResponseRedirects($this->completedUrl().'&page=2#inbox-item-1');
+        self::assertResponseRedirects($this->completedUrl().'&item=1&page=2');
     }
 
     public function test_a_refused_form_and_a_saved_one_keep_the_closed_asks_page(): void
@@ -334,7 +353,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         }
         self::assertInstanceOf(InboxItem::class, $last);
 
-        // The oldest closed ask sits on page two of the completed queue.
+        // The oldest closed ask sits on page two of the closed side.
         $crawler = $this->post($last, 'decline', ['note' => ''], page: 2, queue: 'completed');
 
         self::assertResponseStatusCodeSame(422);
@@ -356,7 +375,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         $this->post($question, 'answer', ['selectedOptions' => '0'], query: 'export');
 
-        self::assertResponseRedirects($this->pageUrl().'?q=export#inbox-item-1');
+        self::assertResponseRedirects($this->pageUrl().'?side=open&q=export&item=1');
     }
 
     public function test_marking_a_to_do_done(): void
@@ -466,10 +485,10 @@ final class InboxItemFormsControllerTest extends WebTestCase
     }
 
     /** @param array<string, string> $fields */
-    private function post(InboxItem $item, string $action, array $fields, ?int $page = null, ?string $query = null, ?string $queue = null): Crawler
+    private function post(InboxItem $item, string $action, array $fields, ?int $page = null, ?string $query = null, ?string $queue = null, ?string $ask = null, ?string $side = null, ?string $type = null): Crawler
     {
         $prefix = ['answer' => 'inbox_answer_', 'done' => 'inbox_done_', 'decline' => 'inbox_decline_', 'review-pull-request' => 'inbox_review_', 'review-document' => 'inbox_document_review_'][$action];
-        $parameters = array_filter(['queue' => $queue, 'page' => $page, 'q' => $query], static fn (int|string|null $value): bool => null !== $value);
+        $parameters = array_filter(['queue' => $queue, 'side' => $side, 'type' => $type, 'ask' => $ask, 'page' => $page, 'q' => $query], static fn (int|string|null $value): bool => null !== $value);
         $url = $this->actionUrl($item, $action).([] === $parameters ? '' : '?'.http_build_query($parameters));
 
         // 'csrf-token' is the SameOriginCsrfTokenManager sentinel, which a same-origin Referer lets stand in for a signed token.
@@ -488,7 +507,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
     private function completedUrl(): string
     {
-        return $this->pageUrl().'?queue=completed';
+        return $this->pageUrl().'?side=closed';
     }
 
     private function reload(InboxItem $item): InboxItem

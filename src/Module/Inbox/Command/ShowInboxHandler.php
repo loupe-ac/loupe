@@ -5,11 +5,19 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Module\Bridge\Service\BridgeLiveness;
+use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Entity\InboxReviewVerdict;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\InboxReviewLookup;
-use App\Module\Inbox\View\InboxDetailView;
+use App\Module\Inbox\View\InboxPageView;
+use App\Module\Inbox\View\InboxRow;
+use App\Module\Inbox\View\InboxSide;
+use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
 use App\Utils\PageList;
 
@@ -23,98 +31,185 @@ final readonly class ShowInboxHandler
         private InboxAskRepository $inboxAsks,
         private InboxItemRepository $inboxItems,
         private BridgeLiveness $bridgeLiveness,
-        private SearchInboxHandler $searchInbox,
         private InboxReviewLookup $inboxReviews,
     ) {
     }
 
-    public function __invoke(ShowInboxCommand $command): InboxDetailView
-    {
-        $query = trim($command->query);
-
-        return '' === $query ? $this->asks($command) : $this->search($command->project, $query, $command->page);
-    }
-
-    private function asks(ShowInboxCommand $command): InboxDetailView
+    public function __invoke(ShowInboxCommand $command): InboxPageView
     {
         $project = $command->project;
-        $closedTotal = $this->inboxAsks->countClosedForProject($project);
-        $totalPages = max(1, (int) ceil($closedTotal / self::CLOSED_ASKS_PER_PAGE));
-        $page = min(max(1, $command->page), $totalPages);
+        $view = $command->view;
 
-        $openAsks = $this->inboxAsks->findOpenForProject($project);
-        $looseItems = $this->inboxItems->findOpenOutsideOpenAsks($project);
-        $closedAsks = $this->inboxAsks->findClosedPageForProject($project, ($page - 1) * self::CLOSED_ASKS_PER_PAGE, self::CLOSED_ASKS_PER_PAGE);
+        $openRows = $this->openRows($project);
+        $closedCount = $this->inboxAsks->countClosedForProject($project);
 
-        $bridgeIds = [];
-        foreach ($openAsks as $ask) {
-            if (null !== $ask->bridgeId) {
-                $bridgeIds[$ask->bridgeId->toRfc4122()] = $ask->bridgeId;
-            }
+        if ($view->isSearch()) {
+            $search = $this->inboxAsks->searchRows($project, $view->query, $view->type, $this->inboxItems->searchLanguagesOf($project), $view->page, self::SEARCH_RESULTS_PER_PAGE);
+            $rows = $this->rowsOf($search->rows);
+            $total = $search->total;
+            $page = $search->page;
+            $perPage = self::SEARCH_RESULTS_PER_PAGE;
+        } elseif (InboxSide::Closed === $view->side) {
+            $total = $this->inboxAsks->countClosedForProject($project, $view->type);
+            $perPage = self::CLOSED_ASKS_PER_PAGE;
+            $page = min(max(1, $view->page), max(1, (int) ceil($total / $perPage)));
+            $rows = $this->rowsOf($this->inboxAsks->findClosedPageForProject($project, ($page - 1) * $perPage, $perPage, $view->type));
+        } else {
+            $rows = null === $view->type ? $openRows : array_values(array_filter($openRows, static fn (InboxRow $row): bool => $row->holdsKind($view->type)));
+            $total = \count($rows);
+            $page = 1;
+            $perPage = max(1, $total);
         }
 
-        $shown = [];
-        foreach ($looseItems as $item) {
-            $shown[(string) $item->id] = $item;
-        }
-        foreach ([...$openAsks, ...$closedAsks] as $ask) {
-            foreach ($ask->items as $link) {
-                $shown[(string) $link->item->id] = $link->item;
-            }
-        }
+        $view = $view->withPage($page);
+        $selected = $this->select($project, $view, $rows);
 
-        $this->inboxReviews->preload(array_values($shown));
+        $selectedItems = $selected->items ?? [];
+        $bridgeId = $selected?->ask?->bridgeId;
+        $totalPages = max(1, (int) ceil($total / $perPage));
 
-        return new InboxDetailView(
+        return new InboxPageView(
             project: $project,
-            openAsks: $openAsks,
-            looseItems: $looseItems,
-            closedAsks: $closedAsks,
-            closedAskTotal: $closedTotal,
+            view: $view,
+            rows: $rows,
+            selected: $selected,
+            openCount: \count($openRows),
+            closedCount: $closedCount,
+            total: $total,
             page: $page,
             totalPages: $totalPages,
             pageList: PageList::build($page, $totalPages),
-            finalItemIds: $this->finalItemIds(array_values($shown)),
-            bridgeStatuses: $this->bridgeLiveness->forOwner($project->owner, array_values($bridgeIds)),
-            completed: $command->completed,
-        );
-    }
-
-    private function search(Project $project, string $query, int $page): InboxDetailView
-    {
-        $results = ($this->searchInbox)(new SearchInboxCommand($project, $query, $page, self::SEARCH_RESULTS_PER_PAGE));
-        $totalPages = max(1, (int) ceil($results->total / self::SEARCH_RESULTS_PER_PAGE));
-        // A page past the end, such as a bookmark after items went, shows the last one.
-        if ($results->page > $totalPages) {
-            $results = ($this->searchInbox)(new SearchInboxCommand($project, $query, $totalPages, self::SEARCH_RESULTS_PER_PAGE));
-        }
-
-        $this->inboxReviews->preload($results->items);
-
-        return new InboxDetailView(
-            project: $project,
-            openAsks: [],
-            looseItems: [],
-            closedAsks: [],
-            closedAskTotal: 0,
-            page: $results->page,
-            totalPages: $totalPages,
-            pageList: PageList::build($results->page, $totalPages),
-            finalItemIds: $this->finalItemIds($results->items),
-            bridgeStatuses: [],
-            query: $query,
-            searchResults: $results->items,
-            searchTotal: $results->total,
+            finalItemIds: array_fill_keys($this->inboxAsks->findItemIdsHeldByClosedAsks($selectedItems), true),
+            bridgeStatuses: null === $bridgeId || null !== $selected?->ask?->closedAt ? [] : $this->bridgeLiveness->forOwner($project->owner, [$bridgeId]),
+            pickedNothing: $view->isPicked() && null === $selected,
         );
     }
 
     /**
-     * @param list<InboxItem> $items
+     * The open side whole: rows with an open blocking item first, then the
+     * others, each group oldest first.
      *
-     * @return array<string, true>
+     * @return list<InboxRow>
      */
-    private function finalItemIds(array $items): array
+    private function openRows(Project $project): array
     {
-        return array_fill_keys($this->inboxAsks->findItemIdsHeldByClosedAsks($items), true);
+        $rows = $this->rowsOf([...$this->inboxAsks->findOpenForProject($project), ...$this->inboxItems->findOpenOutsideOpenAsks($project)]);
+
+        usort($rows, static fn (InboxRow $a, InboxRow $b): int => [$a->blocking ? 0 : 1, $a->createdAt(), $a->key()] <=> [$b->blocking ? 0 : 1, $b->createdAt(), $b->key()]);
+
+        return $rows;
+    }
+
+    /**
+     * @param list<InboxAsk|InboxItem> $entities
+     *
+     * @return list<InboxRow>
+     */
+    private function rowsOf(array $entities): array
+    {
+        $items = [];
+        foreach ($entities as $entity) {
+            foreach ($entity instanceof InboxAsk ? $this->itemsOfAsk($entity) : [$entity] as $item) {
+                $items[(string) $item->id] = $item;
+            }
+        }
+        $items = array_values($items);
+        $this->inboxItems->loadCards($items);
+        $this->inboxReviews->preload($items);
+
+        $rows = [];
+        foreach ($entities as $entity) {
+            $row = $entity instanceof InboxAsk ? $this->rowOfAsk($entity) : $this->rowOfItem($entity);
+            if (null !== $row) {
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The row the pane shows. The address names an ask, or an item that
+     * resolves to one, and a named ask shows even when the list does not hold it.
+     *
+     * @param list<InboxRow> $rows
+     */
+    private function select(Project $project, InboxView $view, array $rows): ?InboxRow
+    {
+        if (null === $view->askId && null === $view->itemNumber) {
+            return $rows[0] ?? null;
+        }
+
+        $ask = null;
+        $loose = null;
+        if (null !== $view->askId) {
+            $ask = $this->inboxAsks->findOneByIdAndProject($view->askId, $project);
+        } elseif (null !== $view->itemNumber) {
+            $item = $this->inboxItems->findOneByProjectAndNumber($project, $view->itemNumber);
+            $ask = null === $item ? null : $this->askOfItem($item);
+            $loose = null === $item || null !== $ask ? null : $item;
+        }
+
+        if (null !== $ask) {
+            return array_find($rows, static fn (InboxRow $row): bool => $row->ask?->id?->equals($ask->id) ?? false) ?? $this->rowsOf([$ask])[0] ?? null;
+        }
+
+        if (null !== $loose) {
+            return array_find($rows, static fn (InboxRow $row): bool => $row->isLoose() && ($row->items[0]->id?->equals($loose->id) ?? false)) ?? $this->rowsOf([$loose])[0];
+        }
+
+        return null;
+    }
+
+    /** An open ask that holds the item, else the newest closed one, else null. */
+    private function askOfItem(InboxItem $item): ?InboxAsk
+    {
+        $asks = $this->inboxAsks->findHolding($item);
+        $open = array_find($asks, static fn (InboxAsk $ask): bool => null === $ask->closedAt);
+        if (null !== $open) {
+            return $open;
+        }
+
+        usort($asks, static fn (InboxAsk $a, InboxAsk $b): int => ($b->closedAt <=> $a->closedAt) ?: ((string) $a->id <=> (string) $b->id));
+
+        return $asks[0] ?? null;
+    }
+
+    private function rowOfAsk(InboxAsk $ask): ?InboxRow
+    {
+        $items = $this->itemsOfAsk($ask);
+        if ([] === $items) {
+            return null;
+        }
+
+        return new InboxRow($ask, $items, null === $ask->closedAt ? null : $this->outcomeOf($items[0]));
+    }
+
+    private function rowOfItem(InboxItem $item): InboxRow
+    {
+        return new InboxRow(null, [$item], $this->outcomeOf($item));
+    }
+
+    /** How a closed row ended, read from its first item. A row that is still open has none. */
+    private function outcomeOf(InboxItem $item): ?string
+    {
+        return match ($item->state) {
+            InboxItemState::Open => null,
+            InboxItemState::Answered => match ($this->inboxReviews->forItem($item)?->verdict) {
+                InboxReviewVerdict::Approved => 'approved',
+                InboxReviewVerdict::ChangesRequested => 'changes_requested',
+                null => 'answered',
+            },
+            InboxItemState::Done => 'done',
+            InboxItemState::Declined => InboxItemKind::Wait === $item->kind ? 'dismissed' : 'declined',
+            InboxItemState::Withdrawn => 'withdrawn',
+            InboxItemState::Obsolete => 'obsolete',
+        };
+    }
+
+    /** @return list<InboxItem> */
+    private function itemsOfAsk(InboxAsk $ask): array
+    {
+        return array_values($ask->items->map(static fn (InboxAskItem $link): InboxItem => $link->item)->toArray());
     }
 }

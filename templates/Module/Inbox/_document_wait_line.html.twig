@@ -11,7 +11,7 @@
 <span class="lp-review-doc__wait" id="document-wait-line">
     <twig:ux:icon name="lucide:hourglass" class="lp-review-doc__wait-icon" aria-hidden="true" />
     {% for cardNumber, itemNumber in waiting -%}
-        <a href="{{ path('app_project_inbox', {id: project.id, _fragment: 'inbox-item-' ~ itemNumber}) }}" aria-describedby="document-wait-line-tooltip">#{{ cardNumber }}</a>
+        <a href="{{ path('app_project_inbox', {id: project.id, item: itemNumber}) }}" aria-describedby="document-wait-line-tooltip">#{{ cardNumber }}</a>
         {%- if not loop.last %}, {% endif %}
     {% endfor %}
     <twig:Ds:Tooltip id="document-wait-line-tooltip">{{ 'inbox.document_wait.line'|trans({'%count%': waiting|length, '%cards%': cards}) }}</twig:Ds:Tooltip>
