@@ -61,7 +61,7 @@ func deviceLogin(cmd *cobra.Command, baseURL string) error {
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 	defer stop()
 
-	hc := &http.Client{Timeout: refreshTimeout}
+	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
 	flow := oauth.NewFlow(baseURL, hc)
 	device, err := flow.Start(ctx)
 	if err != nil {
