@@ -5,28 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Module\Landing\Controller;
 
 use App\Module\Account\Entity\User;
-use App\Module\Landing\Controller\LandingController;
+use App\Module\Landing\Service\HomePageGate;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class LandingControllerTest extends WebTestCase
 {
-    /** The migration seeds the row, so this moves it rather than creating it. */
-    private function setLandingEnabled(KernelBrowser $client, bool $enabled): void
-    {
-        $flags = $client->getContainer()->get(FeatureFlagRepository::class);
-        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $flags->findAllIndexed()[LandingController::ENABLED_FLAG]->value = $enabled;
-        $em->flush();
-    }
-
     /** @param non-empty-string $email */
     private function createUser(EntityManagerInterface $em, string $username, string $email): User
     {
@@ -42,10 +29,9 @@ final class LandingControllerTest extends WebTestCase
         return $user;
     }
 
-    public function test_anonymous_visitor_sees_the_landing_page_where_the_flag_is_on(): void
+    public function test_anonymous_visitor_sees_the_landing_page_where_the_gate_shows_it(): void
     {
         $client = static::createClient();
-        $this->setLandingEnabled($client, true);
 
         $client->request(Request::METHOD_GET, '/');
 
@@ -57,7 +43,6 @@ final class LandingControllerTest extends WebTestCase
     public function test_landing_page_names_the_worker_harnesses(): void
     {
         $client = static::createClient();
-        $this->setLandingEnabled($client, true);
 
         $client->request(Request::METHOD_GET, '/');
 
@@ -66,19 +51,27 @@ final class LandingControllerTest extends WebTestCase
         self::assertAnySelectorTextContains('.lp-landing-faq__question', 'Which agents does it run?');
     }
 
-    /**
-     * The flag is seeded off, so this is what a fresh or upgraded instance
-     * does: exactly the redirect anonymous visitors got before the page
-     * existed.
-     */
-    public function test_anonymous_visitor_is_sent_to_login_where_the_flag_is_off(): void
+    public function test_anonymous_visitor_is_sent_to_login_where_the_gate_hides_the_page(): void
     {
         $client = static::createClient();
-        $this->setLandingEnabled($client, false);
+        $client->disableReboot();
+        static::getContainer()->set(HomePageGate::class, new HomePageGate('https://loupe.example.com', 'loupe.ac'));
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseRedirects('/login');
+    }
+
+    public function test_anonymous_visitor_sees_the_page_on_the_hosted_service(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set(HomePageGate::class, new HomePageGate('https://loupe.ac', 'loupe.ac'));
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-landing');
     }
 
     public function test_authenticated_user_never_sees_the_landing_page(): void
@@ -88,7 +81,6 @@ final class LandingControllerTest extends WebTestCase
         $user = $this->createUser($em, 'home-landing', 'home-landing@example.com');
         $user->wizardCompletedAt = new \DateTimeImmutable();
         $em->flush();
-        $this->setLandingEnabled($client, true);
 
         $client->loginUser($user);
         $client->request(Request::METHOD_GET, '/');
