@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"cmp"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,12 +52,14 @@ func newMcpCmd() *cobra.Command {
 
 			// No timeout: an MCP session stays open for as long as the agent
 			// runs, and a client timeout would end it mid-conversation.
-			hc := &http.Client{Transport: &mcpproxy.Credentials{
-				Tokens:  tokenSource(cfg, &http.Client{Timeout: refreshTimeout}),
+			hc := &http.Client{Transport: withUserAgent(&mcpproxy.Credentials{
+				Tokens:  tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}),
 				Project: project,
 				Session: mcpSession,
 				Base:    &mcpproxy.Retrying{},
-			}}
+			})}
+
+			fmt.Fprintln(cmd.ErrOrStderr(), mcpStartLine())
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 			defer stop()
@@ -67,6 +70,12 @@ func newMcpCmd() *cobra.Command {
 	cmd.Flags().StringVar(&projectID, "project", "", "project id to act on (else "+projectfile.Name+" in this directory)")
 
 	return cmd
+}
+
+// mcpStartLine names the binary, so a stale `loupe mcp` shows in the stderr an
+// agent keeps.
+func mcpStartLine() string {
+	return "loupe mcp " + cliVersion() + " started"
 }
 
 // mcpSession is the id of the session that runs `loupe mcp`: the run id the
