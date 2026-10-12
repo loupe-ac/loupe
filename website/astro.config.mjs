@@ -114,6 +114,7 @@ export default defineConfig({
             { slug: 'extending/cli-bridge' },
             { slug: 'extending/bridge-hooks' },
             { slug: 'extending/forge-webhooks' },
+            { slug: 'extending/artifact-tools' },
           ],
         },
         {

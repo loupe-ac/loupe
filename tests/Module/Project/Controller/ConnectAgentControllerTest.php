@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Project\Controller;
 
 use App\Module\Account\Entity\User;
+use App\Module\Artifact\Install\ArtifactInstallFlags;
 use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Mcp\DocumentHighlightTool;
@@ -50,6 +51,7 @@ final class ConnectAgentControllerTest extends WebTestCase
         $installedFlags = static::getContainer()->get(FeatureFlagRepository::class)->findAllIndexed();
         $installedFlags[DocumentHighlightTool::FLAG]->value = true;
         $installedFlags[InboxInstallFlags::FLAG_INBOX_ENABLED]->value = true;
+        $installedFlags[ArtifactInstallFlags::FLAG_ENABLED]->value = true;
         $em->flush();
         $em->clear();
 

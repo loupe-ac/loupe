@@ -299,6 +299,10 @@ Roughly in the order an agent uses them:
 | `card_update` | Change a card, or move it to another column |
 | `card_run_open` | Record an open interactive session on a card, and optionally move the card in the same step |
 | `card_run_close` | Close the interactive run a session opened on a card, and ask the bridges for the usage of the run |
+| `artifact_list` | List the stored design artifacts of the project, newest first (off with `artifacts.enabled`, see [Artifact tools](../extending/artifact-tools.md)) |
+| `artifact_get` | Describe one artifact: its versions, and the files of one version |
+| `artifact_read` | Read one file of an artifact, as text or as an image |
+| `artifact_archive` / `artifact_unarchive` | Take an artifact out of the list, or put it back |
 | `column_create` | Add a column at the end of the board, from a label |
 | `column_update` | Rename a column, or set whether it is terminal |
 | `column_reorder` | Put the columns in a new order; Backlog stays first |
