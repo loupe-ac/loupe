@@ -97,6 +97,29 @@ final class InboxAskRepositorySearchTest extends KernelTestCase
         self::assertEqualsCanonicalizing($ids, [...$this->ids($first->rows), ...$this->ids($second->rows)]);
     }
 
+    public function test_one_page_cuts_asks_and_loose_items_in_one_order(): void
+    {
+        $first = $this->askHolding($this->em, $this->project, [$this->indexed($this->question($this->em, $this->project, 1, title: 'Checkout retries'))]);
+        $loose = $this->answered($this->em, $this->indexed($this->question($this->em, $this->project, 2, title: 'Checkout retries')));
+        $third = $this->askHolding($this->em, $this->project, [$this->indexed($this->question($this->em, $this->project, 3, title: 'Checkout retries'))]);
+
+        $firstPage = $this->search('checkout', null, 1, 2);
+        $secondPage = $this->search('checkout', null, 2, 2);
+
+        self::assertSame(3, $firstPage->total);
+        self::assertSame([(string) $third->id, (string) $loose->id], $this->ids($firstPage->rows));
+        self::assertSame([(string) $first->id], $this->ids($secondPage->rows));
+    }
+
+    public function test_no_hit_gives_an_empty_first_page(): void
+    {
+        $page = $this->search('checkout', null, 3);
+
+        self::assertSame(0, $page->total);
+        self::assertSame(1, $page->page);
+        self::assertSame([], $page->rows);
+    }
+
     public function test_the_type_filter_keeps_an_ask_when_any_of_its_items_has_the_kind(): void
     {
         $question = $this->indexed($this->question($this->em, $this->project, 1, title: 'Checkout retries'));

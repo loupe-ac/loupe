@@ -13,6 +13,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
@@ -311,50 +312,69 @@ class InboxAskRepository extends ServiceEntityRepository
      * An ask ranks as its best item. The kind keeps an ask when any of its
      * items has it.
      *
-     * The ids and ranks of every hit are read first, so one page counts asks
-     * and items rather than the item rows a join would return.
+     * One query groups the hits by ask, counts them, clamps the page and cuts
+     * it, so a page counts asks and items rather than item rows.
      *
      * @param list<SearchLanguage> $languages the languages the project's items are indexed with
      */
     public function searchRows(Project $project, string $query, ?InboxItemKind $kind, array $languages, int $page, int $perPage): InboxSearchPage
     {
         $entityManager = $this->getEntityManager();
-
-        $asks = $entityManager->createQueryBuilder()
-            ->select('IDENTITY(l.ask) AS id', 'MAX('.InboxSearchPredicate::rank('i').') AS rank', 'MAX(i.number) AS number')
-            ->from(InboxAskItem::class, 'l')
-            ->join('l.item', 'i')
-            ->join('l.ask', 'a')
-            ->andWhere('a.project = :project')
-            ->groupBy('l.ask')
-            ->setParameter('project', $project);
-        $asks->andWhere(InboxSearchPredicate::match($asks, 'i', $languages, $query));
-        $this->holdingKind($asks, $kind);
-
-        $items = $entityManager->createQueryBuilder()
-            ->select('i.id AS id', InboxSearchPredicate::rank('i').' AS rank', 'i.number AS number')
-            ->from(InboxItem::class, 'i')
-            ->andWhere('i.project = :project')
-            ->andWhere(\sprintf('((i.state = :open AND NOT EXISTS (SELECT 1 FROM %1$s lo JOIN lo.ask ao WHERE lo.item = i AND ao.closedAt IS NULL)) OR NOT EXISTS (SELECT 1 FROM %1$s la WHERE la.item = i))', InboxAskItem::class))
-            ->setParameter('project', $project)
-            ->setParameter('open', InboxItemState::Open);
-        $items->andWhere(InboxSearchPredicate::match($items, 'i', $languages, $query));
+        $parameters = [
+            'project' => (string) ($project->id ?? throw new \LogicException('Project has no id.')),
+            'open' => InboxItemState::Open->value,
+            'page' => $page,
+            'perPage' => $perPage,
+        ];
+        $types = ['page' => ParameterType::INTEGER, 'perPage' => ParameterType::INTEGER];
+        $match = InboxSearchPredicate::matchSql('i', $languages, $query, $parameters);
+        $rank = InboxSearchPredicate::rankSql('i');
+        $askKind = '';
+        $itemKind = '';
         if (null !== $kind) {
-            $items->andWhere('i.kind = :kind')->setParameter('kind', $kind);
+            $parameters['kind'] = $kind->value;
+            $askKind = 'AND EXISTS (SELECT 1 FROM inbox_ask_items lk JOIN inbox_items ik ON ik.id = lk.item_id WHERE lk.ask_id = a.id AND ik.kind = :kind)';
+            $itemKind = 'AND i.kind = :kind';
         }
 
-        $hits = [];
-        foreach ($asks->getQuery()->getArrayResult() as $row) {
-            $hits[] = ['ask' => true, 'id' => (string) $row['id'], 'rank' => (float) $row['rank'], 'number' => (int) $row['number']];
-        }
-        foreach ($items->getQuery()->getArrayResult() as $row) {
-            $hits[] = ['ask' => false, 'id' => (string) $row['id'], 'rank' => (float) $row['rank'], 'number' => (int) $row['number']];
-        }
-        usort($hits, static fn (array $a, array $b): int => [$b['rank'], $b['number'], $a['id']] <=> [$a['rank'], $a['number'], $b['id']]);
+        /** @var non-empty-list<array{total: int|string, page: int|string, kind: ?string, id: ?string}> $hits */
+        $hits = $entityManager->getConnection()->executeQuery(
+            "WITH hits AS (
+                SELECT 'ask' AS kind, a.id, MAX($rank) AS rank, MAX(i.number) AS number
+                FROM inbox_asks a
+                JOIN inbox_ask_items l ON l.ask_id = a.id
+                JOIN inbox_items i ON i.id = l.item_id
+                WHERE a.project_id = :project AND $match $askKind
+                GROUP BY a.id
+                UNION ALL
+                SELECT 'item', i.id, $rank, i.number
+                FROM inbox_items i
+                WHERE i.project_id = :project AND $match $itemKind
+                  AND ((i.state = :open AND NOT EXISTS (SELECT 1 FROM inbox_ask_items lo JOIN inbox_asks ao ON ao.id = lo.ask_id WHERE lo.item_id = i.id AND ao.closed_at IS NULL))
+                    OR NOT EXISTS (SELECT 1 FROM inbox_ask_items la WHERE la.item_id = i.id))
+            ),
+            paging AS (
+                SELECT n, CAST(LEAST(GREATEST(:page, 1), GREATEST(1, CEIL(n / CAST(:perPage AS numeric)))) AS int) AS p
+                FROM (SELECT COUNT(*) AS n FROM hits) total
+            )
+            SELECT paging.n AS total, paging.p AS page, h.kind, h.id
+            FROM paging
+            LEFT JOIN LATERAL (
+                SELECT kind, id, rank, number FROM hits
+                ORDER BY rank DESC, number DESC, id ASC
+                LIMIT :perPage OFFSET (paging.p - 1) * :perPage
+            ) h ON true
+            ORDER BY h.rank DESC, h.number DESC, h.id ASC",
+            $parameters,
+            $types,
+        )->fetchAllAssociative();
 
-        $total = \count($hits);
-        $page = min(max(1, $page), max(1, (int) ceil($total / $perPage)));
-        $pageHits = \array_slice($hits, ($page - 1) * $perPage, $perPage);
+        $total = (int) $hits[0]['total'];
+        $page = (int) $hits[0]['page'];
+        $pageHits = array_values(array_map(
+            static fn (array $hit): array => ['ask' => 'ask' === $hit['kind'], 'id' => (string) $hit['id']],
+            array_filter($hits, static fn (array $hit): bool => null !== $hit['id']),
+        ));
 
         $askIds = array_column(array_filter($pageHits, static fn (array $hit): bool => $hit['ask']), 'id');
         $itemIds = array_column(array_filter($pageHits, static fn (array $hit): bool => !$hit['ask']), 'id');
