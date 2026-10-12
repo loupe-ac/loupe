@@ -297,6 +297,18 @@ func (g *gen) attr(a html.Attribute, d int) error {
 	for _, s := range segs {
 		hasHole = hasHole || s.hole
 	}
+	if hasHole {
+		for i, s := range segs {
+			if s.hole {
+				continue
+			}
+			lit, problems := g.p.rewriteBlobs(s.lit)
+			if len(problems) > 0 {
+				return fmt.Errorf("%s: %s", problems[0].feature, problems[0].detail)
+			}
+			segs[i].lit = lit
+		}
+	}
 	r, moved := g.p.rebaser()
 	rebase := hasHole && moved && rebasedAttrs[a.Key]
 	g.text(" " + key + `="`)

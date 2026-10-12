@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/html"
 
 	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
 )
 
 var inlineHandlerRe = regexp.MustCompile(`(?i)\son[a-z]+=`)
@@ -406,6 +407,45 @@ func TestALinkFromAValueOnAPageFromAFolderIsRebasedAtEachRedraw(t *testing.T) {
 		if !strings.Contains(shipped, want) {
 			t.Errorf("the shipped render lacks %s:\n%s", want, shipped)
 		}
+	}
+}
+
+func TestARedrawPointsTheBlobPathsOfAnAttributeWithAHoleAtThePushedFile(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { go: 1, size: 2, q: 'v' }; } }`
+	markup := `<button onClick="{{ go }}">x</button><img src="/_blob/abc?size={{ size }}" alt="/_blob/abc {{ q }}"><a href="/_blob/abc?q={{ q }}">d</a>`
+	blob := blobFile("_blob/abc.png")
+	for name, c := range map[string]struct {
+		res  artifactcompile.Result
+		want []string
+	}{
+		"a page in its own folder": {
+			compile(t, canvas("A.dc.html", scripted(script, markup)), blob),
+			[]string{`src=\"_blob/abc.png?size=`, `alt=\"_blob/abc.png `, `R.lk("" + "_blob/abc.png?q=" + t(`},
+		},
+		"a page from a folder": {
+			compileIndex(t, "site/Home", canvas("site/Home.dc.html", scripted(script, markup)), blob),
+			[]string{`R.rb("src", "" + "../_blob/abc.png?size=" + t(`, `alt=\"../_blob/abc.png `, `R.rb("href", R.lk("" + "../_blob/abc.png?q=" + t(`},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if len(c.res.Gaps) != 0 {
+				t.Fatalf("gaps = %+v", c.res.Gaps)
+			}
+			page := one(t, c.res, "index.html")
+			i := strings.Index(page, `<script id="loupe-runtime"`)
+			if i < 0 {
+				t.Fatalf("no runtime:\n%s", page)
+			}
+			shipped := page[i:]
+			if blobRe.MatchString(shipped) {
+				t.Errorf("the shipped render keeps a raw blob path:\n%s", shipped)
+			}
+			for _, want := range c.want {
+				if !strings.Contains(shipped, want) {
+					t.Errorf("the shipped render lacks %s:\n%s", want, shipped)
+				}
+			}
+		})
 	}
 }
 
