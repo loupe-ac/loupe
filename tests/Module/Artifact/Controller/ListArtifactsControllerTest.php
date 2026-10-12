@@ -64,6 +64,7 @@ final class ListArtifactsControllerTest extends WebTestCase
         $client->loginUser($project->owner);
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts');
 
+        self::assertResponseIsSuccessful();
         self::assertSame(
             ['First made', 'Second made'],
             $crawler->filter('.lp-document-row__title')->each(static fn ($node): string => trim($node->text())),

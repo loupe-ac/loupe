@@ -14,12 +14,12 @@ use App\Module\Board\Service\PullRequestStates;
 final readonly class CardView
 {
     /**
-     * @param list<CardSiteReviewComment> $siteReviewLinks
-     * @param list<RelatedCard>           $relatedCards
-     * @param list<Card>                  $children        empty for a card that is not an epic
-     * @param ?CardProgress               $progress        null for a card that is not an epic
-     * @param ?CardState                  $state           null for a card in no state, and for a card in a terminal column
-     * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts in link order
+     * @param list<CardSiteReviewComment>                         $siteReviewLinks
+     * @param list<RelatedCard>                                   $relatedCards
+     * @param list<Card>                                          $children        empty for a card that is not an epic
+     * @param ?CardProgress                                       $progress        null for a card that is not an epic
+     * @param ?CardState                                          $state           null for a card in no state, and for a card in a terminal column
+     * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts       in link order
      */
     public function __construct(
         public Card $card,

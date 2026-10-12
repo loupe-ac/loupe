@@ -7899,7 +7899,8 @@
     .lp-artifact-menu__toggle::-webkit-details-marker {
         display: none;
     }
-    .lp-artifact-menu__section[data-expanded='true'] > .lp-artifact-menu__toggle {
+    .lp-artifact-menu__section[data-expanded='true']
+        > .lp-artifact-menu__toggle {
         @apply border-line;
     }
     .lp-artifact-menu__caret {
