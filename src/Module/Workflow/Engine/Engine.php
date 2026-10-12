@@ -686,6 +686,14 @@ final readonly class Engine
 
         switch ($outcome->kind) {
             case ActionOutcomeKind::Done:
+                // Another rule's request does other work, so the rule tries again on each pass until it opens its own.
+                // The opener names the rule of the live request under its lock, so a request that settles afterwards changes nothing.
+                // The join counts nothing, and keeps the refusal that a retry read, so that refusal is not counted twice.
+                if ($outcome->alreadyLive && $outcome->liveRuleId !== $rule->id) {
+                    $state->truth = false;
+
+                    return true;
+                }
                 if (!$retrying || (null === $outcome->requestId && !$outcome->alreadyLive)) {
                     $state->attempts = 0;
                 }

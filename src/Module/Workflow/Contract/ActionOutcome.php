@@ -20,6 +20,7 @@ final readonly class ActionOutcome
         public bool $alreadyLive = false,
         public ?Uuid $requestId = null,
         public ?Uuid $askItemId = null,
+        public ?string $liveRuleId = null,
     ) {
     }
 
@@ -29,10 +30,10 @@ final readonly class ActionOutcome
         return new self(ActionOutcomeKind::Done, requestId: $requestId, askItemId: $askItemId);
     }
 
-    /** Done, because a live work request of the kind already does the work. It opened nothing. */
-    public static function alreadyLive(): self
+    /** Done, because a live work request of the kind already does the work. It opened nothing. It names the rule of that request, or null when it is not known. */
+    public static function alreadyLive(?string $liveRuleId): self
     {
-        return new self(ActionOutcomeKind::Done, alreadyLive: true);
+        return new self(ActionOutcomeKind::Done, alreadyLive: true, liveRuleId: $liveRuleId);
     }
 
     public static function refused(string $code): self
