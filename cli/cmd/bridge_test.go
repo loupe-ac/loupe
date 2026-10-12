@@ -568,19 +568,6 @@ func TestMissingProjectsNamesAMappedProjectTheServerDoesNotList(t *testing.T) {
 	}
 }
 
-// TestBridgeRunFailsFastWithoutClaude keeps the missing-binary error at the
-// start of the run. Reaching it also proves a valid rule file passes its check.
-func TestBridgeRunFailsFastWithoutClaude(t *testing.T) {
-	original := lookPath
-	lookPath = func(string) (string, error) { return "", errors.New("not found") }
-	t.Cleanup(func() { lookPath = original })
-
-	err := runBridge(t, "--rules", writeRules(t, "loupe"))
-	if err == nil || !strings.Contains(err.Error(), "claude is not installed") {
-		t.Fatalf("err = %v", err)
-	}
-}
-
 // The projects map replaces --site and --dir, so a stale invocation fails
 // instead of running with flags the binary ignores.
 func TestBridgeRunHasNoSiteOrDirFlags(t *testing.T) {

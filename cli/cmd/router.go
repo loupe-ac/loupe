@@ -164,9 +164,7 @@ type router struct {
 	// to their end. They take no slot.
 	commandRuns int
 	closed      bool
-	// claude is the absolute path a launch script runs, which a reload swaps
-	// with the set. launching counts the launches whose report is not queued.
-	claude    string
+	// launching counts the launches whose report is not queued.
 	launching int
 	// stopped closes at shutdown, so a resume that waits wakes at once.
 	stopped chan struct{}

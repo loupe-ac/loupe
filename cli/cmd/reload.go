@@ -15,7 +15,7 @@ import (
 )
 
 // reloadResult says what a reload changed, or why it changed nothing. Stage
-// names the step that failed: lock, parse, hooks, claude, check or server.
+// names the step that failed: lock, parse, hooks, check or server.
 type reloadResult struct {
 	OK       bool     `json:"ok"`
 	Added    []string `json:"added,omitempty"`
@@ -33,13 +33,11 @@ type reloadResult struct {
 
 // reloadSource gives a reload what it needs from the disk and the server; tests
 // replace it. A nil lock takes no lock, a nil resolveHooks resolves no hooks,
-// a nil resolveClaude keeps the claude path, and a nil checkAccounts checks
-// no account.
+// and a nil checkAccounts checks no account.
 type reloadSource struct {
 	lock          func() (check func() error, done func(applied bool), err error)
 	load          func() (*rules.Set, error)
 	resolveHooks  func(set *rules.Set) ([]hooks.Hook, error)
-	resolveClaude func() (string, error)
 	check         func(ctx context.Context, set *rules.Set) error
 	events        func(ctx context.Context) (api.Events, error)
 	checkAccounts func(ctx context.Context, set *rules.Set) []accountResult
@@ -52,7 +50,6 @@ func newReloadSource(path string, defaults rules.Defaults, cfg config.Config, lo
 	src := reloadSource{
 		load:          func() (*rules.Set, error) { return rules.Load(path, defaults) },
 		resolveHooks:  resolveHooks,
-		resolveClaude: resolveClaude,
 		check:         func(ctx context.Context, set *rules.Set) error { return set.Check(ctx, apiClient(cfg)) },
 		events:        func(ctx context.Context) (api.Events, error) { return apiClient(cfg).Events(ctx, cfg.BridgeID) },
 		checkAccounts: checkAccounts,
@@ -152,18 +149,16 @@ func shuttingDown() reloadResult {
 }
 
 // built is a set a reload built, with its hooks, the GET /api/events answer it
-// was checked against, the claude path when the set has an interactive rule,
-// and the checks of its accounts.
+// was checked against, and the checks of its accounts.
 type built struct {
 	set      *rules.Set
 	hooks    []hooks.Hook
-	claude   string
 	accounts []accountResult
 	events   api.Events
 }
 
-// buildSet loads, checks and confirms a new set, resolves its hooks and its
-// claude path, and names the stage that failed.
+// buildSet loads, checks and confirms a new set, resolves its hooks, and names
+// the stage that failed.
 func buildSet(ctx context.Context, src reloadSource) (built, string, error) {
 	var b built
 	set, err := src.load()
@@ -174,11 +169,6 @@ func buildSet(ctx context.Context, src reloadSource) (built, string, error) {
 	if src.resolveHooks != nil {
 		if b.hooks, err = src.resolveHooks(set); err != nil {
 			return b, "hooks", err
-		}
-	}
-	if src.resolveClaude != nil && set.HasInteractive() && set.NeedsClaude() {
-		if b.claude, err = src.resolveClaude(); err != nil {
-			return b, "claude", err
 		}
 	}
 	if err := src.check(ctx, set); err != nil {
@@ -235,9 +225,6 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	}
 	r.set.Store(set)
 	r.hookRunner.setHooks(b.hooks)
-	if b.claude != "" {
-		r.claude = b.claude
-	}
 	r.setSeq = seq
 	dropped := r.rewriteLocked(set)
 	r.pruneLocked(set, gone)
