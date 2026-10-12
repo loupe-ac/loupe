@@ -201,8 +201,9 @@ fewer finished cards than you do.
 
 `card_create` and `card_update` take `parentCardId`, the id of a card of this
 project whose type has the `children` capability. The shipped templates give that
-capability to `epic`. On `card_update`, omit it to keep the parent, send an empty string to
-clear it, and send an id to set it. These rules apply:
+capability to `epic`. On `card_update`, omit it to keep the parent, pass `clearParent: true` to
+clear it, and send an id to set it. An empty string also clears it. Do not pass
+`clearParent` with `parentCardId`. These rules apply:
 
 - A card has at most one parent, and the parent has a type with the `children` capability.
 - Such a card has no parent, because these cards do not nest.

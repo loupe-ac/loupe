@@ -17,6 +17,7 @@ use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Event\CardDocumentsChanged;
 use App\Module\Board\Event\CardMoved;
 use App\Module\Board\Event\CardParentChanged;
+use App\Module\Board\EventListener\EvaluateCardOnCardCreated;
 use App\Module\Board\EventListener\EvaluateCardOnCardDocumentsChanged;
 use App\Module\Board\EventListener\EvaluateCardOnWorkRequestChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnBoardColumnDeleted;
@@ -94,6 +95,18 @@ final class EvaluationListenersTest extends KernelTestCase
         );
 
         self::assertSame($this->ids($card, $epic, $blocked), $this->sent());
+    }
+
+    public function test_a_creation_asks_for_the_new_card_alone(): void
+    {
+        [$card, $updated] = [$this->card($this->project, 'tech-design'), $this->card($this->project, 'next')];
+        $listener = new EvaluateCardOnCardCreated($this->trigger());
+
+        foreach ([[$card, CardChanged::CREATED], [$updated, CardChanged::UPDATED], [$updated, CardChanged::DELETED]] as [$subject, $change]) {
+            $listener(new CardChanged($this->projectId(), $subject->id ?? throw new \LogicException('A flushed card has an id.'), $change, true));
+        }
+
+        self::assertSame($this->ids($card), $this->sent());
     }
 
     public function test_a_parent_change_asks_for_the_card_and_both_parents(): void

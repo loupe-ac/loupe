@@ -33,7 +33,9 @@ func testLogin(baseURL string) config.Config {
 func TestLoginRunsTheDeviceFlow(t *testing.T) {
 	useLoginConfigHome(t)
 	var apiAuth string
+	agents := map[string]string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		agents[r.URL.Path] = r.Header.Get("User-Agent")
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/oauth/device-authorization":
@@ -68,6 +70,11 @@ func TestLoginRunsTheDeviceFlow(t *testing.T) {
 	}
 	if apiAuth != "Bearer eyJ.access" {
 		t.Fatalf("the check call sent %q", apiAuth)
+	}
+	for _, path := range []string{"/oauth/device-authorization", "/oauth/token", "/api/projects"} {
+		if agents[path] != userAgent() {
+			t.Fatalf("%s sent User-Agent %q, want %q", path, agents[path], userAgent())
+		}
 	}
 
 	stored, err := config.Load()
