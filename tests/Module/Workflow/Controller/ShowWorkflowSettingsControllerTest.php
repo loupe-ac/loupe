@@ -11,11 +11,13 @@ use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
+use App\Tests\Module\Workflow\Template\TemplateParserTest;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\AcceptedTerms;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Yaml\Yaml;
 
 final class ShowWorkflowSettingsControllerTest extends WebTestCase
 {
@@ -79,6 +81,40 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-slot-key="tech-design"] [data-slot-column]', 'Not linked');
+    }
+
+    public function test_the_markers_of_the_template_are_listed_in_order(): void
+    {
+        $project = $this->workflowProject('workflow-page-markers');
+        $this->em()->persist(new WorkflowBinding($project, 'markers-test', 1, Yaml::parseFile(TemplateParserTest::MARKERS_FIXTURE)));
+        $owner = $this->stampedOwner($project);
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['has-pull-request', 'blocked', 'quiet', 'held'], $crawler->filter('[data-workflow-markers] [data-marker-key]')->extract(['data-marker-key']));
+        self::assertSelectorTextContains('[data-marker-key="has-pull-request"] [data-marker-kind]', 'Waiting');
+        self::assertSelectorTextContains('[data-marker-key="has-pull-request"] [data-marker-slots]', 'workflow.slot.build, workflow.slot.review');
+        self::assertSelectorTextContains('[data-marker-key="blocked"] [data-marker-slots]', 'every column that is not terminal');
+        self::assertSelectorTextContains('[data-marker-key="has-pull-request"] [data-condition-source="workflow.source.forge"]', 'Forge: pr.open');
+        self::assertSelectorTextContains('[data-marker-key="quiet"] [data-marker-fallback]', 'Fallback');
+        self::assertSelectorNotExists('[data-marker-key="blocked"] [data-marker-fallback]');
+        self::assertSelectorNotExists('[data-marker-missing]');
+    }
+
+    public function test_a_template_without_markers_says_so(): void
+    {
+        $project = $this->workflowProject('workflow-page-no-markers');
+        $this->bindLifecycle($project);
+        $owner = $this->stampedOwner($project);
+
+        $this->client->loginUser($owner);
+        $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/workflow');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-workflow-markers]', 'This template declares no markers.');
+        self::assertSelectorNotExists('[data-marker-key]');
     }
 
     public function test_a_rule_whose_condition_no_longer_exists_is_marked(): void

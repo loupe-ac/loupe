@@ -74,6 +74,42 @@
         </twig:DataTable>
     </section>
 
+    <section class="lp-workflow-section" data-workflow-markers>
+        <h2 class="lp-section-title">{{ 'workflow.settings.markers.heading'|trans }}</h2>
+        <p class="lp-workspace-desc">{{ 'workflow.settings.markers.description'|trans }}</p>
+        {% if template.markers is not empty %}
+        <twig:DataTable :columns="[
+            {label: 'workflow.settings.markers.marker'|trans},
+            {label: 'workflow.settings.markers.kind'|trans},
+            {label: 'workflow.settings.markers.applies_to'|trans},
+            {label: 'workflow.settings.rules.conditions'|trans},
+        ]">
+            {% for marker in template.markers %}
+            <div class="lp-data-table__row" data-marker-key="{{ marker.key }}"{% if marker.missingConditions is not empty %} data-marker-missing{% endif %}>
+                <span class="lp-data-table__cell lp-data-table__title">
+                    {{ marker.labelKey|trans }}
+                    {%- if marker.fallback %} <twig:Ds:Tag tone="neutral" data-marker-fallback>{{ 'workflow.settings.markers.fallback'|trans }}</twig:Ds:Tag>{% endif -%}
+                </span>
+                <span class="lp-data-table__cell" data-marker-kind>{{ ('workflow.settings.markers.kind.' ~ marker.kind)|trans }}</span>
+                <span class="lp-data-table__cell" data-marker-slots>
+                    {%- if marker.slotLabelKeys is empty %}{{ 'workflow.settings.markers.every_open_column'|trans }}{% else %}{{ marker.slotLabelKeys|map(key => key|trans)|join(', ') }}{% endif -%}
+                </span>
+                <div class="lp-data-table__cell" data-marker-conditions>
+                    {% for group in marker.whenGroups %}
+                    {% include '@Workflow/_condition_group.html.twig' with {group: group} only %}
+                    {% endfor %}
+                    {% for key in marker.missingConditions %}
+                    <twig:Ds:Tag tone="amber">{{ 'workflow.settings.rules.missing_condition'|trans({'%condition%': key}) }}</twig:Ds:Tag>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </twig:DataTable>
+        {% else %}
+        <p class="lp-workspace-desc">{{ 'workflow.settings.markers.none'|trans }}</p>
+        {% endif %}
+    </section>
+
     <section class="lp-workflow-section" data-workflow-template-rules>
         <h2 class="lp-section-title">{{ 'workflow.settings.rules.heading'|trans }}</h2>
         {% include '@Workflow/_rule_table.html.twig' with {rules: template.rules} only %}

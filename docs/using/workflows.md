@@ -44,6 +44,13 @@ board. Both shipped templates declare the same seven types, and only Epic has
 children and a lane. Feature is the default type. The **Workflow** page lists
 the types.
 
+A template can also declare card markers. A marker has a key, a kind, a label, the
+slots it applies in, and a condition. The kind is `stuck`, `needs-you`, `working`,
+`waiting` or `chip`. A marker with no slots applies in every column that is not
+terminal. A fallback marker counts only when no other marker of a state kind
+matches. The **Workflow** page lists the markers in template order. Both shipped
+templates declare none yet, so the section says so.
+
 The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge or Bridge. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.
