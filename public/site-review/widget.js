@@ -1413,28 +1413,28 @@
          runs to two lines at most, so it wraps where a card title ellipses. */
       .lp-context-label[data-wrap]{white-space:normal;overflow:visible}
       .lp-picker-foot .lp-picker-search{flex:1 1 auto}
-      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field-bg);color:var(--text);border:1px solid var(--hairline);border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
       .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
       .lp-last-card{margin:6px 0 0}
       .lp-verdict{flex:0 1 auto;min-height:0;overflow:auto;margin:0 14px 12px;font-size:12px;line-height:1.45;color:var(--text)}
       .lp-verdict-row{display:flex;gap:6px}
-      .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:999px;background:var(--chip-bg);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
+      .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:999px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
       .lp-verdict-btn[data-kind="request-changes"]{flex:1.5}
       .lp-verdict-btn:hover{background:var(--accent-fill)}
       .lp-verdict-btn:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
-      .lp-verdict-form{border:1px solid var(--hairline);border-radius:10px;padding:10px;background:var(--panel-elev)}
+      .lp-verdict-form{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--bg-sunken)}
       .lp-verdict-title{font-size:13px;font-weight:700;overflow-wrap:anywhere}
-      .lp-verdict-form .lp-textarea{min-height:56px;margin-top:8px}
-      .lp-verdict-line{margin-top:6px;color:var(--muted)}
+      .lp-verdict-form .lp-textarea{min-height:56px;margin-top:8px;background:var(--surface-1)}
+      .lp-verdict-line{margin-top:6px;color:var(--text-mute)}
       .lp-verdict-pr{display:flex;align-items:center;gap:6px;margin-top:6px;overflow-wrap:anywhere}
-      .lp-verdict-notes{margin:4px 0 0;padding-left:16px;color:var(--muted)}
+      .lp-verdict-notes{margin:4px 0 0;padding-left:16px;color:var(--text-mute)}
       .lp-verdict-notes li{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .lp-verdict-warn{margin-top:6px;color:var(--accent-ink)}
-      .lp-verdict-error{margin-top:6px;color:var(--danger)}
+      .lp-verdict-error{margin-top:6px;color:var(--status-danger)}
       .lp-verdict-foot{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:10px}
-      .lp-verdict-result{margin-top:8px;color:var(--muted)}
+      .lp-verdict-result{margin-top:8px;color:var(--text-mute)}
       .lp-verdict-result a{color:var(--accent-ink)}
-      .lp-verdict-ok{margin-bottom:6px;color:var(--success);font-weight:600}
+      .lp-verdict-ok{margin-bottom:6px;color:var(--status-ok);font-weight:600}
       .lp-composer{flex:0 0 auto;overflow:hidden;transition:max-height .27s cubic-bezier(.4,0,.2,1),opacity .2s ease}
       .lp-composer-inner{padding:2px 16px 14px}
       /* The composer's height is fixed and it clips, so the chips scroll rather
