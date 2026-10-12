@@ -1,19 +1,3 @@
-{% set groups = {
-    forges: ['gitlab', 'bitbucket', 'gitea', 'forgejo', 'github-enterprise'],
-    agents: ['cursor', 'gemini-cli', 'opencode', 'aider', 'pi'],
-} %}
-{% set icons = {
-    'gitlab': 'logos:gitlab-icon',
-    'bitbucket': 'logos:bitbucket',
-    'gitea': 'devicon:gitea',
-    'forgejo': 'devicon:forgejo',
-    'github-enterprise': 'logos:github-icon',
-    'cursor': 'logos:cursor-icon',
-    'gemini-cli': 'logos:google-gemini',
-    'opencode': 'simple-icons:opencode',
-    'aider': 'brand:aider',
-    'pi': 'brand:pi',
-} %}
 <div class="lp-home-ask" data-controller="landing-ask">
     <button type="button" class="lp-home-ask__toggle" aria-expanded="false" aria-controls="landing-ask-body"
             data-landing-ask-target="toggle" data-action="landing-ask#toggle">
@@ -29,28 +13,7 @@
     </button>
     <div id="landing-ask-body" class="lp-home-ask__body" data-landing-ask-target="body" hidden>
         <turbo-frame id="waitlist-notify">
-            {{ form_start(notifyForm, {attr: {class: 'lp-home-ask__form', novalidate: 'novalidate'}}) }}
-                {% for group, values in groups %}
-                    <div class="lp-home-ask__group" role="group" aria-label="{{ ('landing.ask.group.' ~ group)|trans }}">
-                        <span class="lp-home-ask__group-label">{{ ('landing.ask.group.' ~ group)|trans }}</span>
-                        {% for pick in notifyForm.picks %}
-                            {% if pick.vars.value in values %}
-                            <label class="lp-home-chip" for="{{ pick.vars.id }}">
-                                {{ form_widget(pick, {attr: {class: 'lp-home-chip__input'}}) }}
-                                <twig:UX:Icon :name="icons[pick.vars.value]" class="w-4.5 h-4.5" aria-hidden="true" />
-                                {{ pick.vars.label|trans }}
-                            </label>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                {% endfor %}
-                {% do notifyForm.picks.setRendered %}
-                <div class="lp-home-ask__fields">
-                    <twig:Ds:FormField :fieldView="notifyForm.other" class="lp-home-ask__field" />
-                    <twig:Ds:FormField :fieldView="notifyForm.email" class="lp-home-ask__field" />
-                    <twig:Ds:Button variant="inverse" type="submit">{{ 'landing.ask.submit'|trans }}</twig:Ds:Button>
-                </div>
-            {{ form_end(notifyForm) }}
+            {% include 'waitlist/_notify_form.html.twig' with {notifyForm: notifyForm} only %}
         </turbo-frame>
     </div>
 </div>

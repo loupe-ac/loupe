@@ -98,6 +98,34 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertSelectorExists('input[name="waitlist_join_form[_token]"]');
     }
 
+    public function test_an_invalid_submit_with_picks_re_renders_the_full_form_with_the_picks_kept(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => '', 'picks' => ['gitlab', 'pi'], 'other' => 'Jujutsu']);
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorExists('turbo-frame#waitlist-notify .lp-home-ask__form');
+        $this->assertSelectorExists('turbo-frame#waitlist-notify input[type="checkbox"][value="gitlab"][checked]');
+        $this->assertSelectorExists('turbo-frame#waitlist-notify input[type="checkbox"][value="pi"][checked]');
+        $this->assertSelectorNotExists('turbo-frame#waitlist-notify input[type="checkbox"][value="cursor"][checked]');
+        $this->assertSelectorExists('turbo-frame#waitlist-notify input[name="waitlist_join_form[other]"][value="Jujutsu"]');
+        $this->assertSelectorTextContains('turbo-frame#waitlist-notify', 'This value should not be blank.');
+    }
+
+    public function test_an_invalid_submit_without_picks_keeps_the_email_only_form(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => '']);
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorExists('turbo-frame#waitlist-notify input[type="email"]');
+        $this->assertSelectorNotExists('input[type="checkbox"]');
+    }
+
     public function test_the_confirmation_replaces_the_notify_frame(): void
     {
         $client = static::createClient();

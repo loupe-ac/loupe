@@ -123,6 +123,10 @@ test('Notify me with no email shows the email error and stores nothing', async (
     await guest.getByRole('button', { name: 'Notify me' }).click();
 
     await expect(guest.locator('#waitlist-notify')).toContainText(/email/i);
+    await expect(guest.getByLabel('Forgejo')).toBeChecked();
+    await expect(guest.getByLabel('Something else')).toHaveValue(
+        `no-email-${RUN}`,
+    );
     await expect(guest.getByText("You're on the list")).toBeHidden();
 
     await admin.goto('/admin/waitlist?sort=createdAt&dir=desc');
