@@ -822,3 +822,106 @@ func TestSubscribeResetsTheBackoffAfterAHeartbeat(t *testing.T) {
 		t.Fatalf("second wait = %s, want the backoff reset to 1s", gap)
 	}
 }
+
+// A stream that ends cleanly after a line reports its life and the events it
+// delivered, so the caller can log how long the hub kept it open. The life
+// includes the OnConnect work, because the hub holds the stream meanwhile.
+func TestSubscribeReportsACleanClose(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(":\n\ndata: a\n\ndata: b\n\n"))
+	}))
+	defer srv.Close()
+
+	type closed struct {
+		lived  time.Duration
+		events int
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	got := make(chan closed, 10)
+	errs := make(chan error, 10)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+			func(context.Context) (string, error) { return "jwt", nil },
+			Handler{
+				OnConnect: func() { time.Sleep(200 * time.Millisecond) },
+				OnClose:   func(lived time.Duration, events int) { got <- closed{lived, events} },
+				OnError:   func(err error) { errs <- err },
+			})
+	}()
+
+	select {
+	case c := <-got:
+		if c.events != 2 || c.lived < 200*time.Millisecond || c.lived > 4*time.Second {
+			t.Fatalf("OnClose(%s, %d), want 2 events and the OnConnect time counted", c.lived, c.events)
+		}
+	case err := <-errs:
+		t.Fatalf("clean close reported as error %v", err)
+	case <-time.After(4 * time.Second):
+		t.Fatal("no close reported")
+	}
+	cancel()
+	<-done
+}
+
+// A stream that ends with a read error, or with nothing received, is an error
+// and never a clean close.
+func TestSubscribeReportsNoCleanCloseOnAnErrorEnd(t *testing.T) {
+	for name, body := range map[string]func(w http.ResponseWriter){
+		"empty": func(http.ResponseWriter) {},
+		"cut": func(w http.ResponseWriter) {
+			_, _ = w.Write([]byte("data: a\n\n"))
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				_ = conn.Close()
+			}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.WriteHeader(http.StatusOK)
+				body(w)
+			}))
+			defer srv.Close()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			closes := make(chan struct{}, 10)
+			errs := make(chan error, 10)
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_ = Subscribe(ctx, srv.Client(), srv.URL, []string{"https://example.test/topic"},
+					func(context.Context) (string, error) { return "jwt", nil },
+					Handler{
+						OnClose: func(time.Duration, int) { closes <- struct{}{} },
+						OnError: func(err error) {
+							select {
+							case errs <- err:
+							default:
+							}
+						},
+					})
+			}()
+
+			select {
+			case <-errs:
+			case <-closes:
+				t.Fatal("an error end was reported as a clean close")
+			case <-time.After(4 * time.Second):
+				t.Fatal("no error reported")
+			}
+			cancel()
+			<-done
+			if len(closes) != 0 {
+				t.Fatal("an error end was reported as a clean close")
+			}
+		})
+	}
+}

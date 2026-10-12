@@ -344,6 +344,14 @@ any line, a heartbeat included, is a failure too. After a failure the bridge
 waits before it connects again. The wait starts at 1 second and doubles up to 30
 seconds. Only a stream that delivered a line resets it to 1 second.
 
+The bridge logs `stream_closed` when a stream that delivered a line ends with no
+error. `lived_s` is how long the stream stayed open, in seconds, and `events` is
+the number of events it received. The hub closes each subscription on purpose
+before its write timeout ends, so a clean close is normal. The hub of Loupe keeps
+a subscription open for up to one hour. The subscriber token of the bridge also
+lives one hour, so expect a `stream_closed` line every 48 to 60 minutes. The
+bridge then connects again at once and catches up on what it missed.
+
 The bridge logs `event_dropped` for an event it receives and does not act on.
 `reason` says why. `unknown_type` is a type this bridge version does not know,
 and the bridge logs it at warning level once per type, so a person knows to
