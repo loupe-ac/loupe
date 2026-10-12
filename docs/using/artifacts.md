@@ -108,7 +108,8 @@ first shows the page that the build drew, so a reader that runs no script sees a
 full page. The page also holds one inline script. That script holds the logic
 of the canvas, a small Loupe redraw runtime, and the template as a render
 function. When a click or a keystroke calls `setState`, the page draws again and
-keeps the focus and the caret of a text field. Timers and `componentDidMount`
+keeps the focus and the caret of a text field. An `onChange` on a text field
+runs on each keystroke, as in React. Timers and `componentDidMount`
 also run. A canvas with a script and no event, timer or mount hook compiles to
 plain markup, with no script.
 

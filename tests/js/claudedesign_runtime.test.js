@@ -335,6 +335,98 @@ it('syncs a checkbox from the new markup', async () => {
     expect(box.checked).toBe(true);
 });
 
+const changeCalls = (markup) => {
+    const calls = [];
+    class C extends LoupeView {
+        renderVals() {
+            return { pick: (e) => calls.push(e.type) };
+        }
+    }
+    LoupeView.mount(C, (s, h) => markup(h(s.pick)), {}, ['change'], {});
+
+    return calls;
+};
+
+it('calls onChange of a text field on each keystroke and not on commit', () => {
+    for (const markup of [
+        (i) => `<input type="text" data-on-change="${i}">`,
+        (i) => `<textarea data-on-change="${i}"></textarea>`,
+        (i) => `<form data-on-change="${i}"><input></form>`,
+    ]) {
+        document.body.innerHTML = '<script id="loupe-runtime"></script>';
+        const calls = changeCalls(markup);
+        const field = document.querySelector('input, textarea');
+        field.value = 'plan';
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(calls).toEqual(['input']);
+    }
+});
+
+it('calls onChange of a checkbox and a select on change', () => {
+    for (const markup of [
+        (i) => `<input type="checkbox" data-on-change="${i}">`,
+        (i) => `<select data-on-change="${i}"><option>a</option></select>`,
+    ]) {
+        document.body.innerHTML = '<script id="loupe-runtime"></script>';
+        const calls = changeCalls(markup);
+        const field = document.querySelector('input, select');
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(calls).toEqual(['change']);
+    }
+});
+
+it('keeps focus and value on the item when a loop gains an item before it', async () => {
+    for (const start of [
+        ['', ''],
+        ['one', 'two'],
+    ]) {
+        document.body.innerHTML = '<script id="loupe-runtime"></script>';
+        class C extends LoupeView {
+            constructor(p) {
+                super(p);
+                this.state = { rows: start.slice() };
+            }
+            renderVals() {
+                return {
+                    rows: this.state.rows.map((v, i) => ({
+                        v,
+                        type: (e) =>
+                            this.setState((st) => {
+                                const rows = st.rows.slice();
+                                rows[i] = e.target.value;
+                                return { rows: ['new'].concat(rows) };
+                            }),
+                    })),
+                };
+            }
+        }
+        const render = (s, h, R) =>
+            R.A(s.rows)
+                .map(
+                    (r) =>
+                        `<input value="${R.q(r.v)}" data-on-input="${h(r.type)}">`,
+                )
+                .join('');
+        LoupeView.mount(C, render, {}, ['input'], {});
+        const second = document.querySelectorAll('input')[1];
+        second.focus();
+        second.value = start[1] + 'x';
+        second.setSelectionRange(1, 1);
+        second.dispatchEvent(new Event('input', { bubbles: true }));
+        await settle();
+        const inputs = document.querySelectorAll('input');
+        expect(inputs).toHaveLength(3);
+        expect(inputs[2]).toBe(second);
+        expect(document.activeElement).toBe(second);
+        expect(second.value).toBe(start[1] + 'x');
+        expect(second.selectionStart).toBe(1);
+        expect(inputs[1].value).toBe(start[0]);
+        expect(inputs[0].value).toBe('new');
+    }
+});
+
 it('gives a loop handler the right item', async () => {
     const seen = [];
     class C extends LoupeView {

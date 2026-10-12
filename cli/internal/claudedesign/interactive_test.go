@@ -185,7 +185,7 @@ func TestTheInteractiveGolden(t *testing.T) {
 	if inlineHandlerRe.MatchString(static) {
 		t.Errorf("an inline handler in\n%s", static)
 	}
-	if !strings.Contains(got, `["change","click","input"]`) {
+	if !strings.Contains(got, `["change","click"]`) {
 		t.Errorf("events missing")
 	}
 }

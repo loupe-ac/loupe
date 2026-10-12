@@ -31,7 +31,11 @@ class LoupeView {
         view._base = base || null;
         view._blobs = blobs || {};
         view._draw();
-        (events || []).forEach((name) => {
+        const names = (events || []).slice();
+        if (names.includes('change') && !names.includes('input')) {
+            names.push('input');
+        }
+        names.forEach((name) => {
             document.body.addEventListener(
                 name,
                 (e) => view._dispatch(e),
@@ -244,11 +248,22 @@ class LoupeView {
         );
     }
 
+    // A text field fires onChange on each keystroke, as React does, and not
+    // when it commits its value.
     _dispatch(e) {
-        const attr = 'data-on-' + e.type;
+        const text = LoupeView._textField(e.target);
+        let attrs = ['data-on-' + e.type];
+        if (e.type === 'input' && text) {
+            attrs = ['data-on-input', 'data-on-change'];
+        } else if (e.type === 'change' && text) {
+            attrs = [];
+        }
         let el = e.target;
         while (el && el.nodeType === 1) {
-            if (el.hasAttribute(attr)) {
+            for (const attr of attrs) {
+                if (!el.hasAttribute(attr)) {
+                    continue;
+                }
                 const fn = this.handlers[Number(el.getAttribute(attr))];
                 if (typeof fn === 'function') {
                     try {
@@ -263,6 +278,18 @@ class LoupeView {
             }
             el = el.parentNode;
         }
+    }
+
+    static _textField(el) {
+        if (!el || el.nodeType !== 1) {
+            return false;
+        }
+
+        return (
+            el.nodeName === 'TEXTAREA' ||
+            (el.nodeName === 'INPUT' &&
+                !['checkbox', 'radio', 'file'].includes(el.type))
+        );
     }
 
     static _morph(parent, olds, news, before) {
@@ -320,9 +347,15 @@ class LoupeView {
             : all[score.indexOf(best)];
     }
 
+    // A handler index and the value a text field had at the last draw say
+    // where a node was, not which item it is, so they do not count.
     static _likeness(o, n) {
         let score = 0;
+        const text = LoupeView._textField(o);
         for (const a of Array.from(o.attributes)) {
+            if (a.name.startsWith('data-on-') || (text && a.name === 'value')) {
+                continue;
+            }
             if (n.getAttribute(a.name) === a.value) {
                 score++;
             }

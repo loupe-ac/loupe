@@ -13,7 +13,7 @@
 </helmet>
 
 <h1>{{ title }}</h1>
-<input id="q" type="text" value="{{ query }}" onInput="{{ onQuery }}">
+<input id="q" type="text" value="{{ query }}" onChange="{{ onQuery }}">
 <button id="inc" onClick="{{ onInc }}">Count: {{ count }}</button>
 <sc-if value="{{ agreed }}"><label><input id="agree" type="checkbox" checked onChange="{{ onAgree }}"> I agree</label></sc-if>
 <sc-if value="{{ notAgreed }}"><label><input id="agree" type="checkbox" onChange="{{ onAgree }}"> I agree</label></sc-if>
