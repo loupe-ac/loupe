@@ -25,6 +25,12 @@ use Ubermuda\AuditBundle\AuditOutcome;
     name: 'app_waitlist_join',
     methods: ['GET', 'POST'],
 )]
+#[Route(
+    '/waitlist/notify',
+    name: 'app_waitlist_notify',
+    defaults: ['notify' => true],
+    methods: ['GET', 'POST'],
+)]
 final class JoinWaitlistController extends AppController
 {
     public function __construct(
@@ -38,7 +44,7 @@ final class JoinWaitlistController extends AppController
     ) {
     }
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, bool $notify = false): Response
     {
         // A waitlist only means something on an instance that intends to let
         // people in eventually. With sign-up switched off — or the install
@@ -66,7 +72,11 @@ final class JoinWaitlistController extends AppController
             return $this->render('@Account/registration/waitlist_joined.html.twig');
         }
 
-        $form = $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest());
+        // The home page Notify me form posts here too. It keeps its own route,
+        // so a failed submit re-renders the chips and posts back to the same URL.
+        $form = $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest(), $notify ? [
+            'action' => $this->generateUrl('app_waitlist_notify'),
+        ] : []);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -74,7 +84,7 @@ final class JoinWaitlistController extends AppController
             if (!$limiter->consume(1)->isAccepted()) {
                 $form->get('email')->addError(new FormError($this->translator->trans('account.waitlist.error.throttled')));
 
-                return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form);
+                return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify]);
             }
 
             $data = $form->getData();
@@ -93,6 +103,6 @@ final class JoinWaitlistController extends AppController
             return $this->redirectToRoute('app_waitlist_join', ['joined' => 1]);
         }
 
-        return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form);
+        return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify]);
     }
 }

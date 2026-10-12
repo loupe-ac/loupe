@@ -132,3 +132,21 @@ test('Notify me with no email shows the email error and stores nothing', async (
     await admin.goto('/admin/waitlist?sort=createdAt&dir=desc');
     await expect(admin.getByText(`no-email-${RUN}`)).toHaveCount(0);
 });
+
+test('an empty Notify me keeps the chips, and the retry joins', async ({
+    page: admin,
+}) => {
+    const email = `e2e-home-retry-${RUN}@example.com`;
+    await openAsk(guest);
+    await guest.getByRole('button', { name: 'Notify me' }).click();
+
+    await expect(guest.locator('#waitlist-notify')).toContainText(/email/i);
+    await guest.getByLabel('Gitea').check();
+    await guest.getByLabel('Email').fill(email);
+    await guest.getByRole('button', { name: 'Notify me' }).click();
+    await expect(guest.getByText("You're on the list")).toBeVisible();
+
+    const row = await entryRow(admin, email);
+    await expect(row).toHaveCount(1);
+    await expect(row.locator('[data-waitlist-picks]')).toContainText('Gitea');
+});

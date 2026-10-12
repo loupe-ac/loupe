@@ -34,7 +34,7 @@ class LandingController extends AppController
 
             return $this->render('@Landing/landing.html.twig', [
                 'notifyForm' => $this->createForm(WaitlistJoinFormType::class, new WaitlistJoinRequest(), [
-                    'action' => $this->generateUrl('app_waitlist_join'),
+                    'action' => $this->generateUrl('app_waitlist_notify'),
                 ])->createView(),
             ]);
         }

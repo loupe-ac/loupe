@@ -98,12 +98,12 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertSelectorExists('input[name="waitlist_join_form[_token]"]');
     }
 
-    public function test_an_invalid_submit_with_picks_re_renders_the_full_form_with_the_picks_kept(): void
+    public function test_an_invalid_notify_submit_with_picks_re_renders_the_full_form_with_the_picks_kept(): void
     {
         $client = static::createClient();
         $this->closeRegistration();
 
-        $this->post($client, ['email' => '', 'picks' => ['gitlab', 'pi'], 'other' => 'Jujutsu']);
+        $this->post($client, ['email' => '', 'picks' => ['gitlab', 'pi'], 'other' => 'Jujutsu'], '/waitlist/notify');
 
         $this->assertResponseStatusCodeSame(422);
         $this->assertSelectorExists('turbo-frame#waitlist-notify .lp-home-ask__form');
@@ -114,12 +114,39 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertSelectorTextContains('turbo-frame#waitlist-notify', 'This value should not be blank.');
     }
 
-    public function test_an_invalid_submit_without_picks_keeps_the_email_only_form(): void
+    public function test_an_empty_notify_submit_keeps_the_full_form_that_posts_back_to_notify(): void
     {
         $client = static::createClient();
         $this->closeRegistration();
 
-        $this->post($client, ['email' => '']);
+        $this->post($client, ['email' => ''], '/waitlist/notify');
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorExists('turbo-frame#waitlist-notify form.lp-home-ask__form[action="/waitlist/notify"]');
+        $this->assertSelectorExists('turbo-frame#waitlist-notify input[type="checkbox"][value="gitlab"]');
+        $this->assertSelectorExists('turbo-frame#waitlist-notify input[name="waitlist_join_form[other]"]');
+        $this->assertSelectorTextContains('turbo-frame#waitlist-notify', 'This value should not be blank.');
+    }
+
+    public function test_a_notify_submit_joins_and_redirects_to_the_confirmation(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => 'notify@example.com', 'picks' => ['cursor']], '/waitlist/notify');
+
+        $this->assertResponseRedirects('/waitlist?joined=1');
+        $entry = static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('notify@example.com');
+        $this->assertNotNull($entry);
+        $this->assertSame(['cursor'], $entry->picks);
+    }
+
+    public function test_an_invalid_submit_on_the_waitlist_page_keeps_the_email_only_form(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => '', 'picks' => ['gitlab'], 'other' => 'Jujutsu']);
 
         $this->assertResponseStatusCodeSame(422);
         $this->assertSelectorExists('turbo-frame#waitlist-notify input[type="email"]');
@@ -187,11 +214,11 @@ final class JoinWaitlistControllerTest extends WebTestCase
     }
 
     /** @param array<string, mixed> $fields */
-    private function post(KernelBrowser $client, array $fields): void
+    private function post(KernelBrowser $client, array $fields, string $path = '/waitlist'): void
     {
-        $crawler = $client->request(Request::METHOD_GET, '/waitlist');
+        $crawler = $client->request(Request::METHOD_GET, $path);
         $token = $crawler->filter('input[name="waitlist_join_form[_token]"]')->attr('value');
-        $client->request(Request::METHOD_POST, '/waitlist', ['waitlist_join_form' => [...$fields, '_token' => $token]]);
+        $client->request(Request::METHOD_POST, $path, ['waitlist_join_form' => [...$fields, '_token' => $token]]);
     }
 
     private function closeRegistration(): void

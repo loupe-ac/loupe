@@ -10,15 +10,14 @@
 {% endblock %}
 
 {% block auth_body %}
-{% set withPicks = form.vars.data.picks is not empty or form.vars.data.other is not empty %}
 <div class="flex flex-col gap-1.5">
     <h1 class="auth-heading">{{ 'account.waitlist.title'|trans }}</h1>
     <p class="auth-subheading">{{ 'account.waitlist.body'|trans }}</p>
 </div>
 
-<div class="{{ withPicks ? 'lp-home-ask' }}">
+<div class="{{ notify ? 'lp-home-ask' }}">
 <turbo-frame id="waitlist-notify">
-    {% if withPicks %}
+    {% if notify %}
         {% include 'waitlist/_notify_form.html.twig' with {notifyForm: form} only %}
     {% else %}
     {% do form.picks.setRendered %}

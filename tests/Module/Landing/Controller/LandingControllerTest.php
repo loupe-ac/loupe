@@ -65,7 +65,7 @@ final class LandingControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#waitlist-notify form[action="/waitlist"]');
+        self::assertSelectorExists('turbo-frame#waitlist-notify form[action="/waitlist/notify"]');
         self::assertSelectorCount(10, 'input.lp-home-chip__input[type="checkbox"][name="waitlist_join_form[picks][]"]');
         self::assertSelectorExists('input[name="waitlist_join_form[email]"]');
         self::assertSelectorExists('input[name="waitlist_join_form[other]"]');
