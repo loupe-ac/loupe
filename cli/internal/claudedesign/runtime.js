@@ -333,8 +333,8 @@ class LoupeView {
 
     // The new node that keeps the node holding focus: the most alike of its
     // twins by attributes, then by tags and attribute names. A tie falls to
-    // the same place from the start when the twins before it are unchanged,
-    // as when a loop appends, and else to the same place from the end.
+    // the place that lines up the most unchanged twins around it, so a loop
+    // can add, drop and change items on both sides in one redraw.
     static _mate(act, olds, news) {
         const all = news.filter((n) => LoupeView._same(act, n));
         if (all.length < 2) {
@@ -342,10 +342,17 @@ class LoupeView {
         }
         const twins = olds.filter((o) => LoupeView._same(o, act));
         const at = twins.indexOf(act);
-        const head = twins
-            .slice(0, at)
-            .every((o, i) => o.isEqualNode(all[i]));
-        const near = head ? all[at] : all[all.length - twins.length + at];
+        let near = all[0];
+        let most = -1;
+        all.forEach((n, j) => {
+            const hits = twins.filter(
+                (o, i) => o !== act && all[i - at + j]?.isEqualNode(o),
+            ).length;
+            if (hits > most) {
+                most = hits;
+                near = n;
+            }
+        });
         const shape = LoupeView._shape(act);
         const score = all.map(
             (n) =>

@@ -486,6 +486,46 @@ it('keeps focus on the same item when a loop appends an item', async () => {
     }
 });
 
+it('keeps focus on the same item when a loop changes an earlier item and appends', async () => {
+    for (const [from, to, at] of [
+        [['A', 'B', 'C'], ['A2', 'B', 'C', 'D'], 1],
+        [['A', 'B', 'C'], ['Z', 'A', 'B2', 'C'], 2],
+        [['A', 'B', 'C'], ['B', 'C2'], 0],
+    ]) {
+        document.body.innerHTML = '<script id="loupe-runtime"></script>';
+        class C extends LoupeView {
+            constructor(p) {
+                super(p);
+                this.state = { rows: from };
+            }
+            renderVals() {
+                return { rows: this.state.rows };
+            }
+        }
+        const render = (s, h, R) =>
+            R.A(s.rows)
+                .map((r) => `<div><label>${R.e(r)}</label><input></div>`)
+                .join('');
+        const view = LoupeView.mount(C, render, {}, ['input'], {});
+        const field = document.querySelectorAll('input')[1];
+        field.focus();
+        field.value = 'typed';
+        view.setState({ rows: to });
+        await settle();
+        const inputs = document.querySelectorAll('input');
+        expect(inputs).toHaveLength(to.length);
+        expect(inputs[at]).toBe(field);
+        expect(document.activeElement).toBe(field);
+        expect(field.value).toBe('typed');
+        expect(
+            Array.from(
+                document.querySelectorAll('label'),
+                (l) => l.textContent,
+            ),
+        ).toEqual(to);
+    }
+});
+
 it('gives a loop handler the right item', async () => {
     const seen = [];
     class C extends LoupeView {
