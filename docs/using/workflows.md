@@ -9,6 +9,10 @@ Loupe checks the rules of a card on each change and on a timer. A rule fires
 when its condition turns true. It then moves the card, asks a bridge for work,
 writes to GitHub, or pauses the card.
 
+A card runs one piece of work of each kind at a time. A rule that asks for work
+while another rule's work of the same kind runs opens nothing. It waits for that
+work to end, and then asks for work of its own when its condition still holds.
+
 A bridge does the work that the workflow asks for. It does not decide when work
 runs. See [Command-line bridge](../extending/cli-bridge.md) for how a bridge
 maps each kind of work to an agent.

@@ -31,6 +31,7 @@ use App\Module\Workflow\Contract\WithdrawKind;
 use App\Module\Workflow\Contract\WorkLedger;
 use App\Module\Workflow\Contract\WorkOpener;
 use App\Module\Workflow\Contract\WorkState;
+use App\Module\Workflow\Contract\WorkView;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Event\CardPaused;
 use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
@@ -686,6 +687,13 @@ final readonly class Engine
 
         switch ($outcome->kind) {
             case ActionOutcomeKind::Done:
+                // Another rule's request does other work, so the rule tries again on each pass until it opens its own.
+                // The join counts nothing, and keeps the refusal that a retry read, so that refusal is not counted twice.
+                if ($outcome->alreadyLive && $this->joinsAnotherRule($run, $rule)) {
+                    $state->truth = false;
+
+                    return true;
+                }
                 if (!$retrying || (null === $outcome->requestId && !$outcome->alreadyLive)) {
                     $state->attempts = 0;
                 }
@@ -740,6 +748,15 @@ final readonly class Engine
 
                 return false;
         }
+    }
+
+    /** Answers whether the live request of the work kind of the rule belongs to another rule. */
+    private function joinsAnotherRule(Evaluation $run, Rule $rule): bool
+    {
+        $kind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
+        $live = array_find($this->ledger->live($run->card->id), static fn (WorkView $request): bool => $request->kind === $kind);
+
+        return null !== $live && $live->ruleId !== $rule->id;
     }
 
     /** Logs each source that failed, unless it had already failed in the previous build of this evaluation. A source that is off is not an error. */
