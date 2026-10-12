@@ -30,7 +30,7 @@ use Symfony\Component\Uid\Uuid;
  */
 class WorkRequestRepository extends ServiceEntityRepository
 {
-    /** A card request whose card has a hold. No bridge may take its work, or run it again. */
+    /** A card request whose card has a hold. The lapse sweep leaves its claim alone. */
     private const string HELD_CARD = <<<'SQL'
         (work_requests.subject_type = 'card' AND EXISTS (
             SELECT 1 FROM bridge_card_holds h
@@ -48,8 +48,9 @@ class WorkRequestRepository extends ServiceEntityRepository
         $sql = <<<'SQL'
             UPDATE work_requests
             SET state = :claimed, bridge_id = :bridge, claim_token = :token, lease_until = :leaseUntil, claims = claims + 1
-            WHERE id = :id AND state = :open AND NOT
-            SQL.self::HELD_CARD.' RETURNING id';
+            WHERE id = :id AND state = :open
+            RETURNING id
+            SQL;
 
         return false !== $this->getEntityManager()->getConnection()->executeQuery(
             $sql,
@@ -62,15 +63,6 @@ class WorkRequestRepository extends ServiceEntityRepository
                 'open' => WorkRequestState::Open->value,
             ],
             ['leaseUntil' => Types::DATETIME_IMMUTABLE],
-        )->fetchOne();
-    }
-
-    /** Whether the request is about a card that has a hold. */
-    public function isOfHeldCard(Uuid $id): bool
-    {
-        return false !== $this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT 1 FROM work_requests WHERE id = :id AND '.self::HELD_CARD,
-            ['id' => $id->toRfc4122()],
         )->fetchOne();
     }
 

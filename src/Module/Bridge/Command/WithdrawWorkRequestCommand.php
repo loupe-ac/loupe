@@ -15,8 +15,6 @@ final readonly class WithdrawWorkRequestCommand
         public WorkRequestState $state,
         /** Leaves a request that a bridge claimed since the caller read it. */
         public bool $onlyIfOpen = false,
-        /** Leaves a request whose card a release made managed again since the caller read it. */
-        public bool $onlyIfCardHeld = false,
     ) {
     }
 }

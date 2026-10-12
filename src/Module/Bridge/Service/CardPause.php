@@ -6,10 +6,6 @@ namespace App\Module\Bridge\Service;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\BridgeEventType;
-use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
-use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
-use App\Module\Bridge\Repository\WorkRequestRepository;
-use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Outbox\OutboxWriter;
 use Symfony\Component\Uid\Uuid;
@@ -28,8 +24,6 @@ final readonly class CardPause
         private OutboxWriter $outbox,
         private WorkerRunChangedPublisher $runsChanged,
         private Auditor $auditor,
-        private WorkRequestRepository $workRequests,
-        private WithdrawWorkRequestHandler $withdraw,
     ) {
     }
 
@@ -56,12 +50,7 @@ final readonly class CardPause
         return true;
     }
 
-    /**
-     * Call it after the commit of a take() that answered true. It cancels the open
-     * requests of the card and leaves a claimed one to its worker. A release makes
-     * the engine open each request the card still needs, so a release that
-     * commits before a cancel keeps that request.
-     */
+    /** Call it after the commit of a take() that answered true. */
     public function announce(Project $project, Uuid $cardId): void
     {
         $this->auditor->record(
@@ -70,11 +59,6 @@ final readonly class CardPause
             ['projectId' => (string) $project->id, 'cardId' => (string) $cardId],
             new AuditSubject('card', (string) $cardId),
         );
-        foreach ($this->workRequests->findLiveForCard($cardId) as $request) {
-            if (WorkRequestState::Open === $request->state) {
-                ($this->withdraw)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted request has an id.'), WorkRequestState::Cancelled, onlyIfOpen: true, onlyIfCardHeld: true));
-            }
-        }
         $this->runsChanged->runsChanged($project);
     }
 }

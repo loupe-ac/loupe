@@ -408,6 +408,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $holds->release($project, [$heldCard]);
 
         self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'))));
-        self::assertCount(3, $this->repository()->findOpenOffers([(string) $project->id], [], 10));
+        // The hold cancelled the open request of the card, so the release offers the reopened claim alone.
+        self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers([(string) $project->id], [], 10)));
     }
 }
