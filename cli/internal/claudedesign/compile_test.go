@@ -232,9 +232,40 @@ func TestSeveralArtboardsWithNoIndexAreOneGapAndKeepTheirNames(t *testing.T) {
 	}
 }
 
-func TestACanvasInAFolderBecomesItsIndex(t *testing.T) {
+func TestACanvasInAFolderBecomesTheRootIndex(t *testing.T) {
 	res := compile(t, canvas("site/Main.dc.html", wrap("<p>a</p>")))
-	one(t, res, "site/index.html")
+	one(t, res, "index.html")
+}
+
+func TestAnIndexFromAFolderKeepsItsRelativeLinks(t *testing.T) {
+	res := compileIndex(t, "site/Home",
+		canvas("site/Home.dc.html", "<html><head><link rel=\"stylesheet\" href=\"app.css\"></head><body>\n<x-dc>\n"+
+			`<a href="Pricing.dc.html">p</a><a href="../Top.dc.html">t</a><a href="Home.dc.html#x">self</a>`+
+			`<a href="#frag">f</a><a href="https://example.com/a">e</a><a href="mailto:a@b.c">m</a>`+
+			`<img src="hero.png" srcset="hero.png 1x, big/hero.png 2x"><img src="/_blob/abc">`+
+			`<div style="background: url('bg.png')"></div><style>.a { background: url(img/a.png) }</style>`+
+			"\n</x-dc>\n</body></html>"),
+		canvas("site/Pricing.dc.html", wrap(`<a href="Home.dc.html">h</a>`)),
+		canvas("Top.dc.html", wrap(`<a href="site/Home.dc.html">h</a>`)),
+		api.ArtifactFile{Path: "site/app.css", Contents: []byte("a{}")},
+		blobFile("_blob/abc.png"),
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	index := one(t, res, "index.html")
+	for _, want := range []string{
+		`href="site/app.css"`, `href="site/Pricing.html"`, `href="Top.html"`, `href="index.html#x"`, `href="#frag"`,
+		`href="https://example.com/a"`, `href="mailto:a@b.c"`, `src="site/hero.png"`,
+		`srcset="site/hero.png 1x, site/big/hero.png 2x"`, `src="_blob/abc.png"`, `url(&#39;site/bg.png&#39;)`, `url(site/img/a.png)`,
+	} {
+		if !strings.Contains(index, want) {
+			t.Errorf("index.html lacks %s:\n%s", want, index)
+		}
+	}
+	if !strings.Contains(one(t, res, "site/Pricing.html"), `href="../index.html"`) || !strings.Contains(one(t, res, "Top.html"), `href="index.html"`) {
+		t.Fatal("links to the index page do not reach index.html")
+	}
 }
 
 func TestAPageThatWouldReplaceAFileIsAGapAndKeepsBoth(t *testing.T) {
@@ -476,13 +507,13 @@ func TestMarkupFromAValueIsCheckedLikeTheCanvas(t *testing.T) {
 }
 
 func TestALinkToAnArtboardThatIsNotPushedIsAGap(t *testing.T) {
-	for _, href := range []string{"Other.dc.html", "../A.dc.html#top"} {
+	for href, kept := range map[string]string{"Other.dc.html": "site/Other.dc.html", "../A.dc.html#top": "A.dc.html#top"} {
 		res := compile(t, canvas("site/A.dc.html", wrap(`<a href="`+href+`">o</a>`)))
 		if len(res.Gaps) != 1 || res.Gaps[0].Feature != "a link to an artboard that is not in the push" {
 			t.Fatalf("%s: gaps = %+v", href, res.Gaps)
 		}
-		page := one(t, res, "site/index.html")
-		if i, j := strings.Index(page, "loupe:gap"), strings.Index(page, `href="`+href+`"`); i < 0 || j < i {
+		page := one(t, res, "index.html")
+		if i, j := strings.Index(page, "loupe:gap"), strings.Index(page, `href="`+kept+`"`); i < 0 || j < i {
 			t.Fatalf("page:\n%s", page)
 		}
 	}
@@ -570,10 +601,10 @@ func TestIndexChoosesThePageThatBecomesIndexHTML(t *testing.T) {
 		index string
 		paths []string
 	}{
-		"a full path":                 {"site/Home.dc.html", []string{"Top.html", "site/Pricing.html", "site/index.html"}},
-		"a path with no suffix":       {"site/Pricing", []string{"Top.html", "site/Home.html", "site/index.html"}},
+		"a full path":                 {"site/Home.dc.html", []string{"Top.html", "index.html", "site/Pricing.html"}},
+		"a path with no suffix":       {"site/Pricing", []string{"Top.html", "index.html", "site/Home.html"}},
 		"a unique base name":          {"Top", []string{"index.html", "site/Home.html", "site/Pricing.html"}},
-		"a base name with its suffix": {"Home.dc.html", []string{"Top.html", "site/Pricing.html", "site/index.html"}},
+		"a base name with its suffix": {"Home.dc.html", []string{"Top.html", "index.html", "site/Pricing.html"}},
 		"a dotted path":               {"./Top.dc.html", []string{"index.html", "site/Home.html", "site/Pricing.html"}},
 	}
 	for name, c := range cases {
@@ -692,11 +723,12 @@ func TestABlobPathInTheHeadBecomesALink(t *testing.T) {
 }
 
 func TestABlobLinkIsRelativeToTheFolderOfThePage(t *testing.T) {
-	res := compile(t,
+	res := compileIndex(t, "Home",
+		canvas("Home.dc.html", wrap("<p>h</p>")),
 		canvas("site/deep/A.dc.html", wrap(`<img src="/_blob/abc"><style>a { background: url(/_blob/abc) }</style>`)),
 		blobFile("_blob/abc.png"),
 	)
-	page := one(t, res, "site/deep/index.html")
+	page := one(t, res, "site/deep/A.html")
 	if len(res.Gaps) != 0 || strings.Count(page, "../../_blob/abc.png") != 2 {
 		t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, page)
 	}
@@ -784,8 +816,8 @@ func TestAnArtboardInAFolderUsesTheBlobsOfThePushRoot(t *testing.T) {
 	if len(res.Gaps) != 0 {
 		t.Fatalf("gaps = %+v", res.Gaps)
 	}
-	for _, page := range []string{"site/index.html", "site/About.html"} {
-		if !strings.Contains(one(t, res, page), `src="../_blob/abc.png"`) {
+	for page, want := range map[string]string{"index.html": `src="_blob/abc.png"`, "site/About.html": `src="../_blob/abc.png"`} {
+		if !strings.Contains(one(t, res, page), want) {
 			t.Fatalf("%s:\n%s", page, one(t, res, page))
 		}
 	}

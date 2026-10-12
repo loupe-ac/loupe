@@ -108,8 +108,11 @@ One canvas becomes `index.html`. A link to a canvas of the folder, such as
 folder go through unchanged.
 
 A folder can hold several canvases, one for each artboard. Pass
-`--index <artboard>` to name the one that becomes `index.html`, in its own
-folder. Each other canvas becomes `<Name>.html` beside its source. The value is
+`--index <artboard>` to name the one that becomes `index.html`, at the root of
+the artifact, so the viewer opens it first. Each other canvas becomes
+`<Name>.html` beside its source. When the index canvas sits in a subfolder, the
+command changes the relative links of its page, so each link still reaches
+the same file. The value is
 the path of a canvas with or without `.dc.html`, such as `site/Home`. It can
 also be a base name, such as `Home`, when one canvas only has that name. A name
 that matches no canvas, or more than one, stops the command and lists the

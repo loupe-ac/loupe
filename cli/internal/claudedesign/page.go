@@ -125,8 +125,8 @@ func isTag(name string) func(*html.Node) bool {
 	return func(n *html.Node) bool { return n.Data == name }
 }
 
-// compilePage compiles one canvas file to a page.
-func compilePage(file string, src []byte, links map[string]string, blobs blobFiles) ([]byte, []artifactcompile.Gap) {
+// compilePage compiles one canvas file to the page at out.
+func compilePage(file, out string, src []byte, links map[string]string, blobs blobFiles) ([]byte, []artifactcompile.Gap) {
 	p := &page{file: file, links: links, blobs: blobs, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
@@ -184,17 +184,20 @@ func compilePage(file string, src []byte, links map[string]string, blobs blobFil
 		}
 	}
 
-	out := &html.Node{Type: html.DocumentNode}
-	out.AppendChild(&html.Node{Type: html.DoctypeNode, Data: "html"})
+	tree := &html.Node{Type: html.DocumentNode}
+	tree.AppendChild(&html.Node{Type: html.DoctypeNode, Data: "html"})
 	htmlEl := &html.Node{Type: html.ElementNode, Data: "html"}
-	out.AppendChild(htmlEl)
+	tree.AppendChild(htmlEl)
 	htmlEl.AppendChild(head)
 	htmlEl.AppendChild(body)
-	p.markLeftovers(out)
-	stripLines(out)
+	p.markLeftovers(tree)
+	stripLines(tree)
+	if from, to := path.Dir(file), path.Dir(out); from != to {
+		rebaser{from, to}.tree(tree)
+	}
 
 	var buf bytes.Buffer
-	if err := html.Render(&buf, out); err != nil {
+	if err := html.Render(&buf, tree); err != nil {
 		g := artifactcompile.Gap{File: file, Line: 1, Feature: "a page that does not render", Detail: err.Error()}
 
 		return markTop(src, g), []artifactcompile.Gap{g}

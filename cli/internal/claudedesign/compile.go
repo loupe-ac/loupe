@@ -35,18 +35,14 @@ func isCanvas(p string) bool { return strings.HasSuffix(p, canvasSuffix) }
 
 func isSupportScript(p string) bool { return path.Base(p) == "support.js" }
 
-// pagePath is the output path of an artboard.
+// pagePath is the output path of an artboard. The index artboard goes to the
+// root index.html, because the viewer opens that file first.
 func pagePath(canvas string, index bool) string {
-	dir := path.Dir(canvas)
-	name := "index.html"
-	if !index {
-		name = strings.TrimSuffix(path.Base(canvas), canvasSuffix) + ".html"
-	}
-	if dir == "." {
-		return name
+	if index {
+		return "index.html"
 	}
 
-	return dir + "/" + name
+	return path.Join(path.Dir(canvas), strings.TrimSuffix(path.Base(canvas), canvasSuffix)+".html")
 }
 
 func (compiler) Compile(files []api.ArtifactFile, opts artifactcompile.Options) (artifactcompile.Result, error) {
@@ -100,7 +96,7 @@ func (compiler) Compile(files []api.ArtifactFile, opts artifactcompile.Options) 
 		links[b.Path] = outs[i]
 	}
 	for i, b := range boards {
-		page, gaps := compilePage(b.Path, b.Contents, links, blobs)
+		page, gaps := compilePage(b.Path, outs[i], b.Contents, links, blobs)
 		if collided[i] != "" {
 			gaps = append(gaps, artifactcompile.Gap{File: b.Path, Line: 1, Feature: "an existing file named " + collided[i], Detail: "the page is written to " + outs[i] + " instead; move one of them"})
 			page = markTop(page, gaps[len(gaps)-1])
