@@ -311,7 +311,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertResponseRedirects($this->cardUrl().'?tab=conversation');
 
         $this->post($fromInbox, 'done', [], ['returnTo' => 'card', 'returnId' => (string) $this->card->id, 'q' => '  export  ']);
-        self::assertResponseRedirects('/projects/'.$this->project->id.'/inbox?q=export#inbox-item-3');
+        self::assertResponseRedirects('/projects/'.$this->project->id.'/inbox?side=open&q=export&item=3');
     }
 
     /** @return iterable<string, array{array<string, string>}> */

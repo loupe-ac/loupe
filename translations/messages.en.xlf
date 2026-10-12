@@ -4932,17 +4932,13 @@
             <trans-unit id="inbox.form.update_inbox_settings_form.pull_request_fix_stopped.help"><source>inbox.form.update_inbox_settings_form.pull_request_fix_stopped.help</source><target>Loupe stopped asking for fixes on a linked GitHub pull request.</target></trans-unit>
             <trans-unit id="inbox.form.update_inbox_settings_form.card_paused.label"><source>inbox.form.update_inbox_settings_form.card_paused.label</source><target>Workflow paused the card</target></trans-unit>
             <trans-unit id="inbox.form.update_inbox_settings_form.card_paused.help"><source>inbox.form.update_inbox_settings_form.card_paused.help</source><target>The workflow stopped acting on a card, and a person must look at it.</target></trans-unit>
-            <trans-unit id="inbox.page.empty">
-                <source>inbox.page.empty</source>
-                <target>No agent has asked you anything yet.</target>
-            </trans-unit>
             <trans-unit id="inbox.search.label">
                 <source>inbox.search.label</source>
-                <target>Search the inbox</target>
+                <target>Search asks</target>
             </trans-unit>
             <trans-unit id="inbox.search.placeholder">
                 <source>inbox.search.placeholder</source>
-                <target>Search requests</target>
+                <target>Search asks</target>
             </trans-unit>
             <trans-unit id="inbox.search.clear">
                 <source>inbox.search.clear</source>
@@ -4950,11 +4946,11 @@
             </trans-unit>
             <trans-unit id="inbox.search.count">
                 <source>inbox.search.count</source>
-                <target>{0}No item matches|{1}1 item matches|]1,Inf[%count% items match</target>
+                <target>{0}No ask matches|{1}1 ask matches|]1,Inf[%count% asks match</target>
             </trans-unit>
             <trans-unit id="inbox.search.empty">
                 <source>inbox.search.empty</source>
-                <target>No item matches this search.</target>
+                <target>No ask matches this search.</target>
             </trans-unit>
             <trans-unit id="inbox.section.loose_items_note">
                 <source>inbox.section.loose_items_note</source>
@@ -6914,14 +6910,36 @@
             <trans-unit id="bridge.worker_runs.worker_pool_label"><source>bridge.worker_runs.worker_pool_label</source><target>%pool% pool</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.duration"><source>bridge.worker_runs.column.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.started"><source>bridge.worker_runs.column.started</source><target>Started</target></trans-unit>
-            <trans-unit id="inbox.page.waiting_count"><source>inbox.page.waiting_count</source><target>{0}Nothing waiting|{1}1 waiting|]1,Inf[%count% waiting</target></trans-unit>
-            <trans-unit id="inbox.page.completed_count"><source>inbox.page.completed_count</source><target>{0}Nothing completed|{1}1 completed|]1,Inf[%count% completed</target></trans-unit>
-            <trans-unit id="inbox.page.open_empty"><source>inbox.page.open_empty</source><target>Nothing waits for you.</target></trans-unit>
-            <trans-unit id="inbox.page.completed_empty"><source>inbox.page.completed_empty</source><target>No request is completed yet.</target></trans-unit>
             <trans-unit id="inbox.answer.placeholder"><source>inbox.answer.placeholder</source><target>Add a detail or write a different answer…</target></trans-unit>
-            <trans-unit id="inbox.tabs.label"><source>inbox.tabs.label</source><target>Request state</target></trans-unit>
-            <trans-unit id="inbox.tabs.open"><source>inbox.tabs.open</source><target>Open</target></trans-unit>
-            <trans-unit id="inbox.tabs.completed"><source>inbox.tabs.completed</source><target>Completed</target></trans-unit>
+            <trans-unit id="inbox.view.label"><source>inbox.view.label</source><target>Ask list</target></trans-unit>
+            <trans-unit id="inbox.view.open"><source>inbox.view.open</source><target>Open · %count%</target></trans-unit>
+            <trans-unit id="inbox.view.closed"><source>inbox.view.closed</source><target>Closed</target></trans-unit>
+            <trans-unit id="inbox.filter.label"><source>inbox.filter.label</source><target>Filter by type</target></trans-unit>
+            <trans-unit id="inbox.filter.all"><source>inbox.filter.all</source><target>All</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.question"><source>inbox.filter.kind.question</source><target>Question</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.review"><source>inbox.filter.kind.review</source><target>Review</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.todo"><source>inbox.filter.kind.todo</source><target>To-do</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.wait"><source>inbox.filter.kind.wait</source><target>Card waits</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.workflow"><source>inbox.filter.kind.workflow</source><target>Workflow</target></trans-unit>
+            <trans-unit id="inbox.filter.empty"><source>inbox.filter.empty</source><target>No ask of this type.</target></trans-unit>
+            <trans-unit id="inbox.row.more_cards"><source>inbox.row.more_cards</source><target>+%count%</target></trans-unit>
+            <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
+            <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.row.source.loupe"><source>inbox.row.source.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.answered"><source>inbox.row.outcome.answered</source><target>Answered</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.approved"><source>inbox.row.outcome.approved</source><target>Approved</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.changes_requested"><source>inbox.row.outcome.changes_requested</source><target>Changes requested</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.done"><source>inbox.row.outcome.done</source><target>Done</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.dismissed"><source>inbox.row.outcome.dismissed</source><target>Dismissed</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.declined"><source>inbox.row.outcome.declined</source><target>Declined</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.withdrawn"><source>inbox.row.outcome.withdrawn</source><target>Withdrawn</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.obsolete"><source>inbox.row.outcome.obsolete</source><target>No longer needed</target></trans-unit>
+            <trans-unit id="inbox.pane.back"><source>inbox.pane.back</source><target>All asks</target></trans-unit>
+            <trans-unit id="inbox.pane.missing"><source>inbox.pane.missing</source><target>This ask does not exist. Pick one from the list.</target></trans-unit>
+            <trans-unit id="inbox.closed.empty"><source>inbox.closed.empty</source><target>No ask is closed yet.</target></trans-unit>
+            <trans-unit id="inbox.empty.title"><source>inbox.empty.title</source><target>Nothing needs you</target></trans-unit>
+            <trans-unit id="inbox.empty.body"><source>inbox.empty.body</source><target>Agents ask you here when they need a decision, a review or a to-do.</target></trans-unit>
+            <trans-unit id="inbox.empty.closed_link"><source>inbox.empty.closed_link</source><target>See the closed asks</target></trans-unit>
             <trans-unit id="inbox.source.agent"><source>inbox.source.agent</source><target>Agent request</target></trans-unit>
             <trans-unit id="inbox.source.loupe"><source>inbox.source.loupe</source><target>Loupe</target></trans-unit>
             <trans-unit id="inbox.linked_items.title"><source>inbox.linked_items.title</source><target>Linked items</target></trans-unit>

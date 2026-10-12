@@ -15,6 +15,8 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxLinkedPage;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\View\InboxReturnTarget;
+use App\Module\Inbox\View\InboxSide;
+use App\Module\Inbox\View\InboxView;
 use App\Module\Review\Controller\ShowDocumentController;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentVersionRepository;
@@ -65,53 +67,49 @@ final readonly class InboxReturnTargetResolver
             return new InboxReturnTarget('app_document_review', $target, ShowDocumentController::class, $target, []);
         }
 
-        // The queue, the page and the search the owner was on, kept on the way back.
-        $search = trim($request->query->getString('q'));
+        // The view the owner was on, kept on the way back.
+        $view = InboxView::fromQuery($request->query);
         // Read as objects, so an ask closed in this request counts as closed.
         $asks = $this->inboxAsks->findHolding($item);
         $closed = InboxItemState::Open !== $item->state;
-        $completed = 'completed' === $request->query->getString('queue')
-            || ($closed && [] !== $asks && [] === array_filter($asks, static fn (InboxAsk $ask): bool => null === $ask->closedAt));
+        $allClosed = $closed && [] !== $asks && [] === array_filter($asks, static fn (InboxAsk $ask): bool => null === $ask->closedAt);
 
-        // A queue switch leaves the page behind, because the page the owner was
-        // on numbers the other queue. The closed ask that shows first decides
-        // which completed page holds this item.
-        $switching = $completed && 'completed' !== $request->query->getString('queue');
-        $page = $switching
-            ? $this->inboxAsks->closedPageOf($this->firstClosed($asks), ShowInboxHandler::CLOSED_ASKS_PER_PAGE)
-            : $request->query->getInt('page', 1);
+        // A side switch leaves the page and the type filter behind, because the
+        // page the owner was on numbers the other side, and the page of the
+        // closed ask is counted over every type. The closed ask the view names
+        // decides which closed page holds this item.
+        if ($allClosed && !$view->isSearch() && InboxSide::Open === $view->side) {
+            $anchor = array_find($asks, static fn (InboxAsk $ask): bool => null !== $view->askId && ($ask->id?->equals($view->askId) ?? false)) ?? $this->firstClosed($asks);
+            $view = new InboxView(InboxSide::Closed, null, '', $view->askId, $view->itemNumber, $this->inboxAsks->closedPageOf($anchor, ShowInboxHandler::CLOSED_ASKS_PER_PAGE));
+        }
 
-        $pageQuery = [
-            ...('' === $search && $completed ? ['queue' => 'completed'] : []),
-            ...($page > 1 ? ['page' => $page] : []),
-            ...('' === $search ? [] : ['q' => $search]),
-        ];
+        // The pane opens on the request the address names, so it is named only
+        // where the page shows it. A closed item that no ask holds is on neither
+        // side, and naming it would send the owner hunting for it instead of
+        // back to the work that is left. A forward re-renders the page the form
+        // was already on, so it needs no name.
+        $shown = $view->isSearch() || !$closed || [] !== $asks;
+        if (!$shown) {
+            $view = $view->withoutSelection();
+        } elseif (!$view->isPicked()) {
+            $view = $view->withItem($item->number);
+        }
 
-        // The fragment opens the request on arrival, so it is named only where
-        // the page shows it. A closed item that no ask holds is on neither
-        // queue, and naming it would send the owner hunting for it instead of
-        // back to the work that is left. A forward needs no fragment at all: it
-        // re-renders the page the form was already on.
-        $shown = '' !== $search || !$closed || [] !== $asks;
-        $redirect = [
-            'id' => $projectId,
-            ...$pageQuery,
-            ...($shown ? ['_fragment' => 'inbox-item-'.$item->number] : []),
-        ];
+        $pageQuery = $view->toQuery();
 
-        return new InboxReturnTarget('app_project_inbox', $redirect, ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery);
+        return new InboxReturnTarget('app_project_inbox', ['id' => $projectId, ...$pageQuery], ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery);
     }
 
     /**
-     * The ask the completed queue lists first, which is the newest close.
+     * The ask the closed side lists first, which is the newest close.
      *
-     * @param list<InboxAsk> $asks all closed, because the caller switches queues
+     * @param list<InboxAsk> $asks all closed, because the caller switches sides
      */
     private function firstClosed(array $asks): InboxAsk
     {
         usort($asks, static fn (InboxAsk $a, InboxAsk $b): int => ($b->closedAt <=> $a->closedAt) ?: ((string) $a->id <=> (string) $b->id));
 
-        return $asks[0] ?? throw new \LogicException('A completed queue switch needs the closed ask that holds the item.');
+        return $asks[0] ?? throw new \LogicException('A closed side switch needs the closed ask that holds the item.');
     }
 
     private function linkedDocument(InboxItem $item, Uuid $id): ?Document

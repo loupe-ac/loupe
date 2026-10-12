@@ -66,7 +66,7 @@ final class DocumentWaitLineExtensionTest extends KernelTestCase
         // A compact item of the byline: the card link, with the sentence as its tooltip.
         self::assertStringContainsString('id="document-wait-line"', $line);
         self::assertStringContainsString('aria-describedby="document-wait-line-tooltip">#12</a>', $line);
-        self::assertStringContainsString('inbox-item-3', $line);
+        self::assertStringContainsString('inbox?item=3', $line);
         self::assertStringContainsString('id="document-wait-line-tooltip"', $line);
         self::assertStringContainsString('>Card #12 waits on this review</span>', preg_replace('/\s+/', ' ', $line) ?? '');
     }

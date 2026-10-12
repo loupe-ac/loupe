@@ -135,7 +135,7 @@
        queue can hold. A copy shows the way there, whether or not the item
        still takes a response. #}
     {% if not home %}
-        <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, _fragment: 'inbox-item-' ~ item.number}) }}" data-turbo-frame="_top">{{ (inbox.acceptsResponse(item) ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
+        <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, item: item.number}) }}" data-turbo-frame="_top">{{ (inbox.acceptsResponse(item) ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
     {% elseif inbox.acceptsResponse(item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
