@@ -731,6 +731,41 @@ func TestCheck(t *testing.T) {
 			t.Fatalf("problems = %v", got)
 		}
 	})
+	// check runs profile p of a home that holds the given profile and config.toml.
+	check := func(t *testing.T, profile, base, loginExit string) []string {
+		t.Helper()
+		home := t.TempDir()
+		if err := os.WriteFile(profileFile(home, "p"), []byte(profile), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if base != "" {
+			if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte(base), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		return reasons(New(home, "p", "").Check(ctx, harness.CheckSpec{ConfigDir: home, Env: fakeCodex(t, loginExit)}))
+	}
+	login := []string{"not logged in"}
+	custom := "model_provider = \"corp\"\n[model_providers.corp]\nbase_url = \"https://corp.test\"\n"
+	for _, tc := range []struct {
+		name, profile, base, loginExit string
+		want                           []string
+	}{
+		{"a profile with no provider needs a login", "model = \"gpt-5\"\n", "", "1", login},
+		{"a profile with no provider is ready when logged in", "model = \"gpt-5\"\n", "", "0", nil},
+		{"the openai provider needs a login", "model_provider = \"openai\"\n", "", "1", login},
+		{"a built-in local provider needs no login", "model_provider = \"ollama\"\n", "", "1", nil},
+		{"a provider that requires the OpenAI sign-in needs a login", custom + "requires_openai_auth = true\n", "", "1", login},
+		{"a provider without the mark needs no login", custom, "", "1", nil},
+		{"the mark in config.toml needs a login", "model_provider = \"corp\"\n", "[model_providers.corp]\nrequires_openai_auth = true\n", "1", login},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := check(t, tc.profile, tc.base, tc.loginExit); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("problems = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestReadRunSubtractsTheBaselineModelByModel(t *testing.T) {
