@@ -7,6 +7,8 @@ namespace App\Tests\Module\Board\Repository;
 use App\Module\Board\Command\CreateCardCommand;
 use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardLink;
+use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
@@ -68,6 +70,32 @@ final class CardRepositoryTest extends KernelTestCase
 
         self::assertSame([(string) $child->id], $this->cards->findChildIds($epic->id ?? throw new \LogicException('A stored card has an id.')));
         self::assertSame([], $this->cards->findChildIds($other->id ?? throw new \LogicException('A stored card has an id.')));
+    }
+
+    public function test_related_for_evaluation_are_the_parents_then_the_blocked_cards_each_once_without_the_given_ids(): void
+    {
+        $project = $this->makeProject('repo-related-evaluation');
+        $parent = $this->cardIn($project);
+        $one = $this->cardIn($project);
+        $two = $this->cardIn($project);
+        $lowBlocked = $this->cardIn($project);
+        $highBlocked = $this->cardIn($project);
+        $unrelated = $this->cardIn($project);
+        $one->parent = $parent;
+        $two->parent = $parent;
+        $this->em->persist(new CardLink($one, $highBlocked, CardLinkKind::Blocks));
+        $this->em->persist(new CardLink($two, $lowBlocked, CardLinkKind::Blocks));
+        $this->em->persist(new CardLink($two, $parent, CardLinkKind::Blocks));
+        $this->em->persist(new CardLink($one, $two, CardLinkKind::Blocks));
+        $this->em->persist(new CardLink($unrelated, $lowBlocked, CardLinkKind::Blocks));
+        $this->em->flush();
+
+        self::assertSame(
+            [(string) $parent->id, (string) $lowBlocked->id, (string) $highBlocked->id],
+            $this->cards->findRelatedForEvaluation([(string) $one->id, (string) $two->id]),
+        );
+        self::assertSame([], $this->cards->findRelatedForEvaluation([(string) $unrelated->id, (string) $lowBlocked->id]));
+        self::assertSame([], $this->cards->findRelatedForEvaluation([]));
     }
 
     public function test_refresh_type_and_parent_reads_the_lane_setting_the_database_holds(): void

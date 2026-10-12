@@ -10,8 +10,7 @@ use App\Module\Workflow\Contract\Actor;
 /**
  * Dispatched inside DeleteBoardColumnHandler's transaction, after the flush that
  * removed the column. The event carries the column's values, because that flush
- * clears the removed entity's id. A listener must never throw, for the reason
- * CardMoved gives.
+ * clears the removed entity's id. A listener that throws refuses the delete.
  */
 final readonly class BoardColumnDeleted
 {
