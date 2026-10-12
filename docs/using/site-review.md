@@ -253,6 +253,7 @@ also removes the note's card when all of these are true:
 - The card keeps the default type and the title that the note gave it.
 - The card body is empty.
 - The card has no pull request, no document and no link to or from another card.
+- No session or worker has an open run on the card.
 
 A card that somebody moved, edited or linked, or that holds other notes, stays. Deleting a card
 from the board deletes all of its feedback.

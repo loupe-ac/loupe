@@ -32,7 +32,7 @@ Change nothing but Loupe documents, and never move the card. `../loupe-stage-pro
 3. Read the code and those design inputs.
 4. Judge the size again, as "Judge the size" says. A revision never changes the ID of an entry.
 5. Before the `document_revise` of the round, read each decision section that the round changes alone, as Create step 6 says, and fix each one that leans on another section. Follow `../loupe-stage-product-design/references/review-round.md`. The document is `tech design`, and the requirement source is the one step 7 chose. Run Revise step 6 below before the round stops.
-6. When the round adds, changes or removes a deploy item, update the deploy notes after the `document_revise` of the design. Do this before the replies. Revise the linked notes with `document_revise`, or create and link them as "Deploy notes" says. Publish new notes before the final reply, as "Publish the drafts" says. Keep the deploy line of the design true. When Architecture is approved, keep its text. The linked notes are then the record.
+6. When the round adds, changes or removes a deploy item, update the deploy notes after the `document_revise` of the design. Do this before the replies. Revise the linked notes with `document_revise`, or create and link them as "Deploy notes" says. Publish new notes before the final reply, as "Publish the drafts" says. Keep the deploy line of the design true. When the Solution section is approved, keep its text. In a design that predates it, the same goes for Architecture. The linked notes are then the record.
 
 ### Create, when neither step finds a design
 
@@ -59,17 +59,24 @@ Write the final reply, its reason code and the structured result as the contract
 
 ## The design sections
 
-Use these `##` sections, in this order. Follow `../loupe-documents/references/design-structure.md` for the reader rule, At a glance, the decisions and the tables. The reader rule is its section "Write for a reader who knows the product". Put each section that the profile instructions add, such as the current state or the project checks, before Decided.
+Use these `##` sections, in this order. Follow `../loupe-documents/references/design-structure.md` for the reader rule, At a glance, the decisions and the tables. The reader rule is its section "Write for a reader who knows the product". Put each section that the profile instructions add, such as the current state or the project checks, before Decided. Leave out a section that has nothing real to say.
 
 1. At a glance.
-2. Priorities. Cite the `P` entries of the product document that the design serves. With no product document, take them from the card body.
-3. Architecture. Name each part that the change adds or changes. Give each part one table row, with its role today and its change. Write "new" as the role of a part that the change adds. Then describe the main flow step by step. A diagram is optional, and `../loupe-documents/references/design-structure.md` "Diagrams" gives the types.
-4. How others do it. Give two or three libraries or systems that solve the same problem. Link each one, and give one takeaway.
-5. One section for each open decision, with a stable ID such as `D1` in its heading. Each decision cites the `R` and `P` IDs it serves. Write each one for a reader who knows the product, and so that it makes sense with no other section open (`loupe-documents` rule 18). Give each one the worked example and the "How each option works" list of `../loupe-documents/references/design-structure.md` "Decisions".
-6. Decided. Write each entry in two to four sentences. Give the reason, the option that lost and why it lost, and the cost that the choice accepts. For a reversal, name the answer that lost and the argument that changed it.
-7. The work order. List the steps with stable IDs. Say which open decision blocks which step. A step is unblocked once its decision has an answer, as the contract "Read the answers of a design" says. Write a Breakdown section instead when "Judge the size" asks for one.
+2. Problem. Say in plain words what goes wrong today, or what the product cannot do, and who feels it. Keep the trigger, the event that made someone look, apart from the problem. Leave the solution out.
+3. Priorities. Cite the `P` entries of the product document that the design serves. With no product document, take them from the card body.
+4. Solution. Describe the recommended solution in plain words, for a reader who knows the product. Then show a diagram of it, as `../loupe-documents/references/design-structure.md` "Diagrams" says. Then write a "How it works" numbered list for the implementer: each part that the change adds or changes, with its code name, and the main flow step by step. End the section with the deploy line that "Deploy notes" names.
+5. Strengths and weaknesses. Write two numbered lists: what the recommended solution does well, and what it costs or risks. Name each weakness in proportion. A design with no weakness has not looked.
+6. Alternatives. Describe each rival whole solution that you considered and did not recommend. Give a table with the columns Option, Pros and Cons, in an options fence, with the recommended solution as the first row. Say in one sentence why each rival lost. When the owner should choose between the solutions, write the choice as an open decision instead. A choice inside the recommended solution belongs in its own decision section, not here.
+7. How others do it. Give two or three libraries or systems that solve the same problem. Link each one, and give one takeaway.
+8. Security. Write it when the change touches access control, data that a user can see, a secret, input from outside, or a call to an outside service. Say what an attacker or a wrong user can try, and what stops each attempt.
+9. Scalability. Write it when the change adds work per request, per card or per run, a query on a table that grows, or a background job. Give the volume today, what happens at ten times that volume, and the first limit it hits. Mark each estimate "(estimated)".
+10. One section for each open decision, with a stable ID such as `D1` in its heading. Each decision cites the `R` and `P` IDs it serves. Write each one for a reader who knows the product, and so that it makes sense with no other section open (`loupe-documents` rule 18). Give each one the worked example and the "How each option works" list of `../loupe-documents/references/design-structure.md` "Decisions".
+11. Decided. Write each entry in two to four sentences. Give the reason, the option that lost and why it lost, and the cost that the choice accepts. For a reversal, name the answer that lost and the argument that changed it.
+12. The work order. List the steps with stable IDs. Say which open decision blocks which step. A step is unblocked once its decision has an answer, as the contract "Read the answers of a design" says. Write a Breakdown section instead when "Judge the size" asks for one.
 
-Write a Light design when the product document has no Priorities section, or when the card body asks for a small change. Its At a glance is two sentences, and it skips Priorities and How others do it. It keeps a short Architecture section right after At a glance, with only the parts that change and the main flow.
+Write a Light design when the product document has no Priorities section, or when the card body asks for a small change. Its At a glance is two sentences, and it skips Priorities and How others do it. It keeps Problem, Solution, and Strengths and weaknesses, each short. Security and Scalability follow the same rule as in a full design.
+
+A design written before these sections keeps the sections it has, such as Architecture. A revision adds a new section only when a comment of the round asks for it.
 
 ## Deploy notes
 
@@ -91,7 +98,7 @@ Write the notes as follows:
 5. Use the tag `deploy-notes` only, or the spelling `tag_list` already has for it. Never add `tech-design`, `product-design` or `decisions`, because workflow rules match those tags and can move the card.
 6. Link the notes to the card (contract rule 5). Send the `card_get` ids plus each new id. On the Create path, Create step 5 makes this link.
 
-The tech design always carries one deploy line, as the last line of Architecture. The line names the notes by their title, `Deploy notes: <card title>`. With no deploy item, the line is `Deploy notes: none`, with the reason.
+The tech design always carries one deploy line, as the last line of Solution. A design that predates Solution keeps it as the last line of Architecture. The line names the notes by their title, `Deploy notes: <card title>`. With no deploy item, the line is `Deploy notes: none`, with the reason.
 
 ## Code sketches
 
@@ -106,15 +113,19 @@ Show a short snippet where it makes a part or a decision concrete. Put the snipp
 A headless worker cannot read a claude.ai artifact, so link each prototype in a form that a worker reads.
 
 1. Link a Claude Design canvas, a Loupe document or a file of the repository.
-2. When the product document links an artifact, link its readable copy on the branch `prototype/<card number>` too.
-3. Never make a new artifact prototype in this stage. The stage changes only Loupe documents, and a headless worker has no `Artifact` tool. Make a new prototype as a Loupe document.
-4. Never link an artifact that has no readable copy. When the design needs such an artifact, stop as the contract "Read a linked prototype" says. The owner stores the copy in an interactive session, as rule C8 of `../loupe-product-design/references/claude-design.md` says.
+2. When the product document links a stored artifact, link it too, by its stable library link.
+3. Never make a new prototype in this stage. The stage changes only Loupe documents. Make a new prototype as a Loupe document.
+4. Never link a claude.ai artifact that the library does not hold. When the design needs one, stop as the contract "Read a linked prototype" says. The owner stores it in an interactive session, as rule C8 of `../loupe-product-design/references/claude-design.md` says.
 
 ## Facts and recommendations
 
 1. Read the code before you state a fact about it. Run the search, and write the count it gives, never a count from memory.
 2. A fact with no mark is checked. Mark each estimate, and each estimated cost, "(estimated)". Name the files behind the checked facts in one "Checked in the code" line per section. `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product" gives the format. Say what you could not verify.
 3. Give each recommendation a confidence: high, moderate or low. Give the strongest argument against it. Say what the recommended option does, in plain words. Never write only its number (`loupe-documents` rule 18).
-4. Never inflate the cost of the option you reject. An overstated argument hides how close the call was.
-5. Name the cost that each decision accepts, in the entry that causes it.
-6. The owner sets the quality bar. Inform the decision, and do not make it.
+4. Check each assumption before the design builds on it. Read the code to the end of the path. A file or a field name that looks right is not a check.
+5. Prove a claim that rests on the behaviour of a library, an API, a database or a forge, or on speed or volume. Read the current docs, with Context7 or a web search when the tools exist. Run a proof of concept when the docs do not settle it.
+6. Run a proof of concept in a new temporary folder outside the checkout. Commit nothing, and delete the folder when you finish. This keeps rule 1 of the contract, which forbids a change to the repository.
+7. Write each proof in the design as a checked fact: the command or the source, and the result.
+8. Never inflate the cost of the option you reject. An overstated argument hides how close the call was.
+9. Name the cost that each decision accepts, in the entry that causes it.
+10. The owner sets the quality bar. Inform the decision, and do not make it.

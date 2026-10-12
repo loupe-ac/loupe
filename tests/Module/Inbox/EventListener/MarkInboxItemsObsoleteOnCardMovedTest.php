@@ -8,6 +8,7 @@ use App\Module\Board\Command\DeleteBoardColumnCommand;
 use App\Module\Board\Command\DeleteBoardColumnHandler;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
+use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
@@ -19,7 +20,7 @@ use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
-/** Driven through a real card move and a real column delete, so each listener runs where Board dispatches its event. */
+/** Driven through a real card move, a real column delete and a real terminal flip, so each listener runs where Board dispatches its event. */
 final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
 {
     use InboxFixtures;
@@ -144,6 +145,37 @@ final class MarkInboxItemsObsoleteOnCardMovedTest extends KernelTestCase
         $handler = self::getContainer()->get(DeleteBoardColumnHandler::class);
         self::assertInstanceOf(DeleteBoardColumnHandler::class, $handler);
         $handler(new DeleteBoardColumnCommand($this->column($project, 'in-progress'), Actor::Human, $this->column($project, 'next')));
+
+        self::assertSame(InboxItemState::Open, $this->reload($item)->state);
+    }
+
+    public function test_a_column_that_turns_terminal_closes_the_item_of_its_last_unfinished_card(): void
+    {
+        $project = $this->persistedProject('obsolete-column-terminal');
+        $moving = new Card(project: $project, column: $this->column($project, 'in-progress'), title: 'Finishes', body: 'Body', number: 1);
+        $this->em->persist($moving);
+        $item = $this->linkedItem($project, 1, $moving);
+        $untouched = $this->linkedItem($project, 2, $this->card($this->em, $project, 2));
+        $this->em->flush();
+
+        $this->configureColumn($project, 'in-progress', terminal: true);
+
+        self::assertSame(InboxItemState::Obsolete, $this->reload($item)->state);
+        self::assertSame(InboxItemState::Open, $this->reload($untouched)->state);
+    }
+
+    public function test_a_column_that_turns_open_leaves_the_item_open(): void
+    {
+        $project = $this->persistedProject('obsolete-column-open');
+        $archived = new BoardColumn($project, 'Archived', 'archived', 99, terminal: true);
+        $this->em->persist($archived);
+        $this->seededColumns[$project->id.'/archived'] = $archived;
+        $card = new Card(project: $project, column: $archived, title: 'Reopens', body: 'Body', number: 1);
+        $this->em->persist($card);
+        $item = $this->linkedItem($project, 1, $card);
+        $this->em->flush();
+
+        $this->configureColumn($project, 'archived', terminal: false);
 
         self::assertSame(InboxItemState::Open, $this->reload($item)->state);
     }

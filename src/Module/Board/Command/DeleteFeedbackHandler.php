@@ -7,6 +7,7 @@ namespace App\Module\Board\Command;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\SiteReview\Command\CommentNotFound;
 use App\Module\SiteReview\Command\DeleteCommentCommand;
 use App\Module\SiteReview\Command\DeleteCommentHandler;
@@ -22,8 +23,8 @@ use Ubermuda\AuditBundle\AuditSubject;
 /**
  * Deletes a pending widget note, and the card the note created when nobody
  * has worked on that card since: it still sits in the Backlog, holds
- * no other note, is not a type that may have children, has an empty body, and has no pull request,
- * no document and no link to or from another card. Returns whether the card
+ * no other note, is not a type that may have children, has an empty body, has no pull request,
+ * no document and no link to or from another card, and has no open run. Returns whether the card
  * went too.
  */
 final readonly class DeleteFeedbackHandler
@@ -38,6 +39,7 @@ final readonly class DeleteFeedbackHandler
         private Auditor $auditor,
         private CardTypeCatalog $catalog,
         private CardEventRepository $cardEvents,
+        private WorkerRunRepository $workerRuns,
     ) {
     }
 
@@ -75,6 +77,7 @@ final readonly class DeleteFeedbackHandler
             if (!$card->column->backlog
                 || $types->get($card->type)->children
                 || [] !== $this->cardSiteReviewComments->findForCard($card)
+                || (null !== $card->id && [] !== $this->workerRuns->findCardIdsWithOpenRun($command->project, [$card->id]))
                 || $this->cards->hasWork($card, $link->createdTitle ?? $card->title, $this->cardEvents->createdType($card) ?? $types->defaultKey)) {
                 return false;
             }

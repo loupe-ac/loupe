@@ -17,6 +17,10 @@ use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\ValueObject\WorkerRunKind;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\SiteReview\Command\CommentNotFound;
@@ -268,6 +272,50 @@ final class DeleteFeedbackHandlerTest extends KernelTestCase
         $this->em->flush();
 
         $this->assertCardStays($project, $link, cards: 2);
+    }
+
+    public function test_a_created_card_with_an_open_interactive_run_stays(): void
+    {
+        $project = $this->project('delete-feedback-interactive-run');
+        $link = $this->addNote($project);
+        $this->openRun($project, $link, WorkerRunKind::Interactive, WorkerRunState::Running);
+
+        $this->assertCardStays($project, $link);
+    }
+
+    public function test_a_created_card_with_an_open_worker_run_stays(): void
+    {
+        $project = $this->project('delete-feedback-worker-run');
+        $link = $this->addNote($project);
+        $this->openRun($project, $link, WorkerRunKind::Worker, WorkerRunState::Queued);
+
+        $this->assertCardStays($project, $link);
+    }
+
+    public function test_a_created_card_with_only_a_closed_run_goes(): void
+    {
+        $project = $this->project('delete-feedback-closed-run');
+        $link = $this->addNote($project);
+        $this->openRun($project, $link, WorkerRunKind::Interactive, WorkerRunState::Succeeded);
+
+        self::assertTrue(($this->handler)($this->command($project, $link)));
+
+        self::assertSame(0, $this->rows('board_cards', $project));
+    }
+
+    private function openRun(Project $project, CardSiteReviewComment $link, WorkerRunKind $kind, WorkerRunState $state): void
+    {
+        $this->em->persist(new WorkerRun(
+            project: $project,
+            bridgeId: null,
+            subjectType: WorkSubject::CARD,
+            subjectId: $link->card->id ?? throw new \LogicException('unsaved card'),
+            cardNumber: $link->card->number,
+            workKind: 'plan',
+            state: $state,
+            kind: $kind,
+        ));
+        $this->em->flush();
     }
 
     public function test_a_note_saved_with_no_card_is_deleted_alone(): void

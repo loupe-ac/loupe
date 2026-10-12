@@ -45,19 +45,35 @@ type Queue interface {
 // returns api.ErrReportRefused for a report that no retry can turn into one.
 //
 // Lost runs once when the queue gives the report up or drops it, never under
-// a lock of the queue. A nil one does nothing.
+// a lock of the queue. It receives the reason, so a caller can keep a report
+// that a later connect may still land. A nil one does nothing.
+//
+// Reserved lets the report take one of the reserve places when the queue is full.
 type Report struct {
-	Card int
-	Rule string
-	Send func(ctx context.Context) (bool, error)
-	Lost func()
+	Card     int
+	Rule     string
+	Send     func(ctx context.Context) (bool, error)
+	Lost     func(reason LossReason)
+	Reserved bool
 }
 
+// LossReason says why the queue let a report go.
+type LossReason int
+
+const (
+	// Unreachable means the attempts ran out, the bridge stopped, or the queue
+	// was full. A later connect may still land the report.
+	Unreachable LossReason = iota
+	// Refused means the server refused the report, or the queue was closed. A
+	// retry changes nothing.
+	Refused
+)
+
 // lose tells each report that the queue lost it.
-func lose(reports []Report) {
+func lose(reports []Report, reason LossReason) {
 	for _, r := range reports {
 		if r.Lost != nil {
-			r.Lost()
+			r.Lost(reason)
 		}
 	}
 }
@@ -77,6 +93,10 @@ type lane struct {
 // capacity bounds the reports that wait in memory. A run sends about four, and
 // a worker runs for minutes, so a full queue means a long outage.
 const capacity = 256
+
+// reserve is the places only a Reserved report takes. A connect queues at most
+// one replay of the outbox and one inventory, so two always fit.
+const reserve = 2
 
 // grace bounds the last delivery a shutdown allows. Ctrl-C kills the workers,
 // and a killed worker writes nothing to its card, so the bridge is the only
@@ -103,9 +123,10 @@ type outcome int
 
 const (
 	delivered outcome = iota
-	// gaveUp reports itself, because the server refused it or the attempts ran
-	// out. aborted is the bridge stopping, and the caller counts those together.
+	// gaveUp is a report whose attempts ran out. refused is a report the server
+	// refused. aborted is the bridge stopping.
 	gaveUp
+	refused
 	aborted
 )
 
@@ -140,7 +161,7 @@ func New(ctx context.Context, log *slog.Logger) *Sender {
 		log:     log,
 		ctx:     ctx,
 		cancel:  cancel,
-		in:      make(chan Report, capacity),
+		in:      make(chan Report, capacity+reserve),
 		done:    make(chan struct{}),
 		backoff: defaultBackoff,
 		after:   time.After,
@@ -155,29 +176,33 @@ func New(ctx context.Context, log *slog.Logger) *Sender {
 // Enqueue hands one report to the sender. A full queue, or a queue that is
 // already closed, loses the report and says so.
 func (q *Sender) Enqueue(report Report) {
-	if !q.take(report) {
+	if ok, reason := q.take(report); !ok {
 		q.logLost([]Report{report})
-		lose([]Report{report})
+		lose([]Report{report}, reason)
 	}
 }
 
-// take puts the report in line, and reports whether it did.
-func (q *Sender) take(report Report) bool {
+// take puts the report in line, and reports whether it did. When it did not,
+// it says why.
+func (q *Sender) take(report Report) (bool, LossReason) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	if q.closed {
-		return false
+		return false, Refused
+	}
+	if !report.Reserved && len(q.in) >= capacity {
+		return false, Unreachable
 	}
 	// The count rises first, so run never takes it below zero.
 	q.pending.Add(1)
 	select {
 	case q.in <- report:
-		return true
+		return true, Unreachable
 	default:
 		q.pending.Add(-1)
 
-		return false
+		return false, Unreachable
 	}
 }
 
@@ -285,44 +310,52 @@ func (q *Sender) run() {
 			case aborted:
 				lost = append(lost, next)
 			case gaveUp:
-				lose([]Report{next})
+				lose([]Report{next}, Unreachable)
+			case refused:
+				lose([]Report{next}, Refused)
 			}
 		}
 		q.pending.Add(-1)
 	}
 
-	dropped := q.flush(lost)
-	q.logLost(dropped)
-	lose(dropped)
+	unreachable, refused := q.flush(lost)
+	q.logLost(append(append([]Report(nil), unreachable...), refused...))
+	lose(unreachable, Unreachable)
+	lose(refused, Refused)
 }
 
 // flush gives each report a stopping bridge still holds one attempt, inside the
-// grace window, and returns the ones that do not land. It sends on a context of
-// its own, because the bridge's is cancelled by the time it runs.
+// grace window, and returns the ones that do not land: the server refused the
+// second list, and did not answer the first. It sends on a context of its own,
+// because the bridge's is cancelled by the time it runs.
 //
 // A report the shutdown interrupted is sent again here. The server identifies a
 // run by its own key, so a second copy of a report that landed changes nothing.
-func (q *Sender) flush(lost []Report) []Report {
+func (q *Sender) flush(lost []Report) (unreachable, refused []Report) {
 	if len(lost) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), q.grace)
 	defer cancel()
 
-	var dropped []Report
 	for _, next := range lost {
 		if ctx.Err() != nil {
-			dropped = append(dropped, next)
+			unreachable = append(unreachable, next)
 
 			continue
 		}
-		if _, err := next.Send(ctx); err != nil {
-			dropped = append(dropped, next)
+		_, err := next.Send(ctx)
+		switch {
+		case err == nil:
+		case errors.Is(err, api.ErrReportRefused):
+			refused = append(refused, next)
+		default:
+			unreachable = append(unreachable, next)
 		}
 	}
 
-	return dropped
+	return unreachable, refused
 }
 
 // deliver sends one report until the server takes it, until the server refuses
@@ -341,13 +374,17 @@ func (q *Sender) deliver(next Report) outcome {
 		if q.ctx.Err() != nil {
 			return aborted
 		}
-		if errors.Is(err, api.ErrReportRefused) || attempt >= len(q.backoff) {
+		isRefused := errors.Is(err, api.ErrReportRefused)
+		if isRefused || attempt >= len(q.backoff) {
 			q.log.Warn("report_failed",
 				"card", next.Card,
 				"rule", next.Rule,
 				"attempts", attempt+1,
 				"error", err.Error(),
 			)
+			if isRefused {
+				return refused
+			}
 
 			return gaveUp
 		}

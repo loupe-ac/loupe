@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardPauseRepository;
@@ -38,9 +39,12 @@ use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\FactsBuilder;
+use App\Module\Workflow\Service\VerdictWouldFire;
+use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Doctrine\DBAL\LockMode;
@@ -73,6 +77,8 @@ final readonly class CardWaitReconciler
         private TemplateSource $templates,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private CardWaitText $waitText,
+        private CardDirectory $cardDirectory,
+        private VerdictWouldFire $verdictWouldFire,
         private EpicBranches $epicBranches,
     ) {
     }
@@ -132,9 +138,11 @@ final readonly class CardWaitReconciler
                     $countChanged = true;
                 }
 
-                if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now)) {
+                $ended = [];
+                if ($this->apply($watch, $want, $this->cause($card, $enabled), $switches, $now, $ended)) {
                     $countChanged = true;
-                } elseif (null !== $card && $this->rewrite($watch, $card, $now)) {
+                }
+                if (null !== $card && $this->rewrite($watch, $card, $ended, $now)) {
                     $rewritten[] = $watch->item;
                 }
             }
@@ -228,9 +236,9 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * A document in review waits on a linked card when the rules of the card's
-     * workflow slot read a tag of the document. An open review of an agent on
-     * the document holds its wait back.
+     * A document in review waits on a linked card when a verdict on it would
+     * make a rule of the card's workflow slot fire. An open review of an agent
+     * on the document holds its wait back.
      *
      * @param list<Uuid> $cardIds
      *
@@ -264,6 +272,7 @@ final readonly class CardWaitReconciler
 
             return [] !== array_intersect($template->documentTagsFor($slot), $tags);
         }));
+        $rows = $this->verdictRows($template, $rows);
         if ([] === $rows) {
             return [];
         }
@@ -283,6 +292,35 @@ final readonly class CardWaitReconciler
         }
 
         return $waits;
+    }
+
+    /**
+     * @param list<array{link: CardDocument, versionNumber: int, versionAt: ?\DateTimeImmutable}> $rows
+     *
+     * @return list<array{link: CardDocument, versionNumber: int, versionAt: ?\DateTimeImmutable}> the rows whose document a verdict would make a rule fire on
+     */
+    private function verdictRows(Template $template, array $rows): array
+    {
+        $byCard = [];
+        foreach ($rows as $row) {
+            $byCard[(string) $row['link']->card->id][] = $row;
+        }
+
+        $kept = [];
+        foreach ($byCard as $cardId => $cardRows) {
+            $snapshot = $this->cardDirectory->find(Uuid::fromString($cardId));
+            if (null === $snapshot) {
+                continue;
+            }
+            $ids = array_flip($this->verdictWouldFire->forCard($snapshot, $template, array_map(static fn (array $row): string => (string) $row['link']->document->id, $cardRows)));
+            foreach ($cardRows as $row) {
+                if (isset($ids[(string) $row['link']->document->id])) {
+                    $kept[] = $row;
+                }
+            }
+        }
+
+        return $kept;
     }
 
     /**
@@ -450,8 +488,9 @@ final readonly class CardWaitReconciler
      * item when no wait is left, and returns whether it did.
      *
      * @param array<string, WantedCardWait> $want
+     * @param list<InboxCardWait>           $ended receives the waits this call ended
      */
-    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, InboxProjectSettings $switches, \DateTimeImmutable $now): bool
+    private function apply(InboxCardWatch $watch, array $want, InboxCardWaitEndReason $cause, InboxProjectSettings $switches, \DateTimeImmutable $now, array &$ended): bool
     {
         $open = [];
         foreach ($watch->waits as $wait) {
@@ -466,6 +505,7 @@ final readonly class CardWaitReconciler
                 $wait->endedAt = $now;
                 $wait->endReason = InboxCardWaitEndReason::Resolved === $cause && !$switches->isOn($wait->trigger) ? InboxCardWaitEndReason::SwitchedOff : $cause;
                 $obsolete = $obsolete || InboxCardWaitEndReason::Resolved !== $wait->endReason;
+                $ended[] = $wait;
                 unset($open[$key]);
             }
         }
@@ -526,10 +566,17 @@ final readonly class CardWaitReconciler
         $item->documents->add(new InboxItemDocument($item, $document, $now));
     }
 
-    /** Writes the title and the body from the card and the open waits, and returns whether either changed. */
-    private function rewrite(InboxCardWatch $watch, Card $card, \DateTimeImmutable $now): bool
+    /**
+     * Writes the title and the body from the card and the open waits, or from the waits this reconcile ended
+     * when the item closed, and returns whether either changed.
+     *
+     * @param list<InboxCardWait> $ended
+     */
+    private function rewrite(InboxCardWatch $watch, Card $card, array $ended, \DateTimeImmutable $now): bool
     {
-        $open = array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
+        $open = null !== $watch->closedAt
+            ? $ended
+            : array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
         usort($open, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, $a->key()] <=> [$b->startedAt, $b->key()]);
         $title = $this->waitText->title($open, $card->number, $card->title, InboxItem::MAX_TITLE_LENGTH);
         $body = $this->waitText->body($open);

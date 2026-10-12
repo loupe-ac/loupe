@@ -1,0 +1,8 @@
+{# Props: version, an ArtifactVersion. Names who stored it, an interactive session counting as Claude. #}
+{%- if version.storedBy is not null -%}
+    {{- version.storedBy.fullName -}}
+{%- elseif version.storedBySession is not null -%}
+    {{- 'artifact.stored_by.session'|trans -}}
+{%- else -%}
+    {{- 'artifact.stored_by.unknown'|trans -}}
+{%- endif -%}

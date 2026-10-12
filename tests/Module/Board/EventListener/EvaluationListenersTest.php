@@ -17,6 +17,7 @@ use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Event\CardDocumentsChanged;
 use App\Module\Board\Event\CardMoved;
 use App\Module\Board\Event\CardParentChanged;
+use App\Module\Board\EventListener\EvaluateCardOnCardCreated;
 use App\Module\Board\EventListener\EvaluateCardOnCardDocumentsChanged;
 use App\Module\Board\EventListener\EvaluateCardOnWorkRequestChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnBoardColumnDeleted;
@@ -49,6 +50,7 @@ use App\Module\Review\Entity\Verdict;
 use App\Module\Review\Event\DocumentStatusChanged;
 use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -96,6 +98,18 @@ final class EvaluationListenersTest extends KernelTestCase
         self::assertSame($this->ids($card, $epic, $blocked), $this->sent());
     }
 
+    public function test_a_creation_asks_for_the_new_card_alone(): void
+    {
+        [$card, $updated] = [$this->card($this->project, 'tech-design'), $this->card($this->project, 'next')];
+        $listener = new EvaluateCardOnCardCreated($this->trigger());
+
+        foreach ([[$card, CardChanged::CREATED], [$updated, CardChanged::UPDATED], [$updated, CardChanged::DELETED]] as [$subject, $change]) {
+            $listener(new CardChanged($this->projectId(), $subject->id ?? throw new \LogicException('A flushed card has an id.'), $change, true));
+        }
+
+        self::assertSame($this->ids($card), $this->sent());
+    }
+
     public function test_a_parent_change_asks_for_the_card_and_both_parents(): void
     {
         [$card, $old, $new] = [$this->card($this->project, 'next'), $this->card($this->project, 'next'), $this->card($this->project, 'next')];
@@ -127,14 +141,43 @@ final class EvaluationListenersTest extends KernelTestCase
         self::assertSame($this->ids($one, $two), $this->sent());
     }
 
-    public function test_column_events_ask_for_their_cards(): void
+    public function test_a_terminal_flip_asks_for_the_cards_their_epics_and_the_cards_they_block(): void
     {
-        [$one, $two] = [$this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        [$epic, $one, $two, $blocked] = $this->relatedFixture();
 
-        new EvaluateCardsOnBoardColumnTerminalChanged($this->trigger())(new BoardColumnTerminalChanged($this->project, 'column', true, $this->ids($one, $two), Actor::Human));
-        new EvaluateCardsOnBoardColumnDeleted($this->trigger())(new BoardColumnDeleted($this->project, 'column', 'review', 'backlog', $this->ids($two), Actor::Human, false, false));
+        $this->terminalListener()(new BoardColumnTerminalChanged($this->project, 'column', true, $this->ids($one, $two), Actor::Human));
 
-        self::assertSame([...$this->ids($one, $two), ...$this->ids($two)], $this->sent());
+        self::assertSame($this->ids($one, $two, $epic, $blocked), $this->sent());
+    }
+
+    public function test_a_delete_between_open_and_terminal_asks_for_the_moved_cards_and_their_related_cards(): void
+    {
+        [$epic, $one, $two, $blocked] = $this->relatedFixture();
+
+        $this->deleteListener()(new BoardColumnDeleted($this->project, 'column', 'review', 'done', $this->ids($one, $two), Actor::Human, false, true));
+        $this->deleteListener()(new BoardColumnDeleted($this->project, 'column', 'archived', 'backlog', $this->ids($one), Actor::Human, true, false));
+
+        self::assertSame([...$this->ids($one, $two, $epic, $blocked), ...$this->ids($one, $epic, $blocked)], $this->sent());
+    }
+
+    public function test_a_delete_between_two_open_columns_asks_for_the_moved_cards_alone(): void
+    {
+        [, $one, $two] = $this->relatedFixture();
+
+        $this->deleteListener()(new BoardColumnDeleted($this->project, 'column', 'review', 'backlog', $this->ids($one, $two), Actor::Human, false, false));
+
+        self::assertSame($this->ids($one, $two), $this->sent());
+    }
+
+    public function test_column_events_read_no_related_cards_while_the_engine_is_off(): void
+    {
+        $cards = $this->createMock(CardRepository::class);
+        $cards->expects($this->never())->method('findRelatedForEvaluation');
+        $off = $this->createStub(CardEvaluations::class);
+        $off->method('isOn')->willReturn(false);
+
+        new EvaluateCardsOnBoardColumnTerminalChanged($cards, $off)(new BoardColumnTerminalChanged($this->project, 'column', true, ['card'], Actor::Human));
+        new EvaluateCardsOnBoardColumnDeleted($cards, $off)(new BoardColumnDeleted($this->project, 'column', 'review', 'done', ['card'], Actor::Human, false, true));
     }
 
     public function test_document_events_ask_for_the_linked_cards(): void
@@ -292,6 +335,29 @@ final class EvaluationListenersTest extends KernelTestCase
         self::assertNull($otherOpen->reopenedAt);
         self::assertSame($this->ids($other), $this->pendingBaselines());
         self::assertSame($this->ids($one, $two), $this->sent());
+    }
+
+    /** @return array{Card, Card, Card, Card} an epic, two of its children, and a card the first child blocks */
+    private function relatedFixture(): array
+    {
+        [$epic, $one, $two, $blocked] = [$this->card($this->project, 'next'), $this->card($this->project, 'next'), $this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        $epic->type = 'epic';
+        $one->parent = $epic;
+        $two->parent = $epic;
+        $this->em()->persist(new CardLink($one, $blocked, CardLinkKind::Blocks));
+        $this->em()->flush();
+
+        return [$epic, $one, $two, $blocked];
+    }
+
+    private function terminalListener(): EvaluateCardsOnBoardColumnTerminalChanged
+    {
+        return new EvaluateCardsOnBoardColumnTerminalChanged($this->service(CardRepository::class), $this->trigger());
+    }
+
+    private function deleteListener(): EvaluateCardsOnBoardColumnDeleted
+    {
+        return new EvaluateCardsOnBoardColumnDeleted($this->service(CardRepository::class), $this->trigger());
     }
 
     private function workRequest(Card $card, string $kind): WorkRequest

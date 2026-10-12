@@ -70,7 +70,7 @@ final class SeedFlagsControllerTest extends WebTestCase
         // prefilled default, and that default has to be "on" or a freshly
         // installed instance cannot register anybody.
         self::assertTrue($flags[RegistrationGate::ENABLED_FLAG]->value);
-        self::assertCount(28, $flags);
+        self::assertCount(32, $flags);
         // Seeded on: the environment prerequisite holds it off until a hub is configured.
         self::assertTrue($flags[LiveUpdates::FLAG]->value);
         // Seeded on: drawing is additive, and a flag that installs off would

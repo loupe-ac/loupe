@@ -28,7 +28,7 @@ Open decisions:
 The owner reads a design to make its decisions. The owner knows what the product does, and does not hold the code in mind.
 
 1. Say what happens in product terms first: what a person sees, what the board does, what an agent does. Then name the code, when the reader needs it.
-2. Write At a glance, each decision and each Decided entry for a reader with no file open. Put class names, fields, methods and file paths in Architecture, the work order and the project checks. A reader who knows the product can skip those parts.
+2. Write At a glance, each decision and each Decided entry for a reader with no file open. Put class names, fields, methods and file paths in the "How it works" list of Solution, the work order and the project checks. A reader who knows the product can skip those parts.
 3. Write the question and each option of a decision in plain words. Each option says what changes for a person or an agent. Two options can look the same to a person. Then name their difference in plain words, such as "keep a copy" or "count on each page load", and say what each one costs. In a tech design, put the code that each option changes in the "How each option works" list (see "Decisions").
 4. A name that a person sees in the product is a plain word. Examples are a tool name, a column, a tag and a button label. A class, a field, a method or a file path is not a plain word. Keep it out of the question, the options, the table and the example.
 5. Explain a new idea in one sentence where it first appears, and again in one sentence in each decision that uses it. Add a small example when it helps. Rule 16 of `../SKILL.md` covers an ID from another source. This item covers an idea, such as a kind of pause.
@@ -112,7 +112,7 @@ Checked in the code: `TagVoter.php`.
 
 ## Diagrams
 
-A diagram is encouraged and never required, in any section. Choose the Mermaid type from the subject.
+The Solution section of a tech design needs a diagram, as `../../loupe-stage-tech-design/SKILL.md` says. A diagram is encouraged in any other section. Choose the Mermaid type from the subject.
 
 | Subject | Mermaid type |
 |---|---|
@@ -132,4 +132,4 @@ The Loupe review page draws the diagram only when the operator turns on the diag
 
 1. A table or a diagram replaces the text it covers. Do not repeat its content in prose.
 2. Leave out a section with nothing real to say.
-3. A Light document has an At a glance of two sentences. It skips the Priorities and How others do it sections. A Light tech design keeps a short Architecture section.
+3. A Light document has an At a glance of two sentences. It skips the Priorities and How others do it sections. A Light tech design keeps a short Solution section, with its diagram.

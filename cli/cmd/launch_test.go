@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -126,21 +125,5 @@ func waitForFile(t *testing.T, path string) {
 			t.Fatalf("%s never appeared", path)
 		}
 		time.Sleep(10 * time.Millisecond)
-	}
-}
-
-func TestResolveClaudeIsAbsolute(t *testing.T) {
-	old := lookPath
-	t.Cleanup(func() { lookPath = old })
-
-	lookPath = func(string) (string, error) { return "bin/claude", nil }
-	got, err := resolveClaude()
-	if err != nil || !filepath.IsAbs(got) || !strings.HasSuffix(got, "/bin/claude") {
-		t.Fatalf("resolveClaude = %q, %v", got, err)
-	}
-
-	lookPath = func(string) (string, error) { return "", exec.ErrNotFound }
-	if _, err := resolveClaude(); err == nil || err.Error() != "claude is not installed or not on PATH" {
-		t.Fatalf("err = %v", err)
 	}
 }

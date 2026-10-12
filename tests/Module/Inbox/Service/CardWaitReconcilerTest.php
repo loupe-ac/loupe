@@ -113,6 +113,67 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(1, $this->searchHits('document'));
     }
 
+    public function test_a_card_in_next_with_no_parent_opens_no_wait_for_a_tech_design_in_review(): void
+    {
+        $this->linkedDocument('Tech design');
+        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_child_in_next_opens_a_wait_for_its_tech_design_in_review(): void
+    {
+        $document = $this->linkedDocument('Tech design');
+        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
+        $this->card->parent = $this->epicInImplementation();
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertEquals($document->id, $this->onlyWait($this->onlyWatch())->documentId);
+    }
+
+    public function test_a_child_in_next_with_an_approved_and_a_new_tech_design_waits_on_the_new_one(): void
+    {
+        $approved = $this->linkedDocument('Old tech design');
+        $approved->status = DocumentStatus::Approved;
+        $new = $this->linkedDocument('New tech design');
+        $this->card->column = $this->stageColumn($this->em, $this->project, 'next');
+        $this->card->parent = $this->epicInImplementation();
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertEquals($new->id, $this->onlyWait($this->onlyWatch())->documentId);
+    }
+
+    private function epicInImplementation(): Card
+    {
+        $epic = $this->card($this->em, $this->project, 99);
+        $epic->type = 'epic';
+        $epic->column = $this->stageColumn($this->em, $this->project, 'implementation');
+        $approved = $this->untaggedLinkedDocumentOf($epic, 'Epic design');
+        $approved->status = DocumentStatus::Approved;
+        $this->stageDocument($this->em, $approved, $epic);
+        $epic->column = $this->stageColumn($this->em, $this->project, 'implementation');
+        $this->em->flush();
+
+        return $epic;
+    }
+
+    private function untaggedLinkedDocumentOf(Card $card, string $title): Document
+    {
+        $document = new Document($this->project->owner, $this->project, $title);
+        $document->addVersion('# One', '<h1>One</h1>');
+        $this->em->persist($document);
+        $card->documents->add(new CardDocument($card, $document));
+
+        return $document;
+    }
+
     public function test_a_linked_draft_opens_no_wait_until_it_is_published(): void
     {
         $document = $this->linkedDocument('Tech design');
@@ -199,6 +260,49 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
         self::assertSame(InboxCardWaitEndReason::Resolved, $this->onlyWait($watch)->endReason);
+    }
+
+    public function test_a_deleted_document_closes_the_item_and_rewrites_its_saved_text(): void
+    {
+        $document = $this->linkedDocument('Tech design');
+        $this->reconcile();
+        $this->em->remove($document);
+        $this->em->flush();
+        $this->em->clear();
+        $project = $this->em->find(Project::class, $this->project->id);
+        self::assertInstanceOf(Project::class, $project);
+
+        $this->reconciler->reconcile($project, [(string) $this->card->id]);
+
+        $this->em->clear();
+        $watch = $this->onlyWatch();
+        self::assertSame(InboxItemState::Done, $watch->item->state);
+        self::assertSame('#12 Deleted document version 1 · Ship it', $watch->item->title);
+        self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
+        self::assertStringNotContainsString('Tech design', $watch->item->body);
+    }
+
+    public function test_a_closed_item_saves_only_the_waits_of_the_reconcile_that_closed_it(): void
+    {
+        $approved = $this->linkedDocument('Product design');
+        $deleted = $this->linkedDocument('Tech design');
+        $this->reconcile();
+        $approved->status = DocumentStatus::Approved;
+        $this->em->flush();
+        $this->reconcile();
+        $this->em->remove($deleted);
+        $this->em->flush();
+        $this->em->clear();
+        $project = $this->em->find(Project::class, $this->project->id);
+        self::assertInstanceOf(Project::class, $project);
+
+        $this->reconciler->reconcile($project, [(string) $this->card->id]);
+
+        $this->em->clear();
+        $watch = $this->onlyWatch();
+        self::assertSame(InboxItemState::Done, $watch->item->state);
+        self::assertSame('#12 Deleted document version 1 · Ship it', $watch->item->title);
+        self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
     }
 
     public function test_a_card_in_a_terminal_column_closes_the_item_obsolete(): void

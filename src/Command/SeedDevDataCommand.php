@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Module\Account\Entity\User;
 use App\Module\Account\Repository\UserRepository;
+use App\Module\Artifact\Service\Dev\DevArtifactSeeder;
 use App\Module\Inbox\Service\Dev\DevCodexRunSeeder;
 use App\Module\Inbox\Service\Dev\DevExperimentSeeder;
 use App\Module\Insights\Service\Dev\DevAnalysesSeeder;
@@ -53,6 +54,7 @@ final class SeedDevDataCommand extends Command
         private readonly DevExperimentSeeder $experiment,
         private readonly DevCodexRunSeeder $codexRuns,
         private readonly DevAnalysesSeeder $analyses,
+        private readonly DevArtifactSeeder $artifacts,
 
         #[Autowire(param: 'app.terms.version')]
         private readonly string $termsVersion,
@@ -78,6 +80,7 @@ final class SeedDevDataCommand extends Command
         $this->experiment->seed($project);
         $this->codexRuns->seed($project);
         $this->analyses->seed($project, DevExperimentSeeder::EXPERIMENT);
+        $this->artifacts->seed($project);
 
         // Printed for a human to copy into SITE_REVIEW_WIDGET_PROJECT. No
         // caller parses it, so the prefix is for readers only.

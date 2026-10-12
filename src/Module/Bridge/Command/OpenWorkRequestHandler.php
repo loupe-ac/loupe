@@ -38,7 +38,6 @@ final readonly class OpenWorkRequestHandler
     public const string INVALID_EFFORT = 'bridge.work_request.error.invalid_effort';
     public const string INVALID_CARD_NUMBER = 'bridge.work_request.error.invalid_card_number';
     public const string UNKNOWN_SUBJECT_TYPE = 'bridge.work_request.error.unknown_subject_type';
-    public const string LIVE = 'bridge.work_request.error.live';
 
     /** Longer than the largest retry backoff of the seeded templates, six hours, so a later request starts fresh. */
     public const string RESUME_WINDOW = '-24 hours';
@@ -83,10 +82,12 @@ final readonly class OpenWorkRequestHandler
             throw new DomainErrors($errors);
         }
 
+        $liveRuleId = null;
         try {
-            $request = $this->em->wrapInTransaction(function () use ($command): ?WorkRequest {
+            $request = $this->em->wrapInTransaction(function () use ($command, &$liveRuleId): ?WorkRequest {
                 $this->workRequests->lockLive($command->subject, $command->kind);
-                if ($this->workRequests->hasLive($command->subject, $command->kind)) {
+                $liveRuleId = $this->workRequests->liveRuleId($command->subject, $command->kind);
+                if (null !== $liveRuleId) {
                     return null;
                 }
 
@@ -122,7 +123,7 @@ final readonly class OpenWorkRequestHandler
         }
 
         if (null === $request) {
-            throw new DomainErrors(['card' => self::LIVE]);
+            throw new WorkRequestAlreadyLive($liveRuleId);
         }
 
         $this->auditor->record(

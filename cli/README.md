@@ -309,6 +309,23 @@ refuses a project your login does not cover rather than ignoring the header.
 endpoints and the MCP endpoint, and it covers every project you own, including
 ones you create later.
 
+## `loupe artifact push`
+
+Stores a file, or every file of a folder, as an artifact of a project.
+
+```bash
+loupe artifact push page.html --name "Review page" --card 611
+loupe artifact push prototype/ --artifact <artifact id>
+```
+
+`--name` makes a new artifact, and `--artifact` adds a version to an existing
+one. `--card` links it to a card, `--source-link` records where the files came
+from, and `--project` names the project, as for `loupe status`. The command sends
+the session id from `LOUPE_SESSION_ID`, `CLAUDE_CODE_SESSION_ID` or
+`CODEX_THREAD_ID`, and Loupe refuses a store from a worker run. It prints the
+stable link and the link of the new version. The
+[artifacts page](../docs/using/artifacts.md) has the rules for paths and sizes.
+
 ## `loupe status`
 
 Checks the setup that `loupe mcp` depends on, with one real call.
@@ -1184,7 +1201,7 @@ Docker container.
 A stop ends one run and holds nothing. To keep every agent off a card, a person
 pauses the agents on the card. The server then holds the card, and the bridge
 starts no worker for a held card. A queued run of a held card waits until the
-hold ends. A request of a held card starts nothing.
+hold ends. Loupe cancels the open requests of a held card, and a claim of one gets `card_held`.
 
 Until the bridge reads the held list once, it treats the server as an older
 one. In that mode a stop holds the card, and a resume or a rerun ends the hold.
@@ -1294,7 +1311,7 @@ no card, `subject` is the ask id. A worker line for a review verdict also names
 
 | `event` | Fields |
 |---|---|
-| `bridge_started` | `rules`, `projects`, `work_kinds`, `max_workers`, `worker_pools`, `log_file`, `bridge_id`. `worker_pools` names each pool with its size, such as `default=3,quick=1` |
+| `bridge_started` | `rules`, `projects`, `work_kinds`, `max_workers`, `worker_pools`, `log_file`, `bridge_id`, `version`. `worker_pools` names each pool with its size, such as `default=3,quick=1` |
 | `max_workers_flag_ignored` | `flag_value`, `max_workers`, `message`: the bridge started with `--max-workers`, which does nothing. Level `WARN` |
 | `connected` | `topic`: your user topic, `projects`: the mapped slugs |
 | `stream_error` | `error` |

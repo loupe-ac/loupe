@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -34,13 +33,10 @@ import (
 // bridge would sit there looking healthy and never receive anything again.
 const refreshTimeout = 15 * time.Second
 
-// lookPath resolves the worker binary. Tests replace it.
-var lookPath = exec.LookPath
-
 // apiClient is for short request/response calls only. The SSE subscription must
 // keep its own timeout-free client: a stream is meant to stay open.
 func apiClient(cfg config.Config) *api.Client {
-	hc := &http.Client{Timeout: refreshTimeout}
+	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
 
 	return api.NewWithSource(cfg.BaseURL, tokenSource(cfg, hc), hc)
 }
@@ -189,12 +185,6 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return fmt.Errorf("rule file %s: %w", path, err)
 	}
-	claude := ""
-	if set.NeedsClaude() {
-		if claude, err = resolveClaude(); err != nil {
-			return err
-		}
-	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -247,6 +237,10 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	if err != nil {
 		return err
 	}
+	outboxDir, err := outboxPath(path)
+	if err != nil {
+		return err
+	}
 
 	// A failing account turns off its entries, and never stops the start.
 	accounts := checkAccounts(cmd.Context(), set)
@@ -260,8 +254,8 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		source:     newReloadSource(path, defaults, cfg, b.lock),
 		update:     b,
 		hookRunner: newHookRunner(hookList, bridgeID, bl.log),
-		claude:     claude,
 		cursorFile: cursorFile,
+		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
 		pushLogin:  checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log),
 	}
@@ -295,7 +289,7 @@ func logBridgeStart(log *slog.Logger, cmd *cobra.Command, set *rules.Set, path, 
 		log.Warn("max_workers_flag_ignored", "flag_value", flag, "max_workers", set.MaxWorkers(), "message", message)
 	}
 	log.Info("bridge_started", "rules", path, "projects", set.Projects(), "work_kinds", set.WorkKinds(),
-		"max_workers", set.MaxWorkers(), "worker_pools", poolSizes(set), "log_file", logPath, "bridge_id", bridgeID)
+		"max_workers", set.MaxWorkers(), "worker_pools", poolSizes(set), "log_file", logPath, "bridge_id", bridgeID, "version", cliVersion())
 }
 
 // poolSizes names each worker pool and its size, in name order, such as
@@ -414,6 +408,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	queue := outbound.New(ctx, r.log)
 	r.reports = queue
 	r.runs = newRunReports(apiClient(cfg), r.log)
+	if r.outboxDir != "" {
+		r.runs.outbox = &outbox{dir: r.outboxDir, baseURL: cfg.BaseURL, bridgeID: r.bridgeID}
+	}
 	defer queue.Close()
 
 	set := r.rules()
@@ -516,7 +513,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		r.log.Info("control_listening", "socket", r.control.Addr().String())
 	}
 
-	err = transport.Subscribe(ctx, &http.Client{}, events.HubURL, []string{events.Topic}, jwtRefresher(cfg, r.bridgeID, events.JWT, r.onRefresh), r.handler())
+	err = transport.Subscribe(ctx, &http.Client{Transport: withUserAgent(nil)}, events.HubURL, []string{events.Topic}, jwtRefresher(cfg, r.bridgeID, events.JWT, r.onRefresh), r.handler())
 	failed := err != nil && ctx.Err() == nil
 	if failed {
 		logUpgradeRequired(r.log, err)

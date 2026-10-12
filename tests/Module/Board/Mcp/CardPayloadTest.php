@@ -11,6 +11,7 @@ use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Board\Mcp\CardPayload;
+use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -49,7 +50,7 @@ final class CardPayloadTest extends KernelTestCase
         $pauses = $this->createMock(CardPauseRepository::class);
         $pauses->expects($this->never())->method('findActiveForCardIds');
 
-        $rows = new CardPayload($comments, $links, $cards, $states, $pauses, new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCardList([$this->card()]);
+        $rows = new CardPayload($comments, $links, $cards, $states, $pauses, new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCardList([$this->card()]);
 
         self::assertCount(1, $rows);
         self::assertSame(
@@ -76,7 +77,7 @@ final class CardPayloadTest extends KernelTestCase
         $pauses = $this->createMock(CardPauseRepository::class);
         $pauses->expects($this->once())->method('findActiveForCardIds')->willReturn([]);
 
-        $rows = new CardPayload($comments, $links, $cards, $this->states(), $pauses, new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$feature, $epic, $otherEpic]);
+        $rows = new CardPayload($comments, $links, $cards, $this->states(), $pauses, new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$feature, $epic, $otherEpic]);
 
         self::assertArrayHasKey('body', $rows[0]);
         self::assertSame([], $rows[0]['siteReviewComments']);
@@ -90,7 +91,7 @@ final class CardPayloadTest extends KernelTestCase
         $cards = $this->createMock(CardRepository::class);
         $cards->expects($this->never())->method('findChildrenOfCards');
 
-        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $cards, $this->states(), $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$this->card()]);
+        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $cards, $this->states(), $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$this->card()]);
 
         self::assertSame([], $rows[0]['children']);
     }
@@ -120,7 +121,7 @@ final class CardPayloadTest extends KernelTestCase
             )],
         ));
 
-        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $states, $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$card]);
+        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $states, $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$card]);
 
         self::assertSame([
             'state' => 'open',
@@ -154,7 +155,7 @@ final class CardPayloadTest extends KernelTestCase
             null,
         )]));
 
-        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $states, $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$card]);
+        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $states, $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$card]);
 
         self::assertNull($rows[0]['pullRequests'][0]['state']);
     }
@@ -171,7 +172,7 @@ final class CardPayloadTest extends KernelTestCase
         // One read for the whole page, never one per card.
         $pauses->expects($this->once())->method('findActiveForCardIds')->with([$paused->id, $free->id])->willReturn([(string) $paused->id => $pause]);
 
-        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $this->states(), $pauses, new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$paused, $free]);
+        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $this->states(), $pauses, new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$paused, $free]);
 
         self::assertSame([
             'pauseId' => (string) $pause->id,
@@ -188,7 +189,7 @@ final class CardPayloadTest extends KernelTestCase
     {
         $card = $this->cardWithPullRequest();
 
-        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $this->states(), $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$card]);
+        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $this->states(), $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $this->createStub(CardAgentReviews::class), $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$card]);
 
         self::assertArrayHasKey('agentReview', $rows[0]['pullRequests'][0]);
         self::assertNull($rows[0]['pullRequests'][0]['agentReview']);
@@ -212,7 +213,7 @@ final class CardPayloadTest extends KernelTestCase
         $reviews = $this->createMock(CardAgentReviews::class);
         $reviews->expects($this->once())->method('forCards')->with([$card])->willReturn([(string) $link->id => $review]);
 
-        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $this->states(), $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $reviews, $this->cardStates(), $this->runWarnings(), $this->translator())->forCards([$card]);
+        $rows = new CardPayload($this->createStub(CardSiteReviewCommentRepository::class), $this->createStub(CardLinkRepository::class), $this->createStub(CardRepository::class), $this->states(), $this->createStub(CardPauseRepository::class), new ShippedCardTypes(), $reviews, $this->cardStates(), $this->runWarnings(), $this->translator(), $this->createStub(CardArtifactRepository::class))->forCards([$card]);
 
         self::assertSame($review, $rows[0]['pullRequests'][0]['agentReview']);
     }

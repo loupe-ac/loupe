@@ -14,7 +14,11 @@
  */
 
 import { expect } from '@playwright/test';
-import { createTest, suppressToolbar } from '../fixtures';
+import {
+    createTest,
+    siteReviewPanelSettled,
+    suppressToolbar,
+} from '../fixtures';
 
 const EMAIL = 'e2e-site-review-oauth@example.com';
 
@@ -70,6 +74,7 @@ test('a reviewer signs in through the popup and saves a comment', async ({
         .getByPlaceholder(/Describe the issue/)
         .fill('Signed in with OAuth');
     // A first note asks where notes go.
+    await siteReviewPanelSettled(page);
     await page
         .locator('#lp-picker')
         .getByRole('button', { name: 'A new card for each note' })

@@ -38,7 +38,8 @@ type serverConf struct {
 }
 
 type providerConf struct {
-	EnvKey string `toml:"env_key"`
+	EnvKey             string `toml:"env_key"`
+	RequiresOpenaiAuth bool   `toml:"requires_openai_auth"`
 }
 
 // configFile is a parsed config file: the profile file first, then config.toml.
@@ -108,6 +109,24 @@ func configEnvKey(home, profile string) string {
 	return ""
 }
 
+// needsLogin says whether the provider the profile selects uses the OpenAI
+// sign-in: the default openai provider, or a provider table that sets
+// requires_openai_auth. A provider with no table, such as ollama, needs none.
+func needsLogin(home, profile string) bool {
+	files := loadConfigs(home, profile)
+	name := provider(files)
+	if name == "" || name == "openai" {
+		return true
+	}
+	for _, f := range files {
+		if conf, ok := f.cfg.ModelProviders[name]; f.err == nil && ok {
+			return conf.RequiresOpenaiAuth
+		}
+	}
+
+	return false
+}
+
 // providerProblem says why a run did not run as its profile configures, or ""
 // when it did or the bridge cannot tell.
 func (h Harness) providerProblem(sess session, haveSession bool) string {
@@ -134,7 +153,8 @@ func (h Harness) providerProblem(sess session, haveSession bool) string {
 
 // Check confirms that codex is on PATH, that the home folder and the profile
 // exist, and that the account can sign in: the profile's API key variable is
-// set, or codex is logged in when there is no profile. Then, for each project,
+// set, and codex is logged in when there is no profile or when the profile
+// names no key and its provider uses the OpenAI sign-in. Then, for each project,
 // it checks that the loupe MCP server is the `loupe mcp` command, is enabled,
 // is found on PATH, and approves its tools without a prompt.
 func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Problem {
@@ -181,12 +201,13 @@ func (h Harness) Check(ctx context.Context, spec harness.CheckSpec) []harness.Pr
 		if found := profileProblems(home, h.profile, env); len(found) > 0 {
 			return append(problems, found...)
 		}
-	} else if _, err := runCheck(ctx, binary, loginDir, env, "login", "status"); err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return append(problems, harness.Problem{Reason: "login check timed out", Detail: "codex login status did not answer in " + checkTimeout.String()})
+		if configEnvKey(home, h.profile) == "" && needsLogin(home, h.profile) {
+			if found := loginProblems(ctx, binary, loginDir, env); len(found) > 0 {
+				return append(problems, found...)
+			}
 		}
-
-		return append(problems, harness.Problem{Reason: "not logged in", Detail: "run `codex login`"})
+	} else if found := loginProblems(ctx, binary, loginDir, env); len(found) > 0 {
+		return append(problems, found...)
 	}
 
 	mcpEnv := envfile.Overlay(env, []string{"CODEX_HOME=" + home})
@@ -303,6 +324,20 @@ func profileProblems(home, profile string, env []string) []harness.Problem {
 	}
 	if key := configEnvKey(home, profile); key != "" && strings.TrimSpace(envValue(env, key)) == "" {
 		return []harness.Problem{{Reason: "codex API key variable " + key + " is not set", Detail: "profile " + profile + " reads its key from " + key + "; set it in the envFile of the account"}}
+	}
+
+	return nil
+}
+
+// loginProblems checks that codex is logged in. It passes no profile, because
+// codex refuses --profile on login status.
+func loginProblems(ctx context.Context, binary, dir string, env []string) []harness.Problem {
+	_, err := runCheck(ctx, binary, dir, env, "login", "status")
+	if errors.Is(err, context.DeadlineExceeded) {
+		return []harness.Problem{{Reason: "login check timed out", Detail: "codex login status did not answer in " + checkTimeout.String()}}
+	}
+	if err != nil {
+		return []harness.Problem{{Reason: "not logged in", Detail: "run `codex login`"}}
 	}
 
 	return nil
