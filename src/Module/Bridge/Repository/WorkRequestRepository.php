@@ -263,11 +263,12 @@ class WorkRequestRepository extends ServiceEntityRepository
         );
     }
 
-    /** Reads the state alone, like the unique index. */
-    public function hasLive(WorkSubject $subject, string $kind): bool
+    /** The rule of the live request of the subject and kind, or null when none is live. Reads the state alone, like the unique index. */
+    public function liveRuleId(WorkSubject $subject, string $kind): ?string
     {
-        return null !== $this->ofSubject($subject)
-            ->select('1')
+        /** @var array{ruleId: string}|null $row */
+        $row = $this->ofSubject($subject)
+            ->select('w.ruleId')
             ->andWhere('w.kind = :kind')
             ->andWhere('w.state IN (:live)')
             ->setParameter('kind', $kind)
@@ -275,6 +276,8 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $row['ruleId'] ?? null;
     }
 
     /** The request with the id, when it belongs to the subject in the project. A run report names its request unchecked. */

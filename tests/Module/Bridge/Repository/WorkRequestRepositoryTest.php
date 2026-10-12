@@ -207,19 +207,19 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:00:00')));
     }
 
-    public function test_has_live_reads_the_open_and_claimed_requests_of_a_card_and_kind(): void
+    public function test_live_rule_id_reads_the_rule_of_the_open_and_claimed_requests_of_a_card_and_kind(): void
     {
         self::bootKernel();
         $em = $this->em();
         $project = $this->project($em, $this->user($em, 'has-live@example.com'), 'Has Live');
-        $open = $this->seedWorkRequest($em, $project);
-        $claimed = $this->seedWorkRequest($em, $project, state: WorkRequestState::Claimed);
+        $open = $this->seedWorkRequest($em, $project, ruleId: 'open-rule');
+        $claimed = $this->seedWorkRequest($em, $project, state: WorkRequestState::Claimed, ruleId: 'claimed-rule');
         $done = $this->seedWorkRequest($em, $project, state: WorkRequestState::Done);
 
-        self::assertTrue($this->repository()->hasLive($open->subject(), 'implement'));
-        self::assertFalse($this->repository()->hasLive($open->subject(), 'design'));
-        self::assertTrue($this->repository()->hasLive($claimed->subject(), 'implement'));
-        self::assertFalse($this->repository()->hasLive($done->subject(), 'implement'));
+        self::assertSame('open-rule', $this->repository()->liveRuleId($open->subject(), 'implement'));
+        self::assertNull($this->repository()->liveRuleId($open->subject(), 'design'));
+        self::assertSame('claimed-rule', $this->repository()->liveRuleId($claimed->subject(), 'implement'));
+        self::assertNull($this->repository()->liveRuleId($done->subject(), 'implement'));
     }
 
     /**
@@ -309,8 +309,8 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->flush();
 
         self::assertSame([$card], $this->repository()->findLiveForCard($sharedId));
-        self::assertTrue($this->repository()->hasLive($analysis->subject(), 'implement'));
-        self::assertFalse($this->repository()->hasLive(new WorkSubject('analysis', $sharedId), 'design'));
+        self::assertSame('insights.analysis', $this->repository()->liveRuleId($analysis->subject(), 'implement'));
+        self::assertNull($this->repository()->liveRuleId(new WorkSubject('analysis', $sharedId), 'design'));
     }
 
     public function test_the_latest_settled_request_of_a_card_is_done_or_refused(): void

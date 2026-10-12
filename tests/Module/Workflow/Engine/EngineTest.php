@@ -23,6 +23,7 @@ use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
+use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\PullRequestCommentRepository;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
@@ -33,6 +34,8 @@ use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\WorkRequestOpener;
+use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
@@ -105,6 +108,7 @@ use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
+use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
@@ -150,7 +154,8 @@ final class EngineTest extends KernelTestCase
 
     private ?CardEvaluations $evaluations = null;
 
-    private bool $hideLiveWork = false;
+    /** @var (\Closure(): void)|null */
+    private ?\Closure $settleJoinedWork = null;
 
     private FakeRuleAsks $asks;
 
@@ -207,7 +212,7 @@ final class EngineTest extends KernelTestCase
         self::assertSame([1, 0], [$state->fires, $state->attempts]);
     }
 
-    public function test_a_rule_that_joins_a_request_which_settles_before_the_engine_reads_it_fires_its_own(): void
+    public function test_a_rule_that_joins_another_rules_request_which_settles_right_after_the_answer_fires_its_own(): void
     {
         $card = $this->boundCard([
             self::requestRule('review', self::ALWAYS, kind: 'fix'),
@@ -217,16 +222,38 @@ final class EngineTest extends KernelTestCase
         $review = $this->liveRequestOfKind($card, 'fix');
 
         $this->setType($card, 'bug');
-        $this->hideLiveWork = true;
+        $this->settleJoinedWork = fn () => $this->finish($review, '2026-10-02 12:05:00');
         $this->evaluate($card, '2026-10-02 12:05:00');
-        $this->hideLiveWork = false;
+        $this->settleJoinedWork = null;
+        self::assertSame([], $this->liveRequests($card));
         self::assertFalse($this->ruleState($card, 'checks')->truth);
 
-        $this->finish($review, '2026-10-02 12:10:00');
-        $this->evaluate($card, '2026-10-02 12:11:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
 
         self::assertSame('checks', $this->liveRequestOfKind($card, 'fix')->ruleId);
         self::assertSame(1, $this->ruleState($card, 'checks')->fires);
+    }
+
+    public function test_a_rule_whose_own_request_settles_right_after_the_answer_fires_no_second_request(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+        $own = $this->liveRequests($card)[0];
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        $this->setType($card, 'bug');
+        $this->settleJoinedWork = fn () => $this->finish($own, '2026-10-02 12:06:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+        $this->settleJoinedWork = null;
+        self::assertSame([], $this->liveRequests($card));
+        self::assertTrue($this->ruleState($card, 'fix')->truth);
+
+        $this->evaluate($card, '2026-10-02 12:07:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
     }
 
     public function test_a_rule_that_joined_another_rules_request_opens_nothing_when_it_no_longer_holds(): void
@@ -3790,16 +3817,17 @@ final class EngineTest extends KernelTestCase
             $releaseCardPause,
             $this->em(),
         );
-        $opener = $this->opener();
+        $doctrine = self::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
+        $settling = new SettlingWorkRequestRepository($doctrine);
+        $settling->settle = $this->settleJoinedWork;
+        $opener = new WorkRequestOpener(
+            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([])),
+            $this->service(CardRepository::class),
+            $this->service(CardPullRequests::class),
+            $this->service(CardPullRequestRepository::class),
+        );
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
-        $ledger = new LiveHidingWorkLedger(new BridgeWorkLedger(
-            $workRequests,
-            $this->service(WorkerRunRepository::class),
-            new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
-            $this->service(CardHolds::class),
-            $this->service(ProjectRepository::class),
-        ));
-        $ledger->hiding = $this->hideLiveWork;
 
         $engineEvents = new EventDispatcher();
         $engineEvents->addListener(CardPaused::class, function (CardPaused $event): void {
@@ -3824,7 +3852,13 @@ final class EngineTest extends KernelTestCase
             ),
             new FactFingerprint(),
             $this->service(WorkflowRuleStateRepository::class),
-            $ledger,
+            new BridgeWorkLedger(
+                $workRequests,
+                $this->service(WorkerRunRepository::class),
+                new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
+                $this->service(CardHolds::class),
+                $this->service(ProjectRepository::class),
+            ),
             $this->service(WorkflowAutomation::class),
             $this->service(WorkflowPendingBaselineRepository::class),
             $boardPauses,
