@@ -71,6 +71,49 @@ final class CardStatesTest extends KernelTestCase
         self::assertSame(['%state%' => 'gave-up'], $state->reason->params);
     }
 
+    public function test_a_move_after_the_run_ended_drops_the_run_stopped_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-run-stopped-moved'));
+        $this->recordHistory($card, '2026-10-02 09:55:00');
+
+        self::assertNull($this->stateOf($card, [(string) $card->id => $this->blockedRun('2026-10-02 09:50:00')]));
+    }
+
+    public function test_a_move_in_the_second_the_run_ended_drops_the_run_stopped_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-run-stopped-same-second'));
+        $this->recordHistory($card, '2026-10-02 09:50:00');
+
+        self::assertNull($this->stateOf($card, [(string) $card->id => $this->blockedRun('2026-10-02 09:50:00')]));
+    }
+
+    public function test_a_move_before_the_run_ended_keeps_the_run_stopped_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-run-stopped-moved-before'));
+        $this->recordHistory($card, '2026-10-02 09:40:00');
+
+        self::assertSame(CardStateCode::RunStopped, $this->stateOf($card, [(string) $card->id => $this->blockedRun('2026-10-02 09:50:00')])?->reason->code);
+    }
+
+    public function test_a_card_that_stays_in_its_column_keeps_the_run_stopped_state_after_a_pause_is_released(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-run-stopped-paused'));
+        $pause = $this->pauseCard($card, '2026-10-02 09:51:00');
+        $pause->releasedAt = new \DateTimeImmutable('2026-10-02 10:00:00');
+        $this->em()->flush();
+
+        self::assertSame(CardStateCode::RunStopped, $this->stateOf($card, [(string) $card->id => $this->blockedRun('2026-10-02 09:50:00')])?->reason->code);
+    }
+
+    public function test_a_card_that_moved_out_and_back_after_the_run_ended_shows_no_run_stopped_state(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-run-stopped-out-and-back'));
+        $this->recordHistory($card, '2026-10-02 09:55:00');
+        $this->recordHistory($card, '2026-10-02 10:05:00');
+
+        self::assertNull($this->stateOf($card, [(string) $card->id => $this->blockedRun('2026-10-02 09:50:00')]));
+    }
+
     public function test_failed_checks_make_the_card_stuck_since_they_began_to_fail(): void
     {
         $card = $this->stateCard($this->stateProject('state-checks'));
@@ -453,6 +496,11 @@ final class CardStatesTest extends KernelTestCase
         $this->em()->flush();
 
         self::assertNull($this->stateOf($card));
+    }
+
+    private function blockedRun(string $endedAt): CardRunWarning
+    {
+        return new CardRunWarning('run-1', WorkerRunState::Blocked, 'Needs its own tech design.', new \DateTimeImmutable($endedAt));
     }
 
     /** @param array<string, CardRunWarning> $warnings */
