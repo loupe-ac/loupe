@@ -12,7 +12,7 @@
             <h2 class="lp-inbox-ask__title">{{ row.title }}</h2>
             <p class="lp-inbox-ask__byline">
                 {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'w-4 h-4 shrink-0'} only %}
-                <span data-inbox-kind-label>{{ (items|length > 1 ? 'inbox.ask.items' : 'inbox.item.kind.' ~ row.kind.value)|trans({'%count%': items|length}) }}</span>
+                <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
                 <span aria-hidden="true">·</span>
                 <time datetime="{{ row.createdAt|date('c') }}">{{ row.createdAt|relative_time }}</time>
                 {% if ask and ask.closedAt %}

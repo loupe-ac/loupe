@@ -6934,7 +6934,6 @@
             <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
-            <trans-unit id="inbox.ask.items"><source>inbox.ask.items</source><target>%count% items</target></trans-unit>
             <trans-unit id="inbox.linked.panel"><source>inbox.linked.panel</source><target>Linked</target></trans-unit>
             <trans-unit id="inbox.pane.back"><source>inbox.pane.back</source><target>All asks</target></trans-unit>
             <trans-unit id="inbox.pane.missing"><source>inbox.pane.missing</source><target>This ask does not exist. Pick one from the list.</target></trans-unit>

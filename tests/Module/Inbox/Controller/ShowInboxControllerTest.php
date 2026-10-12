@@ -262,6 +262,8 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(0, $block->filter('.lp-inbox-ask__session'));
         self::assertStringContainsString((string) $ask->sessionId, $block->filter('.lp-presence [role="tooltip"]')->text());
         self::assertSame('the export', $block->filter('.lp-inbox-ask__context strong')->text());
+        // The byline names the kind of the leading item, never a count of the items.
+        self::assertSame('Question', $block->filter('[data-inbox-kind-label]')->text());
         self::assertCount(0, $block->filter('[data-inbox-decline-hint]'));
         // A missing translation renders its key, and the gate does not fail on that.
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
