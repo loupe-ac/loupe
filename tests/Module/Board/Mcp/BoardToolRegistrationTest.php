@@ -188,6 +188,14 @@ final class BoardToolRegistrationTest extends KernelTestCase
         }
     }
 
+    public function test_card_update_publishes_clear_parent_as_an_optional_boolean(): void
+    {
+        $schema = $this->registry->getTool(CardUpdateTool::NAME)->tool->inputSchema;
+
+        self::assertContains('boolean', (array) $schema['properties']['clearParent']['type']);
+        self::assertNotContains('clearParent', $schema['required'] ?? []);
+    }
+
     public function test_card_list_publishes_its_paging_and_summary_arguments(): void
     {
         $properties = $this->registry->getTool(CardListTool::NAME)->tool->inputSchema['properties'];

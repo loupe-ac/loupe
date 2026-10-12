@@ -56,7 +56,7 @@ final readonly class BoardToolErrorMessages
             'board.card.error.parent_unknown' => 'That parentCardId names no card of this project.',
             'board.card.error.parent_not_epic' => 'Only a card of type epic can be a parent. Name an epic, or set that card\'s type to epic first.',
             'board.card.error.epic_cannot_have_parent' => 'An epic cannot have a parent, because epics do not nest. Leave parentCardId out, or choose another type.',
-            'board.card.error.parent_card_cannot_be_epic' => 'A card with a parent cannot become an epic. Clear its parent with an empty parentCardId first.',
+            'board.card.error.parent_card_cannot_be_epic' => 'A card with a parent cannot become an epic. Clear its parent with clearParent first.',
             'board.card.error.epic_type_locked' => 'This epic has child cards, so its type stays epic. Clear the parent of each child first.',
             'board.card.error.epic_delete_has_children' => 'This epic has child cards, so it cannot be deleted. Delete each child, or clear its parent, first.',
             'board.card.error.column_gone' => 'That column no longer exists on this board. Name another column.',
