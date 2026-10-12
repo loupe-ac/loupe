@@ -10,7 +10,7 @@ selecting text, leaving comments, and either approving it or requesting changes.
 A **Model Context Protocol (MCP)** endpoint lets AI coding agents create documents
 and hand back a review URL, so a long-form plan or spec gets considered human
 feedback instead of scrolling past in a terminal. A companion **site-review**
-widget — a preview, not yet release-ready — brings the same select-and-comment
+widget brings the same select-and-comment
 flow to live web pages.
 
 ## Start here
