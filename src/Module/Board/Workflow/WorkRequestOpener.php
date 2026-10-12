@@ -11,6 +11,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
+use App\Module\Bridge\Command\WorkRequestAlreadyLive;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\ActionContext;
@@ -66,10 +67,10 @@ final readonly class WorkRequestOpener implements WorkOpener
                 context: $this->context($card, $facts, $documentId, $reason),
                 prompt: $context->prompt,
             ));
-        } catch (DomainErrors $e) {
-            return \in_array(OpenWorkRequestHandler::LIVE, $e->errors, true)
-                ? ActionOutcome::alreadyLive()
-                : ActionOutcome::refused('invalid-work-request');
+        } catch (WorkRequestAlreadyLive $e) {
+            return ActionOutcome::alreadyLive($e->ruleId);
+        } catch (DomainErrors) {
+            return ActionOutcome::refused('invalid-work-request');
         }
 
         return ActionOutcome::done($request->id);
