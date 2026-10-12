@@ -15,6 +15,7 @@ use League\Bundle\OAuth2ServerBundle\ValueObject\RedirectUri;
 use League\Bundle\OAuth2ServerBundle\ValueObject\Scope;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DomCrawler\Form;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -122,8 +123,7 @@ final readonly class OAuthScenario
     public function grantTokens(KernelBrowser $browser, User $user, Project $project, array $authorizeOverrides = [], array $tokenParameters = []): array
     {
         $browser->loginUser($user);
-        $crawler = $browser->request(Request::METHOD_GET, $this->authorizeUrl('mcp', $authorizeOverrides));
-        $browser->submit($crawler->selectButton('consent_form_approve')->form([
+        $browser->submit(self::consentForm($browser, $this->authorizeUrl('mcp', $authorizeOverrides), [
             'consent_form[project]' => (string) $project->id,
         ]));
         $query = self::redirectQuery((string) $browser->getResponse()->headers->get('Location'));
@@ -156,8 +156,7 @@ final readonly class OAuthScenario
     public function accessTokenFor(KernelBrowser $browser, User $user, string $scope, ?Project $project = null): string
     {
         $browser->loginUser($user);
-        $crawler = $browser->request(Request::METHOD_GET, $this->authorizeUrl($scope));
-        $form = $crawler->selectButton('consent_form_approve')->form();
+        $form = self::consentForm($browser, $this->authorizeUrl($scope));
         if (null !== $project) {
             $form['consent_form[project]'] = (string) $project->id;
         }
@@ -175,6 +174,25 @@ final readonly class OAuthScenario
         return \is_string($tokens['access_token'] ?? null)
             ? $tokens['access_token']
             : throw new \LogicException('the token endpoint issued no access token: '.json_encode($tokens));
+    }
+
+    /**
+     * The consent form at $authorizeUrl. When the page has no form, the
+     * exception shows what the server answered instead.
+     *
+     * @param array<string, string> $values
+     */
+    private static function consentForm(KernelBrowser $browser, string $authorizeUrl, array $values = []): Form
+    {
+        $button = $browser->request(Request::METHOD_GET, $authorizeUrl)->selectButton('consent_form_approve');
+        if (0 < $button->count()) {
+            return $button->form($values);
+        }
+
+        $response = $browser->getResponse();
+        $body = trim((string) preg_replace('/\s+/', ' ', strip_tags((string) preg_replace('#<(script|style)\b.*?</\1>#is', '', (string) $response->getContent()))));
+
+        throw new \LogicException(\sprintf('GET %s returned no consent form: status %d, Location "%s", Content-Type "%s", body "%s".', $authorizeUrl, $response->getStatusCode(), (string) $response->headers->get('Location'), (string) $response->headers->get('Content-Type'), mb_substr($body, 0, 800)));
     }
 
     /**
