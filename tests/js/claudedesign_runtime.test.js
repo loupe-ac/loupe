@@ -176,6 +176,49 @@ it('keeps focus when a sibling before the input disappears', () =>
             `${R.T(s.q) ? '' : '<p>empty</p>'}<input name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}">`,
     ));
 
+it('keeps focus when the input swaps places with a keyed sibling', () =>
+    focusAcross((s, h, R) => {
+        const q = `<input id="q" name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}">`;
+        const other = '<input id="other">';
+
+        return R.T(s.q) ? other + q : q + other;
+    }));
+
+it('keeps focus when a keyed sibling moves after the focused input', () =>
+    focusAcross((s, h, R) => {
+        const q = `<input id="q" name="q" value="${R.q(s.q)}" data-on-input="${h(s.type)}">`;
+        const other = '<input id="other">';
+
+        return R.T(s.q) ? q + other : other + q;
+    }));
+
+it('keeps keyed siblings and their values when they reorder', async () => {
+    class C extends LoupeView {
+        renderVals() {
+            return {
+                flip: !!this.state.flip,
+                go: () => this.setState({ flip: !this.state.flip }),
+            };
+        }
+    }
+    const render = (s, h, R) =>
+        `<button data-on-click="${h(s.go)}"></button>` +
+        (R.T(s.flip)
+            ? '<input id="c"><input id="b"><input id="a">'
+            : '<input id="a"><input id="b"><input id="c">');
+    LoupeView.mount(C, render, {}, ['click'], {});
+    const before = Array.from(document.querySelectorAll('input'));
+    before.forEach((el) => {
+        el.value = el.id + '!';
+    });
+    document.querySelector('button').click();
+    await settle();
+    const after = Array.from(document.querySelectorAll('input'));
+    expect(after.map((el) => el.id)).toEqual(['c', 'b', 'a']);
+    [2, 1, 0].forEach((i, at) => expect(after[at]).toBe(before[i]));
+    expect(after.map((el) => el.value)).toEqual(['c!', 'b!', 'a!']);
+});
+
 it('syncs a checkbox from the new markup', async () => {
     class C extends LoupeView {
         renderVals() {

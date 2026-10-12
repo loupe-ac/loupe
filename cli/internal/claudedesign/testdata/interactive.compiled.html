@@ -164,25 +164,38 @@ class LoupeView {
     }
 
     static _morph(parent, olds, news, before) {
-        let j = 0;
+        let pool = olds.slice();
         for (const n of news) {
-            let k = j;
-            while (k < olds.length && !LoupeView._same(olds[k], n)) {
-                k++;
-            }
-            if (k === olds.length) {
-                parent.insertBefore(n, olds[j] || before || null);
+            const k = pool.findIndex((o) => LoupeView._same(o, n));
+            if (k < 0) {
+                parent.insertBefore(n, pool[0] || before || null);
                 continue;
             }
-            for (; j < k; j++) {
-                parent.removeChild(olds[j]);
+            const o = pool[k];
+            const kept = [];
+            for (const s of pool.slice(0, k)) {
+                if (LoupeView._keyed(s)) {
+                    kept.push(s);
+                } else {
+                    parent.removeChild(s);
+                }
             }
-            LoupeView._update(olds[j], n);
-            j++;
+            if (kept.length > 0 && o.contains(document.activeElement)) {
+                const after = o.nextSibling;
+                kept.forEach((s) => parent.insertBefore(s, after));
+            } else if (kept.length > 0) {
+                parent.insertBefore(o, kept[0]);
+            }
+            pool = kept.concat(pool.slice(k + 1));
+            LoupeView._update(o, n);
         }
-        for (; j < olds.length; j++) {
-            parent.removeChild(olds[j]);
-        }
+        pool.forEach((o) => parent.removeChild(o));
+    }
+
+    static _keyed(o) {
+        return (
+            o.nodeType === 1 && (o.hasAttribute('id') || o.hasAttribute('name'))
+        );
     }
 
     static _same(o, n) {
