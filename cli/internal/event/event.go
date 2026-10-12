@@ -92,7 +92,7 @@ const (
 
 // ErrUnknownType marks an event this build does not handle. A newer server
 // publishes types an older binary has never heard of, so the caller drops these
-// without reporting them.
+// rather than report them as malformed.
 var ErrUnknownType = errors.New("unknown event type")
 
 // uuidPattern is the shape of a Loupe identifier. projectId and the subject id
@@ -132,10 +132,10 @@ func ForAnotherBridge(data []byte, bridgeID string) bool {
 // Parse decodes a Mercure data payload into an Event.
 //
 // The two hold types and project.renamed are parsed, with their own fields
-// checked. A command and a work request have their own parsers, so Parse
-// drops both as unknown, and any other type too. The type is checked rather
-// than assumed: without it any well-formed JSON, `{}` included, would reach
-// the router.
+// checked. Any other type returns ErrUnknownType. A command and a work request
+// have their own parsers, which the caller picks by type. The type is checked
+// rather than assumed: without it any well-formed JSON, `{}` included, would
+// reach the router.
 func Parse(data []byte) (Event, error) {
 	var e Event
 	if err := json.Unmarshal(data, &e); err != nil {
