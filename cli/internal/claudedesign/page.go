@@ -51,6 +51,9 @@ type page struct {
 	gaps []artifactcompile.Gap
 	// kept holds the markers and the source fragments kept after them.
 	kept map[*html.Node]bool
+	// keptSelf holds the nodes that keep source text after a marker. Their
+	// children are still checked.
+	keptSelf map[*html.Node]bool
 }
 
 func (p *page) addGap(n *html.Node, pr problem) *html.Node {
@@ -118,7 +121,7 @@ func isTag(name string) func(*html.Node) bool {
 
 // compilePage compiles one canvas file to a page.
 func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
-	p := &page{file: file, kept: map[*html.Node]bool{}}
+	p := &page{file: file, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
 		return markTop(src, artifactcompile.Gap{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}),
@@ -132,7 +135,8 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 	}
 
 	scope := map[string]any{}
-	if script := find(doc, isCanvasScript); script != nil {
+	script := find(doc, isCanvasScript)
+	if script != nil {
 		scope = p.scriptScope(script)
 	}
 
@@ -149,6 +153,9 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 	}
 	for _, g := range p.gaps {
 		body.AppendChild(p.marker(g))
+	}
+	if len(p.gaps) > 0 {
+		body.AppendChild(p.keep(cloneDeep(script)))
 	}
 	for c := root.FirstChild; c != nil; c = c.NextSibling {
 		dest := body
@@ -193,7 +200,7 @@ func (p *page) markLeftovers(n *html.Node) {
 		if p.kept[c] {
 			continue
 		}
-		if bad := leftIn(c); bad != "" {
+		if bad := leftIn(c); bad != "" && !p.keptSelf[c] {
 			n.InsertBefore(p.addGap(c, problem{"canvas text left in the output", fmt.Sprintf("%q is left in the page", bad)}), c)
 		}
 		p.markLeftovers(c)
@@ -346,19 +353,10 @@ func (p *page) expandNode(n *html.Node, scope map[string]any) []*html.Node {
 	return p.expandElement(n, scope)
 }
 
-func (p *page) holePath(s string) (string, bool) {
-	m := soleRe.FindStringSubmatch(s)
-	if m == nil || !pathRe.MatchString(m[1]) {
-		return "", false
-	}
-
-	return m[1], true
-}
-
 func (p *page) expandFor(n *html.Node, scope map[string]any) []*html.Node {
 	listAttr, _ := attrOf(n, "list")
 	as, _ := attrOf(n, "as")
-	path, ok := p.holePath(listAttr)
+	path, ok := plainHole(listAttr)
 	if !ok || as == "" {
 		return p.rawGap(n, problem{"<sc-for> without a plain list and as", fmt.Sprintf("list=%q as=%q", listAttr, as)})
 	}
@@ -387,19 +385,15 @@ func (p *page) pruned(n *html.Node) []*html.Node {
 	var marks []*html.Node
 	var walk func(*html.Node)
 	walk = func(c *html.Node) {
-		if c.Type != html.ElementNode {
-			return
+		var problems []problem
+		switch c.Type {
+		case html.TextNode:
+			problems = textProblems(c)
+		case html.ElementNode:
+			problems = elementProblems(c)
 		}
-		switch {
-		case c.Data == "sc-else":
-			marks = append(marks, p.addGap(c, problem{"<sc-else>", "write the else branch by hand"}))
-		case strings.HasPrefix(c.Data, "dc-"):
-			marks = append(marks, p.addGap(c, problem{"<" + c.Data + "> (an embedded artboard)", "paste the markup of the artboard here"}))
-		}
-		for _, a := range c.Attr {
-			if eventAttrRe.MatchString(a.Key) {
-				marks = append(marks, p.addGap(c, eventProblem(a)))
-			}
+		for _, pr := range problems {
+			marks = append(marks, p.addGap(c, pr))
 		}
 		for k := c.FirstChild; k != nil; k = k.NextSibling {
 			walk(k)
@@ -415,13 +409,94 @@ func (p *page) pruned(n *html.Node) []*html.Node {
 	return append(marks, p.keep(cloneDeep(n)))
 }
 
+// elementProblems gives the problems of an element that hold whatever the
+// values, as the expansion finds them.
+func elementProblems(n *html.Node) []problem {
+	var out []problem
+	switch {
+	case n.Data == "sc-else":
+		out = append(out, problem{"<sc-else>", "write the else branch by hand"})
+	case strings.HasPrefix(n.Data, "dc-"):
+		out = append(out, problem{"<" + n.Data + "> (an embedded artboard)", "paste the markup of the artboard here"})
+	case n.Data == "sc-for":
+		listAttr, _ := attrOf(n, "list")
+		as, _ := attrOf(n, "as")
+		if _, ok := plainHole(listAttr); !ok || as == "" {
+			out = append(out, problem{"<sc-for> without a plain list and as", fmt.Sprintf("list=%q as=%q", listAttr, as)})
+		}
+	case n.Data == "sc-if":
+		val, _ := attrOf(n, "value")
+		if _, ok := plainHole(val); !ok {
+			out = append(out, problem{"<sc-if> without a plain value", fmt.Sprintf("value=%q", val)})
+		}
+	}
+	for _, a := range n.Attr {
+		switch {
+		case a.Key == lineAttr, strings.HasPrefix(a.Key, "hint-placeholder-"), controlAttr(n, a.Key):
+		case eventAttrRe.MatchString(a.Key):
+			out = append(out, eventProblem(a))
+		case a.Key == "dangerouslysetinnerhtml":
+			if _, ok := plainHole(a.Val); !ok {
+				out = append(out, problem{"dangerouslySetInnerHTML without a plain path", a.Val})
+			}
+		default:
+			out = append(out, sourceProblems(a.Val)...)
+		}
+	}
+
+	return out
+}
+
+// controlAttr says whether an attribute steers an <sc-for> or an <sc-if>.
+func controlAttr(n *html.Node, key string) bool {
+	return (n.Data == "sc-for" && (key == "list" || key == "as")) || (n.Data == "sc-if" && key == "value")
+}
+
+// textProblems gives the problems of a text node that hold whatever the values.
+func textProblems(n *html.Node) []problem {
+	if n.Parent != nil && (n.Parent.Data == "style" || n.Parent.Data == "script") {
+		if strings.Contains(n.Data, "/_blob/") {
+			return []problem{{"a /_blob/ path", "in " + n.Parent.Data}}
+		}
+
+		return nil
+	}
+
+	return sourceProblems(n.Data)
+}
+
+// sourceProblems gives the problems of a string that hold whatever the values.
+func sourceProblems(s string) []problem {
+	var out []problem
+	if strings.Contains(s, "/_blob/") {
+		out = append(out, problem{"a /_blob/ path", s})
+	}
+	for _, m := range holeRe.FindAllStringSubmatch(s, -1) {
+		if !pathRe.MatchString(m[1]) {
+			out = append(out, problem{"a hole that is not a plain path", m[0]})
+		}
+	}
+
+	return out
+}
+
+// plainHole gives the path of a string that is one plain hole.
+func plainHole(s string) (string, bool) {
+	m := soleRe.FindStringSubmatch(s)
+	if m == nil || !pathRe.MatchString(m[1]) {
+		return "", false
+	}
+
+	return m[1], true
+}
+
 func eventProblem(a html.Attribute) problem {
 	return problem{"event attribute " + a.Key, fmt.Sprintf("%s=%q needs a handler written by hand", a.Key, a.Val)}
 }
 
 func (p *page) expandIf(n *html.Node, scope map[string]any) []*html.Node {
 	val, _ := attrOf(n, "value")
-	path, ok := p.holePath(val)
+	path, ok := plainHole(val)
 	if !ok {
 		return p.rawGap(n, problem{"<sc-if> without a plain value", fmt.Sprintf("value=%q", val)})
 	}
@@ -432,24 +507,21 @@ func (p *page) expandIf(n *html.Node, scope map[string]any) []*html.Node {
 	return p.expandChildren(n, scope)
 }
 
-// interpolate fills the holes of a string. A hole it cannot fill prints as
-// nothing and comes back as a problem.
+// interpolate fills the holes of a string. A hole it cannot fill keeps its
+// source and comes back as a problem.
 func interpolate(s string, scope map[string]any) (string, []problem) {
-	var problems []problem
-	if strings.Contains(s, "/_blob/") {
-		problems = append(problems, problem{"a /_blob/ path", s})
-	}
+	problems := sourceProblems(s)
 	out := holeRe.ReplaceAllStringFunc(s, func(h string) string {
 		path := holeRe.FindStringSubmatch(h)[1]
 		if !pathRe.MatchString(path) {
-			problems = append(problems, problem{"a hole that is not a plain path", h})
-
-			return ""
+			return h
 		}
 		v, _ := lookup(scope, path)
 		t, ok := text(v)
 		if !ok {
 			problems = append(problems, problem{"a hole whose value is not text", h})
+
+			return h
 		}
 
 		return t
@@ -461,8 +533,8 @@ func interpolate(s string, scope map[string]any) (string, []problem) {
 func (p *page) expandText(n *html.Node, scope map[string]any) []*html.Node {
 	if n.Parent != nil && (n.Parent.Data == "style" || n.Parent.Data == "script") {
 		var out []*html.Node
-		if strings.Contains(n.Data, "/_blob/") {
-			out = append(out, p.addGap(n, problem{"a /_blob/ path", "in " + n.Parent.Data}))
+		for _, pr := range textProblems(n) {
+			out = append(out, p.addGap(n, pr))
 		}
 
 		return append(out, cloneDeep(n))
@@ -472,8 +544,12 @@ func (p *page) expandText(n *html.Node, scope map[string]any) []*html.Node {
 	for _, pr := range problems {
 		out = append(out, p.addGap(n, pr))
 	}
+	t := &html.Node{Type: html.TextNode, Data: s}
+	if len(problems) > 0 {
+		p.keptSelf[t] = true
+	}
 
-	return append(out, &html.Node{Type: html.TextNode, Data: s})
+	return append(out, t)
 }
 
 func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
@@ -492,6 +568,9 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 			markup, pr := innerHTML(a.Val, scope)
 			if pr != nil {
 				marks = append(marks, p.addGap(n, *pr))
+				el.Attr = append(el.Attr, a)
+
+				continue
 			}
 			inner = &markup
 		default:
@@ -519,16 +598,20 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 		}
 	}
 
+	if len(marks) > 0 {
+		p.keptSelf[el] = true
+	}
+
 	return append(marks, el)
 }
 
 // innerHTML gives the markup of a dangerouslySetInnerHTML hole.
 func innerHTML(val string, scope map[string]any) (string, *problem) {
-	m := soleRe.FindStringSubmatch(val)
-	if m == nil || !pathRe.MatchString(m[1]) {
+	path, ok := plainHole(val)
+	if !ok {
 		return "", &problem{"dangerouslySetInnerHTML without a plain path", val}
 	}
-	v, _ := lookup(scope, m[1])
+	v, _ := lookup(scope, path)
 	if obj, ok := v.(map[string]any); ok {
 		v = obj["__html"]
 	}

@@ -2,6 +2,7 @@ package claudedesign
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/ubermuda/loupe/cli/internal/api"
 	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
 )
+
+var markerRe = regexp.MustCompile(`<!-- loupe:gap .*? -->`)
 
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
@@ -268,14 +271,19 @@ func TestACanvasScriptInTheHeadIsRemoved(t *testing.T) {
 func TestAnUnsupportedFeatureInABranchThatDoesNotRenderIsAGap(t *testing.T) {
 	script := `class Component extends DCLogic { renderVals() { return { no: false, none: [] }; } }`
 	cases := map[string]struct{ markup, feature string }{
-		"a false sc-if":    {"<sc-if value=\"{{ no }}\"><div><button onclick=\"go()\">x</button></div></sc-if>", "event attribute onclick"},
-		"an empty sc-for":  {"<sc-for list=\"{{ none }}\" as=\"i\"><dc-import src=\"B.dc.html\"></dc-import></sc-for>", "<dc-import> (an embedded artboard)"},
-		"a nested sc-else": {"<sc-if value=\"{{ no }}\"><sc-else><p>x</p></sc-else></sc-if>", "<sc-else>"},
+		"a false sc-if":     {"<sc-if value=\"{{ no }}\"><div><button onclick=\"go()\">x</button></div></sc-if>", "event attribute onclick"},
+		"an empty sc-for":   {"<sc-for list=\"{{ none }}\" as=\"i\"><dc-import src=\"B.dc.html\"></dc-import></sc-for>", "<dc-import> (an embedded artboard)"},
+		"a nested sc-else":  {"<sc-if value=\"{{ no }}\"><sc-else><p>x</p></sc-else></sc-if>", "<sc-else>"},
+		"a blob path":       {"<sc-if value=\"{{ no }}\"><img src=\"/_blob/x.png\"></sc-if>", "a /_blob/ path"},
+		"a blob in a style": {"<sc-for list=\"{{ none }}\" as=\"i\"><style>a { background: url(/_blob/x.png) }</style></sc-for>", "a /_blob/ path"},
+		"an expression":     {"<sc-if value=\"{{ no }}\"><p>{{ a + b }}</p></sc-if>", "a hole that is not a plain path"},
+		"a nested sc-if":    {"<sc-if value=\"{{ no }}\"><sc-if value=\"{{ a || b }}\"><p>x</p></sc-if></sc-if>", "<sc-if> without a plain value"},
+		"an inner html":     {"<sc-if value=\"{{ no }}\"><div dangerouslySetInnerHTML=\"{{ a + b }}\"></div></sc-if>", "dangerouslySetInnerHTML without a plain path"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			res := compile(t, canvas("A.dc.html", scripted(script, "<p>a</p>\n"+c.markup)))
-			if len(res.Gaps) == 0 || res.Gaps[0].Feature != c.feature || res.Gaps[0].Line != 4 {
+			if len(res.Gaps) != 1 || res.Gaps[0].Feature != c.feature || res.Gaps[0].Line != 4 {
 				t.Fatalf("gaps = %+v", res.Gaps)
 			}
 			if !strings.Contains(one(t, res, "index.html"), "<!-- loupe:gap "+c.feature) {
@@ -313,5 +321,30 @@ func TestAnEventAttributeStaysAfterItsMarker(t *testing.T) {
 	i, j := strings.Index(page, "<!-- loupe:gap event attribute onclick"), strings.Index(page, `<button class="b" onclick="go()">x</button>`)
 	if i < 0 || j < i {
 		t.Fatalf("page:\n%s", page)
+	}
+}
+
+func TestAMarkerKeepsTheSourceOfAnUnsupportedValue(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { a: 1, o: {x: 1} }; } }`
+	cases := map[string]struct{ file, source string }{
+		"an expression in text":         {scripted(script, "<p>{{ a + 1 }}</p>"), "{{ a + 1 }}"},
+		"an object in text":             {scripted(script, "<p>{{ o }}</p>"), "{{ o }}"},
+		"an expression in an attribute": {scripted(script, `<p title="{{ a + 1 }}">x</p>`), `title="{{ a + 1 }}"`},
+		"an inner html expression":      {scripted(script, `<div dangerouslySetInnerHTML="{{ a + 1 }}"></div>`), `dangerouslysetinnerhtml="{{ a + 1 }}"`},
+		"a failing script":              {scripted(`class Component extends DCLogic { renderVals() { throw new Error("boom"); } }`, "<p>a</p>"), `throw new Error("boom")`},
+		"data-props that is not JSON":   {"<html><head></head><body>\n<x-dc><p>a</p></x-dc>\n<script type=\"text/x-dc\" data-dc-script data-props=\"{bad\">\n" + script + "\n</script>\n</body></html>", "renderVals"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, canvas("A.dc.html", c.file))
+			page := one(t, res, "index.html")
+			if len(res.Gaps) == 0 || strings.Count(page, "<!-- loupe:gap") != len(res.Gaps) {
+				t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, page)
+			}
+			i := strings.Index(page, "<!-- loupe:gap")
+			if i < 0 || !strings.Contains(markerRe.ReplaceAllString(page[i:], ""), c.source) {
+				t.Fatalf("no %q after the marker in\n%s", c.source, page)
+			}
+		})
 	}
 }
