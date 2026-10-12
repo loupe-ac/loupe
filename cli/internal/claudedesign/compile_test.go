@@ -252,3 +252,66 @@ func TestTheCompilerIsRegistered(t *testing.T) {
 		t.Fatalf("res = %+v, err = %v", res, err)
 	}
 }
+
+func TestACanvasScriptInTheHeadIsRemoved(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", "<html><head>\n<script type=\"text/x-dc\" data-dc-script>\nclass Component extends DCLogic { renderVals() { return { t: 'Hi' }; } }\n</script>\n</head><body>\n<x-dc>\n<h1>{{ t }}</h1>\n<helmet><script data-dc-script>DCLogic</script></helmet>\n</x-dc>\n</body></html>"))
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	page := one(t, res, "index.html")
+	assertClean(t, page)
+	if !strings.Contains(page, "<h1>Hi</h1>") {
+		t.Fatalf("page:\n%s", page)
+	}
+}
+
+func TestAnUnsupportedFeatureInABranchThatDoesNotRenderIsAGap(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { no: false, none: [] }; } }`
+	cases := map[string]struct{ markup, feature string }{
+		"a false sc-if":    {"<sc-if value=\"{{ no }}\"><div><button onclick=\"go()\">x</button></div></sc-if>", "event attribute onclick"},
+		"an empty sc-for":  {"<sc-for list=\"{{ none }}\" as=\"i\"><dc-import src=\"B.dc.html\"></dc-import></sc-for>", "<dc-import> (an embedded artboard)"},
+		"a nested sc-else": {"<sc-if value=\"{{ no }}\"><sc-else><p>x</p></sc-else></sc-if>", "<sc-else>"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			res := compile(t, canvas("A.dc.html", scripted(script, "<p>a</p>\n"+c.markup)))
+			if len(res.Gaps) == 0 || res.Gaps[0].Feature != c.feature || res.Gaps[0].Line != 4 {
+				t.Fatalf("gaps = %+v", res.Gaps)
+			}
+			if !strings.Contains(one(t, res, "index.html"), "<!-- loupe:gap "+c.feature) {
+				t.Fatalf("no marker in\n%s", one(t, res, "index.html"))
+			}
+		})
+	}
+}
+
+func TestABranchThatDoesNotRenderAndHoldsNoGapIsDropped(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", scripted(`class Component extends DCLogic { renderVals() { return { no: false }; } }`, `<sc-if value="{{ no }}"><p>hidden</p></sc-if>`)))
+	if len(res.Gaps) != 0 || strings.Contains(one(t, res, "index.html"), "hidden") {
+		t.Fatalf("gaps = %+v, page:\n%s", res.Gaps, one(t, res, "index.html"))
+	}
+}
+
+func TestLeftoverCanvasTextIsMarkedBesideAnotherGap(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", wrap("<button onclick=\"go()\">x</button>\n<p>see Pricing.dc.html</p>")))
+	features := map[string]bool{}
+	for _, g := range res.Gaps {
+		features[g.Feature] = true
+	}
+	if !features["event attribute onclick"] || !features["canvas text left in the output"] {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	page := one(t, res, "index.html")
+	if strings.Count(page, "<!-- loupe:gap") != len(res.Gaps) {
+		t.Fatalf("%d gaps, page:\n%s", len(res.Gaps), page)
+	}
+}
+
+func TestAnEventAttributeStaysAfterItsMarker(t *testing.T) {
+	res := compile(t, canvas("A.dc.html", wrap(`<button class="b" onclick="go()">x</button>`)))
+	page := one(t, res, "index.html")
+	i, j := strings.Index(page, "<!-- loupe:gap event attribute onclick"), strings.Index(page, `<button class="b" onclick="go()">x</button>`)
+	if i < 0 || j < i {
+		t.Fatalf("page:\n%s", page)
+	}
+}

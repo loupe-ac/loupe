@@ -49,12 +49,27 @@ type problem struct{ feature, detail string }
 type page struct {
 	file string
 	gaps []artifactcompile.Gap
+	// kept holds the markers and the source fragments kept after them.
+	kept map[*html.Node]bool
 }
 
 func (p *page) addGap(n *html.Node, pr problem) *html.Node {
 	p.gaps = append(p.gaps, artifactcompile.Gap{File: p.file, Line: lineOf(n), Feature: pr.feature, Detail: pr.detail})
 
-	return &html.Node{Type: html.CommentNode, Data: strings.TrimSuffix(strings.TrimPrefix(Marker(p.gaps[len(p.gaps)-1]), "<!--"), "-->")}
+	return p.marker(p.gaps[len(p.gaps)-1])
+}
+
+func (p *page) marker(g artifactcompile.Gap) *html.Node {
+	m := &html.Node{Type: html.CommentNode, Data: strings.TrimSuffix(strings.TrimPrefix(Marker(g), "<!--"), "-->")}
+	p.kept[m] = true
+
+	return m
+}
+
+func (p *page) keep(n *html.Node) *html.Node {
+	p.kept[n] = true
+
+	return n
 }
 
 func lineOf(n *html.Node) int {
@@ -103,7 +118,7 @@ func isTag(name string) func(*html.Node) bool {
 
 // compilePage compiles one canvas file to a page.
 func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
-	p := &page{file: file}
+	p := &page{file: file, kept: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
 		return markTop(src, artifactcompile.Gap{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}),
@@ -117,7 +132,7 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 	}
 
 	scope := map[string]any{}
-	if script := find(doc, func(n *html.Node) bool { _, ok := attrOf(n, "data-dc-script"); return n.Data == "script" && ok }); script != nil {
+	if script := find(doc, isCanvasScript); script != nil {
 		scope = p.scriptScope(script)
 	}
 
@@ -133,7 +148,7 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 		}
 	}
 	for _, g := range p.gaps {
-		body.AppendChild(&html.Node{Type: html.CommentNode, Data: strings.TrimSuffix(strings.TrimPrefix(Marker(g), "<!--"), "-->")})
+		body.AppendChild(p.marker(g))
 	}
 	for c := root.FirstChild; c != nil; c = c.NextSibling {
 		dest := body
@@ -158,6 +173,7 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 	out.AppendChild(htmlEl)
 	htmlEl.AppendChild(head)
 	htmlEl.AppendChild(body)
+	p.markLeftovers(out)
 	stripLines(out)
 
 	var buf bytes.Buffer
@@ -166,11 +182,43 @@ func compilePage(file string, src []byte) ([]byte, []artifactcompile.Gap) {
 
 		return markTop(src, g), []artifactcompile.Gap{g}
 	}
-	if len(p.gaps) > 0 {
-		return buf.Bytes(), p.gaps
+
+	return buf.Bytes(), p.gaps
+}
+
+// markLeftovers marks the canvas text left in the page, outside the source
+// fragments that a marker already covers.
+func (p *page) markLeftovers(n *html.Node) {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if p.kept[c] {
+			continue
+		}
+		if bad := leftIn(c); bad != "" {
+			n.InsertBefore(p.addGap(c, problem{"canvas text left in the output", fmt.Sprintf("%q is left in the page", bad)}), c)
+		}
+		p.markLeftovers(c)
+	}
+}
+
+func leftIn(n *html.Node) string {
+	texts := []string{n.Data}
+	if n.Type == html.ElementNode {
+		texts = []string{"<" + n.Data}
+		for _, a := range n.Attr {
+			if !eventAttrRe.MatchString(a.Key) {
+				texts = append(texts, a.Val)
+			}
+		}
+	}
+	for _, t := range texts {
+		for _, bad := range forbidden {
+			if strings.Contains(t, bad) {
+				return bad
+			}
+		}
 	}
 
-	return checkOutput(file, buf.Bytes())
+	return ""
 }
 
 func blank(n *html.Node) bool {
@@ -185,7 +233,7 @@ func dropFromHead(n *html.Node) bool {
 	case "script":
 		src, _ := attrOf(n, "src")
 
-		return strings.HasSuffix(src, "support.js")
+		return strings.HasSuffix(src, "support.js") || isCanvasScript(n)
 	case "meta":
 		_, charset := attrOf(n, "charset")
 		name, _ := attrOf(n, "name")
@@ -194,6 +242,12 @@ func dropFromHead(n *html.Node) bool {
 	}
 
 	return false
+}
+
+func isCanvasScript(n *html.Node) bool {
+	_, ok := attrOf(n, "data-dc-script")
+
+	return n.Type == html.ElementNode && n.Data == "script" && ok
 }
 
 func cloneDeep(n *html.Node) *html.Node {
@@ -264,7 +318,7 @@ func (p *page) expandChildren(n *html.Node, scope map[string]any) []*html.Node {
 
 // rawGap marks a node the compiler cannot handle, and keeps its source.
 func (p *page) rawGap(n *html.Node, pr problem) []*html.Node {
-	return []*html.Node{p.addGap(n, pr), cloneDeep(n)}
+	return []*html.Node{p.addGap(n, pr), p.keep(cloneDeep(n))}
 }
 
 func (p *page) expandNode(n *html.Node, scope map[string]any) []*html.Node {
@@ -277,6 +331,8 @@ func (p *page) expandNode(n *html.Node, scope map[string]any) []*html.Node {
 	}
 
 	switch {
+	case isCanvasScript(n):
+		return nil
 	case n.Data == "sc-for":
 		return p.expandFor(n, scope)
 	case n.Data == "sc-if":
@@ -318,7 +374,49 @@ func (p *page) expandFor(n *html.Node, scope map[string]any) []*html.Node {
 		out = append(out, p.expandChildren(n, inner)...)
 	}
 
+	if len(items) == 0 {
+		return p.pruned(n)
+	}
+
 	return out
+}
+
+// pruned drops a branch that does not render. An unsupported feature inside it
+// is still a gap, so the branch then stays as source after its markers.
+func (p *page) pruned(n *html.Node) []*html.Node {
+	var marks []*html.Node
+	var walk func(*html.Node)
+	walk = func(c *html.Node) {
+		if c.Type != html.ElementNode {
+			return
+		}
+		switch {
+		case c.Data == "sc-else":
+			marks = append(marks, p.addGap(c, problem{"<sc-else>", "write the else branch by hand"}))
+		case strings.HasPrefix(c.Data, "dc-"):
+			marks = append(marks, p.addGap(c, problem{"<" + c.Data + "> (an embedded artboard)", "paste the markup of the artboard here"}))
+		}
+		for _, a := range c.Attr {
+			if eventAttrRe.MatchString(a.Key) {
+				marks = append(marks, p.addGap(c, eventProblem(a)))
+			}
+		}
+		for k := c.FirstChild; k != nil; k = k.NextSibling {
+			walk(k)
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		walk(c)
+	}
+	if len(marks) == 0 {
+		return nil
+	}
+
+	return append(marks, p.keep(cloneDeep(n)))
+}
+
+func eventProblem(a html.Attribute) problem {
+	return problem{"event attribute " + a.Key, fmt.Sprintf("%s=%q needs a handler written by hand", a.Key, a.Val)}
 }
 
 func (p *page) expandIf(n *html.Node, scope map[string]any) []*html.Node {
@@ -328,7 +426,7 @@ func (p *page) expandIf(n *html.Node, scope map[string]any) []*html.Node {
 		return p.rawGap(n, problem{"<sc-if> without a plain value", fmt.Sprintf("value=%q", val)})
 	}
 	if v, found := lookup(scope, path); !found || !truthy(v) {
-		return nil
+		return p.pruned(n)
 	}
 
 	return p.expandChildren(n, scope)
@@ -388,7 +486,8 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 			el.Attr = append(el.Attr, a)
 		case strings.HasPrefix(a.Key, "hint-placeholder-"):
 		case eventAttrRe.MatchString(a.Key):
-			marks = append(marks, p.addGap(n, problem{"event attribute " + a.Key, fmt.Sprintf("%s=%q was removed", a.Key, a.Val)}))
+			marks = append(marks, p.addGap(n, eventProblem(a)))
+			el.Attr = append(el.Attr, a)
 		case a.Key == "dangerouslysetinnerhtml":
 			markup, pr := innerHTML(a.Val, scope)
 			if pr != nil {

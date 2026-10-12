@@ -3,8 +3,6 @@
 package claudedesign
 
 import (
-	"bytes"
-	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -106,28 +104,3 @@ func Marker(g artifactcompile.Gap) string {
 
 // forbidden is text a compiled page must not hold.
 var forbidden = []string{canvasSuffix, "{{", "<sc-", "DCLogic", "support.js"}
-
-// checkOutput finds the canvas text that is left in a compiled page, and
-// writes a marker before each line that holds it.
-func checkOutput(file string, page []byte) ([]byte, []artifactcompile.Gap) {
-	lines := bytes.Split(page, []byte("\n"))
-	var gaps []artifactcompile.Gap
-	var out [][]byte
-	for i, line := range lines {
-		for _, bad := range forbidden {
-			if bytes.Contains(line, []byte(bad)) {
-				g := artifactcompile.Gap{File: file, Line: i + 1, Feature: "canvas text left in the output", Detail: fmt.Sprintf("%q is on line %d of the compiled page", bad, i+1)}
-				gaps = append(gaps, g)
-				out = append(out, []byte(Marker(g)))
-
-				break
-			}
-		}
-		out = append(out, line)
-	}
-	if len(gaps) == 0 {
-		return page, nil
-	}
-
-	return bytes.Join(out, []byte("\n")), gaps
-}
