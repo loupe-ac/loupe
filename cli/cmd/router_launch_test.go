@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -44,11 +45,25 @@ func launchHarness(t *testing.T, launcher string) (*harness, *stateRecorder) {
 	return launchHarnessWith(t, launchRules, launcher)
 }
 
+// claudeOnPath puts an executable claude first on the PATH of the test and
+// returns its path. A launch finds the program on the PATH of its account.
+func claudeOnPath(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "claude")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	return path
+}
+
 // launchHarnessWith is launchHarness on body.
 func launchHarnessWith(t *testing.T, body, launcher string) (*harness, *stateRecorder) {
 	t.Helper()
+	claudeOnPath(t)
 	h := newHarnessWith(t, strings.Replace(body, "{launcher}", launcher, 1), rules.Defaults{})
-	h.router.claude = "/usr/local/bin/claude"
 	h.router.scriptDir = t.TempDir()
 
 	return h, h.states()
@@ -120,7 +135,11 @@ func TestAnInteractiveMatchLaunchesASession(t *testing.T) {
 		t.Fatalf("scripts = %v", got)
 	}
 	body, _ := os.ReadFile(filepath.Join(h.router.scriptDir, testSession+".sh"))
-	want := "#!/bin/sh\nrm -f -- \"$0\"\nexport LOUPE_SESSION_ID='" + testSession + "'\ncd -- '" + h.dir + "' || exit 1\nexec '/usr/local/bin/claude' --session-id '" + testSession + "' --model 'opus' -- 'Design card 87.'\n"
+	claude, err := exec.LookPath("claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "#!/bin/sh\nrm -f -- \"$0\"\nexport LOUPE_SESSION_ID='" + testSession + "'\ncd -- '" + h.dir + "' || exit 1\nexec '" + claude + "' --session-id '" + testSession + "' --model 'opus' -- 'Design card 87.'\n"
 	if string(body) != want {
 		t.Fatalf("script = %q, want %q", body, want)
 	}
@@ -169,8 +188,9 @@ func TestAFailedLaunchReportsNotStarted(t *testing.T) {
 func TestALaunchPastItsTimeoutLaunched(t *testing.T) {
 	proof := filepath.Join(t.TempDir(), "alive")
 	body := strings.Replace(launchRules, "{launcher}", `[sh, -c, 'sleep 0.3; echo ok > "$1"', sh, '`+proof+`', '{script}']`+"\n  timeout: 50ms", 1)
+	claudeOnPath(t)
 	h := newHarnessWith(t, body, rules.Defaults{})
-	h.router.claude, h.router.scriptDir = "/usr/local/bin/claude", t.TempDir()
+	h.router.scriptDir = t.TempDir()
 	rec := h.states()
 
 	h.send(movedPayload(87, "backlog", "next", "human"))
@@ -213,8 +233,9 @@ func TestAWorkerOfTheCardStartsWhileItsLaunchRuns(t *testing.T) {
 // An event matched on the old set that reaches the queue after a reload made
 // its rule interactive opens a session.
 func TestAnEventMatchedBeforeTheSwapLaunchesOnTheNewSet(t *testing.T) {
+	claudeOnPath(t)
 	h := newHarness(t)
-	h.router.claude, h.router.scriptDir = "/usr/local/bin/claude", t.TempDir()
+	h.router.scriptDir = t.TempDir()
 	rec := h.states()
 	old := h.router.rules()
 
@@ -269,39 +290,38 @@ func TestAShutRouterLaunchesNothing(t *testing.T) {
 	}
 }
 
-func TestAReloadWithAnInteractiveRuleAndNoClaudeFails(t *testing.T) {
-	h := newHarness(t)
-	src := h.source(strings.Replace(launchRules, "{launcher}", `[sh, -c, 'exit 0', sh, '{script}']`, 1))
-	src.resolveClaude = func() (string, error) { return "", errors.New("claude is not installed or not on PATH") }
-	old := h.router.rules()
+// claude is only on the PATH of the env file of the account, not on the PATH
+// of the bridge.
+func TestALaunchFindsClaudeOnThePathOfTheAccountEnvFile(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(bin, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	program := filepath.Join(bin, "claude")
+	if err := os.WriteFile(program, []byte("#!/bin/sh\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	configDir, envPath, copied := filepath.Join(root, "claude-a"), filepath.Join(root, "a.env"), filepath.Join(root, "copy.sh")
+	writeEnv(t, envPath, "PATH="+bin+"\n")
+	body := strings.NewReplacer("{configDir}", configDir, "{envFile}", envPath).Replace(launchAccountRules)
+	h := newHarnessWith(t, strings.Replace(body, "{launcher}", `[/bin/cp, '{script}', '`+copied+`']`, 1), rules.Defaults{})
+	h.router.scriptDir = t.TempDir()
+	rec := h.states()
+	f := h.withWork()
 
-	res := h.router.reload(context.Background(), src)
-	if res.OK || res.Stage != "claude" || !slices.Equal(res.Problems, []string{"claude is not installed or not on PATH"}) {
-		t.Fatalf("result = %+v", res)
-	}
-	if h.router.rules() != old {
-		t.Fatal("the failed reload swapped the set")
-	}
-}
+	h.offer(f, workRequest(1, 87, "design", api.WorkRequestOpen))
 
-func TestAReloadTakesTheClaudePathOfAnInteractiveSet(t *testing.T) {
-	h := newHarness(t)
-	h.router.claude = "/old/claude"
-	src := h.source(defaultRules)
-	src.resolveClaude = func() (string, error) { return "", errors.New("not called") }
-	if res := h.router.reload(context.Background(), src); !res.OK {
-		t.Fatalf("a set with no interactive rule needs no claude path: %+v", res)
+	if launches := rec.launches(); len(launches) != 1 || launches[0].report.State != api.RunRunning {
+		t.Fatalf("launches = %+v", launches)
 	}
-
-	src = h.source(strings.Replace(launchRules, "{launcher}", `[sh, -c, 'exit 0', sh, '{script}']`, 1))
-	src.resolveClaude = func() (string, error) { return "/new/claude", nil }
-	if res := h.router.reload(context.Background(), src); !res.OK {
-		t.Fatalf("result = %+v", res)
+	script, err := os.ReadFile(copied)
+	if err != nil {
+		t.Fatal(err)
 	}
-	h.router.mu.Lock()
-	defer h.router.mu.Unlock()
-	if h.router.claude != "/new/claude" {
-		t.Fatalf("claude = %q", h.router.claude)
+	if !strings.Contains(string(script), "exec '"+program+"'") {
+		t.Fatalf("script = %s, want it to run %s", script, program)
 	}
 }
 
