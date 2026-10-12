@@ -449,3 +449,55 @@ it('provides the render helpers', () => {
     expect(R.raw(undefined)).toBe('');
     expect(R.raw(5)).toBe('5');
 });
+
+it('rebases a link from a value at each redraw on a moved page', async () => {
+    class C extends LoupeView {
+        constructor(p) {
+            super(p);
+            this.state = { p: 'a.png' };
+        }
+        renderVals() {
+            return {
+                p: this.state.p,
+                go: () => this.setState({ p: 'img/b.png' }),
+            };
+        }
+    }
+    const render = (s, h, R) =>
+        `<button data-on-click="${h(s.go)}">x</button><img src="${R.q(R.rb('src', s.p))}">`;
+    LoupeView.mount(C, render, {}, ['click'], {}, { from: 'site', to: '.' });
+    expect(document.querySelector('img').getAttribute('src')).toBe(
+        'site/a.png',
+    );
+    document.querySelector('button').click();
+    await settle();
+    expect(document.querySelector('img').getAttribute('src')).toBe(
+        'site/img/b.png',
+    );
+});
+
+it('leaves a link as it is when the page did not move', () => {
+    const R = LoupeView.helpers({});
+    expect(R.rb('src', 'a.png')).toBe('a.png');
+});
+
+it('points the links of markup from a value as the build does', () => {
+    const R = LoupeView.helpers(
+        { 'Pricing.dc.html': 'Pricing.html' },
+        { from: 'site', to: '.' },
+    );
+    const out = R.raw({
+        __html:
+            '<a href="Pricing.dc.html#top">p</a><img src="a.png" srcset="a.png 1x">' +
+            '<p style="background: url(bg.png)">x</p><style>.a { background: url(img/c.png) }</style>',
+    });
+    expect(out).toBe(
+        '<a href="site/Pricing.html#top">p</a><img src="site/a.png" srcset="site/a.png 1x">' +
+            '<p style="background: url(site/bg.png)">x</p><style>.a { background: url(site/img/c.png) }</style>',
+    );
+    const still = LoupeView.helpers({ 'Pricing.dc.html': 'Pricing.html' });
+    expect(still.raw('<a href="Pricing.dc.html">p</a><b>x</b>')).toBe(
+        '<a href="Pricing.html">p</a><b>x</b>',
+    );
+    expect(still.raw('<b>x</b>')).toBe('<b>x</b>');
+});

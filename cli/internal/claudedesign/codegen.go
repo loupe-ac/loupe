@@ -298,12 +298,10 @@ func (g *gen) attr(a html.Attribute, d int) error {
 		hasHole = hasHole || s.hole
 	}
 	r, moved := g.p.rebaser()
-	if hasHole && moved && rebasedAttrs[a.Key] {
-		return fmt.Errorf("%s from a value on a page written to another folder: %q", a.Key, a.Val)
-	}
+	rebase := hasHole && moved && rebasedAttrs[a.Key]
 	g.text(" " + key + `="`)
 	switch {
-	case a.Key == "href" && hasHole:
+	case a.Key == "href" && hasHole, rebase:
 		parts := []string{`""`}
 		for _, s := range segs {
 			if s.hole {
@@ -312,7 +310,14 @@ func (g *gen) attr(a html.Attribute, d int) error {
 				parts = append(parts, jsStr(s.lit))
 			}
 		}
-		g.expr("R.q(R.lk(" + strings.Join(parts, " + ") + "))")
+		val := strings.Join(parts, " + ")
+		if a.Key == "href" {
+			val = "R.lk(" + val + ")"
+		}
+		if rebase {
+			val = "R.rb(" + jsStr(a.Key) + ", " + val + ")"
+		}
+		g.expr("R.q(" + val + ")")
 	case !hasHole:
 		val, problems := g.p.rewriteBlobs(a.Val)
 		if len(problems) > 0 {

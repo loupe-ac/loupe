@@ -43,7 +43,7 @@ func TestAnInteractivePageShipsItsScriptAndNoInlineHandler(t *testing.T) {
 		t.Errorf("static part:\n%s", static)
 	}
 	for _, want := range []string{
-		"LoupeView.mount(Component, render, {}, [\"click\"], {\"A.dc\\u002ehtml\":\"index.html\"});",
+		"LoupeView.mount(Component, render, {}, [\"click\"], {\"A.dc\\u002ehtml\":\"index.html\"}, null);",
 		"class Component extends LoupeView",
 		"class LoupeView",
 		u003c + `button class=\"b\"`,
@@ -378,10 +378,73 @@ func TestTheRedrawOfAPageFromAFolderKeepsItsRebasedLinks(t *testing.T) {
 	}
 }
 
-func TestALinkFromAValueOnAPageFromAFolderFallsBackToTheStaticPage(t *testing.T) {
+func TestALinkFromAValueOnAPageFromAFolderIsRebasedAtEachRedraw(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { go: 1, p: 'hero.png', c: 'Pricing', bg: 'bg.png' }; } }`
+	markup := `<button onClick="{{ go }}">x</button><img src="{{ p }}" srcset="{{ p }} 1x" alt="{{ p }}"><a href="{{ c }}.dc.html#top">p</a>` +
+		`<div style="background: url('{{ bg }}')"></div>`
+	res := compileIndex(t, "site/Home",
+		canvas("site/Home.dc.html", scripted(script, markup)),
+		canvas("site/Pricing.dc.html", wrap(`<p>p</p>`)),
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	page := one(t, res, "index.html")
+	i := strings.Index(page, `<script id="loupe-runtime"`)
+	if i < 0 {
+		t.Fatalf("no runtime:\n%s", page)
+	}
+	shipped := page[i:]
+	for _, want := range []string{
+		`R.q(R.rb("src", "" + t(R.g(s0,"p"))))`,
+		`R.q(R.rb("srcset", "" + t(R.g(s0,"p")) + " 1x"))`,
+		`R.q(R.rb("href", R.lk("" + t(R.g(s0,"c")) + ".dc\u002ehtml#top")))`,
+		`R.q(R.rb("style", `,
+		`R.q(t(R.g(s0,"p")))`,
+		`{"from":"site","to":"."});`,
+	} {
+		if !strings.Contains(shipped, want) {
+			t.Errorf("the shipped render lacks %s:\n%s", want, shipped)
+		}
+	}
+}
+
+func TestAPageInItsOwnFolderShipsNoRebase(t *testing.T) {
 	script := `class Component extends DCLogic { renderVals() { return { go: 1, p: 'hero.png' }; } }`
-	res := compileIndex(t, "site/Home", canvas("site/Home.dc.html", scripted(script, `<button onClick="{{ go }}">x</button><img src="{{ p }}">`)))
-	if page := one(t, res, "index.html"); strings.Contains(page, "loupe-runtime") {
+	res := compile(t, canvas("A.dc.html", scripted(script, `<button onClick="{{ go }}">x</button><img src="{{ p }}">`)))
+	page := one(t, res, "index.html")
+	if strings.Contains(page, "R.rb(") || !strings.Contains(page, ", null);\n})();") {
 		t.Fatalf("page:\n%s", page)
+	}
+}
+
+func TestTheRedrawRebasesALinkAsTheBuildDoes(t *testing.T) {
+	vm := goja.New()
+	if _, err := vm.RunString(runtimeJS); err != nil {
+		t.Fatal(err)
+	}
+	inputs := map[string][]string{
+		"href":   {"..", "a.png", "img/a.png?x=1#y", "../a.png", "../../a.png", "#top", "/abs.png", "https://x.test/a.png", "mailto:a@b.test", "", "./a.png", "Pricing.html"},
+		"src":    {"hero.png", "deep/../hero.png"},
+		"srcset": {"a.png 1x, b.png 2x", "data:image/png;base64,AAAA 1x, big.png 2x", " a.png 100w ,b.png 200w", "a,b.png 1x"},
+		"style":  {"background: url('bg.png')", `background: url("x/y.png"), url(/z.png)`, "color: red"},
+	}
+	for _, base := range []rebaser{{"site", "."}, {"site/deep", "site"}, {".", "out"}, {"a/b", "c/d"}} {
+		value, err := vm.RunString(`LoupeView.helpers({}, ` + `{from: "` + base.from + `", to: "` + base.to + `"}).rb`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rb, _ := goja.AssertFunction(value)
+		for key, vals := range inputs {
+			for _, v := range vals {
+				got, err := rb(goja.Undefined(), vm.ToValue(key), vm.ToValue(v))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if want := base.attr(key, v); got.String() != want {
+					t.Errorf("%+v %s=%q: redraw gives %q, build gives %q", base, key, v, got.String(), want)
+				}
+			}
+		}
 	}
 }
