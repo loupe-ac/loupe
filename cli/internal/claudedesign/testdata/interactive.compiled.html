@@ -336,6 +336,7 @@ class LoupeView {
                       );
             if (k < 0) {
                 parent.insertBefore(n, pool[0] || before || null);
+                LoupeView._selectValues(n);
                 continue;
             }
             const o = pool[k];
@@ -360,20 +361,46 @@ class LoupeView {
     }
 
     // The new node that keeps the node holding focus: the most alike of its
-    // twins, then the one at the same place from the end.
+    // twins by attributes, then by tags and attribute names. A tie falls to
+    // the same place from the start when the twins before it are unchanged,
+    // as when a loop appends, and else to the same place from the end.
     static _mate(act, olds, news) {
         const all = news.filter((n) => LoupeView._same(act, n));
         if (all.length < 2) {
             return all[0] || null;
         }
         const twins = olds.filter((o) => LoupeView._same(o, act));
-        const near = all[all.length - twins.length + twins.indexOf(act)];
-        const score = all.map((n) => LoupeView._likeness(act, n));
+        const at = twins.indexOf(act);
+        const head = twins
+            .slice(0, at)
+            .every((o, i) => o.isEqualNode(all[i]));
+        const near = head ? all[at] : all[all.length - twins.length + at];
+        const shape = LoupeView._shape(act);
+        const score = all.map(
+            (n) =>
+                LoupeView._likeness(act, n) * 2 +
+                (LoupeView._shape(n) === shape ? 1 : 0),
+        );
         const best = Math.max(...score);
 
         return score[all.indexOf(near)] === best
             ? near
             : all[score.indexOf(best)];
+    }
+
+    static _shape(o) {
+        if (o.nodeType !== 1) {
+            return '#' + o.nodeType;
+        }
+
+        return (
+            o.nodeName +
+            '[' +
+            o.getAttributeNames().sort().join(' ') +
+            '](' +
+            Array.from(o.childNodes, LoupeView._shape).join(' ') +
+            ')'
+        );
     }
 
     // A handler index and the value a text field had at the last draw say
@@ -471,6 +498,8 @@ class LoupeView {
             if (n.hasAttribute('selected') && !o.selected) {
                 o.selected = true;
             }
+        } else if (name === 'SELECT') {
+            LoupeView._selectValues(o);
         } else if (name === 'INPUT') {
             if (o.type === 'checkbox' || o.type === 'radio') {
                 if (n.hasAttribute('checked') !== o.checked) {
@@ -478,6 +507,22 @@ class LoupeView {
                 }
             } else if (n.hasAttribute('value')) {
                 LoupeView._setValue(o, n.getAttribute('value'));
+            }
+        }
+    }
+
+    // A select takes its value attribute as a property, as React does.
+    static _selectValues(el) {
+        if (el.nodeType !== 1) {
+            return;
+        }
+        const all = Array.from(el.querySelectorAll('select[value]'));
+        if (el.nodeName === 'SELECT' && el.hasAttribute('value')) {
+            all.push(el);
+        }
+        for (const s of all) {
+            if (s.value !== s.getAttribute('value')) {
+                s.value = s.getAttribute('value');
             }
         }
     }

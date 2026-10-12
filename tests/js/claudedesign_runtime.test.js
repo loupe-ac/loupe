@@ -315,6 +315,30 @@ it('keeps keyed siblings and their values when they reorder', async () => {
     expect(after.map((el) => el.value)).toEqual(['c!', 'b!', 'a!']);
 });
 
+it('syncs the value of a select from the new markup', async () => {
+    class C extends LoupeView {
+        constructor(p) {
+            super(p);
+            this.state = { v: 'b' };
+        }
+        renderVals() {
+            return { v: this.state.v };
+        }
+    }
+    const render = (s, h, R) =>
+        `<div><select value="${R.q(s.v)}"><option value="a">A</option><option value="b">B</option></select></div>`;
+    const view = LoupeView.mount(C, render, {}, ['change'], {});
+    const select = document.querySelector('select');
+    expect(select.value).toBe('b');
+    view.setState({ v: 'a' });
+    await settle();
+    expect(document.querySelector('select')).toBe(select);
+    expect(select.value).toBe('a');
+    view.setState({ v: 'b' });
+    await settle();
+    expect(select.value).toBe('b');
+});
+
 it('syncs a checkbox from the new markup', async () => {
     class C extends LoupeView {
         renderVals() {
@@ -424,6 +448,41 @@ it('keeps focus and value on the item when a loop gains an item before it', asyn
         expect(second.selectionStart).toBe(1);
         expect(inputs[1].value).toBe(start[0]);
         expect(inputs[0].value).toBe('new');
+    }
+});
+
+it('keeps focus on the same item when a loop appends an item', async () => {
+    for (const markup of [
+        () => '<input>',
+        (i) => `<div><label>Row</label><input data-on-input="${i}"></div>`,
+    ]) {
+        document.body.innerHTML = '<script id="loupe-runtime"></script>';
+        class C extends LoupeView {
+            constructor(p) {
+                super(p);
+                this.state = { n: 2 };
+            }
+            renderVals() {
+                return {
+                    rows: Array.from({ length: this.state.n }, () => () => {}),
+                };
+            }
+        }
+        const render = (s, h, R) =>
+            R.A(s.rows)
+                .map((r) => markup(h(r)))
+                .join('');
+        const view = LoupeView.mount(C, render, {}, ['input'], {});
+        const first = document.querySelector('input');
+        first.focus();
+        first.value = 'abc';
+        view.setState({ n: 3 });
+        await settle();
+        const inputs = document.querySelectorAll('input');
+        expect(inputs).toHaveLength(3);
+        expect(inputs[0]).toBe(first);
+        expect(document.activeElement).toBe(first);
+        expect(first.value).toBe('abc');
     }
 });
 
