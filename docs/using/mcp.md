@@ -299,6 +299,10 @@ Roughly in the order an agent uses them:
 | `card_update` | Change a card, or move it to another column |
 | `card_run_open` | Record an open interactive session on a card, and optionally move the card in the same step |
 | `card_run_close` | Close the interactive run a session opened on a card, and ask the bridges for the usage of the run |
+| `artifact_list` | List the stored design artifacts of the project, newest first (off with `artifacts.enabled`, see [Artifact tools](../extending/artifact-tools.md)) |
+| `artifact_get` | Describe one artifact: its versions, and the files of one version |
+| `artifact_read` | Read one file of an artifact, as text or as an image |
+| `artifact_archive` / `artifact_unarchive` | Take an artifact out of the list, or put it back |
 | `column_create` | Add a column at the end of the board, from a label |
 | `column_update` | Rename a column, or set whether it is terminal |
 | `column_reorder` | Put the columns in a new order; Backlog stays first |
@@ -321,12 +325,12 @@ Roughly in the order an agent uses them:
 | `analysis_get` | Read one analysis, with its topic, its range, the experiment that an experiment analysis compares, its model and effort, its state and reason, its cost so far and its proposals |
 | `analysis_report` | Finish an analysis with its report document and at most 20 proposals, each a `card` or a `bucket-rule` |
 | `analytics_settings_get` | Read the analysis settings of the project: the default model and effort, the programs with subcommands, and whether the bridge sends the full text of each tool call |
-| `analytics_settings_update` | Change the analysis settings of the project. An empty model or effort, or an empty list of programs, clears the project value, so the instance default applies |
+| `analytics_settings_update` | Change the analysis settings of the project. `clearDefaultModel` or `clearDefaultEffort` set to true clears the project value, so the instance default applies. An empty model or effort also clears it, and an empty list of programs clears the project list |
 | `bridge_list` | List the bridges that follow the project, with their name, their push login, their heartbeat, their pause, their worker pools, their account checks and their open runs |
 | `worker_run_resume` | Ask the bridges to resume up to 50 ended worker runs, each resumed or refused on its own |
 | `worker_run_stop` | Ask the bridge to stop a queued or running worker run. The stop does not make the card unmanaged, so call `card_hold` for that |
-| `card_hold` | Make a card unmanaged, by `cardId` or `number`. The workflow makes no move and starts no work on the card, and no bridge starts a worker on it, until `card_release`. A live run goes on |
-| `card_release` | Make an unmanaged card managed again. The queued runs on the card then start |
+| `card_hold` | Make a card unmanaged, by `cardId` or `number`. The workflow makes no move and starts no work on the card, and no bridge starts a worker on it, until `card_release`. Loupe cancels the work requests of the card that no bridge took yet. A live run goes on |
+| `card_release` | Make an unmanaged card managed again. The queued runs on the card then start, and the workflow asks again for the work that the card still needs |
 | `card_pause_release` | End the workflow pause of a card, by `cardId` or `number`, so the paused rule runs again with a fresh budget. It ends a pause of kind `retries`, `work-limit`, `work-timeout` or `work-stopped`. It does not end a hold, which `card_release` ends |
 | `bridge_command_cancel` | Withdraw the resume or stop command that waits on a worker run, before its bridge reads it |
 
@@ -537,9 +541,11 @@ declared keys.
 A type with the `children` capability groups other cards. Its cards are one
 feature that is too large for one pull request, and their child cards hold the
 parts. `card_create` and `card_update` take `parentCardId`, the id of a card of
-the same project. On `card_update`, omit it to keep the parent, send an empty
-string to clear it, and send an id to set it. Only a card of a type with the
-`children` capability can be a parent, and such a card cannot have a parent. A
+the same project. On `card_update`, omit it to keep the parent, pass
+`clearParent` set to true to clear it, and send an id to set it. An empty string
+also clears it. `card_update` refuses `clearParent` together with a
+`parentCardId`. Only a card of a type with the `children` capability can be a
+parent, and such a card cannot have a parent. A
 card with a parent cannot change to such a type, and a card with children keeps
 its type. Both tools also take `laneEnabled`, which says whether the board draws
 a lane for a card of a type with the `lane` capability. It defaults to `true`.

@@ -147,6 +147,11 @@ project is **refused** rather than kept: a URL cannot be checked and an id can.
 `card_get` returns them as `documents`, each with `documentId`, `title` and
 `status`.
 
+`artifactIds` links the artifacts of this project the same way, on `card_create`
+and `card_update`, with the same omit-versus-empty rule and the same refusal of an
+unknown id. `card_get` returns them as `artifacts`, each with `artifactId`, `name`,
+`versionNumber`, `archived` and `path`.
+
 `relatedCards` links other cards of this project, on `card_create` and
 `card_update`. Each entry takes a `cardId` and a `kind`: `relates-to` (the
 default), `blocks` or `blocked-by`. A pair of cards holds one link, and both cards
@@ -196,8 +201,9 @@ fewer finished cards than you do.
 
 `card_create` and `card_update` take `parentCardId`, the id of a card of this
 project whose type has the `children` capability. The shipped templates give that
-capability to `epic`. On `card_update`, omit it to keep the parent, send an empty string to
-clear it, and send an id to set it. These rules apply:
+capability to `epic`. On `card_update`, omit it to keep the parent, pass `clearParent: true` to
+clear it, and send an id to set it. An empty string also clears it. Do not pass
+`clearParent` with `parentCardId`. These rules apply:
 
 - A card has at most one parent, and the parent has a type with the `children` capability.
 - Such a card has no parent, because these cards do not nest.

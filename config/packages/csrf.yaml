@@ -49,3 +49,5 @@ framework:
             - billing-comp-revoke
             - billing-beta-invite-revoke
             - billing-beta-invite-claim
+            - artifact-archive
+            - artifact-unarchive

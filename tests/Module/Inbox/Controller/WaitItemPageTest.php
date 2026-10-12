@@ -124,10 +124,15 @@ final class WaitItemPageTest extends WebTestCase
     public function test_a_search_result_outside_its_ask_still_names_loupe(): void
     {
         $this->reconcile();
+        $item = $this->onlyWatch()->item;
+        self::assertStringNotContainsString('Tech', $item->title);
 
-        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?q=document');
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl().'?q='.rawurlencode('Tech design'));
 
         self::assertResponseIsSuccessful();
+        $results = $crawler->filter('[data-inbox-section="search-results"]');
+        self::assertCount(1, $results->filter('[data-inbox-item]'));
+        self::assertCount(1, $results->filter('[data-inbox-item="'.$item->number.'"]'));
         self::assertCount(1, $crawler->filter('.lp-inbox-request__byline [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-source="agent"]'));
     }
@@ -174,7 +179,8 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $wait = $crawler->filter('#inbox-item-1 [data-inbox-wait]');
         self::assertCount(1, $wait);
-        self::assertStringContainsString('version 1', $wait->text());
+        self::assertStringContainsString('A deleted document, version 1, of card 4 waited for your review.', $wait->text());
+        self::assertStringNotContainsString('""', $wait->text());
         self::assertCount(0, $wait->filter('a'));
     }
 

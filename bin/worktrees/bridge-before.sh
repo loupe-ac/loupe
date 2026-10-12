@@ -35,7 +35,17 @@ main=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
 name="card-$number"
 root="$main/.worktrees/$name"
 
-git -C "$main" fetch origin
+# Two fetches that update one remote ref at once make the slower one exit non-zero.
+fetch_origin() {
+    local attempt
+    for attempt in 1 2 3; do
+        git -C "$main" fetch origin "$@" && return 0
+        [ "$attempt" -lt 3 ] && sleep "$attempt"
+    done
+    return 1
+}
+
+fetch_origin
 # A tree deleted from disk stays registered until a prune, and holds its branch.
 git -C "$main" worktree prune --expire now
 
@@ -46,7 +56,7 @@ if [ -n "$pr" ]; then
         echo "bridge-before: pull request $pr has no head branch." >&2
         exit 1
     fi
-    git -C "$main" fetch origin "$head"
+    fetch_origin "$head"
 fi
 
 registered=$(git -C "$main" worktree list --porcelain)

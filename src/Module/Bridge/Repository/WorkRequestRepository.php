@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Repository;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -29,6 +30,13 @@ use Symfony\Component\Uid\Uuid;
  */
 class WorkRequestRepository extends ServiceEntityRepository
 {
+    /** A card request whose card has a hold. The lapse sweep leaves its claim alone. */
+    private const string HELD_CARD = <<<'SQL'
+        (work_requests.subject_type = 'card' AND EXISTS (
+            SELECT 1 FROM bridge_card_holds h
+            WHERE h.project_id = work_requests.project_id AND h.card_id = work_requests.subject_id))
+        SQL;
+
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, WorkRequest::class);
@@ -142,8 +150,10 @@ class WorkRequestRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('w')
             ->andWhere('w.project IN (:projects)')
             ->andWhere('w.state = :open')
+            ->andWhere('NOT (w.subjectType = :card AND EXISTS (SELECT 1 FROM '.CardHold::class.' h WHERE h.project = w.project AND h.cardId = w.subjectId))')
             ->setParameter('projects', $projectIds)
             ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('card', WorkSubject::CARD)
             ->orderBy('w.createdAt', 'ASC')
             ->addOrderBy('w.id', 'ASC')
             ->setMaxResults($limit);
@@ -166,16 +176,29 @@ class WorkRequestRepository extends ServiceEntityRepository
     /**
      * Opens again every claimed request whose lease lapsed. It skips a row
      * that a renewal or a settlement holds, and the next sweep reads it again.
+     * Call it inside a transaction: it share-locks the project of each card
+     * request first, so a hold that commits before the reopen keeps it claimed.
      *
      * @return list<WorkRequest> the reopened requests, read fresh
      */
     public function reopenLapsed(\DateTimeImmutable $now): array
     {
+        $connection = $this->getEntityManager()->getConnection();
+        $lockedProjects = $connection->executeQuery(
+            "SELECT id FROM projects WHERE id IN (
+                SELECT project_id FROM work_requests
+                WHERE state = :claimed AND lease_until <= :now AND subject_type = 'card'
+            ) ORDER BY id FOR SHARE",
+            ['claimed' => WorkRequestState::Claimed->value, 'now' => $now],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        )->fetchFirstColumn();
+
         $sql = <<<'SQL'
             WITH target AS MATERIALIZED (
                 SELECT id
                 FROM work_requests
-                WHERE state = :claimed AND lease_until <= :now
+                WHERE state = :claimed AND lease_until <= :now AND NOT %s
+                    AND (subject_type <> 'card' OR project_id IN (:lockedProjects))
                 ORDER BY id
                 FOR UPDATE SKIP LOCKED
             )
@@ -185,11 +208,12 @@ class WorkRequestRepository extends ServiceEntityRepository
             WHERE work_requests.id = target.id
             RETURNING work_requests.id
             SQL;
+        $sql = \sprintf($sql, self::HELD_CARD);
 
-        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+        $ids = $connection->executeQuery(
             $sql,
-            ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now],
-            ['now' => Types::DATETIME_IMMUTABLE],
+            ['open' => WorkRequestState::Open->value, 'claimed' => WorkRequestState::Claimed->value, 'now' => $now, 'lockedProjects' => [] === $lockedProjects ? [null] : $lockedProjects],
+            ['now' => Types::DATETIME_IMMUTABLE, 'lockedProjects' => ArrayParameterType::STRING],
         )->fetchFirstColumn();
         if ([] === $ids) {
             return [];
@@ -260,11 +284,12 @@ class WorkRequestRepository extends ServiceEntityRepository
         );
     }
 
-    /** Reads the state alone, like the unique index. */
-    public function hasLive(WorkSubject $subject, string $kind): bool
+    /** The rule of the live request of the subject and kind, or null when none is live. Reads the state alone, like the unique index. */
+    public function liveRuleId(WorkSubject $subject, string $kind): ?string
     {
-        return null !== $this->ofSubject($subject)
-            ->select('1')
+        /** @var array{ruleId: string}|null $row */
+        $row = $this->ofSubject($subject)
+            ->select('w.ruleId')
             ->andWhere('w.kind = :kind')
             ->andWhere('w.state IN (:live)')
             ->setParameter('kind', $kind)
@@ -272,6 +297,8 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $row['ruleId'] ?? null;
     }
 
     /** The request with the id, when it belongs to the subject in the project. A run report names its request unchecked. */
@@ -284,6 +311,22 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->setParameter('project', $project)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The open requests of the card, oldest first.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenForCard(Uuid $cardId): array
+    {
+        return array_values($this->ofSubject(WorkSubject::card($cardId))
+            ->andWhere('w.state = :open')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 
     /**
@@ -371,6 +414,32 @@ class WorkRequestRepository extends ServiceEntityRepository
         }
 
         return $found;
+    }
+
+    /**
+     * When the newest fix request for the agent review of each pull request of the card ended done.
+     *
+     * @return array<int, \DateTimeImmutable> keyed by pull request number
+     */
+    public function findAgentReviewFixesSettled(Uuid $cardId): array
+    {
+        /** @var list<array{number: string|int|null, settled: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT (context::jsonb ->> 'pullRequestNumber') AS number, MAX(settled_at) AS settled FROM work_requests
+             WHERE subject_type = :subject AND subject_id = :card AND state = :done AND kind = 'fix'
+               AND (context::jsonb ->> 'reason') = 'agent-review' AND settled_at IS NOT NULL
+             GROUP BY (context::jsonb ->> 'pullRequestNumber')",
+            ['subject' => WorkSubject::CARD, 'card' => $cardId->toRfc4122(), 'done' => WorkRequestState::Done->value],
+        )->fetchAllAssociative();
+
+        $settled = [];
+        foreach ($rows as $row) {
+            if (null !== $row['number']) {
+                $settled[(int) $row['number']] = new \DateTimeImmutable($row['settled']);
+            }
+        }
+
+        return $settled;
     }
 
     /** The request of the card that opened last, in any state. */

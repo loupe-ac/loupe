@@ -17,7 +17,7 @@ import {
 } from '../fixtures';
 import { submitRedirectingForm } from '../helpers';
 import { coverageScaled } from '../timeouts';
-import { showPanel } from './panels';
+import { showPanel, toggleOn } from './panels';
 
 const RUN = Date.now();
 const PASSWORD = 'E2eReviewLoop1!';
@@ -444,6 +444,14 @@ async function postComment(page: Page): Promise<void> {
     await openComposer(page);
     await page.locator(COMPOSER_BODY).fill(COMMENT_BODY);
     await page.getByRole('button', { name: 'Post' }).click();
+    await expectPosted(page);
+}
+
+/**
+ * Waits until a post lands. The new thread opens the Comments panel after the
+ * composer hides, and a toggle before that closes it again.
+ */
+async function expectPosted(page: Page): Promise<void> {
     await expect(page.locator(COMPOSER)).toBeHidden({
         timeout: coverageScaled(10000),
     });
@@ -457,9 +465,7 @@ async function expectThreadVisible(page: Page, index = 0): Promise<void> {
     await showPanel(page, 'Comments');
     const row = page.locator(ROW).nth(index);
     await expect(row).toBeVisible({ timeout: coverageScaled(10000) });
-    if ((await row.getAttribute('aria-expanded')) !== 'true') {
-        await row.click();
-    }
+    await toggleOn(row, 'aria-expanded');
     const thread = page.locator(`#${await row.getAttribute('aria-controls')}`);
     await expect(thread.locator('.lp-comment-thread__detail')).toBeVisible({
         timeout: coverageScaled(10000),
@@ -651,10 +657,7 @@ test('posting a comment disables the submitter and renders the thread in the sid
     // The composer is a plain form submitted through Turbo; the controller returns
     // a Turbo Stream that replaces the thread list in place (no reload). The
     // composer hides on success and the new thread appears in the sidebar.
-    await expect(page.locator(COMPOSER)).toBeHidden({
-        timeout: coverageScaled(10000),
-    });
-
+    await expectPosted(page);
     await expectThreadVisible(page);
     const commentBody = page.locator('.lp-comment-body').first();
     await expect(commentBody).toBeVisible({ timeout: coverageScaled(10000) });
@@ -1180,9 +1183,7 @@ test('the composer submits on Ctrl/Cmd+Enter', async ({ page, review }) => {
 
     // Same success signal the click path asserts: the Turbo Stream comes back,
     // the composer hides, and the thread appears.
-    await expect(page.locator(COMPOSER)).toBeHidden({
-        timeout: coverageScaled(10000),
-    });
+    await expectPosted(page);
     await expectThreadVisible(page);
     const commentBody = page.locator('.lp-comment-body').first();
     await expect(commentBody).toBeVisible({ timeout: coverageScaled(10000) });

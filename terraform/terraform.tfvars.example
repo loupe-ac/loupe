@@ -81,6 +81,12 @@ db_server_version = "18" # the cluster's actual PG major version
 # analytics_origin         = "https://cloud.umami.is"
 # analytics_collect_origin = "https://gateway.umami.is"
 
+# --- Optional: content domain for stored prototypes ---
+# A domain of its own, never a sub-domain of the app domain. App Platform needs
+# TXT records for its wildcard certificate, and the tokens expire.
+# artifact_content_host = "example-content.com"
+# artifact_content_zone = "example-content.com"
+
 # --- Optional: custom domain ---
 # Omit both and the app serves only on its assigned *.ondigitalocean.app
 # hostname. domain_zone must be a zone THIS account's DNS serves

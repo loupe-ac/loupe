@@ -23,6 +23,7 @@ use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPauseRepository;
+use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\PullRequestCommentRepository;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
@@ -33,6 +34,8 @@ use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\WorkRequestOpener;
+use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
@@ -105,6 +108,7 @@ use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
+use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
@@ -150,6 +154,9 @@ final class EngineTest extends KernelTestCase
 
     private ?CardEvaluations $evaluations = null;
 
+    /** @var (\Closure(): void)|null */
+    private ?\Closure $settleJoinedWork = null;
+
     private FakeRuleAsks $asks;
 
     #[\Override]
@@ -170,6 +177,140 @@ final class EngineTest extends KernelTestCase
         $state = $this->ruleState($card, 'work');
         self::assertTrue($state->truth);
         self::assertSame(1, $state->fires);
+    }
+
+    public function test_a_rule_that_joins_another_rules_live_request_fires_its_own_when_that_request_ends(): void
+    {
+        $card = $this->joinedCard();
+        $review = $this->liveRequestOfKind($card, 'fix');
+
+        $this->finish($review, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertSame('checks', $live[0]->ruleId);
+        $state = $this->ruleState($card, 'checks');
+        self::assertSame([true, 1, $live[0]->id?->toRfc4122()], [$state->truth, $state->fires, $state->workRequestId?->toRfc4122()]);
+
+        $this->evaluate($card, '2026-10-02 12:12:00');
+        self::assertSame($live, $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'checks')->fires);
+    }
+
+    public function test_a_rule_that_joins_another_rules_live_request_fires_its_own_when_that_request_is_refused(): void
+    {
+        $card = $this->joinedCard();
+
+        $this->refuse($this->liveRequestOfKind($card, 'fix'), 'failed', '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertSame('checks', $live[0]->ruleId);
+        $state = $this->ruleState($card, 'checks');
+        self::assertSame([1, 0], [$state->fires, $state->attempts]);
+    }
+
+    public function test_a_rule_that_joins_another_rules_request_which_settles_right_after_the_answer_fires_its_own(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('review', self::ALWAYS, kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+        ]);
+        $this->evaluate($card);
+        $review = $this->liveRequestOfKind($card, 'fix');
+
+        $this->setType($card, 'bug');
+        $this->settleJoinedWork = fn () => $this->finish($review, '2026-10-02 12:05:00');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->settleJoinedWork = null;
+        self::assertSame([], $this->liveRequests($card));
+        self::assertFalse($this->ruleState($card, 'checks')->truth);
+
+        $this->evaluate($card, '2026-10-02 12:06:00');
+
+        self::assertSame('checks', $this->liveRequestOfKind($card, 'fix')->ruleId);
+        self::assertSame(1, $this->ruleState($card, 'checks')->fires);
+    }
+
+    public function test_a_rule_whose_own_request_settles_right_after_the_answer_fires_no_second_request(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+        $own = $this->liveRequests($card)[0];
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        $this->setType($card, 'bug');
+        $this->settleJoinedWork = fn () => $this->finish($own, '2026-10-02 12:06:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+        $this->settleJoinedWork = null;
+        self::assertSame([], $this->liveRequests($card));
+        self::assertTrue($this->ruleState($card, 'fix')->truth);
+
+        $this->evaluate($card, '2026-10-02 12:07:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
+    }
+
+    public function test_a_rule_that_joined_another_rules_request_opens_nothing_when_it_no_longer_holds(): void
+    {
+        $card = $this->joinedCard();
+
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:08:00');
+        $this->finish($this->liveRequestOfKind($card, 'fix'), '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame([false, 0], [$this->ruleState($card, 'checks')->truth, $this->ruleState($card, 'checks')->fires]);
+    }
+
+    public function test_a_retry_that_joins_another_rules_live_request_counts_its_refusal_once(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('review', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+            self::requestRule('checks', self::ALWAYS, kind: 'fix'),
+        ], onWorkFailed: self::RETRY_ONCE);
+        $this->evaluate($card);
+        $this->refuse($this->liveRequestOfKind($card, 'fix'), 'failed', '2026-10-02 12:05:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 12:07:00');
+        $review = $this->liveRequestOfKind($card, 'fix');
+        self::assertSame('review', $review->ruleId);
+
+        $this->evaluate($card, '2026-10-02 12:17:00');
+        $this->evaluate($card, '2026-10-02 12:18:00');
+        $this->evaluate($card, '2026-10-02 12:19:00');
+        self::assertNull($this->activePause($card));
+        self::assertSame(1, $this->ruleState($card, 'checks')->attempts);
+
+        $this->finish($review, '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertSame('checks', $this->liveRequestOfKind($card, 'fix')->ruleId);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_rule_that_finds_its_own_request_live_fires_no_second_request_when_it_ends(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['card.type' => ['type' => 'bug']])]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+        self::assertTrue($this->ruleState($card, 'fix')->truth);
+
+        $this->finish($this->liveRequests($card)[0], '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
     }
 
     public function test_a_rule_outside_the_slot_resets_cancels_its_request_and_fires_again_on_reentry(): void
@@ -1830,9 +1971,9 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
         $stale = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'implement', null, 'gone', new \DateTimeImmutable(self::NOON));
+        $this->hold($card);
         $this->em()->persist($stale);
         $this->em()->flush();
-        $this->hold($card);
 
         $this->evaluate($card);
 
@@ -1899,9 +2040,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_opens_no_second_request_while_one_is_live(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
         $this->hold($card);
+        $request = $this->openRequestWhileHeld($card);
 
         $this->releaseHold($card, '2026-10-02 12:01:00');
         $this->evaluate($card, '2026-10-02 12:02:00');
@@ -1910,6 +2050,24 @@ final class EngineTest extends KernelTestCase
         self::assertCount(1, $live);
         self::assertSame($request, $live[0]);
         self::assertSame(WorkRequestState::Open, $request->state);
+    }
+
+    public function test_a_hold_cancels_the_open_request_and_a_release_asks_for_the_work_again(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
+        $this->evaluate($card);
+        $request = $this->liveRequests($card)[0];
+
+        $this->hold($card);
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+
+        $this->releaseHold($card, '2026-10-02 12:01:00');
+        $this->evaluate($card, '2026-10-02 12:02:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($request, $live[0]);
     }
 
     public function test_a_release_opens_a_new_request_when_the_last_one_settled(): void
@@ -1970,9 +2128,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_restarts_the_timeout_of_an_open_request(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
         $this->hold($card);
+        $request = $this->openRequestWhileHeld($card);
 
         $this->releaseHold($card, '2026-10-02 14:30:00');
         $this->evaluate($card, '2026-10-02 15:00:00');
@@ -2005,9 +2162,8 @@ final class EngineTest extends KernelTestCase
     public function test_a_release_cancels_a_request_whose_rule_no_longer_applies(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
-        $this->evaluate($card);
-        $request = $this->liveRequests($card)[0];
         $this->hold($card);
+        $request = $this->openRequestWhileHeld($card);
         $this->moveTo($card, 'done');
         $this->evaluate($card, '2026-10-02 12:01:00');
         self::assertSame(WorkRequestState::Open, $request->state);
@@ -2224,6 +2380,77 @@ final class EngineTest extends KernelTestCase
         self::assertGreaterThanOrEqual(1, $afterMove);
         self::assertGreaterThan($afterMove, \count($changed));
         self::assertSame([(string) $card->id], array_values(array_unique($changed)));
+    }
+
+    public function test_a_lifecycle_fix_round_that_pushes_nothing_asks_for_a_new_review_and_a_second_failure_asks_for_fix_round_2(): void
+    {
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound('engine-no-push-fix');
+        $this->finish($this->liveRequestOfKind($card, 'fix'), '2026-10-02 12:20:00');
+
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $review = $this->liveRequestOfKind($card, 'review');
+        self::assertSame(['agent-review', self::HEAD_ONE], [$review->ruleId, $pullRequest->headSha]);
+        self::assertSame(['review'], $this->liveKinds($card));
+        self::assertFalse($this->ruleState($card, 'fix-agent-review')->truth, 'An answered review no longer reads as failed.');
+
+        $this->finish($review, '2026-10-02 12:30:00');
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:29:00');
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $fix = $this->liveRequestOfKind($card, 'fix');
+        self::assertSame(['fix-agent-review', 'agent-review'], [$fix->ruleId, $fix->context->reason]);
+        self::assertSame(2, $this->ruleState($card, 'fix-agent-review')->fires);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_lifecycle_fix_round_that_pushes_asks_for_a_review_of_the_new_head(): void
+    {
+        [$card, $pullRequest] = $this->failedAgentReviewWithFixRound('engine-push-fix');
+        $pullRequest->headSha = self::HEAD_TWO;
+        $this->finish($this->liveRequestOfKind($card, 'fix'), '2026-10-02 12:20:00');
+
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        self::assertSame(['review'], $this->liveKinds($card));
+        self::assertSame('agent-review', $this->liveRequestOfKind($card, 'review')->ruleId);
+        self::assertFalse($this->ruleState($card, 'fix-agent-review')->truth, 'The new head has no review yet.');
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+    }
+
+    /**
+     * A lifecycle card in Implementation whose review of HEAD_ONE failed at 12:04, with fix round 1 live.
+     *
+     * @return array{Card, ForgePullRequest}
+     */
+    private function failedAgentReviewWithFixRound(string $slug): array
+    {
+        self::bootKernel();
+        $project = $this->workflowProject($slug);
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-progress');
+        $pullRequest = $this->pullRequest($card, headSha: self::HEAD_ONE);
+        $pullRequest->draft = true;
+        $this->em()->flush();
+        $this->evaluate($card);
+
+        $this->finish($this->liveRequestOfKind($card, 'review'), '2026-10-02 12:05:00');
+        $this->agentReview($card, $pullRequest, AgentReviewConclusion::Failure, '2026-10-02 12:04:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+
+        $fix = $this->liveRequestOfKind($card, 'fix');
+        self::assertSame(['fix-agent-review', 'agent-review'], [$fix->ruleId, $fix->context->reason]);
+        self::assertSame(1, $this->ruleState($card, 'fix-agent-review')->fires);
+
+        return [$card, $pullRequest];
+    }
+
+    private function agentReview(Card $card, ForgePullRequest $pullRequest, AgentReviewConclusion $conclusion, string $at): void
+    {
+        $review = new AgentReview($card->project, $card, $pullRequest, $pullRequest->headSha ?? '', 'Review.', $conclusion, [], createdAt: new \DateTimeImmutable($at));
+        $review->postedAt = new \DateTimeImmutable($at);
+        $this->em()->persist($review);
+        $this->em()->flush();
     }
 
     public function test_a_lifecycle_card_that_a_person_moves_to_the_backlog_stays_there_until_its_pull_request_reopens(): void
@@ -3537,14 +3764,35 @@ final class EngineTest extends KernelTestCase
         return $this->card($project, 'next');
     }
 
+    /** Rule "review" holds a live fix, and rule "checks" of the same kind turns true while it runs. */
+    private function joinedCard(): Card
+    {
+        $card = $this->boundCard([
+            self::requestRule('review', self::ALWAYS, kind: 'fix'),
+            self::requestRule('checks', ['card.type' => ['type' => 'bug']], kind: 'fix'),
+        ]);
+        $this->evaluate($card);
+        $review = $this->liveRequestOfKind($card, 'fix');
+        self::assertSame('review', $review->ruleId);
+
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+
+        self::assertSame([$review], $this->liveRequests($card));
+        self::assertSame(0, $this->ruleState($card, 'checks')->fires);
+
+        return $card;
+    }
+
     /**
      * @param array<string, mixed> $when
      *
      * @return array<string, mixed>
      */
-    private static function requestRule(string $id, array $when, ?int $limit = null, bool $refill = false): array
+    private static function requestRule(string $id, array $when, ?int $limit = null, bool $refill = false, ?string $kind = null): array
     {
-        $request = ['kind' => $id];
+        $request = ['kind' => $kind ?? $id];
         if (null !== $limit) {
             $request['limit'] = $limit;
         }
@@ -3640,7 +3888,16 @@ final class EngineTest extends KernelTestCase
             $releaseCardPause,
             $this->em(),
         );
-        $opener = $this->opener();
+        $doctrine = self::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
+        $settling = new SettlingWorkRequestRepository($doctrine);
+        $settling->settle = $this->settleJoinedWork;
+        $opener = new WorkRequestOpener(
+            new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([])),
+            $this->service(CardRepository::class),
+            $this->service(CardPullRequests::class),
+            $this->service(CardPullRequestRepository::class),
+        );
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
 
         $engineEvents = new EventDispatcher();
@@ -3776,6 +4033,16 @@ final class EngineTest extends KernelTestCase
     private function activePause(Card $card): ?CardPause
     {
         return $this->service(CardPauseRepository::class)->findActiveForCard($card);
+    }
+
+    /** A request that appears after the hold, which the hold itself could not cancel. */
+    private function openRequestWhileHeld(Card $card): WorkRequest
+    {
+        $request = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'work', null, 'work', new \DateTimeImmutable(self::NOON));
+        $this->em()->persist($request);
+        $this->em()->flush();
+
+        return $request;
     }
 
     private function hold(Card $card): void

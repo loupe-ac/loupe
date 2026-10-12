@@ -238,6 +238,21 @@ export async function signWidgetIn(
     return grant;
 }
 
+/**
+ * Waits for the site-review panel transitions to end. A growing composer slides
+ * its controls, and a click mid-slide can land on the wrong row.
+ */
+export async function siteReviewPanelSettled(page: Page): Promise<void> {
+    await page.locator('#lp-panel').evaluate((panel) =>
+        Promise.all(
+            panel
+                .getAnimations({ subtree: true })
+                .filter((animation) => animation instanceof CSSTransition)
+                .map((animation) => animation.finished.catch(() => {})),
+        ),
+    );
+}
+
 type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
 
 export const testWithVerifiedAccount = hubStubbedTest.extend<{

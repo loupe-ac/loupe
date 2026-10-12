@@ -161,8 +161,7 @@ func TestResumeBridgeRefusesAStandardFD(t *testing.T) {
 	}
 }
 
-// resumeHome logs in as testBridgeID against a fake Loupe, with a rule file
-// and claude on PATH.
+// resumeHome logs in as testBridgeID against a fake Loupe, with a rule file.
 func resumeHome(t *testing.T) (*fakeLoupe, string) {
 	t.Helper()
 	keyring.MockInit()
@@ -175,9 +174,6 @@ func resumeHome(t *testing.T) (*fakeLoupe, string) {
 	if err := config.Save(cfg); err != nil {
 		t.Fatal(err)
 	}
-	original := lookPath
-	lookPath = func(string) (string, error) { return "/bin/claude", nil }
-	t.Cleanup(func() { lookPath = original })
 
 	return fake, writeRules(t, "loupe")
 }
@@ -339,13 +335,16 @@ func TestAnUnhealthyResumedBridgeHandsBack(t *testing.T) {
 func TestAResumedBridgeThatCannotStartHandsBack(t *testing.T) {
 	injectVersion(t, "1.2.0")
 	_, rulesPath := resumeHome(t)
-	lookPath = func(string) (string, error) { return "", errors.New("not found") }
 	calls := captureExecFn(t)
 	target := filepath.Join(t.TempDir(), "loupe")
 	file := handedBridge(t, rulesPath, handoverState{OldVersion: "1.0.0", OldBinary: target, RecentIDs: []string{"id-1"}})
 
+	if err := os.WriteFile(rulesPath, []byte("work: [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	done, out := runCommand(context.Background(), "--rules", rulesPath, "--resume-handover", file, "--log-file", filepath.Join(t.TempDir(), "bridge.log"))
-	if err := <-done; err == nil || !strings.Contains(err.Error(), "claude is not installed") {
+	if err := <-done; err == nil || !strings.Contains(err.Error(), "rule file") {
 		t.Fatalf("err = %v", err)
 	}
 

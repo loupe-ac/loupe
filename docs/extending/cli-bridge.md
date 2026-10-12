@@ -292,6 +292,19 @@ reports go out in order. A failed send waits one second, then
 twice as long before each later attempt, up to sixty seconds. The bridge gives
 up after ten attempts and logs `report_failed`.
 
+When the bridge gives up on the closing state of a worker run, such as `failed`,
+because Loupe was not reachable, it writes that report to an outbox directory
+beside its cursor file and logs `report_kept`. The next connect sends the kept
+reports, oldest first, before the run inventory. They take one place in the
+queue together, and a retry starts at the first report Loupe did not answer.
+The queue keeps two places for the kept reports and the inventory, so a queue
+that an outage filled still takes them. A connect queues neither again while an
+earlier copy still waits.
+The bridge deletes a file when Loupe takes or refuses its report. A report that Loupe refused is never kept. A kept report that is
+older than seven days is deleted, and the bridge logs `report_dropped`. A report
+made for another Loupe instance or bridge id stays on disk and is never sent.
+The result of a work request stays in memory only.
+
 The bridge logs `report_folded` when Loupe answers 200 to a report the bridge
 sends for the first time. For a state report, Loupe already held that state of
 the run, so the report changed nothing.
@@ -499,6 +512,7 @@ wire_api = "responses"
 The profile names the variable in `env_key`. Put that variable in the
 `envFile` of the account, such as `OPENROUTER_API_KEY=...`. An account with no
 `profile` uses the login of the Codex home folder, which `codex login` makes.
+A profile whose provider uses the OpenAI sign-in also uses that login.
 
 The bridge passes the result schema to Codex with `--output-schema`, in the
 strict form that the OpenAI API needs. Each object sets `additionalProperties`
@@ -638,7 +652,11 @@ A check of a Codex account asks these questions:
 3. Does the profile file exist, when the account sets a `profile`? If it does,
    the variable named by `env_key` in the profile must hold a value in the
    environment of the account.
-4. Does `codex login status` pass, when the account sets no `profile`?
+4. Does `codex login status` pass? The check asks when the account sets no
+   `profile`. It also asks when the profile names no `env_key` and its provider
+   uses the OpenAI sign-in. That is the default `openai` provider, or a provider
+   table with `requires_openai_auth = true`. A local provider such as `ollama`
+   needs no login.
 5. Does Codex see the `loupe` MCP server in each project folder? The check runs
    `codex [-p profile] mcp get loupe --json` there.
 
@@ -1503,8 +1521,10 @@ calls `card_release`. The two events have the same payload.
 
 The bridge keeps the hold, starts no worker on a held card, and starts the
 queued runs of the card on the release. A worker that runs when the hold starts
-goes on. The workflow also cancels the work requests of a held card, and the
-bridge stops the run of a cancelled request.
+goes on, and so does the request it runs for. Loupe cancels each open work
+request of the card when the hold starts. It offers no request of a held card
+to a bridge, and it refuses a claim of one with `card_held`. It does not
+reopen a lapsed claim of a held card until the hold ends.
 
 `GET /api/card-holds` returns the held cards of every project that the user
 owns, in the order of the holds.
@@ -1578,13 +1598,13 @@ For each launch, the bridge writes a script to
 `<temp dir>/loupe-sessions/<sessionId>.sh`, with mode `0700`. The script deletes
 itself, changes to the project's `dir`, and runs the harness. On a
 `claude-code` account it runs `claude --session-id <sessionId> -- '<prompt>'`.
-A terminal app can start with a short `PATH`. So the bridge finds `claude` on
-its own `PATH` at start, and writes the absolute path into the script. A launch
-on a `codex` account finds `codex` at the launch, on the `PATH` of the account,
-and fails when it is missing. The bridge refuses to start with no `claude` on
-its `PATH` when a rule runs on a `claude-code` account, or when `rules.yaml`
-names no account. At start, it also deletes
-scripts older than one day.
+A terminal app can start with a short `PATH`. So the bridge finds the program at
+the launch, on the `PATH` of the account, and writes the absolute path into the
+script. The launch fails when the program is missing. An env file can put
+`claude` on that `PATH`, so `claude` need not be on the `PATH` of the bridge.
+A `claude-code` account without `claude` on its `PATH` is turned off by its
+account check, and the other accounts run. The bridge never needs `claude` on
+its own `PATH`. At start, it also deletes scripts older than one day.
 
 The bridge runs the launcher with no shell, and never kills it. An exit with
 code 0 within the timeout is a launch. A launcher that still runs at the timeout

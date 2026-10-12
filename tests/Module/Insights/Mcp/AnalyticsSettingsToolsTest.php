@@ -11,6 +11,7 @@ use App\Module\Insights\Repository\InsightsProjectSettingsRepository;
 use App\Tests\Module\Insights\InsightsScenario;
 use App\Tests\Support\McpTokenScenario;
 use Mcp\Exception\ToolCallException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class AnalyticsSettingsToolsTest extends KernelTestCase
@@ -93,6 +94,52 @@ final class AnalyticsSettingsToolsTest extends KernelTestCase
         self::assertNull($result['defaultEffort']);
         self::assertSame('sonnet', $result['model']);
         self::assertSame('medium', $result['effort']);
+    }
+
+    public function test_the_clear_booleans_clear_a_value_and_false_keeps_it(): void
+    {
+        $project = $this->scenarioProject('settings-clear-boolean');
+        $this->actAsMcpTokenBoundTo($project);
+        $this->updateTool()(defaultModel: 'opus', defaultEffort: 'high');
+
+        $kept = $this->updateTool()(clearDefaultModel: false, clearDefaultEffort: false);
+        self::assertSame('opus', $kept['defaultModel']);
+        self::assertSame('high', $kept['defaultEffort']);
+
+        $result = $this->updateTool()(clearDefaultModel: true, clearDefaultEffort: true);
+
+        self::assertNull($result['defaultModel']);
+        self::assertNull($result['defaultEffort']);
+        self::assertSame('sonnet', $result['model']);
+        self::assertSame('medium', $result['effort']);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function clearConflicts(): iterable
+    {
+        yield 'model' => [['defaultModel' => 'haiku', 'clearDefaultModel' => true], 'Pass clearDefaultModel or defaultModel, not both.'];
+        yield 'effort' => [['defaultEffort' => 'low', 'clearDefaultEffort' => true], 'Pass clearDefaultEffort or defaultEffort, not both.'];
+    }
+
+    /** @param array<string, mixed> $arguments */
+    #[DataProvider('clearConflicts')]
+    public function test_a_clear_boolean_with_a_value_is_refused_and_nothing_changes(array $arguments, string $message): void
+    {
+        $project = $this->scenarioProject('settings-clear-conflict');
+        $this->actAsMcpTokenBoundTo($project);
+        $this->updateTool()(defaultModel: 'opus', defaultEffort: 'high');
+
+        try {
+            $this->updateTool()(...$arguments, collectFullText: true);
+            self::fail('Expected a refusal.');
+        } catch (ToolCallException $e) {
+            self::assertSame($message, $e->getMessage());
+        }
+
+        $after = $this->getTool()();
+        self::assertSame('opus', $after['defaultModel']);
+        self::assertSame('high', $after['defaultEffort']);
+        self::assertFalse($after['collectFullText']);
     }
 
     public function test_update_turns_the_domain_errors_into_readable_text(): void

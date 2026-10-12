@@ -83,9 +83,9 @@ final class RequestWorkTest extends KernelTestCase
         $rule = $this->rule('request', ['kind' => 'fix']);
 
         $this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card));
-        $outcome = $this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card));
+        $outcome = $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix'], 'other-fix'), $card->snapshot(), FactsMother::facts(), $this->state($card));
 
-        self::assertEquals(ActionOutcome::alreadyLive(), $outcome);
+        self::assertEquals(ActionOutcome::alreadyLive($rule->id), $outcome);
         self::assertNotEquals(ActionOutcome::done(), $outcome);
         self::assertCount(1, $this->service(WorkRequestRepository::class)->findLiveForCard($card->id ?? throw new \LogicException('A flushed card has an id.')));
     }
