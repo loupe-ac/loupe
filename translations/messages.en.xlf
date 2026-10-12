@@ -5017,6 +5017,14 @@
                 <source>review.inbox_wait.waiting_for_review.action</source>
                 <target>Review the document</target>
             </trans-unit>
+            <trans-unit id="review.inbox_wait.document_deleted">
+                <source>review.inbox_wait.document_deleted</source>
+                <target>A deleted document, version %version%, of card %card% waited for your review.</target>
+            </trans-unit>
+            <trans-unit id="review.inbox_wait.document_deleted.action">
+                <source>review.inbox_wait.document_deleted.action</source>
+                <target>Dismiss this item</target>
+            </trans-unit>
             <trans-unit id="forge.inbox_wait.waiting_for_review">
                 <source>forge.inbox_wait.waiting_for_review</source>
                 <target>Pull request #%number% of card %card% waits for your review.</target>
@@ -5108,6 +5116,10 @@
             <trans-unit id="review.inbox_wait.waiting_for_review.title">
                 <source>review.inbox_wait.waiting_for_review.title</source>
                 <target>Document version %version% waits for your review</target>
+            </trans-unit>
+            <trans-unit id="review.inbox_wait.document_deleted.title">
+                <source>review.inbox_wait.document_deleted.title</source>
+                <target>Deleted document version %version%</target>
             </trans-unit>
             <trans-unit id="forge.inbox_wait.waiting_for_review.title">
                 <source>forge.inbox_wait.waiting_for_review.title</source>
