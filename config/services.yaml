@@ -31,7 +31,6 @@ parameters:
     # The content domain of stored artifacts. Unset, the host route needs a
     # value that matches no real request, so the placeholder is a reserved TLD.
     app.artifact_content_placeholder_host: 'artifact-content.invalid'
-    app.artifact_content_host: '%env(default:app.artifact_content_placeholder_host:ARTIFACT_CONTENT_HOST)%'
 
     # Diagrams load from here once review.mermaid.enabled is on, and script-src
     # lists it. A path prefix, not the host, so an injection cannot load any

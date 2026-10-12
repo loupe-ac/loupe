@@ -262,6 +262,103 @@ final class CardStatesTest extends KernelTestCase
         self::assertNull($this->stateOf($card));
     }
 
+    public function test_a_ready_pull_request_stacked_on_a_card_pull_request_waits_for_that_card_at_once(): void
+    {
+        $project = $this->stateProject('state-stacked-card');
+        $parent = $this->stateCard($project);
+        $this->linkPullRequest($parent, ['headBranch' => 'card-1-parent', 'draft' => true]);
+        $card = $this->stateCard($project);
+        $readySince = new \DateTimeImmutable('-5 minutes');
+        $this->approvedPullRequest($card, $readySince, ['baseBranch' => 'card-1-parent']);
+
+        $state = $this->stateOf($card);
+
+        self::assertSame(CardStateKind::Waiting, $state?->kind);
+        self::assertSame(CardStateCode::WaitsForParentCard, $state->reason->code);
+        self::assertSame(['%number%' => 102, '%parent_number%' => 1, '%pull_request%' => 101], $state->reason->params);
+        self::assertSame($readySince->format('Y-m-d H:i'), $state->reason->since?->format('Y-m-d H:i'));
+    }
+
+    public function test_a_ready_pull_request_stacked_on_a_branch_that_no_card_links_names_the_branch(): void
+    {
+        $project = $this->stateProject('state-stacked-no-card');
+        $row = new \App\Module\Forge\Entity\ForgePullRequest($project, 'github', 'acme/app', 500);
+        $row->headBranch = 'hand-made';
+        $this->em()->persist($row);
+        $this->em()->flush();
+        $card = $this->stateCard($project);
+        $this->approvedPullRequest($card, new \DateTimeImmutable('-1 hour'), ['baseBranch' => 'hand-made']);
+
+        $state = $this->stateOf($card);
+
+        self::assertSame(CardStateCode::WaitsForParentBranch, $state?->reason->code);
+        self::assertSame(['%number%' => 101, '%branch%' => 'hand-made'], $state->reason->params);
+    }
+
+    public function test_a_ready_pull_request_stacked_on_a_branch_with_no_stored_pull_request_names_the_branch(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-stacked-unknown'));
+        $this->approvedPullRequest($card, new \DateTimeImmutable('-1 hour'), ['baseBranch' => 'card-9-gone']);
+
+        $state = $this->stateOf($card);
+
+        self::assertSame(CardStateKind::Waiting, $state?->kind);
+        self::assertSame(CardStateCode::WaitsForParentBranch, $state->reason->code);
+        self::assertSame(['%number%' => 101, '%branch%' => 'card-9-gone'], $state->reason->params);
+    }
+
+    public function test_a_ready_pull_request_stacked_on_a_closed_pull_request_turns_stuck_after_the_delay(): void
+    {
+        $project = $this->stateProject('state-stacked-closed');
+        $parent = $this->stateCard($project);
+        $this->linkPullRequest($parent, ['headBranch' => 'card-1-parent', 'state' => \App\Module\Forge\Entity\PullRequestState::Closed]);
+        $card = $this->stateCard($project);
+        $this->approvedPullRequest($card, new \DateTimeImmutable('-1 hour'), ['baseBranch' => 'card-1-parent']);
+
+        self::assertSame(CardStateCode::ReadyNotMerged, $this->stateOf($card)?->reason->code);
+    }
+
+    public function test_a_ready_pull_request_stacked_on_a_merged_pull_request_with_a_base_change_in_flight_works(): void
+    {
+        $project = $this->stateProject('state-stacked-merged');
+        $parent = $this->stateCard($project);
+        $this->linkPullRequest($parent, ['headBranch' => 'card-1-parent', 'state' => \App\Module\Forge\Entity\PullRequestState::Merged]);
+        $card = $this->stateCard($project);
+        $row = $this->approvedPullRequest($card, new \DateTimeImmutable('-1 hour'), ['baseBranch' => 'card-1-parent']);
+        $row->baseChangeRequestedTo = 'main';
+        $row->baseChangeRequestedAt = new \DateTimeImmutable('-1 minute');
+        $this->em()->flush();
+
+        $state = $this->stateOf($card);
+
+        self::assertSame(CardStateKind::Working, $state?->kind);
+        self::assertSame(CardStateCode::ForgeRequestPending, $state->reason->code);
+        self::assertSame([], $state->others);
+    }
+
+    public function test_a_ready_pull_request_on_the_epic_branch_is_not_stacked(): void
+    {
+        $project = $this->stateProject('state-stacked-epic');
+        $epic = $this->stateCard($project, 'next');
+        $card = $this->stateCard($project);
+        $card->parent = $epic;
+        $this->approvedPullRequest($card, new \DateTimeImmutable('-1 hour'), ['baseBranch' => 'epic/'.$epic->number]);
+
+        self::assertSame(CardStateCode::ReadyNotMerged, $this->stateOf($card, all: true)?->reason->code);
+    }
+
+    public function test_a_blocker_outranks_a_stacked_wait(): void
+    {
+        $card = $this->stateCard($this->stateProject('state-stacked-blocker'), 'tech-design');
+        $this->holdByBlocker($card);
+        $this->approvedPullRequest($card, new \DateTimeImmutable('-1 hour'), ['baseBranch' => 'card-9-gone']);
+
+        $state = $this->stateOf($card);
+
+        self::assertSame(CardStateCode::HeldByBlocker, $state?->reason->code);
+        self::assertSame(CardStateCode::WaitsForParentBranch, $state->others[0]->code);
+    }
+
     public function test_a_stage_document_in_review_needs_you_since_its_version_time(): void
     {
         $card = $this->stateCard($this->stateProject('state-document'), 'tech-design');
@@ -528,9 +625,10 @@ final class CardStatesTest extends KernelTestCase
         return array_values($repository->findBy(['project' => $card->project]));
     }
 
-    private function approvedPullRequest(Card $card, \DateTimeImmutable $readySince): \App\Module\Forge\Entity\ForgePullRequest
+    /** @param array<string, mixed> $read */
+    private function approvedPullRequest(Card $card, \DateTimeImmutable $readySince, array $read = []): \App\Module\Forge\Entity\ForgePullRequest
     {
-        return $this->linkPullRequest($card, [
+        return $this->linkPullRequest($card, [...$read,
             'checks' => PullRequestChecks::Passed,
             'mergeability' => PullRequestMergeability::Mergeable,
             'review' => PullRequestReview::Approved,

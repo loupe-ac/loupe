@@ -28,6 +28,8 @@ final class CardTileStateMarkTest extends KernelTestCase
         yield 'needs you' => [new CardStateReason(CardStateCode::OpenQuestion, ['%number%' => 3, '%title%' => 'Which option?']), 'needs-you', 'Needs you', 'Question #3 waits for your answer: Which option?'];
         yield 'working' => [new CardStateReason(CardStateCode::RunOpen), 'working', 'Working', 'A worker runs on this card.'];
         yield 'waiting' => [new CardStateReason(CardStateCode::HeldByBlocker, ['%number%' => 7, '%title%' => 'The blocker']), 'waiting', 'Waiting', 'Card #7 blocks this card: The blocker'];
+        yield 'waits for parent card' => [new CardStateReason(CardStateCode::WaitsForParentCard, ['%number%' => 8, '%parent_number%' => 7, '%pull_request%' => 107]), 'waiting', 'Waiting', 'Waits for card #7 (pull request #107) to merge, before pull request #8 can merge.'];
+        yield 'waits for parent branch' => [new CardStateReason(CardStateCode::WaitsForParentBranch, ['%number%' => 8, '%branch%' => 'card-7-x']), 'waiting', 'Waiting', 'Pull request #8 waits for branch card-7-x to merge.'];
     }
 
     #[DataProvider('kinds')]
