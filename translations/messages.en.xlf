@@ -1953,6 +1953,7 @@
                 <source>nav.link.documents</source>
                 <target>Documents</target>
             </trans-unit>
+            <trans-unit id="nav.link.artifacts"><source>nav.link.artifacts</source><target>Artifacts</target></trans-unit>
             <trans-unit id="nav.link.connect">
                 <source>nav.link.connect</source>
                 <target>Connect</target>
@@ -2436,6 +2437,26 @@
             <trans-unit id="project.connect.tool.document_unarchive">
                 <source>project.connect.tool.document_unarchive</source>
                 <target>Restore an archived document so it appears in the reviewer's list again.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_list">
+                <source>project.connect.tool.artifact_list</source>
+                <target>List the stored design artifacts of the project.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_get">
+                <source>project.connect.tool.artifact_get</source>
+                <target>Describe one artifact: its versions, and the files of one version.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_read">
+                <source>project.connect.tool.artifact_read</source>
+                <target>Read one file of an artifact, as text or as an image.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_archive">
+                <source>project.connect.tool.artifact_archive</source>
+                <target>Archive an artifact. It leaves the default list but is not deleted.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.artifact_unarchive">
+                <source>project.connect.tool.artifact_unarchive</source>
+                <target>Restore an archived artifact so it appears in the list again.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.document_set_tags">
                 <source>project.connect.tool.document_set_tags</source>
@@ -5539,6 +5560,10 @@
                 <source>board.card.error.document_unknown</source>
                 <target>One of those documents is not in this project.</target>
             </trans-unit>
+            <trans-unit id="board.card.error.artifact_unknown">
+                <source>board.card.error.artifact_unknown</source>
+                <target>One of those artifacts is not in this project.</target>
+            </trans-unit>
             <trans-unit id="board.card.pull_requests.title">
                 <source>board.card.pull_requests.title</source>
                 <target>Pull requests</target>
@@ -8156,6 +8181,80 @@
             <trans-unit id="agent_review.check.carried"><source>agent_review.check.carried</source><target>Carried from %sha%: the change is identical.</target></trans-unit>
             <trans-unit id="agent_review.check.summary_more"><source>agent_review.check.summary_more</source><target>{0} No more findings.|{1} And one more finding.|]1,Inf[ And %count% more findings.</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
+            <trans-unit id="artifact.list.page.title"><source>artifact.list.page.title</source><target>Artifacts</target></trans-unit>
+            <trans-unit id="artifact.list.heading"><source>artifact.list.heading</source><target>Artifacts</target></trans-unit>
+            <trans-unit id="artifact.list.description"><source>artifact.list.description</source><target>Prototypes that design sessions stored, newest first.</target></trans-unit>
+            <trans-unit id="artifact.list.empty.title"><source>artifact.list.empty.title</source><target>No artifacts yet.</target></trans-unit>
+            <trans-unit id="artifact.list.empty.body"><source>artifact.list.empty.body</source><target>An agent stores the files of a prototype here. Each new store adds a version.</target></trans-unit>
+            <trans-unit id="artifact.list.show_archived"><source>artifact.list.show_archived</source><target>Show archived</target></trans-unit>
+            <trans-unit id="artifact.list.archived"><source>artifact.list.archived</source><target>Archived</target></trans-unit>
+            <trans-unit id="artifact.list.column.name"><source>artifact.list.column.name</source><target>Artifact</target></trans-unit>
+            <trans-unit id="artifact.list.column.cards"><source>artifact.list.column.cards</source><target>Linked cards</target></trans-unit>
+            <trans-unit id="artifact.list.column.stored_by"><source>artifact.list.column.stored_by</source><target>Stored by</target></trans-unit>
+            <trans-unit id="artifact.list.column.stored"><source>artifact.list.column.stored</source><target>Stored</target></trans-unit>
+            <trans-unit id="artifact.list.column.source"><source>artifact.list.column.source</source><target>Source</target></trans-unit>
+            <trans-unit id="artifact.list.column.actions"><source>artifact.list.column.actions</source><target>Actions</target></trans-unit>
+            <trans-unit id="artifact.list.count"><source>artifact.list.count</source><target>{0}No artifacts|{1}1 artifact|]1,Inf[%count% artifacts</target></trans-unit>
+            <trans-unit id="artifact.list.files"><source>artifact.list.files</source><target>{0}No files|{1}1 file|]1,Inf[%count% files</target></trans-unit>
+            <trans-unit id="artifact.list.no_source"><source>artifact.list.no_source</source><target>No source</target></trans-unit>
+            <trans-unit id="artifact.list.no_card"><source>artifact.list.no_card</source><target>No linked card</target></trans-unit>
+            <trans-unit id="artifact.list.copy_link"><source>artifact.list.copy_link</source><target>Copy link to %name%</target></trans-unit>
+            <trans-unit id="artifact.list.archive"><source>artifact.list.archive</source><target>Archive %name%</target></trans-unit>
+            <trans-unit id="artifact.list.unarchive"><source>artifact.list.unarchive</source><target>Unarchive %name%</target></trans-unit>
+            <trans-unit id="artifact.source.claude-design"><source>artifact.source.claude-design</source><target>Claude Design canvas</target></trans-unit>
+            <trans-unit id="artifact.source.claude-artifact"><source>artifact.source.claude-artifact</source><target>claude.ai artifact</target></trans-unit>
+            <trans-unit id="artifact.source.link"><source>artifact.source.link</source><target>Link</target></trans-unit>
+            <trans-unit id="artifact.viewer.full_screen"><source>artifact.viewer.full_screen</source><target>Open full screen</target></trans-unit>
+            <trans-unit id="artifact.viewer.cards.heading"><source>artifact.viewer.cards.heading</source><target>Linked cards</target></trans-unit>
+            <trans-unit id="artifact.viewer.versions.heading"><source>artifact.viewer.versions.heading</source><target>Revision notes</target></trans-unit>
+            <trans-unit id="artifact.viewer.versions.first"><source>artifact.viewer.versions.first</source><target>First version</target></trans-unit>
+            <trans-unit id="artifact.viewer.details.heading"><source>artifact.viewer.details.heading</source><target>Details</target></trans-unit>
+            <trans-unit id="artifact.viewer.sandbox"><source>artifact.viewer.sandbox</source><target>Sandbox</target></trans-unit>
+            <trans-unit id="artifact.viewer.sandbox.content_domain"><source>artifact.viewer.sandbox.content_domain</source><target>Content domain · sandboxed</target></trans-unit>
+            <trans-unit id="artifact.viewer.sandbox.sealed"><source>artifact.viewer.sandbox.sealed</source><target>Sealed sandbox · no content domain</target></trans-unit>
+            <trans-unit id="board.card.artifacts.title"><source>board.card.artifacts.title</source><target>Artifacts</target></trans-unit>
+            <trans-unit id="board.card.artifacts.version"><source>board.card.artifacts.version</source><target>Version</target></trans-unit>
+            <trans-unit id="board.card.artifacts.type"><source>board.card.artifacts.type</source><target>Artifact</target></trans-unit>
+            <trans-unit id="board.card.artifacts.latest_version"><source>board.card.artifacts.latest_version</source><target>v%number% · latest</target></trans-unit>
+            <trans-unit id="board.card.artifacts.open"><source>board.card.artifacts.open</source><target>Open artifact %name%</target></trans-unit>
+            <trans-unit id="artifact.stored_by.session"><source>artifact.stored_by.session</source><target>Claude, interactive session</target></trans-unit>
+            <trans-unit id="artifact.stored_by.unknown"><source>artifact.stored_by.unknown</source><target>Unknown</target></trans-unit>
+            <trans-unit id="artifact.viewer.page.title"><source>artifact.viewer.page.title</source><target>Artifact %name%</target></trans-unit>
+            <trans-unit id="artifact.viewer.version"><source>artifact.viewer.version</source><target>v%number%</target></trans-unit>
+            <trans-unit id="artifact.viewer.cards.none"><source>artifact.viewer.cards.none</source><target>No card links to this artifact.</target></trans-unit>
+            <trans-unit id="artifact.viewer.download"><source>artifact.viewer.download</source><target>Download</target></trans-unit>
+            <trans-unit id="artifact.viewer.copy_link"><source>artifact.viewer.copy_link</source><target>Copy link</target></trans-unit>
+            <trans-unit id="artifact.viewer.copied"><source>artifact.viewer.copied</source><target>Copied!</target></trans-unit>
+            <trans-unit id="artifact.viewer.menu"><source>artifact.viewer.menu</source><target>More actions</target></trans-unit>
+            <trans-unit id="artifact.viewer.archive"><source>artifact.viewer.archive</source><target>Archive</target></trans-unit>
+            <trans-unit id="artifact.viewer.unarchive"><source>artifact.viewer.unarchive</source><target>Unarchive</target></trans-unit>
+            <trans-unit id="artifact.viewer.band.text"><source>artifact.viewer.band.text</source><target>Limited preview: some interactive parts may not work. Your operator can set a content domain for the full view.</target></trans-unit>
+            <trans-unit id="artifact.viewer.band.dismiss"><source>artifact.viewer.band.dismiss</source><target>Dismiss</target></trans-unit>
+            <trans-unit id="artifact.viewer.allowed"><source>artifact.viewer.allowed</source><target>The page may load from:</target></trans-unit>
+            <trans-unit id="artifact.viewer.allowed.none"><source>artifact.viewer.allowed.none</source><target>The page may load only its own files.</target></trans-unit>
+            <trans-unit id="check.artifact_content_domain.label"><source>check.artifact_content_domain.label</source><target>Artifact content domain</target></trans-unit>
+            <trans-unit id="artifact.system_status.content_domain.configured"><source>artifact.system_status.content_domain.configured</source><target>The content domain is set, so stored pages run with their own origin.</target></trans-unit>
+            <trans-unit id="artifact.system_status.content_domain.missing"><source>artifact.system_status.content_domain.missing</source><target>Artifacts are on and ARTIFACT_CONTENT_HOST is empty. Stored pages show in a limited preview, and scripts that need storage or cookies fail. Set ARTIFACT_CONTENT_HOST to a separate domain with a wildcard DNS record.</target></trans-unit>
+            <trans-unit id="artifact.viewer.stored_by"><source>artifact.viewer.stored_by</source><target>Stored by</target></trans-unit>
+            <trans-unit id="artifact.viewer.source"><source>artifact.viewer.source</source><target>Source</target></trans-unit>
+            <trans-unit id="artifact.viewer.stored_on"><source>artifact.viewer.stored_on</source><target>Stored on %date%</target></trans-unit>
+            <trans-unit id="artifact.viewer.frame.title"><source>artifact.viewer.frame.title</source><target>Preview of %name%</target></trans-unit>
+            <trans-unit id="artifact.viewer.no_files"><source>artifact.viewer.no_files</source><target>This version holds no file to show.</target></trans-unit>
+            <trans-unit id="artifact.error.project_not_found"><source>artifact.error.project_not_found</source><target>The project does not exist.</target></trans-unit>
+            <trans-unit id="artifact.error.switched_off"><source>artifact.error.switched_off</source><target>Artifacts are switched off</target></trans-unit>
+            <trans-unit id="artifact.error.card_not_found"><source>artifact.error.card_not_found</source><target>The project has no card with that id or number.</target></trans-unit>
+            <trans-unit id="artifact.error.session_too_long"><source>artifact.error.session_too_long</source><target>The session id is too long.</target></trans-unit>
+            <trans-unit id="artifact.error.worker_refused"><source>artifact.error.worker_refused</source><target>Workers read artifacts and do not store them. Store a new version from an interactive session.</target></trans-unit>
+            <trans-unit id="artifact.error.artifact_not_found"><source>artifact.error.artifact_not_found</source><target>This project has no artifact with that id.</target></trans-unit>
+            <trans-unit id="artifact.error.name_blank"><source>artifact.error.name_blank</source><target>Give the artifact a name.</target></trans-unit>
+            <trans-unit id="artifact.error.name_too_long"><source>artifact.error.name_too_long</source><target>The artifact name is too long.</target></trans-unit>
+            <trans-unit id="artifact.error.no_files"><source>artifact.error.no_files</source><target>Send at least one file.</target></trans-unit>
+            <trans-unit id="artifact.error.too_many_files"><source>artifact.error.too_many_files</source><target>The version has more files than the limit of this instance allows.</target></trans-unit>
+            <trans-unit id="artifact.error.unsafe_path"><source>artifact.error.unsafe_path</source><target>Each path must be relative, with no empty or dot segment, no backslash and no control character, and at most 1024 characters.</target></trans-unit>
+            <trans-unit id="artifact.error.duplicate_path"><source>artifact.error.duplicate_path</source><target>Two files have the same path.</target></trans-unit>
+            <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
+            <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>
+            <trans-unit id="artifact.error.too_large"><source>artifact.error.too_large</source><target>The files together are larger than the size limit of this instance allows.</target></trans-unit>
         </body>
     </file>
 </xliff>

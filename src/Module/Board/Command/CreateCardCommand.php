@@ -14,6 +14,7 @@ final readonly class CreateCardCommand
     /**
      * @param list<string>        $pullRequestUrls raw URLs as given; the handler resolves the forge
      * @param list<string>        $documentIds     documents of this project; the handler refuses any other
+     * @param list<string>        $artifactIds     artifacts of this project; the handler refuses any other
      * @param list<CardLinkInput> $relatedCards    cards of this project the new card links to
      */
     public function __construct(
@@ -27,6 +28,7 @@ final readonly class CreateCardCommand
         public array $pullRequestUrls = [],
         /** @param list<string> $documentIds */
         public array $documentIds = [],
+        public array $artifactIds = [],
         public array $relatedCards = [],
         /** An epic of this project. Null or blank gives the card no parent. */
         public ?string $parentCardId = null,

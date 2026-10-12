@@ -97,6 +97,8 @@ x-app-environment: &app-environment
   # Empty is this one.
   SITE_REVIEW_WIDGET_BACKEND: "${SITE_REVIEW_WIDGET_BACKEND:-}"
   SITE_REVIEW_WIDGET_CONTEXT: "${SITE_REVIEW_WIDGET_CONTEXT:-}"
+  # Domain that serves stored artifacts. Empty means a sealed preview on the app domain.
+  ARTIFACT_CONTENT_HOST: "${ARTIFACT_CONTENT_HOST:-}"
   # Empty on a real deployment. A preview token signs the widget in with no popup.
   SITE_REVIEW_WIDGET_PREVIEW_TOKEN: "${SITE_REVIEW_WIDGET_PREVIEW_TOKEN:-}"
   # Umami. The first two, plus the analytics.enabled flag, before a tag is

@@ -21,7 +21,7 @@ locals {
 }
 
 module "app" {
-  source = "git::https://github.com/ubermuda/terraform-digitalocean-symfony-app.git//?ref=v2.1.1"
+  source = "git::https://github.com/ubermuda/terraform-digitalocean-symfony-app.git//?ref=v2.2.0"
 
   app_name = local.app_name
 
@@ -81,6 +81,16 @@ module "app" {
   domain_zone   = var.domain_zone
   default_uri   = var.default_uri
 
+  # The content domain of stored prototypes. One wildcard entry covers the root
+  # domain and every sub-address, and its certificate needs TXT records that the
+  # operator renews. A domain added in the console is dropped by the next apply.
+  extra_domains = var.artifact_content_host == "" ? [] : [{
+    name     = var.artifact_content_host
+    type     = "ALIAS"
+    wildcard = true
+    zone     = var.artifact_content_zone
+  }]
+
   # Off for the first apply — the job cannot reach the database until the
   # one-time schema GRANT has run, and a failing PRE_DEPLOY job fails the whole
   # deployment. On thereafter, so every deploy migrates before the new
@@ -136,6 +146,7 @@ module "app" {
     var.site_review_widget_backend == "" ? {} : { SITE_REVIEW_WIDGET_BACKEND = { value = var.site_review_widget_backend } },
     var.site_review_widget_context == "" ? {} : { SITE_REVIEW_WIDGET_CONTEXT = { value = var.site_review_widget_context } },
     var.site_review_widget_preview_token == "" ? {} : { SITE_REVIEW_WIDGET_PREVIEW_TOKEN = { value = var.site_review_widget_preview_token, type = "SECRET" } },
+    var.artifact_content_host == "" ? {} : { ARTIFACT_CONTENT_HOST = { value = var.artifact_content_host } },
     var.analytics_script_url == "" ? {} : { ANALYTICS_SCRIPT_URL = { value = var.analytics_script_url } },
     var.analytics_website_id == "" ? {} : { ANALYTICS_WEBSITE_ID = { value = var.analytics_website_id } },
     var.analytics_origin == "" ? {} : { ANALYTICS_ORIGIN = { value = var.analytics_origin } },

@@ -20,6 +20,7 @@ use App\Module\Board\Event\CardPullRequestsChanged;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\ArtifactLinkResolver;
 use App\Module\Board\Service\CardEventActor;
 use App\Module\Board\Service\CardLinkResolver;
 use App\Module\Board\Service\CardLinkSync;
@@ -45,6 +46,7 @@ final readonly class CreateCardHandler
         private PullRequestUrlResolver $pullRequests,
         private PullRequestTracking $pullRequestTracking,
         private DocumentLinkResolver $documentLinks,
+        private ArtifactLinkResolver $artifactLinks,
         private CardLinkResolver $cardLinks,
         private CardLinkSync $cardLinkSync,
         private CardParentResolver $parents,
@@ -77,6 +79,7 @@ final readonly class CreateCardHandler
         // Outside the transaction: a refusal inside one rolls it back and
         // closes the EntityManager.
         $documents = $this->documentLinks->resolve($command->project, array_values($command->documentIds));
+        $artifacts = $this->artifactLinks->resolve($command->project, array_values($command->artifactIds));
         $relatedCards = $this->cardLinks->resolve($command->project, null, array_values($command->relatedCards));
         $parent = null === $command->parentCardId ? null : $this->parents->resolve($command->project, $command->parentCardId);
 
@@ -84,7 +87,7 @@ final readonly class CreateCardHandler
         // calls into the same project would otherwise allocate the same rank,
         // and the same card number. Same PESSIMISTIC_WRITE-on-the-project idiom
         // App\Module\SiteReview\Command\AddCommentHandler uses.
-        $card = $this->em->wrapInTransaction(function () use ($command, $title, $documents, $relatedCards, $parent): Card|string|DomainErrors {
+        $card = $this->em->wrapInTransaction(function () use ($command, $title, $documents, $artifacts, $relatedCards, $parent): Card|string|DomainErrors {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
 
             // Read under the lock: a column deleted or given another terminal
@@ -137,6 +140,7 @@ final readonly class CreateCardHandler
 
             $card->replacePullRequests(...$this->pullRequests->linksFor($card, array_values($command->pullRequestUrls)));
             $card->syncDocuments(...$documents);
+            $card->syncArtifacts(...$artifacts);
 
             $this->em->persist($card);
             $actor = $command->actor ?? $command->reporter;
@@ -201,6 +205,7 @@ final readonly class CreateCardHandler
                 'source' => $card->source->kind->value,
                 'pullRequestCount' => \count($card->pullRequests),
                 'documentCount' => \count($card->documents),
+                'artifactCount' => \count($card->artifacts),
                 'relatedCardCount' => \count($relatedCards),
             ],
             new AuditSubject('card', (string) $card->id),

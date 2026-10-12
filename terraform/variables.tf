@@ -59,6 +59,18 @@ variable "default_uri" {
   description = "Absolute base URL for URLs generated outside a request — password-reset mails, export download links — which have no host to infer one from. Derives from custom_domain when that is set, so it is only needed when serving on the assigned *.ondigitalocean.app hostname, which is not known until after the first apply."
 }
 
+variable "artifact_content_host" {
+  type        = string
+  default     = ""
+  description = "ARTIFACT_CONTENT_HOST: the domain that serves stored prototypes, such as loupeusercontent.com. It must differ from the site of the app, so that a prototype shares no cookie with it. The app serves it with a wildcard domain, so each artifact gets its own sub-address. Empty serves the sealed preview on the app domain, and the health check warns."
+}
+
+variable "artifact_content_zone" {
+  type        = string
+  default     = ""
+  description = "DigitalOcean DNS zone holding artifact_content_host, which must be a zone THIS account serves. Set it and App Platform writes the records itself; leave it empty to point DNS yourself with a `*` CNAME."
+}
+
 variable "project_id" {
   type        = string
   default     = ""

@@ -8,6 +8,11 @@ security:
                 class: App\Module\Account\Entity\User
 
     firewalls:
+        # Every request to the content domain of stored artifacts. No security
+        # listener, so no session is read and no cookie is set.
+        artifact_content_host:
+            request_matcher: App\Module\Artifact\Security\ArtifactContentHostRequestMatcher
+            security: false
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
@@ -20,6 +25,12 @@ security:
         # browser's session is never read, so the answer stays publicly cacheable.
         install_script:
             pattern: ^/install\.sh$
+            security: false
+        # The signed content links of a stored prototype. No security listener,
+        # so no session is read or started and the response sets no cookie. The
+        # signature in the path is the credential.
+        artifact_content:
+            pattern: ^/artifact-content/
             security: false
         # The suspension gate on these two firewalls is the user_checker, not
         # RequireNotSuspendedListener: that listener exempts ^/api and ^/mcp
@@ -94,6 +105,7 @@ security:
         - { path: '^/api/projects/[^/]+/interactive-runs/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/experiments/[^/]+/pins/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/inbox/asks/[^/]+$', roles: ROLE_API_AGENT }
+        - { path: '^/api/projects/[^/]+/artifacts$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/preview-tokens$', roles: ROLE_API_AGENT }
         - { path: '^/api/projects/[^/]+/preview-tokens/[^/]+$', roles: ROLE_API_AGENT }
         - { path: '^/api/bridges/[^/]+/heartbeat$', roles: ROLE_API_AGENT }

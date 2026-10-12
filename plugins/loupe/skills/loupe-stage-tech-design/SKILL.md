@@ -113,9 +113,9 @@ Show a short snippet where it makes a part or a decision concrete. Put the snipp
 A headless worker cannot read a claude.ai artifact, so link each prototype in a form that a worker reads.
 
 1. Link a Claude Design canvas, a Loupe document or a file of the repository.
-2. When the product document links an artifact, link its readable copy on the branch `prototype/<card number>` too.
-3. Never make a new artifact prototype in this stage. The stage changes only Loupe documents, and a headless worker has no `Artifact` tool. Make a new prototype as a Loupe document.
-4. Never link an artifact that has no readable copy. When the design needs such an artifact, stop as the contract "Read a linked prototype" says. The owner stores the copy in an interactive session, as rule C8 of `../loupe-product-design/references/claude-design.md` says.
+2. When the product document links a stored artifact, link it too, by its stable library link.
+3. Never make a new prototype in this stage. The stage changes only Loupe documents. Make a new prototype as a Loupe document.
+4. Never link a claude.ai artifact that the library does not hold. When the design needs one, stop as the contract "Read a linked prototype" says. The owner stores it in an interactive session, as rule C8 of `../loupe-product-design/references/claude-design.md` says.
 
 ## Facts and recommendations
 

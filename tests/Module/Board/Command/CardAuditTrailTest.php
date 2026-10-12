@@ -115,6 +115,7 @@ final class CardAuditTrailTest extends KernelTestCase
             'source' => 'agent',
             'pullRequestCount' => 0,
             'documentCount' => 0,
+            'artifactCount' => 0,
             'relatedCardCount' => 0,
         ], $record->context);
 
@@ -195,6 +196,7 @@ final class CardAuditTrailTest extends KernelTestCase
             'laneChanged' => false,
             'pullRequestsReplaced' => false,
             'documentsReplaced' => false,
+            'artifactsReplaced' => false,
             'relatedCardsReplaced' => false,
             'moved' => false,
         ], $record->context);
