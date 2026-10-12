@@ -1,0 +1,28 @@
+{% set tiles = [
+    {key: 'claude_code', icon: 'logos:claude-icon'},
+    {key: 'codex', icon: 'logos:openai-icon'},
+    {key: 'openrouter', icon: 'logos:openrouter'},
+    {key: 'github', icon: 'logos:github-icon'},
+    {key: 'mcp', icon: 'simple-icons:modelcontextprotocol'},
+    {key: 'claude_design', icon: 'brand:claude-design'},
+] %}
+<section id="integrations" class="lp-home-section lp-home-section--sunken">
+    <div class="lp-home-container">
+        <h2 class="lp-home-title">{{ 'landing.works_with.title'|trans }}</h2>
+        <p class="lp-home-lead">{{ 'landing.works_with.lead'|trans }}</p>
+        <ul class="lp-home-tiles">
+            {% for tile in tiles %}
+                <li class="lp-home-tile">
+                    <span class="lp-home-tile__logo"><twig:UX:Icon :name="tile.icon" class="w-6 h-6" aria-hidden="true" /></span>
+                    <span class="lp-home-tile__name">{{ ('landing.works_with.' ~ tile.key ~ '.name')|trans }}</span>
+                    <span class="lp-home-tile__text">{{ ('landing.works_with.' ~ tile.key ~ '.text')|trans }}</span>
+                </li>
+            {% endfor %}
+            <li class="lp-home-tile lp-home-tile--more">
+                <span class="lp-home-tile__logo"><twig:UX:Icon name="lucide:plus" class="w-5 h-5" aria-hidden="true" /></span>
+                <span class="lp-home-tile__name">{{ 'landing.works_with.more.name'|trans }}</span>
+                <span class="lp-home-tile__text">{{ 'landing.works_with.more.text'|trans }}</span>
+            </li>
+        </ul>
+    </div>
+</section>

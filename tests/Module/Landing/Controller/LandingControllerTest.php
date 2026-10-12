@@ -29,26 +29,47 @@ final class LandingControllerTest extends WebTestCase
         return $user;
     }
 
-    public function test_anonymous_visitor_sees_the_landing_page_where_the_gate_shows_it(): void
+    public function test_anonymous_visitor_sees_the_home_page_where_the_gate_shows_it(): void
     {
         $client = static::createClient();
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.lp-landing');
-        self::assertSelectorExists('a[href="/register"]');
+        self::assertSelectorExists('.lp-home');
+        self::assertSelectorTextContains('h1', 'From ideas to features.');
+        self::assertSelectorExists('a[href="/waitlist"]');
+        self::assertSelectorNotExists('a[href="/register"]');
     }
 
-    public function test_landing_page_names_the_worker_harnesses(): void
+    public function test_home_page_shows_six_steps_eight_features_and_no_price(): void
     {
         $client = static::createClient();
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertAnySelectorTextContains('.lp-landing-feature__title', 'Claude Code and Codex workers');
-        self::assertAnySelectorTextContains('.lp-landing-faq__question', 'Which agents does it run?');
+        self::assertSelectorCount(6, '.lp-home-step');
+        self::assertSelectorCount(8, '.lp-home-feature');
+        self::assertSelectorCount(3, '.lp-home-step .lp-tag');
+        $text = strtolower($client->getCrawler()->filter('main')->text());
+        foreach (['per month', 'free trial', 'pricing', 'per seat'] as $word) {
+            self::assertStringNotContainsString($word, $text);
+        }
+    }
+
+    public function test_home_page_notify_form_posts_the_picks_to_the_waitlist(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#waitlist-notify form[action="/waitlist"]');
+        self::assertSelectorCount(10, 'input.lp-home-chip__input[type="checkbox"][name="waitlist_join_form[picks][]"]');
+        self::assertSelectorExists('input[name="waitlist_join_form[email]"]');
+        self::assertSelectorExists('input[name="waitlist_join_form[other]"]');
+        self::assertSelectorExists('.lp-home-ask__body[hidden]');
     }
 
     public function test_anonymous_visitor_is_sent_to_login_where_the_gate_hides_the_page(): void
@@ -71,7 +92,7 @@ final class LandingControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.lp-landing');
+        self::assertSelectorExists('.lp-home');
     }
 
     public function test_authenticated_user_never_sees_the_landing_page(): void

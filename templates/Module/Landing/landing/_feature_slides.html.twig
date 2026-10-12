@@ -1,0 +1,165 @@
+{# One slide per feature, in the order of the list. Mock screens use the Driftwood cabin site and its card #42. #}
+{% set lanes = [
+    {key: 'product_design', cards: [{number: 42, title: 'nightly_price', state: 'needs_you', tone: 'amber'}]},
+    {key: 'implementation', cards: [{number: 38, title: 'booking_calendar', state: 'working', tone: 'purple'}, {number: 40, title: 'safer_checkout', state: 'stuck', tone: 'red'}]},
+    {key: 'in_review', cards: [{number: 36, title: 'guest_reviews', state: 'needs_you', tone: 'amber'}]},
+    {key: 'done', cards: [{number: 31, title: 'faster_search', state: 'merged', tone: 'green'}]},
+] %}
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'board' }}</b></span></div>
+        <div class="lp-home-board">
+            {% for lane in lanes %}
+                <div class="lp-home-board__lane">
+                    <span class="lp-home-board__lane-title">{{ ('landing.slide.board.lane.' ~ lane.key)|trans }}</span>
+                    {% for card in lane.cards %}
+                        <div class="lp-home-board__card">
+                            <span class="lp-home-board__card-head">
+                                <span class="lp-home-mono">#{{ card.number }}</span>
+                                <twig:Ds:Tag :tone="card.tone">{{ ('landing.slide.board.state.' ~ card.state)|trans }}</twig:Ds:Tag>
+                            </span>
+                            <span class="lp-home-board__card-title">{{ ('landing.slide.board.card.' ~ card.title)|trans }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="lp-home-caption"><span class="lp-home-caption__kicker">{{ 'landing.features.board.title'|trans }}</span>{{ 'landing.features.board.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'workflow' }}</b></span></div>
+        <div class="lp-home-window__body">
+            <div class="lp-home-window__heading">{{ 'landing.slide.rules.heading'|trans }}</div>
+            <div class="lp-home-rule lp-home-rule--head">
+                <span>{{ 'landing.slide.rules.rule'|trans }}</span><span>{{ 'landing.slide.rules.applies'|trans }}</span><span>{{ 'landing.slide.rules.action'|trans }}</span>
+            </div>
+            <div class="lp-home-rule"><b>{{ 'tech-design-approved' }}</b><span>{{ 'landing.slide.rules.column_tech_design'|trans }}</span><span>{{ 'landing.slide.rules.move_to_implementation'|trans }}</span></div>
+            <div class="lp-home-rule"><b>{{ 'reviewable' }}</b><span>{{ 'landing.slide.rules.column_implementation'|trans }}</span><span>{{ 'landing.slide.rules.move_to_in_review'|trans }}</span></div>
+            <div class="lp-home-rule"><b>{{ 'agent-review' }}</b><span>{{ 'landing.slide.rules.column_in_review'|trans }}</span><span>{{ 'landing.slide.rules.request_review'|trans }}</span></div>
+            <div class="lp-home-rule"><b>{{ 'merged' }}</b><span>{{ 'landing.slide.rules.any_column'|trans }}</span><span>{{ 'landing.slide.rules.move_to_done'|trans }}</span></div>
+        </div>
+    </div>
+    <div class="lp-home-caption lp-home-caption--left"><span class="lp-home-caption__kicker">{{ 'landing.features.workflow_rules.title'|trans }}</span>{{ 'landing.features.workflow_rules.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-terminal">
+        <div class="lp-home-terminal__bar"><i></i><i></i><i></i><span>{{ 'claude · driftwood' }}</span></div>
+        <div class="lp-home-terminal__body">
+            <div>{{ '> /loupe:product-design 42' }}</div>
+            <div><b>{{ 'loupe - card_get' }}</b> <span class="lp-home-terminal__dim">{{ '(card: 42)' }}</span></div>
+            <div class="lp-home-terminal__dim">#42 {{ 'landing.slide.session.card_title'|trans }}</div>
+            <div><b>{{ 'loupe - card_run_open' }}</b> <span class="lp-home-terminal__dim">{{ '(status: "product-design")' }}</span></div>
+            <div class="lp-home-terminal__dim">{{ 'landing.slide.session.run_open'|trans }}</div>
+            <div>{{ 'landing.slide.session.question'|trans }}</div>
+        </div>
+    </div>
+    <div class="lp-home-caption"><span class="lp-home-caption__kicker">{{ 'landing.features.sessions.title'|trans }}</span>{{ 'landing.features.sessions.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'review' }}</b></span></div>
+        <div class="lp-home-doc__head">
+            <b>{{ 'landing.slide.document.title'|trans }}</b>
+            <span class="lp-home-doc__version">{{ 'v1' }}</span>
+            <span class="lp-home-doc__finish">{{ 'landing.slide.document.finish'|trans }}</span>
+        </div>
+        <div class="lp-home-doc__body">
+            <div class="lp-home-doc__prose">
+                <p>{{ 'landing.slide.document.paragraph_first'|trans }}</p>
+                <p>{{ 'landing.slide.document.paragraph_second_before'|trans }} <mark class="lp-home-doc__mark">{{ 'landing.slide.document.paragraph_second_marked'|trans }}</mark>{{ 'landing.slide.document.paragraph_second_after'|trans }}</p>
+            </div>
+            <div class="lp-home-doc__note"><b>{{ 'landing.slide.document.note_author'|trans }}</b>{{ 'landing.slide.document.note'|trans }}</div>
+        </div>
+    </div>
+    <div class="lp-home-caption"><span class="lp-home-caption__kicker">{{ 'landing.features.document_review.title'|trans }}</span>{{ 'landing.features.document_review.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'inbox' }}</b></span></div>
+        <div class="lp-home-window__body">
+            <div class="lp-home-window__heading">{{ 'landing.slide.inbox.heading'|trans }} <span class="lp-home-mono lp-home-window__count">3</span></div>
+            <div class="lp-home-rows">
+                <div class="lp-home-rows__row">{{ 'landing.slide.inbox.question'|trans }}<twig:Ds:Tag tone="amber">{{ 'landing.slide.inbox.kind_question'|trans }}</twig:Ds:Tag></div>
+                <div class="lp-home-rows__row">{{ 'landing.slide.inbox.review'|trans }}<twig:Ds:Tag tone="amber">{{ 'landing.slide.inbox.kind_review'|trans }}</twig:Ds:Tag></div>
+                <div class="lp-home-rows__row">{{ 'landing.slide.inbox.todo'|trans }}<twig:Ds:Tag tone="amber">{{ 'landing.slide.inbox.kind_todo'|trans }}</twig:Ds:Tag></div>
+            </div>
+        </div>
+    </div>
+    <div class="lp-home-caption"><span class="lp-home-caption__kicker">{{ 'landing.features.inbox.title'|trans }}</span>{{ 'landing.features.inbox.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'github.com/driftwood/' }}<b>{{ 'pull/412' }}</b></span></div>
+        <div class="lp-home-window__body lp-home-window__body--stack">
+            <div class="lp-home-check">
+                <span class="lp-home-check__dot"></span>
+                <b class="lp-home-mono">{{ 'loupe/agent-review' }}</b>
+                <span>{{ 'landing.slide.agent_review.status'|trans }}</span>
+            </div>
+            <div class="lp-home-diff">
+                <div class="lp-home-diff__file">{{ 'SearchCard.tsx' }}</div>
+                <div class="lp-home-diff__added">{{ '+ <Price nightly={cabin.nightly} />' }}</div>
+                <div class="lp-home-diff__finding"><b>{{ 'landing.slide.agent_review.finding_label'|trans }}</b> {{ 'landing.slide.agent_review.finding'|trans }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="lp-home-caption lp-home-caption--left"><span class="lp-home-caption__kicker">{{ 'landing.features.agent_review.title'|trans }}</span>{{ 'landing.features.agent_review.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'pr-42.' }}<b>{{ 'preview' }}</b>{{ '.driftwood.test' }}</span></div>
+        <div class="lp-home-site">
+            <div class="lp-home-site__head"><b>{{ 'driftwood' }}</b><span>{{ 'landing.slide.site_review.tagline'|trans }}</span></div>
+            <div class="lp-home-site__grid">
+                <div class="lp-home-site__cabin">
+                    <b>{{ 'landing.slide.site_review.cabin_first'|trans }}</b>
+                    <span>{{ 'landing.slide.site_review.cabin_first_meta'|trans }}</span>
+                    <span class="lp-home-site__price">{{ 'landing.slide.site_review.price'|trans }}</span>
+                </div>
+                <div class="lp-home-site__cabin"><b>{{ 'landing.slide.site_review.cabin_second'|trans }}</b><span>{{ 'landing.slide.site_review.cabin_second_meta'|trans }}</span></div>
+            </div>
+            <div class="lp-home-site__note">
+                <span class="lp-home-site__note-label">{{ 'landing.slide.site_review.selected'|trans }}</span>
+                <span class="lp-home-site__note-text">{{ 'landing.slide.site_review.note'|trans }}</span>
+                <span class="lp-home-site__note-foot"><span>{{ 'landing.slide.site_review.saves'|trans }}</span><b>{{ 'landing.slide.site_review.submit'|trans }}</b></span>
+            </div>
+        </div>
+    </div>
+    <div class="lp-home-caption lp-home-caption--left"><span class="lp-home-caption__kicker">{{ 'landing.features.site_review.title'|trans }}</span>{{ 'landing.features.site_review.caption'|trans }}</div>
+</div>
+
+<div class="lp-home-slide" data-landing-features-target="slide">
+    <div class="lp-home-window">
+        <div class="lp-home-window__bar"><i></i><i></i><i></i><span class="lp-home-window__address">{{ 'loupe.ac/' }}<b>{{ 'analytics' }}</b></span></div>
+        <div class="lp-home-window__body">
+            <div class="lp-home-chart__filters">
+                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.metric'|trans }}</span>
+                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.per'|trans }}</span>
+                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.statistic'|trans }}</span>
+                <span class="lp-home-chart__filter">{{ 'landing.slide.analytics.group'|trans }}</span>
+            </div>
+            <div class="lp-home-chart" aria-hidden="true">
+                {% for pair in [['lp-home-chart__bar--5', 'lp-home-chart__bar--3'], ['lp-home-chart__bar--4', 'lp-home-chart__bar--3'], ['lp-home-chart__bar--6', 'lp-home-chart__bar--2'], ['lp-home-chart__bar--3', 'lp-home-chart__bar--2'], ['lp-home-chart__bar--4', 'lp-home-chart__bar--1'], ['lp-home-chart__bar--3', 'lp-home-chart__bar--1']] %}
+                    <div class="lp-home-chart__group">
+                        <span class="lp-home-chart__bar lp-home-chart__bar--first {{ pair[0] }}"></span>
+                        <span class="lp-home-chart__bar lp-home-chart__bar--second {{ pair[1] }}"></span>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="lp-home-chart__legend">
+                <span><i class="lp-home-chart__swatch lp-home-chart__swatch--first"></i>{{ 'landing.slide.analytics.claude_code'|trans }}</span>
+                <span><i class="lp-home-chart__swatch lp-home-chart__swatch--second"></i>{{ 'landing.slide.analytics.codex'|trans }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="lp-home-caption lp-home-caption--left"><span class="lp-home-caption__kicker">{{ 'landing.features.analytics.title'|trans }}</span>{{ 'landing.features.analytics.caption'|trans }}</div>
+</div>

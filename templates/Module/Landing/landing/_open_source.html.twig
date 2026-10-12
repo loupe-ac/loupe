@@ -1,0 +1,20 @@
+<section id="opensource" class="lp-home-section">
+    <div class="lp-home-container">
+        <h2 class="lp-home-title">{{ 'landing.open_source.title'|trans }}</h2>
+        <p class="lp-home-lead">{{ 'landing.open_source.lead'|trans }}</p>
+        <div class="lp-home-ways">
+            <div class="lp-home-way">
+                <twig:Ds:Tag tone="neutral" class="lp-home-way__tag">{{ 'landing.open_source.self_host.tag'|trans }}</twig:Ds:Tag>
+                <span class="lp-home-way__headline">{{ 'landing.open_source.self_host.headline'|trans }}</span>
+                <p class="lp-home-way__text">{{ 'landing.open_source.self_host.text'|trans }}</p>
+                <twig:Ds:Button href="{{ app_docs_url }}/operating/install/docker-compose/" class="lp-home-way__action">{{ 'landing.open_source.self_host.action'|trans }}</twig:Ds:Button>
+            </div>
+            <div class="lp-home-way lp-home-way--hosted">
+                <twig:Ds:Tag tone="neutral" class="lp-home-way__tag">{{ 'landing.open_source.hosted.tag'|trans }}</twig:Ds:Tag>
+                <span class="lp-home-way__headline">{{ 'landing.open_source.hosted.headline'|trans }}</span>
+                <p class="lp-home-way__text">{{ 'landing.open_source.hosted.text'|trans }}</p>
+                <twig:Ds:Button variant="inverse" href="{{ path('app_waitlist_join') }}" class="lp-home-way__action">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+            </div>
+        </div>
+    </div>
+</section>
