@@ -308,38 +308,44 @@ func (q *Sender) run() {
 		q.pending.Add(-1)
 	}
 
-	dropped := q.flush(lost)
-	q.logLost(dropped)
-	lose(dropped, Unreachable)
+	unreachable, refused := q.flush(lost)
+	q.logLost(append(append([]Report(nil), unreachable...), refused...))
+	lose(unreachable, Unreachable)
+	lose(refused, Refused)
 }
 
 // flush gives each report a stopping bridge still holds one attempt, inside the
-// grace window, and returns the ones that do not land. It sends on a context of
-// its own, because the bridge's is cancelled by the time it runs.
+// grace window, and returns the ones that do not land: the server refused the
+// second list, and did not answer the first. It sends on a context of its own,
+// because the bridge's is cancelled by the time it runs.
 //
 // A report the shutdown interrupted is sent again here. The server identifies a
 // run by its own key, so a second copy of a report that landed changes nothing.
-func (q *Sender) flush(lost []Report) []Report {
+func (q *Sender) flush(lost []Report) (unreachable, refused []Report) {
 	if len(lost) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), q.grace)
 	defer cancel()
 
-	var dropped []Report
 	for _, next := range lost {
 		if ctx.Err() != nil {
-			dropped = append(dropped, next)
+			unreachable = append(unreachable, next)
 
 			continue
 		}
-		if _, err := next.Send(ctx); err != nil {
-			dropped = append(dropped, next)
+		_, err := next.Send(ctx)
+		switch {
+		case err == nil:
+		case errors.Is(err, api.ErrReportRefused):
+			refused = append(refused, next)
+		default:
+			unreachable = append(unreachable, next)
 		}
 	}
 
-	return dropped
+	return unreachable, refused
 }
 
 // deliver sends one report until the server takes it, until the server refuses

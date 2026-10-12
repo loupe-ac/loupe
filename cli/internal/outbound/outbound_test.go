@@ -456,6 +456,27 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 			}
 		}
 	})
+	t.Run("refused at the shutdown", func(t *testing.T) {
+		held := make(chan struct{})
+		h := newHarnessWithSend(t, 3, func(ctx context.Context) (bool, error) {
+			select {
+			case <-held:
+				return false, fmt.Errorf("%w (HTTP 422)", api.ErrReportRefused)
+			default:
+			}
+			<-ctx.Done()
+
+			return false, ctx.Err()
+		})
+		lost := &lostCounter{}
+		h.queue.Enqueue(lost.mark(h.report(1)))
+		h.next(t, 1)
+		close(held)
+		h.queue.Close()
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Refused {
+			t.Fatalf("reasons = %v, want refused", got)
+		}
+	})
 }
 
 // Close is called twice on a bridge that shuts down by itself, once by the

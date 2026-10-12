@@ -182,6 +182,76 @@ func TestAKeptReportIsSentAndDeletedWhenLoupeTakesIt(t *testing.T) {
 	}
 }
 
+// Kept reports take one place in the queue however many there are, so a large
+// outbox never fills the queue and crowds out the inventory behind it.
+func TestManyKeptReportsTakeOnePlaceInTheQueue(t *testing.T) {
+	client := &fakeRunClient{}
+	reports, box, _ := lossReports(t, client)
+	for i := range 300 {
+		_ = box.keep(testProject, fmt.Sprintf("run-%d", i), failedReport())
+	}
+	var queued []outbound.Report
+	reports.replayKept(func(r outbound.Report) { queued = append(queued, r) })
+
+	if len(queued) != 1 {
+		t.Fatalf("queued = %d, want 1", len(queued))
+	}
+	if _, err := queued[0].Send(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if len(client.puts) != 300 {
+		t.Fatalf("puts = %d, want 300", len(client.puts))
+	}
+	if kept, _, _ := box.list(); len(kept) != 0 {
+		t.Fatalf("kept = %d", len(kept))
+	}
+}
+
+// The walk stops at the first report Loupe does not answer, and its retry
+// starts from that report.
+func TestAKeptReplayStopsAtTheFirstUnansweredReport(t *testing.T) {
+	var calls int
+	client := &fakeRunClient{state: func(string) (bool, error) {
+		calls++
+		if calls == 2 {
+			return false, errors.New("no such host")
+		}
+
+		return true, nil
+	}}
+	reports, box, _ := lossReports(t, client)
+	for i := range 3 {
+		box.now = func() time.Time { return outboxNow.Add(time.Duration(i) * time.Minute) }
+		_ = box.keep(testProject, fmt.Sprintf("run-%d", i), failedReport())
+	}
+	box.now = func() time.Time { return outboxNow.Add(time.Hour) }
+	var queued []outbound.Report
+	reports.replayKept(func(r outbound.Report) { queued = append(queued, r) })
+
+	if _, err := queued[0].Send(context.Background()); err == nil {
+		t.Fatal("a failed walk reported success")
+	}
+	if kept, _, _ := box.list(); len(kept) != 2 || kept[0].RunID != "run-1" {
+		t.Fatalf("kept = %v", kept)
+	}
+	if _, err := queued[0].Send(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if kept, _, _ := box.list(); len(kept) != 0 {
+		t.Fatalf("kept = %v", kept)
+	}
+}
+
+func TestAnEmptyOutboxQueuesNothing(t *testing.T) {
+	reports, _, _ := lossReports(t, &fakeRunClient{})
+	var queued int
+	reports.replayKept(func(outbound.Report) { queued++ })
+
+	if queued != 0 {
+		t.Fatalf("queued = %d", queued)
+	}
+}
+
 func TestAKeptReportIsDeletedWhenLoupeRefusesIt(t *testing.T) {
 	client := &fakeRunClient{state: func(string) (bool, error) {
 		return false, fmt.Errorf("%w (HTTP 422)", api.ErrReportRefused)
@@ -285,7 +355,7 @@ func TestKeptReportsGoBeforeTheInventory(t *testing.T) {
 	h.router.handler().OnConnect()
 	h.router.wg.Wait()
 
-	if len(queue.order) != 2 || queue.order[0] != "plan/87" || queue.order[1] != "/0" {
+	if len(queue.order) != 2 || queue.order[0] != keptRule+"/0" || queue.order[1] != "/0" {
 		t.Fatalf("order = %v, want the kept report, then the inventory", queue.order)
 	}
 }

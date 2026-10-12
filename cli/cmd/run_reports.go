@@ -81,13 +81,32 @@ func (s *runReports) state(handle, runID string, report api.RunStateReport) outb
 	return r
 }
 
-// replayKept queues each kept report, oldest first, for a bridge that has just
-// connected. A file leaves the outbox when Loupe takes or refuses its report,
-// and stays when Loupe is still not reachable.
+// keptRule names the replay of the outbox in the log of the queue.
+const keptRule = "kept-reports"
+
+// replayKept queues one report that sends every kept report, oldest first, for
+// a bridge that has just connected. One report takes one place in the queue
+// however many files wait, so the inventory behind it is never crowded out. A
+// file leaves the outbox when Loupe takes or refuses its report. The first one
+// Loupe does not answer stops the walk, and the queue retries it from there.
 func (s *runReports) replayKept(enqueue func(outbound.Report)) {
 	if s.outbox == nil {
 		return
 	}
+	if kept, bad, err := s.outbox.list(); err == nil && len(kept) == 0 && len(bad) == 0 {
+		return
+	}
+	enqueue(outbound.Report{
+		Rule: keptRule,
+		Send: func(ctx context.Context) (bool, error) {
+			return true, s.sendKept(ctx)
+		},
+	})
+}
+
+// sendKept walks the outbox once, and stops at the first report that Loupe
+// does not answer.
+func (s *runReports) sendKept(ctx context.Context) error {
 	now := time.Now
 	if s.outbox.now != nil {
 		now = s.outbox.now
@@ -96,7 +115,7 @@ func (s *runReports) replayKept(enqueue func(outbound.Report)) {
 	if err != nil {
 		s.log.Warn("outbox_unreadable", "dir", s.outbox.dir, "error", err.Error())
 
-		return
+		return nil
 	}
 	for _, path := range bad {
 		s.log.Warn("outbox_file_unreadable", "file", path)
@@ -109,20 +128,17 @@ func (s *runReports) replayKept(enqueue func(outbound.Report)) {
 		case k.BaseURL != s.outbox.baseURL || k.BridgeID != s.outbox.bridgeID:
 			s.log.Warn("report_kept_skipped", "file", k.path, "message", "kept report belongs to another instance or bridge")
 		default:
-			enqueue(outbound.Report{
-				Card: k.Report.CardNumber,
-				Rule: k.Rule,
-				Send: func(ctx context.Context) (bool, error) {
-					created, err := s.client.ReportRunState(ctx, k.Handle, k.RunID, k.Report)
-					if err == nil || errors.Is(err, api.ErrReportRefused) {
-						s.outbox.remove(k.path)
-					}
-
-					return created, err
-				},
-			})
+			_, err := s.client.ReportRunState(ctx, k.Handle, k.RunID, k.Report)
+			if errors.Is(err, api.ErrReportRefused) {
+				s.log.Warn("report_failed", "card", k.Report.CardNumber, "rule", k.Rule, "error", err.Error())
+			} else if err != nil {
+				return err
+			}
+			s.outbox.remove(k.path)
 		}
 	}
+
+	return nil
 }
 
 // inventory lists every run the bridge holds, across all its projects.
