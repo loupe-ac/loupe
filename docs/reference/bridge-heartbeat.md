@@ -436,7 +436,7 @@ The server offers a request to each bridge that follows the project of the
 request and can run it. It sends a `bridge.work_request` event on the topic of
 the project. The heartbeat reply lists the open requests again in
 `workRequests`, so a bridge that missed the event gets the offer at its next
-heartbeat. The reply holds at most 100 requests. The server sends the event
+heartbeat. The reply leaves out the requests of a held card, and holds at most 100 requests. The server sends the event
 again each time the state of a request changes, so a bridge drops an offer that
 another bridge claimed. Each request carries these fields:
 
@@ -502,7 +502,7 @@ record holds no claim token.
 | 404 | `{"error":"work_request_not_found"}` | the request does not exist, belongs to another account, or belongs to a project the bridge does not follow |
 | 404 | | an id is not a uuid, or agent push is switched off on the instance |
 | 409 | `{"error":"already_claimed"}` | the request is not open. Another bridge holds it, or its state is `done`, `refused`, `expired` or `cancelled` |
-| 409 | `{"error":"card_held"}` | the request is about a card that a person or an agent made unmanaged. The request stays as it is, and the bridge starts no worker |
+| 409 | `{"error":"card_held"}` | a person or an agent holds the card of the request. A hold cancels the open requests of its card, so this answer covers a claim that races the hold |
 | 422 | `{"error":"unknown_bridge"}` | the server has no heartbeat of this bridge from this account |
 | 422 | `{"error":"capability_missing"}` | the bridge does not report `work-requests`, or the capability the request needs |
 | 429 | | more than 60 claims in one minute from one token |

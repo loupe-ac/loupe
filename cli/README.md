@@ -1294,7 +1294,7 @@ no card, `subject` is the ask id. A worker line for a review verdict also names
 
 | `event` | Fields |
 |---|---|
-| `bridge_started` | `rules`, `projects`, `work_kinds`, `max_workers`, `worker_pools`, `log_file`, `bridge_id`. `worker_pools` names each pool with its size, such as `default=3,quick=1` |
+| `bridge_started` | `rules`, `projects`, `work_kinds`, `max_workers`, `worker_pools`, `log_file`, `bridge_id`, `version`. `worker_pools` names each pool with its size, such as `default=3,quick=1` |
 | `max_workers_flag_ignored` | `flag_value`, `max_workers`, `message`: the bridge started with `--max-workers`, which does nothing. Level `WARN` |
 | `connected` | `topic`: your user topic, `projects`: the mapped slugs |
 | `stream_error` | `error` |

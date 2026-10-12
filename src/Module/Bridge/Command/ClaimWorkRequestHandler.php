@@ -8,12 +8,14 @@ use App\Module\Bridge\BridgeEventType;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\Service\WorkRequestLease;
 use App\Module\Bridge\Service\WorkRequestPayload;
 use App\Module\Bridge\ValueObject\WorkRequestRefusal;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Project\Repository\ProjectRepository;
 use App\Outbox\OutboxWriter;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -37,6 +39,8 @@ final readonly class ClaimWorkRequestHandler
         private ClockInterface $clock,
         private Auditor $auditor,
         private WorkRequestAnnouncer $announcer,
+        private CardHolds $cardHolds,
+        private ProjectRepository $projects,
     ) {
     }
 
@@ -60,8 +64,12 @@ final readonly class ClaimWorkRequestHandler
                 return WorkRequestRefusal::CapabilityMissing;
             }
 
-            // Conflicts with the project lock of a hold, so a hold that commits first makes the claim below refuse.
-            $this->em->lock($request->project, LockMode::PESSIMISTIC_READ);
+            // Serialises with a hold, which locks the project row: a claim that reads the hold sees every hold committed before it.
+            $this->projects->lockKeyShare($request->project);
+            if (WorkSubject::CARD === $request->subjectType && $this->cardHolds->isHeld($request->project, $request->subjectId)) {
+                return WorkRequestRefusal::CardHeld;
+            }
+
             $leaseUntil = $this->lease->until($this->clock->now());
             if (!$this->workRequests->claim($command->workRequestId, $command->bridgeId, Uuid::v4(), $leaseUntil)) {
                 return $this->workRequests->isOfHeldCard($command->workRequestId)

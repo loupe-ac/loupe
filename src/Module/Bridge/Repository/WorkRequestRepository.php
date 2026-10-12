@@ -158,11 +158,10 @@ class WorkRequestRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('w')
             ->andWhere('w.project IN (:projects)')
             ->andWhere('w.state = :open')
-            ->andWhere('w.subjectType <> :card OR NOT EXISTS (
-                SELECT 1 FROM '.CardHold::class.' h WHERE h.project = w.project AND h.cardId = w.subjectId)')
-            ->setParameter('card', WorkSubject::CARD)
+            ->andWhere('NOT (w.subjectType = :card AND EXISTS (SELECT 1 FROM '.CardHold::class.' h WHERE h.project = w.project AND h.cardId = w.subjectId))')
             ->setParameter('projects', $projectIds)
             ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('card', WorkSubject::CARD)
             ->orderBy('w.createdAt', 'ASC')
             ->addOrderBy('w.id', 'ASC')
             ->setMaxResults($limit);
@@ -317,6 +316,22 @@ class WorkRequestRepository extends ServiceEntityRepository
             ->setParameter('project', $project)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * The open requests of the card, oldest first.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenForCard(Uuid $cardId): array
+    {
+        return array_values($this->ofSubject(WorkSubject::card($cardId))
+            ->andWhere('w.state = :open')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
     }
 
     /**

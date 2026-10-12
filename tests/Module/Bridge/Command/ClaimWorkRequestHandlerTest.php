@@ -9,6 +9,7 @@ use App\Module\Bridge\Command\ClaimWorkRequestCommand;
 use App\Module\Bridge\Command\ClaimWorkRequestHandler;
 use App\Module\Bridge\Command\ClaimWorkRequestResult;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Service\CardHolds;
@@ -18,9 +19,9 @@ use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\DispatchedEvents;
 use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Uid\Uuid;
 
 final class ClaimWorkRequestHandlerTest extends KernelTestCase
 {
@@ -117,30 +118,49 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertSame($state, $this->em()->find(WorkRequest::class, $request->id)?->state);
     }
 
-    /**
-     * A hold locks the project row for update. The claim takes a share lock on
-     * that row before it writes, so the two run one after the other.
-     */
-    public function test_a_claim_locks_the_project_before_it_writes(): void
+    public function test_a_request_of_a_held_card_is_refused_and_stays_open(): void
     {
-        [$owner, $bridge, $request] = $this->scenario('claim-handler-project-lock', WorkRequestState::Open);
-        $queries = self::getContainer()->get('doctrine.debug_data_holder');
-        self::assertInstanceOf(DebugDataHolder::class, $queries);
-        $queries->reset();
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-held', WorkRequestState::Open);
+        $changes = DispatchedEvents::of(self::getContainer(), WorkRequestChanged::class);
+        $this->hold($request, $owner);
 
-        self::assertNull($this->claim($owner, $bridge, $request)->refusal);
+        $result = $this->claim($owner, $bridge, $request);
 
-        $statements = [];
-        foreach ($queries->getData() as $connectionQueries) {
-            foreach ($connectionQueries as $query) {
-                $statements[] = (string) $query['sql'];
-            }
-        }
-        $lock = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'FROM projects') && str_contains($sql, 'FOR SHARE'));
-        $write = array_find_key($statements, static fn (string $sql): bool => str_contains($sql, 'UPDATE work_requests'));
-        self::assertNotNull($write);
-        self::assertNotNull($lock, 'The claim took no share lock on the project.');
-        self::assertLessThan($write, $lock);
+        self::assertNull($result->request);
+        self::assertSame(WorkRequestRefusal::CardHeld, $result->refusal);
+        self::assertSame([], $changes->events());
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_a_request_of_a_card_whose_hold_ended_is_claimed(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-released', WorkRequestState::Open);
+        $this->hold($request, $owner);
+        self::getContainer()->get(CardHolds::class)->release($request->project, [$request->subjectId]);
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertNull($result->refusal);
+        self::assertSame(WorkRequestState::Claimed, $result->request?->state);
+    }
+
+    public function test_a_request_of_another_card_is_claimed_while_a_card_is_held(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-other-card', WorkRequestState::Open);
+        $this->em()->persist(new CardHold($request->project, Uuid::v7(), $owner, new \DateTimeImmutable(self::NOW)));
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertNull($result->refusal);
+    }
+
+    /** Writes the row alone, because a real hold cancels the open requests of its card. */
+    private function hold(WorkRequest $request, User $owner): void
+    {
+        $this->em()->persist(new CardHold($request->project, $request->subjectId, $owner, new \DateTimeImmutable(self::NOW)));
+        $this->em()->flush();
     }
 
     /** @return array{User, Bridge, WorkRequest} */
