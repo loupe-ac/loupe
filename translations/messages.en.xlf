@@ -5379,7 +5379,7 @@
             </trans-unit>
             <trans-unit id="inbox.account.page.description">
                 <source>inbox.account.page.description</source>
-                <target>Every project you own with open requests. Answer them in the project inbox.</target>
+                <target>Every project you own with open asks. Answer them in the project inbox.</target>
             </trans-unit>
             <trans-unit id="inbox.account.page.empty">
                 <source>inbox.account.page.empty</source>
@@ -5388,14 +5388,6 @@
             <trans-unit id="inbox.account.project.open_items">
                 <source>inbox.account.project.open_items</source>
                 <target>{0}0 open items|{1}1 open item|]1,Inf[%count% open items</target>
-            </trans-unit>
-            <trans-unit id="inbox.account.ask.open">
-                <source>inbox.account.ask.open</source>
-                <target>Answer in the project inbox</target>
-            </trans-unit>
-            <trans-unit id="inbox.account.item.open">
-                <source>inbox.account.item.open</source>
-                <target>Respond in the project inbox</target>
             </trans-unit>
             <trans-unit id="inbox.linked.title">
                 <source>inbox.linked.title</source>
@@ -7683,10 +7675,9 @@
             <trans-unit id="inbox.answer.unsent"><source>inbox.answer.unsent</source><target>Your unsent answer</target></trans-unit>
             <trans-unit id="inbox.answer.unsent_closed"><source>inbox.answer.unsent_closed</source><target>This request no longer accepts responses. This draft was not sent.</target></trans-unit>
             <trans-unit id="inbox.answer.discard_draft"><source>inbox.answer.discard_draft</source><target>Discard draft</target></trans-unit>
-            <trans-unit id="inbox.account.project.open"><source>inbox.account.project.open</source><target>Open inbox</target></trans-unit>
             <trans-unit id="about.hero.licence"><source>about.hero.licence</source><target>Free software, AGPL-3.0</target></trans-unit>
             <trans-unit id="board.card.tab.details"><source>board.card.tab.details</source><target>Details</target></trans-unit>
-            <trans-unit id="inbox.account.project.oldest"><source>inbox.account.project.oldest</source><target>Oldest waiting %time%</target></trans-unit>
+            <trans-unit id="inbox.account.project.oldest"><source>inbox.account.project.oldest</source><target>oldest %time%</target></trans-unit>
             <trans-unit id="account.settings.nav.connected_apps"><source>account.settings.nav.connected_apps</source><target>Connected apps</target></trans-unit>
             <trans-unit id="oauth.consent.page.title"><source>oauth.consent.page.title</source><target>Connect an app</target></trans-unit>
             <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and site reviews of one project, through MCP.</target></trans-unit>

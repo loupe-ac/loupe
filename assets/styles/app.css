@@ -8425,26 +8425,31 @@
     }
     /* The account inbox points at the project inboxes and answers nothing
        itself, so a row carries only what chooses between them. */
-    .lp-account-inbox__grid {
-        @apply flex flex-col gap-3 mt-2;
+    .lp-account-inbox__list {
+        @apply flex flex-col gap-0.5 mt-2;
     }
-    .lp-account-inbox-card {
-        @apply flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface-1 px-5 py-4 no-underline transition-colors hover:border-accent-border hover:bg-accent-faint;
+    .lp-account-inbox-row {
+        @apply grid items-center gap-x-3.5 gap-y-1 rounded-lg px-3 py-3.5 text-ink no-underline transition-colors hover:bg-surface-2;
+        grid-template-columns: calc(var(--spacing) * 7) minmax(0, 1fr) auto;
     }
-    .lp-account-inbox-card__avatar {
-        @apply inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-danger text-xs font-bold text-white;
+    .lp-account-inbox-row__avatar {
+        @apply row-span-2 grid size-7 place-items-center rounded-lg bg-surface-3 font-display text-sm leading-none font-extrabold text-accent-ink;
     }
-    .lp-account-inbox-card__name {
-        @apply font-display text-base font-extrabold tracking-tight text-ink;
+    .lp-account-inbox-row__name {
+        @apply font-semibold;
     }
-    .lp-account-inbox-card__count {
-        @apply text-sm font-semibold text-accent-ink;
+    .lp-account-inbox-row__go {
+        @apply col-start-3 row-span-2 size-4 text-fg-dim;
     }
-    .lp-account-inbox-card__wait {
-        @apply text-sm text-fg-dim;
+    .lp-account-inbox-row__meta {
+        @apply col-start-2 flex flex-wrap items-center gap-2.5 text-sm text-fg-dim;
     }
-    .lp-account-inbox-card__go {
-        @apply ml-auto size-4 shrink-0 text-fg-dim;
+    .lp-account-inbox-row__meta > * + *::before {
+        @apply mr-2.5;
+        content: '·' / '';
+    }
+    .lp-account-inbox-row__blocking {
+        @apply font-semibold text-accent-ink;
     }
     .lp-inbox-item__actions {
         @apply flex flex-col gap-3;
