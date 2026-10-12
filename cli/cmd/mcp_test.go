@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -344,5 +345,32 @@ func TestMcpSessionReadsTheFirstSetVariable(t *testing.T) {
 		if got := mcpSession(); got != tc.want {
 			t.Fatalf("mcpSession(%q, %q, %q) = %q, want %q", tc.loupe, tc.claude, tc.codex, got, tc.want)
 		}
+	}
+}
+
+func TestMcpWritesItsVersionToStderr(t *testing.T) {
+	inRepo(t, "http://127.0.0.1:1")
+	// The stdio transport closes os.Stdin when it ends. A pipe keeps fd 0 open
+	// for the tests that run after this one.
+	stdin, feed, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = feed.Close() })
+	previous := os.Stdin
+	os.Stdin = stdin
+	t.Cleanup(func() { os.Stdin = previous })
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	var stderr bytes.Buffer
+	cmd := newMcpCmd()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"--project", projectA})
+	_ = cmd.ExecuteContext(ctx)
+
+	if want := "loupe mcp " + cliVersion() + " started\n"; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want it to start with %q", stderr.String(), want)
 	}
 }
