@@ -608,6 +608,34 @@ class CardRepository extends ServiceEntityRepository
         )));
     }
 
+    /**
+     * The parents of these cards and the cards they block, each once, without the given ids.
+     *
+     * @param list<string> $cardIds
+     *
+     * @return list<string>
+     */
+    public function findRelatedForEvaluation(array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            "SELECT r.id FROM (
+                 SELECT p.id, 0 AS rank, p.number FROM board_cards c JOIN board_cards p ON p.id = c.parent_card_id
+                 WHERE c.id IN (:ids)
+                 UNION
+                 SELECT t.id, 1 AS rank, t.number FROM board_card_links l JOIN board_cards t ON t.id = l.target_card_id
+                 WHERE l.kind = 'blocks' AND l.source_card_id IN (:ids)
+             ) r
+             WHERE r.id NOT IN (:ids)
+             ORDER BY r.rank, r.number",
+            ['ids' => $cardIds],
+            ['ids' => ArrayParameterType::STRING],
+        ))));
+    }
+
     public function countChildren(Card $card): int
     {
         return (int) $this->getEntityManager()->getConnection()->fetchOne(

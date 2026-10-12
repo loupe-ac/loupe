@@ -348,18 +348,27 @@ func TestQueueCountsAReportThatArrivesAfterTheClose(t *testing.T) {
 
 // lostCounter counts the Lost calls of the reports it marks.
 type lostCounter struct {
-	mu    sync.Mutex
-	cards []int
+	mu      sync.Mutex
+	cards   []int
+	reasons []LossReason
 }
 
 func (l *lostCounter) mark(r Report) Report {
-	r.Lost = func() {
+	r.Lost = func(reason LossReason) {
 		l.mu.Lock()
 		defer l.mu.Unlock()
 		l.cards = append(l.cards, r.Card)
+		l.reasons = append(l.reasons, reason)
 	}
 
 	return r
+}
+
+func (l *lostCounter) reasonsRecorded() []LossReason {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return append([]LossReason(nil), l.reasons...)
 }
 
 func (l *lostCounter) recorded() []int {
@@ -383,6 +392,9 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		if got := lost.recorded(); len(got) != 1 || got[0] != 42 {
 			t.Fatalf("lost = %v", got)
 		}
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Unreachable {
+			t.Fatalf("reasons = %v, want unreachable", got)
+		}
 	})
 	t.Run("refused", func(t *testing.T) {
 		h := newHarness(t, 5, fmt.Errorf("%w (HTTP 422)", api.ErrReportRefused))
@@ -393,6 +405,9 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		h.queue.Close()
 		if got := lost.recorded(); len(got) != 1 {
 			t.Fatalf("lost = %v", got)
+		}
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Refused {
+			t.Fatalf("reasons = %v, want refused", got)
 		}
 	})
 	t.Run("delivered", func(t *testing.T) {
@@ -413,6 +428,9 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		if got := lost.recorded(); len(got) != 1 {
 			t.Fatalf("lost = %v", got)
 		}
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Refused {
+			t.Fatalf("reasons = %v, want refused", got)
+		}
 	})
 	t.Run("at the shutdown", func(t *testing.T) {
 		held := make(chan struct{})
@@ -432,7 +450,68 @@ func TestQueueTellsAReportItLosesIt(t *testing.T) {
 		if got := lost.recorded(); len(got) != 2 {
 			t.Fatalf("lost = %v", got)
 		}
+		for _, reason := range lost.reasonsRecorded() {
+			if reason != Unreachable {
+				t.Fatalf("reasons = %v, want unreachable", lost.reasonsRecorded())
+			}
+		}
 	})
+	t.Run("refused at the shutdown", func(t *testing.T) {
+		held := make(chan struct{})
+		h := newHarnessWithSend(t, 3, func(ctx context.Context) (bool, error) {
+			select {
+			case <-held:
+				return false, fmt.Errorf("%w (HTTP 422)", api.ErrReportRefused)
+			default:
+			}
+			<-ctx.Done()
+
+			return false, ctx.Err()
+		})
+		lost := &lostCounter{}
+		h.queue.Enqueue(lost.mark(h.report(1)))
+		h.next(t, 1)
+		close(held)
+		h.queue.Close()
+		if got := lost.reasonsRecorded(); len(got) != 1 || got[0] != Refused {
+			t.Fatalf("reasons = %v, want refused", got)
+		}
+	})
+}
+
+// A full queue loses a normal report, and still takes a reserved one.
+func TestAReservedReportFindsAPlaceInAFullQueue(t *testing.T) {
+	held := make(chan struct{})
+	h := newHarnessWithSend(t, 0, func(context.Context) (bool, error) {
+		<-held
+
+		return true, nil
+	})
+	release := sync.OnceFunc(func() { close(held) })
+	t.Cleanup(release)
+	h.sent = make(chan int, capacity+reserve+1)
+	h.queue.Enqueue(h.report(0))
+	h.next(t, 1)
+	for card := 1; card <= capacity; card++ {
+		h.queue.Enqueue(h.report(card))
+	}
+	lost := &lostCounter{}
+	h.queue.Enqueue(lost.mark(h.report(-1)))
+	reserved := lost.mark(h.report(-2))
+	reserved.Reserved = true
+	h.queue.Enqueue(reserved)
+
+	if got := lost.recorded(); len(got) != 1 || got[0] != -1 {
+		t.Fatalf("lost = %v, want the normal report only", got)
+	}
+	release()
+	var last int
+	for attempt := range capacity + 1 {
+		last = h.next(t, attempt)
+	}
+	if last != -2 {
+		t.Fatalf("last send = %d, want the reserved report", last)
+	}
 }
 
 // Close is called twice on a bridge that shuts down by itself, once by the

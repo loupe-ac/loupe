@@ -19,7 +19,7 @@ type giveUpQueue struct{ syncQueue }
 
 func (giveUpQueue) Enqueue(report outbound.Report) {
 	if _, err := report.Send(context.Background()); err != nil && report.Lost != nil {
-		report.Lost()
+		report.Lost(outbound.Unreachable)
 	}
 }
 
