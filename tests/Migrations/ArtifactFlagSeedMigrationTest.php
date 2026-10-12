@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use DoctrineMigrations\Version20261011213101;
 use DoctrineMigrations\Version20261011213102;
 use DoctrineMigrations\Version20261011213103;
+use DoctrineMigrations\Version20261011235501;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -18,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 require_once __DIR__.'/../../migrations/Version20261011213101.php';
 require_once __DIR__.'/../../migrations/Version20261011213102.php';
 require_once __DIR__.'/../../migrations/Version20261011213103.php';
+require_once __DIR__.'/../../migrations/Version20261011235501.php';
 
 final class ArtifactFlagSeedMigrationTest extends KernelTestCase
 {
@@ -38,6 +40,7 @@ final class ArtifactFlagSeedMigrationTest extends KernelTestCase
         yield 'enabled' => [Version20261011213101::class, 'artifacts.enabled', 'bool', 'false'];
         yield 'size limit' => [Version20261011213102::class, 'artifacts.max_version_bytes', 'int', '5242880'];
         yield 'file limit' => [Version20261011213103::class, 'artifacts.max_files', 'int', '50'];
+        yield 'allowed origins' => [Version20261011235501::class, 'artifacts.allowed_origins', 'string', '"https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com"'];
     }
 
     /** @param class-string<AbstractMigration> $migration */
