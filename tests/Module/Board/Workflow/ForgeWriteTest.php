@@ -246,8 +246,17 @@ final class ForgeWriteTest extends KernelTestCase
 
         self::assertSame([['update', $pullRequest->number, 'abc123']], $this->writer->calls);
         self::assertSame('abc123', $this->em()->getConnection()->fetchOne('SELECT sync_from_sha FROM forge_pull_requests WHERE id = ?', [$pullRequest->id?->toRfc4122()]));
-        self::assertEquals(ActionOutcome::refused('in-flight'), $this->write($card, 'update-branch'));
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'update-branch'));
         self::assertCount(1, $this->writer->calls);
+    }
+
+    public function test_only_a_comment_and_a_branch_update_refire_when_their_facts_change(): void
+    {
+        self::assertTrue(ForgeWrite::refiresOnFactChange(['write' => 'update-branch']));
+        self::assertTrue(ForgeWrite::refiresOnFactChange(['write' => 'comment']));
+        foreach (['merge', 'change-base', 'draft', 'ready', 'close', 'review-ready', 'open-epic'] as $write) {
+            self::assertFalse(ForgeWrite::refiresOnFactChange(['write' => $write]), $write);
+        }
     }
 
     public function test_a_branch_update_without_an_updater_or_a_head_or_that_fails(): void

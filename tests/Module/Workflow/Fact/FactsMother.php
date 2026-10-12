@@ -165,6 +165,7 @@ final class FactsMother
         bool $parentMerged = false,
         ?\DateTimeImmutable $closedAt = null,
         ?Uuid $id = null,
+        ?string $headSha = null,
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -180,6 +181,7 @@ final class FactsMother
             parentMerged: $parentMerged,
             closedAt: $closedAt,
             id: $id,
+            headSha: $headSha,
         );
     }
 

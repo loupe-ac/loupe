@@ -114,11 +114,14 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         return $needsFallback && !\array_key_exists('fallback', $params) ? ['missing parameter "fallback"'] : [];
     }
 
-    /** A comment write skips the rows it already stored, so a new item while the rule stays true posts its own comment. */
+    /**
+     * A comment write skips the rows it already stored, so a new item while the rule stays true posts its own comment.
+     * A sync that lands makes a new head, so a pull request that is behind again syncs once more.
+     */
     #[\Override]
     public static function refiresOnFactChange(array $params): bool
     {
-        return ForgeWriteKind::Comment->value === ($params['write'] ?? null);
+        return \in_array($params['write'] ?? null, [ForgeWriteKind::Comment->value, ForgeWriteKind::UpdateBranch->value], true);
     }
 
     #[\Override]
@@ -219,6 +222,11 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
                 ForgeWriteKind::UpdateBranch => $this->forgeWrite(fn () => $this->forgePullRequestWrites->updateBranch($pullRequest), $fallback),
             };
         } catch (PullRequestWriteFailed|PullRequestSyncFailed $e) {
+            // A sync in flight already serves the rule, so a refire during it is no failure.
+            if (ForgeWriteKind::UpdateBranch === $write && 'in_flight' === $e->cause) {
+                return ActionOutcome::done();
+            }
+
             return ActionOutcome::refused($e->cause);
         }
     }

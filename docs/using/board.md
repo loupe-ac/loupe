@@ -848,7 +848,8 @@ does not show its failure.
 The `update-behind` rule of the Lifecycle template keeps approved work up to
 date with its base, so it can merge. It updates each approved pull request that
 is behind at once. It also updates a pull request into an epic branch that is
-behind, with no approval. Each sync restarts the checks of that pull request.
+behind, with no approval. Each sync restarts the checks of that pull request. When the base moves again after a
+sync, the pull request is behind again, and Loupe syncs it again.
 
 Loupe syncs only a pull request that it reads as behind its base. That happens
 only when the rules of the base branch require a branch to be up to date before
