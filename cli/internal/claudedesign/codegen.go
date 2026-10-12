@@ -53,6 +53,7 @@ type gen struct {
 	out    strings.Builder
 	lit    strings.Builder
 	events map[string]bool
+	blobs  bool
 }
 
 func (g *gen) text(s string) { g.lit.WriteString(s) }
@@ -73,25 +74,31 @@ func (g *gen) expr(js string) { g.line("o+=" + js + ";") }
 
 // genRender writes the JavaScript source of render(s0, h, R) for the children
 // of the root, except <helmet>, as the page builder reads them before the
-// expansion. It also gives the sorted names of the events that the markup binds.
-func (p *page) genRender(root *html.Node) (string, []string, error) {
+// expansion. It also gives the sorted names of the events that the markup binds,
+// and the blob files that R.bl resolves when an attribute with a hole holds a
+// /_blob/ path.
+func (p *page) genRender(root *html.Node) (render string, events []string, blobs map[string]string, err error) {
 	g := &gen{p: p, events: map[string]bool{}}
 	for c := root.FirstChild; c != nil; c = c.NextSibling {
 		if c.Type == html.ElementNode && c.Data == "helmet" {
 			continue
 		}
 		if err := g.node(c, 0); err != nil {
-			return "", nil, err
+			return "", nil, nil, err
 		}
 	}
 	g.flush()
-	events := []string{}
+	events = []string{}
 	for e := range g.events {
 		events = append(events, e)
 	}
 	sort.Strings(events)
+	blobs = map[string]string{}
+	if g.blobs {
+		blobs = p.blobMap()
+	}
 
-	return "function render(s0, h, R) {\nvar o = \"\";\nfunction t(v) { return v == null ? \"\" : \"\" + v; }\n" + g.out.String() + "return o;\n}", events, nil
+	return "function render(s0, h, R) {\nvar o = \"\";\nfunction t(v) { return v == null ? \"\" : \"\" + v; }\n" + g.out.String() + "return o;\n}", events, blobs, nil
 }
 
 func scopeVar(d int) string { return "s" + strconv.Itoa(d) }
@@ -297,32 +304,25 @@ func (g *gen) attr(a html.Attribute, d int) error {
 	for _, s := range segs {
 		hasHole = hasHole || s.hole
 	}
-	if hasHole {
-		for i, s := range segs {
-			if s.hole {
-				continue
-			}
-			lit, problems := g.p.rewriteBlobs(s.lit)
-			if len(problems) > 0 {
-				return fmt.Errorf("%s: %s", problems[0].feature, problems[0].detail)
-			}
-			segs[i].lit = lit
-		}
-	}
 	r, moved := g.p.rebaser()
 	rebase := hasHole && moved && rebasedAttrs[a.Key]
+	blob := hasHole && strings.Contains(a.Val, "/_blob/")
+	g.blobs = g.blobs || blob
 	g.text(" " + key + `="`)
 	switch {
-	case a.Key == "href" && hasHole, rebase:
+	case a.Key == "href" && hasHole, rebase, blob:
 		parts := []string{`""`}
 		for _, s := range segs {
 			if s.hole {
 				parts = append(parts, "t("+get(d, s.path)+")")
 			} else {
-				parts = append(parts, jsStr(s.lit))
+				parts = append(parts, strings.ReplaceAll(jsStr(s.lit), "/_blob/", `\/_blob\/`))
 			}
 		}
 		val := strings.Join(parts, " + ")
+		if blob {
+			val = "R.bl(" + val + ")"
+		}
 		if a.Key == "href" {
 			val = "R.lk(" + val + ")"
 		}

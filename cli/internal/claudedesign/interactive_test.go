@@ -44,7 +44,7 @@ func TestAnInteractivePageShipsItsScriptAndNoInlineHandler(t *testing.T) {
 		t.Errorf("static part:\n%s", static)
 	}
 	for _, want := range []string{
-		"LoupeView.mount(Component, render, {}, [\"click\"], {\"A.dc\\u002ehtml\":\"index.html\"}, null);",
+		"LoupeView.mount(Component, render, {}, [\"click\"], {\"A.dc\\u002ehtml\":\"index.html\"}, null, {});",
 		"class Component extends LoupeView",
 		"class LoupeView",
 		u003c + `button class=\"b\"`,
@@ -226,20 +226,21 @@ func fragmentOf(t *testing.T, s string) string {
 
 func equivalent(t *testing.T, markup string, scopes ...string) {
 	t.Helper()
-	p := &page{file: "A.dc.html", links: map[string]string{"A.dc.html": "index.html", "Interactive.dc.html": "index.html"}, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
+	p := &page{file: "A.dc.html", links: map[string]string{"A.dc.html": "index.html", "Interactive.dc.html": "index.html"}, blobs: collectBlobs([]api.ArtifactFile{blobFile("_blob/abc.png"), blobFile("_blob/def.webp")}), kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines([]byte(wrap(markup)))))
 	if err != nil {
 		t.Fatal(err)
 	}
 	root := find(doc, isTag("x-dc"))
-	render, _, err := p.genRender(root)
+	render, _, blobs, err := p.genRender(root)
 	if err != nil {
 		t.Fatal(err)
 	}
+	blobJSON, _ := jsonJS(blobs)
 
 	vm := goja.New()
 	if _, err := vm.RunString("var LoupeView = (function () {\n" + runtimeJS + "\nreturn LoupeView; })();\n" + render +
-		"\nvar R = LoupeView.helpers({'A.dc.html': 'index.html', 'Interactive.dc.html': 'index.html'});\nfunction run(scope) { var n = 0; return render(scope, function () { return String(n++); }, R); }"); err != nil {
+		"\nvar R = LoupeView.helpers({'A.dc.html': 'index.html', 'Interactive.dc.html': 'index.html'}, null, " + blobJSON + ");\nfunction run(scope) { var n = 0; return render(scope, function () { return String(n++); }, R); }"); err != nil {
 		t.Fatalf("%v\n%s", err, render)
 	}
 	run, _ := goja.AssertFunction(vm.Get("run"))
@@ -310,6 +311,10 @@ func TestTheRenderFunctionDrawsWhatTheBuildDraws(t *testing.T) {
 		"a link with a hole": {
 			`<a href="{{ h }}">x</a><a href="{{ h }}#frag">y</a><a href="A.dc.html#top">self</a><a href="https://e.org/?q={{ h }}">e</a>`,
 			[]string{`{"h":"A.dc.html"}`, `{"h":"other.html"}`, `{"h":"A.dc.html?x=1#y"}`, `{}`},
+		},
+		"a blob path with a hole": {
+			`<img src="/_blob/{{ id }}" alt="/_blob/abc {{ q }}"><img src="/_blob/abc?size={{ q }}"><a href="/_blob/{{ id }}#x">b</a>`,
+			[]string{`{"id":"abc","q":"v"}`, `{"id":"def","q":"w"}`, `{"id":"def.webp","q":""}`},
 		},
 		"inner html": {
 			`<div class="m" dangerouslySetInnerHTML="{{ m }}"><b>dropped</b></div><p dangerouslySetInnerHTML="{{ s }}"></p><p dangerouslySetInnerHTML="{{ none }}"></p>`,
@@ -402,7 +407,7 @@ func TestALinkFromAValueOnAPageFromAFolderIsRebasedAtEachRedraw(t *testing.T) {
 		`R.q(R.rb("href", R.lk("" + t(R.g(s0,"c")) + ".dc\u002ehtml#top")))`,
 		`R.q(R.rb("style", `,
 		`R.q(t(R.g(s0,"p")))`,
-		`{"from":"site","to":"."});`,
+		`{"from":"site","to":"."}, {});`,
 	} {
 		if !strings.Contains(shipped, want) {
 			t.Errorf("the shipped render lacks %s:\n%s", want, shipped)
@@ -420,11 +425,11 @@ func TestARedrawPointsTheBlobPathsOfAnAttributeWithAHoleAtThePushedFile(t *testi
 	}{
 		"a page in its own folder": {
 			compile(t, canvas("A.dc.html", scripted(script, markup)), blob),
-			[]string{`src=\"_blob/abc.png?size=`, `alt=\"_blob/abc.png `, `R.lk("" + "_blob/abc.png?q=" + t(`},
+			[]string{`R.q(R.bl("" + "\/_blob\/abc?size=" + t(`, `R.lk(R.bl("" + "\/_blob\/abc?q=" + t(`, `{"abc":"_blob/abc.png","abc.png":"_blob/abc.png"});`},
 		},
 		"a page from a folder": {
 			compileIndex(t, "site/Home", canvas("site/Home.dc.html", scripted(script, markup)), blob),
-			[]string{`R.rb("src", "" + "../_blob/abc.png?size=" + t(`, `alt=\"../_blob/abc.png `, `R.rb("href", R.lk("" + "../_blob/abc.png?q=" + t(`},
+			[]string{`R.rb("src", R.bl("" + "\/_blob\/abc?size=" + t(`, `R.rb("href", R.lk(R.bl("" + "\/_blob\/abc?q=" + t(`, `{"abc":"../_blob/abc.png","abc.png":"../_blob/abc.png"});`},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -449,11 +454,25 @@ func TestARedrawPointsTheBlobPathsOfAnAttributeWithAHoleAtThePushedFile(t *testi
 	}
 }
 
+func TestABlobIdFromAValueKeepsThePageInteractive(t *testing.T) {
+	script := `class Component extends DCLogic { renderVals() { return { go: 1, id: 'abc' }; } }`
+	res := compileIndex(t, "site/Home", canvas("site/Home.dc.html", scripted(script, `<button onClick="{{ go }}">x</button><img src="/_blob/{{ id }}">`)), blobFile("_blob/abc.png"))
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	page := one(t, res, "index.html")
+	for _, want := range []string{`<img src="_blob/abc.png"/>`, `R.rb("src", R.bl("" + "\/_blob\/" + t(R.g(s0,"id"))))`, `{"abc":"../_blob/abc.png","abc.png":"../_blob/abc.png"});`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page lacks %s:\n%s", want, page)
+		}
+	}
+}
+
 func TestAPageInItsOwnFolderShipsNoRebase(t *testing.T) {
 	script := `class Component extends DCLogic { renderVals() { return { go: 1, p: 'hero.png' }; } }`
 	res := compile(t, canvas("A.dc.html", scripted(script, `<button onClick="{{ go }}">x</button><img src="{{ p }}">`)))
 	page := one(t, res, "index.html")
-	if strings.Contains(page, "R.rb(") || !strings.Contains(page, ", null);\n})();") {
+	if strings.Contains(page, "R.rb(") || !strings.Contains(page, ", null, {});\n})();") {
 		t.Fatalf("page:\n%s", page)
 	}
 }

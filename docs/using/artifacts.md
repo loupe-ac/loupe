@@ -133,8 +133,10 @@ A blob is a file that Claude Design stores outside the canvas, for example an
 image. The canvas refers to it as `/_blob/<id>`. Put the file in the folder as
 `_blob/<id>.<ext>`, at the root of the folder. The compiler then replaces each
 `/_blob/<id>` in an attribute, such as `src`, `href`, `poster`, `srcset` or
-`style`, and in a `<style>` block, with a link from the page to that file. The
-command keeps the blob files in the artifact.
+`style`, and in a `<style>` block, with a link from the page to that file. A
+hole can give the id, such as `/_blob/{{ id }}`. An interactive page then
+points the path at the file again at each redraw. The command keeps the blob
+files in the artifact.
 
 The compiler stops at what it cannot compile. It stores nothing and prints one
 line for each gap:

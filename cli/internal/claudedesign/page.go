@@ -1002,7 +1002,7 @@ func (p *page) runtimeScript(root, script *html.Node) *html.Node {
 
 		return nil
 	}
-	render, events, err := p.genRender(root)
+	render, events, blobs, err := p.genRender(root)
 	if err != nil {
 		return fail("a template the redraw cannot write", err.Error())
 	}
@@ -1012,12 +1012,13 @@ func (p *page) runtimeScript(root, script *html.Node) *html.Node {
 	}
 	evJSON, _ := jsonJS(events)
 	linkJSON, _ := jsonJS(p.linkMap())
+	blobJSON, _ := jsonJS(blobs)
 	baseJSON := "null"
 	if r, moved := p.rebaser(); moved {
 		baseJSON, _ = jsonJS(map[string]string{"from": r.from, "to": r.to})
 	}
 	code := "(function () {\n" + runtimeJS + "\n" + shipScript(scriptSource(script)) + "\n" + render +
-		"\nLoupeView.mount(Component, render, " + props + ", " + evJSON + ", " + linkJSON + ", " + baseJSON + ");\n})();\n"
+		"\nLoupeView.mount(Component, render, " + props + ", " + evJSON + ", " + linkJSON + ", " + baseJSON + ", " + blobJSON + ");\n})();\n"
 	if strings.Contains(strings.ToLower(code), "</script") {
 		return fail("canvas text left in the output", `"</script" is left in the shipped script`)
 	}

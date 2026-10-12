@@ -6,6 +6,7 @@ class LoupeView {
         this._render = null;
         this._links = {};
         this._base = null;
+        this._blobs = {};
         this._queued = false;
     }
 
@@ -23,11 +24,12 @@ class LoupeView {
         });
     }
 
-    static mount(Component, render, props, events, links, base) {
+    static mount(Component, render, props, events, links, base, blobs) {
         const view = new Component(props);
         view._render = render;
         view._links = links || {};
         view._base = base || null;
+        view._blobs = blobs || {};
         view._draw();
         (events || []).forEach((name) => {
             document.body.addEventListener(
@@ -43,8 +45,9 @@ class LoupeView {
         return view;
     }
 
-    static helpers(links, base) {
+    static helpers(links, base, blobs) {
         const map = links || {};
+        const files = blobs || {};
         const rebase = LoupeView.rebaser(base);
         const escape = (value, quotes) => {
             let s = value === null || value === undefined ? '' : String(value);
@@ -83,6 +86,14 @@ class LoupeView {
 
                 return map[base] + (cut < 0 ? '' : text.slice(cut));
             },
+            bl: (v) =>
+                String(v).replace(
+                    /(^|[^.\w])\/_blob\/([^ \t\n\f\r"'()<>,;\\?#]*)/g,
+                    (m, lead, ref) =>
+                        Object.prototype.hasOwnProperty.call(files, ref)
+                            ? lead + files[ref]
+                            : m,
+                ),
             rb: (key, v) => (rebase ? rebase(key, String(v)) : v),
             raw(v) {
                 if (v === null || v === undefined) {
@@ -219,7 +230,7 @@ class LoupeView {
 
             return String(this.handlers.length - 1);
         };
-        const html = this._render(vals, h, LoupeView.helpers(this._links, this._base));
+        const html = this._render(vals, h, LoupeView.helpers(this._links, this._base, this._blobs));
         const template = document.createElement('template');
         template.innerHTML = html;
         const body = document.body;
