@@ -1,0 +1,216 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Inbox\Service;
+
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\View\WorkerRunAction;
+use App\Module\Bridge\View\WorkerRunControls;
+use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxCardWait;
+use App\Module\Inbox\Entity\InboxCardWaitType;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Module\Inbox\View\ItemAction;
+use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
+use App\Module\Workflow\Contract\CardPauses;
+
+/** Computes the actions that fit an inbox item now, in menu order, and marks the default. */
+final readonly class ItemActions
+{
+    public function __construct(
+        private InboxCardWatchRepository $inboxCardWatches,
+        private WorkerRunRepository $workerRuns,
+        private WorkerRunControls $runControls,
+        private CardPauses $pauses,
+    ) {
+    }
+
+    /** @return list<ItemAction> */
+    public function forItem(InboxItem $item): array
+    {
+        return $this->forItems([$item])[self::key($item)] ?? [];
+    }
+
+    /**
+     * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
+     *
+     * @param list<InboxItem> $items
+     *
+     * @return array<string, list<ItemAction>> keyed by the RFC 4122 item id
+     */
+    public function forItems(array $items): array
+    {
+        $openWaits = [];
+        foreach ($this->inboxCardWatches->findForItems($items) as $watch) {
+            $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
+        }
+
+        $resumableRuns = $this->resumableRuns(array_merge(...array_values($openWaits)));
+        $releasablePauses = $this->releasablePauses(array_merge(...array_values($openWaits)));
+
+        $actions = [];
+        foreach ($items as $item) {
+            $waits = $openWaits[self::key($item)] ?? [];
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses);
+            $default = [] === $waits ? null : self::defaultKind(end($waits), $releasablePauses);
+            $actions[self::key($item)] = array_map(
+                static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $default),
+                $fitting,
+            );
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param list<InboxCardWait> $waits            open waits, oldest first
+     * @param array<string, true> $resumableRuns    run ids that offer Resume
+     * @param array<string, true> $releasablePauses pause ids a person can release
+     *
+     * @return list<InboxActionKind>
+     */
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses): array
+    {
+        $fits = [
+            [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
+            [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
+            [InboxActionKind::Review, self::fitsReview($waits)],
+            [InboxActionKind::Open, self::fitsOpen($item)],
+            [InboxActionKind::Dismiss, self::fitsDismiss($item)],
+        ];
+
+        $fitting = [];
+        foreach ($fits as [$kind, $fit]) {
+            if ($fit) {
+                $fitting[] = $kind;
+            }
+        }
+
+        return $fitting;
+    }
+
+    /**
+     * @param list<InboxCardWait> $waits
+     * @param array<string, true> $resumableRuns
+     */
+    private static function fitsResumeRun(array $waits, array $resumableRuns): bool
+    {
+        return array_any($waits, fn ($wait) => InboxCardWaitType::WorkerRun === $wait->type && null !== $wait->runId && isset($resumableRuns[$wait->runId->toRfc4122()]));
+    }
+
+    /**
+     * @param list<InboxCardWait> $waits
+     * @param array<string, true> $releasablePauses
+     */
+    private static function fitsRetryCard(array $waits, array $releasablePauses): bool
+    {
+        return array_any($waits, fn ($wait) => null !== $wait->pauseId && isset($releasablePauses[$wait->pauseId->toRfc4122()]));
+    }
+
+    /** @param list<InboxCardWait> $waits */
+    private static function fitsReview(array $waits): bool
+    {
+        return array_any($waits, fn ($wait) => \in_array($wait->type, [InboxCardWaitType::Document, InboxCardWaitType::PullRequest], true));
+    }
+
+    private static function fitsOpen(InboxItem $item): bool
+    {
+        return InboxItemKind::Wait === $item->kind || !$item->cards->isEmpty() || !$item->documents->isEmpty();
+    }
+
+    private static function fitsDismiss(InboxItem $item): bool
+    {
+        return InboxItemKind::Wait === $item->kind;
+    }
+
+    /** @param array<string, true> $releasablePauses */
+    private static function defaultKind(InboxCardWait $newest, array $releasablePauses): InboxActionKind
+    {
+        return match ($newest->type) {
+            InboxCardWaitType::WorkerRun => InboxActionKind::ResumeRun,
+            InboxCardWaitType::CardPause => null !== $newest->pauseId && isset($releasablePauses[$newest->pauseId->toRfc4122()]) ? InboxActionKind::RetryCard : InboxActionKind::Open,
+            InboxCardWaitType::Document, InboxCardWaitType::PullRequest => InboxActionKind::Review,
+        };
+    }
+
+    /**
+     * The open waits, oldest first, with the order of CardWaitReconciler::rewrite(), so the last one is the newest.
+     *
+     * @param array<int, InboxCardWait> $waits
+     *
+     * @return list<InboxCardWait>
+     */
+    private static function openWaits(array $waits): array
+    {
+        $open = array_values(array_filter($waits, static fn (InboxCardWait $wait): bool => null === $wait->endedAt));
+        usort($open, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, $a->key()] <=> [$b->startedAt, $b->key()]);
+
+        return $open;
+    }
+
+    /**
+     * @param list<InboxCardWait> $waits
+     *
+     * @return array<string, true> the ids of the runs whose control offers Resume with no reason against it
+     */
+    private function resumableRuns(array $waits): array
+    {
+        $runIds = [];
+        foreach ($waits as $wait) {
+            if (InboxCardWaitType::WorkerRun === $wait->type && null !== $wait->runId) {
+                $runIds[$wait->runId->toRfc4122()] = $wait->runId->toRfc4122();
+            }
+        }
+
+        /** @var array<string, list<WorkerRun>> $byProject */
+        $byProject = [];
+        foreach ($this->workerRuns->findByIds(array_values($runIds)) as $run) {
+            $byProject[(string) $run->project->id][] = $run;
+        }
+
+        $resumable = [];
+        foreach ($byProject as $runs) {
+            foreach ($this->runControls->forRuns($runs[0]->project, $runs) as $runId => $control) {
+                if (WorkerRunAction::Resume === $control->action && null === $control->disabledReason) {
+                    $resumable[$runId] = true;
+                }
+            }
+        }
+
+        return $resumable;
+    }
+
+    /**
+     * @param list<InboxCardWait> $waits
+     *
+     * @return array<string, true> the ids of the active pauses of a kind that a person can release
+     */
+    private function releasablePauses(array $waits): array
+    {
+        $cards = [];
+        foreach ($waits as $wait) {
+            if (InboxCardWaitType::CardPause === $wait->type && null !== $wait->pauseId) {
+                $cards[$wait->watch->cardId->toRfc4122()] = $wait->watch->cardId;
+            }
+        }
+
+        $releasable = [];
+        foreach ($cards as $cardId) {
+            $pause = $this->pauses->findActive($cardId);
+            if (null !== $pause && \in_array($pause->kind, ReleaseWorkflowPauseCommand::RELEASABLE_KINDS, true)) {
+                $releasable[$pause->id->toRfc4122()] = true;
+            }
+        }
+
+        return $releasable;
+    }
+
+    private static function key(InboxItem $item): string
+    {
+        return ($item->id ?? throw new \LogicException('The inbox item has no id.'))->toRfc4122();
+    }
+}
