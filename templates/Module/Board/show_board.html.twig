@@ -3,9 +3,9 @@
 {% block title %}{{ 'board.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: board.project.id}) }}">{{ board.project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.board'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.board'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}

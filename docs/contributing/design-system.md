@@ -62,6 +62,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 | BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
 | NavItem | One link of the sidebar. Props `url`, `icon`, `label`, `active` and `count`. Its content adds anything after the label | none |
+| Breadcrumbs | The trail in the top bar. Prop `items`, a list of `{label, url}`. The last item is the current page and takes no link. Its content adds anything after the list, such as a version pill. A page fills the `topbar_crumbs` block with it and never starts the trail with the project name | none |
 | AuthShell | The frame of the sign-in, sign-up and install pages. It has no Twig component: `@Account/auth_base.html.twig` draws it with the `lp-auth` classes, and a page fills the `auth_body` block. `lp-auth__action` makes a submit button fill the card | none |
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |

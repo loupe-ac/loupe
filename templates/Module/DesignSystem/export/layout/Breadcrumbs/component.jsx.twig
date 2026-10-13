@@ -1,0 +1,33 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ items = [], className: extra, children, ...rest }) {
+    const trail = items.map((item) => (typeof item === 'string' ? { label: item } : item));
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <nav {...rest} className={classes.join(' ')} aria-label="Breadcrumb">
+            <ol className="{{ entry.rootClass }}__list">
+                {trail.map((item, index) => (
+                    index === trail.length - 1 ? (
+                        <li key={item.label} className="{{ entry.rootClass }}__item {{ entry.rootClass }}__item--current">
+                            <span className="{{ entry.rootClass }}__here" aria-current="page">{item.label}</span>
+                        </li>
+                    ) : (
+                        <li key={item.label} className="{{ entry.rootClass }}__item">
+                            {item.href
+                                ? <a className="{{ entry.rootClass }}__link" href={item.href}>{item.label}</a>
+                                : <span className="{{ entry.rootClass }}__link">{item.label}</span>}
+                            <span className="{{ entry.rootClass }}__sep" aria-hidden="true">/</span>
+                        </li>
+                    )
+                ))}
+            </ol>
+            {children}
+        </nav>
+    );
+}
+{% endautoescape %}

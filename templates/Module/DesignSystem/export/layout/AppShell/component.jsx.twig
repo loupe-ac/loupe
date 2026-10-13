@@ -257,14 +257,20 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                         <Icon name="menu" />
                     </button>
                     <div className="lp-topbar__lead">
-                        <nav className="lp-topbar__trail">
-                            {trail.map((crumb) => (
-                                <React.Fragment key={crumb.label}>
-                                    <a className="lp-topbar__crumb" href={crumb.href}>{crumb.label}</a>
-                                    <span className="lp-topbar__sep">/</span>
-                                </React.Fragment>
-                            ))}
-                            {here && <span className="lp-topbar__here">{here.label}</span>}
+                        <nav className="lp-crumbs" aria-label="Breadcrumb">
+                            <ol className="lp-crumbs__list">
+                                {trail.map((crumb) => (
+                                    <li key={crumb.label} className="lp-crumbs__item">
+                                        <a className="lp-crumbs__link" href={crumb.href}>{crumb.label}</a>
+                                        <span className="lp-crumbs__sep" aria-hidden="true">/</span>
+                                    </li>
+                                ))}
+                                {here && (
+                                    <li className="lp-crumbs__item lp-crumbs__item--current">
+                                        <span className="lp-crumbs__here" aria-current="page">{here.label}</span>
+                                    </li>
+                                )}
+                            </ol>
                         </nav>
                         {meta && <span className="lp-topbar__meta">{meta}</span>}
                     </div>

@@ -1,7 +1,11 @@
 {% extends 'base.html.twig' %}
 
 {% block title %}{{ (project ? 'search.title' : 'search.all_title')|trans }} — {{ 'app.name'|trans }}{% endblock %}
-{% block topbar_crumbs %}<span class="lp-topbar__here">{{ (project ? 'search.title' : 'search.all_title')|trans }}</span>{% endblock %}
+{% block topbar_crumbs %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: (project ? 'search.title' : 'search.all_title')|trans},
+    ]" />
+{% endblock %}
 
 {% block body %}
 <div class="lp-workspace">

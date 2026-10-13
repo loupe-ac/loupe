@@ -302,6 +302,18 @@ readonly class Catalog
                 export: 'NavItem',
             ),
             new ComponentEntry(
+                name: 'Breadcrumbs',
+                rootClass: 'lp-crumbs',
+                template: 'components/Ds/Breadcrumbs.html.twig',
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'The trail at the top of a page: links to the parent pages and the current page last.',
+                element: 'nav',
+                export: 'Breadcrumbs',
+            ),
+            new ComponentEntry(
                 name: 'AuthShell',
                 rootClass: 'lp-auth',
                 template: null,
