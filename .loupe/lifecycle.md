@@ -63,7 +63,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 1. Paths: the check runs when the diff changes `templates/`, `assets/styles/` or `assets/controllers/`.
 2. App: `https://card-<number>.loupe.dev.localhost`, the app of the worker folder.
 3. Worker folder: `<main checkout>/.worktrees/card-<number>`. The main checkout is the first `worktree` line of `git worktree list --porcelain`. The review stage reads it.
-4. Sign-in: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path=<path>`. The last line is the link. It signs in `dev@loupe.test`. Never write the link to a file, a log or the pull request.
+4. Sign-in: from the worker folder, run `bin/worktrees/compose-exec.sh bin/console app:dev:preview-login-link --path='<path>'`, with the path in single quotes. The last line is the link. It signs in `dev@loupe.test`. Never write the link to a file, a log or the pull request.
 5. Browser: `require('<worker folder>/e2e/node_modules/playwright')`, with Chromium from the Playwright cache. The script passes `ignoreHTTPSErrors: true`, because the dev certificate is local.
 6. Hide: `.sf-toolbar,.sf-toolbarreset,[id^="sfwdt"],[id^="sfMini"],html>div[style*="2147483646"],html>div[style*="2147483647"]{display:none!important}`. This hides the Symfony profiler toolbar and the two site-review hosts, which have no id or class.
 7. Widths: desktop 1440 by 1000, phone 390 by 844.
