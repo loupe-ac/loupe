@@ -85,6 +85,26 @@ final class InboxSearchToolTest extends KernelTestCase
         self::assertSame('withdrawn', $result['items'][0]['state']);
     }
 
+    public function test_each_row_names_the_cards_its_item_links(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-search-card-numbers');
+        $first = $this->card($this->em, $project, 4);
+        $second = $this->card($this->em, $project, 7);
+        $this->em->flush();
+        foreach ([$first, $second] as $card) {
+            $this->documentInReview($project, $card);
+            $this->reconcileWaits($project, $card);
+        }
+        $this->actAsMcpTokenBoundTo($project);
+        $this->em->clear();
+
+        $result = ($this->tool)('review');
+
+        self::assertSame(2, $result['total']);
+        self::assertEqualsCanonicalizing([[4], [7]], array_column($result['items'], 'cardNumbers'));
+    }
+
     public function test_an_item_of_another_project_is_not_found(): void
     {
         $this->enableInbox();

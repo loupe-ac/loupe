@@ -33,7 +33,7 @@
     <h3 class="lp-inbox-linked-panel__title">{{ 'inbox.linked.panel'|trans }}</h3>
     {% for entry in cards %}
         {% set card = entry.card %}
-        <a class="lp-inbox-linked-panel__row" data-linked-card="{{ card.id }}" data-turbo-frame="_top"
+        <a class="lp-inbox-linked-panel__row" data-linked-card="{{ card.id }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare"
            href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id, tab: 'conversation', inboxItem: entry.item.number, _fragment: 'inbox-item-' ~ entry.item.number}) }}">
             <twig:ux:icon name="lucide:square-kanban" class="lp-inbox-linked-panel__icon" />
             <span class="lp-inbox-linked-panel__name">#{{ card.number }} {{ card.title }}</span>

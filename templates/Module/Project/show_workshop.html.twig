@@ -76,7 +76,7 @@
                 {% for item in workshop.attention %}
                 <a class="lp-workshop-attention" href="{{ item.url }}" data-workshop-attention>
                     <span class="lp-workshop-attention__icon" data-subject="{{ item.subject }}">{% include '_attention_subject_icon.html.twig' with {subject: item.subject} only %}</span>
-                    <span><strong>{{ item.title }}</strong></span>
+                    <span><strong>{{ item.title }}</strong>{% if item.cardNumber is not null %}<small data-workshop-attention-card>#{{ item.cardNumber }}</small>{% endif %}</span>
                     <span class="lp-workshop-attention__badge">{{ ('inbox.item.kind.' ~ item.kind)|trans }}{% if item.blocking %} · {{ 'inbox.item.blocking'|trans }}{% endif %}</span>
                     <twig:ux:icon name="lucide:chevron-right" class="lp-workshop-attention__chevron" />
                 </a>

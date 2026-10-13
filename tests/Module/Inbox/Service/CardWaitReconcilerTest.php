@@ -6,6 +6,8 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
+use App\Module\Board\Command\UpdateCardCommand;
+use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPullRequest;
@@ -44,6 +46,7 @@ use App\Module\Review\Command\SetDocumentTagsCommand;
 use App\Module\Review\Command\SetDocumentTagsHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
@@ -90,7 +93,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxItemKind::Wait, $item->kind);
         self::assertTrue($item->blocking);
         self::assertSame(InboxItemState::Open, $item->state);
-        self::assertSame('#12 Document version 1 waits for your review · Ship it', $item->title);
+        self::assertSame('Document version 1 waits for your review', $item->title);
         self::assertSame('The document "Tech design", version 1, of card 12 waits for your review. Review the document.', $item->body);
         self::assertSame($this->project->searchLanguage, $item->searchLanguage);
         self::assertSame([$this->card], array_map(static fn (InboxItemCard $link): Card => $link->card, array_values($item->cards->toArray())));
@@ -111,6 +114,32 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(1, $wait->versionNumber);
         self::assertNull($wait->endedAt);
         self::assertSame(1, $this->searchHits('document'));
+    }
+
+    public function test_a_wait_item_is_found_by_the_title_of_its_card(): void
+    {
+        $this->card->title = 'Launcher overlaps the footer';
+        $this->linkedDocument('Tech design');
+
+        $this->reconcile();
+
+        self::assertStringNotContainsString('Launcher', $this->onlyWatch()->item->title);
+        self::assertSame(1, $this->searchHits('launcher'));
+    }
+
+    public function test_a_card_rename_reindexes_its_wait_item(): void
+    {
+        $this->card->title = 'Launcher overlaps the footer';
+        $this->linkedDocument('Tech design');
+        $this->reconcile();
+        self::assertSame(1, $this->searchHits('launcher'));
+
+        $update = self::getContainer()->get(UpdateCardHandler::class);
+        self::assertInstanceOf(UpdateCardHandler::class, $update);
+        $update(new UpdateCardCommand($this->card, Actor::Human, title: 'Sidebar hides the avatar'));
+
+        self::assertSame(0, $this->searchHits('launcher'));
+        self::assertSame(1, $this->searchHits('sidebar'));
     }
 
     public function test_a_card_in_next_with_no_parent_opens_no_wait_for_a_tech_design_in_review(): void
@@ -277,7 +306,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->clear();
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame('#12 Deleted document version 1 · Ship it', $watch->item->title);
+        self::assertSame('Deleted document version 1', $watch->item->title);
         self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
         self::assertStringNotContainsString('Tech design', $watch->item->body);
     }
@@ -301,7 +330,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->clear();
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame('#12 Deleted document version 1 · Ship it', $watch->item->title);
+        self::assertSame('Deleted document version 1', $watch->item->title);
         self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
     }
 
@@ -643,9 +672,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
     /** @return iterable<string, array{WorkerRunState, InboxCardWaitTrigger, string}> */
     public static function waitingRuns(): iterable
     {
-        yield 'blocked' => [WorkerRunState::Blocked, InboxCardWaitTrigger::RunBlocked, 'The implement worker on card 12 is blocked: Needs the API key. Open the run.'];
-        yield 'gave up' => [WorkerRunState::GaveUp, InboxCardWaitTrigger::RunGaveUp, 'The implement worker on card 12 gave up: Needs the API key. Open the run.'];
-        yield 'waiting for a person' => [WorkerRunState::WaitingForPerson, InboxCardWaitTrigger::RunWaitingForPerson, 'The implement worker on card 12 waits for an answer from you: Needs the API key. Open the run.'];
+        yield 'blocked' => [WorkerRunState::Blocked, InboxCardWaitTrigger::RunBlocked, 'The implement worker on card 12 is blocked: Needs the API key. Open card 12.'];
+        yield 'gave up' => [WorkerRunState::GaveUp, InboxCardWaitTrigger::RunGaveUp, 'The implement worker on card 12 gave up: Needs the API key. Open card 12.'];
+        yield 'waiting for a person' => [WorkerRunState::WaitingForPerson, InboxCardWaitTrigger::RunWaitingForPerson, 'The implement worker on card 12 waits for an answer from you: Needs the API key. Open card 12.'];
     }
 
     #[DataProvider('waitingRuns')]
@@ -727,7 +756,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertCount(2, $watches);
         self::assertSame(InboxItemState::Open, $watches[1]->item->state);
         self::assertEquals($newer->id, $this->onlyWait($watches[1])->runId);
-        self::assertSame('The implement worker on card 12 is blocked: Stuck again. Open the run.', $watches[1]->item->body);
+        self::assertSame('The implement worker on card 12 is blocked: Stuck again. Open card 12.', $watches[1]->item->body);
     }
 
     public function test_a_document_wait_and_a_run_wait_share_one_item_and_the_end_of_one_keeps_it_open(): void
@@ -838,9 +867,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         $watch = $this->onlyWatch();
         self::assertCount(2, $this->openWaits($watch));
-        self::assertSame('#12 Implement worker blocked: cannot reach github.com: DNS lookup failed · Ship it', $watch->item->title);
+        self::assertSame('Implement worker blocked: cannot reach github.com: DNS lookup failed', $watch->item->title);
         self::assertSame(
-            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Fix the cause, then resume the card.',
+            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open card 12.',
             $watch->item->body,
         );
     }
@@ -861,7 +890,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $again = $this->onlyWatch();
         self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
         self::assertCount(1, $again->waits);
-        self::assertSame('The implement worker on card 12 is blocked: Stuck. Open the run.', $again->item->body);
+        self::assertSame('The implement worker on card 12 is blocked: Stuck. Open card 12.', $again->item->body);
         self::assertEquals($updatedAt, $again->item->updatedAt);
     }
 
@@ -885,9 +914,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->clear();
         $again = $this->onlyWatch();
         self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
-        self::assertSame('#12 Implement worker blocked: cannot reach github.com: DNS lookup failed · Ship it', $again->item->title);
+        self::assertSame('Implement worker blocked: cannot reach github.com: DNS lookup failed', $again->item->title);
         self::assertSame(
-            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Fix the cause, then resume the card.',
+            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open card 12.',
             $again->item->body,
         );
     }
