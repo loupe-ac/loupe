@@ -252,6 +252,30 @@ readonly class Catalog
                 element: 'header',
                 export: 'PageHeader',
             ),
+            new ComponentEntry(
+                name: 'SplitView',
+                rootClass: 'lp-split-page',
+                template: 'components/Ds/SplitView.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'A master-detail page: a held header over a list pane beside a detail pane, each scrolling on its own.',
+                element: 'div',
+                export: 'SplitView',
+            ),
+            new ComponentEntry(
+                name: 'ListRow',
+                rootClass: 'lp-list-row',
+                template: 'components/Ds/ListRow.html.twig',
+                variants: [],
+                states: ['hover', 'current'],
+                enforced: true,
+                group: 'layout',
+                summary: 'One row of a list: an icon, a title and a meta line. The current row is highlighted.',
+                element: 'a',
+                export: 'ListRow',
+            ),
         ];
     }
 }

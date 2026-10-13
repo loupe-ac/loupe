@@ -1,14 +1,15 @@
 {# One row of the list: the icon of the ask beside its title, then a meta line with the card, the age, the mark of a blocking ask and how a closed one ended.
    Params: row (InboxRow), inbox (InboxPageView). #}
 {% set card = row.firstCard %}
-<a class="lp-inbox-request"
-   href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(row.pickedIn(inbox.view).toQuery)) }}"
-   data-turbo-frame="inbox-view"
-   data-inbox-request="{{ row.key }}"
-   {%- if inbox.selected and inbox.selected.key == row.key %} aria-current="true"{% endif %}>
-    <span class="lp-inbox-request__icon" data-inbox-kind="{{ row.kind.value }}">{% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value} only %}</span>
-    <span class="lp-inbox-request__title">{{ row.title }}</span>
-    <span class="lp-inbox-request__meta">
+<twig:Ds:ListRow
+    :title="row.title"
+    :current="inbox.selected and inbox.selected.key == row.key"
+    href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(row.pickedIn(inbox.view).toQuery)) }}"
+    data-turbo-frame="inbox-view"
+    data-inbox-request="{{ row.key }}"
+    icon:data-inbox-kind="{{ row.kind.value }}">
+    <twig:block name="icon">{% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value} only %}</twig:block>
+    <twig:block name="meta">
         {%- if card -%}
             <span data-inbox-card>#{{ card.number }} {{ card.title }}{% if row.moreCards > 0 %} {{ 'inbox.row.more_cards'|trans({'%count%': row.moreCards}) }}{% endif %}</span>
         {%- else -%}
@@ -25,7 +26,7 @@
         {%- endif -%}
         {%- if row.blocking -%}
             <span aria-hidden="true">·</span>
-            <span class="lp-inbox-request__blocking" data-inbox-blocking>{{ 'inbox.item.blocking'|trans }}</span>
+            <span class="lp-list-row__flag" data-inbox-blocking>{{ 'inbox.item.blocking'|trans }}</span>
         {%- endif -%}
-    </span>
-</a>
+    </twig:block>
+</twig:Ds:ListRow>

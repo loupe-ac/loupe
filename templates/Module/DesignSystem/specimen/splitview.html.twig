@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the SplitView for the styleguide, so it is intentionally untranslated. The styleguide gives the page a height, because the panes scroll inside it. #}
+<twig:Ds:SplitView>
+    <div class="lp-split-region">
+        <div class="lp-split-view">
+            <div class="lp-split-pane">
+                <twig:Ds:ListRow href="#" title="Which format?">
+                    <twig:block name="icon"><twig:ux:icon name="lucide:circle-help" /></twig:block>
+                    <twig:block name="meta"><span>Loupe</span></twig:block>
+                </twig:Ds:ListRow>
+                <twig:Ds:ListRow href="#" title="Review the plan" :current="true">
+                    <twig:block name="icon"><twig:ux:icon name="lucide:circle-help" /></twig:block>
+                    <twig:block name="meta"><span>Loupe</span></twig:block>
+                </twig:Ds:ListRow>
+            </div>
+            <div class="lp-split-pane">
+                <p class="lp-styleguide__token-use">The ask you picked draws here.</p>
+            </div>
+        </div>
+    </div>
+</twig:Ds:SplitView>

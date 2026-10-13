@@ -16,6 +16,8 @@
 @import './components/tooltip.css';
 @import './components/shell.css';
 @import './components/page-header.css';
+@import './components/split-view.css';
+@import './components/list-row.css';
 
 @source "../../templates/components/Ds";
 

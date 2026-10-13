@@ -61,6 +61,8 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
+| SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
+| ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
 
 The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
 
@@ -68,6 +70,28 @@ The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a n
 <twig:Ds:PageHeader :title="'documents.title'|trans" :description="'documents.description'|trans">
     <twig:block name="actions"><twig:Ds:Button variant="primary">New</twig:Ds:Button></twig:block>
 </twig:Ds:PageHeader>
+```
+
+The SplitView draws the page root, `lp-split-page`, and takes any attribute, such as a Stimulus `data-controller`. The page writes the `lp-split-region`, `lp-split-view` and `lp-split-pane` classes inside it by hand, because each page puts its own controller on the region. A page with a header writes the header first, then the region. Its CSS is `assets/styles/components/split-view.css`.
+
+```twig
+<twig:Ds:SplitView class="lp-workspace">
+    <div class="lp-split-region">
+        <div class="lp-split-view">
+            <div class="lp-split-pane">{# the list #}</div>
+            <div class="lp-split-pane">{# the detail #}</div>
+        </div>
+    </div>
+</twig:Ds:SplitView>
+```
+
+The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
+
+```twig
+<twig:Ds:ListRow :title="row.title" :current="true" href="{{ path('app_home') }}" icon:data-kind="question">
+    <twig:block name="icon"><twig:ux:icon name="lucide:circle-help" /></twig:block>
+    <twig:block name="meta"><span>Loupe</span></twig:block>
+</twig:Ds:ListRow>
 ```
 
 Write a button like this:

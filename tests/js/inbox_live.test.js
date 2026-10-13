@@ -26,7 +26,7 @@ let application;
 let responses;
 
 function row(key, title) {
-    return `<a class="lp-inbox-request" data-inbox-request="${key}" href="/inbox?ask=${key}">${title}</a>`;
+    return `<a class="lp-list-row" data-inbox-request="${key}" href="/inbox?ask=${key}">${title}</a>`;
 }
 
 function item({ open = true, note = '' } = {}) {
@@ -277,7 +277,7 @@ it('keeps a view with no pick in its address unpicked, so a phone keeps the list
     await settle();
 
     expect(new URL(fetch.mock.calls[0][0]).searchParams.get('ask')).toBe(ASK);
-    expect(document.querySelectorAll('.lp-inbox-request')).toHaveLength(2);
+    expect(document.querySelectorAll('.lp-list-row')).toHaveLength(2);
     expect(
         document.querySelector('[data-inbox-picked]').dataset.inboxPicked,
     ).toBe('false');

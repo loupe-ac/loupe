@@ -185,6 +185,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working and waiting. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
 
 13. PageHeader: `<twig:Ds:PageHeader :title="..." :description="..." variant="workshop" titleClass="lp-workspace-title--doc">` with the buttons in `<twig:block name="actions">`. The CSS is `assets/styles/components/page-header.css`.
+14. SplitView: `<twig:Ds:SplitView class="lp-workspace" data-controller="...">` draws `lp-split-page`. Write `lp-split-region`, `lp-split-view` and `lp-split-pane` by hand inside it. The CSS is `assets/styles/components/split-view.css`.
+15. ListRow: `<twig:Ds:ListRow :title="..." :current="..." href="..." icon:data-kind="...">` with `<twig:block name="icon">` and `<twig:block name="meta">`. Use `lp-list-row__flag` for a highlighted item in the meta line. The CSS is `assets/styles/components/list-row.css`.
 
 2. Form parts: `<twig:Ds:FormField :fieldView="form.title" />` draws the label, widget, hint and errors of a Symfony field, and `widgetKind="select"` or `widgetKind="textarea"` picks the widget classes. `Ds:Input`, `Ds:Select`, `Ds:Textarea`, `Ds:Label`, `Ds:Hint` and `Ds:FieldErrors` draw one part each. A Symfony widget in a custom layout takes `ds_input_class('select')` and `ds_label_class()`. The CSS is `assets/styles/components/form.css`.
 

@@ -287,7 +287,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         $inbox = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
         self::assertResponseIsSuccessful();
         // The inbox lists items outside an ask as rows of their own, oldest first.
-        self::assertSame(['item-1', 'item-2', 'item-3'], $inbox->filter('a.lp-inbox-request')->extract(['data-inbox-request']));
+        self::assertSame(['item-1', 'item-2', 'item-3'], $inbox->filter('a.lp-list-row')->extract(['data-inbox-request']));
     }
 
     public function test_attention_links_the_oldest_open_items_in_this_project(): void
