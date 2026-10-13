@@ -4,6 +4,7 @@
  * token, so no bridge runs. The mark appears and clears on an open board
  * with no navigation, so the run needs a Mercure hub the browser can reach.
  * The tile holds one mark and no run warning. Its tooltip links to the card.
+ * The mark comes from the markers the workflow engine stores on the card.
  */
 
 import { test, expect } from '@playwright/test';
@@ -106,7 +107,9 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
     await expect(mark.getByRole('img', { name: 'Stuck' })).toBeVisible();
     await expect(card.locator('.lp-state-mark')).toHaveCount(1);
     await expect(card.locator('[data-card-run-warning]')).toHaveCount(0);
-    await expect(card.locator('.lp-board-card__badges')).toHaveCount(0);
+    await expect(
+        card.locator('[data-card-badges], .lp-status-chip'),
+    ).toHaveCount(0);
 
     await mark.getByRole('img', { name: 'Stuck' }).hover();
     const tooltip = mark.getByRole('tooltip');

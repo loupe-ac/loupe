@@ -1,3 +1,5 @@
+{# On a card page, a wait item leaves out its links to that same card. #}
+{% set hostCardId = inbox.page.value == 'card' ? inbox.targetId.toRfc4122 : null %}
 <section class="lp-inbox-linked lp-inbox-linked--{{ inbox.page.value }}" id="inbox-items" data-inbox-linked="{{ inbox.page.value }}">
     <div class="lp-inbox-linked__head">
         <h2 class="lp-inbox-linked__title">{{ 'inbox.linked.title'|trans }}</h2>
@@ -7,7 +9,7 @@
     {% if inbox.openItems|length > 0 %}
     <div class="lp-inbox-linked__items" data-inbox-linked-open>
         {% for item in inbox.openItems %}
-            {% include '@Inbox/_linked_inbox_entry.html.twig' with {item: item, inbox: inbox, refusedForm: refusedForm} only %}
+            {% include '@Inbox/_linked_inbox_entry.html.twig' with {item: item, inbox: inbox, refusedForm: refusedForm, hostCardId: hostCardId} only %}
         {% endfor %}
     </div>
     {% endif %}
@@ -16,7 +18,7 @@
     <div class="lp-inbox-linked__items" data-inbox-linked-closed>
         <h3 class="lp-inbox-linked__subtitle">{{ 'inbox.linked.closed'|trans({'%count%': inbox.closedTotal}) }}</h3>
         {% for item in inbox.closedItems %}
-            {% include '@Inbox/_linked_inbox_entry.html.twig' with {item: item, inbox: inbox, refusedForm: refusedForm} only %}
+            {% include '@Inbox/_linked_inbox_entry.html.twig' with {item: item, inbox: inbox, refusedForm: refusedForm, hostCardId: hostCardId} only %}
         {% endfor %}
         {% if inbox.hasMoreClosedItems %}
         {# The completed queue of the inbox page, which is where a closed item lives. #}

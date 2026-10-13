@@ -16,7 +16,7 @@
                     </li>
                 {% endfor %}
             </ul>
-            <twig:Ds:Button variant="primary" href="{{ path('app_waitlist_join') }}" data-action="click->modal#open" class="lp-home-card__action">{{ 'landing.requirements.need.action'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="requirements-ready" class="lp-home-card__action">{{ 'landing.requirements.need.action'|trans }}</twig:Ds:Button>
         </div>
         <div class="lp-home-card lp-home-card--extras">
             <div class="lp-home-card__head">
@@ -34,7 +34,7 @@
                     </li>
                 {% endfor %}
             </ul>
-            <twig:Ds:Button href="{{ path('app_waitlist_join') }}" data-action="click->modal#open" class="lp-home-card__action">{{ 'landing.requirements.better.action'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="requirements-missing" class="lp-home-card__action">{{ 'landing.requirements.better.action'|trans }}</twig:Ds:Button>
         </div>
         {% include '@Landing/landing/_ask.html.twig' with {notifyForm: notifyForm} only %}
     </div>

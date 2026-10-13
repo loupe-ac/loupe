@@ -47,6 +47,7 @@ final class ShowPrivacyControllerTest extends WebTestCase
             $html,
         );
         self::assertStringNotContainsString('Page-view analytics', $html);
+        self::assertStringNotContainsString('Do Not Track', $html);
     }
 
     public function test_the_policy_names_the_analytics_host_while_analytics_is_on(): void
@@ -68,6 +69,17 @@ final class ShowPrivacyControllerTest extends WebTestCase
         );
         self::assertStringContainsString('<td>'.self::HOST.'</td>', $html);
         self::assertStringContainsString('<td>Page-view analytics</td>', $html);
+        foreach ([
+            'the page that you view',
+            'the site that referred you, and the campaign tags in the address',
+            'your clicks on the waitlist buttons, and the waitlist form that you use to join',
+            'the browser, the type of device and the country',
+            'It sets no cookie and stores no personal data.',
+            'If your browser sends Do Not Track, nothing is counted.',
+            'Pages that you see when you are signed in are not counted.',
+        ] as $item) {
+            self::assertStringContainsString($item, $html);
+        }
     }
 
     private function setAnalyticsEnv(string $scriptUrl, string $websiteId): void

@@ -12,21 +12,22 @@ use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Review\Repository\ReviewRepository;
 
 /**
  * The shapes every inbox tool returns an item in.
  *
- * @phpstan-type InboxItemListSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string}
+ * @phpstan-type InboxItemListSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>}
  * @phpstan-type InboxReviewWithdrawalSummary array{reviewId: string, reviewerId: string, reviewerName: string, submittedAt: string}
  * @phpstan-type InboxReviewSummary array{targetKind: string, targetLabel: string, documentId: ?string, pullRequestId: ?string, verdict: ?string, note: ?string, reviewerId: ?string, reviewerName: ?string, submittedAt: ?string, reviewedVersionNumber: ?int, documentReviewId: ?string, withdrawal: ?InboxReviewWithdrawalSummary}
- * @phpstan-type InboxItemListRow array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, options: list<string>, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary}
+ * @phpstan-type InboxItemListRow array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, options: list<string>, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary}
  * @phpstan-type InboxItemCardSummary array{cardId: string, number: int, title: string}
  * @phpstan-type InboxItemDocumentSummary array{documentId: string, title: string}
  * @phpstan-type InboxItemAskSummary array{askId: string, origin: string, sessionId: ?string, closedAt: ?string}
  * @phpstan-type InboxCardWaitSummary array{trigger: string, type: string, reason: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
- * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>}
+ * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>}
  * @phpstan-type InboxAskSummary array{askId: string, extended: bool, closed: bool, items: list<InboxItemListSummary>}
  */
 final readonly class InboxItemPayload
@@ -35,12 +36,16 @@ final readonly class InboxItemPayload
         private InboxReviewRepository $inboxReviews,
         private InboxCardWatchRepository $inboxCardWatches,
         private ReviewRepository $reviews,
+        private InboxItemRepository $inboxItems,
     ) {
     }
 
     /** @return InboxItemListSummary */
     public function forListItem(InboxItem $item): array
     {
+        $cardNumbers = array_values(array_unique(array_map(static fn (InboxItemCard $link): int => $link->card->number, $item->cards->toArray())));
+        sort($cardNumbers);
+
         return [
             'itemId' => (string) $item->id,
             // The short per-project label a person says out loud. Not the id.
@@ -53,6 +58,7 @@ final readonly class InboxItemPayload
             'createdAt' => $item->createdAt->format(\DATE_ATOM),
             'updatedAt' => $item->updatedAt->format(\DATE_ATOM),
             'closedAt' => $item->closedAt?->format(\DATE_ATOM),
+            'cardNumbers' => $cardNumbers,
         ];
     }
 
@@ -63,6 +69,8 @@ final readonly class InboxItemPayload
      */
     public function forList(array $items): array
     {
+        $this->inboxItems->loadCards($items);
+
         return array_map($this->forListItem(...), $items);
     }
 
@@ -76,6 +84,7 @@ final readonly class InboxItemPayload
      */
     public function forListRows(array $items): array
     {
+        $this->inboxItems->loadCards($items);
         $reviews = [];
         $reviewItems = array_values(array_filter($items, static fn (InboxItem $item): bool => InboxItemKind::Review === $item->kind));
         foreach ($this->inboxReviews->findForItems($reviewItems) as $review) {

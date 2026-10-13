@@ -85,9 +85,11 @@ use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
+use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Engine\Engine;
+use App\Module\Workflow\Engine\MarkerPass;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Entity\WorkflowRuleState;
@@ -2942,6 +2944,30 @@ final class EngineTest extends KernelTestCase
         self::assertSame('next', $child->column->slug);
     }
 
+    public function test_a_follow_up_in_the_backlog_moves_to_next_when_the_card_it_follows_finishes_and_a_person_can_park_it(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('engine-follow-up-to-next');
+        $this->bindLifecycle($project);
+        $followed = $this->card($project, 'in-progress');
+        $followUp = $this->card($project, 'backlog');
+        $this->em()->persist(new CardLink($followed, $followUp, CardLinkKind::HasFollowUp));
+        $this->em()->flush();
+
+        $this->evaluate($followUp, '2026-10-02 12:05:00');
+        self::assertSame('backlog', $followUp->column->slug);
+
+        $this->moveTo($followed, 'done');
+        $this->evaluate($followUp, '2026-10-02 12:10:00');
+        self::assertSame('next', $followUp->column->slug);
+        self::assertContains('follow-up-to-next', $this->firedRules());
+
+        $this->moveTo($followUp, 'backlog');
+        $this->evaluate($followUp, '2026-10-02 12:15:00');
+        $this->evaluate($followUp, '2026-10-02 12:20:00');
+        self::assertSame('backlog', $followUp->column->slug);
+    }
+
     public function test_a_lifecycle_child_that_a_person_moves_from_next_to_the_backlog_stays_there(): void
     {
         self::bootKernel();
@@ -3175,7 +3201,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([self::requestRule('provided', self::PROVIDED_READY)]);
         $this->provider()->facts = new ProvidedFacts(ready: true);
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.workflow');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 
@@ -4069,6 +4095,7 @@ final class EngineTest extends KernelTestCase
             $opener,
             $this->contexts(),
             new RuleSubject(),
+            new MarkerPass(new RuleSubject(), $this->service(CardMarkerStore::class)),
             $this->asks,
             $engineEvents,
             $this->logger,
@@ -4115,7 +4142,7 @@ final class EngineTest extends KernelTestCase
     /** Runs the queued evaluations of the card, then empties the queue. Answers how many ran. */
     private function evaluateQueued(Card $card, string $at): int
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.workflow');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
         $evaluations = 0;

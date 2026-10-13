@@ -167,7 +167,7 @@ final class CardPullRequestTrackingTest extends KernelTestCase
         self::assertEqualsCanonicalizing($this->ids($first, $second), $this->evaluated());
     }
 
-    public function test_resubmitting_the_same_links_evaluates_nothing(): void
+    public function test_resubmitting_the_same_links_evaluates_only_the_card_itself(): void
     {
         $first = $this->create([self::PULL_REQUEST]);
         $this->create([self::PULL_REQUEST]);
@@ -175,7 +175,7 @@ final class CardPullRequestTrackingTest extends KernelTestCase
 
         $this->update($first, [self::PULL_REQUEST]);
 
-        self::assertSame([], $this->evaluated());
+        self::assertSame($this->ids($first), $this->evaluated());
     }
 
     public function test_deleting_a_card_evaluates_the_other_cards_on_its_pull_request(): void
@@ -200,7 +200,7 @@ final class CardPullRequestTrackingTest extends KernelTestCase
         ($this->handler(DeleteCardHandler::class))(new DeleteCardCommand($card, Actor::Human));
 
         $neutralized = array_values(array_filter(
-            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport()->getSent()),
+            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport('async')->getSent()),
             static fn (object $message): bool => $message instanceof NeutralizeSiteReviewCheck,
         ));
         self::assertCount(1, $neutralized);
@@ -218,20 +218,20 @@ final class CardPullRequestTrackingTest extends KernelTestCase
         $this->update($card, []);
 
         self::assertSame([], array_filter(
-            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport()->getSent()),
+            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport('async')->getSent()),
             static fn (object $message): bool => $message instanceof NeutralizeSiteReviewCheck,
         ));
     }
 
-    private function transport(): InMemoryTransport
+    private function transport(string $name = 'workflow'): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.'.$name);
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;
     }
 
-    /** @return list<string> the card ids of the queued evaluations */
+    /** @return list<string> the card ids of the queued evaluations, each once, because a card update and a link change both queue one */
     private function evaluated(): array
     {
         $ids = [];
@@ -242,7 +242,7 @@ final class CardPullRequestTrackingTest extends KernelTestCase
             }
         }
 
-        return $ids;
+        return array_values(array_unique($ids));
     }
 
     /** @return list<string> */

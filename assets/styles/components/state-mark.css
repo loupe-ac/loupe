@@ -22,6 +22,10 @@
     .lp-state-mark--waiting {
         @apply text-fg-dim;
     }
+    /* A note: a card that carries only chips. The neutral grey and the dashed circle say it needs nothing. */
+    .lp-state-mark--chip {
+        @apply text-fg-faint;
+    }
     /* The colour and the tooltip still say Working, so a reader who asked for less motion gets a still mark. */
     .lp-state-mark--working .lp-state-mark__glyph {
         @apply motion-safe:animate-spin;

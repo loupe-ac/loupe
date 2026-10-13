@@ -98,6 +98,34 @@ final class CardRepositoryTest extends KernelTestCase
         self::assertSame([], $this->cards->findRelatedForEvaluation([]));
     }
 
+    public function test_a_follow_up_row_makes_the_follow_up_related_to_the_followed_card(): void
+    {
+        $project = $this->makeProject('repo-follow-up-related');
+        $followed = $this->cardIn($project);
+        $followUp = $this->cardIn($project);
+        $this->em->persist(new CardLink($followed, $followUp, CardLinkKind::HasFollowUp));
+        $this->em->flush();
+
+        self::assertSame([(string) $followUp->id], $this->cards->findRelatedForEvaluation([(string) $followed->id]));
+        self::assertSame([], $this->cards->findRelatedForEvaluation([(string) $followUp->id]));
+    }
+
+    public function test_followed_cards_open_count_counts_the_cards_a_card_follows_and_those_not_finished(): void
+    {
+        $project = $this->makeProject('repo-follow-up-count');
+        $open = $this->epicIn($project, 'Open', 'next', 0, 'feature');
+        $done = $this->epicIn($project, 'Done', 'done', 0, 'feature');
+        $followUp = $this->cardIn($project);
+        $loner = $this->cardIn($project);
+        $this->em->persist(new CardLink($open, $followUp, CardLinkKind::HasFollowUp));
+        $this->em->persist(new CardLink($done, $followUp, CardLinkKind::HasFollowUp));
+        $this->em->persist(new CardLink($done, $loner, CardLinkKind::Blocks));
+        $this->em->flush();
+
+        self::assertSame(['followed' => 2, 'open' => 1], $this->cards->followedCardsOpenCount($followUp));
+        self::assertSame(['followed' => 0, 'open' => 0], $this->cards->followedCardsOpenCount($loner));
+    }
+
     public function test_refresh_type_and_parent_reads_the_lane_setting_the_database_holds(): void
     {
         $card = $this->cardIn($this->makeProject('repo-refresh-lane'));

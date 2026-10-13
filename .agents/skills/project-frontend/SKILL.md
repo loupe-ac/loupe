@@ -181,8 +181,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 9. Pagination: `<twig:Ds:Pagination route="..." :page="page" :totalPages="totalPages" :pageList="pageList" />`. The CSS is `assets/styles/components/pagination.css`.
 10. Tooltip: `<twig:Ds:Tooltip id="...">text</twig:Ds:Tooltip>`. The anchor's own rule shows it on hover and focus. The CSS is `assets/styles/components/tooltip.css`.
 
-11. StatusBox: `<twig:Ds:StatusBox kind="stuck" :title="..." :chip="..." :lead="..." :fields="..." :others="...">`. Kinds are stuck, needs-you, working and waiting. The CSS is `assets/styles/components/status-box.css`.
-12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working and waiting. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
+11. StatusBox: `<twig:Ds:StatusBox kind="stuck" :title="..." :chip="..." :lead="..." :fields="..." :others="...">`. Kinds are stuck, needs-you, working, waiting and chip. The CSS is `assets/styles/components/status-box.css`.
+12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working, waiting and chip. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
 
 13. PageHeader: `<twig:Ds:PageHeader :title="..." :description="..." variant="workshop" titleClass="lp-workspace-title--doc">` with the buttons in `<twig:block name="actions">`. The CSS is `assets/styles/components/page-header.css`.
 

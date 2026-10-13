@@ -424,6 +424,36 @@ final class PullRequestSnapshotTest extends TestCase
         self::assertNull($pullRequest->checksFailedSince);
     }
 
+    public function test_the_first_pending_checks_read_stamps_the_time_and_a_second_keeps_it(): void
+    {
+        $pullRequest = $this->pullRequest();
+        $first = new \DateTimeImmutable('2026-10-01 10:00');
+        $pullRequest->apply(new PullRequestSnapshot(checks: PullRequestChecks::Pending));
+        $pullRequest->settleStartTimes($first);
+
+        $pullRequest->apply(new PullRequestSnapshot(checks: PullRequestChecks::Pending));
+        $pullRequest->settleStartTimes(new \DateTimeImmutable('2026-10-01 11:00'));
+
+        self::assertEquals($first, $pullRequest->checksPendingSince);
+    }
+
+    public function test_finished_checks_or_a_closed_pull_request_clear_the_pending_checks_time(): void
+    {
+        $pullRequest = $this->pullRequest();
+        $pullRequest->apply(new PullRequestSnapshot(checks: PullRequestChecks::Pending));
+        $pullRequest->settleStartTimes(new \DateTimeImmutable('2026-10-01 10:00'));
+
+        $pullRequest->apply(new PullRequestSnapshot(checks: PullRequestChecks::Passed));
+        $pullRequest->settleStartTimes(new \DateTimeImmutable('2026-10-01 11:00'));
+        self::assertNull($pullRequest->checksPendingSince);
+
+        $pullRequest->apply(new PullRequestSnapshot(checks: PullRequestChecks::Pending));
+        $pullRequest->settleStartTimes(new \DateTimeImmutable('2026-10-01 12:00'));
+        $pullRequest->apply(new PullRequestSnapshot(state: PullRequestState::Closed, checks: PullRequestChecks::Pending));
+        $pullRequest->settleStartTimes(new \DateTimeImmutable('2026-10-01 13:00'));
+        self::assertNull($pullRequest->checksPendingSince);
+    }
+
     public function test_a_conflict_stamps_the_time_and_a_clean_read_clears_it(): void
     {
         $pullRequest = $this->pullRequest();

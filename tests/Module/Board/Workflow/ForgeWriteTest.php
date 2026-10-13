@@ -799,7 +799,7 @@ final class ForgeWriteTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.workflow');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

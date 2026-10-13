@@ -148,7 +148,16 @@ runs:
 
     # WebTestCase renders real templates, and layout_base.html.twig resolves the
     # compiled stylesheet through AssetMapper. The dev stack has a watcher
-    # producing it; here it takes one explicit build.
+    # producing it; here it takes one explicit build. A cache miss downloads the
+    # binary. A stalled download leaves a partial file the bundle would reuse, so
+    # a retry deletes it first.
     - if: inputs.docker == 'true'
       shell: bash
-      run: docker compose exec -T php-fpm bin/console tailwind:build
+      run: |
+        for attempt in 1 2 3; do
+          docker compose exec -T php-fpm bin/console tailwind:build && exit 0
+          echo "tailwind:build failed on attempt $attempt"
+          docker compose exec -T php-fpm rm -rf "var/tailwind/${{ steps.tailwind-version.outputs.version }}"
+          sleep 10
+        done
+        exit 1

@@ -231,6 +231,35 @@ final class CardLinkSyncTest extends KernelTestCase
         self::assertSame([(string) $b->id], $this->write($a, [[$b, CardLinkKind::Blocks]]));
     }
 
+    public function test_follow_up_of_stores_the_followed_card_as_the_source_and_names_the_follow_up(): void
+    {
+        $project = $this->makeProject('sync-follow-up-of');
+        [$a, $b] = [$this->cardIn($project), $this->cardIn($project)];
+
+        self::assertSame([(string) $a->id], $this->write($a, [[$b, CardLinkKind::FollowUpOf]]));
+
+        self::assertSame([(string) $b->id, (string) $a->id, 'has-follow-up'], $this->rowsOf($a)[(string) $b->id]);
+    }
+
+    public function test_has_follow_up_names_the_follow_up_and_reads_follow_up_of_from_it(): void
+    {
+        $project = $this->makeProject('sync-has-follow-up');
+        [$a, $b] = [$this->cardIn($project), $this->cardIn($project)];
+
+        self::assertSame([(string) $b->id], $this->write($a, [[$b, CardLinkKind::HasFollowUp]]));
+
+        self::assertSame(CardLinkKind::FollowUpOf, $this->links->findForCard($this->reload($b))[0]->kindFor($this->reload($b)));
+    }
+
+    public function test_a_removed_follow_up_row_names_the_follow_up(): void
+    {
+        $project = $this->makeProject('sync-follow-up-removed');
+        [$a, $b] = [$this->cardIn($project), $this->cardIn($project)];
+        $this->write($a, [[$b, CardLinkKind::FollowUpOf]]);
+
+        self::assertSame([(string) $a->id], $this->write($a, []));
+    }
+
     /**
      * @param list<array{Card, CardLinkKind}> $wanted
      *

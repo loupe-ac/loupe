@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Board\Workflow;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardSnapshot;
@@ -16,6 +17,7 @@ final readonly class BoardCardDirectory implements CardDirectory
 {
     public function __construct(
         private CardRepository $cards,
+        private CardEventRepository $cardEvents,
     ) {
     }
 
@@ -66,5 +68,13 @@ final readonly class BoardCardDirectory implements CardDirectory
         }
 
         return array_map(static fn (Card $child): Uuid => $child->id ?? throw new \LogicException('A stored card has an id.'), $this->cards->findChildren($card));
+    }
+
+    #[\Override]
+    public function newestMoveAt(Uuid $cardId): ?\DateTimeImmutable
+    {
+        $id = $cardId->toRfc4122();
+
+        return $this->cardEvents->findNewestMoveAtOfCards([$id])[$id] ?? null;
     }
 }

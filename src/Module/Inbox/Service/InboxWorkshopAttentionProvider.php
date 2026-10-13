@@ -31,6 +31,7 @@ final readonly class InboxWorkshopAttentionProvider implements WorkshopAttention
             return [];
         }
         $items = $this->inboxItems->findOldestOpen($project, 6);
+        $this->inboxItems->loadCards($items);
         $subjects = [];
         foreach ($this->inboxReviews->findForItems($items) as $review) {
             $subjects[(string) $review->item->id] = $review->targetKind->value;
@@ -43,6 +44,7 @@ final readonly class InboxWorkshopAttentionProvider implements WorkshopAttention
                 $item->kind->value,
                 $item->blocking,
                 InboxAskOrigin::Loupe === $item->origin ? InboxAskOrigin::Loupe->value : $subjects[(string) $item->id] ?? 'agent',
+                ($item->cards->first() ?: null)?->card->number,
             );
         }
 
