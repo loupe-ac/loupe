@@ -340,6 +340,23 @@ func TestOnlyACanvasIsClaimed(t *testing.T) {
 	}
 }
 
+func TestTheCanvasBoardLayoutIsLeftOut(t *testing.T) {
+	res := compile(t,
+		api.ArtifactFile{Path: "canvas.json", Contents: []byte(`{"boards":[{"file":"Main.dc.html"},{"file":"Other.dc.html"}]}`)},
+		api.ArtifactFile{Path: "design/canvas.json", Contents: []byte(`{"file":"Main.dc.html"}`)},
+		canvas("Main.dc.html", wrap("<p>a</p>")),
+	)
+	if len(res.Gaps) != 0 {
+		t.Fatalf("gaps = %+v", res.Gaps)
+	}
+	if len(res.Files) != 1 || res.Files[0].Path != "index.html" {
+		t.Fatalf("files = %v", res.Files)
+	}
+	if (compiler{}).Claims([]api.ArtifactFile{{Path: "canvas.json"}, {Path: "index.html"}}) {
+		t.Fatal("claimed a push with no canvas")
+	}
+}
+
 func TestTheCompilerIsRegistered(t *testing.T) {
 	res, err := artifactcompile.Run([]api.ArtifactFile{canvas("A.dc.html", wrap("<p>a</p>"))}, artifactcompile.Options{})
 	if err != nil || !res.Compiled || len(res.Files) != 1 || res.Files[0].Path != "index.html" {
