@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Controller;
 
+use App\Module\Board\Twig\BoardExtension;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\Artifact\ArtifactScenario;
 use App\Tests\Module\Artifact\LinkedCardScenario;
@@ -35,6 +36,41 @@ final class ShowDocumentArtifactMenuTest extends WebTestCase
         self::assertSame('Inbox prototype', trim($row->filter('.lp-page-menu__label')->text()));
         self::assertSame('Artifact · v2 · from #706', trim($row->filter('.lp-page-menu__line')->text()));
         self::assertSame('/projects/'.$projectId.'/artifacts/'.$artifactId, $row->attr('href'));
+    }
+
+    public function test_the_artifact_links_follow_card_order_then_link_order(): void
+    {
+        static::createClient();
+        $project = $this->switchedOnProject('menu-artifacts-order@example.com');
+        $shared = $this->storedArtifact($project, 'Shared', [['index.html' => 's']]);
+        $alpha = $this->storedArtifact($project, 'Alpha', [['index.html' => 'a']]);
+        $beta = $this->storedArtifact($project, 'Beta', [['index.html' => 'b']]);
+        $gamma = $this->storedArtifact($project, 'Gamma', [['index.html' => 'c']]);
+        $first = $this->linkedCard($project, $alpha, 'First card', 1);
+        $first->linkArtifact($shared);
+        $second = $this->linkedCard($project, $beta, 'Second card', 2);
+        $second->linkArtifact($gamma);
+        $second->linkArtifact($shared);
+        $this->em()->flush();
+        $document = $this->linkedDocument($project, $first, $second);
+        $connection = $this->em()->getConnection();
+        foreach ([[$second, '2026-01-01'], [$first, '2026-01-02']] as [$card, $at]) {
+            $connection->executeStatement('UPDATE board_card_documents SET linked_at = ? WHERE card_id = ?', [$at, (string) $card->id]);
+        }
+        foreach ([[$second, $gamma, '2026-01-01'], [$second, $beta, '2026-01-02'], [$second, $shared, '2026-01-03'], [$first, $shared, '2026-01-01'], [$first, $alpha, '2026-01-02']] as [$card, $artifact, $at]) {
+            $connection->executeStatement('UPDATE board_card_artifacts SET linked_at = ? WHERE card_id = ? AND artifact_id = ?', [$at, (string) $card->id, (string) $artifact->id]);
+        }
+        $documentId = $document->id;
+        $this->em()->clear();
+
+        $extension = static::getContainer()->get(BoardExtension::class);
+        self::assertInstanceOf(BoardExtension::class, $extension);
+        $entries = $extension->documentArtifactLinks($this->em()->find(Document::class, $documentId) ?? self::fail('No document'));
+
+        self::assertSame(
+            [['Gamma', 2], ['Beta', 2], ['Shared', 2], ['Alpha', 1]],
+            array_map(static fn (array $entry): array => [$entry['link']->artifact->name, $entry['link']->card->number], $entries),
+        );
     }
 
     public function test_the_page_menu_marks_an_archived_artifact(): void
