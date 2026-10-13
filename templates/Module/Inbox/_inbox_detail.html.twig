@@ -13,7 +13,17 @@
             <h2 class="lp-inbox-ask__title">{{ row.title }}</h2>
             <p class="lp-inbox-ask__byline">
                 {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'w-4 h-4 shrink-0'} only %}
-                <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
+                {# A wait names its card, as the document review byline does. #}
+                {% set waitCard = row.kind.value == 'wait' ? row.firstCard : null %}
+                {% if waitCard %}
+                    <span class="lp-inbox-ask__wait" data-inbox-kind-label>
+                        {{ 'inbox.wait.byline_before'|trans }}
+                        <a href="{{ path('app_board_card', {projectId: waitCard.project.id, cardId: waitCard.id}) }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare" aria-describedby="inbox-wait-card-{{ waitCard.id }}" data-inbox-wait-card>#{{ waitCard.number }}</a>
+                        <twig:Ds:Tooltip id="inbox-wait-card-{{ waitCard.id }}">{{ waitCard.title }}</twig:Ds:Tooltip>
+                    </span>
+                {% else %}
+                    <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
+                {% endif %}
                 <span aria-hidden="true">·</span>
                 <span class="lp-inbox-ask__head">
                     {% include '@Inbox/_agent_presence.html.twig' with {ask: ask, bridge: ask ? inbox.bridgeStatus(ask) : null, origin: origin} only %}

@@ -581,6 +581,27 @@
         gap: calc(var(--spacing) * 3);
     }
 
+    /* The card a wait holds, linked into the card drawer, with its title in a tooltip. */
+    .lp-core-inbox .lp-inbox-ask__wait {
+        position: relative;
+    }
+
+    .lp-core-inbox .lp-inbox-ask__wait a {
+        font-weight: 600;
+        color: var(--ink);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__wait .lp-tooltip {
+        width: max-content;
+        max-width: calc(var(--spacing) * 72);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__wait:hover .lp-tooltip,
+    .lp-core-inbox .lp-inbox-ask__wait:focus-within .lp-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+
     /* Who asked sits in the byline, as a small avatar with its presence dot beside the source name. */
     .lp-core-inbox .lp-inbox-ask__head {
         display: inline-flex;

@@ -76,6 +76,20 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('.lp-presence__dot'));
     }
 
+    public function test_the_byline_names_the_waiting_card_and_opens_it_in_the_drawer(): void
+    {
+        $this->reconcile();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-inbox-ask__byline [data-inbox-kind-label]', 'Waiting on card #4 Ship it');
+        $link = $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]');
+        self::assertSame('#4', $link->text());
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
+        self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
+    }
+
     public function test_the_panel_names_the_card_once_and_shows_no_ask_context(): void
     {
         $this->reconcile();
