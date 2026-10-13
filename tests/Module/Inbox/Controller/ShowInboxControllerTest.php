@@ -373,7 +373,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('page', $frame->filter('.lp-tabs__tab[data-inbox-side="open"]')->attr('aria-current'));
         self::assertCount(1, $crawler->filter('[data-inbox-section="open-asks"]'));
         // One link per ask, not per item, and the first row opens.
-        $rows = $frame->filter('a.lp-inbox-request');
+        $rows = $frame->filter('a.lp-list-row');
         self::assertSame(
             ['/projects/'.$project->id.'/inbox?ask='.$first->id, '/projects/'.$project->id.'/inbox?ask='.$second->id],
             $rows->each(static fn ($node): string => (string) $node->attr('href')),
@@ -402,7 +402,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id="'.$second->id.'"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-ask-id="'.$first->id.'"]'));
         self::assertSame('true', $crawler->filter('.lp-inbox-split')->attr('data-inbox-picked'));
-        self::assertSame('true', $crawler->filter('a.lp-inbox-request[href$="ask='.$second->id.'"]')->attr('aria-current'));
+        self::assertSame('true', $crawler->filter('a.lp-list-row[href$="ask='.$second->id.'"]')->attr('aria-current'));
         self::assertStringEndsWith('/projects/'.$project->id.'/inbox', (string) $crawler->filter('.lp-inbox-back')->attr('href'));
     }
 
@@ -437,8 +437,8 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertCount(1, $crawler->filter('[data-inbox-ask-id="'.$closed->id.'"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-ask-id="'.$open->id.'"]'));
-        self::assertSame([(string) $open->id], $crawler->filter('a.lp-inbox-request')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')));
-        self::assertCount(0, $crawler->filter('a.lp-inbox-request[aria-current]'));
+        self::assertSame([(string) $open->id], $crawler->filter('a.lp-list-row')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')));
+        self::assertCount(0, $crawler->filter('a.lp-list-row[aria-current]'));
     }
 
     public function test_a_bad_address_falls_back_to_the_default_view(): void
@@ -493,7 +493,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
-        $row = $crawler->filter('a.lp-inbox-request');
+        $row = $crawler->filter('a.lp-list-row');
         self::assertCount(1, $row);
         self::assertSame('/projects/'.$project->id.'/inbox?item=7', $row->attr('href'));
         self::assertSame('todo', $row->filter('[data-inbox-kind]')->attr('data-inbox-kind'));
@@ -521,10 +521,10 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertSame(
             [(string) $asks[3]->id, (string) $asks[1]->id, (string) $asks[0]->id, (string) $asks[2]->id],
-            $crawler->filter('a.lp-inbox-request')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
+            $crawler->filter('a.lp-list-row')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
         );
-        self::assertCount(2, $crawler->filter('a.lp-inbox-request [data-inbox-blocking]'));
-        self::assertSame('Blocking', $crawler->filter('a.lp-inbox-request')->first()->filter('[data-inbox-blocking]')->text());
+        self::assertCount(2, $crawler->filter('a.lp-list-row [data-inbox-blocking]'));
+        self::assertSame('Blocking', $crawler->filter('a.lp-list-row')->first()->filter('[data-inbox-blocking]')->text());
     }
 
     public function test_a_row_shows_the_first_card_and_how_many_more_or_the_source(): void
@@ -547,12 +547,12 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
-        $meta = $crawler->filter('a.lp-inbox-request[data-inbox-request="'.$withCardsAsk->id.'"] .lp-inbox-request__meta');
+        $meta = $crawler->filter('a.lp-list-row[data-inbox-request="'.$withCardsAsk->id.'"] .lp-list-row__meta');
         self::assertSame('#4 +2', $meta->filter('[data-inbox-card]')->text());
         // A short age, and Blocking inline after a dot: "#4 Checkout 4 +2 · 2h · Blocking".
         self::assertSame('2h', $meta->filter('time')->text());
         self::assertMatchesRegularExpression('/·\s*2h\s*·\s*Blocking$/u', $meta->text());
-        $source = $crawler->filter('a.lp-inbox-request[data-inbox-request="'.$noCardAsk->id.'"] .lp-inbox-request__meta');
+        $source = $crawler->filter('a.lp-list-row[data-inbox-request="'.$noCardAsk->id.'"] .lp-list-row__meta');
         self::assertSame('Agent', $source->filter('[data-inbox-source]')->text());
         self::assertCount(0, $source->filter('[data-inbox-card]'));
     }
@@ -571,11 +571,11 @@ final class ShowInboxControllerTest extends WebTestCase
 
         $this->client->loginUser($owner);
         $open = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
-        self::assertSame('todo', $open->filter('a.lp-inbox-request[data-inbox-request="'.$openAsk->id.'"] [data-inbox-kind]')->attr('data-inbox-kind'));
+        self::assertSame('todo', $open->filter('a.lp-list-row[data-inbox-request="'.$openAsk->id.'"] [data-inbox-kind]')->attr('data-inbox-kind'));
 
         $closed = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
-        self::assertSame('question', $closed->filter('a.lp-inbox-request[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-kind]')->attr('data-inbox-kind'));
-        self::assertSame('Answered', $closed->filter('a.lp-inbox-request[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
+        self::assertSame('question', $closed->filter('a.lp-list-row[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-kind]')->attr('data-inbox-kind'));
+        self::assertSame('Answered', $closed->filter('a.lp-list-row[data-inbox-request="'.$closedAsk->id.'"] [data-inbox-outcome]')->text());
     }
 
     public function test_a_closed_ask_reads_its_outcome_from_the_blocking_item_that_closed_it(): void
@@ -594,7 +594,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
 
-        self::assertSame('Declined', $crawler->filter('a.lp-inbox-request[data-inbox-request="'.$ask->id.'"] [data-inbox-outcome]')->text());
+        self::assertSame('Declined', $crawler->filter('a.lp-list-row[data-inbox-request="'.$ask->id.'"] [data-inbox-outcome]')->text());
     }
 
     public function test_the_type_filter_keeps_an_ask_when_any_item_has_the_kind(): void
@@ -610,7 +610,7 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertSame(
             [(string) $both->id],
-            $crawler->filter('a.lp-inbox-request')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
+            $crawler->filter('a.lp-list-row')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
         );
         self::assertSame('true', $crawler->filter('[data-inbox-type="todo"]')->attr('aria-current'));
         self::assertSame('Open · 2', $crawler->filter('.lp-tabs__tab')->first()->text());
@@ -619,7 +619,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertStringNotContainsString('type=', (string) $crawler->filter('[data-inbox-type="all"]')->attr('href'));
 
         $none = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?type=review');
-        self::assertCount(0, $none->filter('a.lp-inbox-request'));
+        self::assertCount(0, $none->filter('a.lp-list-row'));
         self::assertSelectorExists('[data-inbox-type-empty]');
     }
 
@@ -673,7 +673,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
         // The ask is still waiting on its blocking to-do, so the row says so and does not read as answered.
-        $row = $crawler->filter('a.lp-inbox-request');
+        $row = $crawler->filter('a.lp-list-row');
         self::assertCount(1, $row);
         self::assertSame('Blocking', $row->filter('[data-inbox-blocking]')->text());
         self::assertCount(0, $row->filter('[data-inbox-outcome]'));
@@ -696,11 +696,11 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
-        $row = $crawler->filter('a.lp-inbox-request');
+        $row = $crawler->filter('a.lp-list-row');
         self::assertCount(1, $row);
-        self::assertSame('Which format?', $row->filter('.lp-inbox-request__title')->text());
+        self::assertSame('Which format?', $row->filter('.lp-list-row__title')->text());
         self::assertStringNotContainsString('Compare', $row->text());
-        self::assertCount(0, $row->filter('.lp-source-avatar, .lp-status-chip, .lp-inbox-request__body'));
+        self::assertCount(0, $row->filter('.lp-source-avatar, .lp-status-chip, .lp-list-row__body'));
     }
 
     public function test_a_closed_ask_shows_a_final_item_with_no_forms(): void
@@ -738,7 +738,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame(['open-asks'], $crawler->filter('[data-inbox-section]')->each(static fn ($node): string => (string) $node->attr('data-inbox-section')));
         self::assertSame(
             [(string) $older->id, (string) $newer->id, 'item-3'],
-            $crawler->filter('a.lp-inbox-request')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
+            $crawler->filter('a.lp-list-row')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
         );
 
         // The to-do still open in a closed ask gets its forms in the closed ask that holds it.
@@ -750,7 +750,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame(['closed-asks'], $completed->filter('[data-inbox-section]')->each(static fn ($node): string => (string) $node->attr('data-inbox-section')));
         self::assertSame(
             [(string) $closed->id],
-            $completed->filter('a.lp-inbox-request')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
+            $completed->filter('a.lp-list-row')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
         );
     }
 
@@ -830,17 +830,17 @@ final class ShowInboxControllerTest extends WebTestCase
 
         $this->client->loginUser($owner);
         $first = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed');
-        self::assertCount(ShowInboxHandler::CLOSED_ASKS_PER_PAGE, $first->filter('[data-inbox-section="closed-asks"] a.lp-inbox-request'));
+        self::assertCount(ShowInboxHandler::CLOSED_ASKS_PER_PAGE, $first->filter('[data-inbox-section="closed-asks"] a.lp-list-row'));
         self::assertCount(1, $first->filter('[data-inbox-item="1"]'));
         self::assertStringContainsString('side=closed', (string) $first->filter('.lp-pagination a[href*="page=2"]')->attr('href'));
 
         $second = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed&page=2');
-        self::assertCount(1, $second->filter('[data-inbox-section="closed-asks"] a.lp-inbox-request'));
+        self::assertCount(1, $second->filter('[data-inbox-section="closed-asks"] a.lp-list-row'));
         self::assertCount(1, $second->filter('[data-inbox-item="'.(ShowInboxHandler::CLOSED_ASKS_PER_PAGE + 1).'"]'));
 
         // A page past the end shows the last one, and the old queue address still reads as the closed side.
         $past = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?queue=completed&page=9');
-        self::assertCount(1, $past->filter('[data-inbox-section="closed-asks"] a.lp-inbox-request'));
+        self::assertCount(1, $past->filter('[data-inbox-section="closed-asks"] a.lp-list-row'));
     }
 
     public function test_a_search_lists_the_matching_asks_closed_ones_included_with_their_outcome(): void
@@ -860,7 +860,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('export', $crawler->filter('input[name="q"]')->attr('value'));
         $results = $crawler->filter('[data-inbox-section="search-results"]');
         self::assertCount(1, $results);
-        $rows = $results->filter('a.lp-inbox-request');
+        $rows = $results->filter('a.lp-list-row');
         self::assertCount(2, $rows);
         self::assertSame('2 asks match', $crawler->filter('.lp-filter-count')->text());
         // The open item no ask holds is a row of its own, and the closed ask shows how it ended.
@@ -884,7 +884,7 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertSame(
             [(string) $todoAsk->id],
-            $crawler->filter('a.lp-inbox-request')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
+            $crawler->filter('a.lp-list-row')->each(static fn ($node): string => (string) $node->attr('data-inbox-request')),
         );
     }
 
@@ -918,17 +918,17 @@ final class ShowInboxControllerTest extends WebTestCase
 
         $this->client->loginUser($owner);
         $first = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?q=column');
-        self::assertCount(ShowInboxHandler::SEARCH_RESULTS_PER_PAGE, $first->filter('[data-inbox-section="search-results"] a.lp-inbox-request'));
+        self::assertCount(ShowInboxHandler::SEARCH_RESULTS_PER_PAGE, $first->filter('[data-inbox-section="search-results"] a.lp-list-row'));
         self::assertStringContainsString('q=column', (string) $first->filter('.lp-pagination a[href*="page=2"]')->attr('href'));
 
         $second = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?q=column&page=2');
-        self::assertCount(1, $second->filter('[data-inbox-section="search-results"] a.lp-inbox-request'));
+        self::assertCount(1, $second->filter('[data-inbox-section="search-results"] a.lp-list-row'));
         self::assertStringContainsString('q=column', (string) $second->filter('[data-inbox-item] form')->attr('action'));
 
         // A page past the end shows the last page, not an empty list.
         $pastTheEnd = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?q=column&page=99');
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $pastTheEnd->filter('[data-inbox-section="search-results"] a.lp-inbox-request'));
+        self::assertCount(1, $pastTheEnd->filter('[data-inbox-section="search-results"] a.lp-list-row'));
         self::assertSelectorTextSame('.lp-pagination [aria-current="page"]', '2');
         self::assertSelectorNotExists('[data-inbox-search-empty]');
     }
@@ -957,7 +957,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
         self::assertResponseIsSuccessful();
         // Guard: every item renders its review, so the count below is over real reads.
-        self::assertCount(3, $crawler->filter('a.lp-inbox-request [data-inbox-kind="review"]'));
+        self::assertCount(3, $crawler->filter('a.lp-list-row [data-inbox-kind="review"]'));
         self::assertGreaterThan(0, $crawler->filter('[data-inbox-review-document]')->count());
 
         $profile = $this->client->getProfile();

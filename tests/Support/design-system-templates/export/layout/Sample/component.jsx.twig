@@ -1,0 +1,8 @@
+export function {{ entry.name }}({ title, children }) {
+    return (
+        <header className="{{ entry.rootClass }}">
+            <h1>{title}</h1>
+            {children}
+        </header>
+    );
+}

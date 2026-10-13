@@ -1,0 +1,91 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the app shell for the styleguide, so it is intentionally untranslated. The markup copies templates/base.html.twig with fixed sample data. #}
+<div class="lp-app">
+    <aside class="lp-sidebar" id="specimen-sidebar">
+        <a href="#" class="lp-sidebar__brand">
+            <span class="lp-sidebar__brand-mark" aria-hidden="true"></span>
+            <span>loupe</span>
+        </a>
+        <div class="lp-switcher">
+            <button type="button" class="lp-sidebar__switcher" aria-label="Switch project">
+                <span class="lp-sidebar__switcher-avatar">A</span>
+                <span class="lp-sidebar__switcher-text">
+                    <span class="lp-sidebar__switcher-label">Project</span>
+                    <span class="lp-sidebar__switcher-name">Acme</span>
+                </span>
+                <twig:ux:icon name="lucide:arrow-down" class="lp-sidebar__switcher-caret" />
+            </button>
+        </div>
+        <nav class="lp-sidebar__nav">
+            <span class="lp-sidebar__nav-label">Workspace</span>
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:layout-dashboard" />
+                <span class="lp-sidebar__link-label">Workshop</span>
+            </a>
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:inbox" />
+                <span class="lp-sidebar__link-label">Needs you</span>
+                <span class="lp-sidebar__pill lp-sidebar__pill--amber">2</span>
+            </a>
+            <a href="#" class="lp-sidebar__link lp-sidebar__link--active" aria-current="page">
+                <twig:ux:icon name="lucide:square-kanban" />
+                <span class="lp-sidebar__link-label">Board</span>
+            </a>
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:file-text" />
+                <span class="lp-sidebar__link-label">Documents</span>
+                <span class="lp-sidebar__pill">12</span>
+            </a>
+            <span class="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">Your crew</span>
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:bot" />
+                <span class="lp-sidebar__link-label">Agents</span>
+            </a>
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:workflow" />
+                <span class="lp-sidebar__link-label">Workflow</span>
+            </a>
+        </nav>
+        <div class="lp-sidebar__spacer"></div>
+        <nav class="lp-sidebar__nav lp-sidebar__nav--secondary">
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:settings" />
+                <span class="lp-sidebar__link-label">Project settings</span>
+            </a>
+            <a href="#" class="lp-sidebar__link">
+                <twig:ux:icon name="lucide:user" />
+                <span class="lp-sidebar__link-label">Account</span>
+            </a>
+        </nav>
+        <div class="lp-sidebar__account">
+            <span class="lp-sidebar__account-avatar">R</span>
+            <span class="lp-sidebar__account-text">
+                <span class="lp-sidebar__account-name">riley@example.com</span>
+            </span>
+            <button type="button" class="lp-sidebar__account-logout" aria-label="Log out">
+                <twig:ux:icon name="lucide:log-out" />
+            </button>
+        </div>
+    </aside>
+    <div class="lp-shell">
+        <header class="lp-topbar">
+            <div class="lp-topbar__lead">
+                <nav class="lp-topbar__trail">
+                    <a class="lp-topbar__crumb" href="#">Acme</a>
+                    <span class="lp-topbar__sep">/</span>
+                    <span class="lp-topbar__here">Board</span>
+                </nav>
+                <span class="lp-topbar__meta">12 cards</span>
+            </div>
+            <div class="lp-topbar__global-actions">
+                <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="#" aria-label="New work">
+                    <twig:ux:icon name="lucide:plus" class="w-4 h-4 shrink-0" />
+                    <span>New work</span>
+                </twig:Ds:Button>
+            </div>
+        </header>
+        <main class="lp-main">
+            <p class="lp-styleguide__token-use">A page goes here.</p>
+        </main>
+    </div>
+</div>

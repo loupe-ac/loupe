@@ -13,9 +13,6 @@
    "the filters matched nothing". Same number the shell's nav pill shows. #}
 {% set totalDocuments = project_document_count(project) %}
 <div class="lp-workspace lp-core-prototype-page lp-core-documents" data-controller="modal" data-modal-reopen-value="{{ createDocumentForm.vars.submitted ? 'true' : 'false' }}">
-    <header class="lp-page-header">
-        <div class="lp-page-header__copy">
-            <h1 class="lp-workspace-title lp-workspace-title--doc">{{ 'review.dashboard.page.title'|trans }}</h1>
     {# The default line promises newest-first, which a ranked search and a series
        both make untrue. The series wins, because its order wins in the query. #}
     {% if listQuery.seriesName %}
@@ -25,10 +22,11 @@
     {% else %}
         {% set descriptionKey = 'review.dashboard.description' %}
     {% endif %}
-            <p class="lp-workspace-desc">{{ descriptionKey|trans }}</p>
-        </div>
-        <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open"><twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'review.create.title'|trans }}</twig:Ds:Button>
-    </header>
+    <twig:Ds:PageHeader :title="'review.dashboard.page.title'|trans" :description="descriptionKey|trans" titleClass="lp-workspace-title--doc">
+        <twig:block name="actions">
+            <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open"><twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'review.create.title'|trans }}</twig:Ds:Button>
+        </twig:block>
+    </twig:Ds:PageHeader>
     {% include '@Review/_create_document.html.twig' with {form: createDocumentForm, projectId: project.id} only %}
 
     {# Six controls in front of a project that has nothing to filter are six dead

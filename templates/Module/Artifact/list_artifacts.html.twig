@@ -10,12 +10,7 @@
 
 {% block body %}
 <div class="lp-workspace lp-core-prototype-page lp-core-documents">
-    <header class="lp-page-header">
-        <div class="lp-page-header__copy">
-            <h1 class="lp-workspace-title lp-workspace-title--doc">{{ 'artifact.list.heading'|trans }}</h1>
-            <p class="lp-workspace-desc">{{ 'artifact.list.description'|trans }}</p>
-        </div>
-    </header>
+    <twig:Ds:PageHeader :title="'artifact.list.heading'|trans" :description="'artifact.list.description'|trans" titleClass="lp-workspace-title--doc" />
 
     {% if items is not empty or includeArchived %}
     <twig:Ds:FilterBar

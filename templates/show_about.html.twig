@@ -8,11 +8,7 @@
 
 {% block body %}
 <div class="lp-workspace lp-about">
-    <header class="lp-page-header">
-        <div class="lp-page-header__copy">
-            <h1 class="lp-workspace-title">{{ 'about.page.title'|trans }}</h1>
-        </div>
-    </header>
+    <twig:Ds:PageHeader :title="'about.page.title'|trans" />
 
     <section class="lp-about-hero" aria-labelledby="about-lead">
         <div class="lp-about-hero__copy">

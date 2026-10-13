@@ -1,0 +1,373 @@
+/* The app shell: sidebar, project switcher, top bar and main column.
+   `templates/base.html.twig` draws the markup. */
+@layer components {
+    /* ── App shell (sidebar + content) ──────────────────────────────── */
+
+    /* The shell is dark chrome all the way out to the window edge; the content
+       sits on a white "paper" panel inset from it on the right and bottom. The
+       paper is the app's only scroll container, so the window itself never
+       scrolls. */
+    .lp-app {
+        @apply flex bg-sidebar;
+        height: 100dvh;
+    }
+    /* The right and bottom inset frames the paper against the sidebar. Below lg
+       the sidebar is out of flow, so nothing balances it on the left and it
+       reads as a stray black strip. */
+    .lp-shell {
+        @apply flex flex-1 flex-col min-w-0 bg-app;
+    }
+    /* overflow-x is auto, not hidden: from lg up the review block is 972px, and
+       a window narrower than that must be able to scroll to the comment column
+       rather than have it clipped away where nothing can reach it. */
+    .lp-main {
+        @apply flex-1 min-h-0 bg-app overflow-x-auto overflow-y-auto;
+    }
+    /* Every page but the board fits one left-aligned frame. The top bar keeps
+       its full-width ground, and its items end at the frame edge. */
+    @media (width >= 64rem) {
+        .lp-app > .lp-shell:not(:has(.lp-board)) {
+            --app-frame-inset: max(
+                calc(var(--spacing) * 0),
+                100% - var(--container-7xl)
+            );
+        }
+        .lp-app > .lp-shell:not(:has(.lp-board)) > .lp-topbar {
+            padding-right: calc(var(--app-frame-inset) + var(--spacing) * 7.5);
+        }
+        /* The side-by-side diff takes the full width below the framed bar. */
+        .lp-app
+            > .lp-shell:not(:has(.lp-board))
+            > .lp-main:not(:has(.lp-review-doc--wide, .lp-core-inbox)) {
+            padding-right: var(--app-frame-inset);
+        }
+    }
+
+    .lp-sidebar {
+        @apply flex flex-col w-54 shrink-0 pt-7 px-3.5 pb-3.5;
+    }
+    @media (width > 48.75rem) and (width <= 75rem) {
+        .lp-sidebar {
+            width: 12.1875rem;
+        }
+    }
+
+    /* Below lg the sidebar slides in over the paper. Only the app shell opts
+       in. The closed panel is `visibility: hidden`, so it is untabbable and
+       untappable off-canvas. */
+    .lp-sidebar--drawer {
+        @apply fixed inset-y-0 left-0 z-50 min-h-0 overflow-y-auto bg-sidebar invisible -translate-x-full lg:static lg:visible lg:translate-x-0;
+        /* The shell is one viewport tall, so a longer rail scrolls itself. */
+        /* `translate`, not `transform`: that is the property -translate-x-full
+           writes. Hiding waits out the slide, so the panel does not vanish
+           mid-motion. */
+        transition:
+            translate 200ms ease-out,
+            visibility 0s linear 200ms;
+    }
+    /* No delay on the way in, so the panel is focusable in the same tick the
+       drawer opens. An interpolated `visibility` still reads `hidden` there and
+       makes focus() a silent no-op. */
+    .lp-sidebar--drawer.lp-sidebar--open {
+        @apply visible translate-x-0;
+        transition:
+            translate 200ms ease-out,
+            visibility 0s linear 0s;
+    }
+    /* The sidebar is static above lg, so a window that crosses the breakpoint
+       must snap rather than slide. */
+    @media (width >= 64rem) {
+        .lp-sidebar--drawer,
+        .lp-sidebar--drawer.lp-sidebar--open {
+            transition: none;
+        }
+    }
+    /* Closes the drawer. Absolute, so it does not shift the brand it sits beside. */
+    .lp-sidebar__close {
+        @apply absolute top-4 right-3 inline-flex items-center justify-center w-9 h-9 rounded-lg text-chrome-mute cursor-pointer transition-colors lg:hidden;
+    }
+    .lp-sidebar__close:hover {
+        @apply bg-chrome-raised text-chrome-fg;
+    }
+    .lp-sidebar__close svg {
+        @apply w-5 h-5 shrink-0;
+    }
+
+    /* Dims the paper behind an open drawer, and catches the tap that closes it. */
+    .lp-scrim {
+        @apply fixed inset-0 z-40 bg-ink/60 lg:hidden;
+    }
+
+    /* Compact brand lockup used by the application rail. */
+    .lp-sidebar__brand {
+        @apply flex items-center gap-2.5 px-2 pb-7 font-display font-extrabold text-2xl tracking-tight text-white no-underline;
+    }
+    .lp-sidebar__brand-mark {
+        @apply relative grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-accent -rotate-6;
+    }
+    .lp-sidebar__brand-mark::after {
+        @apply block w-2.5 h-2.5 rounded-full border-3 border-sidebar;
+        content: '';
+    }
+
+    /* Current-project switcher: a button that opens the project list beneath it. */
+    .lp-sidebar__switcher {
+        @apply flex items-center gap-2.5 w-full px-2.5 py-2.5 mb-1 rounded-xl bg-chrome-raised border border-chrome-line cursor-pointer text-left transition-colors;
+    }
+    .lp-sidebar__switcher:hover {
+        @apply border-switcher-hover;
+    }
+    .lp-sidebar__switcher-text {
+        @apply flex flex-col leading-tight min-w-0 mr-auto;
+    }
+    .lp-sidebar__switcher-name {
+        @apply font-bold text-white truncate text-sm;
+    }
+    .lp-sidebar__switcher-label {
+        @apply text-xs text-chrome-dim;
+    }
+    .lp-sidebar__switcher-domain {
+        @apply font-mono text-chrome-mute truncate text-xs;
+    }
+    .lp-sidebar__switcher-caret {
+        @apply w-3.5 h-3.5 shrink-0 text-fg-mute;
+    }
+
+    /* Current-project indicator in the workspace picker. */
+    .lp-switcher__item-check {
+        @apply ml-auto w-4 h-4 shrink-0 text-accent;
+    }
+    .lp-switcher__item-text {
+        @apply flex flex-col leading-tight min-w-0;
+    }
+    .lp-switcher__item-name {
+        @apply font-bold text-chrome-fg truncate text-xs;
+    }
+    .lp-switcher__item-count {
+        @apply font-mono text-chrome-mute truncate text-xs;
+    }
+    .lp-switcher__all {
+        @apply text-accent text-xs font-bold;
+    }
+    /* Boxed to the same 6×6 as the xs avatar so the label column lines up with
+       the project rows above it. */
+    .lp-switcher__all-glyph {
+        @apply inline-flex items-center justify-center shrink-0 w-6 h-6 rounded-lg border border-dashed border-chrome-control;
+    }
+    .lp-switcher__all svg {
+        @apply w-4 h-4 shrink-0;
+    }
+
+    .lp-sidebar__nav {
+        @apply flex flex-col gap-0.5 mt-5;
+    }
+    .lp-sidebar__nav-label {
+        @apply px-3 pb-1.5 text-xs font-bold uppercase tracking-widest text-chrome-dim;
+    }
+    .lp-sidebar__nav-label--spaced {
+        @apply mt-4;
+    }
+    .lp-sidebar__link {
+        @apply flex items-center gap-2.5 h-9.5 px-3 rounded-lg font-medium text-chrome-mute no-underline transition-colors text-sm;
+    }
+    .lp-sidebar__link:hover {
+        @apply bg-chrome-raised text-chrome-fg;
+    }
+    .lp-sidebar__link--active {
+        @apply bg-chrome-control text-chrome-fg font-semibold;
+    }
+    /* Needed because `.lp-sidebar__link:hover` outranks `--active` on
+       specificity: without it, hovering the selected item drops it to the dark
+       raised fill, which reads as deselecting it. */
+    .lp-sidebar__link--active:hover {
+        @apply bg-chrome-control text-white;
+    }
+    .lp-sidebar__link svg {
+        @apply w-4.5 h-4.5 shrink-0 text-chrome-mute;
+    }
+    .lp-sidebar__link--active svg {
+        @apply text-accent;
+    }
+    .lp-sidebar__link-label {
+        @apply truncate;
+    }
+    .lp-sidebar__nav--secondary
+        .lp-sidebar__link:not(.lp-sidebar__link--active) {
+        @apply text-chrome-dim;
+    }
+    .lp-sidebar__nav--secondary {
+        @apply mt-0;
+    }
+    .lp-sidebar__nav--secondary .lp-sidebar__link svg {
+        @apply w-4 h-4;
+    }
+
+    /* Nav counts are plain numerals, not pills. */
+    .lp-sidebar__pill {
+        @apply ml-auto text-xs font-bold leading-none;
+    }
+    .lp-sidebar__pill--amber {
+        @apply text-accent;
+    }
+    /* A reloadable frame around a pill. It takes no box, so the pill still sits in the link's flex row. */
+    .lp-sidebar__pill-frame {
+        @apply contents;
+    }
+    .lp-sidebar__link--active .lp-sidebar__pill {
+        @apply text-chrome-fg;
+    }
+
+    .lp-sidebar__spacer {
+        @apply mt-auto;
+    }
+    .lp-sidebar__account {
+        @apply flex items-center gap-2.5 px-2 mt-2.5 pt-3 border-t border-chrome-control;
+    }
+    .lp-sidebar__account-text {
+        @apply flex flex-col leading-tight min-w-0 mr-auto;
+    }
+    .lp-sidebar__account-name {
+        @apply text-chrome-mute truncate text-xs;
+    }
+    /* Keeps the button as the flex child of .lp-sidebar__account. */
+    .lp-sidebar__account-logout-form {
+        display: contents;
+    }
+    .lp-sidebar__account-logout {
+        @apply inline-flex items-center justify-center w-7 h-7 rounded-full text-chrome-mute no-underline transition-colors cursor-pointer;
+    }
+    .lp-sidebar__account-logout:hover {
+        @apply bg-chrome-control text-chrome-fg;
+    }
+    .lp-sidebar__account-logout svg {
+        @apply w-4 h-4 shrink-0;
+    }
+
+    /* ── Top bar ────────────────────────────────────────────────────────── */
+
+    /* Transparent over the chrome, above the paper. It sits outside .lp-main,
+       so anything it cannot fit widens the whole page instead of scrolling.
+       One row at every width: below lg the lead stacks its two lines and
+       everything else leaves the bar. */
+    .lp-topbar {
+        @apply flex items-center gap-3.5 h-16 px-3.5 shrink-0 border-b border-line bg-white/90 backdrop-blur-xl lg:px-7.5;
+    }
+    /* Opens the sidebar drawer. Present only where the sidebar is off-canvas. */
+    .lp-topbar__menu {
+        @apply inline-flex items-center justify-center shrink-0 w-9 h-9 rounded-lg text-fg-dim cursor-pointer transition-colors lg:hidden;
+    }
+    .lp-topbar__menu:hover {
+        @apply bg-surface-3 text-ink;
+    }
+    .lp-topbar__menu svg {
+        @apply w-5 h-5 shrink-0;
+    }
+    /* Below lg the trail and the meta stack, which is the whole bar. Above lg
+       they share one baseline row, and no width floor is needed: the actions
+       are the only other child and they are gone below lg. */
+    .lp-topbar__lead {
+        @apply flex flex-col justify-center gap-y-0.5 min-w-0 flex-1 basis-0 lg:flex-row lg:flex-wrap lg:items-baseline lg:justify-start lg:gap-x-3.5 lg:gap-y-1;
+    }
+    .lp-topbar__trail {
+        @apply flex items-baseline gap-2 min-w-0 max-w-full;
+    }
+    /* Below lg the bar holds the document title alone. A crumb, a separator and
+       a version pill beside it leave the title nothing to truncate into. */
+    .lp-topbar__crumb,
+    .lp-topbar__sep,
+    .lp-topbar__trail .lp-version-pill {
+        @apply hidden lg:inline-flex;
+    }
+    .lp-topbar__crumb {
+        @apply text-sm text-fg-dim no-underline transition-colors;
+    }
+    .lp-topbar__crumb:hover {
+        @apply text-ink;
+    }
+    .lp-topbar__sep {
+        @apply text-sm text-fg-dim;
+    }
+    .lp-topbar__here {
+        @apply text-sm font-medium text-ink min-w-0 truncate;
+    }
+    .lp-topbar__meta {
+        @apply text-fg-dim truncate text-xs lg:text-sm lg:whitespace-nowrap;
+    }
+    /* Below lg the verdict actions move into the review menu. */
+    .lp-topbar__actions {
+        @apply hidden items-center gap-2.5 ml-auto lg:flex lg:flex-wrap;
+    }
+    .lp-topbar__global-actions {
+        @apply flex items-center gap-2 ml-auto;
+    }
+    .lp-topbar__global-action {
+        @apply inline-flex items-center justify-center w-9 h-9 rounded-lg text-fg-dim no-underline transition-colors;
+    }
+    .lp-topbar__global-action:hover {
+        @apply bg-surface-3 text-ink;
+    }
+    .lp-topbar__global-action svg {
+        @apply w-4 h-4;
+    }
+    .lp-topbar__global-action--search {
+        @apply gap-2 text-sm lg:w-auto lg:px-2.5;
+    }
+    .lp-topbar__global-action--search > span {
+        @apply hidden lg:inline;
+    }
+    /* The shortcut the trigger already answers, shown where there is room for
+       it. Hidden from assistive technology: `aria-keyshortcuts` says the same
+       thing on the trigger itself. */
+    .lp-kbd {
+        @apply hidden lg:inline-block rounded border border-b-2 border-line bg-app px-1 font-mono text-xs leading-5 text-fg-dim;
+    }
+    /* The design carries one primary create action in the top bar. Below `lg`
+       it is gone rather than collapsed: every page it appears on already has
+       its own create button, and a second control on that row overflows the
+       page at enlarged text. */
+    .lp-topbar__new-work {
+        @apply hidden lg:inline-flex shrink-0;
+    }
+
+    /* Tailwind's lg variants start at 1024px, but the rail stays in flow above
+       780px. Keep page-level responsive rules on their own breakpoints. */
+    @media (width > 48.75rem) and (width < 64rem) {
+        .lp-sidebar--drawer,
+        .lp-sidebar--drawer.lp-sidebar--open {
+            @apply static visible translate-x-0 overflow-visible;
+            transition: none;
+        }
+        .lp-sidebar__close,
+        .lp-scrim,
+        .lp-topbar__menu {
+            @apply hidden;
+        }
+        .lp-topbar {
+            @apply px-7.5;
+        }
+        .lp-topbar__lead {
+            @apply flex-row flex-wrap items-baseline justify-start gap-x-3.5 gap-y-1;
+        }
+        .lp-topbar__crumb,
+        .lp-topbar__sep,
+        .lp-topbar__trail .lp-version-pill {
+            @apply inline-flex;
+        }
+        .lp-topbar__meta {
+            @apply text-sm whitespace-nowrap;
+        }
+        .lp-topbar__actions,
+        .lp-topbar__global-actions {
+            @apply flex;
+        }
+        .lp-topbar__actions {
+            @apply flex-wrap;
+        }
+        .lp-topbar__global-action--search {
+            @apply w-auto px-2.5;
+        }
+        .lp-topbar__global-action--search > span {
+            @apply inline;
+        }
+    }
+}

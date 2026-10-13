@@ -11,12 +11,7 @@
 {% block body %}
 {% set canManage = is_granted(constant('App\\Module\\Board\\Security\\BoardColumnVoter::MANAGE'), board.project) %}
 <div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
-    <header class="lp-page-header">
-        <div>
-            <h1 class="lp-workspace-title">{{ 'project.edit.page.title'|trans }}</h1>
-            <p class="lp-workspace-desc">{{ 'project.edit.page.description'|trans }}</p>
-        </div>
-    </header>
+    <twig:Ds:PageHeader :title="'project.edit.page.title'|trans" :description="'project.edit.page.description'|trans" />
     <div class="lp-settings-layout lp-settings-layout--columns">
         {% include '@Project/_settings_nav.html.twig' with {project: board.project, active: 'columns'} only %}
         <twig:Ds:Panel as="section" class="lp-settings-content" data-board-column-settings>

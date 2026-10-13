@@ -1,0 +1,18 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's page header. {{ entry.summary }}
+
+```jsx
+<{{ name }} title="Documents" description="Every document of this project." />
+<{{ name }}
+  title="Documents"
+  description="Every document of this project."
+  actions={<div><Button>Filter</Button><Button variant="primary">New document</Button></div>}
+/>
+<{{ name }} variant="workshop" title="Workshop" />
+```
+
+Variants: {{ entry.variants|map(v => '`' ~ v ~ '`')|join(', ') }}. Pass the buttons as `actions`, and they draw after the heading. Use `titleClass` for an extra class on the h1.
+
+Titles are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

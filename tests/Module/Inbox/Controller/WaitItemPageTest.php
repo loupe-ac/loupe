@@ -67,9 +67,9 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         // The wait links its card, so the row names the card and the pane names the sender.
-        self::assertSelectorTextContains('.lp-inbox-request__meta [data-inbox-card]', '#4');
+        self::assertSelectorTextContains('.lp-list-row__meta [data-inbox-card]', '#4');
         self::assertSelectorNotExists('[data-inbox-source="agent"]');
-        self::assertSelectorExists('.lp-inbox-request [data-inbox-kind="wait"]');
+        self::assertSelectorExists('.lp-list-row [data-inbox-kind="wait"]');
         self::assertSelectorTextSame('.lp-inbox-ask__source', 'From Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));

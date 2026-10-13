@@ -29,7 +29,7 @@ A new token appears on the styleguide with no other change.
 ## The stylesheets
 
 1. `tokens.css` holds the tokens and nothing else.
-2. `components/<name>.css` holds the styles of one building block. A child card adds each file with its component.
+2. `components/<name>.css` holds the styles of one building block. A child card adds each file with its component. `components/shell.css` holds the app shell, which has no Twig component.
 3. `app.css` imports both, and holds the rules of the features.
 
 The widget and the email stylesheet cannot import `tokens.css`. They hold copies of the values they need, and a test keeps each copy equal to the token.
@@ -57,7 +57,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
-| Tabs | A strip of links or tab buttons with an underline | none |
+| Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
@@ -72,6 +72,39 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
 | ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |
+| PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
+| SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
+| ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
+
+The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
+
+```twig
+<twig:Ds:PageHeader :title="'documents.title'|trans" :description="'documents.description'|trans">
+    <twig:block name="actions"><twig:Ds:Button variant="primary">New</twig:Ds:Button></twig:block>
+</twig:Ds:PageHeader>
+```
+
+The SplitView draws the page root, `lp-split-page`, and takes any attribute, such as a Stimulus `data-controller`. The page writes the `lp-split-region`, `lp-split-view` and `lp-split-pane` classes inside it by hand, because each page puts its own controller on the region. A page with a header writes the header first, then the region. Its CSS is `assets/styles/components/split-view.css`.
+
+```twig
+<twig:Ds:SplitView class="lp-workspace">
+    <div class="lp-split-region">
+        <div class="lp-split-view">
+            <div class="lp-split-pane">{# the list #}</div>
+            <div class="lp-split-pane">{# the detail #}</div>
+        </div>
+    </div>
+</twig:Ds:SplitView>
+```
+
+The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
+
+```twig
+<twig:Ds:ListRow :title="row.title" :current="true" href="{{ path('app_home') }}" icon:data-kind="question">
+    <twig:block name="icon"><twig:ux:icon name="lucide:circle-help" /></twig:block>
+    <twig:block name="meta"><span>Loupe</span></twig:block>
+</twig:Ds:ListRow>
+```
 
 Write a button like this:
 
@@ -118,7 +151,7 @@ Write a dialog, tabs, pagination and a tooltip like this:
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
 
 Write a menu like this:
 
@@ -169,6 +202,54 @@ A plain field uses `Input`, `Select` or `Textarea`. A Symfony widget in a custom
 
 `just gamache` blocks a template that writes `lp-input`, `lp-select`, `lp-textarea`, `lp-label`, `lp-form-field`, `lp-field-errors` or `lp-form-hint` by hand.
 
+### The page parts
+
+A page part is the frame of a page. It sits in the `layout` group of the catalog. The catalog entry names its root class, and its export wrapper draws the inner structure.
+
+| Part | Use | Root class |
+|---|---|---|
+| AppShell | The frame of every signed-in page: the sidebar, the top bar and the main column | `lp-app` |
+
+`templates/base.html.twig` draws the app shell. It stays there, because the sidebar reads the current user, the current project, the feature flags and the routes. The CSS lives in `assets/styles/components/shell.css`, which `app.css` and `design-system.css` both import.
+
+The export wrapper in `templates/Module/DesignSystem/export/layout/AppShell/` is a second copy of that markup. It holds the nav links with their English labels and draws the icons as inline SVG. `ExportDesignSystemHandlerTest` keeps the copy in step: every shell class and every `nav.link.*` key of `base.html.twig` must appear in the wrapper. The wrapper must also hide each part that `base.html.twig` shows only inside `{% if project %}`: a sidebar part behind `hasProject`, and a top bar part behind `onProjectPage`. It must hide each link that `base.html.twig` gates with `is_feature_enabled()` or `is_granted('ROLE_ADMIN')` too. Change both files when you change the shell markup.
+
+The wrapper takes these props: `projectName`, `projectPage`, `active` (the name of the current nav link), `crumbs`, `meta`, `actions`, `userName`, `counts`, `projects`, `features` and `admin`. The app reads two projects. The sidebar shows `sidebar_project()`, which is the last project visited on a page outside a project. The top bar reads `current_project()`, which is null there. `projectName` is the sidebar project, and `projectPage={false}` hides New work on a page outside a project. Pass `projectName={null}` when there is no sidebar project. The wrapper then also hides the project switcher, the project nav and Project settings. `features` names the flags that are on, such as `{ inbox: true }`, and each flag is off by default. `admin` shows the Admin link. `projects` lists the projects of the switcher as `{ name, documentCount }` entries, and the entry named `projectName` gets the current marker. The page goes in as the children:
+
+```jsx
+<AppShell projectName="Acme" active="board" crumbs={['Acme', 'Board']} userName="riley@example.com">
+  <h1>Board</h1>
+</AppShell>
+```
+
+These are the documented shell classes.
+
+| Class | What it is |
+|---|---|
+| `lp-app` | The root. A flex row that fills the window, with the dark chrome colour |
+| `lp-sidebar` | The left rail. `lp-sidebar--drawer` makes it a slide-in drawer below the `lg` breakpoint, and `lp-sidebar--open` opens it |
+| `lp-sidebar__close` | The button that closes the drawer |
+| `lp-sidebar__brand` and `lp-sidebar__brand-mark` | The logo lockup |
+| `lp-sidebar__switcher` and its `__avatar`, `__text`, `__label`, `__name`, `__caret` parts | The button that shows the current project |
+| `lp-switcher` | The wrapper of the switcher button and its panel |
+| `lp-switcher__panel` | The list of projects that drops under the button |
+| `lp-switcher__item` and its `__avatar`, `__text`, `__name`, `__count`, `__check` parts | One project in the panel |
+| `lp-switcher__all` and `lp-switcher__all-glyph` | The link to all projects |
+| `lp-sidebar__nav` | A group of links. `lp-sidebar__nav--secondary` is the group at the bottom |
+| `lp-sidebar__nav-label` | The heading of a group. `--spaced` adds space above it |
+| `lp-sidebar__link` | One nav link. `--active` marks the current page, and `__label` holds its text |
+| `lp-sidebar__pill` | A count at the end of a link. `--amber` is the colour for something that waits on you |
+| `lp-sidebar__spacer` | Pushes the bottom group down |
+| `lp-sidebar__account` and its `__avatar`, `__text`, `__name`, `__logout-form`, `__logout` parts | The signed-in user and the log out button |
+| `lp-scrim` | Dims the page behind an open drawer |
+| `lp-shell` | The column to the right of the sidebar. It holds the top bar and the main column |
+| `lp-topbar` | The bar above the page |
+| `lp-topbar__menu` | The button that opens the drawer |
+| `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
+| `lp-topbar__global-actions` | The tools at the right end of the bar |
+| `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
+| `lp-main` | The main column. It is the only scroll container of the page |
+
 ## The Claude Design copy
 
 A Claude Design project holds a copy of the design system. The app repository is the source of the copy.
@@ -192,9 +273,11 @@ The command prints each path it wrote, relative to the directory, one per line.
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
+A part with an inner structure, such as a sidebar, sets `export` on its catalog entry and goes in the `layout` group. The value names a folder under `templates/Module/DesignSystem/export/layout/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates. `demo.jsx.twig` draws the part in the `layout` group card. An entry with no Twig component sets `template` to null.
+
 The command never writes `_ds_bundle.js`, `_ds_manifest.json`, `_adherence.oxlintrc.json`, `.thumbnail` or `ds-mount.js`. The platform makes those files.
 
-The command does not copy icons. A catalog entry that needs icons must add them to the command.
+The command does not copy icons. A wrapper that needs icons draws them as inline SVG, as the AppShell wrapper does.
 
 ## The rules
 

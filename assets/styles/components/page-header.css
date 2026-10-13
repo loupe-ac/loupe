@@ -1,0 +1,29 @@
+/* The heading row of a page. `templates/components/Ds/PageHeader.html.twig` renders it. */
+@layer components {
+    .lp-page-header {
+        @apply flex flex-wrap items-start justify-between gap-6 mb-7;
+    }
+    @media (width < 40rem) {
+        .lp-page-header {
+            @apply gap-3;
+        }
+    }
+    .lp-page-header__copy {
+        @apply flex-1 basis-80 min-w-0;
+    }
+    .lp-workspace-title {
+        @apply font-display font-extrabold text-ink m-0 text-3xl tracking-tight leading-10;
+    }
+    .lp-workspace-title--doc {
+        @apply text-3xl tracking-tight;
+    }
+    .lp-workshop-title {
+        @apply m-0 font-display text-3xl leading-tight font-extrabold tracking-tight text-ink;
+    }
+    .lp-workspace-desc {
+        @apply text-fg-mute m-0 mt-2 mb-8 text-base leading-relaxed;
+    }
+    .lp-page-header .lp-workspace-desc {
+        @apply max-w-none mt-1.5 mb-0 text-sm leading-normal text-fg-dim;
+    }
+}

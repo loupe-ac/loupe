@@ -1,0 +1,11 @@
+{#
+  Props: tag (a by default), title, current (true marks the row that is open).
+  The named blocks icon and meta fill the icon and meta spans. The attributes with an icon: prefix go to the icon span.
+  Other attributes, class and href included, go to the element.
+#}
+{%- props title, tag = 'a', current = false -%}
+<{{ tag }}{{ attributes.defaults({class: 'lp-list-row'}) }}{% if current %} aria-current="true"{% endif %}>
+    <span class="lp-list-row__icon"{{ attributes.nested('icon') }}>{% block icon %}{% endblock %}</span>
+    <span class="lp-list-row__title">{{ title }}</span>
+    <span class="lp-list-row__meta">{% block meta %}{% endblock %}</span>
+</{{ tag }}>

@@ -16,6 +16,10 @@ Loupe's {{ name|lower }}. {{ entry.summary }}
 {% for variant in entry.variants %}
 <{{ name }} variant="{{ variant }}" />
 {% endfor %}
+{% elseif 'lp-tabs' == entry.rootClass %}
+{% for variant in [null]|merge(entry.variants) %}
+<{{ name }}{% if variant %} variant="{{ variant }}"{% endif %}><a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a><a className="lp-tabs__tab" href="#">All</a></{{ name }}>
+{% endfor %}
 {% elseif 'select' == entry.element %}
 <{{ name }}><option>Example</option></{{ name }}>
 {% elseif entry.variants %}

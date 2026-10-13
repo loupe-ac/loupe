@@ -26,6 +26,10 @@
 @import './components/menu.css';
 @import './components/action-form.css';
 @import './components/icon.css';
+@import './components/shell.css';
+@import './components/page-header.css';
+@import './components/split-view.css';
+@import './components/list-row.css';
 
 @source "../../templates/components/Ds";
 

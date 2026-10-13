@@ -7,7 +7,7 @@ let application;
 
 async function mount() {
     document.body.innerHTML =
-        '<div data-controller="inbox-navigation"><turbo-frame id="inbox-view"><div data-inbox-scroll><a class="lp-inbox-request" id="first" aria-current="true" href="#"></a><a class="lp-inbox-request" id="second" href="#"><span></span></a></div></turbo-frame><turbo-frame id="other"></turbo-frame></div>';
+        '<div data-controller="inbox-navigation"><turbo-frame id="inbox-view"><div data-inbox-scroll><a class="lp-list-row" id="first" aria-current="true" href="#"></a><a class="lp-list-row" id="second" href="#"><span></span></a></div></turbo-frame><turbo-frame id="other"></turbo-frame></div>';
     application = Application.start();
     application.register('inbox-navigation', InboxNavigationController);
     await new Promise((resolve) => setTimeout(resolve, 0));

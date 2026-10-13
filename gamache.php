@@ -40,7 +40,7 @@ function designSystemComponents(array $entries): array
 {
     $components = [];
     foreach ($entries as $entry) {
-        if ($entry->classOnly) {
+        if ($entry->classOnly || null === $entry->template) {
             continue;
         }
         $own = 'templates/'.$entry->template;
