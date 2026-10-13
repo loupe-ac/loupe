@@ -14,7 +14,7 @@ Loupe's app shell. {{ entry.summary }}
 
 Wrap every signed-in page in it. The sidebar and the top bar are part of the shell, so do not draw your own. The page content goes in as the children. Pass `meta` for a short line after the breadcrumb and `actions` for page buttons in the top bar. The New work button is there on every project page.
 
-Pass `projectName={null}` for a page that belongs to no project, such as the account page or the project list. The shell then hides the project switcher, the Workspace and Your crew links, Project settings and New work, as the app does.
+`projectName` is the project of the sidebar. On a page outside a project, such as the account page, the app keeps the last project you visited in the sidebar. Pass `projectPage={false}` for such a page: the sidebar keeps the project, and the shell hides New work. Pass `projectName={null}` when the user has visited no project. The shell then also hides the project switcher, the Workspace and Your crew links and Project settings, as the app does.
 
 The app hides some links behind a feature flag or a role, and so does the shell. Pass `features={{ '{{' }} inbox: true {{ '}}' }}` to show Needs you and All inboxes, `artifacts: true` to show Artifacts, and `billing: true` to show Billing. Pass `admin` to show the Admin link. Every flag is off by default, as on a fresh install.
 

@@ -319,31 +319,45 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
         $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
 
-        $gated = $this->ifBlocks($base, 'project');
-        $ungated = str_replace($gated, '', $base);
-        $guarded = $this->hasProjectBlocks($jsx);
-        $unguarded = str_replace($guarded, '', $jsx);
+        // Inside the with block, project is the sidebar project. After it, project is the route project again.
+        if (1 !== preg_match('/\{%\s*with \{project: sidebar_project\(\)\}\s*%\}(.*?)\{%\s*endwith\s*%\}(.*)$/s', $base, $scopes)) {
+            self::fail('base.html.twig has no sidebar_project() scope.');
+        }
+        [, $sidebar, $topbar] = $scopes;
+        $sidebarGated = $this->ifBlocks($sidebar, 'project');
+        $topbarGated = $this->ifBlocks($topbar, 'project');
+        $ungated = str_replace([...$sidebarGated, ...$topbarGated], '', $sidebar.$topbar);
+        $sidebarGuarded = $this->guardBlocks($jsx, 'hasProject');
+        $topbarGuarded = $this->guardBlocks($jsx, 'onProjectPage');
+        $unguarded = str_replace([...$sidebarGuarded, ...$topbarGuarded], '', $jsx);
 
         $classPattern = '/lp-(?:sidebar|switcher|topbar)[a-z_-]*/';
-        preg_match_all($classPattern, implode("\n", $gated), $gatedClasses);
         preg_match_all($classPattern, $ungated, $ungatedClasses);
         // NavLink draws the per-link classes, and the nav-link check below covers which links it draws.
         if (1 !== preg_match('/function NavLink\(.*?\n}\n/s', $jsx, $navLink)) {
             self::fail('The wrapper has no NavLink function.');
         }
         preg_match_all($classPattern, $navLink[0], $navLinkClasses);
-        $projectOnlyClasses = array_diff(array_unique($gatedClasses[0]), $ungatedClasses[0], $navLinkClasses[0]);
+        $projectOnly = static function (array $gated) use ($classPattern, $ungatedClasses, $navLinkClasses): array {
+            preg_match_all($classPattern, implode("\n", $gated), $gatedClasses);
 
-        self::assertContains('lp-switcher', $projectOnlyClasses);
-        self::assertContains('lp-topbar__new-work', $projectOnlyClasses);
-        foreach ($projectOnlyClasses as $class) {
-            self::assertStringContainsString($class, implode("\n", $guarded), sprintf('base.html.twig shows %s only with a project, and the wrapper does not guard it.', $class));
-            self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $unguarded, sprintf('The wrapper draws %s outside a project guard.', $class));
+            return array_diff(array_unique($gatedClasses[0]), $ungatedClasses[0], $navLinkClasses[0]);
+        };
+        $sidebarOnly = $projectOnly($sidebarGated);
+        $topbarOnly = $projectOnly($topbarGated);
+
+        self::assertContains('lp-switcher', $sidebarOnly);
+        self::assertSame(['lp-topbar__new-work'], array_values($topbarOnly));
+        foreach (['hasProject' => [$sidebarOnly, $sidebarGuarded], 'onProjectPage' => [$topbarOnly, $topbarGuarded]] as $guard => [$classes, $guarded]) {
+            foreach ($classes as $class) {
+                self::assertStringContainsString($class, implode("\n", $guarded), sprintf('base.html.twig shows %s only with a project, and the wrapper does not guard it with %s.', $class, $guard));
+                self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $unguarded, sprintf('The wrapper draws %s outside a project guard.', $class));
+            }
         }
 
-        preg_match_all('/nav\.link\.([a-z_]+)/', implode("\n", $gated), $gatedLinks);
-        self::assertStringContainsString('WORKSPACE_LINKS.filter(shown).map', implode("\n", $guarded));
-        self::assertStringContainsString('AGENT_LINKS.filter(shown).map', implode("\n", $guarded));
+        preg_match_all('/nav\.link\.([a-z_]+)/', implode("\n", $sidebarGated), $gatedLinks);
+        self::assertStringContainsString('WORKSPACE_LINKS.filter(shown).map', implode("\n", $sidebarGuarded));
+        self::assertStringContainsString('AGENT_LINKS.filter(shown).map', implode("\n", $sidebarGuarded));
         if (1 !== preg_match('/const WORKSPACE_LINKS = \[(.*?)\];/s', $jsx, $workspace)) {
             self::fail('The wrapper has no WORKSPACE_LINKS list.');
         }
@@ -360,6 +374,8 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertSame($baseProjectOnly, $jsxProjectOnly);
         self::assertStringContainsString('(hasProject || !link.project)', $jsx);
         self::assertStringContainsString('const hasProject = projectName !== null;', $jsx);
+        self::assertStringContainsString("projectName = 'Project', projectPage = true,", $jsx);
+        self::assertStringContainsString('const onProjectPage = hasProject && projectPage;', $jsx);
     }
 
     public function test_the_app_shell_wrapper_gates_each_link_the_base_template_gates_by_flag_or_role(): void
@@ -421,14 +437,14 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         return $blocks;
     }
 
-    /** @return list<string> the body of each `{hasProject && (…)}` block */
-    private function hasProjectBlocks(string $jsx): array
+    /** @return list<string> the body of each `{<guard> && (…)}` block */
+    private function guardBlocks(string $jsx, string $guard): array
     {
         $blocks = [];
         $offset = 0;
-        while (false !== ($start = strpos($jsx, '{hasProject && (', $offset))) {
+        while (false !== ($start = strpos($jsx, '{'.$guard.' && (', $offset))) {
             $depth = 0;
-            for ($i = $start + \strlen('{hasProject && '); $i < \strlen($jsx); ++$i) {
+            for ($i = $start + \strlen('{'.$guard.' && '); $i < \strlen($jsx); ++$i) {
                 $depth += match ($jsx[$i]) {
                     '(' => 1, ')' => -1, default => 0,
                 };

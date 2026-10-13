@@ -7,8 +7,10 @@ import type { ReactNode } from 'react';
  * @startingPoint section="{{ section }}" subtitle="The page frame with sidebar and top bar" viewport="900x520"
  */
 export interface {{ entry.name }}Props {
-    /** The current project, shown in the project switcher. Pass null for a page with no project, such as the account page: the switcher, the project nav, Project settings and New work then stay hidden. */
+    /** The project of the sidebar, shown in the project switcher. On a page outside a project, the app shows the last project you visited. Pass null when there is none: the switcher, the project nav, Project settings and New work then stay hidden. */
     projectName?: string | null;
+    /** True when the page belongs to the project. Pass false for a page outside a project, such as the account page: the sidebar keeps the project, and New work stays hidden. */
+    projectPage?: boolean;
     /** The nav link that is current. */
     active?:
         | 'workshop'

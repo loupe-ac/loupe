@@ -147,7 +147,7 @@ function NavLink({ link, active, counts }) {
     );
 }
 
-export function {{ entry.name }}({ projectName = 'Project', active, crumbs = [], meta, actions, userName = 'user', counts = {}, documentCount = 0, features = {}, admin = false, className: extra, children, ...rest }) {
+export function {{ entry.name }}({ projectName = 'Project', projectPage = true, active, crumbs = [], meta, actions, userName = 'user', counts = {}, documentCount = 0, features = {}, admin = false, className: extra, children, ...rest }) {
     const [drawerOpen, setDrawerOpen] = React.useState(false);
     const [switcherOpen, setSwitcherOpen] = React.useState(false);
     const classes = ['lp-app'];
@@ -160,6 +160,7 @@ export function {{ entry.name }}({ projectName = 'Project', active, crumbs = [],
     const trail = crumbs.map((crumb) => (typeof crumb === 'string' ? { label: crumb, href: '#' } : crumb));
     const here = trail.pop();
     const hasProject = projectName !== null;
+    const onProjectPage = hasProject && projectPage;
     const shown = (link) => (hasProject || !link.project) && (!link.feature || features[link.feature] === true) && (!link.admin || admin);
 
     return (
@@ -257,7 +258,7 @@ export function {{ entry.name }}({ projectName = 'Project', active, crumbs = [],
                     </div>
                     {actions}
                     <div className="lp-topbar__global-actions" aria-label="Global tools">
-                        {hasProject && (
+                        {onProjectPage && (
                             <a className="lp-btn lp-btn--primary lp-topbar__new-work" href="#" aria-label="New work">
                                 <Icon name="plus" className="w-4 h-4 shrink-0" />
                                 <span>New work</span>
