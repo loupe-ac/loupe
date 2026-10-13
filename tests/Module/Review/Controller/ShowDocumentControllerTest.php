@@ -633,6 +633,10 @@ final class ShowDocumentControllerTest extends WebTestCase
         self::assertStringContainsString('Split the second step.', $panel->text());
         self::assertCount(1, $panel->filter('button[data-action="click->review-finish#open"]'));
         self::assertCount(1, $panel->filter('.lp-verdict-chip__undo button'));
+
+        self::assertCount(1, $crawler->filter('.lp-review-topbar-actions + .lp-topbar__global-actions'));
+        $html = (string) $client->getResponse()->getContent();
+        self::assertSame(preg_match_all('/<div\b/', $html), substr_count($html, '</div>'));
     }
 
     public function test_undoing_a_verdict_returns_the_document_to_review(): void
