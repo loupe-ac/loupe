@@ -90,7 +90,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxItemKind::Wait, $item->kind);
         self::assertTrue($item->blocking);
         self::assertSame(InboxItemState::Open, $item->state);
-        self::assertSame('#12 Document version 1 waits for your review', $item->title);
+        self::assertSame('Document version 1 waits for your review', $item->title);
         self::assertSame('The document "Tech design", version 1, of card 12 waits for your review. Review the document.', $item->body);
         self::assertSame($this->project->searchLanguage, $item->searchLanguage);
         self::assertSame([$this->card], array_map(static fn (InboxItemCard $link): Card => $link->card, array_values($item->cards->toArray())));
@@ -277,7 +277,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->clear();
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame('#12 Deleted document version 1', $watch->item->title);
+        self::assertSame('Deleted document version 1', $watch->item->title);
         self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
         self::assertStringNotContainsString('Tech design', $watch->item->body);
     }
@@ -301,7 +301,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->clear();
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Done, $watch->item->state);
-        self::assertSame('#12 Deleted document version 1', $watch->item->title);
+        self::assertSame('Deleted document version 1', $watch->item->title);
         self::assertSame('A deleted document, version 1, of card 12 waited for your review. Dismiss this item.', $watch->item->body);
     }
 
@@ -838,7 +838,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         $watch = $this->onlyWatch();
         self::assertCount(2, $this->openWaits($watch));
-        self::assertSame('#12 Implement worker blocked: cannot reach github.com: DNS lookup failed', $watch->item->title);
+        self::assertSame('Implement worker blocked: cannot reach github.com: DNS lookup failed', $watch->item->title);
         self::assertSame(
             'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open the card to resume it.',
             $watch->item->body,
@@ -885,7 +885,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $this->em->clear();
         $again = $this->onlyWatch();
         self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
-        self::assertSame('#12 Implement worker blocked: cannot reach github.com: DNS lookup failed', $again->item->title);
+        self::assertSame('Implement worker blocked: cannot reach github.com: DNS lookup failed', $again->item->title);
         self::assertSame(
             'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open the card to resume it.',
             $again->item->body,

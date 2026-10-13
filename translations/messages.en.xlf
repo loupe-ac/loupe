@@ -5414,6 +5414,22 @@
                 <source>bridge.inbox_wait.waits_for_person.headline</source>
                 <target>The %worker% on card %card% waits for an answer from you: %headline%.</target>
             </trans-unit>
+            <trans-unit id="bridge.inbox_wait.blocked.short">
+                <source>bridge.inbox_wait.blocked.short</source>
+                <target>The %worker% stopped because it is blocked.</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.gave_up.short">
+                <source>bridge.inbox_wait.gave_up.short</source>
+                <target>The %worker% gave up.</target>
+            </trans-unit>
+            <trans-unit id="bridge.inbox_wait.waits_for_person.short">
+                <source>bridge.inbox_wait.waits_for_person.short</source>
+                <target>The %worker% waits for an answer from you.</target>
+            </trans-unit>
+            <trans-unit id="inbox.wait.report">
+                <source>inbox.wait.report</source>
+                <target>What the %worker% reported</target>
+            </trans-unit>
             <trans-unit id="bridge.inbox_wait.folded.action">
                 <source>bridge.inbox_wait.folded.action</source>
                 <target>Open the card to resume it</target>

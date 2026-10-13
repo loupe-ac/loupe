@@ -15,22 +15,23 @@
                 {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'w-4 h-4 shrink-0'} only %}
                 <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
                 <span aria-hidden="true">·</span>
+                <span class="lp-inbox-ask__head">
+                    {% include '@Inbox/_agent_presence.html.twig' with {ask: ask, bridge: ask ? inbox.bridgeStatus(ask) : null, origin: origin} only %}
+                    <span class="lp-inbox-ask__source" data-inbox-source="{{ origin.value }}">{{ ('inbox.from.' ~ origin.value)|trans }}</span>
+                </span>
+                <span aria-hidden="true">·</span>
                 <time datetime="{{ row.createdAt|date('c') }}">{{ row.createdAt|relative_time }}</time>
                 {% if ask and ask.closedAt %}
                     <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>
                 {% endif %}
             </p>
         </header>
-        <div class="lp-inbox-ask__message">
-            <div class="lp-inbox-ask__head">
-                {% include '@Inbox/_agent_presence.html.twig' with {ask: ask, bridge: ask ? inbox.bridgeStatus(ask) : null, origin: origin} only %}
-                <h3 class="lp-inbox-ask__source" data-inbox-source="{{ origin.value }}">{{ ('inbox.from.' ~ origin.value)|trans }}</h3>
-            </div>
-            {% if ask and ask.context|trim is not empty %}
+        {% if ask and ask.context|trim is not empty %}
+            <div class="lp-inbox-ask__message">
                 {# Agent Markdown, rendered and sanitized the way a card body is. #}
                 <div class="prose lp-prose lp-inbox-ask__context">{{ ask.context|inbox_markdown }}</div>
-            {% endif %}
-        </div>
+            </div>
+        {% endif %}
         <div class="lp-inbox-ask__items">
             {% for item in items %}
                 {% include '@Inbox/_inbox_item.html.twig' with {item: item, ask: ask, inbox: inbox, refusedForm: refusedForm, showHead: items|length > 1, showTitle: items|length > 1, showBlocking: false, position: loop.index} only %}

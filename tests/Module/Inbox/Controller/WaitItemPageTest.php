@@ -83,7 +83,7 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-inbox-ask__title', '#4 Document version 1 waits for your review');
+        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Document version 1 waits for your review');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
         self::assertCount(1, $crawler->filter('[data-inbox-linked-panel] [data-linked-card="'.$this->card->id.'"]'));
     }
@@ -207,8 +207,9 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $wait = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
-        self::assertStringContainsString('Needs the API key', $wait->filter('.lp-inbox-waits__reason')->text());
-        self::assertSame('Add it to the bridge config.', $wait->filter('pre')->text());
+        self::assertSame('The implement worker stopped because it is blocked.', $wait->filter('.lp-inbox-waits__reason')->text());
+        self::assertSame('What the implement worker reported', $wait->filter('.lp-inbox-waits__detail-label')->text());
+        self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-inbox-waits__detail .prose')->text()));
         $link = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"] a');
         self::assertCount(1, $link);
         self::assertSame('Open the run', trim($link->text()));

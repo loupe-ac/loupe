@@ -41,17 +41,17 @@ final readonly class CardWaitText
 
     /**
      * The title of the item: the reason of the wait that matters most, or the card title when no wait is open.
-     * The inbox row and the linked panel name the card already.
+     * The inbox row and the linked panel name the card, so the title leaves the card out.
      *
      * @param list<InboxCardWait> $open
      */
-    public function title(array $open, int $cardNumber, string $cardTitle, int $maxLength): string
+    public function title(array $open, string $cardTitle, int $maxLength): string
     {
         $main = self::mainWait($open);
         $line = null === $main ? null : $this->line($main, false);
         $reason = null === $line ? '' : $this->translator->trans($line->titleKey(), $line->params, null, $this->locale);
 
-        return mb_substr(\sprintf('#%d %s', $cardNumber, '' === $reason ? $cardTitle : $reason), 0, $maxLength);
+        return mb_substr('' === $reason ? $cardTitle : $reason, 0, $maxLength);
     }
 
     /**
@@ -101,6 +101,7 @@ final readonly class CardWaitText
         $detail = null;
         $key = null;
         $titleKey = null;
+        $pageKey = null;
         $action = null;
 
         switch ($wait->type) {
@@ -125,7 +126,7 @@ final readonly class CardWaitText
                 $run = null === $wait->runId ? null : $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $projectId);
                 $href = null === $wait->runId ? null : $this->urls->generate('app_project_worker_runs', ['id' => $projectId, 'search' => $wait->runId]);
                 $headline = null === $run ? '' : RunOutputText::headline($run->output);
-                $detail = null === $run ? null : ('' === $headline ? RunOutputText::clean($run->output) : RunOutputText::afterHeadline($run->output));
+                $detail = null === $run ? null : RunOutputText::clean($run->output);
                 $worker = null === $run || null === $run->workKind || '' === $run->workKind ? 'worker' : str_replace('-', ' ', $run->workKind).' worker';
                 $params['%worker%'] = $worker;
                 $params['%Worker%'] = ucfirst($worker);
@@ -134,6 +135,7 @@ final readonly class CardWaitText
                     $base = 'bridge.inbox_wait.'.$wait->reason->keyPart();
                     $key = $base.'.headline';
                     $titleKey = $key.'.title';
+                    $pageKey = $base.'.short';
                     $action = $base.'.action';
                 }
                 if (self::hasFoldedPause($wait)) {
@@ -146,7 +148,7 @@ final readonly class CardWaitText
                 break;
         }
 
-        return new CardWaitLine($key ?? self::prefix($wait->type).'.inbox_wait.'.$wait->reason->keyPart(), $params, $href, '' === $detail ? null : $detail, $titleKey, $action);
+        return new CardWaitLine($key ?? self::prefix($wait->type).'.inbox_wait.'.$wait->reason->keyPart(), $params, $href, '' === $detail ? null : $detail, $titleKey, $action, $pageKey);
     }
 
     private static function hasFoldedPause(InboxCardWait $run): bool

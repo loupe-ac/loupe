@@ -546,18 +546,28 @@
         gap: calc(var(--spacing) * 3);
     }
 
+    /* Who asked sits in the byline, as a small avatar with its presence dot beside the source name. */
     .lp-core-inbox .lp-inbox-ask__head {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: calc(var(--spacing) * 2);
+        gap: calc(var(--spacing) * 1.5);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__head .lp-source-avatar {
+        width: calc(var(--spacing) * 5);
+        height: calc(var(--spacing) * 5);
+        border-radius: var(--radius-sm);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__head .lp-source-avatar svg {
+        width: calc(var(--spacing) * 3);
+        height: calc(var(--spacing) * 3);
     }
 
     .lp-core-inbox .lp-inbox-ask__source {
         margin: 0;
-        font-family: var(--font-display);
-        font-size: var(--text-base);
-        font-weight: 700;
-        color: var(--ink);
+        color: var(--text-dim);
+        font-weight: 400;
     }
 
     .lp-core-inbox .lp-inbox-ask__context {
@@ -649,17 +659,30 @@
         text-align: right;
     }
 
-    /* Dismiss is a quiet second step under the waits, so it sits left with no panel. */
+    /* Dismiss is a quiet second step under the waits, on a plain row, with its help in a tooltip. */
     .lp-core-inbox .lp-inbox-item__buttons--dismiss {
-        justify-content: flex-start;
         padding: calc(var(--spacing) * 3) 0 0;
         border-top: 1px solid var(--border);
         border-radius: 0;
         background: transparent;
     }
 
-    .lp-core-inbox .lp-inbox-item__buttons--dismiss .lp-inbox-item__hint {
-        text-align: left;
+    .lp-core-inbox .lp-inbox-item__dismiss {
+        position: relative;
+    }
+
+    /* The button sits at the right edge, so its tooltip opens leftward. */
+    .lp-core-inbox .lp-inbox-item__dismiss .lp-tooltip {
+        right: 0;
+        left: auto;
+        width: max-content;
+        max-width: calc(var(--spacing) * 72);
+    }
+
+    .lp-core-inbox .lp-inbox-item__dismiss:hover .lp-tooltip,
+    .lp-core-inbox .lp-inbox-item__dismiss:focus-within .lp-tooltip {
+        visibility: visible;
+        opacity: 1;
     }
 
     .lp-core-inbox .lp-inbox-item__refusal {
@@ -681,7 +704,9 @@
 
     .lp-core-inbox .lp-inbox-waits__detail {
         align-self: stretch;
+        max-height: none;
         margin: 0;
+        padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
         font-size: var(--text-sm);
     }
 
@@ -8609,7 +8634,10 @@
         @apply ml-2 italic;
     }
     .lp-inbox-waits__detail {
-        @apply mt-1 mb-0 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-tint py-2 px-3 font-sans text-xs text-ink;
+        @apply mt-1 mb-0 max-h-64 overflow-auto rounded-lg bg-tint py-2 px-3 text-xs text-ink;
+    }
+    .lp-inbox-waits__detail-label {
+        @apply block mb-1 text-xs font-semibold text-fg-mute;
     }
     .lp-inbox-waits__wait--ended,
     .lp-inbox-waits__wait--ended .lp-inbox-waits__link {

@@ -578,7 +578,7 @@ final readonly class CardWaitReconciler
             ? $ended
             : array_filter($watch->waits->toArray(), static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
         usort($open, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, $a->key()] <=> [$b->startedAt, $b->key()]);
-        $title = $this->waitText->title($open, $card->number, $card->title, InboxItem::MAX_TITLE_LENGTH);
+        $title = $this->waitText->title($open, $card->title, InboxItem::MAX_TITLE_LENGTH);
         $body = $this->waitText->body($open);
 
         $item = $watch->item;
@@ -594,7 +594,7 @@ final readonly class CardWaitReconciler
 
     private static function title(Card $card): string
     {
-        return mb_substr(\sprintf('#%d %s', $card->number, $card->title), 0, InboxItem::MAX_TITLE_LENGTH);
+        return mb_substr($card->title, 0, InboxItem::MAX_TITLE_LENGTH);
     }
 
     /** Whole seconds, like the stored columns, so the wait order reads the same before and after a reload. */
