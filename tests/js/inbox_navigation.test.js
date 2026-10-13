@@ -90,3 +90,37 @@ it('leaves the current row alone when a row opens in a new tab', async () => {
         false,
     );
 });
+
+it('shows the spinner from a row click until the view frame renders', async () => {
+    await mount();
+    const root = document.querySelector('[data-controller="inbox-navigation"]');
+
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    expect(root.hasAttribute('data-inbox-loading')).toBe(true);
+
+    render('inbox-view', 0);
+    expect(root.hasAttribute('data-inbox-loading')).toBe(false);
+});
+
+it('hides the spinner when the request fails', async () => {
+    await mount();
+    const root = document.querySelector('[data-controller="inbox-navigation"]');
+
+    document
+        .getElementById('second')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    document.dispatchEvent(new CustomEvent('turbo:fetch-request-error'));
+
+    expect(root.hasAttribute('data-inbox-loading')).toBe(false);
+});
+
+it('shows no spinner when another frame renders', async () => {
+    await mount();
+    const root = document.querySelector('[data-controller="inbox-navigation"]');
+
+    render('other', 0);
+
+    expect(root.hasAttribute('data-inbox-loading')).toBe(false);
+});

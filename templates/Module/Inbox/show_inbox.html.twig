@@ -123,11 +123,6 @@
                 </div>
 
                 <div class="lp-inbox-request-detail lp-split-pane">
-                    {# Shown while a picked row loads, as the board's card drawer does. #}
-                    <div class="lp-inbox-pane-loading" role="status" aria-hidden="true">
-                        <twig:ux:icon name="lucide:loader-circle" class="w-5 h-5" />
-                        {{ 'inbox.pane.loading'|trans }}
-                    </div>
                     {# What the last response did, read once. Only this page reads the flash type. #}
                     {% for status in liveRefresh ? [] : app.flashes('inbox_status') %}
                         {% set verb = ('inbox.status.verb.' ~ status.verb)|trans %}
@@ -184,6 +179,11 @@
                             <a class="lp-empty-state__link" href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(closedSide).toQuery)) }}" data-turbo-frame="inbox-view">{{ 'inbox.empty.closed_link'|trans }}</a>
                         </twig:Ds:EmptyState>
                     {% endif %}
+                </div>
+                {# Covers the detail pane, outside its scroll, while a picked row loads, as the board's card drawer does. #}
+                <div class="lp-inbox-pane-loading" role="status">
+                    <twig:ux:icon name="lucide:loader-circle" class="w-5 h-5" />
+                    {{ 'inbox.pane.loading'|trans }}
                 </div>
             </div>
         </section>
