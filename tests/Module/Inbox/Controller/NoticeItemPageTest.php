@@ -52,8 +52,8 @@ final class NoticeItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/inbox');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.lp-inbox-request__byline', 'Loupe');
-        self::assertSelectorTextSame('.lp-inbox-request__badges', 'Notice');
+        self::assertSelectorTextSame('.lp-inbox-request__meta [data-inbox-source]', 'Loupe');
+        self::assertSelectorExists('.lp-inbox-request [data-inbox-kind="notice"]');
         $item = $crawler->filter('#inbox-item-1');
         self::assertCount(1, $item);
         self::assertStringContainsString('sync-behind', $item->filter('.lp-inbox-item__body')->text());
