@@ -8337,6 +8337,44 @@
             <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
             <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>
             <trans-unit id="artifact.error.too_large"><source>artifact.error.too_large</source><target>The files together are larger than the size limit of this instance allows.</target></trans-unit>
+            <trans-unit id="marker.paused"><source>marker.paused</source><target>Paused: %reason%.</target></trans-unit>
+            <trans-unit id="marker.paused.remedy"><source>marker.paused.remedy</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
+            <trans-unit id="marker.run_stopped"><source>marker.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
+            <trans-unit id="marker.run_stopped.remedy"><source>marker.run_stopped.remedy</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>
+            <trans-unit id="marker.checks_failed"><source>marker.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
+            <trans-unit id="marker.checks_failed.remedy"><source>marker.checks_failed.remedy</source><target>Fix the failing checks, or start a fix run.</target></trans-unit>
+            <trans-unit id="marker.conflicting"><source>marker.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>
+            <trans-unit id="marker.conflicting.remedy"><source>marker.conflicting.remedy</source><target>Merge the base branch into the pull request, or start a fix run.</target></trans-unit>
+            <trans-unit id="marker.ready_not_merged"><source>marker.ready_not_merged</source><target>Pull request #%number% is ready to merge, and no merge rule matches it.</target></trans-unit>
+            <trans-unit id="marker.ready_not_merged.remedy"><source>marker.ready_not_merged.remedy</source><target>Merge the pull request, or change the card so that a merge rule of its column matches it.</target></trans-unit>
+            <trans-unit id="marker.pull_request_idle"><source>marker.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
+            <trans-unit id="marker.pull_request_idle.remedy"><source>marker.pull_request_idle.remedy</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
+            <trans-unit id="marker.nothing_happened"><source>marker.nothing_happened</source><target>Nothing has happened on this card for a while.</target></trans-unit>
+            <trans-unit id="marker.nothing_happened.remedy"><source>marker.nothing_happened.remedy</source><target>Read the card history to learn why nothing moved. Then start the work again, or move the card.</target></trans-unit>
+            <trans-unit id="marker.document_in_review"><source>marker.document_in_review</source><target>The document "%title%" waits for your review.</target></trans-unit>
+            <trans-unit id="marker.document_in_review.remedy"><source>marker.document_in_review.remedy</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.waits_for_approval"><source>marker.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
+            <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
+            <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
+            <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
+            <trans-unit id="marker.session_open.remedy"><source>marker.session_open.remedy</source><target>Nothing. The card moves on when the session ends.</target></trans-unit>
+            <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
+            <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
+            <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
+            <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
+            <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
+            <trans-unit id="marker.forge_request_pending.remedy"><source>marker.forge_request_pending.remedy</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
+            <trans-unit id="marker.held_by_blocker"><source>marker.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>
+            <trans-unit id="marker.held_by_blocker.remedy"><source>marker.held_by_blocker.remedy</source><target>Finish the blocking card, or remove the block.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_card"><source>marker.waits_for_parent_card</source><target>Waits for card #%parent_number% (pull request #%pull_request%) to merge, before pull request #%number% can merge.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_card.remedy"><source>marker.waits_for_parent_card.remedy</source><target>Nothing. When the parent pull request merges, Loupe moves this one onto its target branch.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_branch"><source>marker.waits_for_parent_branch</source><target>Pull request #%number% waits for branch %branch% to merge.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_branch.remedy"><source>marker.waits_for_parent_branch.remedy</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
+            <trans-unit id="marker.waiting_on_checks"><source>marker.waiting_on_checks</source><target>Waiting for the checks to end.</target></trans-unit>
+            <trans-unit id="marker.waiting_on_checks.remedy"><source>marker.waiting_on_checks.remedy</source><target>Nothing. The card moves on when the checks end.</target></trans-unit>
+            <trans-unit id="marker.unmanaged"><source>marker.unmanaged</source><target>Unmanaged: the workflow does not act on this card.</target></trans-unit>
+            <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>
         </body>
     </file>
 </xliff>

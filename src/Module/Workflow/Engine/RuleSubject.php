@@ -8,6 +8,7 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Template\Rule;
 use Symfony\Component\Uid\Uuid;
 
@@ -19,18 +20,24 @@ final readonly class RuleSubject
 {
     public function bind(Rule $rule, Facts $facts): BoundRule
     {
-        $readable = null === $rule->when->unreadable($facts);
-        if (!\in_array(EngineFact::PullRequest, $rule->when->reads(), true)) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $rule->when->evaluate($facts), false);
+        return $this->bindWhen($rule->when, $facts);
+    }
+
+    /** Picks the pull request for any condition, such as the one of a marker, the way bind() does for a rule. */
+    public function bindWhen(Expression $when, Facts $facts): BoundRule
+    {
+        $readable = null === $when->unreadable($facts);
+        if (!\in_array(EngineFact::PullRequest, $when->reads(), true)) {
+            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), false);
         }
 
         $candidates = array_values(array_filter($facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => PullRequestState::Open === $pullRequest->state));
         if ([] === $candidates) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $rule->when->evaluate($facts), true);
+            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), true);
         }
         foreach ($candidates as $candidate) {
             $bound = $facts->withPullRequest($candidate);
-            if ($readable && $rule->when->evaluate($bound)) {
+            if ($readable && $when->evaluate($bound)) {
                 return new BoundRule($bound, $candidate->id, true, true);
             }
         }

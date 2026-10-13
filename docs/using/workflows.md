@@ -49,7 +49,14 @@ slots it applies in, and a condition. The kind is `stuck`, `needs-you`, `working
 `waiting` or `chip`. A marker with no slots applies in every column that is not
 terminal. A fallback marker counts only when no other marker of a state kind
 matches. The **Workflow** page lists the markers in template order. Both shipped
-templates declare none yet, so the section says so.
+templates declare markers.
+
+The engine checks the markers of a card on every evaluation, also for a held card
+and for a board with the automation off. It stores the result on the card, with
+the time each marker began. A marker that depends on the clock, such as the stuck
+delay, also stores the time it next changes. A task checks the card again at that
+time. An event that changes a card queues a new check on the `workflow` queue,
+which the worker reads before the shared `async` queue.
 
 A marker reads the same conditions as a rule. These conditions exist mainly for
 markers:

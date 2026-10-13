@@ -75,7 +75,7 @@ parameters:
 
           worker:
             image: ghcr.io/ubermuda/loupe:prod
-            command: php bin/console messenger:consume scheduler_default async
+            command: php bin/console messenger:consume scheduler_default workflow async
 
           database:
             image: postgres:16-alpine

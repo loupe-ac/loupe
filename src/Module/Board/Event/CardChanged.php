@@ -13,6 +13,9 @@ use Symfony\Component\Uid\Uuid;
  * A handler that owns its transaction dispatches it after the commit. A path
  * that runs inside another handler's transaction dispatches `updated` alone,
  * because a spurious update costs a page one needless refetch.
+ *
+ * `markersOnly` marks the update that the marker pass of the workflow sends,
+ * so the listener that queues a card check does not answer its own write.
  */
 final readonly class CardChanged
 {
@@ -26,6 +29,7 @@ final readonly class CardChanged
         public Uuid $cardId,
         public string $change,
         public bool $contentChanged,
+        public bool $markersOnly = false,
     ) {
     }
 }
