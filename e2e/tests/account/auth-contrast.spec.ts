@@ -85,7 +85,7 @@ for (const path of ['/login', '/register', '/forgot-password']) {
     test(`primary action text has contrast on ${path}`, async ({ page }) => {
         await page.goto(path);
         await expect(page).toHaveURL(path);
-        await assertControlContrast(page, page.locator('.auth-submit'));
+        await assertControlContrast(page, page.locator('.lp-auth__action'));
     });
 }
 

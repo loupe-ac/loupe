@@ -253,11 +253,31 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('BrandMark')", $card);
+        self::assertStringContainsString("dsFind('BrandMark', 'AuthShell')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }
         self::assertStringNotContainsString('>Example</BrandMark>', $card);
+    }
+
+    public function test_the_auth_shell_export_draws_the_page_frame_with_the_brand_name(): void
+    {
+        foreach (['AuthShell.jsx', 'AuthShell.d.ts', 'AuthShell.prompt.md'] as $file) {
+            self::assertContains('components/layout/'.$file, $this->written);
+        }
+
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AuthShell.jsx');
+        self::assertStringContainsString('className="lp-auth"', $jsx);
+        self::assertStringContainsString("'lp-auth__card--wide'", $jsx);
+        self::assertStringContainsString('<span className="lp-brand__word">loupe</span>', $jsx);
+        self::assertStringContainsString('footer = defaultFooter', $jsx);
+        self::assertStringContainsString('<span>© Geoffrey Bachelet</span>', $jsx);
+        foreach (['Docs', 'Privacy', 'Terms', 'AI Policy'] as $label) {
+            self::assertStringContainsString('className="lp-auth__footer-link">'.$label.'</a>', $jsx);
+        }
+
+        $types = (string) file_get_contents($this->directory.'/components/layout/AuthShell.d.ts');
+        self::assertStringContainsString('wide?: boolean;', $types);
     }
 
     public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void

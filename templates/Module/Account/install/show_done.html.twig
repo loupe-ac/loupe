@@ -8,5 +8,5 @@
     <p class="auth-subheading">{{ 'account.install.done.body'|trans }}</p>
 </div>
 
-<a href="{{ path('app_login') }}" class="auth-submit mt-1.5">{{ 'account.install.done.login'|trans }}</a>
+<twig:Ds:Button variant="primary" size="lg" :href="path('app_login')" class="lp-auth__action">{{ 'account.install.done.login'|trans }}</twig:Ds:Button>
 {% endblock %}

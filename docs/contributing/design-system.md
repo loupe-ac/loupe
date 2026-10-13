@@ -61,6 +61,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 | BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
+| AuthShell | The frame of the sign-in, sign-up and install pages. It has no Twig component: `@Account/auth_base.html.twig` draws it with the `lp-auth` classes, and a page fills the `auth_body` block. `lp-auth__action` makes a submit button fill the card | none |
 
 Write a button like this:
 
@@ -134,6 +135,12 @@ A plain field uses `Input`, `Select` or `Textarea`. A Symfony widget in a custom
 ```
 
 `just gamache` blocks a template that writes `lp-input`, `lp-select`, `lp-textarea`, `lp-label`, `lp-form-field`, `lp-field-errors` or `lp-form-hint` by hand.
+
+## The sign-in shell
+
+Every sign-in, sign-up, password reset, install and consent page extends `@Account/auth_base.html.twig`. The base draws the topbar with the brand mark, one centred card and the footer, through the classes of `assets/styles/components/auth-shell.css`. The footer lives in `@Account/_auth_footer.html.twig`, which the styleguide specimen also draws. A page fills the blocks `title`, `topbar_nav` and `auth_body`. A page that needs a wider card sets `{% block auth_shell_class 'lp-auth__card lp-auth__card--wide' %}`.
+
+The forms in the card use the app form parts, `Ds:FormField`, `Ds:Input`, `Ds:Label` and `Ds:Button`, like any other form. Give the submit button `class="lp-auth__action"` so it fills the card.
 
 ## The email layout
 
