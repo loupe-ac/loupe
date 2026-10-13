@@ -33,6 +33,6 @@
     <div class="lp-home-ask__fields">
         <twig:Ds:FormField :fieldView="notifyForm.other" class="lp-home-ask__field" />
         <twig:Ds:FormField :fieldView="notifyForm.email" class="lp-home-ask__field" />
-        <twig:Ds:Button variant="inverse" type="submit">{{ 'landing.ask.submit'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="inverse" type="submit" data-turbo-submits-with="{{ 'landing.waitlist_dialog.busy'|trans }}">{{ 'landing.ask.submit'|trans }}</twig:Ds:Button>
     </div>
 {{ form_end(notifyForm) }}

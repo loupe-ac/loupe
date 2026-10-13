@@ -44,6 +44,25 @@ async function entryRow(admin: Page, email: string) {
     return admin.locator('tr[data-waitlist-entry-id]', { hasText: email });
 }
 
+test('the waitlist dialog joins in place while sign-up is open', async ({
+    page: admin,
+}) => {
+    await setRegistrationCap(admin, 0);
+    const email = `e2e-home-open-${RUN}@example.com`;
+
+    await guest.goto('/');
+    await guest
+        .getByRole('link', { name: 'Join the private beta waitlist' })
+        .click();
+    const dialog = guest.getByRole('dialog');
+    await dialog.getByLabel('Email address').fill(email);
+    await dialog.getByRole('button', { name: 'Join the waitlist' }).click();
+
+    await expect(dialog.getByText("You're on the list")).toBeVisible();
+    await expect(guest).toHaveURL(/\/$/);
+    await expect(await entryRow(admin, email)).toHaveCount(1);
+});
+
 test('a waitlist button opens the waitlist dialog and the visitor joins', async ({
     page: admin,
 }) => {

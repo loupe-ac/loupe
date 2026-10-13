@@ -6905,6 +6905,11 @@
     .lp-home-waitlist-dialog__form {
         @apply flex flex-col gap-4;
     }
+    /** The submit button of a home page waitlist form while Turbo saves it. */
+    .lp-home-waitlist-dialog__form[aria-busy='true'] [type='submit'],
+    .lp-home-ask__form[aria-busy='true'] [type='submit'] {
+        @apply cursor-wait opacity-70;
+    }
 
     .lp-home-ways {
         @apply grid gap-4 md:grid-cols-2;

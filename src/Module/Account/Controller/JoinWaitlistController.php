@@ -69,15 +69,17 @@ final class JoinWaitlistController extends AppController
             throw $this->createNotFoundException();
         }
 
-        if ($this->gate->isOpen()) {
-            return $this->redirectToRoute('app_register');
-        }
-
-        // Reached via the OAuth-at-cap redirect: the provider email was already
-        // added to the waitlist by the resolver, so show the confirmation
-        // directly instead of asking the visitor to submit the form again.
+        // Reached after a join, or via the OAuth-at-cap redirect: the resolver
+        // already added the provider email, so show the confirmation directly.
+        // It comes before the open-gate redirect, which would hide it.
         if ($request->query->getBoolean('joined')) {
             return $this->render('@Account/registration/waitlist_joined.html.twig', ['modal' => $modal]);
+        }
+
+        // The home page forms always join the waitlist, even while sign-up has
+        // free slots: the private beta lets people in from the list.
+        if (!$notify && !$modal && $this->gate->isOpen()) {
+            return $this->redirectToRoute('app_register');
         }
 
         // The home page Notify me form and waitlist dialog post here too. Each

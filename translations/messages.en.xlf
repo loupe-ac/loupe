@@ -5006,6 +5006,10 @@
                 <source>landing.waitlist_dialog.body</source>
                 <target>Leave your email. We send you an invite when a place opens.</target>
             </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.busy">
+                <source>landing.waitlist_dialog.busy</source>
+                <target>Saving…</target>
+            </trans-unit>
             <trans-unit id="landing.waitlist_dialog.close">
                 <source>landing.waitlist_dialog.close</source>
                 <target>Close</target>

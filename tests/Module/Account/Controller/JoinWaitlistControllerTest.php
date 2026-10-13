@@ -256,14 +256,46 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('not-an-email'));
     }
 
-    public function test_the_modal_route_redirects_to_register_when_the_gate_is_open(): void
+    public function test_a_modal_submit_joins_while_the_gate_is_open(): void
     {
         $client = static::createClient();
         InstalledInstance::ensure(static::getContainer());
 
-        $client->request(Request::METHOD_GET, '/waitlist/modal');
+        $this->post($client, ['email' => 'open-modal@example.com'], '/waitlist/modal', 'waitlist_modal_form');
 
-        $this->assertResponseRedirects('/register');
+        $this->assertResponseRedirects('/waitlist/modal?joined=1');
+        $this->assertNotNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('open-modal@example.com'));
+
+        $client->request(Request::METHOD_GET, '/waitlist/modal?joined=1');
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('turbo-frame#waitlist-modal', "You're on the list");
+    }
+
+    public function test_a_notify_submit_joins_while_the_gate_is_open(): void
+    {
+        $client = static::createClient();
+        InstalledInstance::ensure(static::getContainer());
+
+        $this->post($client, ['email' => 'open-notify@example.com', 'picks' => ['gitlab']], '/waitlist/notify');
+
+        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertNotNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('open-notify@example.com'));
+
+        $client->request(Request::METHOD_GET, '/waitlist?joined=1');
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('turbo-frame#waitlist-notify', "You're on the list");
+    }
+
+    public function test_the_home_page_forms_show_a_busy_label_while_they_save(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $client->request(Request::METHOD_GET, '/waitlist/modal');
+        $this->assertSelectorExists('turbo-frame#waitlist-modal button[type="submit"][data-turbo-submits-with="Saving…"]');
+
+        $this->post($client, ['email' => ''], '/waitlist/notify');
+        $this->assertSelectorExists('turbo-frame#waitlist-notify button[type="submit"][data-turbo-submits-with="Saving…"]');
     }
 
     public function test_the_modal_route_404s_while_sign_up_is_not_allowed(): void
