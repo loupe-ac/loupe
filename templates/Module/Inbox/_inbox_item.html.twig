@@ -11,7 +11,7 @@
         <span class="lp-inbox-item__number" aria-hidden="true">{{ position ?? item.number }}</span>
         <h3 class="lp-inbox-item__title">{{ item.title }}</h3>
         <span class="lp-inbox-item__kind">{{ ('inbox.item.kind.' ~ item.kind.value)|trans }}</span>
-        {% if item.blocking %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
+        {% if item.blocking and (showBlocking ?? true) %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
         {% if not open %}{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state} only %}{% endif %}
     </div>
     {% endif %}
@@ -54,10 +54,13 @@
                 {% if review.document %}<a class="lp-inbox-item__jump" href="{{ path('app_document_review', {projectId: item.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top">{{ 'inbox.review.open_document'|trans }}</a>{% endif %}
             {% endif %}
         {% endif %}
+        {% if item.selectedOptions|length > 0 or item.answerText is not null %}
+            <h4 class="lp-inbox-item__response-title">{{ 'inbox.answer.legend'|trans }}</h4>
+        {% endif %}
         {% if item.selectedOptions|length > 0 %}
             <ul class="lp-inbox-item__choices" data-inbox-choices>
                 {% for index in item.selectedOptions %}
-                    <li>{{ item.options[index] ?? index }}</li>
+                    <li><twig:ux:icon name="lucide:check" class="lp-inbox-item__choice-icon" />{{ item.options[index] ?? index }}</li>
                 {% endfor %}
             </ul>
         {% endif %}

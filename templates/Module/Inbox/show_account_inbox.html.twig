@@ -25,7 +25,7 @@
             <span class="lp-account-inbox-row__name">{{ row.project.name }}</span>
             <twig:ux:icon name="lucide:arrow-right" class="lp-account-inbox-row__go" />
             <span class="lp-account-inbox-row__meta">
-                <span data-account-inbox-open-count>{{ 'inbox.account.project.open_items'|trans({'%count%': row.openItemCount}) }}</span>
+                <span data-account-inbox-open-count>{{ 'inbox.account.project.open_asks'|trans({'%count%': row.openAskCount}) }}</span>
                 {% if row.oldestWait %}
                 <span class="lp-account-inbox-row__wait">{{ 'inbox.account.project.oldest'|trans({'%time%': row.oldestWait|relative_time}) }}</span>
                 {% endif %}

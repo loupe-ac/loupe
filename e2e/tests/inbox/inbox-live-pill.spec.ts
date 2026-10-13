@@ -67,7 +67,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     await question.getByText('CSV', { exact: true }).click();
     await question.getByRole('button', { name: 'Send answer' }).click();
     await expect(editor.locator('[data-inbox-status]')).toContainText(
-        'Answered. 1 item of this ask is still open.',
+        'Answer sent. 1 item of this ask is still open.',
     );
 
     await expect(pill).toHaveText('1');

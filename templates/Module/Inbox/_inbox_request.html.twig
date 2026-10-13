@@ -15,7 +15,7 @@
             <span data-inbox-source="{{ row.origin.value }}">{{ ('inbox.row.source.' ~ row.origin.value)|trans }}</span>
         {%- endif -%}
         <span aria-hidden="true">·</span>
-        <time datetime="{{ row.createdAt|date('c') }}">{{ row.createdAt|relative_time }}</time>
+        <time datetime="{{ row.createdAt|date('c') }}">{{ row.createdAt|inbox_age }}</time>
         {%- if row.outcome -%}
             <span aria-hidden="true">·</span>
             <span data-inbox-outcome="{{ row.outcome }}">{{ ('inbox.row.outcome.' ~ row.outcome)|trans }}</span>
@@ -24,6 +24,7 @@
             <span data-inbox-outcome="closed">{{ 'inbox.row.closed'|trans }}</span>
         {%- endif -%}
         {%- if row.blocking -%}
+            <span aria-hidden="true">·</span>
             <span class="lp-inbox-request__blocking" data-inbox-blocking>{{ 'inbox.item.blocking'|trans }}</span>
         {%- endif -%}
     </span>

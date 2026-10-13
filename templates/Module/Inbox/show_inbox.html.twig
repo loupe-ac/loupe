@@ -8,6 +8,22 @@
     <span class="lp-topbar__here">{{ 'inbox.page.title'|trans }}</span>
 {% endblock %}
 
+{# The page has no header of its own, as the prototype draws it, so its two links sit in the top bar. #}
+{% block topbar_actions %}
+    <div class="lp-inbox-topbar-actions">
+        <twig:Ds:Button variant="ghost" href="{{ path('app_project_activity', {id: inbox.project.id}) }}" aria-label="{{ 'inbox.activity'|trans }}">
+            <twig:ux:icon name="lucide:activity" class="w-4 h-4" />
+            <span class="lp-inbox-topbar-actions__label">{{ 'inbox.activity'|trans }}</span>
+        </twig:Ds:Button>
+        {% if is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), inbox.project) %}
+        <twig:Ds:Button variant="ghost" href="{{ path('app_inbox_settings', {id: inbox.project.id}) }}" aria-label="{{ 'inbox.settings_link'|trans }}">
+            <twig:ux:icon name="lucide:settings" class="w-4 h-4" />
+            <span class="lp-inbox-topbar-actions__label">{{ 'inbox.settings_link'|trans }}</span>
+        </twig:Ds:Button>
+        {% endif %}
+    </div>
+{% endblock %}
+
 {% block body %}
 {% set view = inbox.view %}
 {% set closedSide = constant('App\\Module\\Inbox\\View\\InboxSide::Closed') %}
@@ -17,24 +33,7 @@
 {% set liveRefresh = app.request.headers.has('X-Loupe-Live-Refresh') %}
 {% do mercure_subscribe(inbox_page_topic(inbox.project)) %}
 <div class="lp-workspace lp-split-page lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live">
-    <header class="lp-page-header">
-        <div class="lp-page-header__copy">
-            <h1 class="lp-workspace-title">{{ 'inbox.page.title'|trans }}</h1>
-            <p class="lp-workspace-desc">{{ 'inbox.page.description'|trans }}</p>
-        </div>
-        <div class="lp-needs-you__header-actions">
-            <twig:Ds:Button href="{{ path('app_project_activity', {id: inbox.project.id}) }}">
-                <twig:ux:icon name="lucide:activity" class="w-4 h-4" />
-                {{ 'inbox.activity'|trans }}
-            </twig:Ds:Button>
-            {% if is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), inbox.project) %}
-            <twig:Ds:Button href="{{ path('app_inbox_settings', {id: inbox.project.id}) }}">
-                <twig:ux:icon name="lucide:settings" class="w-4 h-4" />
-                {{ 'inbox.settings_link'|trans }}
-            </twig:Ds:Button>
-            {% endif %}
-        </div>
-    </header>
+    <h1 class="sr-only">{{ 'inbox.page.title'|trans }}</h1>
 
     {# The frame holds the whole view, so a row, the switch, a filter, the search and the pager each reload it and move the address on.
        A link or a form outside the view leaves the frame, which is why the frame targets the page. #}
@@ -130,7 +129,8 @@
                         <p class="lp-inbox-status" role="status" data-inbox-status>
                             <twig:ux:icon name="lucide:check" class="lp-inbox-status__icon" />
                             {% if status.ask %}
-                                <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb, '%title%': status.title}) }}</span>
+                                <span>{{ 'inbox.status.ask_closed'|trans({'%verb%': verb}) }}</span>
+                                <span class="lp-inbox-status__detail">{{ 'inbox.status.ask_closed_detail'|trans({'%title%': status.title}) }}</span>
                                 <a href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed', ask: status.ask}) }}" data-turbo-frame="inbox-view">{{ 'inbox.status.view'|trans }}</a>
                             {% elseif status.left > 0 %}
                                 <span>{{ 'inbox.status.ask_left'|trans({'%verb%': verb, '%count%': status.left}) }}</span>

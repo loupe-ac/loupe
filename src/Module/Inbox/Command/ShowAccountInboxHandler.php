@@ -22,6 +22,7 @@ final readonly class ShowAccountInboxHandler
     public function __invoke(ShowAccountInboxCommand $command): AccountInboxDetailView
     {
         $projects = [];
+        $counts = [];
         $oldestWaits = [];
         $blocking = [];
         $wait = static function (string $key, \DateTimeImmutable $createdAt) use (&$oldestWaits): void {
@@ -33,6 +34,7 @@ final readonly class ShowAccountInboxHandler
         foreach ($this->inboxAsks->findOpenByOwner($command->owner) as $ask) {
             $key = (string) $ask->project->id;
             $projects[$key] = $ask->project;
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
             $wait($key, $ask->createdAt);
             foreach ($ask->items as $link) {
                 if (InboxItemState::Open === $link->item->state && $link->item->blocking) {
@@ -44,6 +46,7 @@ final readonly class ShowAccountInboxHandler
         foreach ($this->inboxItems->findOpenOutsideOpenAsksByOwner($command->owner) as $item) {
             $key = (string) $item->project->id;
             $projects[$key] = $item->project;
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
             $wait($key, $item->createdAt);
             if ($item->blocking) {
                 $blocking[$key] = true;
@@ -51,7 +54,6 @@ final readonly class ShowAccountInboxHandler
         }
 
         uasort($projects, static fn (Project $a, Project $b): int => [mb_strtolower($a->name), (string) $a->id] <=> [mb_strtolower($b->name), (string) $b->id]);
-        $counts = $this->inboxItems->countOpenByProjects(array_values($projects));
 
         $rows = [];
         foreach ($projects as $key => $project) {

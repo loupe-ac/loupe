@@ -33,8 +33,8 @@ the items. An item that blocks the agent carries a **Blocking** label.
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
 many items are still open. The link is absent while the flag is off.
 
-The header keeps its View activity link visible on narrow screens, including
-with enlarged text. It wraps below the title when needed.
+The page has no header of its own. Its **View activity** and **Settings** links
+sit in the top bar, and on a phone they show as icons.
 
 The count changes without a reload when an agent asks, when you or an agent
 close an item, and when a finished card makes an item obsolete. It goes away at
@@ -206,7 +206,7 @@ ask above it. The filter you used still applies. An ask that still holds an open
 item stays open on the right, so you can answer the next item.
 
 A line above the ask says what happened. It names the ask that closed, such as
-"Answered. "Which format?" is closed.", and links to it with **View it**. When
+"Answer sent. Which format? is closed.", and links to it with **View it**. When
 the ask stays open, the line counts the items that are left. The line shows
 once, so a reload removes it.
 
@@ -393,7 +393,7 @@ Each project has seven switches, one for each cause of a wait:
 - **Workflow paused the card**
 
 The switches are on the inbox settings page, at **Project settings > Inbox**.
-The **Settings** button at the top of the inbox page also opens it. Only the
+The **Settings** link in the top bar of the inbox page also opens it. Only the
 project owner can open the page. Every switch is on until you change it. An
 agent connected to the project can change the switches with the
 `inbox_settings_update` [MCP tool](mcp.md#changing-the-project-settings). A
@@ -467,7 +467,8 @@ in every project you own. The link is absent while the flag is off.
 
 The page shows one row for each project you own that has an open item, in
 project name order. Each row shows the first letter of the project, its name,
-the number of open items, and how long its oldest open ask or item waits. A row
+the number of open asks, and how long its oldest open ask or item waits. An open
+item that no open ask holds counts as one ask, as on the **Open** side. A row
 also shows **Blocking** when it holds an open item that an agent waits on, in an
 open ask or outside one.
 

@@ -250,8 +250,9 @@
         gap: calc(var(--spacing) * 3);
     }
 
-    /* The inbox sits straight on a white page, with no frame around it. */
-    .lp-main:has(.lp-core-inbox) {
+    /* The inbox pages sit straight on a white page, with no frame around them. */
+    .lp-main:has(.lp-core-inbox),
+    .lp-main:has(.lp-account-inbox) {
         @apply bg-surface-1;
     }
 
@@ -431,7 +432,6 @@
     }
 
     .lp-core-inbox .lp-inbox-request__blocking {
-        margin-left: auto;
         color: var(--accent-ink);
         font-weight: 600;
     }
@@ -459,6 +459,10 @@
         width: calc(var(--spacing) * 4);
         height: calc(var(--spacing) * 4);
         color: var(--status-ok-deep);
+    }
+
+    .lp-core-inbox .lp-inbox-status__detail {
+        color: var(--text-dim);
     }
 
     .lp-core-inbox .lp-inbox-status a {
@@ -624,13 +628,6 @@
         background: transparent;
         color: var(--text-dim);
         font-weight: 400;
-    }
-
-    .lp-core-inbox .lp-inbox-item__blocking {
-        padding: 0;
-        background: transparent;
-        color: var(--accent-ink);
-        font-weight: 600;
     }
 
     .lp-core-inbox .lp-inbox-item__body {
@@ -837,6 +834,7 @@
     .lp-core-inbox .lp-inbox-request-detail .lp-empty-state {
         align-items: flex-start;
         gap: calc(var(--spacing) * 2);
+        @apply max-w-md;
         padding: calc(var(--spacing) * 14) 0;
         background: transparent;
         text-align: left;
@@ -850,8 +848,13 @@
 
     .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__body {
         max-width: none;
-        color: var(--text-mute);
+        color: var(--text);
         font-size: var(--text-lg);
+    }
+
+    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__link {
+        margin-top: calc(var(--spacing) * 1.5);
+        font-size: var(--text-sm);
     }
 
     /* A field label matches the prototype's sentence-case label, not an eyebrow. */
@@ -2779,13 +2782,21 @@
 }
 
 @layer components {
-    .lp-needs-you__summary {
-        @apply inline-flex max-w-full items-center rounded-full bg-status-pending-bg px-3 py-1.5 text-sm font-bold text-status-pending-deep;
+    /* The links of the inbox page sit in the top bar, and only their icons stay on a phone. */
+    .lp-inbox-topbar-actions {
+        @apply flex items-center gap-1 ml-auto;
     }
-    .lp-needs-you__header-actions {
-        @apply flex flex-wrap max-w-full items-center gap-2;
+    .lp-topbar > .lp-inbox-topbar-actions + .lp-topbar__global-actions {
+        @apply ml-0;
     }
-    .lp-needs-you .lp-page-header,
+    @media (width < 40rem) {
+        .lp-inbox-topbar-actions .lp-btn {
+            @apply w-9 px-0;
+        }
+        .lp-inbox-topbar-actions__label {
+            @apply sr-only;
+        }
+    }
     .lp-core-documents .lp-page-header,
     .lp-redesign-projects .lp-page-header {
         @apply flex-wrap;
@@ -2866,17 +2877,6 @@
     /* An unavailable artifact keeps its explanation beside the artifact name. */
     .lp-inbox-linked-table__note {
         @apply m-0 text-xs text-fg-mute;
-    }
-    @media (width < 40rem) {
-        .lp-needs-you .lp-page-header {
-            @apply gap-3;
-        }
-        .lp-needs-you__summary {
-            @apply self-start;
-        }
-        .lp-needs-you__header-actions {
-            @apply w-full justify-between;
-        }
     }
 }
 
@@ -8474,8 +8474,18 @@
     .lp-inbox-item__response {
         @apply flex flex-col gap-1.5 rounded-lg bg-tint py-2.5 px-3 text-sm text-ink;
     }
+    .lp-inbox-item__response-title {
+        @apply m-0 text-sm font-semibold text-fg-dim;
+    }
+    /* A picked option reads as a checked line, as the closed ask of the prototype draws it. */
     .lp-inbox-item__choices {
-        @apply m-0 pl-5 list-disc font-semibold;
+        @apply m-0 p-0 list-none flex flex-col gap-1;
+    }
+    .lp-inbox-item__choices > li {
+        @apply flex items-center gap-2;
+    }
+    .lp-inbox-item__choice-icon {
+        @apply size-4 shrink-0 text-status-ok-deep;
     }
     .lp-inbox-item__answer-text,
     .lp-inbox-item__note {
@@ -8529,7 +8539,7 @@
         @apply col-start-3 row-span-2 size-4 text-fg-dim;
     }
     .lp-account-inbox-row__meta {
-        @apply col-start-2 flex flex-wrap items-center gap-2.5 text-sm text-fg-dim;
+        @apply col-start-2 flex flex-wrap items-center gap-2.5 text-xs text-fg-dim;
     }
     .lp-account-inbox-row__meta > * + *::before {
         @apply mr-2.5;

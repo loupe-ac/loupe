@@ -85,7 +85,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         // The ask closed with its last blocking item and nothing else is open, so no ask is named.
         self::assertResponseRedirects($this->pageUrl());
         $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-inbox-status]', 'Review recorded. "Review the pull request" is closed.');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Review recorded. Review the pull request is closed.');
         $this->client->request(Request::METHOD_GET, $this->completedUrl().'&ask='.$ask->id);
         self::assertSelectorTextContains('[data-inbox-review-verdict]', 'Changes requested');
         self::assertSelectorTextContains('#inbox-item-1', 'Add a retry limit.');
@@ -228,7 +228,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertSame([1], $stored->selectedOptions);
         self::assertSame('CSV, because the importer reads it.', $stored->answerText);
         $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-inbox-status]', 'Answered: item 4.');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Answer sent: item 4.');
         self::assertSelectorNotExists('.lp-flash');
     }
 
@@ -321,7 +321,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         self::assertResponseRedirects($this->pageUrl().'?ask='.$ask->id);
         $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-inbox-status]', 'Answered. 1 item of this ask is still open.');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Answer sent. 1 item of this ask is still open.');
         self::assertSelectorNotExists('.lp-flash');
         $this->client->request(Request::METHOD_GET, $this->pageUrl().'?ask='.$ask->id);
         self::assertSelectorNotExists('[data-inbox-status]');
@@ -335,7 +335,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
 
         self::assertResponseRedirects($this->pageUrl().'?ask='.$third->id);
         $crawler = $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-inbox-status]', 'Answered. "Which format?" is closed.');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Answer sent. Which format? is closed.');
         self::assertSame('/projects/'.$this->project->id.'/inbox?side=closed&ask='.$second->id, $crawler->filter('[data-inbox-status] a')->attr('href'));
         self::assertSelectorExists('[data-inbox-ask-id="'.$third->id.'"]');
     }
@@ -420,7 +420,7 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $this->post($question, 'answer', ['selectedOptions' => '0'], query: 'export');
 
         $crawler = $this->client->followRedirect();
-        self::assertSelectorTextContains('[data-inbox-status]', 'Answered. "Which export format?" is closed.');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Answer sent. Which export format? is closed.');
         self::assertSame('/projects/'.$this->project->id.'/inbox?side=closed&ask='.$ask->id, $crawler->filter('[data-inbox-status] a')->attr('href'));
     }
 

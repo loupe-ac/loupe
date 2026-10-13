@@ -549,6 +549,9 @@ final class ShowInboxControllerTest extends WebTestCase
 
         $meta = $crawler->filter('a.lp-inbox-request[data-inbox-request="'.$withCardsAsk->id.'"] .lp-inbox-request__meta');
         self::assertStringContainsString('#4 Checkout 4 +2', $meta->filter('[data-inbox-card]')->text());
+        // A short age, and Blocking inline after a dot: "#4 Checkout 4 +2 · 2h · Blocking".
+        self::assertSame('2h', $meta->filter('time')->text());
+        self::assertMatchesRegularExpression('/·\s*2h\s*·\s*Blocking$/u', $meta->text());
         $source = $crawler->filter('a.lp-inbox-request[data-inbox-request="'.$noCardAsk->id.'"] .lp-inbox-request__meta');
         self::assertSame('Agent', $source->filter('[data-inbox-source]')->text());
         self::assertCount(0, $source->filter('[data-inbox-card]'));
@@ -675,6 +678,9 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSame('Blocking', $row->filter('[data-inbox-blocking]')->text());
         self::assertCount(0, $row->filter('[data-inbox-outcome]'));
         self::assertSame('todo', $row->filter('[data-inbox-kind]')->attr('data-inbox-kind'));
+        // The row carries Blocking, so the item heads of the ask pane leave it out.
+        self::assertCount(2, $crawler->filter('.lp-inbox-ask .lp-inbox-item__head'));
+        self::assertCount(0, $crawler->filter('.lp-inbox-ask .lp-inbox-item__blocking'));
     }
 
     public function test_a_row_has_no_excerpt_avatar_or_status_chip(): void

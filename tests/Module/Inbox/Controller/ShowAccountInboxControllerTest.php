@@ -110,7 +110,7 @@ final class ShowAccountInboxControllerTest extends WebTestCase
         self::assertSame([(string) $alpha->id, (string) $zulu->id], $this->projectIds($crawler));
         // A missing translation renders its key, and the gate does not fail on that.
         self::assertDoesNotMatchRegularExpression('/\\binbox\\.[a-z_]+\\.[a-z_.]+/', $crawler->filter('main')->text());
-        self::assertSelectorTextSame('[data-account-inbox-project="'.$alpha->id.'"] [data-account-inbox-open-count]', '3 open items');
+        self::assertSelectorTextSame('[data-account-inbox-project="'.$alpha->id.'"] [data-account-inbox-open-count]', '2 open asks');
         // The oldest of the project's open asks and loose items, not the newest.
         self::assertStringContainsString('2h ago', $crawler->filter('[data-account-inbox-project="'.$alpha->id.'"] .lp-account-inbox-row__wait')->text());
         self::assertStringContainsString('3h ago', $crawler->filter('[data-account-inbox-project="'.$zulu->id.'"] .lp-account-inbox-row__wait')->text());
@@ -173,7 +173,7 @@ final class ShowAccountInboxControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('.lp-empty-state'));
         $group = $crawler->filter('[data-account-inbox-project="'.$project->id.'"]');
         self::assertCount(1, $group);
-        self::assertSame('1 open item', $group->filter('[data-account-inbox-open-count]')->text());
+        self::assertSame('1 open ask', $group->filter('[data-account-inbox-open-count]')->text());
         self::assertStringNotContainsString('Review pull request 482', $group->text());
 
         $path = (string) $group->attr('href');
