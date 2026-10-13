@@ -35,6 +35,7 @@ final readonly class ListWaitlistHandler
             totalPages: $totalPages,
             pageList: $this->pagination->buildPageList($command->page, $totalPages),
             clampedPage: $this->pagination->clampPage('waitlist_entries', $command->page, $total, self::PER_PAGE, []),
+            pickCounts: $this->waitlistEntries->pickCounts(),
         );
     }
 }

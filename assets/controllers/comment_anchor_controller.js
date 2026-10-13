@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
-import { DemoTransport, ServerTransport } from '../lib/review_transport.js';
+import { ServerTransport } from '../lib/review_transport.js';
 import {
     after,
     before,
@@ -23,7 +23,6 @@ import {
  *
  * Display: each existing thread's anchor is highlighted in the document (CSS
  * Custom Highlight API — no DOM mutation, so `textContent` stays intact). On the
- * landing demo the card sits level with its anchor in an absolute margin. On the
  * review page each card is a popover that a click on its highlight or on its
  * row in the Comments panel opens, and the rows stack in passage order.
  *
@@ -64,7 +63,6 @@ export default class extends Controller {
         'thread',
         'row',
         'agentHighlight',
-        'prototype',
         'markers',
     ];
 
@@ -117,11 +115,6 @@ export default class extends Controller {
         active: 6,
     };
 
-    // Below this the page has no gutter a card could sit in, so demo mode
-    // declines the selection rather than covering the copy it points at. The
-    // card margin is hidden at the same width.
-    static DEMO_MIN_WIDTH = 1280;
-
     // Clearance between one comment card and the next when a passage carries
     // more comments than the space beside it can hold.
     static CARD_GAP = 14;
@@ -131,14 +124,10 @@ export default class extends Controller {
     // composer to fill in.
     static STRIKE_KEY = 's';
 
-    // Demo mode drives the same UI with no backend behind it: the landing page's
-    // try-it section, where a visitor annotates the marketing copy and nothing is
-    // saved. It only picks the transport — every other behaviour here is shared.
     // `diff` switches anchor extraction to the diff pane, whose text belongs to
     // two versions at once. The two messages are the refusals that pane can give.
     static values = {
         hideResolved: Boolean,
-        demo: Boolean,
         diff: Boolean,
         deletedMessage: String,
         unanchorableMessage: String,
@@ -168,9 +157,7 @@ export default class extends Controller {
     static MARKER_GAP = 12;
 
     connect() {
-        this.transport = this.demoValue
-            ? new DemoTransport(this)
-            : new ServerTransport(this);
+        this.transport = new ServerTransport(this);
         // The cards are absolutely positioned with no top until the first
         // layout measures one. Marked here rather than in the template, so a
         // page with no working JavaScript still shows them.
@@ -201,13 +188,6 @@ export default class extends Controller {
 
         this.scheduledLayout = null;
         this.onResize = () => {
-            // Narrowing past the threshold hides the margin a captured
-            // selection would land in, so the capture goes with it — otherwise
-            // the strike shortcut still fires against a passage whose toolbar
-            // the reader can no longer see.
-            if (this.#demoUnavailable()) {
-                this.#clearPendingSelection();
-            }
             this.#scheduleLayout();
         };
         window.addEventListener('resize', this.onResize);
@@ -395,11 +375,6 @@ export default class extends Controller {
     }
 
     #readReleasedSelection() {
-        if (this.#demoUnavailable()) {
-            this.#clearPendingSelection();
-            return;
-        }
-
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
             this.#clearPendingSelection();
@@ -705,7 +680,6 @@ export default class extends Controller {
         if (
             !this.hasToolbarTarget ||
             this.pointerDown ||
-            this.#demoUnavailable() ||
             this.#composerOpen()
         ) {
             return;
@@ -729,15 +703,6 @@ export default class extends Controller {
             (this.hasComposerTarget && !this.composerTarget.hidden) ||
             (this.hasSuggestComposerTarget &&
                 !this.suggestComposerTarget.hidden)
-        );
-    }
-
-    // Read at interaction time, not connect(): a resize or a rotation must
-    // change the answer.
-    #demoUnavailable() {
-        return (
-            this.demoValue &&
-            window.innerWidth < this.constructor.DEMO_MIN_WIDTH
         );
     }
 
@@ -818,7 +783,7 @@ export default class extends Controller {
         if (this.pendingSelection === null) {
             return;
         }
-        if (!this.demoValue && !this.hasStrikeFormTarget) {
+        if (!this.hasStrikeFormTarget) {
             return;
         }
         // Nothing clears pendingSelection until the response lands, so without this
@@ -835,14 +800,12 @@ export default class extends Controller {
         this.#hideToolbar();
         this.#hideComposer();
         this.transport.strike(this.pendingSelection);
-        this.#settleDemoWrite();
     }
 
     /**
      * Composer action: hand what was written to the transport.
      *
-     * The click is cancelled and re-issued through the transport so both modes
-     * take the same path. The button is still the form's submitter and is
+     * The click is cancelled and re-issued through the transport. The button is still the form's submitter and is
      * passed along as one — Turbo disables the submitter for the length of the
      * request, and a submit without one leaves it live for a second click.
      */
@@ -853,7 +816,6 @@ export default class extends Controller {
             this.composerBodyTarget.value,
             this.#submitterOf(event),
         );
-        this.#settleDemoWrite();
     }
 
     /** Rewording composer action: same, with the proposed wording. */
@@ -865,53 +827,16 @@ export default class extends Controller {
             this.suggestBodyTarget.value,
             this.#submitterOf(event),
         );
-        this.#settleDemoWrite();
     }
 
     // requestSubmit() rejects anything that is not one of the form's own submit
-    // buttons, and the demo composers reach here from a keydown on a div.
+    // buttons, and the event may come from something else.
     #submitterOf(event) {
         const candidate = event?.currentTarget;
         return candidate instanceof HTMLButtonElement &&
             candidate.type === 'submit'
             ? candidate
             : null;
-    }
-
-    /**
-     * Cmd/Ctrl+Enter inside a demo composer. The review screen's composers are
-     * real forms and get this from keyboard_submit_controller; the demo's are
-     * not forms at all, so there is nothing for that controller to submit.
-     */
-    composerKeydown(event) {
-        if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) {
-            return;
-        }
-        event.preventDefault();
-        if (
-            this.hasSuggestComposerTarget &&
-            this.suggestComposerTarget.contains(event.target)
-        ) {
-            this.submitSuggestion(event);
-            return;
-        }
-        this.submitComment(event);
-    }
-
-    /** Demo card action: drop the card and close the gap it leaves. */
-    deleteDemoComment(event) {
-        event?.preventDefault();
-        event.currentTarget.closest('.lp-comment-thread')?.remove();
-        this.#scheduleLayout();
-    }
-
-    /** The prototype card for a kind, which demo mode clones. */
-    prototypeFor(kind) {
-        return (
-            this.prototypeTargets.find(
-                (template) => template.dataset.kind === kind,
-            ) ?? null
-        );
     }
 
     // A comment with no live selection is a general one, which has no anchor.
@@ -921,20 +846,6 @@ export default class extends Controller {
         }
         const { quote, prefix, suffix } = this.pendingSelection;
         return { quote, prefix, suffix };
-    }
-
-    // The server path settles when Turbo's response lands, in onSubmitEnd. The
-    // demo has no response to wait for, so the same cleanup runs inline.
-    #settleDemoWrite() {
-        if (!this.demoValue) {
-            return;
-        }
-        this.strikeInFlight = false;
-        this.#resetComposers();
-        this.pendingSelection = null;
-        this.#clearActiveHighlight();
-        this.#hideComposer();
-        this.#scheduleLayout();
     }
 
     /**
@@ -1770,7 +1681,7 @@ export default class extends Controller {
         this.#syncResolvedToggle();
 
         // After the stacking pass, which can move the row. The review page
-        // shows the row, and the landing demo the card itself.
+        // shows the row.
         if (this.threadToReveal?.isConnected) {
             const row = this.#rowFor(this.threadToReveal);
             (this.hasRowTarget ? row : this.threadToReveal)?.scrollIntoView({
@@ -1912,7 +1823,7 @@ export default class extends Controller {
                 : passage.parentElement;
         element?.scrollIntoView({ block: 'center', behavior: 'auto' });
         // A paragraph taller than the viewport can still hide the quote. The
-        // app shell scrolls .lp-main, and the landing demo the window.
+        // app shell scrolls .lp-main.
         const line = this.anchorRanges.get(card).getClientRects?.()[0];
         if (line && (line.top < 0 || line.bottom > window.innerHeight)) {
             (element?.closest('.lp-main') ?? window).scrollBy({

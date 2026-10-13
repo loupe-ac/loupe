@@ -5,28 +5,15 @@ declare(strict_types=1);
 namespace App\Tests\Module\Landing\Controller;
 
 use App\Module\Account\Entity\User;
-use App\Module\Landing\Controller\LandingController;
+use App\Module\Landing\Service\HomePageGate;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
-use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class LandingControllerTest extends WebTestCase
 {
-    /** The migration seeds the row, so this moves it rather than creating it. */
-    private function setLandingEnabled(KernelBrowser $client, bool $enabled): void
-    {
-        $flags = $client->getContainer()->get(FeatureFlagRepository::class);
-        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
-        $em = $client->getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $flags->findAllIndexed()[LandingController::ENABLED_FLAG]->value = $enabled;
-        $em->flush();
-    }
-
     /** @param non-empty-string $email */
     private function createUser(EntityManagerInterface $em, string $username, string $email): User
     {
@@ -42,43 +29,97 @@ final class LandingControllerTest extends WebTestCase
         return $user;
     }
 
-    public function test_anonymous_visitor_sees_the_landing_page_where_the_flag_is_on(): void
+    public function test_anonymous_visitor_sees_the_home_page_where_the_gate_shows_it(): void
     {
         $client = static::createClient();
-        $this->setLandingEnabled($client, true);
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.lp-landing');
-        self::assertSelectorExists('a[href="/register"]');
+        self::assertSelectorExists('.lp-home');
+        self::assertSelectorTextContains('h1', 'From ideas to features.');
+        self::assertSelectorExists('a[href="/waitlist"]');
+        self::assertSelectorNotExists('a[href="/register"]');
     }
 
-    public function test_landing_page_names_the_worker_harnesses(): void
+    public function test_home_page_shows_six_steps_eight_features_and_no_price(): void
     {
         $client = static::createClient();
-        $this->setLandingEnabled($client, true);
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertAnySelectorTextContains('.lp-landing-feature__title', 'Claude Code and Codex workers');
-        self::assertAnySelectorTextContains('.lp-landing-faq__question', 'Which agents does it run?');
+        self::assertSelectorCount(6, '.lp-home-step');
+        self::assertSelectorCount(8, '.lp-home-feature');
+        self::assertSelectorCount(3, '.lp-home-step .lp-tag');
+        $text = strtolower($client->getCrawler()->filter('main')->text());
+        foreach (['per month', 'free trial', 'pricing', 'per seat'] as $word) {
+            self::assertStringNotContainsString($word, $text);
+        }
     }
 
-    /**
-     * The flag is seeded off, so this is what a fresh or upgraded instance
-     * does: exactly the redirect anonymous visitors got before the page
-     * existed.
-     */
-    public function test_anonymous_visitor_is_sent_to_login_where_the_flag_is_off(): void
+    public function test_home_page_footer_links_to_the_loupe_x_account_and_not_to_bluesky(): void
     {
         $client = static::createClient();
-        $this->setLandingEnabled($client, false);
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home-footer a[href="https://x.com/loupehq"]');
+        self::assertSelectorNotExists('.lp-home-footer a[href*="x.com/ubermuda"]');
+        self::assertSelectorNotExists('.lp-home-footer a[href*="bsky.app"]');
+    }
+
+    public function test_home_page_notify_form_posts_the_picks_to_the_waitlist(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#waitlist-notify form[action="/waitlist/notify"]');
+        self::assertSelectorCount(10, 'input.lp-home-chip__input[type="checkbox"][name="waitlist_join_form[picks][]"]');
+        self::assertSelectorExists('input[name="waitlist_join_form[email]"]');
+        self::assertSelectorExists('input[name="waitlist_join_form[other]"]');
+        self::assertSelectorExists('.lp-home-ask__body[hidden]');
+    }
+
+    public function test_every_waitlist_button_opens_the_one_waitlist_dialog(): void
+    {
+        $client = static::createClient();
+
+        $crawler = $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        $ctas = $crawler->filter('a[href="/waitlist"]');
+        self::assertGreaterThan(0, $ctas->count());
+        self::assertSame($ctas->count(), $crawler->filter('a[href="/waitlist"][data-action="click->modal#open"]')->count());
+        self::assertSelectorCount(1, '[data-controller~="modal"] dialog.lp-dialog');
+        self::assertSelectorExists('dialog turbo-frame#waitlist-modal form[action="/waitlist/modal"] input[name="waitlist_modal_form[email]"]');
+        self::assertSelectorNotExists('turbo-frame#waitlist-modal input[type="checkbox"]');
+    }
+
+    public function test_anonymous_visitor_is_sent_to_login_where_the_gate_hides_the_page(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set(HomePageGate::class, new HomePageGate('https://loupe.example.com', 'loupe.ac'));
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseRedirects('/login');
+    }
+
+    public function test_anonymous_visitor_sees_the_page_on_the_hosted_service(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set(HomePageGate::class, new HomePageGate('https://loupe.ac', 'loupe.ac'));
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home');
     }
 
     public function test_authenticated_user_never_sees_the_landing_page(): void
@@ -88,7 +129,6 @@ final class LandingControllerTest extends WebTestCase
         $user = $this->createUser($em, 'home-landing', 'home-landing@example.com');
         $user->wizardCompletedAt = new \DateTimeImmutable();
         $em->flush();
-        $this->setLandingEnabled($client, true);
 
         $client->loginUser($user);
         $client->request(Request::METHOD_GET, '/');
