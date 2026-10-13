@@ -176,7 +176,16 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<Dialog variant="document" open>document</Dialog>', $card);
         self::assertStringContainsString('.row > dialog[open] { position: static; margin: 0; }', $card);
         self::assertStringContainsString('.row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }', $card);
-        self::assertStringContainsString('<Tabs variant="segmented">segmented</Tabs>', $card);
+    }
+
+    public function test_the_card_shows_each_tabs_variant_with_its_tabs(): void
+    {
+        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+        $tabs = '<a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a>';
+
+        self::assertStringContainsString('<Tabs>'.$tabs, $card);
+        self::assertStringContainsString('<Tabs variant="segmented">'.$tabs, $card);
+        self::assertStringNotContainsString('<Tabs variant="segmented">segmented</Tabs>', $card);
     }
 
     public function test_a_non_button_component_is_not_a_button(): void
