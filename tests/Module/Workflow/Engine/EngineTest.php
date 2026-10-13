@@ -2944,6 +2944,30 @@ final class EngineTest extends KernelTestCase
         self::assertSame('next', $child->column->slug);
     }
 
+    public function test_a_follow_up_in_the_backlog_moves_to_next_when_the_card_it_follows_finishes_and_a_person_can_park_it(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('engine-follow-up-to-next');
+        $this->bindLifecycle($project);
+        $followed = $this->card($project, 'in-progress');
+        $followUp = $this->card($project, 'backlog');
+        $this->em()->persist(new CardLink($followed, $followUp, CardLinkKind::HasFollowUp));
+        $this->em()->flush();
+
+        $this->evaluate($followUp, '2026-10-02 12:05:00');
+        self::assertSame('backlog', $followUp->column->slug);
+
+        $this->moveTo($followed, 'done');
+        $this->evaluate($followUp, '2026-10-02 12:10:00');
+        self::assertSame('next', $followUp->column->slug);
+        self::assertContains('follow-up-to-next', $this->firedRules());
+
+        $this->moveTo($followUp, 'backlog');
+        $this->evaluate($followUp, '2026-10-02 12:15:00');
+        $this->evaluate($followUp, '2026-10-02 12:20:00');
+        self::assertSame('backlog', $followUp->column->slug);
+    }
+
     public function test_a_lifecycle_child_that_a_person_moves_from_next_to_the_backlog_stays_there(): void
     {
         self::bootKernel();

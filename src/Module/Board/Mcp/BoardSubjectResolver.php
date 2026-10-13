@@ -44,7 +44,7 @@ final readonly class BoardSubjectResolver
         'type' => 'object',
         'properties' => [
             'cardId' => ['type' => 'string', 'description' => 'the id of a card of this project'],
-            'kind' => ['type' => 'string', 'enum' => ['relates-to', 'blocks', 'blocked-by'], 'default' => 'relates-to', 'description' => 'how this card reads the other card'],
+            'kind' => ['type' => 'string', 'enum' => ['relates-to', 'blocks', 'blocked-by', 'has-follow-up', 'follow-up-of'], 'default' => 'relates-to', 'description' => 'how this card reads the other card'],
         ],
         'required' => ['cardId'],
     ];

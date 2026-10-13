@@ -506,9 +506,13 @@ Some rules act from any slot:
    is `unplanned-child`. See
    [Asking about an unplanned child](#asking-about-an-unplanned-child).
 5. A new child of an epic moves from the Backlog to Next. The rule is
-   `child-to-next`, and it is the last rule of the file. The move happens once.
-   A person who moves a child back to the Backlog parks it, and the child stays
-   there until a person moves it to Next.
+   `child-to-next`, and it is one of the last two rules of the file. The move
+   happens once. A person who moves a child back to the Backlog parks it, and
+   the child stays there until a person moves it to Next. A follow-up card
+   moves from the Backlog to Next in the same way, when every card it follows
+   sits in a terminal column. The rule is `follow-up-to-next`. A follow-up has
+   no parent, so its epic never waits for it. A board with the Simple template
+   moves no follow-up.
 6. An epic that enters Implementation evaluates its children. The rule is
    `epic-entered-implementation`. A child that waited for its epic starts at
    once when it can.
