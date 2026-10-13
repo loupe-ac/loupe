@@ -100,8 +100,13 @@ artifact id, the version number, the stable link and the link of that version.
 A Claude Design canvas, a `.dc.html` file, shows as a broken page outside
 Claude Design. When the pushed folder holds a canvas, the command compiles it
 to a plain page before it stores anything. It runs the script of the canvas on
-your machine, so you install nothing. The folder then holds no canvas file and
-no `support.js`, and the artifact holds the compiled page.
+your machine, so you install nothing. The push leaves out the canvas file,
+`support.js` and `canvas.json`, which holds the layout of the canvas board. The
+artifact holds the compiled page.
+
+The artifact library holds plain files only. Loupe refuses a push that holds a
+`.dc.html` file, so a CLI older than 1.17.0, which sends a canvas as it is,
+cannot store one. Update the CLI with `loupe update` and push again.
 
 A canvas with a script keeps its clicks and its typed input. The compiled page
 first shows the page that the build drew, so a reader that runs no script sees a

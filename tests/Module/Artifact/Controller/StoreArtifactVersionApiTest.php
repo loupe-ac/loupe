@@ -197,6 +197,23 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         self::assertArrayHasKey('files', $this->json($client)['errors']);
     }
 
+    public function test_it_refuses_a_claude_design_canvas_and_names_the_cli_that_compiles_it(): void
+    {
+        $client = static::createClient();
+        $project = $this->switchedOnProject('route-canvas@example.com');
+        $token = $this->token($project);
+
+        $this->post($client, $project, $token, ['name' => 'X', 'paths' => ['Main.dc.html', 'support.js']], ['Main.dc.html' => '<x-dc></x-dc>', 'support.js' => 'x']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame('artifact_refused', $this->json($client)['error']);
+        self::assertSame(
+            'A .dc.html file is a Claude Design canvas, and it does not render outside Claude Design. Push it with loupe artifact push from CLI 1.17.0 or later, which compiles the canvas to plain HTML.',
+            $this->json($client)['errors']['files'],
+        );
+        self::assertSame(0, $this->artifactRepository()->count([]));
+    }
+
     public function test_it_refuses_a_request_whose_paths_do_not_match_its_files(): void
     {
         $client = static::createClient();
