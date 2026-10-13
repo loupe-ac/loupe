@@ -673,6 +673,52 @@
         background: var(--accent-hover);
     }
 
+    /* The document under review, as a quiet card above the verdict. */
+    .lp-inbox-review-document {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 3);
+        margin-bottom: calc(var(--spacing) * 3.5);
+        padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
+        border-radius: var(--radius-xl);
+        background: var(--surface-2);
+        color: var(--ink);
+        text-decoration: none;
+    }
+
+    .lp-inbox-review-document__icon {
+        flex: none;
+        width: calc(var(--spacing) * 5);
+        height: calc(var(--spacing) * 5);
+        color: var(--text-dim);
+    }
+
+    .lp-inbox-review-document__text {
+        display: flex;
+        flex: 1 1 0%;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .lp-inbox-review-document__title {
+        font-weight: 600;
+    }
+
+    .lp-inbox-review-document__sub {
+        color: var(--text-dim);
+        font-size: var(--text-xs);
+    }
+
+    .lp-inbox-review-document__action {
+        color: var(--accent-ink);
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    .lp-inbox-review-document:hover .lp-inbox-review-document__action {
+        text-decoration: underline;
+    }
+
     /* The links of an ask sit in a quiet column beside it. */
     .lp-core-inbox .lp-inbox-linked-panel {
         flex: 1 1 calc(var(--spacing) * 65);

@@ -148,6 +148,12 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertStringContainsString('Inline design', $row->text());
         self::assertStringContainsString('Version 1', $row->text());
         self::assertCount(0, $page->filter('form[name="'.$name.'"] .lp-inbox-item__jump'));
+        // The form opens with a card that leads to the document, as the prototype shows.
+        $card = $page->filter('form[name="'.$name.'"] [data-inbox-review-document-card]');
+        self::assertCount(1, $card);
+        self::assertSame('/projects/'.$this->project->id.'/documents/'.$document->id.'/review', $card->attr('href'));
+        self::assertStringContainsString('Inline design', $card->text());
+        self::assertStringContainsString('Read it', $card->text());
         $form = $page->filter('form[name="'.$name.'"]')->form([
             $name.'[verdict]' => 'changes-requested',
             $name.'[note]' => 'Keep this draft feedback.',

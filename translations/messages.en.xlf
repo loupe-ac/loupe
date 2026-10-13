@@ -7667,6 +7667,7 @@
             <trans-unit id="inbox.review.verdict.changes-requested"><source>inbox.review.verdict.changes-requested</source><target>Changes requested</target></trans-unit>
             <trans-unit id="inbox.review.version"><source>inbox.review.version</source><target>Version %version%</target></trans-unit>
             <trans-unit id="inbox.review.open_document"><source>inbox.review.open_document</source><target>Review document</target></trans-unit>
+            <trans-unit id="inbox.review.read_it"><source>inbox.review.read_it</source><target>Read it</target></trans-unit>
             <trans-unit id="inbox.review.local_only"><source>inbox.review.local_only</source><target>This records your review in Loupe. It does not post a review to the code host.</target></trans-unit>
             <trans-unit id="inbox.review.submit"><source>inbox.review.submit</source><target>Submit review</target></trans-unit>
             <trans-unit id="inbox.review.submitted"><source>inbox.review.submitted</source><target>Review recorded.</target></trans-unit>

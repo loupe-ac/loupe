@@ -154,7 +154,7 @@
                 {% elseif review and review.document %}
                     {% if is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::REVIEW_DOCUMENT'), item) %}
                         {% set reviewFormShown = true %}
-                        {% include '@Inbox/_document_review_form.html.twig' with {review: review, refusedForm: refusedForm, actionParams: actionParams, responseFrame: responseFrame, declineFormId: declineForm.vars.id, declineLabel: declineLabel} only %}
+                        {% include '@Inbox/_document_review_form.html.twig' with {review: review, refusedForm: refusedForm, actionParams: actionParams, responseFrame: responseFrame, declineFormId: declineForm.vars.id, declineLabel: declineLabel, documentCard: app.request.attributes.get('_route') != 'app_document_review'} only %}
                     {% else %}
                         <p role="status">{{ 'inbox.review.error.target_unavailable'|trans }}</p>
                     {% endif %}
