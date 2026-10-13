@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Command;
 
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
-use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Service\BoardColumnCards;
 use App\Module\Board\Service\BoardLanes;
 use App\Module\Board\Service\BoardStructureDigest;
-use App\Module\Board\Service\CardMarkers;
-use App\Module\Board\Service\CardPullRequestStates;
-use App\Module\Board\Service\CardStates;
 use App\Module\Board\Service\LaneDecks;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Bridge\Service\CardRunWarnings;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 
@@ -33,12 +29,8 @@ final readonly class ShowBoardHandler
         private BoardStructureDigest $structureDigest,
         private CardRunWarnings $runWarnings,
         private LaneDecks $laneDecks,
-        private CardPullRequestStates $pullRequestStates,
-        private CardMarkers $markers,
         private BoardAutomation $automation,
         private CardTypeCatalog $catalog,
-        private CardStates $cardStates,
-        private CardPauseRepository $cardPauses,
     ) {
     }
 
@@ -96,14 +88,11 @@ final readonly class ShowBoardHandler
         $documentCounts = $this->cardDocuments->countsForProject($project);
         $runWarnings = $this->runWarnings->forProject($project);
         $shownCards = array_merge(...array_map(static fn (BoardColumnView $view): array => $view->cards, $columns));
-        $pullRequestStates = $this->pullRequestStates->forCards($shownCards);
-        $paused = $this->cardPauses->findActiveForCardIds(array_map(static fn (Card $card): string => (string) $card->id, $shownCards));
-        $markers = $this->markers->forCards($project, $shownCards, $paused);
-        $badges = [];
+        $markers = [];
         foreach ($shownCards as $card) {
-            $cardBadges = [...$pullRequestStates->badgesOf($card), ...($markers[(string) $card->id] ?? [])];
-            if ([] !== $cardBadges) {
-                $badges[(string) $card->id] = $cardBadges;
+            $stored = StoredCardMarkers::of($card);
+            if (!$stored->isEmpty() && !$card->column->terminal) {
+                $markers[(string) $card->id] = $stored;
             }
         }
 
@@ -122,8 +111,7 @@ final readonly class ShowBoardHandler
             $this->structureDigest->forBoard($columns, $lanes, $terminalWindowDays),
             $runWarnings,
             $this->laneDecks->forEpics($backlog, array_map(static fn (BoardLaneView $lane): string => (string) $lane->epic?->id, $lanes)),
-            $badges,
-            $this->cardStates->forCards($project, $shownCards, $pullRequestStates, $runWarnings, $paused),
+            $markers,
         );
     }
 }

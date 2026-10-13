@@ -57,11 +57,13 @@ final class CardListToolTest extends KernelTestCase
         $paused = $this->em->find(Card::class, $this->createTool->__invoke('Held', 'Body', 'feature')['cardId']);
         self::assertInstanceOf(Card::class, $paused);
         $free = $this->createTool->__invoke('Free', 'Body', 'feature');
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $pause = $handler(new PauseCardCommand($paused, 'review-failed', 'fix-on-review', PauseKind::Retries));
-        self::assertNotNull($pause);
-        $expected = ['kind' => 'stuck', 'code' => 'paused', 'since' => $pause->createdAt->format(\DATE_ATOM)];
+        $since = new \DateTimeImmutable('2026-10-02 09:00:00+00:00');
+        $paused->markers = [
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => $since->format(\DATE_ATOM)],
+            ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => $since->format(\DATE_ATOM)],
+        ];
+        $this->em->flush();
+        $expected = ['kind' => 'stuck', 'code' => 'paused', 'since' => $since->format(\DATE_ATOM)];
 
         $rows = array_column(($this->tool)()['cards'], null, 'title');
         $fullRows = array_column(($this->tool)(full: true)['cards'], null, 'title');
@@ -72,6 +74,7 @@ final class CardListToolTest extends KernelTestCase
         self::assertNotNull($heldState);
         self::assertSame($expected, array_intersect_key($heldState, $expected));
         self::assertSame('Paused: review-failed.', $heldState['reason']);
+        self::assertSame([], $heldState['others'], 'A chip is no state, so the others hold none.');
         self::assertNull($fullRows['Free']['state']);
         self::assertSame($free['cardId'], $fullRows['Free']['cardId']);
     }

@@ -246,6 +246,7 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $em->flush();
         $card = $this->card($em, $project, 'Stuck', 'next');
         $this->gaveUp($em, $card);
+        $this->storeStuck($em, $card);
         $url = $this->placementUrl((string) $project->id, (string) $card->id);
         $em->clear();
 
@@ -481,6 +482,7 @@ final class ShowCardPlacementControllerTest extends WebTestCase
         $this->childOf($em, $epic, $this->card($em, $project, 'Open child'));
         $this->childOf($em, $epic, $this->card($em, $project, 'Done child', 'done'));
         $this->gaveUp($em, $epic);
+        $this->storeStuck($em, $epic);
         $em->clear();
 
         $client->loginUser($owner);
@@ -616,6 +618,12 @@ final class ShowCardPlacementControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('data-lane', (string) $client->getResponse()->getContent());
+    }
+
+    private function storeStuck(EntityManagerInterface $em, Card $card): void
+    {
+        $card->markers = [['key' => 'run_stopped', 'kind' => 'stuck', 'label' => 'marker.run_stopped', 'remedy' => 'marker.run_stopped.remedy', 'params' => [], 'since' => '2026-10-02T09:00:00+00:00']];
+        $em->flush();
     }
 
     private function gaveUp(EntityManagerInterface $em, Card $card): WorkerRun

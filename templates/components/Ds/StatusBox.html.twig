@@ -1,6 +1,6 @@
 {#
   Props:  @comment-budget-ignore
-    kind         string   stuck, needs-you, working or waiting. Sets the colour and the icon of the chip.
+    kind         string   stuck, needs-you, working, waiting or chip. Sets the colour and the icon of the chip.
     title        string   Translated heading of the box.
     chip         string   Translated chip text, the state and how long it has held.
     lead         string   Translated sentence that says why the card has the state.
@@ -10,8 +10,8 @@
   Any other attribute, class included, is passed to the element.
 #}
 {% props kind, title, chip, lead, fields = [], others = [], othersTitle = null %}
-{% set icons = {'stuck': 'lucide:circle-alert', 'needs-you': 'lucide:circle-user', 'working': 'lucide:loader-circle', 'waiting': 'lucide:circle-pause'} %}
-{% set chips = {'stuck': 'failed', 'needs-you': 'pending', 'working': 'active', 'waiting': 'neutral'} %}
+{% set icons = {'stuck': 'lucide:circle-alert', 'needs-you': 'lucide:circle-user', 'working': 'lucide:loader-circle', 'waiting': 'lucide:hourglass', 'chip': 'lucide:circle-dashed'} %}
+{% set chips = {'stuck': 'failed', 'needs-you': 'pending', 'working': 'active', 'waiting': 'neutral', 'chip': 'neutral'} %}
 <section{{ attributes.defaults({class: 'lp-status-box lp-status-box--' ~ kind}) }}>
     <div class="lp-status-box__head">
         <h2 class="lp-status-box__title">{{ title }}</h2>

@@ -589,27 +589,6 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * The cards among these ids that have a child in a column that is not terminal, in one query.
-     *
-     * @param list<string> $ids
-     *
-     * @return list<string>
-     */
-    public function findIdsWithOpenChildren(array $ids): array
-    {
-        if ([] === $ids) {
-            return [];
-        }
-
-        return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            'SELECT DISTINCT c.parent_card_id FROM board_cards c JOIN board_columns k ON k.id = c.column_id
-             WHERE c.parent_card_id IN (:ids) AND k.terminal = false',
-            ['ids' => $ids],
-            ['ids' => ArrayParameterType::STRING],
-        )));
-    }
-
-    /**
      * The parents of these cards and the cards they block, each once, without the given ids.
      *
      * @param list<string> $cardIds
@@ -1676,5 +1655,17 @@ class CardRepository extends ServiceEntityRepository
             ['now' => $now, 'limit' => $limit],
             ['now' => Types::DATETIME_IMMUTABLE, 'limit' => ParameterType::INTEGER],
         ));
+    }
+
+    /** Makes the markers of every open card of the project due now, so the next minute task stores them again. */
+    public function makeMarkersDue(Project $project, \DateTimeImmutable $now): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE board_cards SET markers_due_at = :now
+             WHERE project_id = :project AND markers IS NOT NULL
+               AND column_id IN (SELECT id FROM board_columns WHERE project_id = :project AND terminal = false)',
+            ['now' => $now, 'project' => $project->requireId()->toRfc4122()],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        );
     }
 }

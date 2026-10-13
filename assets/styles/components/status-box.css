@@ -67,6 +67,9 @@
     .lp-status-box--waiting {
         @apply bg-tint border-line;
     }
+    .lp-status-box--chip {
+        @apply bg-tint border-line;
+    }
     .lp-status-box__other--stuck .lp-status-box__dot {
         @apply bg-status-danger;
     }
@@ -77,6 +80,9 @@
         @apply bg-status-active;
     }
     .lp-status-box__other--waiting .lp-status-box__dot {
+        @apply bg-fg-faint;
+    }
+    .lp-status-box__other--chip .lp-status-box__dot {
         @apply bg-fg-faint;
     }
 }
