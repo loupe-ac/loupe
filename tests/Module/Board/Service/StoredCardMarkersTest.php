@@ -10,6 +10,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\StoredMarker;
 use App\Tests\Support\MarkerMother;
 use PHPUnit\Framework\TestCase;
 
@@ -75,11 +76,14 @@ final class StoredCardMarkersTest extends TestCase
             MarkerMother::markers(MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 6]))->digest(),
             MarkerMother::markers(MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5], '2026-10-02 10:00:00'))->digest(),
             MarkerMother::markers(MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5]), MarkerMother::marker('unmanaged', MarkerKind::Chip))->digest(),
+            MarkerMother::markers(MarkerMother::marker('checks_failed', MarkerKind::NeedsYou, ['%number%' => 5]))->digest(),
+            MarkerMother::markers(MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5], remedy: 'marker.other.remedy'))->digest(),
+            MarkerMother::markers(new StoredMarker('checks_failed', MarkerKind::Stuck, 'marker.other', 'marker.checks_failed.remedy', ['%number%' => 5], new \DateTimeImmutable('2026-10-02 09:45:00')))->digest(),
         ];
 
         self::assertMatchesRegularExpression('/^[0-9a-f]{12}$/', $digests[0]);
         self::assertSame($digests[0], MarkerMother::markers(MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5]))->digest());
-        self::assertCount(5, array_unique($digests));
+        self::assertCount(8, array_unique($digests));
     }
 
     public function test_the_digest_ignores_the_order_of_the_params(): void

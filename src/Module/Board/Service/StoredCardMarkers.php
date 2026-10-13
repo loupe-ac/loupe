@@ -58,7 +58,7 @@ final readonly class StoredCardMarkers
             $params = $marker->params;
             ksort($params);
 
-            return [$marker->key, $params, $marker->since->format('U')];
+            return [$marker->key, $marker->kind->value, $marker->label, $marker->remedy, $params, $marker->since->format('U')];
         }, $this->markers), \JSON_THROW_ON_ERROR)), 0, 12);
     }
 }
