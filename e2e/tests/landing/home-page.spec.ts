@@ -92,6 +92,17 @@ test.describe('home page', () => {
         await expect(explainer.locator('.chap')).toHaveCount(0);
         await expect(explainer.locator('details')).toHaveCount(0);
 
+        const transcript = explainer.getByRole('region', {
+            name: 'Transcript',
+        });
+        await expect(transcript).toContainText(/Loupe merges it on its own/);
+        const story = (await transcript.textContent()) ?? '';
+        const steps = ['Agent review.', 'Site review.', 'Merge.'].map((step) =>
+            story.indexOf(step),
+        );
+        expect(steps.every((index) => index >= 0)).toBe(true);
+        expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+
         await play.click();
         await expect(play).toBeHidden();
         await expect

@@ -317,6 +317,7 @@ body{background:var(--bg); color:var(--fg); font-family:var(--f-body); font-size
 .segs span i{position:absolute; inset:0; background:var(--accent); transform-origin:0 50%; transform:scaleX(0)}
 .seek input{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; margin:0}
 .seek:focus-within .segs{outline:2px solid var(--accent); outline-offset:4px; border-radius:4px}
+.transcript{position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
 .knob{position:absolute; top:50%; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%; background:#fff; pointer-events:none}
 
 /* ─── stage: fixed Loupe palette ─── */
@@ -567,6 +568,21 @@ body{background:var(--bg); color:var(--fg); font-family:var(--f-body); font-size
       <div class="seek"><div class="segs" id="segs"></div><div class="knob" id="knob"></div><input type="range" id="seek" min="0" max="112000" step="10" value="0" aria-label="Seek"></div>
     </div>
   </div>
+
+  <section class="transcript" id="transcript" aria-label="Transcript">
+    <p><strong>0:00 Intro.</strong> Terminal windows pile up faster and faster until the screen is buried, one per agent, each waiting on a person: an edit to approve, a plan to review, a conflict to resolve. It starts with one agent. Then five. Then a dozen. Every one of them is waiting on you. Keeping them all moving becomes your full-time job. Loupe lets you focus on the important stuff.</p>
+    <p>The example project is Driftwood, a made-up cabin-rental site.</p>
+    <p><strong>0:10 The board.</strong> On the Driftwood board, card #42 “Show the nightly price on search cards” sits in Backlog. It is dragged to Product design.</p>
+    <p><strong>0:14 Product design.</strong> The bridge opens a terminal with Claude Code running /loupe:product-design 42. Where the price sits on the card is a look-and-feel choice, so Claude offers a Claude Design session and builds two mockups: a price badge on the photo, and a price line under the name. In Claude Design the owner comments on option 1: show the total for the dates too. Claude reads the comment back, confirms the pick, writes the product document and links it to the card.</p>
+    <p><strong>0:35 You review.</strong> The document opens rendered. The reviewer selects the R2 sentence, comments that no scenario covers a search with no dates, and finishes the review with Request changes and a note.</p>
+    <p><strong>0:53 The agent revises.</strong> The loupe bridge runs a fix-round worker. Version 2 adds a scenario for a search with no dates and answers the comment. The reviewer approves it.</p>
+    <p><strong>1:05 The build.</strong> The approval moves the card to Tech design, where a worker writes the tech design. After its approval, an implementation worker builds the change, opens pull request 641 and moves the card to In review.</p>
+    <p><strong>1:14 Agent review.</strong> On GitHub, the Loupe agent review approves pull request 641.</p>
+    <p><strong>1:16 Site review.</strong> On the preview of pull request 641, the reviewer opens the Review widget, picks a price badge and notes that it covers the Guest favourite label. The note lands on card #42 as feedback, and a fix worker moves the badge to the bottom of the photo.</p>
+    <p><strong>1:29 Merge.</strong> The checks pass and the agent review approves the fix, so Loupe merges it on its own, and card #42 moves to Done by itself.</p>
+    <p><strong>1:34 Shipped.</strong> On driftwood.cabins, every search card shows its price, and the Guest favourite label stays visible.</p>
+    <p><strong>1:43</strong> Loupe, the control plane for your agent loop.</p>
+  </section>
 </div>
 
 <script type="text/plain" id="app-css">/*! tailwindcss v4.3.0 | MIT License | https://tailwindcss.com */
