@@ -286,8 +286,8 @@ final class ShowWorkshopControllerTest extends WebTestCase
 
         $inbox = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
         self::assertResponseIsSuccessful();
-        // The inbox lists items outside an ask by number.
-        self::assertSame(['agent', 'document', 'pull-request'], $inbox->filter('.lp-inbox-request [data-subject]')->extract(['data-subject']));
+        // The inbox lists items outside an ask as rows of their own, oldest first.
+        self::assertSame(['item-1', 'item-2', 'item-3'], $inbox->filter('a.lp-inbox-request')->extract(['data-inbox-request']));
     }
 
     public function test_attention_links_the_oldest_open_items_in_this_project(): void
@@ -322,7 +322,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         // A question or a to-do shows the agent that asked it.
         self::assertSame(array_fill(0, 6, 'agent'), $crawler->filter('[data-workshop-attention] .lp-workshop-attention__icon')->extract(['data-subject']));
         $links = $crawler->filter('[data-workshop-attention]')->extract(['href']);
-        self::assertSame(array_map(static fn (int $number): string => '/projects/'.$project->id.'/inbox#inbox-item-'.$number, [1, 2, 3, 4, 5, 6]), $links);
+        self::assertSame(array_map(static fn (int $number): string => '/projects/'.$project->id.'/inbox?item='.$number, [1, 2, 3, 4, 5, 6]), $links);
         $client->click($crawler->filter('[data-workshop-attention]')->first()->link());
         self::assertResponseIsSuccessful();
         // A one-item ask shows its title once, as the ask's heading.

@@ -65,6 +65,18 @@ final readonly class ProjectTopicBuilder
         return $this->projectIdFrom($topic, '/activity');
     }
 
+    /** The topic the inbox pages of a project listen on. The message names no ask text. */
+    public function forInbox(Uuid $projectId): string
+    {
+        return rtrim($this->appUrl, '/').'/projects/'.$projectId.'/inbox';
+    }
+
+    /** The project a forInbox() topic names, or null for any other string. */
+    public function projectIdFromInboxTopic(string $topic): ?Uuid
+    {
+        return $this->projectIdFrom($topic, '/inbox');
+    }
+
     /** The topic the review page of one document listens on. */
     public function forDocument(Uuid $projectId, Uuid $documentId): string
     {

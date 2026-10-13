@@ -20,7 +20,7 @@
         {% endfor %}
         {% if inbox.hasMoreClosedItems %}
         {# The completed queue of the inbox page, which is where a closed item lives. #}
-        <a class="lp-inbox-linked__all" href="{{ path('app_project_inbox', {id: inbox.project.id, queue: 'completed'}) }}" data-inbox-linked-more>{{ 'inbox.linked.closed_more'|trans({'%count%': inbox.closedTotal}) }}</a>
+        <a class="lp-inbox-linked__all" href="{{ path('app_project_inbox', {id: inbox.project.id, side: 'closed'}) }}" data-inbox-linked-more>{{ 'inbox.linked.closed_more'|trans({'%count%': inbox.closedTotal}) }}</a>
         {% endif %}
     </div>
     {% endif %}
