@@ -1,0 +1,17 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the SettingsLayout for the styleguide, so it is intentionally untranslated. #}
+<twig:Ds:SettingsLayout
+    title="Project settings"
+    description="Rename the project, or change how it works."
+    navLabel="Project settings"
+    :items="[
+        {label: 'General', url: '#', icon: 'lucide:settings', active: true},
+        {label: 'Columns', url: '#', icon: 'lucide:square-kanban', active: false},
+        {label: 'Automation', url: '#', icon: 'lucide:bot', active: false},
+    ]"
+>
+    <section class="lp-settings-panel-card">
+        <h2 class="lp-section-title">General</h2>
+        <p class="lp-connect-hint">The name shows in the sidebar and in the browser tab.</p>
+    </section>
+</twig:Ds:SettingsLayout>
