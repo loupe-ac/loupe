@@ -7,8 +7,8 @@ import type { ReactNode } from 'react';
  * @startingPoint section="{{ section }}" subtitle="The page frame with sidebar and top bar" viewport="900x520"
  */
 export interface {{ entry.name }}Props {
-    /** The current project, shown in the project switcher. */
-    projectName?: string;
+    /** The current project, shown in the project switcher. Pass null for a page with no project, such as the account page: the switcher, the project nav, Project settings and New work then stay hidden. */
+    projectName?: string | null;
     /** The nav link that is current. */
     active?:
         | 'workshop'
@@ -31,7 +31,7 @@ export interface {{ entry.name }}Props {
     crumbs?: Array<string | { label: string; href: string }>;
     /** A short line after the breadcrumb, such as a count. */
     meta?: ReactNode;
-    /** Page actions in the top bar, before the New work button. */
+    /** Page actions in the top bar, before the global actions. */
     actions?: ReactNode;
     /** The signed-in user, shown in the account row. */
     userName?: string;

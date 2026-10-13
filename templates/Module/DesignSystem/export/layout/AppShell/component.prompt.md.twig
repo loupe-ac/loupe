@@ -12,7 +12,9 @@ Loupe's app shell. {{ entry.summary }}
 </{{ entry.name }}>
 ```
 
-Wrap every signed-in page in it. The sidebar and the top bar are part of the shell, so do not draw your own. The page content goes in as the children. Pass `meta` for a short line after the breadcrumb and `actions` for page buttons in the top bar. The New work button is always there.
+Wrap every signed-in page in it. The sidebar and the top bar are part of the shell, so do not draw your own. The page content goes in as the children. Pass `meta` for a short line after the breadcrumb and `actions` for page buttons in the top bar. The New work button is there on every project page.
+
+Pass `projectName={null}` for a page that belongs to no project, such as the account page or the project list. The shell then hides the project switcher, the Workspace and Your crew links, Project settings and New work, as the app does.
 
 `active` takes the name of a nav link. The wrapper holds the same links as the app, with the same labels. The component emits the real `{{ entry.rootClass }}`, `lp-sidebar`, `lp-topbar` and `lp-main` classes of the app.
 {% endautoescape %}

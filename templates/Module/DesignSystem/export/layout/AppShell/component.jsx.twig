@@ -119,7 +119,7 @@ const AGENT_LINKS = [
 ];
 
 const SECONDARY_LINKS = [
-    { key: 'project_settings', label: 'Project settings', icon: 'settings' },
+    { key: 'project_settings', label: 'Project settings', icon: 'settings', project: true },
     { key: 'billing', label: 'Billing', icon: 'credit-card' },
     { key: 'account_inboxes', label: 'All inboxes', icon: 'mails' },
     { key: 'account', label: 'Account', icon: 'user' },
@@ -159,6 +159,8 @@ export function {{ entry.name }}({ projectName = 'Project', active, crumbs = [],
     const initial = (text) => text.slice(0, 1).toUpperCase();
     const trail = crumbs.map((crumb) => (typeof crumb === 'string' ? { label: crumb, href: '#' } : crumb));
     const here = trail.pop();
+    const hasProject = projectName !== null;
+    const secondaryLinks = SECONDARY_LINKS.filter((link) => hasProject || !link.project);
 
     return (
         <div {...rest} className={className}>
@@ -170,52 +172,56 @@ export function {{ entry.name }}({ projectName = 'Project', active, crumbs = [],
                     <span className="lp-sidebar__brand-mark" aria-hidden="true"></span>
                     <span>loupe</span>
                 </a>
-                <div className="lp-switcher">
-                    <button
-                        type="button"
-                        className="lp-sidebar__switcher"
-                        aria-expanded={switcherOpen}
-                        aria-controls="project-switcher-panel"
-                        aria-label="Switch project"
-                        onClick={() => setSwitcherOpen(!switcherOpen)}
-                    >
-                        <span className="lp-sidebar__switcher-avatar">{initial(projectName)}</span>
-                        <span className="lp-sidebar__switcher-text">
-                            <span className="lp-sidebar__switcher-label">Project</span>
-                            <span className="lp-sidebar__switcher-name">{projectName}</span>
-                        </span>
-                        <Icon name="arrow-down" className="lp-sidebar__switcher-caret" />
-                    </button>
-                    <div className="lp-switcher__panel" id="project-switcher-panel" hidden={!switcherOpen}>
-                        <a href="#" className="lp-switcher__item" aria-current="true">
-                            <span className="lp-switcher__item-avatar">{initial(projectName)}</span>
-                            <span className="lp-switcher__item-text">
-                                <span className="lp-switcher__item-name">{projectName}</span>
-                                <span className="lp-switcher__item-count">{documentCount === 1 ? '1 document' : documentCount + ' documents'}</span>
-                            </span>
-                            <Icon name="check" className="lp-switcher__item-check" />
-                        </a>
-                        <a href="#" className="lp-switcher__all">
-                            <span className="lp-switcher__all-glyph">
-                                <Icon name="plus" />
-                            </span>
-                            All projects
-                        </a>
-                    </div>
-                </div>
-                <nav className="lp-sidebar__nav">
-                    <span className="lp-sidebar__nav-label">Workspace</span>
-                    {WORKSPACE_LINKS.map((link) => (
-                        <NavLink key={link.key} link={link} active={active} counts={counts} />
-                    ))}
-                    <span className="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">Your crew</span>
-                    {AGENT_LINKS.map((link) => (
-                        <NavLink key={link.key} link={link} active={active} counts={counts} />
-                    ))}
-                </nav>
+                {hasProject && (
+                    <>
+                        <div className="lp-switcher">
+                            <button
+                                type="button"
+                                className="lp-sidebar__switcher"
+                                aria-expanded={switcherOpen}
+                                aria-controls="project-switcher-panel"
+                                aria-label="Switch project"
+                                onClick={() => setSwitcherOpen(!switcherOpen)}
+                            >
+                                <span className="lp-sidebar__switcher-avatar">{initial(projectName)}</span>
+                                <span className="lp-sidebar__switcher-text">
+                                    <span className="lp-sidebar__switcher-label">Project</span>
+                                    <span className="lp-sidebar__switcher-name">{projectName}</span>
+                                </span>
+                                <Icon name="arrow-down" className="lp-sidebar__switcher-caret" />
+                            </button>
+                            <div className="lp-switcher__panel" id="project-switcher-panel" hidden={!switcherOpen}>
+                                <a href="#" className="lp-switcher__item" aria-current="true">
+                                    <span className="lp-switcher__item-avatar">{initial(projectName)}</span>
+                                    <span className="lp-switcher__item-text">
+                                        <span className="lp-switcher__item-name">{projectName}</span>
+                                        <span className="lp-switcher__item-count">{documentCount === 1 ? '1 document' : documentCount + ' documents'}</span>
+                                    </span>
+                                    <Icon name="check" className="lp-switcher__item-check" />
+                                </a>
+                                <a href="#" className="lp-switcher__all">
+                                    <span className="lp-switcher__all-glyph">
+                                        <Icon name="plus" />
+                                    </span>
+                                    All projects
+                                </a>
+                            </div>
+                        </div>
+                        <nav className="lp-sidebar__nav">
+                            <span className="lp-sidebar__nav-label">Workspace</span>
+                            {WORKSPACE_LINKS.map((link) => (
+                                <NavLink key={link.key} link={link} active={active} counts={counts} />
+                            ))}
+                            <span className="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">Your crew</span>
+                            {AGENT_LINKS.map((link) => (
+                                <NavLink key={link.key} link={link} active={active} counts={counts} />
+                            ))}
+                        </nav>
+                    </>
+                )}
                 <div className="lp-sidebar__spacer"></div>
                 <nav className="lp-sidebar__nav lp-sidebar__nav--secondary">
-                    {SECONDARY_LINKS.map((link) => (
+                    {secondaryLinks.map((link) => (
                         <NavLink key={link.key} link={link} active={active} counts={counts} />
                     ))}
                 </nav>
@@ -251,10 +257,12 @@ export function {{ entry.name }}({ projectName = 'Project', active, crumbs = [],
                     </div>
                     {actions}
                     <div className="lp-topbar__global-actions" aria-label="Global tools">
-                        <a className="lp-btn lp-btn--primary lp-topbar__new-work" href="#" aria-label="New work">
-                            <Icon name="plus" className="w-4 h-4 shrink-0" />
-                            <span>New work</span>
-                        </a>
+                        {hasProject && (
+                            <a className="lp-btn lp-btn--primary lp-topbar__new-work" href="#" aria-label="New work">
+                                <Icon name="plus" className="w-4 h-4 shrink-0" />
+                                <span>New work</span>
+                            </a>
+                        )}
                     </div>
                 </header>
                 <main id="main-content" className="lp-main" tabIndex={-1}>

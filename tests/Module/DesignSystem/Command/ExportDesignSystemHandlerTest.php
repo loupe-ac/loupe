@@ -314,6 +314,96 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
     }
 
+    public function test_the_app_shell_wrapper_hides_what_the_base_template_hides_with_no_project(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        $gated = $this->projectOnlyBlocks($base);
+        $ungated = str_replace($gated, '', $base);
+        $guarded = $this->hasProjectBlocks($jsx);
+        $unguarded = str_replace($guarded, '', $jsx);
+
+        $classPattern = '/lp-(?:sidebar|switcher|topbar)[a-z_-]*/';
+        preg_match_all($classPattern, implode("\n", $gated), $gatedClasses);
+        preg_match_all($classPattern, $ungated, $ungatedClasses);
+        // NavLink draws the per-link classes, and the nav-link check below covers which links it draws.
+        if (1 !== preg_match('/function NavLink\(.*?\n}\n/s', $jsx, $navLink)) {
+            self::fail('The wrapper has no NavLink function.');
+        }
+        preg_match_all($classPattern, $navLink[0], $navLinkClasses);
+        $projectOnlyClasses = array_diff(array_unique($gatedClasses[0]), $ungatedClasses[0], $navLinkClasses[0]);
+
+        self::assertContains('lp-switcher', $projectOnlyClasses);
+        self::assertContains('lp-topbar__new-work', $projectOnlyClasses);
+        foreach ($projectOnlyClasses as $class) {
+            self::assertStringContainsString($class, implode("\n", $guarded), sprintf('base.html.twig shows %s only with a project, and the wrapper does not guard it.', $class));
+            self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $unguarded, sprintf('The wrapper draws %s outside a project guard.', $class));
+        }
+
+        preg_match_all('/nav\.link\.([a-z_]+)/', implode("\n", $gated), $gatedLinks);
+        self::assertStringContainsString('WORKSPACE_LINKS.map', implode("\n", $guarded));
+        self::assertStringContainsString('AGENT_LINKS.map', implode("\n", $guarded));
+        if (1 !== preg_match('/const WORKSPACE_LINKS = \[(.*?)\];/s', $jsx, $workspace)) {
+            self::fail('The wrapper has no WORKSPACE_LINKS list.');
+        }
+        if (1 !== preg_match('/const AGENT_LINKS = \[(.*?)\];/s', $jsx, $agents)) {
+            self::fail('The wrapper has no AGENT_LINKS list.');
+        }
+        preg_match_all("/key: '([a-z_]+)'/", $workspace[1].$agents[1], $listed);
+        preg_match_all("/key: '([a-z_]+)'[^}]*project: true/", $jsx, $flagged);
+        $jsxProjectOnly = array_merge($listed[1], $flagged[1]);
+        sort($jsxProjectOnly);
+        $baseProjectOnly = array_values(array_unique($gatedLinks[1]));
+        sort($baseProjectOnly);
+
+        self::assertSame($baseProjectOnly, $jsxProjectOnly);
+        self::assertStringContainsString('hasProject || !link.project', $jsx);
+        self::assertStringContainsString('const hasProject = projectName !== null;', $jsx);
+    }
+
+    /** @return list<string> the body of each `{% if project %}` block, nested blocks included */
+    private function projectOnlyBlocks(string $twig): array
+    {
+        $blocks = [];
+        preg_match_all('/\{%\s*if project\s*%\}/', $twig, $starts, \PREG_OFFSET_CAPTURE);
+        foreach ($starts[0] as [$tag, $offset]) {
+            preg_match_all('/\{%\s*(if|endif)\b[^%]*%\}/', $twig, $tags, \PREG_OFFSET_CAPTURE | \PREG_SET_ORDER, $offset + \strlen($tag));
+            $depth = 1;
+            foreach ($tags as $match) {
+                $depth += 'if' === $match[1][0] ? 1 : -1;
+                if (0 === $depth) {
+                    $blocks[] = substr($twig, $offset, $match[0][1] - $offset);
+                    break;
+                }
+            }
+        }
+
+        return $blocks;
+    }
+
+    /** @return list<string> the body of each `{hasProject && (…)}` block */
+    private function hasProjectBlocks(string $jsx): array
+    {
+        $blocks = [];
+        $offset = 0;
+        while (false !== ($start = strpos($jsx, '{hasProject && (', $offset))) {
+            $depth = 0;
+            for ($i = $start + \strlen('{hasProject && '); $i < \strlen($jsx); ++$i) {
+                $depth += match ($jsx[$i]) {
+                    '(' => 1, ')' => -1, default => 0,
+                };
+                if (0 === $depth) {
+                    break;
+                }
+            }
+            $blocks[] = substr($jsx, $start, $i - $start + 1);
+            $offset = $i;
+        }
+
+        return $blocks;
+    }
+
     public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void
     {
         $directory = sys_get_temp_dir().'/ds-export-layout-'.bin2hex(random_bytes(4));

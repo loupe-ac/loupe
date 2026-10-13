@@ -144,9 +144,9 @@ A page part is the frame of a page. It sits in the `layout` group of the catalog
 
 `templates/base.html.twig` draws the app shell. It stays there, because the sidebar reads the current user, the current project, the feature flags and the routes. The CSS lives in `assets/styles/components/shell.css`, which `app.css` and `design-system.css` both import.
 
-The export wrapper in `templates/Module/DesignSystem/export/layout/AppShell/` is a second copy of that markup. It holds the nav links with their English labels and draws the icons as inline SVG. `ExportDesignSystemHandlerTest` keeps the copy in step: every shell class and every `nav.link.*` key of `base.html.twig` must appear in the wrapper. Change both files when you change the shell markup.
+The export wrapper in `templates/Module/DesignSystem/export/layout/AppShell/` is a second copy of that markup. It holds the nav links with their English labels and draws the icons as inline SVG. `ExportDesignSystemHandlerTest` keeps the copy in step: every shell class and every `nav.link.*` key of `base.html.twig` must appear in the wrapper. The wrapper must also hide each part that `base.html.twig` shows only inside `{% if project %}`. Change both files when you change the shell markup.
 
-The wrapper takes these props: `projectName`, `active` (the name of the current nav link), `crumbs`, `meta`, `actions`, `userName`, `counts` and `documentCount`. The page goes in as the children:
+The wrapper takes these props: `projectName`, `active` (the name of the current nav link), `crumbs`, `meta`, `actions`, `userName`, `counts` and `documentCount`. Pass `projectName={null}` for a page with no project. The wrapper then hides the project switcher, the project nav, Project settings and New work. The page goes in as the children:
 
 ```jsx
 <AppShell projectName="Acme" active="board" crumbs={['Acme', 'Board']} userName="riley@example.com">
