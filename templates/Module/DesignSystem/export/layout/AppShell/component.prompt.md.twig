@@ -16,6 +16,8 @@ Wrap every signed-in page in it. The sidebar and the top bar are part of the she
 
 `projectName` is the project of the sidebar. On a page outside a project, such as the account page, the app keeps the last project you visited in the sidebar. Pass `projectPage={false}` for such a page: the sidebar keeps the project, and the shell hides New work. Pass `projectName={null}` when the user has visited no project. The shell then also hides the project switcher, the Workspace and Your crew links and Project settings, as the app does.
 
+Pass `projects` to list the projects of the switcher, such as `projects={[{ name: 'Acme', documentCount: 12 }, { name: 'Globex', documentCount: 3 }]}`. The entry whose name is `projectName` gets the check mark. With no `projects`, the switcher lists `projectName` alone.
+
 The app hides some links behind a feature flag or a role, and so does the shell. Pass `features={{ '{{' }} inbox: true {{ '}}' }}` to show Needs you and All inboxes, `artifacts: true` to show Artifacts, and `billing: true` to show Billing. Pass `admin` to show the Admin link. Every flag is off by default, as on a fresh install.
 
 `active` takes the name of a nav link. The wrapper holds the same links as the app, with the same labels. The component emits the real `{{ entry.rootClass }}`, `lp-sidebar`, `lp-topbar` and `lp-main` classes of the app.

@@ -147,7 +147,7 @@ function NavLink({ link, active, counts }) {
     );
 }
 
-export function {{ entry.name }}({ projectName = 'Project', projectPage = true, active, crumbs = [], meta, actions, userName = 'user', counts = {}, documentCount = 0, features = {}, admin = false, className: extra, children, ...rest }) {
+export function {{ entry.name }}({ projectName = 'Project', projectPage = true, active, crumbs = [], meta, actions, userName = 'user', counts = {}, projects, features = {}, admin = false, className: extra, children, ...rest }) {
     const [drawerOpen, setDrawerOpen] = React.useState(false);
     const [switcherOpen, setSwitcherOpen] = React.useState(false);
     const classes = ['lp-app'];
@@ -161,6 +161,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
     const here = trail.pop();
     const hasProject = projectName !== null;
     const onProjectPage = hasProject && projectPage;
+    const switcherProjects = projects ?? [{ name: projectName }];
     const shown = (link) => (hasProject || !link.project) && (!link.feature || features[link.feature] === true) && (!link.admin || admin);
 
     return (
@@ -192,14 +193,21 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                                 <Icon name="arrow-down" className="lp-sidebar__switcher-caret" />
                             </button>
                             <div className="lp-switcher__panel" id="project-switcher-panel" hidden={!switcherOpen}>
-                                <a href="#" className="lp-switcher__item" aria-current="true">
-                                    <span className="lp-switcher__item-avatar">{initial(projectName)}</span>
-                                    <span className="lp-switcher__item-text">
-                                        <span className="lp-switcher__item-name">{projectName}</span>
-                                        <span className="lp-switcher__item-count">{documentCount === 1 ? '1 document' : documentCount + ' documents'}</span>
-                                    </span>
-                                    <Icon name="check" className="lp-switcher__item-check" />
-                                </a>
+                                {switcherProjects.map((project) => {
+                                    const current = project.name === projectName;
+                                    const documentCount = project.documentCount ?? 0;
+
+                                    return (
+                                        <a key={project.name} href="#" className="lp-switcher__item" aria-current={current ? 'true' : undefined}>
+                                            <span className="lp-switcher__item-avatar">{initial(project.name)}</span>
+                                            <span className="lp-switcher__item-text">
+                                                <span className="lp-switcher__item-name">{project.name}</span>
+                                                <span className="lp-switcher__item-count">{documentCount === 1 ? '1 document' : documentCount + ' documents'}</span>
+                                            </span>
+                                            {current && <Icon name="check" className="lp-switcher__item-check" />}
+                                        </a>
+                                    );
+                                })}
                                 <a href="#" className="lp-switcher__all">
                                     <span className="lp-switcher__all-glyph">
                                         <Icon name="plus" />

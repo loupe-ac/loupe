@@ -281,6 +281,26 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<div {...rest} className={className}>', $jsx);
     }
 
+    public function test_the_app_shell_switcher_lists_every_project_and_marks_the_current_one(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+
+        self::assertStringContainsString('{% for switcherProject in switcherProjects %}', $base);
+        self::assertStringContainsString('{% if currentProject %} aria-current="true"{% endif %}', $base);
+        self::assertStringContainsString('{% if currentProject %}<twig:ux:icon name="lucide:check"', $base);
+
+        self::assertStringContainsString('switcherProjects.map((project) => {', $jsx);
+        self::assertStringContainsString('const current = project.name === projectName;', $jsx);
+        self::assertStringContainsString("aria-current={current ? 'true' : undefined}", $jsx);
+        self::assertStringContainsString('{current && <Icon name="check" className="lp-switcher__item-check" />}', $jsx);
+        self::assertSame(1, substr_count($jsx, 'lp-switcher__item-check'));
+        self::assertStringContainsString('projects?: Array<{ name: string; documentCount?: number }>;', $types);
+        self::assertStringContainsString("projects={[{ name: 'Acme', documentCount: 12 }, { name: 'Globex', documentCount: 3 }]}", $card);
+    }
+
     public function test_the_stylesheet_holds_the_real_shell_rules(): void
     {
         $css = (string) file_get_contents($this->directory.'/styles.css');
