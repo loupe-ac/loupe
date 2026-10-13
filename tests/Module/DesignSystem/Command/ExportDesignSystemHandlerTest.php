@@ -270,6 +270,11 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('className="lp-auth"', $jsx);
         self::assertStringContainsString("'lp-auth__card--wide'", $jsx);
         self::assertStringContainsString('<span className="lp-brand__word">loupe</span>', $jsx);
+        self::assertStringContainsString('footer = defaultFooter', $jsx);
+        self::assertStringContainsString('<span>© Geoffrey Bachelet</span>', $jsx);
+        foreach (['Docs', 'Privacy', 'Terms', 'AI Policy'] as $label) {
+            self::assertStringContainsString('className="lp-auth__footer-link">'.$label.'</a>', $jsx);
+        }
 
         $types = (string) file_get_contents($this->directory.'/components/layout/AuthShell.d.ts');
         self::assertStringContainsString('wide?: boolean;', $types);

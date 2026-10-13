@@ -9,5 +9,5 @@ Loupe's sign-in page frame. {{ entry.summary }}
 </{{ entry.name }}>
 ```
 
-Put the form fields inside as `FormField`, `Input` and `Button`, and give the submit button the class `{{ entry.rootClass }}__action` so it fills the card. The frame draws the brand mark itself. The component emits the real `{{ entry.rootClass }}` classes of the app.
+Put the form fields inside as `FormField`, `Input` and `Button`, and give the submit button the class `{{ entry.rootClass }}__action` so it fills the card. The frame draws the brand mark and the app footer itself. Pass `footer` to replace the footer. The component emits the real `{{ entry.rootClass }}` classes of the app.
 {% endautoescape %}

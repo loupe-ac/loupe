@@ -27,16 +27,7 @@
     </main>
 
     {# Footer #}
-    <div class="lp-auth__footer">
-        <span>{{ 'account.auth.footer.copyright'|trans }}</span>
-        <div class="lp-auth__footer-links">
-            {% include '_source_link.html.twig' with {class: 'lp-auth__footer-link gap-1.5'} only %}
-            <a href="{{ app_docs_url }}/" class="lp-auth__footer-link">{{ 'account.auth.footer.docs'|trans }}</a>
-            <a href="{{ path('app_privacy') }}" class="lp-auth__footer-link">{{ 'account.auth.footer.privacy'|trans }}</a>
-            <a href="{{ path('app_terms') }}" class="lp-auth__footer-link">{{ 'account.auth.footer.terms'|trans }}</a>
-            <a href="{{ path('app_ai_policy') }}" class="lp-auth__footer-link">{{ 'account.auth.footer.ai_policy'|trans }}</a>
-        </div>
-    </div>
+    {% include '@Account/_auth_footer.html.twig' with {} only %}
 
 </div>
 {% endblock %}

@@ -2,7 +2,20 @@
 {% set brand = 'nav.brand'|trans %}
 import React from 'react';
 
-export function {{ entry.name }}({ nav, footer, wide = false, className: extra, children, ...rest }) {
+const defaultFooter = (
+    <>
+        <span>{{ 'account.auth.footer.copyright'|trans }}</span>
+        <div className="{{ entry.rootClass }}__footer-links">
+            <a href="#" className="{{ entry.rootClass }}__footer-link">{{ 'footer.source.label'|trans }}</a>
+            <a href="#" className="{{ entry.rootClass }}__footer-link">{{ 'account.auth.footer.docs'|trans }}</a>
+            <a href="#" className="{{ entry.rootClass }}__footer-link">{{ 'account.auth.footer.privacy'|trans }}</a>
+            <a href="#" className="{{ entry.rootClass }}__footer-link">{{ 'account.auth.footer.terms'|trans }}</a>
+            <a href="#" className="{{ entry.rootClass }}__footer-link">{{ 'account.auth.footer.ai_policy'|trans }}</a>
+        </div>
+    </>
+);
+
+export function {{ entry.name }}({ nav, footer = defaultFooter, wide = false, className: extra, children, ...rest }) {
     const card = ['{{ entry.rootClass }}__card', wide ? '{{ entry.rootClass }}__card--wide' : '', extra].filter(Boolean).join(' ');
 
     return (

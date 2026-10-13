@@ -9245,6 +9245,14 @@
     .lp-styleguide__specimen .lp-dialog {
         @apply static w-full;
     }
+    /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
+    .lp-styleguide__specimen .lp-auth {
+        @apply relative w-full min-h-0 h-144 overflow-hidden rounded-lg border border-line bg-app;
+    }
+    .lp-styleguide__specimen .lp-auth__grid,
+    .lp-styleguide__specimen .lp-auth__glow {
+        @apply absolute;
+    }
     .lp-styleguide__tooltip-anchor {
         @apply relative inline-block pb-16 text-sm font-semibold text-ink;
     }

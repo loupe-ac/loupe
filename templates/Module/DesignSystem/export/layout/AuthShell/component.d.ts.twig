@@ -7,7 +7,7 @@
 export interface {{ entry.name }}Props {
     /** Content at the right of the topbar, such as a link to the other sign-in page. */
     nav?: React.ReactNode;
-    /** The footer row. Put the links in a `{{ entry.rootClass }}__footer-links` element. */
+    /** The footer row. Defaults to the app footer: the copyright and the legal links. Put custom links in a `{{ entry.rootClass }}__footer-links` element, or pass `null` to hide the row. */
     footer?: React.ReactNode;
     /** Widens the card for a page that needs more than a form column. */
     wide?: boolean;

@@ -138,7 +138,7 @@ A plain field uses `Input`, `Select` or `Textarea`. A Symfony widget in a custom
 
 ## The sign-in shell
 
-Every sign-in, sign-up, password reset, install and consent page extends `@Account/auth_base.html.twig`. The base draws the topbar with the brand mark, one centred card and the footer, through the classes of `assets/styles/components/auth-shell.css`. A page fills the blocks `title`, `topbar_nav` and `auth_body`. A page that needs a wider card sets `{% block auth_shell_class 'lp-auth__card lp-auth__card--wide' %}`.
+Every sign-in, sign-up, password reset, install and consent page extends `@Account/auth_base.html.twig`. The base draws the topbar with the brand mark, one centred card and the footer, through the classes of `assets/styles/components/auth-shell.css`. The footer lives in `@Account/_auth_footer.html.twig`, which the styleguide specimen also draws. A page fills the blocks `title`, `topbar_nav` and `auth_body`. A page that needs a wider card sets `{% block auth_shell_class 'lp-auth__card lp-auth__card--wide' %}`.
 
 The forms in the card use the app form parts, `Ds:FormField`, `Ds:Input`, `Ds:Label` and `Ds:Button`, like any other form. Give the submit button `class="lp-auth__action"` so it fills the card.
 
