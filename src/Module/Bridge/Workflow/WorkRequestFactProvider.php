@@ -30,10 +30,12 @@ final readonly class WorkRequestFactProvider extends BridgeFactProvider
     #[\Override]
     public function build(CardSnapshot $card): object
     {
-        return new WorkRequestFacts(array_values(array_unique(array_map(
-            static fn ($request): string => $request->kind,
-            $this->workRequests->findLiveForCard($card->id),
-        ))));
+        $since = [];
+        foreach ($this->workRequests->findLiveForCard($card->id) as $request) {
+            $since[$request->kind] ??= $request->createdAt;
+        }
+
+        return new WorkRequestFacts(array_map(strval(...), array_keys($since)), $since);
     }
 
     #[\Override]

@@ -17,13 +17,16 @@ final class DocumentsFactsTest extends TestCase
     #[DataProvider('factGroups')]
     public function test_a_swap_changes_only_the_named_document(string $class): void
     {
-        $facts = new $class([new DocumentFacts(['a'], 'in-review', 'one'), new DocumentFacts(['a'], 'draft', 'two')]);
+        $versionAt = new \DateTimeImmutable('2026-10-01 09:00:00');
+        $facts = new $class([new DocumentFacts(['a'], 'in-review', 'one', 'Design', $versionAt), new DocumentFacts(['a'], 'draft', 'two')]);
 
         $swapped = $facts->withDocumentStatus('one', 'approved');
 
         self::assertInstanceOf($class, $swapped);
         self::assertSame(['approved', 'draft'], array_map(static fn (DocumentFacts $document): string => $document->status, $swapped->documents));
         self::assertSame(['a'], $swapped->documents[0]->tags);
+        self::assertSame('Design', $swapped->documents[0]->title);
+        self::assertSame($versionAt, $swapped->documents[0]->versionAt);
         self::assertSame('in-review', $facts->documents[0]->status);
     }
 

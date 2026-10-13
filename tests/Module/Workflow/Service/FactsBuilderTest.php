@@ -297,9 +297,9 @@ final class FactsBuilderTest extends KernelTestCase
         $this->document($this->card($project, 'next'), DocumentStatus::Approved, ['elsewhere']);
 
         self::assertEquals([
-            new DocumentFacts(['product'], 'approved', $product),
-            new DocumentFacts(['design', 'tech'], 'changes-requested', $design),
-            new DocumentFacts([], 'in-review', $untagged),
+            new DocumentFacts(['product'], 'approved', $product, 'Design'),
+            new DocumentFacts(['design', 'tech'], 'changes-requested', $design, 'Design'),
+            new DocumentFacts([], 'in-review', $untagged, 'Design'),
         ], $this->facts($card)->get(DocumentsFacts::class)->documents);
     }
 
@@ -315,8 +315,8 @@ final class FactsBuilderTest extends KernelTestCase
         $own = $this->document($child, DocumentStatus::InReview, ['notes']);
 
         $childFacts = $this->facts($child);
-        self::assertEquals([new DocumentFacts(['tech-design'], 'approved', $design)], $childFacts->get(ParentDocumentsFacts::class)->documents);
-        self::assertEquals([new DocumentFacts(['notes'], 'in-review', $own)], $childFacts->get(DocumentsFacts::class)->documents);
+        self::assertEquals([new DocumentFacts(['tech-design'], 'approved', $design, 'Design')], $childFacts->get(ParentDocumentsFacts::class)->documents);
+        self::assertEquals([new DocumentFacts(['notes'], 'in-review', $own, 'Design')], $childFacts->get(DocumentsFacts::class)->documents);
         self::assertSame([], $this->facts($epic)->get(ParentDocumentsFacts::class)->documents);
     }
 

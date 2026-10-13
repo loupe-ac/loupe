@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Workflow\Condition;
 
+use App\Module\Board\Workflow\StuckDelayFacts;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Evidence;
@@ -16,7 +17,10 @@ use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\TimedCondition;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** The pull request is not stacked, and stayed ready to merge with nothing pending for at least the delay, in minutes. */
+/**
+ * The pull request is not stacked, and stayed ready to merge with nothing pending for at least the delay, in minutes.
+ * With no delay, it reads the stuck delay of the project.
+ */
 final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, TimedCondition
 {
     #[\Override]
@@ -34,20 +38,20 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     #[\Override]
     public static function parameters(): array
     {
-        return [new Parameter('delay', ParameterType::Int, min: 1)];
+        return [new Parameter('delay', ParameterType::Int, required: false, min: 1)];
     }
 
     #[\Override]
     public function reads(array $params): array
     {
-        return [EngineFact::PullRequest];
+        return [EngineFact::PullRequest, ...StuckDelayFacts::readsFor($params)];
     }
 
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
         $pullRequest = $facts->pullRequest;
-        $endsAt = null === $pullRequest ? null : self::delayEndsAt($pullRequest, $params);
+        $endsAt = null === $pullRequest ? null : self::delayEndsAt($facts, $pullRequest, $params);
 
         return null !== $pullRequest
             && null !== $endsAt
@@ -59,7 +63,12 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     #[\Override]
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
-        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_ready_for' : 'workflow.waiting.pr_ready_for', ['%delay%' => (string) ParameterValue::int($params, 'delay')]);
+        $delay = ParameterValue::optionalInt($params, 'delay');
+        if (null === $delay) {
+            return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_ready_for_stuck_delay' : 'workflow.waiting.pr_ready_for_stuck_delay');
+        }
+
+        return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_ready_for' : 'workflow.waiting.pr_ready_for', ['%delay%' => (string) $delay]);
     }
 
     #[\Override]
@@ -67,7 +76,7 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, self::delayEndsAt($pullRequest, $params));
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, self::delayEndsAt($facts, $pullRequest, $params));
     }
 
     #[\Override]
@@ -77,7 +86,7 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
         if (null === $pullRequest) {
             return null;
         }
-        $endsAt = self::delayEndsAt($pullRequest, $params);
+        $endsAt = self::delayEndsAt($facts, $pullRequest, $params);
         $times = array_filter(
             [null !== $endsAt && $endsAt > $facts->now ? $endsAt : null, $pullRequest->forgeRequestsEndAt($facts->now)],
             static fn (?\DateTimeImmutable $time): bool => null !== $time,
@@ -87,8 +96,8 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     }
 
     /** @param array<string, mixed> $params */
-    private static function delayEndsAt(PullRequestFacts $pullRequest, array $params): ?\DateTimeImmutable
+    private static function delayEndsAt(Facts $facts, PullRequestFacts $pullRequest, array $params): ?\DateTimeImmutable
     {
-        return $pullRequest->readySince?->add(new \DateInterval(\sprintf('PT%dM', ParameterValue::int($params, 'delay'))));
+        return $pullRequest->readySince?->add(new \DateInterval(\sprintf('PT%dM', StuckDelayFacts::minutesFor($facts, $params))));
     }
 }
