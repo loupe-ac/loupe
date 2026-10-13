@@ -102,20 +102,37 @@ final class CardGetToolTest extends KernelTestCase
         self::assertNull(($this->tool)($created['cardId'])['state']);
         $card = $this->em->find(Card::class, $created['cardId']);
         self::assertInstanceOf(Card::class, $card);
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $pause = $handler(new PauseCardCommand($card, 'review-failed', 'fix-on-review', PauseKind::Retries));
-        self::assertNotNull($pause);
+        $since = new \DateTimeImmutable('2026-10-02 09:00:00+00:00');
+        $card->markers = [
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => $since->format(\DATE_ATOM)],
+            ['key' => 'work_requested', 'kind' => 'working', 'label' => 'marker.work_requested', 'remedy' => 'marker.work_requested.remedy', 'params' => [], 'since' => $since->modify('+5 minutes')->format(\DATE_ATOM)],
+            ['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => $since->format(\DATE_ATOM)],
+        ];
+        $this->em->flush();
 
         $state = ($this->tool)($created['cardId'])['state'];
 
         self::assertSame([
             'kind' => 'stuck',
             'code' => 'paused',
-            'since' => $pause->createdAt->format(\DATE_ATOM),
+            'since' => $since->format(\DATE_ATOM),
             'reason' => 'Paused: review-failed.',
-            'others' => [],
+            'others' => [
+                ['kind' => 'working', 'code' => 'work_requested', 'reason' => 'Work waits for a bridge to take it.', 'since' => $since->modify('+5 minutes')->format(\DATE_ATOM)],
+            ],
         ], $state);
+    }
+
+    public function test_a_card_with_only_a_chip_reads_a_null_state(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('card-get-chip-state'));
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->em->find(Card::class, $created['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        $card->markers = [['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => '2026-10-02T09:00:00+00:00']];
+        $this->em->flush();
+
+        self::assertNull(($this->tool)($created['cardId'])['state']);
     }
 
     public function test_a_card_reads_the_stored_pull_request_state(): void

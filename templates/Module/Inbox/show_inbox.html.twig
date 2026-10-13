@@ -32,14 +32,14 @@
 {# A live refresh reads the view again for a page that already shows a status line, and the refresh leaves the flash for the next full visit. #}
 {% set liveRefresh = app.request.headers.has('X-Loupe-Live-Refresh') %}
 {% do mercure_subscribe(inbox_page_topic(inbox.project)) %}
-<div class="lp-workspace lp-split-page lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live">
+<twig:Ds:SplitView class="lp-workspace lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live inbox-navigation card-drawer">
     <h1 class="sr-only">{{ 'inbox.page.title'|trans }}</h1>
 
     {# The frame holds the whole view, so a row, the switch, a filter, the search and the pager each reload it and move the address on.
        A link or a form outside the view leaves the frame, which is why the frame targets the page. #}
     <turbo-frame id="inbox-view" class="lp-inbox-frame" target="_top" data-turbo-action="advance">
         <section class="lp-inbox-section lp-inbox-section--queue lp-split-region" data-inbox-section="{{ section }}">
-            <div class="lp-inbox-split" data-inbox-picked="{{ view.isPicked ? 'true' : 'false' }}" data-inbox-empty="{{ inbox.rows is empty ? 'true' : 'false' }}">
+            <div class="lp-split-view lp-inbox-split" data-inbox-picked="{{ view.isPicked ? 'true' : 'false' }}" data-inbox-empty="{{ inbox.rows is empty ? 'true' : 'false' }}">
                 <div class="lp-inbox-request-list lp-split-pane">
                     <div class="lp-inbox-list-head">
                         <twig:Ds:Tabs class="lp-inbox-switch" aria-label="{{ 'inbox.view.label'|trans }}">
@@ -108,7 +108,7 @@
                         {% endif %}
                     </div>
 
-                    <div class="lp-inbox-rows">
+                    <div class="lp-inbox-rows" data-inbox-scroll>
                         {% for row in inbox.rows %}
                             {% include '@Inbox/_inbox_request.html.twig' with {row: row, inbox: inbox} only %}
                         {% endfor %}
@@ -165,7 +165,7 @@
                         </a>
                     {% endif %}
                     {% if inbox.selected %}
-                        {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm} only %}
+                        {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm, cardDrawer: true} only %}
                     {% elseif inbox.pickedNothing %}
                         <twig:Ds:EmptyState :title="'inbox.pane.missing'|trans" data-inbox-pane-missing />
                     {% elseif view.isSearch %}
@@ -180,8 +180,14 @@
                         </twig:Ds:EmptyState>
                     {% endif %}
                 </div>
+                {# Covers the detail pane, outside its scroll, while a picked row loads, as the board's card drawer does. #}
+                <div class="lp-inbox-pane-loading" role="status">
+                    <twig:ux:icon name="lucide:loader-circle" class="w-5 h-5" />
+                    {{ 'inbox.pane.loading'|trans }}
+                </div>
             </div>
         </section>
     </turbo-frame>
-</div>
+    {% include '@Board/_card_drawer.html.twig' with {project: inbox.project} only %}
+</twig:Ds:SplitView>
 {% endblock %}

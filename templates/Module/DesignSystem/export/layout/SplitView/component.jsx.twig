@@ -1,0 +1,22 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ header, list, detail, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <div {...rest} className={classes.join(' ')}>
+            {header}
+            <div className="lp-split-region">
+                <div className="lp-split-view">
+                    <div className="lp-split-pane">{list}</div>
+                    <div className="lp-split-pane">{detail}</div>
+                </div>
+            </div>
+        </div>
+    );
+}
+{% endautoescape %}

@@ -7,12 +7,11 @@ namespace App\Module\Board\Command;
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Event\BoardAutomationSettingsSaved;
-use App\Module\Board\Event\CardChanged;
-use App\Module\Board\Repository\StuckPullRequestRepository;
+use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Uid\Uuid;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 
@@ -23,7 +22,8 @@ final readonly class SaveBoardAutomationSettingsHandler
         private EntityManagerInterface $em,
         private Auditor $auditor,
         private EventDispatcherInterface $events,
-        private StuckPullRequestRepository $stuckPullRequests,
+        private CardRepository $cards,
+        private ClockInterface $clock,
     ) {
     }
 
@@ -42,11 +42,8 @@ final readonly class SaveBoardAutomationSettingsHandler
         $settings->stuckDelayMinutes = $command->stuckDelayMinutes;
         $this->em->flush();
         if ($delayChanged) {
-            // A pull request announced under the old delay would never announce under a longer one.
-            // The cards that link a ready one redraw now, because a longer delay can clear a Stuck mark.
-            foreach ($this->stuckPullRequests->clearAnnouncements($command->project) as $cardId) {
-                $this->events->dispatch(new CardChanged($command->project->id ?? throw new \LogicException('A stored project has an id.'), Uuid::fromString($cardId), CardChanged::UPDATED, false));
-            }
+            // A longer delay can clear a Stuck marker, and a shorter one can add it.
+            $this->cards->makeMarkersDue($command->project, $this->clock->now());
         }
         $this->events->dispatch(new BoardAutomationSettingsSaved(
             $command->project,

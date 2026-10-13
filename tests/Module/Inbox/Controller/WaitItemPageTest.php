@@ -67,13 +67,27 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         // The wait links its card, so the row names the card and the pane names the sender.
-        self::assertSelectorTextContains('.lp-inbox-request__meta [data-inbox-card]', '#4');
+        self::assertSelectorTextContains('.lp-list-row__meta [data-inbox-card]', '#4');
         self::assertSelectorNotExists('[data-inbox-source="agent"]');
-        self::assertSelectorExists('.lp-inbox-request [data-inbox-kind="wait"]');
+        self::assertSelectorExists('.lp-list-row [data-inbox-kind="wait"]');
         self::assertSelectorTextSame('.lp-inbox-ask__source', 'From Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));
         self::assertCount(0, $crawler->filter('.lp-presence__dot'));
+    }
+
+    public function test_the_byline_names_the_waiting_card_and_opens_it_in_the_drawer(): void
+    {
+        $this->reconcile();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-inbox-ask__byline [data-inbox-kind-label]', '#4 Card #4 waits on you Ship it');
+        $link = $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]');
+        self::assertSame('#4', $link->text());
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
+        self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
     }
 
     public function test_the_panel_names_the_card_once_and_shows_no_ask_context(): void
@@ -83,7 +97,7 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-inbox-ask__title', '#4 Document version 1 waits for your review · Ship it');
+        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Document version 1 waits for your review');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
         self::assertCount(1, $crawler->filter('[data-inbox-linked-panel] [data-linked-card="'.$this->card->id.'"]'));
     }
@@ -153,8 +167,10 @@ final class WaitItemPageTest extends WebTestCase
         $current = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
         self::assertCount(1, $current);
         self::assertStringContainsString('The document "Tech design", version 2, of card 4 waits for your review.', $current->text());
-        self::assertStringContainsString('Review the document', $current->filter('a')->text());
-        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $current->filter('a')->attr('href'));
+        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
+        self::assertCount(1, $link);
+        self::assertStringContainsString('Review the document', $link->text());
+        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $link->attr('href'));
         $ended = $crawler->filter('#inbox-item-1 [data-inbox-wait="ended"]');
         self::assertCount(1, $ended);
         self::assertStringContainsString('version 1', $ended->text());
@@ -186,32 +202,36 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $wait->filter('a'));
     }
 
-    public function test_a_run_wait_links_its_reason_to_the_worker_runs_page(): void
+    public function test_a_run_wait_opens_its_card_in_the_drawer(): void
     {
         $this->document->status = DocumentStatus::Approved;
-        $run = new WorkerRun(
-            project: $this->project,
-            bridgeId: Uuid::v7(),
-            subjectType: WorkSubject::CARD,
-            subjectId: $this->card->id ?? throw new \LogicException('Card has no id.'),
-            cardNumber: 4,
-            workKind: 'implement',
-            state: WorkerRunState::Blocked,
-            output: 'Needs the API key',
-        );
-        $this->em->persist($run);
-        $this->em->flush();
-        $this->reconcile();
+        $this->blockedRun();
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"] a');
+        $wait = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
+        self::assertSame('The implement worker stopped because it is blocked.', $wait->filter('.lp-inbox-waits__reason')->text());
+        self::assertSame('What the implement worker reported', $wait->filter('.lp-inbox-waits__detail-label')->text());
+        self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-inbox-waits__detail .prose')->text()));
+        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
         self::assertCount(1, $link);
-        self::assertSame('Open the run', trim($link->text()));
-        self::assertStringContainsString('Needs the API key', $crawler->filter('#inbox-item-1 [data-inbox-wait="current"] pre')->text());
-        self::assertSame('/projects/'.$this->project->id.'/worker-runs?search='.$run->id, $link->attr('href'));
-        self::assertSame('_top', $link->attr('data-turbo-frame'));
+        self::assertSame('Open card 4', trim($link->text()));
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
+        self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
+        self::assertSame('click->card-drawer#prepare', $link->attr('data-action'));
+    }
+
+    public function test_a_run_wait_on_its_own_card_page_offers_no_link_to_that_card(): void
+    {
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun();
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/board/cards/'.$this->card->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-wait-link]'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void
@@ -235,6 +255,22 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSelectorExists('[data-inbox-queue-empty="open-asks"]');
         self::assertSelectorTextContains('[data-inbox-status]', 'Closed.');
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
+    }
+
+    private function blockedRun(): void
+    {
+        $this->em->persist(new WorkerRun(
+            project: $this->project,
+            bridgeId: Uuid::v7(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $this->card->id ?? throw new \LogicException('Card has no id.'),
+            cardNumber: 4,
+            workKind: 'implement',
+            state: WorkerRunState::Blocked,
+            output: 'Needs the API key. Add it to the bridge config.',
+        ));
+        $this->em->flush();
+        $this->reconcile();
     }
 
     private function reconcile(): void

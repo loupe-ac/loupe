@@ -16,6 +16,7 @@ use App\Module\Workflow\Contract\Actor;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\AbstractLazyCollection;
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Query\ResultSetMappingBuilder;
@@ -584,27 +585,6 @@ class CardRepository extends ServiceEntityRepository
         return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
             'SELECT id FROM board_cards WHERE parent_card_id = :id',
             ['id' => $parentId->toRfc4122()],
-        )));
-    }
-
-    /**
-     * The cards among these ids that have a child in a column that is not terminal, in one query.
-     *
-     * @param list<string> $ids
-     *
-     * @return list<string>
-     */
-    public function findIdsWithOpenChildren(array $ids): array
-    {
-        if ([] === $ids) {
-            return [];
-        }
-
-        return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
-            'SELECT DISTINCT c.parent_card_id FROM board_cards c JOIN board_columns k ON k.id = c.column_id
-             WHERE c.parent_card_id IN (:ids) AND k.terminal = false',
-            ['ids' => $ids],
-            ['ids' => ArrayParameterType::STRING],
         )));
     }
 
@@ -1674,5 +1654,37 @@ class CardRepository extends ServiceEntityRepository
             ->orderBy('c.completedAt', 'DESC')
             ->addOrderBy('c.createdAt', 'DESC')
             ->addOrderBy('c.id', 'DESC');
+    }
+
+    /**
+     * The cards of bound projects, in a column that is not terminal, whose markers are not stored yet or whose due time has come.
+     * A terminal card is left out, so a card that stores an empty set is never queued again.
+     *
+     * @return list<string> RFC 4122 card ids
+     */
+    public function findIdsDueForMarkers(\DateTimeImmutable $now, int $limit): array
+    {
+        return array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT c.id FROM board_cards c
+             JOIN board_columns col ON col.id = c.column_id
+             JOIN workflow_bindings b ON b.project_id = c.project_id
+             WHERE col.terminal = false AND (c.markers IS NULL OR c.markers_due_at <= :now)
+             ORDER BY c.markers_due_at ASC NULLS FIRST, c.id
+             LIMIT :limit',
+            ['now' => $now, 'limit' => $limit],
+            ['now' => Types::DATETIME_IMMUTABLE, 'limit' => ParameterType::INTEGER],
+        ));
+    }
+
+    /** Makes the markers of every open card of the project due now, so the next minute task stores them again. */
+    public function makeMarkersDue(Project $project, \DateTimeImmutable $now): void
+    {
+        $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE board_cards SET markers_due_at = :now
+             WHERE project_id = :project AND markers IS NOT NULL
+               AND column_id IN (SELECT id FROM board_columns WHERE project_id = :project AND terminal = false)',
+            ['now' => $now, 'project' => $project->requireId()->toRfc4122()],
+            ['now' => Types::DATETIME_IMMUTABLE],
+        );
     }
 }

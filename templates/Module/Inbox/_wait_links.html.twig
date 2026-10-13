@@ -1,0 +1,5 @@
+{# The next steps of the current waits of a wait item, as buttons, the main one last so it sits at the right.
+   Params: links (list of {href, label, external, drawer}). A drawer link opens the card drawer of the inbox page. #}
+{% for link in links|reverse %}
+    <twig:Ds:Button variant="{{ loop.last ? 'primary' : 'outline' }}" size="sm" href="{{ link.href }}" :data-turbo-frame="link.drawer ? 'card-drawer-frame' : '_top'" :data-action="link.drawer ? 'click->card-drawer#prepare' : null" data-inbox-wait-link :target="link.external ? '_blank' : null" :rel="link.external ? 'noopener noreferrer' : null">{{ link.label }}</twig:Ds:Button>
+{% endfor %}

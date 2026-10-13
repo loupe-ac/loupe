@@ -150,15 +150,17 @@ final class CardDocumentRepository extends ServiceEntityRepository
     }
 
     /**
-     * The id, the status and the tag names of each unarchived document linked to the card, as the
-     * database holds them now, in link order.
+     * The id, the status, the title, the time of the newest version and the tag names of each unarchived
+     * document linked to the card, as the database holds them now, in link order.
      *
-     * @return list<array{id: string, status: string, tags: list<string>}>
+     * @return list<array{id: string, status: string, title: string, versionAt: ?\DateTimeImmutable, tags: list<string>}>
      */
     public function findStatusesAndTagsForCard(Card $card): array
     {
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            'SELECT d.id AS document_id, d.status, t.name AS tag_name FROM board_card_documents cd
+            'SELECT d.id AS document_id, d.status, d.title, t.name AS tag_name,
+                (SELECT MAX(v.created_at) FROM document_versions v WHERE v.document_id = d.id) AS version_at
+             FROM board_card_documents cd
              JOIN documents d ON d.id = cd.document_id
              LEFT JOIN document_tags dt ON dt.document_id = d.id
              LEFT JOIN tags t ON t.id = dt.tag_id
@@ -170,7 +172,13 @@ final class CardDocumentRepository extends ServiceEntityRepository
         $documents = [];
         foreach ($rows as $row) {
             $documentId = (string) $row['document_id'];
-            $documents[$documentId] ??= ['id' => $documentId, 'status' => (string) $row['status'], 'tags' => []];
+            $documents[$documentId] ??= [
+                'id' => $documentId,
+                'status' => (string) $row['status'],
+                'title' => (string) $row['title'],
+                'versionAt' => null === $row['version_at'] ? null : new \DateTimeImmutable((string) $row['version_at']),
+                'tags' => [],
+            ];
             if (null !== $row['tag_name']) {
                 $documents[$documentId]['tags'][] = (string) $row['tag_name'];
             }

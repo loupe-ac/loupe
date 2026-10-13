@@ -14,6 +14,10 @@
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
+@import './components/shell.css';
+@import './components/page-header.css';
+@import './components/split-view.css';
+@import './components/list-row.css';
 @import './components/brand-mark.css';
 @import './components/auth-shell.css';
 

@@ -1,0 +1,5 @@
+{#
+  Props: none. Other attributes, class included, go to the element.
+  The page writes the lp-split-region, lp-split-view and lp-split-pane markup inside it.
+#}
+<div{{ attributes.defaults({class: 'lp-split-page'}) }}>{% block content %}{% endblock %}</div>

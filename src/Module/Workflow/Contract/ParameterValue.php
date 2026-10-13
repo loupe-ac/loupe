@@ -28,4 +28,10 @@ final class ParameterValue
 
         return \is_int($value) ? $value : throw new \LogicException(\sprintf('Parameter "%s" must be an integer.', $name));
     }
+
+    /** @param array<string, mixed> $params */
+    public static function optionalInt(array $params, string $name): ?int
+    {
+        return null === ($params[$name] ?? null) ? null : self::int($params, $name);
+    }
 }

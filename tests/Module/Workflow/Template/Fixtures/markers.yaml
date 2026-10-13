@@ -1,0 +1,33 @@
+key: markers-test
+version: 1
+defaultType: feature
+types:
+    - { key: feature, label: board.card.type.feature, tone: lime }
+    - { key: epic, label: board.card.type.epic, tone: blue, capabilities: [children, lane] }
+slots:
+    - { key: build, label: workflow.slot.build }
+    - { key: review, label: workflow.slot.review }
+manualMoves: []
+backoffMinutes: [10]
+workTimeoutMinutes: 120
+rules: []
+markers:
+    - key: has-pull-request
+      kind: waiting
+      label: marker.test.has_pull_request
+      remedy: marker.test.has_pull_request.remedy
+      slots: [build, review]
+      when: { pr.open: {} }
+    - key: blocked
+      kind: needs-you
+      label: marker.test.blocked
+      when: { card.blocker.open: {} }
+    - key: quiet
+      kind: stuck
+      label: marker.test.quiet
+      fallback: true
+      when: { not: { card.run.work_active: {} } }
+    - key: held
+      kind: chip
+      label: marker.test.held
+      when: { all: [] }

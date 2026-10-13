@@ -6,11 +6,13 @@ namespace App\Module\Board\Workflow\Condition;
 
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
+use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\PullRequestState;
 use Symfony\Component\Translation\TranslatableMessage;
 
-final readonly class PullRequestOpen implements Condition
+final readonly class PullRequestOpen implements Condition, MarkerEvidence
 {
     #[\Override]
     public static function key(): string
@@ -46,5 +48,13 @@ final readonly class PullRequestOpen implements Condition
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
         return new TranslatableMessage($negated ? 'workflow.waiting.not.pr_open' : 'workflow.waiting.pr_open');
+    }
+
+    #[\Override]
+    public function evidence(Facts $facts, array $params): ?Evidence
+    {
+        $pullRequest = $facts->pullRequest;
+
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, null);
     }
 }

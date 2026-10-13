@@ -1,0 +1,25 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A list row, open and not open" viewport="700x200"
+ */
+export interface {{ entry.name }}Props {
+    /** The row title. */
+    title: ReactNode;
+    /** The icon before the title. */
+    icon?: ReactNode;
+    /** The small line under the title, such as a source and an age. */
+    meta?: ReactNode;
+    /** True for the row that is open. It gets the highlight. */
+    current?: boolean;
+    /** The link target of the row. */
+    href?: string;
+    className?: string;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

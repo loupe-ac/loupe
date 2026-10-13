@@ -30,6 +30,9 @@ final class Evaluation
     /** True once the pass asked for a pause, which ends it. */
     public bool $ended = false;
 
+    /** True once the pass changed what the facts read, such as a fired rule or a pause, so the marker pass builds them again. */
+    public bool $factsStale = false;
+
     /** @var array<string, true> the ids of the rules whose repair request is live */
     public array $repairing = [];
 

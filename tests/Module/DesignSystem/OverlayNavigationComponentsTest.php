@@ -51,6 +51,13 @@ final class OverlayNavigationComponentsTest extends KernelTestCase
         self::assertStringNotContainsString('<nav', $html);
     }
 
+    public function test_the_segmented_variant_adds_its_modifier_before_a_caller_class(): void
+    {
+        $html = $this->render('<twig:Ds:Tabs variant="segmented" class="extra" aria-label="View">x</twig:Ds:Tabs>');
+
+        self::assertStringContainsString('<nav class="lp-tabs lp-tabs--segmented extra" aria-label="View">x</nav>', $html);
+    }
+
     public function test_a_tooltip_carries_its_role_id_and_caller_class(): void
     {
         $html = $this->render('<twig:Ds:Tooltip id="tip-1" class="extra">Why</twig:Ds:Tooltip>');

@@ -76,7 +76,8 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
         self::assertSame((string) $this->project->owner->id, $rows[0]['actor_user_id']);
         self::assertSame(['kind' => $kind->value, 'reason' => 'move-refused', 'ruleId' => 'tech-design-write', 'releaseReason' => 'released-by-person'], json_decode((string) $rows[0]['detail'], true));
 
-        self::assertEquals([new EvaluateCard((string) $card->id)], $this->queued());
+        // One from the release itself, one from the card update it sends.
+        self::assertEquals([new EvaluateCard((string) $card->id), new EvaluateCard((string) $card->id)], $this->queued());
     }
 
     public function test_an_agent_releases_the_active_pause_with_no_pause_id(): void
@@ -217,7 +218,7 @@ final class ReleaseWorkflowPauseHandlerTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.workflow');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

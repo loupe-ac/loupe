@@ -1,5 +1,5 @@
 key: lifecycle
-version: 1
+version: 2
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -526,3 +526,147 @@ rules:
     - id: follow-up-to-next
       when: { card.follows.finished: {} }
       then: { move: { to: next, from: '@backlog' } }
+
+markers:
+    - key: paused
+      kind: stuck
+      label: marker.paused
+      remedy: marker.paused.remedy
+      when: { card.paused: {} }
+    - key: run-stopped
+      kind: stuck
+      label: marker.run_stopped
+      remedy: marker.run_stopped.remedy
+      when: { card.run.stopped: {} }
+    - key: checks-failed
+      kind: stuck
+      label: marker.checks_failed
+      remedy: marker.checks_failed.remedy
+      when:
+          all:
+              - pr.open: {}
+              - pr.checks_failed: {}
+              - not:
+                    any:
+                        - card.run.work_active: { kind: fix }
+                        - card.run.worker_active: { kind: fix }
+                        - card.run.work_active: { kind: repair }
+                        - card.run.worker_active: { kind: repair }
+    - key: conflicting
+      kind: stuck
+      label: marker.conflicting
+      remedy: marker.conflicting.remedy
+      when:
+          all:
+              - pr.open: {}
+              - pr.conflicting: {}
+              - not:
+                    any:
+                        - card.run.work_active: { kind: fix }
+                        - card.run.worker_active: { kind: fix }
+                        - card.run.work_active: { kind: repair }
+                        - card.run.worker_active: { kind: repair }
+    - key: ready-not-merged
+      kind: stuck
+      label: marker.ready_not_merged
+      remedy: marker.ready_not_merged.remedy
+      when:
+          all:
+              - pr.ready_for: {}
+              - not:
+                    any:
+                        - card.run.work_active: { kind: merge }
+                        - card.run.worker_active: { kind: merge }
+    - key: pull-request-idle
+      kind: stuck
+      label: marker.pull_request_idle
+      remedy: marker.pull_request_idle.remedy
+      fallback: true
+      slots: [implementation, in-review]
+      when:
+          all:
+              - pr.open: {}
+              - not: { pr.checks_pending: {} }
+              - not: { pr.stacked: {} }
+              - card.quiet_for: {}
+              - not: { card.held: {} }
+              - card.children.finished: {}
+              - not: { card.parent.run.active: {} }
+    - key: nothing-happened
+      kind: stuck
+      label: marker.nothing_happened
+      remedy: marker.nothing_happened.remedy
+      fallback: true
+      slots: [product-design, tech-design, implementation, in-review]
+      when:
+          all:
+              - card.quiet_for: {}
+              - not: { card.held: {} }
+    - key: document-in-review
+      kind: needs-you
+      label: marker.document_in_review
+      remedy: marker.document_in_review.remedy
+      slots: [product-design, tech-design]
+      when:
+          any:
+              - all:
+                    - card.in_slot: { slot: product-design }
+                    - card.document.in_review: { tag: product-design }
+              - all:
+                    - card.in_slot: { slot: tech-design }
+                    - card.document.in_review: { tag: tech-design }
+    - key: waits-for-approval
+      kind: needs-you
+      label: marker.waits_for_approval
+      remedy: marker.waits_for_approval.remedy
+      when: { pr.waits_for_approval: {} }
+    - key: open-question
+      kind: needs-you
+      label: marker.open_question
+      remedy: marker.open_question.remedy
+      when: { card.inbox.open_question: {} }
+    - key: session-open
+      kind: working
+      label: marker.session_open
+      remedy: marker.session_open.remedy
+      when: { card.run.session_open: {} }
+    - key: run-open
+      kind: working
+      label: marker.run_open
+      remedy: marker.run_open.remedy
+      when: { card.run.worker_active: {} }
+    - key: work-requested
+      kind: working
+      label: marker.work_requested
+      remedy: marker.work_requested.remedy
+      when: { card.run.work_active: {} }
+    - key: forge-request-pending
+      kind: working
+      label: marker.forge_request_pending
+      remedy: marker.forge_request_pending.remedy
+      when: { pr.forge_request_pending: {} }
+    - key: held-by-blocker
+      kind: waiting
+      label: marker.held_by_blocker
+      remedy: marker.held_by_blocker.remedy
+      when: { card.rule.held_by_blocker: {} }
+    - key: waits-for-parent-card
+      kind: waiting
+      label: marker.waits_for_parent_card
+      remedy: marker.waits_for_parent_card.remedy
+      when: { pr.stack_parent: { parent: known } }
+    - key: waits-for-parent-branch
+      kind: waiting
+      label: marker.waits_for_parent_branch
+      remedy: marker.waits_for_parent_branch.remedy
+      when: { pr.stack_parent: { parent: unknown } }
+    - key: waiting-on-checks
+      kind: waiting
+      label: marker.waiting_on_checks
+      remedy: marker.waiting_on_checks.remedy
+      when: { pr.checks_pending: {} }
+    - key: unmanaged
+      kind: chip
+      label: marker.unmanaged
+      remedy: marker.unmanaged.remedy
+      when: { card.held: {} }

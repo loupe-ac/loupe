@@ -760,6 +760,59 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** @return array<string, \DateTimeImmutable> each work kind of the card's open worker runs, sorted, mapped to the start of its oldest run */
+    public function findOpenWorkSinceOfCard(Uuid $cardId): array
+    {
+        /** @var list<array{work_kind: string, since: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT r.work_kind, MIN(COALESCE(r.started_at, r.received_at)) AS since
+             FROM bridge_worker_runs r
+             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.work_kind IS NOT NULL AND r.state IN (:open)
+             GROUP BY r.work_kind
+             ORDER BY r.work_kind',
+            [
+                'subject' => WorkSubject::CARD,
+                'card' => $cardId->toRfc4122(),
+                'kind' => WorkerRunKind::Worker->value,
+                'open' => array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()),
+            ],
+            ['open' => ArrayParameterType::STRING],
+        )->fetchAllAssociative();
+
+        $since = [];
+        foreach ($rows as $row) {
+            $since[$row['work_kind']] = new \DateTimeImmutable($row['since']);
+        }
+
+        return $since;
+    }
+
+    /**
+     * The oldest open interactive run of the card: its name and its start.
+     *
+     * @return array{work_kind: ?string, since: string}|null
+     */
+    public function findOldestOpenInteractiveRowOfCard(Uuid $cardId): ?array
+    {
+        /** @var array{work_kind: ?string, since: string}|false $row */
+        $row = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT r.work_kind, COALESCE(r.started_at, r.received_at) AS since
+             FROM bridge_worker_runs r
+             WHERE r.subject_type = :subject AND r.subject_id = :card AND r.kind = :kind AND r.state IN (:open)
+             ORDER BY COALESCE(r.started_at, r.received_at), r.id
+             LIMIT 1',
+            [
+                'subject' => WorkSubject::CARD,
+                'card' => $cardId->toRfc4122(),
+                'kind' => WorkerRunKind::Interactive->value,
+                'open' => array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()),
+            ],
+            ['open' => ArrayParameterType::STRING],
+        )->fetchAssociative();
+
+        return false === $row ? null : $row;
+    }
+
     /** @return list<string> the distinct work kinds of the card's open worker runs, sorted */
     public function findOpenWorkKindsOfCard(Uuid $cardId): array
     {

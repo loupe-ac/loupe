@@ -22,4 +22,7 @@ interface CardDirectory
 
     /** @return list<Uuid> the children of the card in board order, or none for an unknown card */
     public function childIds(Uuid $cardId): array;
+
+    /** The time of the newest column move of the card, or null when it never moved. */
+    public function newestMoveAt(Uuid $cardId): ?\DateTimeImmutable;
 }
