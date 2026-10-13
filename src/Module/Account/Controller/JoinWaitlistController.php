@@ -73,7 +73,14 @@ final class JoinWaitlistController extends AppController
         // already added the provider email, so show the confirmation directly.
         // It comes before the open-gate redirect, which would hide it.
         if ($request->query->getBoolean('joined')) {
-            return $this->render('@Account/registration/waitlist_joined.html.twig', ['modal' => $modal]);
+            return $this->render('@Account/registration/waitlist_joined.html.twig', [
+                'modal' => $modal,
+                'joinForm' => match (true) {
+                    $modal => 'dialog',
+                    $notify => 'notify',
+                    default => 'page',
+                },
+            ]);
         }
 
         // The home page forms always join the waitlist, even while sign-up has
@@ -116,7 +123,11 @@ final class JoinWaitlistController extends AppController
             // to another location" for a direct 200 on a non-frame submission.
             // Always the same response, joined or already-listed, so the endpoint
             // enumerates nothing.
-            return $this->redirectToRoute($modal ? 'app_waitlist_modal' : 'app_waitlist_join', ['joined' => 1]);
+            return $this->redirectToRoute(match (true) {
+                $modal => 'app_waitlist_modal',
+                $notify => 'app_waitlist_notify',
+                default => 'app_waitlist_join',
+            }, ['joined' => 1]);
         }
 
         return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify, 'modal' => $modal]);

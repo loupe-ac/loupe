@@ -10,6 +10,7 @@ use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Module\Account\Service\RegistrationGate;
 use App\Tests\Support\InstalledInstance;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -135,7 +136,7 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'notify@example.com', 'picks' => ['cursor']], '/waitlist/notify');
 
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects('/waitlist/notify?joined=1');
         $entry = static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('notify@example.com');
         $this->assertNotNull($entry);
         $this->assertSame(['cursor'], $entry->picks);
@@ -161,6 +162,39 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/waitlist?joined=1');
 
         $this->assertSelectorExists('turbo-frame#waitlist-notify');
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function confirmations(): iterable
+    {
+        yield 'the dialog' => ['/waitlist/modal?joined=1', 'dialog'];
+        yield 'the Notify me form' => ['/waitlist/notify?joined=1', 'notify'];
+        yield 'the plain page and the sign-in at the cap' => ['/waitlist?joined=1', 'page'];
+    }
+
+    #[DataProvider('confirmations')]
+    public function test_each_confirmation_names_the_form_that_saved_the_email(string $url, string $form): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $client->request(Request::METHOD_GET, $url);
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorCount(1, '[data-controller="analytics-join"]');
+        $this->assertSelectorExists('[data-controller="analytics-join"][data-analytics-join-form-value="'.$form.'"]');
+    }
+
+    public function test_a_refused_submit_carries_no_join_event(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => 'not-an-email'], '/waitlist/modal', 'waitlist_modal_form');
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorTextContains('turbo-frame#waitlist-modal', 'This value is not a valid email address.');
+        $this->assertSelectorNotExists('[data-controller="analytics-join"]');
     }
 
     public function test_picks_and_text_are_stored_with_the_entry(): void
@@ -278,10 +312,10 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'open-notify@example.com', 'picks' => ['gitlab']], '/waitlist/notify');
 
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects('/waitlist/notify?joined=1');
         $this->assertNotNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('open-notify@example.com'));
 
-        $client->request(Request::METHOD_GET, '/waitlist?joined=1');
+        $client->request(Request::METHOD_GET, '/waitlist/notify?joined=1');
         $this->assertResponseIsSuccessful();
         $this->assertSelectorTextContains('turbo-frame#waitlist-notify', "You're on the list");
     }
