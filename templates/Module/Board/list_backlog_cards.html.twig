@@ -12,7 +12,7 @@
 {% set backlogPath = path('app_project_board_backlog', {projectId: project.id}) %}
 {% set bulkName = constant('App\\Module\\Board\\Form\\BulkMoveBacklogCardsFormType::NAME') %}
 {% do mercure_subscribe(board_topic(project)) %}
-<div class="lp-workspace lp-core-prototype-page lp-core-documents" data-controller="backlog-select backlog-live">
+<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="backlog-select backlog-live">
     <twig:Ds:PageHeader :title="backlog.label|trans" :description="'board.backlog.page.description'|trans" titleClass="lp-workspace-title--doc" />
 
     {# Shown when another person or an agent changes the board. The page does not reload by itself. #}
@@ -106,5 +106,5 @@
         </div>
         <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="backlog-select#clear">{{ 'board.backlog.bulk.clear'|trans }}</twig:Ds:Button>
     </form>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

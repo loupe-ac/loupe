@@ -2,6 +2,10 @@
 
 {% block title %}{{ 'artifact.viewer.page.title'|trans({'%name%': artifact.name}) }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block shell_width 'full' %}
+
+{% block main_surface 'fill' %}
+
 {% block topbar_crumbs %}
     <a class="lp-topbar__crumb" href="{{ path('app_project_artifacts', {id: project.id}) }}">{{ 'nav.link.artifacts'|trans }}</a>
     <span class="lp-topbar__sep">/</span>

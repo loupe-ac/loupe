@@ -290,6 +290,18 @@ readonly class Catalog
                 export: 'BrandMark',
             ),
             new ComponentEntry(
+                name: 'Workspace',
+                rootClass: 'lp-workspace',
+                template: 'components/Ds/Workspace.html.twig',
+                variants: ['narrow', 'full'],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'The page container: the frame that holds the content of a page, with a named width.',
+                element: 'div',
+                export: 'Workspace',
+            ),
+            new ComponentEntry(
                 name: 'AuthShell',
                 rootClass: 'lp-auth',
                 template: null,

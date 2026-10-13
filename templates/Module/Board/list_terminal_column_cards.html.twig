@@ -13,7 +13,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace">
+<twig:Ds:Workspace>
     <h1 class="lp-workspace-title lp-workspace-title--doc">{{ column.label|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'board.terminal.page.description'|trans }}</p>
 
@@ -42,5 +42,5 @@
         <twig:Ds:Button href="{{ path('app_project_board', {id: project.id}) }}">{{ 'board.terminal.empty.action'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

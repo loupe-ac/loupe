@@ -65,6 +65,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
 | ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
+| Workspace | The page container: the frame that holds the content of a page | narrow, for a form page, and full, which drops the width cap |
 
 The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
 
@@ -77,7 +78,7 @@ The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a n
 The SplitView draws the page root, `lp-split-page`, and takes any attribute, such as a Stimulus `data-controller`. The page writes the `lp-split-region`, `lp-split-view` and `lp-split-pane` classes inside it by hand, because each page puts its own controller on the region. A page with a header writes the header first, then the region. Its CSS is `assets/styles/components/split-view.css`.
 
 ```twig
-<twig:Ds:SplitView class="lp-workspace">
+<twig:Ds:SplitView width="full">
     <div class="lp-split-region">
         <div class="lp-split-view">
             <div class="lp-split-pane">{# the list #}</div>
@@ -86,6 +87,16 @@ The SplitView draws the page root, `lp-split-page`, and takes any attribute, suc
     </div>
 </twig:Ds:SplitView>
 ```
+
+The Workspace takes `width`, which is `default`, `narrow` or `full`, and wraps the whole page body. Its CSS is `assets/styles/components/workspace.css`. A page keeps its own marker class beside it, such as `lp-redesign-settings`, for rules that style page-only parts. A page never restyles a design system part: write no rule such as `.lp-redesign-settings .lp-btn`. A split page passes `width` to the SplitView instead, which then draws the same frame.
+
+```twig
+<twig:Ds:Workspace width="narrow" class="lp-redesign-settings">
+    <twig:Ds:PageHeader :title="'rename.title'|trans" />
+</twig:Ds:Workspace>
+```
+
+The shell has one width option. A page whose frame must reach the window edge, such as the board, sets `{% block shell_width %}full{% endblock %}`, which adds `lp-shell--full`. A page that needs a different ground sets `{% block main_surface %}` to `paper` (white) or `fill` (a column that clips its overflow).
 
 The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
 
@@ -209,13 +220,13 @@ These are the documented shell classes.
 | `lp-sidebar__spacer` | Pushes the bottom group down |
 | `lp-sidebar__account` and its `__avatar`, `__text`, `__name`, `__logout-form`, `__logout` parts | The signed-in user and the log out button |
 | `lp-scrim` | Dims the page behind an open drawer |
-| `lp-shell` | The column to the right of the sidebar. It holds the top bar and the main column |
+| `lp-shell` | The column to the right of the sidebar. It holds the top bar and the main column. `--full` drops the frame inset |
 | `lp-topbar` | The bar above the page |
 | `lp-topbar__menu` | The button that opens the drawer |
 | `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
 | `lp-topbar__global-actions` | The tools at the right end of the bar |
 | `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
-| `lp-main` | The main column. It is the only scroll container of the page |
+| `lp-main` | The main column. It is the only scroll container of the page. `--paper` gives it a white ground, and `--fill` makes it a column that clips its overflow |
 ## The marketing shell
 
 A public page for a signed-out visitor extends `templates/marketing_base.html.twig`. The base draws the header, the page body and the footer. A page fills `block body`, or swaps `marketing_header`, `marketing_main` and `marketing_footer` when it draws its own, as the home page does. A signed-in visitor gets the app shell instead.

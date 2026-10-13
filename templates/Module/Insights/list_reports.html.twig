@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-runs">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'reports'} only %}
@@ -169,5 +169,5 @@
     {% else %}
     <twig:Ds:EmptyState icon="lucide:file-chart-column" :title="'insights.reports.empty.title'|trans" :body="'insights.reports.empty.description'|trans" linkHref="{{ app_docs_url }}/extending/cli-bridge/#work-requests" :linkLabel="'insights.reports.empty.docs'|trans" data-reports-empty />
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

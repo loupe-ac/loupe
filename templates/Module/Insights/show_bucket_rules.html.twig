@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-runs">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'time-buckets'} only %}
@@ -110,5 +110,5 @@
             </table>
         </div>
     </section>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

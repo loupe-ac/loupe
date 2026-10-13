@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-projects" data-controller="disclosure">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-projects" data-controller="disclosure">
     <twig:Ds:PageHeader :title="'project.list.page.title'|trans" :description="'project.list.page.description'|trans">
         <twig:block name="actions">
             <twig:Ds:Button variant="primary" type="button" data-action="disclosure#toggle"
@@ -99,5 +99,5 @@
     </div>
 
     <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

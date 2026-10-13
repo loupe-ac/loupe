@@ -158,8 +158,11 @@ return (new GamacheConfig())->registerChecks([
             new DesignSystemComponent('PageHeader', 'lp-page-header', 'templates/components/Ds/PageHeader.html.twig', enforced: true),
             new DesignSystemComponent('SplitView', 'lp-split-page', 'templates/components/Ds/SplitView.html.twig', enforced: true),
             new DesignSystemComponent('ListRow', 'lp-list-row', 'templates/components/Ds/ListRow.html.twig', enforced: true),
+            new DesignSystemComponent('Workspace', 'lp-workspace', 'templates/components/Ds/Workspace.html.twig', enforced: true),
             new DesignSystemComponent('BrandMark', 'lp-brand', 'templates/components/Ds/BrandMark.html.twig', enforced: true),
         ],
+        // The split view draws the workspace frame itself when a page gives it a width.
+        ignoredPaths: ['templates/components/Ds/SplitView.html.twig'],
     ),
     new FormTypeTranslationKeysCheck(),
     new TurboStreamTargetsCheck(),

@@ -11,9 +11,13 @@
 {# Each section names itself, because a forwarded 422 render carries no _route. #}
 {% block settings_section '' %}
 
+{% block settings_content '' %}
+
 {% block body %}
 {% set section = block('settings_section') %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
+{# A block inside a component body would clash with the body block of the component, so the content renders first. #}
+{% set settingsContent = block('settings_content') %}
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">
     <twig:Ds:PageHeader :title="'account.settings.page.title'|trans" :description="'account.settings.page.description'|trans" />
 
     <div class="lp-settings-layout">
@@ -34,8 +38,8 @@
 
         <div class="lp-settings-content">
             <twig:BillingSummary />
-            {% block settings_content %}{% endblock %}
+            {{ settingsContent|raw }}
         </div>
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

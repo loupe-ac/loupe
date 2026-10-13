@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">
     <twig:Ds:PageHeader :title="'project.edit.page.title'|trans" :description="'project.edit.page.description'|trans" />
     <div class="lp-settings-layout">
         {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'readiness'} only %}
@@ -50,5 +50,5 @@
             {{ form_end(form) }}
         </section>
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

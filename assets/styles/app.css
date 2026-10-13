@@ -18,6 +18,7 @@
 @import './components/tooltip.css';
 @import './components/shell.css';
 @import './components/page-header.css';
+@import './components/workspace.css';
 @import './components/split-view.css';
 @import './components/list-row.css';
 @import './components/brand-mark.css';
@@ -266,7 +267,6 @@
        inside the panes, and the content scrolls up to the top bar and down to the window edge. */
     .lp-core-inbox.lp-workspace {
         --inbox-gutter: calc(var(--spacing) * 4.5);
-        max-width: none;
         @apply py-0 pr-0 md:py-0 md:pr-0 xl:py-0 xl:pr-0;
     }
 
@@ -349,32 +349,6 @@
         flex-direction: column;
         gap: calc(var(--spacing) * 2);
         padding-bottom: calc(var(--spacing) * 2.5);
-    }
-
-    /* The Open and Closed switch is a segmented control: a grey track, and a white segment with olive text for the active side. */
-    .lp-core-inbox .lp-inbox-switch {
-        gap: calc(var(--spacing) * 0.5);
-        margin: 0 0 calc(var(--spacing) * 0.5);
-        padding: calc(var(--spacing) * 0.75);
-        border: 0;
-        border-radius: var(--radius-xl);
-        background: var(--surface-2);
-    }
-
-    .lp-core-inbox .lp-inbox-switch .lp-tabs__tab {
-        flex: 1 1 0%;
-        justify-content: center;
-        height: calc(var(--spacing) * 7.5);
-        padding: 0 calc(var(--spacing) * 2);
-        border: 0;
-        border-radius: var(--radius-lg);
-        color: var(--text-dim);
-    }
-
-    .lp-core-inbox .lp-inbox-switch .lp-tabs__tab[aria-current='page'] {
-        background: var(--surface-1);
-        color: var(--accent-ink);
-        @apply shadow-xs;
     }
 
     .lp-core-inbox .lp-inbox-list-head .lp-filter-search {
@@ -956,46 +930,6 @@
         --tw-prose-body: var(--text);
     }
 
-    /* An empty view reads as a heading and a sentence, with no icon and no box. */
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state {
-        align-items: flex-start;
-        gap: calc(var(--spacing) * 2);
-        @apply max-w-md;
-        padding: calc(var(--spacing) * 14) 0;
-        background: transparent;
-        text-align: left;
-    }
-
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__title {
-        font-size: var(--text-2xl);
-        font-weight: 800;
-        line-height: 1.25;
-    }
-
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__body {
-        max-width: none;
-        color: var(--text);
-        font-size: var(--text-lg);
-    }
-
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__link {
-        margin-top: calc(var(--spacing) * 1.5);
-        font-size: var(--text-sm);
-    }
-
-    /* A field label matches the prototype's sentence-case label, not an eyebrow. */
-    .lp-core-inbox .lp-inbox-item__actions .lp-label {
-        color: var(--text-dim);
-        font-size: var(--text-sm);
-        font-weight: 600;
-        letter-spacing: normal;
-        text-transform: none;
-    }
-
-    .lp-core-inbox .lp-inbox-item__actions .lp-input {
-        background: var(--surface-2);
-    }
-
     .lp-core-inbox .lp-inbox-item__buttons {
         gap: calc(var(--spacing) * 2);
     }
@@ -1199,17 +1133,10 @@
     .lp-redesign-agents .lp-agent-card footer {
         @apply mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-fg-dim break-all;
     }
-    .lp-redesign-agents .lp-btn {
-        @apply max-w-full whitespace-normal leading-5;
-    }
-
     /* One handoff per row: name and trigger, the column-to-bridge flow, then
        the reported state where an enable switch would sit. */
     .lp-redesign-rules .lp-rule-list {
         @apply gap-3 mt-7;
-    }
-    .lp-redesign-rules .lp-filter-primary .lp-btn--icon {
-        @apply shrink-0;
     }
     .lp-redesign-rules .lp-rule-row {
         @apply flex-row flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-line bg-surface-1 px-5.5 py-5;
@@ -1330,9 +1257,6 @@
     .lp-redesign-settings .lp-settings-section + .lp-settings-section {
         @apply mt-5;
     }
-    .lp-redesign-settings .lp-btn {
-        @apply max-w-full whitespace-normal leading-5;
-    }
     .lp-settings-form-actions {
         @apply flex flex-wrap items-center justify-end gap-3 pt-2;
     }
@@ -1409,7 +1333,7 @@
 
 /* ── Header ─────────────────────────────────────────────────────── */
 /* The page is white, as the paper the document sits on. */
-.lp-main:has(.lp-review) {
+.lp-main--paper {
     @apply bg-surface-1;
 }
 .lp-review .lp-review-doc__head {
@@ -3452,11 +3376,6 @@
 
     /* ── Workspace / projects index ─────────────────────────────────── */
 
-    /* The one page frame every workspace uses, so pages line up as you move between them. */
-    .lp-workspace {
-        @apply w-full px-4.5 pt-5 pb-10 md:px-6 md:pt-6 md:pb-14 xl:px-8 xl:pt-8;
-        max-width: 95.625rem;
-    }
     .lp-eyebrow {
         @apply uppercase text-fg-dim m-0 text-xs font-bold tracking-widest;
     }
@@ -6724,10 +6643,6 @@
     .lp-board {
         @apply flex flex-col gap-2 min-h-0 h-full;
     }
-    /* The board is a viewport-sized surface, so it drops the frame cap. */
-    .lp-core-board.lp-workspace {
-        max-width: none;
-    }
     /* A board is a viewport-sized surface at every width: the columns keep the
        room the page leaves, rather than stacking as a split page does. */
     .lp-core-board.lp-split-page,
@@ -7603,7 +7518,7 @@
     }
     /* The viewer fills the page below the top bar, so the frame takes the
        height the bar and the band leave. */
-    .lp-main:has(.lp-artifact-viewer) {
+    .lp-main--fill {
         @apply flex flex-col overflow-hidden;
     }
     .lp-artifact-viewer {

@@ -32,7 +32,7 @@
 {# A live refresh reads the view again for a page that already shows a status line, and the refresh leaves the flash for the next full visit. #}
 {% set liveRefresh = app.request.headers.has('X-Loupe-Live-Refresh') %}
 {% do mercure_subscribe(inbox_page_topic(inbox.project)) %}
-<twig:Ds:SplitView class="lp-workspace lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live inbox-navigation card-drawer">
+<twig:Ds:SplitView width="full" class="lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live inbox-navigation card-drawer">
     <h1 class="sr-only">{{ 'inbox.page.title'|trans }}</h1>
 
     {# The frame holds the whole view, so a row, the switch, a filter, the search and the pager each reload it and move the address on.
@@ -42,7 +42,7 @@
             <div class="lp-split-view lp-inbox-split" data-inbox-picked="{{ view.isPicked ? 'true' : 'false' }}" data-inbox-empty="{{ inbox.rows is empty ? 'true' : 'false' }}">
                 <div class="lp-inbox-request-list lp-split-pane">
                     <div class="lp-inbox-list-head">
-                        <twig:Ds:Tabs class="lp-inbox-switch" aria-label="{{ 'inbox.view.label'|trans }}">
+                        <twig:Ds:Tabs variant="segmented" aria-label="{{ 'inbox.view.label'|trans }}">
                             <a class="lp-tabs__tab"
                                href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.onSide(openSide).toQuery)) }}"
                                data-turbo-frame="inbox-view"

@@ -10,7 +10,7 @@
 
 {% block body %}
 {% set canManage = is_granted(constant('App\\Module\\Board\\Security\\BoardColumnVoter::MANAGE'), board.project) %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">
     <twig:Ds:PageHeader :title="'project.edit.page.title'|trans" :description="'project.edit.page.description'|trans" />
     <div class="lp-settings-layout lp-settings-layout--columns">
         {% include '@Project/_settings_nav.html.twig' with {project: board.project, active: 'columns'} only %}
@@ -136,5 +136,5 @@
             {% endif %}
         </section>
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

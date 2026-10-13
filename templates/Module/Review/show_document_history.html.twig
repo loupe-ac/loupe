@@ -2,6 +2,8 @@
 
 {% block title %}{{ 'review.document.history.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block main_surface 'paper' %}
+
 {% block topbar_crumbs %}
     <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: document.project.id}) }}">{{ 'nav.link.documents'|trans }}</a>
     <span class="lp-topbar__sep">/</span>
