@@ -21,6 +21,7 @@
 @import './components/list-row.css';
 @import './components/brand-mark.css';
 @import './components/auth-shell.css';
+@import './components/drawer.css';
 
 @source "../../templates/components/Ds";
 

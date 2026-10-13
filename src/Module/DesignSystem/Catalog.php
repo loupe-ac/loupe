@@ -325,6 +325,18 @@ readonly class Catalog
                 element: 'div',
                 export: 'MarketingShell',
             ),
+            new ComponentEntry(
+                name: 'Drawer',
+                rootClass: 'lp-drawer',
+                template: 'components/Ds/Drawer.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'A panel that slides in from the right edge, with a header, a body that scrolls and a footer.',
+                element: 'dialog',
+                export: 'Drawer',
+            ),
         ];
     }
 }

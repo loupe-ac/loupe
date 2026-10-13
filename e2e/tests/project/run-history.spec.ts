@@ -322,10 +322,7 @@ test('completed reports retain outcomes and escaped output at enlarged text size
             await expect(
                 drawer.getByRole('button', { name: 'Copy output' }),
             ).toBeInViewport({ ratio: 1 });
-            for (const region of [
-                '.lp-run-drawer__header',
-                '.lp-run-drawer__body',
-            ]) {
+            for (const region of ['.lp-drawer__header', '.lp-drawer__body']) {
                 expect(
                     await drawer
                         .locator(region)
