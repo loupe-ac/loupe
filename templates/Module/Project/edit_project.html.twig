@@ -32,10 +32,9 @@
             {% if project.slug is not null %}
             <twig:Ds:FormField>
                 <twig:Ds:Label for="project-slug">{{ 'project.edit.slug.label'|trans }}</twig:Ds:Label>
-                <div class="lp-input-with-action" data-controller="clipboard" data-clipboard-text-value="{{ project.slug }}"
-                     data-clipboard-copied-label-value="{{ 'project.connect.copied'|trans }}">
+                <div class="lp-input-with-action">
                     <twig:Ds:Input type="text" id="project-slug" value="{{ project.slug }}" disabled data-project-slug />
-                    <twig:Ds:Button type="button" data-clipboard-target="button" data-action="clipboard#copy">{{ 'project.connect.copy'|trans }}</twig:Ds:Button>
+                    <twig:Ds:CopyButton :text="project.slug" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" buttonVariant="" buttonSize="" />
                 </div>
                 <twig:Ds:Hint>{{ 'project.edit.slug.hint'|trans }}</twig:Ds:Hint>
             </twig:Ds:FormField>
