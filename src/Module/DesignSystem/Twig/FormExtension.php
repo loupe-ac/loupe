@@ -24,7 +24,7 @@ final class FormExtension extends AbstractExtension
     }
 
     /** `$kind` is `select` or `textarea`; any other value is a plain input. */
-    public function inputClasses(?string $kind = null, bool $mono = false): string
+    public function inputClasses(?string $kind = null, bool $mono = false, bool $compact = false): string
     {
         $classes = ['lp-input'];
         if ('select' === $kind || 'textarea' === $kind) {
@@ -32,6 +32,9 @@ final class FormExtension extends AbstractExtension
         }
         if ($mono) {
             $classes[] = 'lp-input--mono';
+        }
+        if ($compact) {
+            $classes[] = 'select' === $kind ? 'lp-select--compact' : 'lp-input--compact';
         }
 
         return implode(' ', $classes);

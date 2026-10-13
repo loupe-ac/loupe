@@ -13,6 +13,7 @@
 @import './components/tag.css';
 @import './components/dialog.css';
 @import './components/pagination.css';
+@import './components/filter-bar.css';
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
@@ -120,23 +121,8 @@
 
 /* ── Feature sections: work queues, crew, documents ─────────────────── */
 
-/* Queue pages: filter row, board toolbar and list composition. */
+/* Queue pages: board toolbar and list composition. */
 @layer components {
-    /* Prototype-aligned composition for the four primary work queues. */
-    .lp-core-prototype-page .lp-list-filters {
-        min-height: calc(var(--spacing) * 10);
-        margin: 0 0 calc(var(--spacing) * 5);
-        padding: 0;
-        background: transparent;
-    }
-
-    .lp-core-prototype-page .lp-filter-count {
-        color: var(--text-dim);
-        font-family: var(--font-sans);
-        font-size: var(--text-sm);
-        font-weight: 400;
-    }
-
     .lp-core-board .lp-board-header {
         margin-bottom: calc(var(--spacing) * 3);
     }
@@ -246,10 +232,6 @@
     .lp-core-board .lp-board-card__meta {
         padding-top: calc(var(--spacing) * 2.5);
         border-top: 1px solid var(--border-faint);
-    }
-
-    .lp-core-inbox .lp-list-filters {
-        gap: calc(var(--spacing) * 3);
     }
 
     /* The inbox pages sit straight on a white page, with no frame around them. */
@@ -1095,9 +1077,6 @@
     .lp-redesign-rules .lp-rule-list {
         @apply gap-3 mt-7;
     }
-    .lp-redesign-rules .lp-filter-primary .lp-btn--icon {
-        @apply shrink-0;
-    }
     .lp-redesign-rules .lp-rule-row {
         @apply flex-row flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-line bg-surface-1 px-5.5 py-5;
     }
@@ -1154,15 +1133,6 @@
     }
     .lp-rule-explanation svg {
         @apply mt-0.5 h-4 w-4 shrink-0;
-    }
-
-    /* The run and event filters sit on top of their table. */
-    .lp-redesign-runs .lp-list-filters,
-    .lp-redesign-events .lp-list-filters {
-        @apply mt-6 rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
-    }
-    .lp-redesign-runs .lp-filter-form > .lp-filter-select {
-        @apply max-w-full;
     }
 
     /* Project choices use the prototype's three-column destination tiles. */
@@ -3584,69 +3554,6 @@
     }
     .lp-document-row__action:hover {
         @apply bg-tint-strong text-ink;
-    }
-
-    /* Filter bar above a list. Lives outside the list's empty-state branch so a
-       filter that matches nothing can still be turned off. */
-    .lp-list-filters {
-        @apply flex flex-wrap items-center gap-2 mt-6;
-    }
-    /* A labelled on/off filter, such as Show archived. */
-    .lp-filter-switch {
-        @apply inline-flex items-center gap-2 h-8.5 px-1 text-sm font-semibold text-fg-mute cursor-pointer;
-    }
-    /* Borderless "Clear" — an escape hatch, not a filter of its own. */
-    .lp-filter-clear {
-        @apply inline-flex items-center gap-1.5 h-8.5 rounded-full bg-transparent text-fg-mute no-underline transition-colors text-sm px-2;
-    }
-    .lp-filter-clear:hover {
-        @apply text-ink;
-    }
-    /* Right-aligned "5 of 7 documents". */
-    .lp-filter-count {
-        @apply ml-auto font-mono text-fg-dim text-xs;
-    }
-
-    /* The bar's GET form. Its controls sit on .lp-input / .lp-select and are
-       resized here, so they must be declared after those base classes. */
-    .lp-filter-form {
-        @apply flex flex-1 basis-full sm:basis-auto min-w-0 flex-wrap items-center gap-2;
-    }
-    /* Primary search and status controls stay together as secondary filters wrap. */
-    .lp-filter-primary {
-        @apply flex min-w-0 items-center gap-2 overflow-x-auto scroll-p-0.5 p-0.5 -m-0.5;
-        scrollbar-width: none;
-    }
-    .lp-filter-primary::-webkit-scrollbar {
-        display: none;
-    }
-    .lp-filter-primary .lp-filter-search {
-        @apply min-w-24;
-    }
-    .lp-filter-primary .lp-filter-select {
-        @apply max-w-full;
-    }
-    /* The design gives the search its own width and leaves the rest of the
-       filter row empty, rather than stretching the field across it. */
-    .lp-filter-search {
-        @apply relative flex w-56 min-w-0 items-center;
-    }
-    .lp-needs-you .lp-filter-search {
-        @apply flex-initial w-67.5;
-    }
-    /* Filter controls are the compact white variant of .lp-input, 36px tall. */
-    .lp-filter-search__icon {
-        @apply absolute left-2.5 w-4 h-4 text-fg-dim pointer-events-none;
-    }
-    .lp-filter-input,
-    .lp-filter-select {
-        @apply min-h-9 h-9 py-0 bg-surface-1 border-line text-sm leading-5;
-    }
-    .lp-filter-input {
-        @apply w-full min-w-0 pl-8.5 pr-2.5;
-    }
-    .lp-filter-select {
-        @apply w-auto shrink-0 pl-2.5 text-fg-mute;
     }
 
     /* About page: a warm hero with the lead and the planner mascot, then one
@@ -7753,14 +7660,6 @@
     .lp-data-table {
         @apply mt-6 rounded-xl border border-line bg-surface-1 max-md:overflow-x-auto;
     }
-    .lp-list-filters:has(~ * .lp-data-table),
-    .lp-list-filters:has(~ .lp-data-table) {
-        @apply rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
-    }
-    .lp-list-filters ~ .lp-data-table,
-    .lp-list-filters ~ * .lp-data-table {
-        @apply mt-0 rounded-t-none;
-    }
     .lp-data-table__header,
     .lp-data-table__row {
         @apply grid items-center gap-4 px-5 max-md:min-w-3xl;
@@ -7770,10 +7669,6 @@
     }
     .lp-data-table__header {
         @apply min-h-10 rounded-t-xl border-b border-line bg-app text-xs font-semibold uppercase tracking-wider text-fg-dim;
-    }
-    .lp-list-filters ~ .lp-data-table .lp-data-table__header,
-    .lp-list-filters ~ * .lp-data-table .lp-data-table__header {
-        @apply rounded-t-none;
     }
     .lp-data-table__row {
         @apply relative min-h-13 border-b border-line bg-white text-sm text-fg-mute last:rounded-b-xl last:border-b-0;
@@ -8768,7 +8663,8 @@
         @apply inline-flex items-center justify-center min-h-11 min-w-11;
     }
 
-    .lp-input {
+    .lp-input,
+    .lp-list-filters .lp-input {
         @apply min-h-11;
     }
 
@@ -8783,8 +8679,9 @@
     /* iOS Safari zooms the page in when it focuses a control under 16px. */
     .lp-comment-composer textarea,
     .lp-comment-reply-form textarea,
-    .lp-filter-input,
-    .lp-filter-select {
+    .lp-input--compact,
+    .lp-select--compact,
+    .lp-list-filters .lp-input {
         @apply text-base;
     }
 

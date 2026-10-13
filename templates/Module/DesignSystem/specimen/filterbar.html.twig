@@ -1,0 +1,14 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the FilterBar for the styleguide, so it is intentionally untranslated. #}
+<twig:Ds:FilterBar
+    action="/"
+    :search="{id: 'specimen-search', name: 'search', value: '', label: 'Search', placeholder: 'Search documents'}"
+    :switch="{name: 'archived', label: 'Show archived', checked: false}"
+    clearHref="/"
+    clearLabel="Clear"
+    count="5 of 7 documents">
+    <twig:Ds:Select name="status" aria-label="Status">
+        <option value="">All statuses</option>
+        <option value="draft">Draft</option>
+    </twig:Ds:Select>
+</twig:Ds:FilterBar>

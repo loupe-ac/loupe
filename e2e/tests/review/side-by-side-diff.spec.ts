@@ -118,7 +118,7 @@ test('comparison controls keep the compact compare bar metrics', async ({
         await expect(view).toBeVisible();
     }
     await page.goto(`${reviewPath.split('/documents/')[0]}/documents`);
-    for (const selector of ['.lp-filter-input', '.lp-filter-select']) {
+    for (const selector of ['.lp-filter-input', '.lp-list-filters select']) {
         const control = page.locator(selector).first();
         await expect(control).toBeVisible();
         await expect(control).toHaveCSS('height', '36px');

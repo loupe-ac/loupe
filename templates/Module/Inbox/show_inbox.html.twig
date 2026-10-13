@@ -56,33 +56,19 @@
                         </twig:Ds:Tabs>
 
                         {# A GET form, so the search lands in the address. A new search starts at page one and keeps the side and the type. #}
-                        <form method="get"
-                              action="{{ path('app_project_inbox', {id: inbox.project.id}) }}"
-                              data-turbo-frame="inbox-view"
-                              data-controller="autosearch"
-                              data-autosearch-ignore-value="{{ ['side', 'type']|json_encode|e('html_attr') }}"
-                              class="lp-filter-form">
-                            <input type="hidden" name="side" value="{{ view.side.value }}">
-                            {% if view.type %}<input type="hidden" name="type" value="{{ view.type.value }}">{% endif %}
-                            <div class="lp-filter-search">
-                                <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                                <label class="sr-only" for="inbox-search">{{ 'inbox.search.label'|trans }}</label>
-                                <twig:Ds:Input type="search"
-                                       id="inbox-search"
-                                       name="q"
-                                       class="lp-filter-input"
-                                       value="{{ view.query }}"
-                                       placeholder="{{ 'inbox.search.placeholder'|trans }}"
-                                       data-autosearch-target="field"
-                                       data-action="input->autosearch#search" />
-                            </div>
-                            {% if view.query != '' %}
-                            <a href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withQuery('').toQuery)) }}"
-                               data-turbo-frame="inbox-view"
-                               data-autosearch-target="clearButton"
-                               class="lp-filter-clear">{{ 'inbox.search.clear'|trans }}</a>
-                            {% endif %}
-                        </form>
+                        <twig:Ds:FilterBar
+                            :action="path('app_project_inbox', {id: inbox.project.id})"
+                            :formAttributes="{'data-turbo-frame': 'inbox-view', 'data-autosearch-ignore-value': ['side', 'type']|json_encode}"
+                            :search="{id: 'inbox-search', name: 'q', value: view.query, label: 'inbox.search.label'|trans, placeholder: 'inbox.search.placeholder'|trans}"
+                            :clearHref="view.query != '' ? path('app_project_inbox', {id: inbox.project.id}|merge(view.withQuery('').toQuery)) : null"
+                            :clearLabel="'inbox.search.clear'|trans"
+                            :clearAttributes="{'data-turbo-frame': 'inbox-view'}"
+                            :count="view.isSearch ? 'inbox.search.count'|trans({'%count%': inbox.total}) : null">
+                            <twig:block name="secondary">
+                                <input type="hidden" name="side" value="{{ view.side.value }}">
+                                {% if view.type %}<input type="hidden" name="type" value="{{ view.type.value }}">{% endif %}
+                            </twig:block>
+                        </twig:Ds:FilterBar>
 
                         <div class="lp-inbox-filter" role="group" aria-label="{{ 'inbox.filter.label'|trans }}">
                             <a class="lp-inbox-filter__button lp-inbox-filter__button--all"
@@ -103,9 +89,6 @@
                                 </a>
                             {% endfor %}
                         </div>
-                        {% if view.isSearch %}
-                            <span class="lp-filter-count">{{ 'inbox.search.count'|trans({'%count%': inbox.total}) }}</span>
-                        {% endif %}
                     </div>
 
                     <div class="lp-inbox-rows">

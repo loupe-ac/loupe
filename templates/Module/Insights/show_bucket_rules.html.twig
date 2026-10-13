@@ -69,15 +69,17 @@
     <section class="lp-reports-panel" data-bucket-summary>
         <h2 class="lp-section-title">{{ 'insights.bucket_rules.summary.title'|trans }}</h2>
         <twig:Ds:Hint>{{ 'insights.bucket_rules.summary.intro'|trans }}</twig:Ds:Hint>
-        <form method="get" action="{{ path('app_project_analytics_time_buckets', {id: project.id}) }}" data-controller="autosearch" class="lp-list-filters lp-filter-form">
-            <label class="sr-only" for="bucket-summary-range">{{ 'insights.bucket_rules.summary.range'|trans }}</label>
-            <twig:Ds:Select id="bucket-summary-range" name="range" class="lp-filter-select" data-action="change->autosearch#search">
-                {% for option in ranges %}
-                    <option value="{{ option.value }}"{{ option == summary.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-            <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
-        </form>
+        <twig:Ds:FilterBar :action="path('app_project_analytics_time_buckets', {id: project.id})">
+            <twig:block name="secondary">
+                <label class="sr-only" for="bucket-summary-range">{{ 'insights.bucket_rules.summary.range'|trans }}</label>
+                <twig:Ds:Select id="bucket-summary-range" name="range" data-action="change->autosearch#search">
+                    {% for option in ranges %}
+                        <option value="{{ option.value }}"{{ option == summary.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+                <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
+            </twig:block>
+        </twig:Ds:FilterBar>
         <div class="lp-metric-table">
             <table class="lp-metric-table__table">
                 <thead>
