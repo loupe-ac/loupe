@@ -8371,7 +8371,7 @@
             <trans-unit id="marker.waits_for_parent_card.remedy"><source>marker.waits_for_parent_card.remedy</source><target>Nothing. When the parent pull request merges, Loupe moves this one onto its target branch.</target></trans-unit>
             <trans-unit id="marker.waits_for_parent_branch"><source>marker.waits_for_parent_branch</source><target>Pull request #%number% waits for branch %branch% to merge.</target></trans-unit>
             <trans-unit id="marker.waits_for_parent_branch.remedy"><source>marker.waits_for_parent_branch.remedy</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
-            <trans-unit id="marker.waiting_on_checks"><source>marker.waiting_on_checks</source><target>Waiting for the checks to end.</target></trans-unit>
+            <trans-unit id="marker.waiting_on_checks"><source>marker.waiting_on_checks</source><target>Waiting for the checks of pull request #%number% to end.</target></trans-unit>
             <trans-unit id="marker.waiting_on_checks.remedy"><source>marker.waiting_on_checks.remedy</source><target>Nothing. The card moves on when the checks end.</target></trans-unit>
             <trans-unit id="marker.unmanaged"><source>marker.unmanaged</source><target>Unmanaged: the workflow does not act on this card.</target></trans-unit>
             <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>

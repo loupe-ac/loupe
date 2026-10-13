@@ -14,6 +14,7 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Workflow\Contract\BlockerHold;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\ForgeRequest;
 use App\Module\Workflow\Contract\MarkerKind;
@@ -69,6 +70,20 @@ final class ShippedMarkersTest extends KernelTestCase
             self::assertTrue($catalogue->defines($marker->label), \sprintf('"%s" has no English string.', $marker->label));
             self::assertNotNull($marker->remedy, $marker->key);
             self::assertTrue($catalogue->defines($marker->remedy), \sprintf('"%s" has no English string.', $marker->remedy));
+        }
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_every_label_that_reads_a_pull_request_names_it(string $key): void
+    {
+        $translator = static::getContainer()->get('translator');
+        self::assertInstanceOf(TranslatorBagInterface::class, $translator);
+        $catalogue = $translator->getCatalogue('en');
+
+        foreach ($this->template($key)->markers as $marker) {
+            if (\in_array(EngineFact::PullRequest, $marker->when->reads(), true)) {
+                self::assertStringContainsString('#%number%', $catalogue->get($marker->label), $marker->key);
+            }
         }
     }
 
@@ -141,6 +156,7 @@ final class ShippedMarkersTest extends KernelTestCase
         );
 
         self::assertSame(['waiting-on-checks'], $this->keys($facts));
+        self::assertSame(['%number%' => 8], $this->written('waiting-on-checks')->params);
     }
 
     public function test_a_card_that_nothing_moves_shows_the_idle_marker_of_its_pull_request_first(): void
