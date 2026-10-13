@@ -176,12 +176,16 @@ test('an inbox card link reveals its matching request in Conversation', async ({
         const target = page.locator(
             `[data-inbox-linked="card"] #inbox-item-${questionNumber}`,
         );
-        await expect(target.getByRole('heading')).toBeInViewport();
+        await expect(
+            target.getByRole('heading', { level: 3 }),
+        ).toBeInViewport();
         await page.reload();
         await expect(
             page.getByRole('tab', { name: 'Conversation' }),
         ).toHaveAttribute('aria-selected', 'true');
-        await expect(target.getByRole('heading')).toBeInViewport();
+        await expect(
+            target.getByRole('heading', { level: 3 }),
+        ).toBeInViewport();
         await page.getByRole('tab', { name: 'Overview' }).click();
         await page.reload();
         await expect(

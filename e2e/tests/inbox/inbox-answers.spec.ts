@@ -305,7 +305,7 @@ test('the owner answers a question and declines a to-do', async ({
     );
     await recovery.getByRole('button', { name: 'Discard draft' }).click();
     await expect(recovery).toBeHidden();
-    await expect(question.getByRole('heading')).toBeFocused();
+    await expect(question.getByRole('heading', { level: 3 })).toBeFocused();
 
     await page.reload();
     await expect(question.locator('[data-inbox-response]')).toContainText(
