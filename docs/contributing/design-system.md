@@ -57,7 +57,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | StateMark | An icon that names what a card needs now, with its reason in an interactive tooltip | stuck, needs-you, working, waiting |
 | StatusBox | The state of a card with its reason, its facts, what clears it, and the other states that apply | stuck, needs-you, working, waiting |
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
-| Tabs | A strip of links or tab buttons with an underline | none |
+| Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 
@@ -102,7 +102,7 @@ Write a dialog, tabs, pagination and a tooltip like this:
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
 
 Write the state of a card like this:
 

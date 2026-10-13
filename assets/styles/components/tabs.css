@@ -24,4 +24,17 @@
     .lp-tabs__count {
         @apply inline-flex items-center justify-center min-w-5 rounded-md bg-surface-3 px-1.5 py-0.5 text-xs text-fg-dim;
     }
+    /* The segmented variant: a pill group for a view or a setting switch. */
+    .lp-tabs--segmented {
+        @apply inline-flex gap-0.5 overflow-visible rounded-lg border-b-0 bg-surface-3 p-0.5 mb-0;
+    }
+    .lp-tabs--segmented .lp-tabs__tab {
+        @apply h-8 rounded-md border-b-0 px-2.5 py-0;
+    }
+    .lp-tabs--segmented .lp-tabs__tab[aria-selected='true'],
+    .lp-tabs--segmented .lp-tabs__tab[aria-current='page'],
+    .lp-tabs--segmented .lp-tabs__tab[aria-current='true'],
+    .lp-tabs--segmented .lp-tabs__tab[aria-pressed='true'] {
+        @apply bg-surface-1 text-ink shadow-sm;
+    }
 }
