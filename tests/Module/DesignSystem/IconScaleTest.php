@@ -38,7 +38,7 @@ final class IconScaleTest extends TestCase
             if (!str_ends_with((string) $file, '.twig') || str_contains((string) $file, '/Landing/')) {
                 continue;
             }
-            if (1 === preg_match('/<twig:(?:ux:icon|UX:Icon)\b[^>]*class="[^"]*\b(?:w|h|size)-\d|\biconClass="[^"]*\b(?:w|h|size)-\d/', (string) file_get_contents((string) $file))) {
+            if (1 === preg_match('/<twig:(?:ux:icon|UX:Icon)\b[^>]*class="[^"]*\b(?:w|h|size)-\d|\biconClass="[^"]*\b(?:w|h|size)-\d|icon\.html\.twig\'[^\n]*\bclass: \'[^\']*\b(?:w|h|size)-\d/', (string) file_get_contents((string) $file))) {
                 $offenders[] = substr((string) $file, strlen(self::PROJECT_DIR) + 1);
             }
         }
