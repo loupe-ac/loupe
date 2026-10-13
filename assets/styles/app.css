@@ -581,6 +581,12 @@
         gap: calc(var(--spacing) * 3);
     }
 
+    .lp-core-inbox .lp-inbox-ask__kind {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 1);
+    }
+
     /* The card a wait holds, linked into the card drawer, with its title in a tooltip. */
     .lp-core-inbox .lp-inbox-ask__wait {
         position: relative;
