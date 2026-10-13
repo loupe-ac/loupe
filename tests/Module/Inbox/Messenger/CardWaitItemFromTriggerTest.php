@@ -96,7 +96,32 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         self::assertSame(InboxItemState::Done->value, $em->getConnection()->fetchOne('SELECT state FROM inbox_items WHERE id = :id', ['id' => (string) $item->id]));
     }
 
-    private function reportRun(Project $project, Uuid $cardId, Uuid $runKey, WorkerRunState $state, ?string $output = null): void
+    public function test_a_blocked_run_with_a_title_names_its_item_by_that_title(): void
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $em = $container->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $project = $this->project($em, $this->owner($em, 'wait-run-title'), 'wait-run-title');
+        $card = $this->card($em, $project, 7);
+        $em->flush();
+        $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
+        $cardId = $card->id ?? throw new \LogicException('Card has no id.');
+
+        $run = Uuid::v4();
+        $this->reportRun($project, $cardId, $run, WorkerRunState::Queued);
+        $this->reportRun($project, $cardId, $run, WorkerRunState::Blocked, 'Needs the API key', ['title' => "Add the API key\nto the vault"]);
+        $this->drainAsync();
+
+        $watches = $container->get(InboxCardWatchRepository::class);
+        self::assertInstanceOf(InboxCardWatchRepository::class, $watches);
+        $open = $watches->findOpenForCards($project, [$cardId]);
+        self::assertCount(1, $open);
+        self::assertSame('Add the API key to the vault', $open[0]->item->title);
+    }
+
+    /** @param array<string, mixed>|null $resultFields */
+    private function reportRun(Project $project, Uuid $cardId, Uuid $runKey, WorkerRunState $state, ?string $output = null, ?array $resultFields = null): void
     {
         $handler = self::getContainer()->get(ReportWorkerRunStateHandler::class);
         self::assertInstanceOf(ReportWorkerRunStateHandler::class, $handler);
@@ -118,6 +143,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
             hasResult: $outcome ? true : null,
             output: $output,
             resultStatus: WorkerRunState::Blocked === $state ? 'blocked' : null,
+            resultFields: $outcome ? $resultFields : null,
         ));
         self::assertTrue($result->newState);
     }

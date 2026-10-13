@@ -62,6 +62,14 @@ final readonly class InboxRow
         return $this->items[0]->title;
     }
 
+    /** The title cut for a list row. The row shows the full title in a tooltip. */
+    public function shortTitle(int $maxLength = 80): string
+    {
+        $title = $this->title();
+
+        return mb_strlen($title) > $maxLength ? rtrim(mb_substr($title, 0, $maxLength - 1)).'…' : $title;
+    }
+
     public function kind(): InboxItemKind
     {
         return $this->leading->kind;
