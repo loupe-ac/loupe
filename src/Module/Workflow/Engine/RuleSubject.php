@@ -8,6 +8,7 @@ use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Template\Rule;
 use Symfony\Component\Uid\Uuid;
 
@@ -19,23 +20,48 @@ final readonly class RuleSubject
 {
     public function bind(Rule $rule, Facts $facts): BoundRule
     {
-        $readable = null === $rule->when->unreadable($facts);
-        if (!\in_array(EngineFact::PullRequest, $rule->when->reads(), true)) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $rule->when->evaluate($facts), false);
-        }
+        return $this->bindWhen($rule->when, $facts);
+    }
 
-        $candidates = array_values(array_filter($facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => PullRequestState::Open === $pullRequest->state));
+    /** Picks the pull request for any condition, such as the one of a marker, the way bind() does for a rule. */
+    public function bindWhen(Expression $when, Facts $facts): BoundRule
+    {
+        $readable = null === $when->unreadable($facts);
+        $candidates = $this->candidates($when, $facts);
         if ([] === $candidates) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $rule->when->evaluate($facts), true);
+            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), \in_array(EngineFact::PullRequest, $when->reads(), true));
         }
         foreach ($candidates as $candidate) {
             $bound = $facts->withPullRequest($candidate);
-            if ($readable && $rule->when->evaluate($bound)) {
+            if ($readable && $when->evaluate($bound)) {
                 return new BoundRule($bound, $candidate->id, true, true);
             }
         }
 
         return new BoundRule($facts->withPullRequest($candidates[0]), $candidates[0]->id, false, true);
+    }
+
+    /**
+     * The facts of each pull request a condition can bind, in the order of the facts.
+     * A condition that reads no pull request, or a card with no open one, answers the facts as given.
+     *
+     * @return non-empty-list<Facts>
+     */
+    public function subjects(Expression $when, Facts $facts): array
+    {
+        $candidates = $this->candidates($when, $facts);
+
+        return [] === $candidates ? [$facts] : array_map($facts->withPullRequest(...), $candidates);
+    }
+
+    /** @return list<PullRequestFacts> */
+    private function candidates(Expression $when, Facts $facts): array
+    {
+        if (!\in_array(EngineFact::PullRequest, $when->reads(), true)) {
+            return [];
+        }
+
+        return array_values(array_filter($facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => PullRequestState::Open === $pullRequest->state));
     }
 
     /** The facts a rule pause reads its until on: the pull request it paused, while the card still links it, else the bound one. */

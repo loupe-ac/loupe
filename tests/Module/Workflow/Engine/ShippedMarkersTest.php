@@ -1,0 +1,294 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Module\Workflow\Engine;
+
+use App\Module\Board\Workflow\CardActivityFacts;
+use App\Module\Board\Workflow\PauseFacts;
+use App\Module\Bridge\Workflow\HoldFacts;
+use App\Module\Bridge\Workflow\SessionFacts;
+use App\Module\Inbox\Workflow\OpenQuestion;
+use App\Module\Inbox\Workflow\OpenQuestionFacts;
+use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Workflow\Contract\BlockerHold;
+use App\Module\Workflow\Contract\ChecksState;
+use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\EngineFact;
+use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\ForgeRequest;
+use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\PauseView;
+use App\Module\Workflow\Contract\PullRequestFacts;
+use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Contract\StackParent;
+use App\Module\Workflow\Fact\BlockerHoldFacts;
+use App\Module\Workflow\Template\ShippedTemplates;
+use App\Module\Workflow\Template\Template;
+use App\Module\Workflow\Template\TemplateParser;
+use App\Tests\Module\Workflow\Fact\FactsMother;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Translation\TranslatorBagInterface;
+use Symfony\Component\Uid\Uuid;
+
+/** The markers of the shipped templates, read through the marker pass on facts a card can have. */
+final class ShippedMarkersTest extends KernelTestCase
+{
+    use MarkerScenario;
+
+    private const array LIFECYCLE_KEYS = [
+        'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
+        'document-in-review', 'waits-for-approval', 'open-question', 'session-open', 'run-open', 'work-requested',
+        'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks', 'unmanaged',
+    ];
+
+    public function test_the_lifecycle_template_ships_its_markers_in_order(): void
+    {
+        self::assertSame(self::LIFECYCLE_KEYS, array_map(static fn ($marker): string => $marker->key, $this->template('lifecycle')->markers));
+    }
+
+    public function test_the_simple_template_ships_the_same_markers_without_slots_and_without_the_three_that_need_them(): void
+    {
+        $markers = $this->template('simple')->markers;
+
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        foreach ($markers as $marker) {
+            self::assertSame([], $marker->slots, $marker->key);
+        }
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_every_label_and_remedy_has_an_english_string(string $key): void
+    {
+        $translator = static::getContainer()->get('translator');
+        self::assertInstanceOf(TranslatorBagInterface::class, $translator);
+        $catalogue = $translator->getCatalogue('en');
+
+        foreach ($this->template($key)->markers as $marker) {
+            self::assertTrue($catalogue->defines($marker->label), \sprintf('"%s" has no English string.', $marker->label));
+            self::assertNotNull($marker->remedy, $marker->key);
+            self::assertTrue($catalogue->defines($marker->remedy), \sprintf('"%s" has no English string.', $marker->remedy));
+        }
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_every_label_that_reads_a_pull_request_names_it(string $key): void
+    {
+        $translator = static::getContainer()->get('translator');
+        self::assertInstanceOf(TranslatorBagInterface::class, $translator);
+        $catalogue = $translator->getCatalogue('en');
+
+        foreach ($this->template($key)->markers as $marker) {
+            if (\in_array(EngineFact::PullRequest, $marker->when->reads(), true)) {
+                self::assertStringContainsString('#%number%', $catalogue->get($marker->label), $marker->key);
+            }
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function shippedKeys(): iterable
+    {
+        yield 'lifecycle' => ['lifecycle'];
+        yield 'simple' => ['simple'];
+    }
+
+    public function test_a_quiet_card_with_nothing_to_report_shows_no_marker(): void
+    {
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation'))));
+    }
+
+    public function test_a_pause_is_stuck_with_its_reason(): void
+    {
+        $pause = new PauseView(Uuid::v7(), Uuid::v7(), Uuid::v7(), 'move-refused', 'rule', PauseKind::Retries, new \DateTimeImmutable('2026-10-01 11:00:00'));
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'implementation'), provided: [PauseFacts::class => new PauseFacts($pause)]));
+
+        self::assertSame(['paused'], $this->writtenKeys());
+        self::assertSame(['%reason%' => 'move-refused'], $this->written('paused')->params);
+    }
+
+    public function test_failing_checks_are_stuck_until_a_fix_is_under_way(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed, number: 12, checksFailedSince: new \DateTimeImmutable('2026-10-01 10:00:00'));
+        self::assertSame(['checks-failed'], $this->keys($this->workFacts('implementation', $pullRequest)));
+        self::assertSame(['%number%' => 12], $this->written('checks-failed')->params);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 10:00:00'), $this->written('checks-failed')->since);
+        self::assertSame(['work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['fix'])));
+        self::assertSame(['run-open'], $this->keys($this->workFacts('implementation', $pullRequest, [], ['repair'])));
+        self::assertSame(['checks-failed', 'work-requested'], $this->keys($this->workFacts('implementation', $pullRequest, ['review'])));
+    }
+
+    public function test_a_conflict_is_stuck_until_a_fix_is_under_way(): void
+    {
+        $pullRequest = FactsMother::pullRequest(conflicting: true, number: 3);
+
+        self::assertSame(['conflicting'], $this->keys($this->workFacts('in-review', $pullRequest)));
+        self::assertSame(['work-requested'], $this->keys($this->workFacts('in-review', $pullRequest, ['fix'])));
+    }
+
+    public function test_a_closed_pull_request_with_failing_checks_shows_nothing(): void
+    {
+        $pullRequest = FactsMother::pullRequest(state: PullRequestState::Merged, checks: ChecksState::Failed);
+
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest])));
+    }
+
+    public function test_a_ready_pull_request_is_stuck_after_the_delay_unless_a_merge_is_under_way(): void
+    {
+        $ready = static fn (string $since): PullRequestFacts => FactsMother::pullRequest(checks: ChecksState::Passed, number: 5, readyToMerge: true, readySince: new \DateTimeImmutable($since));
+
+        self::assertSame(['ready-not-merged'], $this->keys($this->workFacts('in-review', $ready('2026-10-01 11:00:00'))));
+        self::assertSame([], $this->keys($this->workFacts('in-review', $ready('2026-10-01 11:55:00'))), 'the delay has not passed');
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:10:00'), $this->writtenDueAt);
+        self::assertSame(['work-requested'], $this->keys($this->workFacts('in-review', $ready('2026-10-01 11:00:00'), ['merge'])));
+    }
+
+    public function test_pending_checks_wait_and_hide_the_idle_marker(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Pending, number: 8);
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'in-review'),
+            pullRequest: $pullRequest,
+            pullRequests: [$pullRequest],
+            provided: [CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00'))],
+        );
+
+        self::assertSame(['waiting-on-checks'], $this->keys($facts));
+        self::assertSame(['%number%' => 8], $this->written('waiting-on-checks')->params);
+    }
+
+    public function test_a_card_that_nothing_moves_shows_the_idle_marker_of_its_pull_request_first(): void
+    {
+        $quiet = [CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00'))];
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 9);
+
+        self::assertSame(['pull-request-idle'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: $quiet)));
+        self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design'), provided: $quiet)));
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: $quiet)), 'the Next column stays silent');
+        self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', childCount: 1, openChildCount: 1), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: $quiet)), 'an open child hides the pull request idle marker only');
+    }
+
+    public function test_a_held_card_is_not_called_idle_and_shows_the_chip(): void
+    {
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation'), provided: [
+            CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00')),
+            HoldFacts::class => new HoldFacts(new \DateTimeImmutable('2026-10-01 08:00:00')),
+        ]);
+
+        self::assertSame(['unmanaged'], $this->keys($facts));
+        self::assertSame(MarkerKind::Chip, $this->written('unmanaged')->kind);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 08:00:00'), $this->written('unmanaged')->since);
+    }
+
+    public function test_a_document_in_review_needs_the_person_only_in_the_slot_of_its_tag(): void
+    {
+        $review = static fn (string $tag): array => [new DocumentFacts([$tag], DocumentStatus::InReview->value, 'doc', 'The design', new \DateTimeImmutable('2026-10-01 10:00:00'))];
+
+        self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('tech-design')))));
+        self::assertSame(['%title%' => 'The design'], $this->written('document-in-review')->params);
+        self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'product-design', documents: $review('product-design')))));
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('product-design')))));
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: $review('tech-design')))));
+    }
+
+    public function test_a_pull_request_that_waits_for_approval_and_an_open_question_need_the_person(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, waitsForApprovalSince: new \DateTimeImmutable('2026-10-01 10:30:00'));
+        $question = new OpenQuestionFacts(new OpenQuestion(6, 'Which way?', new \DateTimeImmutable('2026-10-01 10:00:00')));
+
+        $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: [OpenQuestionFacts::class => $question]));
+
+        self::assertSame(['waits-for-approval', 'open-question'], $this->writtenKeys());
+        self::assertSame(['%number%' => 6, '%title%' => 'Which way?'], $this->written('open-question')->params);
+    }
+
+    public function test_work_shows_as_working_with_the_session_first(): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: ['implement'], activeWorkerKinds: ['implement']),
+            provided: [SessionFacts::class => new SessionFacts(new \DateTimeImmutable('2026-10-01 11:00:00'), 'claude')],
+        );
+
+        self::assertSame(['session-open', 'run-open', 'work-requested'], $this->keys($facts));
+    }
+
+    public function test_a_pending_request_to_the_forge_is_working(): void
+    {
+        $pullRequest = FactsMother::pullRequest(number: 2, forgeRequests: [new ForgeRequest(new \DateTimeImmutable('2026-10-01 11:59:00'), new \DateTimeImmutable('2026-10-01 12:05:00'))]);
+
+        self::assertSame(['forge-request-pending'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest])));
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:05:00'), $this->writtenDueAt);
+    }
+
+    public function test_a_blocker_and_a_stacked_pull_request_wait(): void
+    {
+        $blocker = new BlockerHoldFacts(new BlockerHold('card', new \DateTimeImmutable('2026-10-01 10:00:00'), 31, 'The base'));
+        self::assertSame(['held-by-blocker'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: [BlockerHoldFacts::class => $blocker])));
+        self::assertSame(['%number%' => 31, '%title%' => 'The base'], $this->written('held-by-blocker')->params);
+
+        $ready = static fn (StackParent $parent): PullRequestFacts => FactsMother::pullRequest(checks: ChecksState::Passed, baseIsMergeTarget: false, stacked: true, number: 5, stackParent: $parent, readyToMerge: true, readySince: new \DateTimeImmutable('2026-10-01 11:00:00'));
+        $known = $ready(new StackParent('feature/a', 4, 20));
+        self::assertSame(['waits-for-parent-card'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $known, pullRequests: [$known])));
+        self::assertSame(['%number%' => 5, '%parent_number%' => 20, '%pull_request%' => 4], $this->written('waits-for-parent-card')->params);
+        $unknown = $ready(new StackParent('feature/a'));
+        self::assertSame(['waits-for-parent-branch'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $unknown, pullRequests: [$unknown])));
+        self::assertSame(['%number%' => 5, '%branch%' => 'feature/a'], $this->written('waits-for-parent-branch')->params);
+    }
+
+    public function test_a_card_in_a_terminal_column_shows_nothing(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed);
+
+        self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: '@terminal'), pullRequest: $pullRequest, pullRequests: [$pullRequest])));
+    }
+
+    public function test_the_simple_template_shows_the_markers_it_ships_in_a_card_with_no_slot(): void
+    {
+        $pullRequest = FactsMother::pullRequest(checks: ChecksState::Failed, number: 1);
+        $facts = FactsMother::facts(pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: [HoldFacts::class => new HoldFacts(new \DateTimeImmutable('2026-10-01 08:00:00'))]);
+
+        $this->pass($this->template('simple'), $facts);
+
+        self::assertSame(['checks-failed', 'unmanaged'], $this->writtenKeys());
+    }
+
+    /**
+     * @param list<string> $work    the kinds of the open work requests
+     * @param list<string> $workers the kinds of the open worker runs
+     */
+    private function workFacts(string $slot, PullRequestFacts $pullRequest, array $work = [], array $workers = []): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: $pullRequest,
+            pullRequests: [$pullRequest],
+            run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
+        );
+    }
+
+    /** @return list<string> */
+    private function keys(Facts $facts): array
+    {
+        return $this->passKeys($this->template('lifecycle'), $facts);
+    }
+
+    /** @return list<string> */
+    private function writtenKeys(): array
+    {
+        return array_map(static fn ($marker): string => $marker->key, $this->written ?? []);
+    }
+
+    private function template(string $key): Template
+    {
+        self::bootKernel();
+        $shipped = self::getContainer()->get(ShippedTemplates::class);
+        self::assertInstanceOf(ShippedTemplates::class, $shipped);
+        $parser = self::getContainer()->get(TemplateParser::class);
+        self::assertInstanceOf(TemplateParser::class, $parser);
+
+        return $parser->parse($shipped->source($key));
+    }
+}

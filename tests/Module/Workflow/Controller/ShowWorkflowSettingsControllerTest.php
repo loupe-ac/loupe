@@ -9,6 +9,7 @@ use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Template\AppRules;
+use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\TemplateParser;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\Template\TemplateParserTest;
@@ -106,7 +107,11 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
     public function test_a_template_without_markers_says_so(): void
     {
         $project = $this->workflowProject('workflow-page-no-markers');
-        $this->bindLifecycle($project);
+        $shipped = static::getContainer()->get(ShippedTemplates::class);
+        self::assertInstanceOf(ShippedTemplates::class, $shipped);
+        $source = $shipped->source('simple');
+        unset($source['markers']);
+        $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
         $owner = $this->stampedOwner($project);
 
         $this->client->loginUser($owner);
