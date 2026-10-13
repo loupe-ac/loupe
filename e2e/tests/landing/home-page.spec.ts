@@ -90,7 +90,9 @@ test.describe('home page', () => {
         await expect(play).toBeVisible();
         await expect(explainer.getByText(/^0:00 \/ \d:\d\d$/)).toBeVisible();
         await expect(explainer.locator('.chap')).toHaveCount(0);
-        await expect(explainer.locator('details')).toHaveCount(0);
+        await expect(
+            explainer.locator('summary', { hasText: 'Transcript' }),
+        ).toHaveCount(0);
         await expect(explainer.locator('#stage')).toHaveAttribute('inert', '');
 
         const transcript = explainer.getByRole('region', {
