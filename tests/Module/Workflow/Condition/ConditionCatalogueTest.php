@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Condition;
 
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Workflow\Condition\Conditions;
+use App\Module\Workflow\Contract\MarkerEvidence;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Translation\TranslatorBagInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -129,6 +130,18 @@ final class ConditionCatalogueTest extends KernelTestCase
             $source = $conditions->get($key)::source();
             self::assertSame(self::SOURCES[$key], $source, $key);
             self::assertTrue($catalogue->defines($source), \sprintf('"%s" has no English string.', $source));
+        }
+    }
+
+    public function test_the_workflows_guide_names_each_condition_that_a_marker_reads(): void
+    {
+        $conditions = static::getContainer()->get(Conditions::class);
+        $guide = (string) file_get_contents(\dirname(__DIR__, 4).'/docs/using/workflows.md');
+
+        foreach (self::catalogueKeys($conditions) as $key) {
+            if ($conditions->get($key) instanceof MarkerEvidence) {
+                self::assertStringContainsString('`'.$key.'`', $guide, \sprintf('docs/using/workflows.md does not name "%s".', $key));
+            }
         }
     }
 

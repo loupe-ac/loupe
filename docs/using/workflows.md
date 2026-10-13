@@ -65,9 +65,24 @@ markers:
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `card.held`: a person held the agents of the card.
 - `card.inbox.open_question`: an open inbox question names the card.
+- `pr.checks_pending`: the pull request is open, and its checks run.
+- `pr.waits_for_approval`: the pull request is open, not a draft, green and
+  into the default branch, and no current approval covers its head.
+- `pr.forge_request_pending`: Loupe asked the forge to merge, sync or change
+  the base of the pull request, and the forge did not answer yet. A request
+  expires after 10 minutes with no answer.
+- `pr.stack_parent`: the pull request is ready to merge with nothing pending,
+  and waits for the branch it is stacked on. The optional `parent` is `known`
+  when a card links the open parent pull request, or `unknown` when only the
+  branch is known. With no `parent`, both match.
+- `pr.ready_for`: the pull request is not stacked, and stayed ready to merge
+  with nothing pending for the `delay`, in minutes.
 
 The `delay` of `card.quiet_for` and of `pr.ready_for` is optional. With no
 `delay`, the condition uses the **Stuck delay in minutes** setting of the board.
+
+Markers also read conditions that rules already use: `pr.checks_failed`,
+`pr.conflicting`, `card.run.work_active` and `card.run.worker_active`.
 
 The page lists the conditions of each rule. It groups them by the module whose
 data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
