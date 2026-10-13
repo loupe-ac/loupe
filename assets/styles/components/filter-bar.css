@@ -1,0 +1,104 @@
+/* The filter bar above a list. `templates/components/Ds/FilterBar.html.twig`
+   renders it. A select or input inside it takes the compact look from the bar. */
+@layer components {
+    /* Lives outside the list's empty-state branch, so a filter that matches
+       nothing can still be turned off. */
+    .lp-list-filters {
+        @apply flex flex-wrap items-center gap-2 mt-6;
+    }
+    /* A labelled on/off filter, such as Show archived. */
+    .lp-filter-switch {
+        @apply inline-flex items-center gap-2 h-8.5 px-1 text-sm font-semibold text-fg-mute cursor-pointer;
+    }
+    /* Borderless "Clear": an escape hatch, not a filter of its own. */
+    .lp-filter-clear {
+        @apply inline-flex items-center gap-1.5 h-8.5 rounded-full bg-transparent text-fg-mute no-underline transition-colors text-sm px-2;
+    }
+    .lp-filter-clear:hover {
+        @apply text-ink;
+    }
+    /* Right-aligned "5 of 7 documents". */
+    .lp-filter-count {
+        @apply ml-auto font-mono text-fg-dim text-xs;
+    }
+    .lp-filter-form {
+        @apply flex flex-1 basis-full sm:basis-auto min-w-0 flex-wrap items-center gap-2;
+    }
+    /* Primary search and status controls stay together as secondary filters wrap. */
+    .lp-filter-primary {
+        @apply flex min-w-0 items-center gap-2 overflow-x-auto scroll-p-0.5 p-0.5 -m-0.5;
+        scrollbar-width: none;
+    }
+    .lp-filter-primary::-webkit-scrollbar {
+        display: none;
+    }
+    .lp-filter-primary .lp-filter-search {
+        @apply min-w-24;
+    }
+    .lp-filter-primary .lp-select {
+        @apply max-w-full;
+    }
+    /* The search keeps its own width and leaves the rest of the row empty,
+       rather than stretching across it. */
+    .lp-filter-search {
+        @apply relative flex w-56 min-w-0 items-center;
+    }
+    .lp-needs-you .lp-filter-search {
+        @apply flex-initial w-67.5;
+    }
+    .lp-filter-search__icon {
+        @apply absolute left-2.5 w-4 h-4 text-fg-dim pointer-events-none;
+    }
+    /* The compact white variant of .lp-input, 36px tall. */
+    .lp-list-filters .lp-input {
+        @apply min-h-9 h-9 py-0 bg-surface-1 border-line text-sm leading-5;
+    }
+    .lp-filter-search .lp-input {
+        @apply w-full min-w-0 pl-8.5 pr-2.5;
+    }
+    .lp-list-filters .lp-select {
+        @apply w-auto shrink-0 pl-2.5 text-fg-mute;
+    }
+
+    /* Page contexts. */
+    .lp-core-prototype-page .lp-list-filters {
+        min-height: calc(var(--spacing) * 10);
+        margin: 0 0 calc(var(--spacing) * 5);
+        padding: 0;
+        background: transparent;
+    }
+    .lp-core-prototype-page .lp-filter-count {
+        color: var(--text-dim);
+        font-family: var(--font-sans);
+        font-size: var(--text-sm);
+        font-weight: 400;
+    }
+    .lp-core-inbox .lp-list-filters {
+        gap: calc(var(--spacing) * 3);
+    }
+    .lp-redesign-rules .lp-filter-primary .lp-btn--icon {
+        @apply shrink-0;
+    }
+    /* The run and event filters sit on top of their table. */
+    .lp-redesign-runs .lp-list-filters,
+    .lp-redesign-events .lp-list-filters {
+        @apply mt-6 rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
+    }
+    .lp-redesign-runs .lp-filter-form > .lp-select {
+        @apply max-w-full;
+    }
+
+    /* A bar above a table joins it: the table loses its top edge. */
+    .lp-list-filters:has(~ * .lp-data-table),
+    .lp-list-filters:has(~ .lp-data-table) {
+        @apply rounded-t-xl border border-b-0 border-line bg-surface-1 px-4 py-3;
+    }
+    .lp-list-filters ~ .lp-data-table,
+    .lp-list-filters ~ * .lp-data-table {
+        @apply mt-0 rounded-t-none;
+    }
+    .lp-list-filters ~ .lp-data-table .lp-data-table__header,
+    .lp-list-filters ~ * .lp-data-table .lp-data-table__header {
+        @apply rounded-t-none;
+    }
+}

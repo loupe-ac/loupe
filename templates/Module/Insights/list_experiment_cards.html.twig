@@ -15,7 +15,7 @@
 
     {% include '@Insights/_experiment_tabs.html.twig' with {project: project, experiment: report.experiment, active: 'cards'} only %}
 
-    <div class="lp-list-filters lp-cost-controls">
+    <twig:Ds:FilterBar class="lp-cost-controls" :count="'bridge.experiments.card_count'|trans({'%count%': report.filteredTotal})">
         <nav class="lp-cost-toggle" aria-label="{{ 'bridge.experiments.cards.filter_label'|trans }}" data-experiment-filter>
             <a class="lp-cost-toggle__option"
                href="{{ path('app_project_analytics_experiment_cards', routeParams) }}"
@@ -29,8 +29,7 @@
                href="{{ path('app_project_analytics_experiment_cards', routeParams|merge({'left-out': 1})) }}"
                {% if query.leftOutOnly %}aria-current="true"{% endif %}>{{ 'bridge.experiments.cards.left_out'|trans }}</a>
         </nav>
-        <span class="lp-filter-count">{{ 'bridge.experiments.card_count'|trans({'%count%': report.filteredTotal}) }}</span>
-    </div>
+    </twig:Ds:FilterBar>
 
     {% if report.cards is not empty %}
     <twig:DataTable modifier="experiment-cards" :columns="[

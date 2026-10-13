@@ -28,52 +28,39 @@
     <div id="backlog-confirmation" aria-live="polite"></div>
 
     {% if view.total > 0 or listQuery.isNarrowed %}
-    <div class="lp-list-filters">
-        {# A GET form, so the filters land in the URL. `page` is not a field, so a changed filter starts at page one. #}
-        <form method="get" action="{{ backlogPath }}" data-controller="autosearch" class="lp-filter-form">
-            <div class="lp-filter-primary" data-action="focusin->autosearch#revealField">
-                <div class="lp-filter-search">
-                    <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                    <label class="sr-only" for="backlog-search">{{ 'board.backlog.filter.search_label'|trans }}</label>
-                    <twig:Ds:Input type="search"
-                           id="backlog-search"
-                           name="search"
-                           class="lp-filter-input"
-                           value="{{ listQuery.search }}"
-                           placeholder="{{ 'board.backlog.filter.search_placeholder'|trans }}"
-                           data-autosearch-target="field"
-                           data-action="input->autosearch#search" />
-                </div>
+    {% set backlogCount %}<span id="backlog-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span>{% endset %}
+    {# A GET form, so the filters land in the URL. `page` is not a field, so a changed filter starts at page one. #}
+    <twig:Ds:FilterBar
+        :action="backlogPath"
+        :search="{id: 'backlog-search', name: 'search', value: listQuery.search, label: 'board.backlog.filter.search_label'|trans, placeholder: 'board.backlog.filter.search_placeholder'|trans}"
+        :clearHref="backlogPath"
+        :clearLabel="'board.backlog.filter.clear'|trans"
+        :count="backlogCount">
+        <label class="sr-only" for="backlog-type">{{ 'board.backlog.filter.type_label'|trans }}</label>
+        <twig:Ds:Select id="backlog-type" name="type" data-action="change->autosearch#search">
+            <option value="">{{ 'board.backlog.filter.all_types'|trans }}</option>
+            {% for type in types %}
+            <option value="{{ type.key }}"{{ listQuery.type == type.key ? ' selected' : '' }}>{{ type.label|trans }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
 
-                <label class="sr-only" for="backlog-type">{{ 'board.backlog.filter.type_label'|trans }}</label>
-                <twig:Ds:Select id="backlog-type" name="type" class="lp-filter-select" data-action="change->autosearch#search">
-                    <option value="">{{ 'board.backlog.filter.all_types'|trans }}</option>
-                    {% for type in types %}
-                    <option value="{{ type.key }}"{{ listQuery.type == type.key ? ' selected' : '' }}>{{ type.label|trans }}</option>
-                    {% endfor %}
-                </twig:Ds:Select>
+        <label class="sr-only" for="backlog-epic">{{ 'board.backlog.filter.epic_label'|trans }}</label>
+        <twig:Ds:Select id="backlog-epic" name="epic" data-action="change->autosearch#search">
+            <option value="">{{ 'board.backlog.filter.any_epic'|trans }}</option>
+            <option value="{{ constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') }}"{{ listQuery.epic == constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') ? ' selected' : '' }}>{{ 'board.backlog.filter.no_epic'|trans }}</option>
+            {% for epic in view.epics %}
+            <option value="{{ epic.id }}"{{ listQuery.epic == epic.id ~ '' ? ' selected' : '' }}>#{{ epic.number }} {{ epic.title }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
 
-                <label class="sr-only" for="backlog-epic">{{ 'board.backlog.filter.epic_label'|trans }}</label>
-                <twig:Ds:Select id="backlog-epic" name="epic" class="lp-filter-select" data-action="change->autosearch#search">
-                    <option value="">{{ 'board.backlog.filter.any_epic'|trans }}</option>
-                    <option value="{{ constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') }}"{{ listQuery.epic == constant('App\\Module\\Board\\View\\BacklogListQuery::NO_EPIC') ? ' selected' : '' }}>{{ 'board.backlog.filter.no_epic'|trans }}</option>
-                    {% for epic in view.epics %}
-                    <option value="{{ epic.id }}"{{ listQuery.epic == epic.id ~ '' ? ' selected' : '' }}>#{{ epic.number }} {{ epic.title }}</option>
-                    {% endfor %}
-                </twig:Ds:Select>
-            </div>
-
-            <a href="{{ backlogPath }}" data-autosearch-target="clearButton" class="lp-filter-clear">{{ 'board.backlog.filter.clear'|trans }}</a>
-
+        <twig:block name="secondary">
             {# A filter change keeps the order the column headers chose. #}
             {% if listQuery.routeParams.sort is defined %}
             <input type="hidden" name="sort" value="{{ listQuery.sort.value }}">
             <input type="hidden" name="dir" value="{{ listQuery.dir.value }}">
             {% endif %}
-        </form>
-
-        <span id="backlog-filter-count" class="lp-filter-count">{% include '@Board/_backlog_count.html.twig' with {view: view, listQuery: listQuery} only %}</span>
-    </div>
+        </twig:block>
+    </twig:Ds:FilterBar>
     {% endif %}
 
     <div id="backlog-results">

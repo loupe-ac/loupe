@@ -20,47 +20,33 @@
        as a complete history, and a report lost with its bridge would read as a
        worker that never ran. #}
     {% if items|length > 0 or listQuery.isNarrowed %}
-    <div class="lp-list-filters">
-        {# A GET form, so every control lands in the URL and the view stays
-           shareable. `page` is not a field: a changed filter starts at page one. #}
-        <form method="get"
-              action="{{ path('app_project_worker_runs', {id: project.id}) }}"
-              data-controller="autosearch"
-              class="lp-filter-form">
-            <div class="lp-filter-primary" data-action="focusin->autosearch#revealField">
-                <div class="lp-filter-search">
-                    <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                    <label class="sr-only" for="worker-run-search">{{ 'bridge.worker_runs.filter.search_label'|trans }}</label>
-                    <twig:Ds:Input type="search"
-                           id="worker-run-search"
-                           name="search"
-                           class="lp-filter-input"
-                           value="{{ listQuery.search }}"
-                           placeholder="{{ 'bridge.worker_runs.filter.search_placeholder'|trans }}"
-                           data-autosearch-target="field"
-                           data-action="input->autosearch#search" />
-                </div>
+    {# A GET form, so every control lands in the URL and the view stays
+       shareable. `page` is not a field: a changed filter starts at page one. #}
+    <twig:Ds:FilterBar
+        :action="path('app_project_worker_runs', {id: project.id})"
+        :search="{id: 'worker-run-search', name: 'search', value: listQuery.search, label: 'bridge.worker_runs.filter.search_label'|trans, placeholder: 'bridge.worker_runs.filter.search_placeholder'|trans}"
+        :clearHref="path('app_project_worker_runs', {id: project.id})"
+        :clearLabel="'bridge.worker_runs.filter.clear'|trans"
+        :count="'bridge.worker_runs.filter.count'|trans({'%count%': filteredTotal})"
+        countFrame="worker-runs-count">
+        <label class="sr-only" for="worker-run-outcome">{{ 'bridge.worker_runs.filter.outcome_label'|trans }}</label>
+        <twig:Ds:Select id="worker-run-outcome"
+                name="outcome"
+                data-action="change->autosearch#search">
+            <option value="">{{ 'bridge.worker_runs.filter.all_outcomes'|trans }}</option>
+            <option value="open"{{ listQuery.open ? ' selected' : '' }}>{{ 'bridge.worker_runs.filter.open_runs'|trans }}</option>
+            {% for state in states %}
+                <option value="{{ state.value }}"{{ listQuery.state == state ? ' selected' : '' }}>{{ state.translationKey()|trans }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
 
-                <label class="sr-only" for="worker-run-outcome">{{ 'bridge.worker_runs.filter.outcome_label'|trans }}</label>
-                <twig:Ds:Select id="worker-run-outcome"
-                        name="outcome"
-                        class="lp-filter-select"
-                        data-action="change->autosearch#search">
-                    <option value="">{{ 'bridge.worker_runs.filter.all_outcomes'|trans }}</option>
-                    <option value="open"{{ listQuery.open ? ' selected' : '' }}>{{ 'bridge.worker_runs.filter.open_runs'|trans }}</option>
-                    {% for state in states %}
-                        <option value="{{ state.value }}"{{ listQuery.state == state ? ' selected' : '' }}>{{ state.translationKey()|trans }}</option>
-                    {% endfor %}
-                </twig:Ds:Select>
-            </div>
-
+        <twig:block name="secondary">
             {# One bridge reports many runs, so the control waits until a second
                bridge makes it a choice rather than a label. #}
             {% if bridgeIds|length > 1 %}
                 <label class="sr-only" for="worker-run-bridge">{{ 'bridge.worker_runs.filter.bridge_label'|trans }}</label>
                 <twig:Ds:Select id="worker-run-bridge"
                         name="bridge"
-                        class="lp-filter-select"
                         data-action="change->autosearch#search">
                     <option value="">{{ 'bridge.worker_runs.filter.all_bridges'|trans }}</option>
                     {% for bridgeId in bridgeIds %}
@@ -80,7 +66,6 @@
                     <label class="sr-only" for="worker-run-{{ filter.name }}">{{ filter.label|trans }}</label>
                     <twig:Ds:Select id="worker-run-{{ filter.name }}"
                             name="{{ filter.name }}"
-                            class="lp-filter-select"
                             data-action="change->autosearch#search">
                         <option value="">{{ filter.all|trans }}</option>
                         {% for value in values %}
@@ -89,14 +74,8 @@
                     </twig:Ds:Select>
                 {% endif %}
             {% endfor %}
-
-            <a href="{{ path('app_project_worker_runs', {id: project.id}) }}"
-               data-autosearch-target="clearButton"
-               class="lp-filter-clear">{{ 'bridge.worker_runs.filter.clear'|trans }}</a>
-        </form>
-
-        <turbo-frame id="worker-runs-count" class="lp-live-frame"><span class="lp-filter-count">{{ 'bridge.worker_runs.filter.count'|trans({'%count%': filteredTotal}) }}</span></turbo-frame>
-    </div>
+        </twig:block>
+    </twig:Ds:FilterBar>
     {% endif %}
 
     {% do mercure_subscribe(worker_runs_topic(project)) %}

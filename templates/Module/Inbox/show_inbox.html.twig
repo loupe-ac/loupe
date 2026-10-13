@@ -42,38 +42,22 @@
     {% endif %}
 
     {% if not inbox.isEmpty %}
-    <div class="lp-list-filters">
-        {# A GET form, so the search lands in the URL. A new search starts at page one. #}
-        <form method="get"
-              action="{{ path('app_project_inbox', {id: inbox.project.id}) }}"
-              data-controller="autosearch"
-              class="lp-filter-form">
-            <div class="lp-filter-search">
-                <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                <label class="sr-only" for="inbox-search">{{ 'inbox.search.label'|trans }}</label>
-                <twig:Ds:Input type="search"
-                       id="inbox-search"
-                       name="q"
-                       class="lp-filter-input"
-                       value="{{ inbox.query }}"
-                       placeholder="{{ 'inbox.search.placeholder'|trans }}"
-                       data-autosearch-target="field"
-                       data-action="input->autosearch#search" />
-            </div>
-            <a href="{{ path('app_project_inbox', {id: inbox.project.id}) }}"
-               data-autosearch-target="clearButton"
-               class="lp-filter-clear">{{ 'inbox.search.clear'|trans }}</a>
-        </form>
-        <span class="lp-filter-count">
-            {%- if inbox.isSearch -%}
-                {{ 'inbox.search.count'|trans({'%count%': inbox.searchTotal}) }}
-            {%- elseif completed -%}
-                {{ 'inbox.page.completed_count'|trans({'%count%': inbox.closedAskTotal}) }}
-            {%- else -%}
-                {{ 'inbox.page.waiting_count'|trans({'%count%': inbox.openItemCount}) }}
-            {%- endif -%}
-        </span>
-    </div>
+    {% set inboxCount %}
+        {%- if inbox.isSearch -%}
+            {{ 'inbox.search.count'|trans({'%count%': inbox.searchTotal}) }}
+        {%- elseif completed -%}
+            {{ 'inbox.page.completed_count'|trans({'%count%': inbox.closedAskTotal}) }}
+        {%- else -%}
+            {{ 'inbox.page.waiting_count'|trans({'%count%': inbox.openItemCount}) }}
+        {%- endif -%}
+    {% endset %}
+    {# A GET form, so the search lands in the URL. A new search starts at page one. #}
+    <twig:Ds:FilterBar
+        :action="path('app_project_inbox', {id: inbox.project.id})"
+        :search="{id: 'inbox-search', name: 'q', value: inbox.query, label: 'inbox.search.label'|trans, placeholder: 'inbox.search.placeholder'|trans}"
+        :clearHref="path('app_project_inbox', {id: inbox.project.id})"
+        :clearLabel="'inbox.search.clear'|trans"
+        :count="inboxCount" />
     {% endif %}
 
     {% if inbox.isEmpty %}

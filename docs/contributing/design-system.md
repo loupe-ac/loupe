@@ -59,6 +59,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
 | Tabs | A strip of links or tab buttons with an underline | none |
 | Pagination | The previous, next and page-number control of a list | none |
+| FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 
 Write a button like this:
@@ -99,10 +100,12 @@ Write a dialog, tabs, pagination and a tooltip like this:
 
 <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
 
+<twig:Ds:FilterBar :action="path('app_projects')" :search="{id: 'q', name: 'q', value: query, label: 'Search', placeholder: 'Search'}" clearHref="{{ path('app_projects') }}" clearLabel="Clear" count="3 projects" />
+
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
 
 Write the state of a card like this:
 
@@ -174,4 +177,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination` or `lp-tooltip` by hand.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters` or `lp-tooltip` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.

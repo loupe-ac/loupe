@@ -36,49 +36,31 @@
        filter or the archived view is on, whatever the counts say: a filter that
        disappears the moment it matches nothing is a dead end. #}
     {% if totalDocuments > 0 or listQuery.isNarrowed or listQuery.includeArchived %}
-    <div class="lp-list-filters">
-        {# A GET form, so every control lands in the URL and the whole view stays
-           shareable and back-button-able. `page` is deliberately not a field: a
-           changed filter starts again at page one. #}
-        <form method="get"
-              action="{{ path('app_project_documents', {id: project.id}) }}"
-              data-controller="autosearch"
-              class="lp-filter-form">
-            <div class="lp-filter-primary" data-action="focusin->autosearch#revealField">
-                <div class="lp-filter-search">
-                    <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                    <label class="sr-only" for="document-search">{{ 'review.dashboard.filter.search_label'|trans }}</label>
-                    {# The field target lets the controller restore focus and caret
-                       after a debounced submit: this is a full Turbo visit, so the
-                       field being typed into is replaced mid-word. A full visit rather
-                       than a frame, so the query lands in the address bar. #}
-                    <twig:Ds:Input type="search"
-                           id="document-search"
-                           name="search"
-                           class="lp-filter-input"
-                           value="{{ listQuery.search }}"
-                           placeholder="{{ 'review.dashboard.filter.search_placeholder'|trans }}"
-                           data-autosearch-target="field"
-                           data-action="input->autosearch#search" />
-                </div>
+    {# A GET form, so every control lands in the URL and the view stays shareable. `page` is not a field: a changed filter starts at page one. #}
+    {# The field target restores focus and caret after a debounced submit, because the full Turbo visit replaces the field mid-word. #}
+    {# The count covers live documents only, so it is left out while archived ones show. #}
+    <twig:Ds:FilterBar
+        :action="path('app_project_documents', {id: project.id})"
+        :search="{id: 'document-search', name: 'search', value: listQuery.search, label: 'review.dashboard.filter.search_label'|trans, placeholder: 'review.dashboard.filter.search_placeholder'|trans}"
+        :switch="{name: 'archived', label: 'review.dashboard.filter.show_archived'|trans, checked: listQuery.includeArchived}"
+        :clearHref="path('app_project_documents', {id: project.id})"
+        :clearLabel="'review.dashboard.filter.clear'|trans"
+        :count="totalDocuments > 0 and not listQuery.includeArchived ? 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) : null">
+        <label class="sr-only" for="document-status">{{ 'review.dashboard.filter.status_label'|trans }}</label>
+        <twig:Ds:Select id="document-status"
+                name="status"
+                data-action="change->autosearch#search">
+            <option value="">{{ 'review.dashboard.filter.all_statuses'|trans }}</option>
+            {% for status in statuses %}
+                <option value="{{ status.value }}"{{ listQuery.status == status ? ' selected' : '' }}>{{ status.translationKey()|trans }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
 
-                <label class="sr-only" for="document-status">{{ 'review.dashboard.filter.status_label'|trans }}</label>
-                <twig:Ds:Select id="document-status"
-                        name="status"
-                        class="lp-filter-select"
-                        data-action="change->autosearch#search">
-                    <option value="">{{ 'review.dashboard.filter.all_statuses'|trans }}</option>
-                    {% for status in statuses %}
-                        <option value="{{ status.value }}"{{ listQuery.status == status ? ' selected' : '' }}>{{ status.translationKey()|trans }}</option>
-                    {% endfor %}
-                </twig:Ds:Select>
-            </div>
-
+        <twig:block name="secondary">
             {% if projectTags|length > 0 %}
                 <label class="sr-only" for="document-tag">{{ 'review.dashboard.filter.tag_label'|trans }}</label>
                 <twig:Ds:Select id="document-tag"
                         name="tag"
-                        class="lp-filter-select"
                         data-action="change->autosearch#search">
                     <option value="">{{ 'review.dashboard.filter.all_tags'|trans }}</option>
                     {% for tag in projectTags %}
@@ -93,7 +75,6 @@
                 <label class="sr-only" for="document-series">{{ 'review.dashboard.filter.series_label'|trans }}</label>
                 <twig:Ds:Select id="document-series"
                         name="series"
-                        class="lp-filter-select"
                         data-action="change->autosearch#search">
                     <option value="">{{ 'review.dashboard.filter.all_series'|trans }}</option>
                     {# The option carries the spelling and the comparison uses the
@@ -103,29 +84,8 @@
                     {% endfor %}
                 </twig:Ds:Select>
             {% endif %}
-
-            <label class="lp-filter-switch">
-                <input type="checkbox"
-                       class="lp-switch"
-                       role="switch"
-                       name="archived"
-                       value="1"
-                       {{ listQuery.includeArchived ? 'checked' }}
-                       data-action="change->autosearch#search">
-                {{ 'review.dashboard.filter.show_archived'|trans }}
-            </label>
-
-            <a href="{{ path('app_project_documents', {id: project.id}) }}"
-               data-autosearch-target="clearButton"
-               class="lp-filter-clear">{{ 'review.dashboard.filter.clear'|trans }}</a>
-        </form>
-
-        {# The total counts live documents only, so it is omitted while archived
-           ones are on screen rather than reporting more rows than documents. #}
-        {% if totalDocuments > 0 and not listQuery.includeArchived %}
-        <span class="lp-filter-count">{{ 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) }}</span>
-        {% endif %}
-    </div>
+        </twig:block>
+    </twig:Ds:FilterBar>
     {% endif %}
 
     {% if items|length > 0 %}
