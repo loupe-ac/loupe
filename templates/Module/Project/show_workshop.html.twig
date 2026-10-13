@@ -21,12 +21,7 @@
          data-worker-run-refresh-whole-value="true"
          data-worker-run-refresh-project-value="{{ workshop.project.id }}"
          data-worker-run-refresh-events-value="{{ ['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed']|json_encode }}">
-        <header class="lp-page-header">
-            <div>
-                <h1 class="lp-workshop-title">{{ 'readiness.guide.heading'|trans({'%project%': workshop.project.name}) }}</h1>
-                <p class="lp-workspace-desc">{{ 'readiness.guide.description'|trans }}</p>
-            </div>
-        </header>
+        <twig:Ds:PageHeader variant="workshop" :title="'readiness.guide.heading'|trans({'%project%': workshop.project.name})" :description="'readiness.guide.description'|trans" />
         <section class="lp-readiness-discovery" aria-labelledby="readiness-discovery-title">
             <h2 class="lp-workshop-section__title" id="readiness-discovery-title">{{ 'readiness.discovery.title'|trans }}</h2>
             <p>{{ 'readiness.discovery.body'|trans }}</p>
@@ -40,12 +35,7 @@
         </form>
     </div>
     {% else %}
-    <header class="lp-page-header">
-        <div>
-            <h1 class="lp-workshop-title">{{ 'project.workshop.page.heading'|trans }}</h1>
-            <p class="lp-workspace-desc">{{ 'project.workshop.page.description'|trans({'%project%': workshop.project.name}) }}</p>
-        </div>
-    </header>
+    <twig:Ds:PageHeader variant="workshop" :title="'project.workshop.page.heading'|trans" :description="'project.workshop.page.description'|trans({'%project%': workshop.project.name})" />
 
     <div class="lp-workshop-summary" aria-label="{{ 'project.workshop.summary.label'|trans }}">
         {% if is_feature_enabled('inbox.enabled') %}<a class="lp-workshop-stat" data-workshop-stat="requests" href="{{ path('app_project_inbox', {id: workshop.project.id}) }}">{% else %}<div class="lp-workshop-stat" data-workshop-stat="requests">{% endif %}

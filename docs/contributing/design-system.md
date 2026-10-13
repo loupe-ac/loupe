@@ -60,6 +60,15 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
+
+The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
+
+```twig
+<twig:Ds:PageHeader :title="'documents.title'|trans" :description="'documents.description'|trans">
+    <twig:block name="actions"><twig:Ds:Button variant="primary">New</twig:Ds:Button></twig:block>
+</twig:Ds:PageHeader>
+```
 
 Write a button like this:
 
