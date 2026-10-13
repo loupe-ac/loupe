@@ -254,7 +254,7 @@ test('project settings fit narrow screens and enlarged text', async ({
     seeded,
 }) => {
     await page.goto(`/projects/${seeded.projectId}/edit`);
-    const panels = page.locator('.lp-settings-panel-card');
+    const panels = page.locator('.lp-panel');
     await expect(panels).toHaveCount(2);
     for (const width of [1440, 1150, 950, 780, 390]) {
         await page.setViewportSize({ width, height: 1000 });

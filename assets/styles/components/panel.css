@@ -1,0 +1,6 @@
+/* The panel: a bordered tinted card. `templates/components/Ds/Panel.html.twig` renders it. */
+@layer components {
+    .lp-panel {
+        @apply rounded-xl border border-line bg-surface-1 p-6;
+    }
+}

@@ -13,7 +13,7 @@
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'time-buckets'} only %}
 
     <section class="lp-reports-panel" data-bucket-rule-form>
-        <h2 class="lp-section-title">{{ 'insights.bucket_rules.add.title'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'insights.bucket_rules.add.title'|trans }}</twig:Ds:SectionHeading>
         <twig:Ds:Hint>{{ 'insights.bucket_rules.intro'|trans }}</twig:Ds:Hint>
         {{ form_start(ruleForm, {action: path('app_project_analytics_bucket_rule_create', {id: project.id}), attr: {class: 'lp-form'}}) }}
             <twig:Ds:FieldErrors :fieldView="ruleForm" />
@@ -27,9 +27,9 @@
                 </twig:Ds:FormField>
                 {% endfor %}
             </div>
-            <div class="lp-settings-form-actions">
+            <twig:Ds:FormActions>
                 <twig:Ds:Button variant="primary" type="submit" :disabled="atLimit">{{ 'insights.bucket_rules.add.submit'|trans }}</twig:Ds:Button>
-            </div>
+            </twig:Ds:FormActions>
             {% if atLimit %}
             <twig:Ds:Hint data-bucket-rule-limit>{{ 'insights.bucket_rules.limit'|trans({'%max%': constant('App\\Module\\Insights\\Entity\\InsightsBucketRule::MAX_PER_PROJECT')}) }}</twig:Ds:Hint>
             {% endif %}
@@ -67,7 +67,7 @@
     {% endif %}
 
     <section class="lp-reports-panel" data-bucket-summary>
-        <h2 class="lp-section-title">{{ 'insights.bucket_rules.summary.title'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'insights.bucket_rules.summary.title'|trans }}</twig:Ds:SectionHeading>
         <twig:Ds:Hint>{{ 'insights.bucket_rules.summary.intro'|trans }}</twig:Ds:Hint>
         <form method="get" action="{{ path('app_project_analytics_time_buckets', {id: project.id}) }}" data-controller="autosearch" class="lp-list-filters lp-filter-form">
             <label class="sr-only" for="bucket-summary-range">{{ 'insights.bucket_rules.summary.range'|trans }}</label>

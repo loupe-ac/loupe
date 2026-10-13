@@ -21,8 +21,8 @@
         {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'connections'} only %}
 
         <div class="lp-settings-content">
-        <section class="lp-settings-section lp-settings-panel-card" id="agent-connection">
-            <h2 class="lp-section-title">{{ 'project.connect.card.agent.title'|trans }}</h2>
+        <twig:Ds:Panel as="section" id="agent-connection">
+            <twig:Ds:SectionHeading>{{ 'project.connect.card.agent.title'|trans }}</twig:Ds:SectionHeading>
             <p class="lp-connect-hint">{{ 'project.connect.step.agent.purpose'|trans }}</p>
 
             <div data-controller="modal">
@@ -52,15 +52,15 @@
                             {% endfor %}
                         </div>
                     </details>
-                    <div class="lp-settings-form-actions">
+                    <twig:Ds:FormActions>
                         <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'project.connect.dialog.close'|trans }}</twig:Ds:Button>
-                    </div>
+                    </twig:Ds:FormActions>
                 </twig:Ds:Dialog>
             </div>
-        </section>
+        </twig:Ds:Panel>
 
-        <section class="lp-settings-section lp-settings-panel-card" id="site-review-widget">
-            <h2 class="lp-section-title">{{ 'project.connect.card.widget.title'|trans }}</h2>
+        <twig:Ds:Panel as="section" id="site-review-widget">
+            <twig:Ds:SectionHeading>{{ 'project.connect.card.widget.title'|trans }}</twig:Ds:SectionHeading>
             <p class="lp-connect-hint">
                 {%- if project.domain -%}
                     {{ 'project.connect.step.widget.purpose'|trans({'%domain%': project.domain}) }}
@@ -111,12 +111,12 @@
                         {% endif %}
                         <twig:Ds:FieldErrors :fieldView="allowedOriginsForm.origins" />
                     </twig:Ds:FormField>
-                    <div class="lp-settings-form-actions">
+                    <twig:Ds:FormActions>
                         <twig:Ds:Button variant="primary" type="submit">{{ 'project.allowed_origins.save'|trans }}</twig:Ds:Button>
-                    </div>
+                    </twig:Ds:FormActions>
                 {{ form_end(allowedOriginsForm) }}
             </div>
-        </section>
+        </twig:Ds:Panel>
 
         <twig:GitHubRepositories :project="project" />
         </div>

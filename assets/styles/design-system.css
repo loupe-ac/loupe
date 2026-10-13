@@ -13,6 +13,9 @@
 @import './components/pagination.css';
 @import './components/tabs.css';
 @import './components/tooltip.css';
+@import './components/panel.css';
+@import './components/section-heading.css';
+@import './components/form-actions.css';
 
 @source "../../templates/components/Ds";
 

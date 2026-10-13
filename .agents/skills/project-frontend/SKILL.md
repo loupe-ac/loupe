@@ -184,6 +184,10 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 11. StatusBox: `<twig:Ds:StatusBox kind="stuck" :title="..." :chip="..." :lead="..." :fields="..." :others="...">`. Kinds are stuck, needs-you, working and waiting. The CSS is `assets/styles/components/status-box.css`.
 12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working and waiting. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
 
+13. Panel: `<twig:Ds:Panel as="section">`. It draws one bordered tinted card and has no variants. The CSS is `assets/styles/components/panel.css`.
+14. SectionHeading: `<twig:Ds:SectionHeading :description="...">Title<twig:block name="actions">...</twig:block></twig:Ds:SectionHeading>`. The content is the title, and `level` is 2 or 3. `titleId` sets the heading id. The CSS is `assets/styles/components/section-heading.css`.
+15. FormActions: `<twig:Ds:FormActions>` wraps the buttons that end a form or a dialog. `align="between"` pushes the first control left. The CSS is `assets/styles/components/form-actions.css`.
+
 2. Form parts: `<twig:Ds:FormField :fieldView="form.title" />` draws the label, widget, hint and errors of a Symfony field, and `widgetKind="select"` or `widgetKind="textarea"` picks the widget classes. `Ds:Input`, `Ds:Select`, `Ds:Textarea`, `Ds:Label`, `Ds:Hint` and `Ds:FieldErrors` draw one part each. A Symfony widget in a custom layout takes `ds_input_class('select')` and `ds_label_class()`. The CSS is `assets/styles/components/form.css`.
 
 A child card that adds a component adds it to this list in the same branch.

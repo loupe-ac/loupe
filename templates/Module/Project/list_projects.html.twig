@@ -26,7 +26,7 @@
     <div class="lp-project-list lp-project-tile-grid">
         {% for item in items %}
         {% set project = item.project %}
-        <article class="lp-project-row lp-project-tile" data-project-id="{{ project.id }}">
+        <twig:Ds:Panel as="article" class="lp-project-tile" data-project-id="{{ project.id }}">
             <a href="{{ path('app_project_workshop', {id: project.id}) }}"
                class="lp-project-row__link" aria-label="{{ project.name }}"></a>
             <span class="lp-project-row__avatar">{{ project.name|slice(0, 1)|upper }}</span>
@@ -56,7 +56,7 @@
                 <twig:ux:icon name="lucide:pencil" class="w-4 h-4" />
             </a>
             <twig:ux:icon name="lucide:chevron-right" class="lp-project-tile__arrow" />
-        </article>
+        </twig:Ds:Panel>
         {% endfor %}
 
         <div class="lp-project-new{% if form.vars.submitted and not form.vars.valid %} disclosure-open{% endif %}"
@@ -92,9 +92,9 @@
                         <twig:Ds:Hint>{{ 'project.form.create_project_form.search_language.hint'|trans }}</twig:Ds:Hint>
                     </twig:Ds:FormField>
                     {% include '@Project/_workflow_template_field.html.twig' with {field: form.workflowTemplate} only %}
-                    <div class="flex items-center justify-end gap-3 pt-2">
+                    <twig:Ds:FormActions>
                         <twig:Ds:Button variant="primary" type="submit">{{ 'project.list.form.submit'|trans }}</twig:Ds:Button>
-                    </div>
+                    </twig:Ds:FormActions>
                 {{ form_end(form) }}
             </div>
         </div>

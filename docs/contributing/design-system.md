@@ -60,6 +60,9 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Tabs | A strip of links or tab buttons with an underline | none |
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| Panel | A bordered tinted card that holds one block of a page | none. Takes `as` for the element |
+| SectionHeading | The title of a section, with an optional sentence and optional actions | none. Takes `level`, `description` and an `actions` block |
+| FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
 
 Write a button like this:
 
