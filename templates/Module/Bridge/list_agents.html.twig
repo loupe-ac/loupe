@@ -61,14 +61,13 @@
                         </twig:block>
                         <twig:block name="content">
                             {% if bridge.pauseRequested or bridge.takesCommands() %}
-                            {% set action = bridge.pauseRequested ? 'unpause' : 'pause' %}
-                            <form method="post" action="{{ path(action == 'pause' ? 'app_project_bridge_pause' : 'app_project_bridge_unpause', {id: project.id, bridgeId: bridge.id}) }}" data-turbo-frame="_top" data-agent-pause-control="{{ action }}">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('bridge-pause') }}">
+                            {% set pauseAction = bridge.pauseRequested ? 'unpause' : 'pause' %}
+                            <twig:Ds:ActionForm :action="path(pauseAction == 'pause' ? 'app_project_bridge_pause' : 'app_project_bridge_unpause', {id: project.id, bridgeId: bridge.id})" token="bridge-pause" frame="_top" data-agent-pause-control="{{ pauseAction }}">
                                 <twig:Ds:MenuItem type="submit">
-                                    {% if action == 'pause' %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% endif %}
-                                    {{ (action == 'pause' ? 'bridge.agents.pause' : 'bridge.agents.unpause')|trans }}
+                                    {% if pauseAction == 'pause' %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% endif %}
+                                    {{ (pauseAction == 'pause' ? 'bridge.agents.pause' : 'bridge.agents.unpause')|trans }}
                                 </twig:Ds:MenuItem>
-                            </form>
+                            </twig:Ds:ActionForm>
                             {% else %}
                             {% set reason = 'bridge.agents.pause_outdated'|trans({'%version%': constant('App\\Module\\Bridge\\View\\WorkerRunControls::COMMANDS_SINCE_VERSION')}) %}
                             <twig:Ds:MenuItem title="{{ reason }}" data-agent-pause-control="pause" disabled>

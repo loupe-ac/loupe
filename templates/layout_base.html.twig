@@ -5,12 +5,17 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         {% if app.user %}<meta name="turbo-cache-control" content="no-preview">{% endif %}
         <title>{% block title %}{{ 'app.name'|trans }}{% endblock %}</title>
-        {% block meta_description %}{% endblock %}
+        {% set pageDescription = block('description') is defined ? block('description')|trim : '' %}
+        {% if '' != pageDescription %}
+        <meta name="description" content="{{ pageDescription }}">
+        {% include '_open_graph.html.twig' with {title: block('title')|trim, description: pageDescription} only %}
+        {% endif %}
         {# A plain <link>, not an `import` in app.js: AssetMapper turns a CSS
            import into a `data:application/javascript,` entry in the import map,
            which an enforcing script-src blocks outright. #}
         {% block stylesheets %}<link rel="stylesheet" href="{{ asset('styles/app.css') }}">{% endblock %}
         {% include '_sentry_browser.html.twig' only %}
+        {% include '@Analytics/_script.html.twig' only %}
         {% block javascripts %}
             {# The importmap renders two inline <script> tags, which are the only
                inline scripts this app emits. Nonces are what will let script-src
@@ -34,7 +39,6 @@
            centred card. They are siblings on purpose: an auth page that
            extended the shell could only ever nest inside it. #}
         {% block page %}{% endblock %}
-        {% include '@Analytics/_script.html.twig' only %}
         {# A block so a page can swap what loads here. The widget guards itself
            against a second instance, so a page that loads its own replaces
            this one rather than sitting alongside it. #}

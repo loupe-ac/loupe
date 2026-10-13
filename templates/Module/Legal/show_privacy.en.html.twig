@@ -5,7 +5,7 @@
 
 {% block title %}{{ 'legal.privacy.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
-{% block meta_description %}<meta name="description" content="{{ 'legal.privacy.meta_description'|trans }}">{% endblock %}
+{% block description %}{{ 'legal.privacy.meta_description'|trans }}{% endblock %}
 
 {% block legal_title %}{{ 'legal.privacy.title'|trans }}{% endblock %}
 
@@ -67,6 +67,16 @@
             </tbody>
         </table>
         <p>{% if analytics %}We use no advertising cookies and no cross-site tracking. Page views are counted by an analytics service at {{ analytics_host }}, which sets no cookies and cannot follow you to another site.{% else %}We use no analytics cookies, no advertising cookies and no third-party tracking.{% endif %}</p>
+{% if analytics %}
+        <p>On the public pages, the analytics service records:</p>
+        <ul>
+            <li>the page that you view;</li>
+            <li>the site that referred you, and the campaign tags in the address;</li>
+            <li>your clicks on the waitlist buttons, and the waitlist form that you use to join;</li>
+            <li>the browser, the type of device and the country, which the service derives from your request.</li>
+        </ul>
+        <p>It sets no cookie and stores no personal data. If your browser sends Do Not Track, nothing is counted. Pages that you see when you are signed in are not counted.</p>
+{% endif %}
     </section>
 
     <section>

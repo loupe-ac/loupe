@@ -72,21 +72,19 @@
                             {{ 'artifact.viewer.download'|trans }}
                         </twig:Ds:MenuItem>
                         {% if artifact.archivedAt is null %}
-                        <form method="post" action="{{ path('app_project_artifact_archive', {id: project.id, artifactId: artifact.id}) }}" data-artifact-archive-form>
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('artifact-archive') }}">
+                        <twig:Ds:ActionForm :action="path('app_project_artifact_archive', {id: project.id, artifactId: artifact.id})" token="artifact-archive" data-artifact-archive-form>
                             <twig:Ds:MenuItem type="submit">
                                 <twig:ux:icon name="lucide:archive" class="lp-artifact-menu__icon" />
                                 {{ 'artifact.viewer.archive'|trans }}
                             </twig:Ds:MenuItem>
-                        </form>
+                        </twig:Ds:ActionForm>
                         {% else %}
-                        <form method="post" action="{{ path('app_project_artifact_unarchive', {id: project.id, artifactId: artifact.id}) }}" data-artifact-unarchive-form>
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('artifact-unarchive') }}">
+                        <twig:Ds:ActionForm :action="path('app_project_artifact_unarchive', {id: project.id, artifactId: artifact.id})" token="artifact-unarchive" data-artifact-unarchive-form>
                             <twig:Ds:MenuItem type="submit">
                                 <twig:ux:icon name="lucide:archive-restore" class="lp-artifact-menu__icon" />
                                 {{ 'artifact.viewer.unarchive'|trans }}
                             </twig:Ds:MenuItem>
-                        </form>
+                        </twig:Ds:ActionForm>
                         {% endif %}
                     </div>
 

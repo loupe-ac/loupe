@@ -152,6 +152,9 @@ security:
         - { path: ^/privacy$,        roles: PUBLIC_ACCESS }
         - { path: ^/terms$,          roles: PUBLIC_ACCESS }
         - { path: ^/ai-policy$,      roles: PUBLIC_ACCESS }
+        # Crawlers fetch these without a session. Both answer from the public page list.
+        - { path: ^/robots\.txt$,    roles: PUBLIC_ACCESS }
+        - { path: ^/sitemap\.xml$,   roles: PUBLIC_ACCESS }
         # The marketing landing page. LandingController serves it to anonymous
         # visitors only where billing is on, and redirects to /login otherwise;
         # authenticated users get the same home redirect as before.

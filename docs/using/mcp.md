@@ -527,7 +527,10 @@ A `card_list` or `card_search` row is a summary with nine fields: `cardId`,
 `number`, `title`, `type`, `status`, `reporter`, `parentCardId`, `updatedAt` and
 `state`. `parentCardId` is null for a card with no parent. `state` is null, or
 holds `kind`, `code` and `since`: what the card needs now on the board, which is
-`stuck`, `needs-you`, `working` or `waiting`. The full card adds `reason` and
+`stuck`, `needs-you`, `working` or `waiting`. `code` is the key of a workflow
+marker. The codes `session-open`, `waiting-on-checks` and `nothing-happened`
+are new. A chip such as **Unmanaged** is not in `state`, so a card with only a
+chip has a null `state`. The full card adds `reason` and
 `others` to `state`. [The board](board.md#the-mcp-tools) lists the codes.
 
 A card has a `type`. The workflow template of the project declares the types,

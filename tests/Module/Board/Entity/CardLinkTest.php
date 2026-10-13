@@ -19,6 +19,37 @@ final class CardLinkTest extends TestCase
         self::assertSame(CardLinkKind::RelatesTo, CardLinkKind::RelatesTo->inverse());
         self::assertSame(CardLinkKind::BlockedBy, CardLinkKind::Blocks->inverse());
         self::assertSame(CardLinkKind::Blocks, CardLinkKind::BlockedBy->inverse());
+        self::assertSame(CardLinkKind::FollowUpOf, CardLinkKind::HasFollowUp->inverse());
+        self::assertSame(CardLinkKind::HasFollowUp, CardLinkKind::FollowUpOf->inverse());
+    }
+
+    public function test_stored_says_which_kinds_a_reader_swaps(): void
+    {
+        self::assertSame([CardLinkKind::RelatesTo, false], CardLinkKind::RelatesTo->stored());
+        self::assertSame([CardLinkKind::Blocks, false], CardLinkKind::Blocks->stored());
+        self::assertSame([CardLinkKind::Blocks, true], CardLinkKind::BlockedBy->stored());
+        self::assertSame([CardLinkKind::HasFollowUp, false], CardLinkKind::HasFollowUp->stored());
+        self::assertSame([CardLinkKind::HasFollowUp, true], CardLinkKind::FollowUpOf->stored());
+    }
+
+    public function test_the_target_of_a_follow_up_row_reads_follow_up_of(): void
+    {
+        [$a, $b] = $this->cards(2);
+
+        $link = new CardLink($a, $b, CardLinkKind::HasFollowUp);
+
+        self::assertSame(CardLinkKind::HasFollowUp, $link->kindFor($a));
+        self::assertSame(CardLinkKind::FollowUpOf, $link->kindFor($b));
+    }
+
+    public function test_the_constructor_refuses_to_store_follow_up_of(): void
+    {
+        [$a, $b] = $this->cards(2);
+
+        $this->expectException(\LogicException::class);
+
+        $link = new CardLink($a, $b, CardLinkKind::FollowUpOf);
+        self::fail('The link stored follow-up-of as '.$link->kind->value);
     }
 
     public function test_each_side_reads_its_own_kind(): void

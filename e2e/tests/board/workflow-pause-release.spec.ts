@@ -23,15 +23,22 @@ test('Retry now ends a retries pause, and the history records the release', asyn
     page,
 }) => {
     test.slow();
-    const seed = await page.request.post('/dev/seed/document', {
-        form: { title: 'E2E Workflow Pause', markdown: '# Pause' },
-    });
-    expect(seed.status()).toBe(201);
-    const { projectId } = await seed.json();
+    // The paused rule must exist and apply, or the check that the pause queues ends it at once.
+    await page.goto('/projects');
+    await page
+        .locator('.lp-page-header')
+        .getByRole('button', { name: /new project/i })
+        .click();
+    await page.getByLabel('Project name').fill(`pause-${Date.now()}`);
+    await page.getByLabel('Lifecycle', { exact: true }).check();
+    await page.getByRole('button', { name: 'Add project' }).click();
+    await expect(page.locator('[data-workshop]')).toBeVisible();
+    const projectId = /\/projects\/([0-9a-f-]{36})/.exec(page.url())?.[1];
+    expect(projectId).toBeTruthy();
 
     await page.goto(`/projects/${projectId}/board/cards/new`);
     await page.getByLabel('Title', { exact: true }).fill('Paused card');
-    await page.getByLabel('Column').selectOption({ label: 'Next' });
+    await page.getByLabel('Column').selectOption({ label: 'Tech design' });
     await page
         .getByRole('button', { name: 'Create card', exact: true })
         .click();

@@ -34,10 +34,9 @@
             {% if discovery is not null %}<span class="lp-readiness-discovery__status">{{ discovery.status|trans(discovery.statusParameters) }}</span>{% endif %}
         </section>
         {% include '@Project/_readiness_checklist.html.twig' with {project: workshop.project, readiness: readiness, layout: 'full'} only %}
-        <form class="lp-readiness-guide__hide" method="post" action="{{ path('app_readiness_guide_hide', {id: workshop.project.id}) }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token('readiness-guide-hide') }}">
+        <twig:Ds:ActionForm :action="path('app_readiness_guide_hide', {id: workshop.project.id})" token="readiness-guide-hide" class="lp-readiness-guide__hide">
             <twig:Ds:Button variant="ghost" type="submit" data-readiness-hide>{{ 'readiness.guide.hide'|trans }}</twig:Ds:Button>
-        </form>
+        </twig:Ds:ActionForm>
     </div>
     {% else %}
     <header class="lp-page-header">

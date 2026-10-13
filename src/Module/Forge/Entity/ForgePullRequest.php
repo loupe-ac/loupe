@@ -114,6 +114,9 @@ class ForgePullRequest
     public ?\DateTimeImmutable $checksFailedSince = null;
 
     #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $checksPendingSince = null;
+
+    #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $conflictingSince = null;
 
     #[ORM\Column(nullable: true)]
@@ -324,6 +327,7 @@ class ForgePullRequest
             && (PullRequestReview::Approved !== $this->review || null === $this->approvalId || $this->approvalIsStale());
 
         $this->checksFailedSince = self::edge($open && PullRequestChecks::Failed === $this->checks, $this->checksFailedSince, $now);
+        $this->checksPendingSince = self::edge($open && PullRequestChecks::Pending === $this->checks, $this->checksPendingSince, $now);
         $this->conflictingSince = self::edge($open && PullRequestMergeability::Conflicting === $this->mergeability, $this->conflictingSince, $now);
         $this->waitsForApprovalSince = self::edge($waitsForApproval, $this->waitsForApprovalSince, $now);
     }

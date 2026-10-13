@@ -9,6 +9,14 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+            # Card checks, read before `async`: a backlog of mail or refreshes must not delay a marker. Same DSN, own queue name.
+            workflow:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: workflow
+                retry_strategy:
+                    max_retries: 3
+                    multiplier: 2
             # The sweep's evaluations, read after `async` is empty. Same DSN, own queue name.
             async_low:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
@@ -40,7 +48,7 @@ framework:
             App\Module\Bridge\Messenger\ResumeAskingSession: async
             App\Module\Forge\Messenger\RefreshPullRequestState: async
             App\Module\Inbox\Messenger\ReconcileCardWaits: async
-            App\Module\Workflow\Messenger\EvaluateCard: async
+            App\Module\Workflow\Messenger\EvaluateCard: workflow
             App\Module\Workflow\Messenger\RunRuleAskAnswer: async
 
             # Route your messages to the transports
@@ -72,6 +80,12 @@ when@test:
                         # Same retry budget as prod so retry-flow tests exercise
                         # the real number of attempts; zero delay so the
                         # in-memory transport releases retries immediately.
+                        max_retries: 3
+                        multiplier: 2
+                        delay: 0
+                workflow:
+                    dsn: 'in-memory://'
+                    retry_strategy:
                         max_retries: 3
                         multiplier: 2
                         delay: 0

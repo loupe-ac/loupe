@@ -146,10 +146,9 @@
                     {% if proposal.state.value == 'proposed' %}
                     {% set dismissForm = insights_dismiss_form(proposal, refusedDismissForm) %}
                     <div class="lp-reports-proposal__actions">
-                        <form method="post" action="{{ path('app_project_analytics_proposal_accept', {id: project.id, proposalId: proposal.id}|merge(page > 1 ? {page: page} : {})) }}">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-proposal-accept') }}">
+                        <twig:Ds:ActionForm :action="path('app_project_analytics_proposal_accept', {id: project.id, proposalId: proposal.id}|merge(page > 1 ? {page: page} : {}))" token="insights-proposal-accept">
                             <twig:Ds:Button variant="primary" size="sm" type="submit">{{ (proposal.kind.value == 'bucket-rule' ? 'insights.reports.proposal.accept_rule' : 'insights.reports.proposal.accept')|trans }}</twig:Ds:Button>
-                        </form>
+                        </twig:Ds:ActionForm>
                         {{ form_start(dismissForm, {action: path('app_project_analytics_proposal_dismiss', {id: project.id, proposalId: proposal.id}|merge(page > 1 ? {page: page} : {})), attr: {class: 'lp-reports-proposal__dismiss'}}) }}
                             {{ form_label(dismissForm.reason, null, {label_attr: {class: 'sr-only'}}) }}
                             {{ form_widget(dismissForm.reason, {attr: {class: ds_input_class(), placeholder: 'insights.reports.proposal.reason_placeholder'|trans}}) }}

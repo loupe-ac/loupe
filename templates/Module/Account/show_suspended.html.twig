@@ -19,9 +19,8 @@
         </div>
     {% endif %}
 
-    <form method="post" action="{{ path('app_logout') }}" class="mt-1.5 w-full">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+    <twig:Ds:ActionForm :action="path('app_logout')" token="logout" class="mt-1.5 w-full">
         <twig:Ds:Button type="submit" variant="primary" size="sm" class="w-full justify-center">{{ 'account.suspended.logout'|trans }}</twig:Ds:Button>
-    </form>
+    </twig:Ds:ActionForm>
 </div>
 {% endblock %}

@@ -49,10 +49,9 @@
        even when that subscription is unpaid: a second Checkout would create a
        parallel subscription and bill them twice. #}
     {% if view.hasLiveSubscription %}
-    <form method="post" action="{{ path('app_billing_portal') }}" data-turbo="false">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('billing-portal') }}">
+    <twig:Ds:ActionForm :action="path('app_billing_portal')" token="billing-portal" data-turbo="false">
         <twig:Ds:Button variant="primary" type="submit">{{ 'billing.subscribe.portal.button'|trans }}</twig:Ds:Button>
-    </form>
+    </twig:Ds:ActionForm>
     <p class="lp-connect-hint">{{ 'billing.subscribe.secure_note'|trans }}</p>
     {% elseif view.capFull and view.waitlistOpen %}
     {# The cap is full and no valid invite was presented: checkout would be

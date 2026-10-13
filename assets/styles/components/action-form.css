@@ -1,0 +1,6 @@
+/* The button that posts: a form with a CSRF token and one button. `templates/components/Ds/ActionForm.html.twig` renders it. */
+@layer components {
+    .lp-action-form {
+        @apply m-0;
+    }
+}

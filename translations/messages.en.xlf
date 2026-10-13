@@ -522,6 +522,10 @@
                 <source>account.waitlist.page.title</source>
                 <target>Join the waitlist</target>
             </trans-unit>
+            <trans-unit id="account.waitlist.page.description">
+                <source>account.waitlist.page.description</source>
+                <target>Loupe is a software factory for coding agents. Leave your email to join the private beta waitlist.</target>
+            </trans-unit>
             <trans-unit id="account.waitlist.title">
                 <source>account.waitlist.title</source>
                 <target>Registration is full</target>
@@ -4342,6 +4346,10 @@
                 <source>landing.meta.description</source>
                 <target>Loupe is a software factory for coding agents. Product design, tech design, code and review, in one workflow. Join the private beta waitlist.</target>
             </trans-unit>
+            <trans-unit id="landing.open_graph.image_alt">
+                <source>landing.open_graph.image_alt</source>
+                <target>Loupe: from ideas to features. A software factory for coding agents.</target>
+            </trans-unit>
             <trans-unit id="landing.cta.join">
                 <source>landing.cta.join</source>
                 <target>Join the waitlist</target>
@@ -6287,6 +6295,14 @@
                 <source>board.form.card_link_row.kind.choice.blocked-by</source>
                 <target>Blocked by</target>
             </trans-unit>
+            <trans-unit id="board.form.card_link_row.kind.choice.has-follow-up">
+                <source>board.form.card_link_row.kind.choice.has-follow-up</source>
+                <target>Has follow-up</target>
+            </trans-unit>
+            <trans-unit id="board.form.card_link_row.kind.choice.follow-up-of">
+                <source>board.form.card_link_row.kind.choice.follow-up-of</source>
+                <target>Follow-up of</target>
+            </trans-unit>
 
             <!-- Move form -->
             <trans-unit id="board.form.move_card_form.column.label">
@@ -7017,26 +7033,24 @@
             <trans-unit id="board.card.link.review.approval_outdated"><source>board.card.link.review.approval_outdated</source><target>Approval outdated</target></trans-unit>
             <trans-unit id="board.card.link.review.changes_requested"><source>board.card.link.review.changes_requested</source><target>Changes requested</target></trans-unit>
             <trans-unit id="board.card.link.review.required"><source>board.card.link.review.required</source><target>Review required</target></trans-unit>
-            <trans-unit id="board.card.badge.paused"><source>board.card.badge.paused</source><target>Paused</target></trans-unit>
             <trans-unit id="board.card_state.status"><source>board.card_state.status</source><target>Status</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.stuck"><source>board.card_state.remedy_label.stuck</source><target>To unstick it</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.needs_you"><source>board.card_state.remedy_label.needs_you</source><target>What to do</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.working"><source>board.card_state.remedy_label.working</source><target>What happens next</target></trans-unit>
             <trans-unit id="board.card_state.remedy_label.waiting"><source>board.card_state.remedy_label.waiting</source><target>To release it</target></trans-unit>
+            <trans-unit id="board.card_state.remedy_label.chip"><source>board.card_state.remedy_label.chip</source><target>What to do</target></trans-unit>
             <trans-unit id="board.card_state.since_label.stuck"><source>board.card_state.since_label.stuck</source><target>Since</target></trans-unit>
             <trans-unit id="board.card_state.since_label.needs_you"><source>board.card_state.since_label.needs_you</source><target>Waiting since</target></trans-unit>
             <trans-unit id="board.card_state.since_label.working"><source>board.card_state.since_label.working</source><target>Started</target></trans-unit>
             <trans-unit id="board.card_state.since_label.waiting"><source>board.card_state.since_label.waiting</source><target>Since</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.paused"><source>board.card_state.remedy.paused</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.run_stopped"><source>board.card_state.remedy.run_stopped</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.checks_failed"><source>board.card_state.remedy.checks_failed</source><target>Fix the failing checks, or start a fix run.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.conflicting"><source>board.card_state.remedy.conflicting</source><target>Merge the base branch into the pull request, or start a fix run.</target></trans-unit>
+            <trans-unit id="board.card_state.since_label.chip"><source>board.card_state.since_label.chip</source><target>Since</target></trans-unit>
             <trans-unit id="board.card_state.held_for"><source>board.card_state.held_for</source><target>%state% for %age%</target></trans-unit>
             <trans-unit id="board.card_state.since_value"><source>board.card_state.since_value</source><target>%clock%, %age%</target></trans-unit>
             <trans-unit id="board.card_state.since.stuck"><source>board.card_state.since.stuck</source><target>Since %clock%, %age%</target></trans-unit>
             <trans-unit id="board.card_state.since.needs_you"><source>board.card_state.since.needs_you</source><target>Waiting since %clock%, %age%</target></trans-unit>
             <trans-unit id="board.card_state.since.working"><source>board.card_state.since.working</source><target>Started %clock%, %age%</target></trans-unit>
             <trans-unit id="board.card_state.since.waiting"><source>board.card_state.since.waiting</source><target>Since %clock%, %age%</target></trans-unit>
+            <trans-unit id="board.card_state.since.chip"><source>board.card_state.since.chip</source><target>Since %clock%, %age%</target></trans-unit>
             <trans-unit id="board.card_state.ago.now"><source>board.card_state.ago.now</source><target>just now</target></trans-unit>
             <trans-unit id="board.card_state.ago.minute"><source>board.card_state.ago.minute</source><target>1 minute ago</target></trans-unit>
             <trans-unit id="board.card_state.ago.minutes"><source>board.card_state.ago.minutes</source><target>%count% minutes ago</target></trans-unit>
@@ -7051,39 +7065,13 @@
             <trans-unit id="board.card_state.duration.hours"><source>board.card_state.duration.hours</source><target>%count% h</target></trans-unit>
             <trans-unit id="board.card_state.duration.day"><source>board.card_state.duration.day</source><target>1 d</target></trans-unit>
             <trans-unit id="board.card_state.duration.days"><source>board.card_state.duration.days</source><target>%count% d</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.pull_request_idle"><source>board.card_state.remedy.pull_request_idle</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.ready_not_merged"><source>board.card_state.remedy.ready_not_merged</source><target>Merge the pull request, or change the card so that a merge rule of its column matches it.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.document_in_review"><source>board.card_state.remedy.document_in_review</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.waits_for_approval"><source>board.card_state.remedy.waits_for_approval</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.open_question"><source>board.card_state.remedy.open_question</source><target>Answer the question in Needs you.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.run_open"><source>board.card_state.remedy.run_open</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.work_requested"><source>board.card_state.remedy.work_requested</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.forge_request_pending"><source>board.card_state.remedy.forge_request_pending</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.held_by_blocker"><source>board.card_state.remedy.held_by_blocker</source><target>Finish the blocking card, or remove the block.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.waits_for_parent_card"><source>board.card_state.remedy.waits_for_parent_card</source><target>Nothing. When the parent pull request merges, Loupe moves this one onto its target branch.</target></trans-unit>
-            <trans-unit id="board.card_state.remedy.waits_for_parent_branch"><source>board.card_state.remedy.waits_for_parent_branch</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
             <trans-unit id="board.card_state.others"><source>board.card_state.others</source><target>Also applies</target></trans-unit>
             <trans-unit id="board.card_state.stuck"><source>board.card_state.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="board.card_state.needs_you"><source>board.card_state.needs_you</source><target>Needs you</target></trans-unit>
             <trans-unit id="board.card_state.working"><source>board.card_state.working</source><target>Working</target></trans-unit>
             <trans-unit id="board.card_state.waiting"><source>board.card_state.waiting</source><target>Waiting</target></trans-unit>
-            <trans-unit id="board.card_state.reason.paused"><source>board.card_state.reason.paused</source><target>Paused: %reason%.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.run_stopped"><source>board.card_state.reason.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.checks_failed"><source>board.card_state.reason.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.conflicting"><source>board.card_state.reason.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.pull_request_idle"><source>board.card_state.reason.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.ready_not_merged"><source>board.card_state.reason.ready_not_merged</source><target>Pull request #%number% is ready to merge, and no merge rule matches it.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.document_in_review"><source>board.card_state.reason.document_in_review</source><target>The document "%title%" waits for your review.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.waits_for_approval"><source>board.card_state.reason.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.open_question"><source>board.card_state.reason.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
-            <trans-unit id="board.card_state.reason.work_requested"><source>board.card_state.reason.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.run_open"><source>board.card_state.reason.run_open</source><target>A worker runs on this card.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.forge_request_pending"><source>board.card_state.reason.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.held_by_blocker"><source>board.card_state.reason.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>
-            <trans-unit id="board.card_state.reason.waits_for_parent_card"><source>board.card_state.reason.waits_for_parent_card</source><target>Waits for card #%parent_number% (pull request #%pull_request%) to merge, before pull request #%number% can merge.</target></trans-unit>
-            <trans-unit id="board.card_state.reason.waits_for_parent_branch"><source>board.card_state.reason.waits_for_parent_branch</source><target>Pull request #%number% waits for branch %branch% to merge.</target></trans-unit>
+            <trans-unit id="board.card_state.chip"><source>board.card_state.chip</source><target>Note</target></trans-unit>
             <trans-unit id="board.card_state.open_card"><source>board.card_state.open_card</source><target>Open card</target></trans-unit>
-            <trans-unit id="board.card.badge.unmanaged"><source>board.card.badge.unmanaged</source><target>Unmanaged</target></trans-unit>
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>
             <trans-unit id="board.card.history.reason.checks_failed"><source>board.card.history.reason.checks_failed</source><target>the checks fail</target></trans-unit>
             <trans-unit id="board.card.history.reason.agent_review"><source>board.card.history.reason.agent_review</source><target>the agent review found problems</target></trans-unit>
@@ -7093,8 +7081,10 @@
             <trans-unit id="board.card.linked_cards.title"><source>board.card.linked_cards.title</source><target>Linked cards</target></trans-unit>
             <trans-unit id="board.card.linked_cards.relation"><source>board.card.linked_cards.relation</source><target>Link</target></trans-unit>
             <trans-unit id="board.card.parent.title"><source>board.card.parent.title</source><target>Parent epic</target></trans-unit>
+            <trans-unit id="board.card.parent.tooltip"><source>board.card.parent.tooltip</source><target>Part of #%number%: %title%</target></trans-unit>
             <trans-unit id="board.card.children.title"><source>board.card.children.title</source><target>Child cards</target></trans-unit>
             <trans-unit id="board.card.children.progress"><source>board.card.children.progress</source><target>%done%/%total% done</target></trans-unit>
+            <trans-unit id="board.card.children.progress_tooltip"><source>board.card.children.progress_tooltip</source><target>%done% of %total% child cards are done</target></trans-unit>
             <trans-unit id="board.card.children.empty"><source>board.card.children.empty</source><target>This epic has no child cards yet.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>
@@ -7110,6 +7100,8 @@
             <trans-unit id="board.card.linked_cards.kind.relates_to"><source>board.card.linked_cards.kind.relates_to</source><target>Related to</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.blocks"><source>board.card.linked_cards.kind.blocks</source><target>Blocks</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.blocked_by"><source>board.card.linked_cards.kind.blocked_by</source><target>Blocked by</target></trans-unit>
+            <trans-unit id="board.card.linked_cards.kind.has_follow_up"><source>board.card.linked_cards.kind.has_follow_up</source><target>Has follow-up</target></trans-unit>
+            <trans-unit id="board.card.linked_cards.kind.follow_up_of"><source>board.card.linked_cards.kind.follow_up_of</source><target>Follow-up of</target></trans-unit>
             <trans-unit id="site_review.source.widget"><source>site_review.source.widget</source><target>Site review widget</target></trans-unit>
             <trans-unit id="site_review.comment.open_source"><source>site_review.comment.open_source</source><target>Open source page</target></trans-unit>
             <trans-unit id="site_review.feedback.captured_elements"><source>site_review.feedback.captured_elements</source><target>Captured elements</target></trans-unit>
@@ -8150,6 +8142,8 @@
             <trans-unit id="workflow.waiting.not.card_type"><source>workflow.waiting.not.card_type</source><target>Waiting: the card type is %type%.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_open_blocker"><source>workflow.waiting.card_has_open_blocker</source><target>Waiting: the card has no open blocker.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_has_open_blocker"><source>workflow.waiting.not.card_has_open_blocker</source><target>Waiting: a blocking card is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_follows_finished"><source>workflow.waiting.card_follows_finished</source><target>Waiting: the card follows no card, or a card it follows is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_follows_finished"><source>workflow.waiting.not.card_follows_finished</source><target>Waiting: every card that this card follows is finished.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_is_child"><source>workflow.waiting.card_is_child</source><target>Waiting: the card is not a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_is_child"><source>workflow.waiting.not.card_is_child</source><target>Waiting: the card is a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_discovery_requested"><source>workflow.waiting.card_discovery_requested</source><target>Waiting: the card has no requested discovery.</target></trans-unit>
@@ -8212,6 +8206,40 @@
             <trans-unit id="workflow.waiting.not.pr_stacked"><source>workflow.waiting.not.pr_stacked</source><target>Waiting: the pull request is stacked on another pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_parent_merged"><source>workflow.waiting.pr_parent_merged</source><target>Waiting: the parent pull request is not merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_parent_merged"><source>workflow.waiting.not.pr_parent_merged</source><target>Waiting: the parent pull request is merged.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_checks_pending"><source>workflow.waiting.pr_checks_pending</source><target>Waiting: the checks of the open pull request do not run.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_checks_pending"><source>workflow.waiting.not.pr_checks_pending</source><target>Waiting: the checks of the pull request run.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_waits_for_approval"><source>workflow.waiting.pr_waits_for_approval</source><target>Waiting: the pull request does not wait for an approval.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_waits_for_approval"><source>workflow.waiting.not.pr_waits_for_approval</source><target>Waiting: the pull request waits for an approval that covers its head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_forge_request_pending"><source>workflow.waiting.pr_forge_request_pending</source><target>Waiting: the forge has no pending merge, sync or base change that Loupe asked for.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_forge_request_pending"><source>workflow.waiting.not.pr_forge_request_pending</source><target>Waiting: the forge has not answered a merge, sync or base change that Loupe asked for.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_stack_parent"><source>workflow.waiting.pr_stack_parent</source><target>Waiting: the pull request is not ready, or does not wait for the branch below it in the stack.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_stack_parent"><source>workflow.waiting.not.pr_stack_parent</source><target>Waiting: the pull request is ready and waits for the branch below it in the stack.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_stack_parent_known"><source>workflow.waiting.pr_stack_parent_known</source><target>Waiting: the pull request is not ready, or does not wait for a parent pull request that a card links.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_stack_parent_known"><source>workflow.waiting.not.pr_stack_parent_known</source><target>Waiting: the pull request is ready and waits for a parent pull request that a card links.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_stack_parent_unknown"><source>workflow.waiting.pr_stack_parent_unknown</source><target>Waiting: the pull request is not ready, or does not wait for a parent branch with no linked card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_stack_parent_unknown"><source>workflow.waiting.not.pr_stack_parent_unknown</source><target>Waiting: the pull request is ready and waits for a parent branch with no linked card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_ready_for"><source>workflow.waiting.pr_ready_for</source><target>Waiting: the pull request is not ready to merge for %delay% minutes.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_ready_for"><source>workflow.waiting.not.pr_ready_for</source><target>Waiting: the pull request is ready to merge for %delay% minutes or more.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_paused"><source>workflow.waiting.card_paused</source><target>Waiting: the card has no active pause.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_paused"><source>workflow.waiting.not.card_paused</source><target>Waiting: the card is paused.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_document_in_review"><source>workflow.waiting.card_document_in_review</source><target>Waiting: the card has no %tag% document in review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_document_in_review"><source>workflow.waiting.not.card_document_in_review</source><target>Waiting: a %tag% document of the card is in review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_quiet_for"><source>workflow.waiting.card_quiet_for</source><target>Waiting: something happened on the card in the last %delay% minutes.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_quiet_for"><source>workflow.waiting.not.card_quiet_for</source><target>Waiting: nothing happened on the card for %delay% minutes or more.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_quiet_for_stuck_delay"><source>workflow.waiting.card_quiet_for_stuck_delay</source><target>Waiting: something happened on the card within the stuck delay.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_quiet_for_stuck_delay"><source>workflow.waiting.not.card_quiet_for_stuck_delay</source><target>Waiting: nothing happened on the card for the stuck delay or more.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_ready_for_stuck_delay"><source>workflow.waiting.pr_ready_for_stuck_delay</source><target>Waiting: the pull request is not ready to merge for the stuck delay.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_ready_for_stuck_delay"><source>workflow.waiting.not.pr_ready_for_stuck_delay</source><target>Waiting: the pull request is ready to merge for the stuck delay or more.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_rule_held_by_blocker"><source>workflow.waiting.card_rule_held_by_blocker</source><target>Waiting: no move rule of the card waits for an open blocker alone.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_rule_held_by_blocker"><source>workflow.waiting.not.card_rule_held_by_blocker</source><target>Waiting: a move rule of the card waits for an open blocker alone.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_stopped"><source>workflow.waiting.card_run_stopped</source><target>Waiting: the latest run of the card did not stop with a warning.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_stopped"><source>workflow.waiting.not.card_run_stopped</source><target>Waiting: the latest run of the card stopped with a warning, and the card did not move since.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_session_open"><source>workflow.waiting.card_run_session_open</source><target>Waiting: no interactive session is open on the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_session_open"><source>workflow.waiting.not.card_run_session_open</source><target>Waiting: an interactive session is open on the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_held"><source>workflow.waiting.card_held</source><target>Waiting: the agents of the card are not held.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_held"><source>workflow.waiting.not.card_held</source><target>Waiting: a person held the agents of the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_inbox_open_question"><source>workflow.waiting.card_inbox_open_question</source><target>Waiting: no open inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_inbox_open_question"><source>workflow.waiting.not.card_inbox_open_question</source><target>Waiting: an open inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_all_finished_one_merged"><source>workflow.waiting.pr_all_finished_one_merged</source><target>Waiting: a pull request is still open, or none is merged.</target></trans-unit>
@@ -8239,6 +8267,7 @@
             <trans-unit id="workflow.source.bridge"><source>workflow.source.bridge</source><target>Bridge</target></trans-unit>
             <trans-unit id="workflow.source.agent_review"><source>workflow.source.agent_review</source><target>Agent review</target></trans-unit>
             <trans-unit id="workflow.source.readiness"><source>workflow.source.readiness</source><target>Readiness</target></trans-unit>
+            <trans-unit id="workflow.source.inbox"><source>workflow.source.inbox</source><target>Inbox</target></trans-unit>
             <trans-unit id="workflow.slot.next"><source>workflow.slot.next</source><target>Next</target></trans-unit>
             <trans-unit id="workflow.slot.product_design"><source>workflow.slot.product_design</source><target>Product design</target></trans-unit>
             <trans-unit id="workflow.slot.tech_design"><source>workflow.slot.tech_design</source><target>Tech design</target></trans-unit>
@@ -8265,6 +8294,19 @@
             <trans-unit id="workflow.settings.types.capability.children"><source>workflow.settings.types.capability.children</source><target>Can have children</target></trans-unit>
             <trans-unit id="workflow.settings.types.capability.lane"><source>workflow.settings.types.capability.lane</source><target>Gets a lane</target></trans-unit>
             <trans-unit id="workflow.settings.types.capability.none"><source>workflow.settings.types.capability.none</source><target>None</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.heading"><source>workflow.settings.markers.heading</source><target>Card markers</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.description"><source>workflow.settings.markers.description</source><target>The template declares the markers a card can show. A card shows the state marks of every marker whose conditions hold.</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.marker"><source>workflow.settings.markers.marker</source><target>Marker</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.kind"><source>workflow.settings.markers.kind</source><target>Kind</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.applies_to"><source>workflow.settings.markers.applies_to</source><target>Applies in</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.every_open_column"><source>workflow.settings.markers.every_open_column</source><target>every column that is not terminal</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.fallback"><source>workflow.settings.markers.fallback</source><target>Fallback</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.none"><source>workflow.settings.markers.none</source><target>This template declares no markers.</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.kind.stuck"><source>workflow.settings.markers.kind.stuck</source><target>Stuck</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.kind.needs-you"><source>workflow.settings.markers.kind.needs-you</source><target>Needs you</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.kind.working"><source>workflow.settings.markers.kind.working</source><target>Working</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.kind.waiting"><source>workflow.settings.markers.kind.waiting</source><target>Waiting</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.kind.chip"><source>workflow.settings.markers.kind.chip</source><target>Chip</target></trans-unit>
             <trans-unit id="workflow.settings.rules.heading"><source>workflow.settings.rules.heading</source><target>Rules</target></trans-unit>
             <trans-unit id="workflow.settings.rules.id"><source>workflow.settings.rules.id</source><target>Rule</target></trans-unit>
             <trans-unit id="workflow.settings.rules.applies_to"><source>workflow.settings.rules.applies_to</source><target>Applies in</target></trans-unit>
@@ -8555,6 +8597,44 @@
             <trans-unit id="ds.relative_time.last_month"><source>ds.relative_time.last_month</source><target>last month</target></trans-unit>
             <trans-unit id="ds.relative_time.months"><source>ds.relative_time.months</source><target>%count%mo ago</target></trans-unit>
             <trans-unit id="ds.relative_time.years"><source>ds.relative_time.years</source><target>%count%y ago</target></trans-unit>
+            <trans-unit id="marker.paused"><source>marker.paused</source><target>Paused: %reason%.</target></trans-unit>
+            <trans-unit id="marker.paused.remedy"><source>marker.paused.remedy</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
+            <trans-unit id="marker.run_stopped"><source>marker.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
+            <trans-unit id="marker.run_stopped.remedy"><source>marker.run_stopped.remedy</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>
+            <trans-unit id="marker.checks_failed"><source>marker.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
+            <trans-unit id="marker.checks_failed.remedy"><source>marker.checks_failed.remedy</source><target>Fix the failing checks, or start a fix run.</target></trans-unit>
+            <trans-unit id="marker.conflicting"><source>marker.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>
+            <trans-unit id="marker.conflicting.remedy"><source>marker.conflicting.remedy</source><target>Merge the base branch into the pull request, or start a fix run.</target></trans-unit>
+            <trans-unit id="marker.ready_not_merged"><source>marker.ready_not_merged</source><target>Pull request #%number% is ready to merge, and no merge rule matches it.</target></trans-unit>
+            <trans-unit id="marker.ready_not_merged.remedy"><source>marker.ready_not_merged.remedy</source><target>Merge the pull request, or change the card so that a merge rule of its column matches it.</target></trans-unit>
+            <trans-unit id="marker.pull_request_idle"><source>marker.pull_request_idle</source><target>Nothing moves pull request #%number%.</target></trans-unit>
+            <trans-unit id="marker.pull_request_idle.remedy"><source>marker.pull_request_idle.remedy</source><target>Read the card history to learn why nothing moved the pull request. Then start the work again, or move the card.</target></trans-unit>
+            <trans-unit id="marker.nothing_happened"><source>marker.nothing_happened</source><target>Nothing has happened on this card for a while.</target></trans-unit>
+            <trans-unit id="marker.nothing_happened.remedy"><source>marker.nothing_happened.remedy</source><target>Read the card history to learn why nothing moved. Then start the work again, or move the card.</target></trans-unit>
+            <trans-unit id="marker.document_in_review"><source>marker.document_in_review</source><target>The document "%title%" waits for your review.</target></trans-unit>
+            <trans-unit id="marker.document_in_review.remedy"><source>marker.document_in_review.remedy</source><target>Review the document, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.waits_for_approval"><source>marker.waits_for_approval</source><target>Pull request #%number% waits for your approval.</target></trans-unit>
+            <trans-unit id="marker.waits_for_approval.remedy"><source>marker.waits_for_approval.remedy</source><target>Review the pull request, then approve it or ask for changes.</target></trans-unit>
+            <trans-unit id="marker.open_question"><source>marker.open_question</source><target>Question #%number% waits for your answer: %title%</target></trans-unit>
+            <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
+            <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
+            <trans-unit id="marker.session_open.remedy"><source>marker.session_open.remedy</source><target>Nothing. The card moves on when the session ends.</target></trans-unit>
+            <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
+            <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
+            <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
+            <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
+            <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
+            <trans-unit id="marker.forge_request_pending.remedy"><source>marker.forge_request_pending.remedy</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
+            <trans-unit id="marker.held_by_blocker"><source>marker.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>
+            <trans-unit id="marker.held_by_blocker.remedy"><source>marker.held_by_blocker.remedy</source><target>Finish the blocking card, or remove the block.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_card"><source>marker.waits_for_parent_card</source><target>Waits for card #%parent_number% (pull request #%pull_request%) to merge, before pull request #%number% can merge.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_card.remedy"><source>marker.waits_for_parent_card.remedy</source><target>Nothing. When the parent pull request merges, Loupe moves this one onto its target branch.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_branch"><source>marker.waits_for_parent_branch</source><target>Pull request #%number% waits for branch %branch% to merge.</target></trans-unit>
+            <trans-unit id="marker.waits_for_parent_branch.remedy"><source>marker.waits_for_parent_branch.remedy</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
+            <trans-unit id="marker.waiting_on_checks"><source>marker.waiting_on_checks</source><target>Waiting for the checks of pull request #%number% to end.</target></trans-unit>
+            <trans-unit id="marker.waiting_on_checks.remedy"><source>marker.waiting_on_checks.remedy</source><target>Nothing. The card moves on when the checks end.</target></trans-unit>
+            <trans-unit id="marker.unmanaged"><source>marker.unmanaged</source><target>Unmanaged: the workflow does not act on this card.</target></trans-unit>
+            <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>
         </body>
     </file>
 </xliff>

@@ -12,12 +12,14 @@ use App\Module\Board\Workflow\Condition\CardChildrenFinished;
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardDocumentApproved;
 use App\Module\Board\Workflow\Condition\CardDocumentChangesRequested;
+use App\Module\Board\Workflow\Condition\CardFollowsFinished;
 use App\Module\Board\Workflow\Condition\CardHasChildren;
 use App\Module\Board\Workflow\Condition\CardHasOpenBlocker;
 use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardParentExists;
 use App\Module\Board\Workflow\Condition\ParentDocumentApproved;
 use App\Module\Board\Workflow\DocumentsFacts;
+use App\Module\Board\Workflow\FollowUpFacts;
 use App\Module\Board\Workflow\ParentDocumentsFacts;
 use App\Module\Board\Workflow\ParentFacts;
 use App\Module\Workflow\Contract\Condition;
@@ -46,6 +48,10 @@ final class CardConditionsTest extends TestCase
 
         yield 'open blocker' => [new CardHasOpenBlocker(), [], self::card(hasOpenBlocker: true), true];
         yield 'no open blocker' => [new CardHasOpenBlocker(), [], self::card(hasOpenBlocker: false), false];
+
+        yield 'follows only finished cards' => [new CardFollowsFinished(), [], self::followUp(true, true), true];
+        yield 'follows an open card' => [new CardFollowsFinished(), [], self::followUp(true, false), false];
+        yield 'follows no card' => [new CardFollowsFinished(), [], self::followUp(false, false), false];
 
         yield 'child' => [new CardParentExists(), [], self::card(isChild: true), true];
         yield 'not a child' => [new CardParentExists(), [], self::card(isChild: false), false];
@@ -113,6 +119,7 @@ final class CardConditionsTest extends TestCase
     {
         yield 'card.type' => [new CardHasType(), ['type' => 'epic'], 'workflow.waiting.card_type', ['%type%' => 'epic']];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], 'workflow.waiting.card_has_open_blocker', []];
+        yield 'card.follows.finished' => [new CardFollowsFinished(), [], 'workflow.waiting.card_follows_finished', []];
         yield 'card.parent.exists' => [new CardParentExists(), [], 'workflow.waiting.card_is_child', []];
         yield 'card.children.exist' => [new CardHasChildren(), [], 'workflow.waiting.card_has_children', []];
         yield 'card.children.finished' => [new CardChildrenFinished(), [], 'workflow.waiting.card_children_finished', []];
@@ -162,6 +169,7 @@ final class CardConditionsTest extends TestCase
     {
         yield 'card.type' => [new CardHasType(), ['type' => 'epic'], [CardTypeFacts::class]];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], [BlockerFacts::class]];
+        yield 'card.follows.finished' => [new CardFollowsFinished(), [], [FollowUpFacts::class]];
         yield 'card.parent.exists' => [new CardParentExists(), [], [ParentFacts::class]];
         yield 'card.children.exist' => [new CardHasChildren(), [], [ChildrenFacts::class]];
         yield 'card.children.finished' => [new CardChildrenFinished(), [], [ChildrenFacts::class]];
@@ -171,6 +179,11 @@ final class CardConditionsTest extends TestCase
         yield 'card.document.approved' => [new CardDocumentApproved(), ['tag' => 'design'], [DocumentsFacts::class]];
         yield 'card.document.changes_requested' => [new CardDocumentChangesRequested(), ['tag' => 'design'], [DocumentsFacts::class]];
         yield 'card.parent.document.approved' => [new ParentDocumentApproved(), ['tag' => 'design'], [ParentDocumentsFacts::class]];
+    }
+
+    private static function followUp(bool $followsAny, bool $followsOnlyFinished): Facts
+    {
+        return FactsMother::facts(provided: [FollowUpFacts::class => new FollowUpFacts($followsAny, $followsOnlyFinished)]);
     }
 
     /**

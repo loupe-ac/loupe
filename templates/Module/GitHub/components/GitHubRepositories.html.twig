@@ -79,12 +79,11 @@
             <p class="lp-connect-hint" data-testid="github-hook-disabled">{{ 'github.repositories.hook.unavailable'|trans }}</p>
             {% elseif hook is null %}
             <p class="lp-connect-hint">{{ 'github.repositories.hook.purpose'|trans }}</p>
-            <form method="post" action="{{ path('app_github_hook_create', {id: project.id}) }}">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token('github-hook-create') }}">
+            <twig:Ds:ActionForm :action="path('app_github_hook_create', {id: project.id})" token="github-hook-create">
                 <twig:Ds:Button type="submit" variant="primary" data-testid="github-hook-create">
                     <twig:ux:icon name="lucide:plug" />{{ 'github.repositories.hook.create'|trans }}
                 </twig:Ds:Button>
-            </form>
+            </twig:Ds:ActionForm>
             {% else %}
             {% set hookHealth = hook.health().value %}
             <p class="lp-connect-hint" data-testid="github-hook-health">

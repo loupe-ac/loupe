@@ -13,7 +13,7 @@
                 <twig:Ds:Tag tone="neutral" class="lp-home-way__tag">{{ 'landing.open_source.hosted.tag'|trans }}</twig:Ds:Tag>
                 <span class="lp-home-way__headline">{{ 'landing.open_source.hosted.headline'|trans }}</span>
                 <p class="lp-home-way__text">{{ 'landing.open_source.hosted.text'|trans }}</p>
-                <twig:Ds:Button variant="inverse" href="{{ path('app_waitlist_join') }}" data-action="click->modal#open" class="lp-home-way__action">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+                <twig:Ds:Button variant="inverse" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="open-source" class="lp-home-way__action">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
             </div>
         </div>
     </div>

@@ -44,7 +44,7 @@ final readonly class CardLinkSync
     /**
      * @param list<array{Card, CardLinkKind}> $wanted each other card with the kind the card reads it by
      *
-     * @return list<Card> the cards that gained or lost a blocks row: a row added or removed, or given another kind or direction
+     * @return list<Card> the cards that gained or lost a blocks or has-follow-up row as its target: a row added or removed, or given another kind or direction
      */
     public function sync(Card $card, array $wanted): array
     {
@@ -60,7 +60,7 @@ final readonly class CardLinkSync
         $blocked = [];
         foreach ($existing as $link) {
             $rows[(string) $link->otherThan($card)->id] = $link;
-            if (CardLinkKind::Blocks === $link->kind) {
+            if (self::drivesEvaluation($link->kind)) {
                 $blocked[spl_object_id($link)] = $link->target;
             }
         }
@@ -75,11 +75,10 @@ final readonly class CardLinkSync
                 continue;
             }
 
-            [$source, $target, $stored] = CardLinkKind::BlockedBy === $kind
-                ? [$other, $card, CardLinkKind::Blocks]
-                : [$card, $other, $kind];
+            [$stored, $swap] = $kind->stored();
+            [$source, $target] = $swap ? [$other, $card] : [$card, $other];
 
-            if (CardLinkKind::Blocks === $stored) {
+            if (self::drivesEvaluation($stored)) {
                 $changed[spl_object_id($target)] = $target;
             }
             if (null === $row) {
@@ -107,5 +106,10 @@ final readonly class CardLinkSync
         $this->em->flush();
 
         return array_values($changed);
+    }
+
+    private static function drivesEvaluation(CardLinkKind $stored): bool
+    {
+        return CardLinkKind::Blocks === $stored || CardLinkKind::HasFollowUp === $stored;
     }
 }

@@ -8,8 +8,10 @@ use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFactProvider;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
 use App\Module\AgentReview\Workflow\ReviewedHead;
+use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Workflow\BlockerFactProvider;
 use App\Module\Board\Workflow\BlockerFacts;
+use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\CardTypeFactProvider;
 use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ChildrenFactProvider;
@@ -17,33 +19,43 @@ use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\DocumentsFactProvider;
 use App\Module\Board\Workflow\DocumentsFacts;
 use App\Module\Board\Workflow\FixRunFacts;
+use App\Module\Board\Workflow\FollowUpFacts;
 use App\Module\Board\Workflow\ParentDocumentsFactProvider;
 use App\Module\Board\Workflow\ParentDocumentsFacts;
 use App\Module\Board\Workflow\ParentFactProvider;
 use App\Module\Board\Workflow\ParentFacts;
+use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Board\Workflow\PullRequestListFactProvider;
 use App\Module\Board\Workflow\StaleApprovalFacts;
+use App\Module\Board\Workflow\StuckDelayFacts;
 use App\Module\Board\Workflow\WorkAtHeadFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\Workflow\HoldFacts;
 use App\Module\Bridge\Workflow\LatestWorkFactProvider;
 use App\Module\Bridge\Workflow\LatestWorkFacts;
 use App\Module\Bridge\Workflow\ParentWorkFactProvider;
 use App\Module\Bridge\Workflow\ParentWorkFacts;
 use App\Module\Bridge\Workflow\RefusalFactProvider;
 use App\Module\Bridge\Workflow\RefusalFacts;
+use App\Module\Bridge\Workflow\RunStoppedFacts;
+use App\Module\Bridge\Workflow\SessionFacts;
 use App\Module\Bridge\Workflow\WorkerRunFactProvider;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
 use App\Module\Bridge\Workflow\WorkRequestFactProvider;
 use App\Module\Bridge\Workflow\WorkRequestFacts;
+use App\Module\Inbox\Workflow\OpenQuestionFacts;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\FactProvider;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\ForgeRequest;
 use App\Module\Workflow\Contract\LegacyFingerprintGroup;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestList;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Contract\StackParent;
 use App\Module\Workflow\Contract\Unreadable;
+use App\Module\Workflow\Fact\BlockerHoldFacts;
 use Symfony\Component\Uid\Uuid;
 
 /** Builds facts for a neutral card. Each named argument overrides one default. */
@@ -82,17 +94,27 @@ final class FactsMother
         $card ??= self::card();
         $run ??= self::run();
         $given = [
-            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker), new ParentFacts($card->isChild)),
+            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild)),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
-            ...self::byClass(new WorkRequestFacts($run->activeWorkKinds), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds), new ParentWorkFacts($run->parentActiveKinds)),
+            ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
+            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
+            ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts(null)),
         ];
         $prints = [
             FixRunFacts::class => [],
             StaleApprovalFacts::class => [],
             WorkAtHeadFacts::class => [[], []],
+            PauseFacts::class => null,
+            CardActivityFacts::class => null,
+            StuckDelayFacts::class => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
+            BlockerHoldFacts::class => null,
+            RunStoppedFacts::class => null,
+            SessionFacts::class => false,
+            HoldFacts::class => false,
+            OpenQuestionFacts::class => null,
             LatestWorkFacts::class => new \ReflectionClass(LatestWorkFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($given[LatestWorkFacts::class]),
         ];
         $legacy = [];
@@ -151,6 +173,7 @@ final class FactsMother
         return new CardInputs($slot, $type, $hasOpenBlocker, $isChild, $childCount, $openChildCount, $documents, $childMergedIntoEpicBranch, $parentDocuments, $parentSlot);
     }
 
+    /** @param list<ForgeRequest> $forgeRequests */
     public static function pullRequest(
         PullRequestState $state = PullRequestState::Open,
         bool $draft = false,
@@ -166,6 +189,16 @@ final class FactsMother
         ?\DateTimeImmutable $closedAt = null,
         ?Uuid $id = null,
         ?string $headSha = null,
+        ?int $number = null,
+        ?StackParent $stackParent = null,
+        bool $waitsForApproval = false,
+        bool $readyToMerge = false,
+        ?\DateTimeImmutable $readySince = null,
+        ?\DateTimeImmutable $checksFailedSince = null,
+        ?\DateTimeImmutable $checksPendingSince = null,
+        ?\DateTimeImmutable $conflictingSince = null,
+        ?\DateTimeImmutable $waitsForApprovalSince = null,
+        array $forgeRequests = [],
     ): PullRequestFacts {
         return new PullRequestFacts(
             state: $state,
@@ -182,6 +215,16 @@ final class FactsMother
             closedAt: $closedAt,
             id: $id,
             headSha: $headSha,
+            number: $number,
+            stackParent: $stackParent,
+            waitsForApproval: $waitsForApproval,
+            readyToMerge: $readyToMerge,
+            readySince: $readySince,
+            checksFailedSince: $checksFailedSince,
+            checksPendingSince: $checksPendingSince,
+            conflictingSince: $conflictingSince,
+            waitsForApprovalSince: $waitsForApprovalSince,
+            forgeRequests: $forgeRequests,
         );
     }
 
