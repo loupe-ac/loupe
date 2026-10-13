@@ -6,6 +6,7 @@ namespace App\Tests\Module\DesignSystem;
 
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\Finder\Finder;
 use Twig\Environment;
 
 final class DataTableComponentTest extends KernelTestCase
@@ -62,5 +63,17 @@ final class DataTableComponentTest extends KernelTestCase
         $table = $this->render('<twig:Ds:DataTable :columns="[]" data-subject="runs"></twig:Ds:DataTable>')->filter('.lp-data-table');
 
         self::assertSame('runs', $table->attr('data-subject'));
+    }
+
+    public function test_no_template_calls_the_removed_data_table_component(): void
+    {
+        $callers = [];
+        foreach (new Finder()->files()->in(\dirname(__DIR__, 3).'/templates')->name('*.twig') as $file) {
+            if (1 === preg_match('/<twig:DataTable\b|component\(\s*[\'"]DataTable[\'"]/', $file->getContents())) {
+                $callers[] = $file->getRelativePathname();
+            }
+        }
+
+        self::assertSame([], $callers);
     }
 }

@@ -8307,6 +8307,7 @@
             <trans-unit id="workflow.settings.markers.applies_to"><source>workflow.settings.markers.applies_to</source><target>Applies in</target></trans-unit>
             <trans-unit id="workflow.settings.markers.every_open_column"><source>workflow.settings.markers.every_open_column</source><target>every column that is not terminal</target></trans-unit>
             <trans-unit id="workflow.settings.markers.fallback"><source>workflow.settings.markers.fallback</source><target>Fallback</target></trans-unit>
+            <trans-unit id="workflow.settings.markers.table.label"><source>workflow.settings.markers.table.label</source><target>Markers</target></trans-unit>
             <trans-unit id="workflow.settings.markers.none"><source>workflow.settings.markers.none</source><target>This template declares no markers.</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.stuck"><source>workflow.settings.markers.kind.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="workflow.settings.markers.kind.needs-you"><source>workflow.settings.markers.kind.needs-you</source><target>Needs you</target></trans-unit>
