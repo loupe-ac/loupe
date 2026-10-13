@@ -39,6 +39,10 @@ export interface {{ entry.name }}Props {
     counts?: { [link: string]: number };
     /** The document count that the project switcher shows for the current project. */
     documentCount?: number;
+    /** The feature flags that are on, as the app reads them. Each is off by default, as on a fresh install. inbox shows Needs you and All inboxes, artifacts shows Artifacts, and billing shows Billing. */
+    features?: { inbox?: boolean; artifacts?: boolean; billing?: boolean };
+    /** True when the user is an admin. It shows the Admin link. */
+    admin?: boolean;
     className?: string;
     /** The page. It fills the main column. */
     children?: ReactNode;

@@ -16,5 +16,7 @@ Wrap every signed-in page in it. The sidebar and the top bar are part of the she
 
 Pass `projectName={null}` for a page that belongs to no project, such as the account page or the project list. The shell then hides the project switcher, the Workspace and Your crew links, Project settings and New work, as the app does.
 
+The app hides some links behind a feature flag or a role, and so does the shell. Pass `features={{ '{{' }} inbox: true {{ '}}' }}` to show Needs you and All inboxes, `artifacts: true` to show Artifacts, and `billing: true` to show Billing. Pass `admin` to show the Admin link. Every flag is off by default, as on a fresh install.
+
 `active` takes the name of a nav link. The wrapper holds the same links as the app, with the same labels. The component emits the real `{{ entry.rootClass }}`, `lp-sidebar`, `lp-topbar` and `lp-main` classes of the app.
 {% endautoescape %}

@@ -319,7 +319,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
         $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
 
-        $gated = $this->projectOnlyBlocks($base);
+        $gated = $this->ifBlocks($base, 'project');
         $ungated = str_replace($gated, '', $base);
         $guarded = $this->hasProjectBlocks($jsx);
         $unguarded = str_replace($guarded, '', $jsx);
@@ -342,8 +342,8 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         preg_match_all('/nav\.link\.([a-z_]+)/', implode("\n", $gated), $gatedLinks);
-        self::assertStringContainsString('WORKSPACE_LINKS.map', implode("\n", $guarded));
-        self::assertStringContainsString('AGENT_LINKS.map', implode("\n", $guarded));
+        self::assertStringContainsString('WORKSPACE_LINKS.filter(shown).map', implode("\n", $guarded));
+        self::assertStringContainsString('AGENT_LINKS.filter(shown).map', implode("\n", $guarded));
         if (1 !== preg_match('/const WORKSPACE_LINKS = \[(.*?)\];/s', $jsx, $workspace)) {
             self::fail('The wrapper has no WORKSPACE_LINKS list.');
         }
@@ -358,15 +358,54 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         sort($baseProjectOnly);
 
         self::assertSame($baseProjectOnly, $jsxProjectOnly);
-        self::assertStringContainsString('hasProject || !link.project', $jsx);
+        self::assertStringContainsString('(hasProject || !link.project)', $jsx);
         self::assertStringContainsString('const hasProject = projectName !== null;', $jsx);
     }
 
-    /** @return list<string> the body of each `{% if project %}` block, nested blocks included */
-    private function projectOnlyBlocks(string $twig): array
+    public function test_the_app_shell_wrapper_gates_each_link_the_base_template_gates_by_flag_or_role(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        // The All inboxes link is the one nav link whose label is not a nav.link.* string.
+        $linkKey = static fn (string $block): ?string => 1 === preg_match('/\'(?:nav\.link\.([a-z_]+)|(inbox\.account\.nav))\'\|trans/', $block, $match)
+            ? ('' !== ($match[2] ?? '') ? 'account_inboxes' : $match[1])
+            : null;
+        $expected = [];
+        foreach ($this->ifBlocks($base, 'is_feature_enabled\(\'[a-z]+\.enabled\'\)') as $block) {
+            $key = $linkKey($block);
+            if (null !== $key && 1 === preg_match('/is_feature_enabled\(\'([a-z]+)\.enabled\'\)/', $block, $flag)) {
+                $expected[$key] = "feature: '".$flag[1]."'";
+            }
+        }
+        foreach ($this->ifBlocks($base, 'is_granted\(\'ROLE_ADMIN\'\)') as $block) {
+            $key = $linkKey($block);
+            if (null !== $key) {
+                $expected[$key] = 'admin: true';
+            }
+        }
+
+        self::assertArrayHasKey('billing', $expected);
+        self::assertArrayHasKey('account_inboxes', $expected);
+        self::assertArrayHasKey('admin', $expected);
+        preg_match_all("/\\{ key: '([a-z_]+)'[^}]*\\}/", $jsx, $links, \PREG_SET_ORDER);
+        self::assertNotEmpty($links);
+        foreach ($links as [$definition, $key]) {
+            if (isset($expected[$key])) {
+                self::assertStringContainsString($expected[$key], $definition, sprintf('base.html.twig gates nav.link.%s, and the wrapper does not.', $key));
+            } else {
+                self::assertDoesNotMatchRegularExpression('/feature:|admin:/', $definition, sprintf('The wrapper gates %s, and base.html.twig does not.', $key));
+            }
+        }
+        self::assertStringContainsString('(!link.feature || features[link.feature] === true) && (!link.admin || admin)', $jsx);
+        self::assertSame(3, substr_count($jsx, '.filter(shown).map('));
+    }
+
+    /** @return list<string> the body of each `{% if <condition> %}` block, nested blocks included */
+    private function ifBlocks(string $twig, string $condition): array
     {
         $blocks = [];
-        preg_match_all('/\{%\s*if project\s*%\}/', $twig, $starts, \PREG_OFFSET_CAPTURE);
+        preg_match_all('/\{%\s*if '.$condition.'\s*%\}/', $twig, $starts, \PREG_OFFSET_CAPTURE);
         foreach ($starts[0] as [$tag, $offset]) {
             preg_match_all('/\{%\s*(if|endif)\b[^%]*%\}/', $twig, $tags, \PREG_OFFSET_CAPTURE | \PREG_SET_ORDER, $offset + \strlen($tag));
             $depth = 1;
