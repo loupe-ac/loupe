@@ -3115,7 +3115,7 @@
     .lp-worker-run-outcome .lp-worker-run-control-label {
         @apply max-w-full;
     }
-    .lp-run-drawer__header .lp-worker-run-control-label {
+    .lp-run-drawer .lp-drawer__header .lp-worker-run-control-label {
         @apply mt-2 block whitespace-normal;
     }
     /* A refused stop or resume, inside the frame that the request reloads. */

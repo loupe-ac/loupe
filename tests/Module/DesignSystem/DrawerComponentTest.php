@@ -51,4 +51,14 @@ final class DrawerComponentTest extends KernelTestCase
     {
         self::assertStringContainsString('class="lp-drawer lp-run-drawer"', $this->render('<twig:Ds:Drawer class="lp-run-drawer" />'));
     }
+
+    public function test_no_stylesheet_or_browser_test_names_a_removed_drawer_band(): void
+    {
+        $root = \dirname(__DIR__, 3);
+        $files = [$root.'/assets/styles/app.css', ...glob($root.'/assets/styles/components/*.css') ?: [], ...glob($root.'/e2e/tests/*/*.spec.ts') ?: []];
+
+        foreach ($files as $file) {
+            self::assertDoesNotMatchRegularExpression('~lp-(run|activity)-drawer__(header|body|footer|title)\b~', (string) file_get_contents($file), $file);
+        }
+    }
 }
