@@ -10,7 +10,7 @@ Look for these, most important first:
 2. A break of a convention that an instruction file of the repository names.
 3. A missing test for new behaviour.
 4. Dead code and needless complexity.
-5. The spec pass of the review stage. Run it for each pull request, after the checks above. Its requirement source is the approved designs and the prototype of the card, or the card body when the card has no design.
+5. The spec pass of the review stage. Run it for each pull request, after the checks above. Its requirement source is the approved designs and the prototype of the card, or the card body when the card has no design and no prototype.
 
 ## Name the rule, then find every site
 
