@@ -36,6 +36,34 @@ final readonly class ItemActions
     }
 
     /**
+     * The newest open wait that makes the kind fit the item now, or null. The run handler reads the run or the pause from it.
+     */
+    public function waitFor(InboxItem $item, InboxActionKind $kind): ?InboxCardWait
+    {
+        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
+
+        $match = match ($kind) {
+            InboxActionKind::ResumeRun => $this->resumableRuns($waits),
+            InboxActionKind::RetryCard => $this->releasablePauses($waits),
+            default => [],
+        };
+        foreach (array_reverse($waits) as $wait) {
+            $id = InboxActionKind::ResumeRun === $kind ? $wait->runId : $wait->pauseId;
+            if (null !== $id && isset($match[$id->toRfc4122()]) && self::typeOf($kind) === $wait->type) {
+                return $wait;
+            }
+        }
+
+        return null;
+    }
+
+    private static function typeOf(InboxActionKind $kind): InboxCardWaitType
+    {
+        return InboxActionKind::ResumeRun === $kind ? InboxCardWaitType::WorkerRun : InboxCardWaitType::CardPause;
+    }
+
+    /**
      * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
      *
      * @param list<InboxItem> $items

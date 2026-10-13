@@ -5232,6 +5232,10 @@
             <trans-unit id="inbox.action.open.effect"><source>inbox.action.open.effect</source><target>Opens the card or the document.</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
+            <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
+            <trans-unit id="inbox.action.error.not_available"><source>inbox.action.error.not_available</source><target>This action no longer fits the item. Reload the page to see the actions that do.</target></trans-unit>
+            <trans-unit id="inbox.action.error.not_found"><source>inbox.action.error.not_found</source><target>This action does not belong to the item.</target></trans-unit>
+            <trans-unit id="inbox.action.error.not_cancellable"><source>inbox.action.error.not_cancellable</source><target>This action cannot be cancelled now.</target></trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>
                 <target>Question</target>
