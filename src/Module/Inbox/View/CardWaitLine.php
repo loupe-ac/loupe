@@ -15,7 +15,14 @@ final readonly class CardWaitLine
         public ?string $detail,
         public ?string $titleKey = null,
         private ?string $action = null,
+        private ?string $pageKey = null,
     ) {
+    }
+
+    /** The sentence the page shows, which leaves out the run output that the page shows below it. */
+    public function pageKey(): string
+    {
+        return $this->pageKey ?? $this->key;
     }
 
     public function actionKey(): string

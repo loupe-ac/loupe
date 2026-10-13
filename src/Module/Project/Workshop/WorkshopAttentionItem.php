@@ -13,6 +13,8 @@ final readonly class WorkshopAttentionItem
         public bool $blocking,
         /** What the item is about: "document", "pull-request", "loupe" for a waiting card, or "agent" for a question or to-do. The row shows it as an icon. */
         public string $subject,
+        /** The number of the first card the item links, so two items with the same title stay apart. */
+        public ?int $cardNumber,
     ) {
     }
 }

@@ -160,13 +160,25 @@ test('an inbox card link reveals its matching request in Conversation', async ({
     for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
-        await page
+        const panelLink = page
             .locator('[data-inbox-linked-panel] a[data-linked-card]')
-            .filter({ hasText: 'Find the matching request' })
-            .click();
-        await expect(page).toHaveURL(
-            `${cardUrl}?tab=conversation&inboxItem=${questionNumber}#inbox-item-${questionNumber}`,
-        );
+            .filter({ hasText: 'Find the matching request' });
+        const cardLink = `${cardUrl}?tab=conversation&inboxItem=${questionNumber}#inbox-item-${questionNumber}`;
+        await expect(panelLink).toHaveAttribute('href', cardLink);
+        // The inbox page opens the card in the board's card drawer, on the Conversation tab.
+        await panelLink.click();
+        const drawer = page.locator('dialog.lp-card-drawer-overlay');
+        await expect(drawer).toBeVisible();
+        await expect(
+            drawer.getByRole('tab', { name: 'Conversation' }),
+        ).toHaveAttribute('aria-selected', 'true');
+        await expect(
+            drawer.locator(
+                `[data-inbox-linked="card"] #inbox-item-${questionNumber}`,
+            ),
+        ).toHaveCount(1);
+        // The same address, opened on its own, reveals the request on the card page.
+        await page.goto(cardLink);
         await expect(
             page.getByRole('tab', { name: 'Conversation' }),
         ).toHaveAttribute('aria-selected', 'true');
