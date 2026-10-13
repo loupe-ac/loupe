@@ -199,7 +199,8 @@ final class SocialLoginFlowTest extends WebTestCase
 
         $client->request(Request::METHOD_GET, self::CALLBACK);
 
-        self::assertResponseRedirects('/waitlist?joined=1');
+        self::assertResponseRedirects();
+        self::assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         self::assertNull($client->getContainer()->get(UserRepository::class)->findOneByEmail('oauth-waitlisted@example.com'));
         self::assertNotNull(
             $client->getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('oauth-waitlisted@example.com'),
@@ -209,6 +210,7 @@ final class SocialLoginFlowTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', "You're on the list");
         self::assertSelectorNotExists('.auth-error');
+        self::assertSelectorExists('[data-controller="analytics-join"][data-analytics-join-form-value="page"]');
     }
 
     public function test_at_cap_an_invite_link_lets_a_matching_identity_sign_up(): void
@@ -243,7 +245,8 @@ final class SocialLoginFlowTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/register?invite='.$token);
         $client->request(Request::METHOD_GET, self::CALLBACK);
 
-        self::assertResponseRedirects('/waitlist?joined=1');
+        self::assertResponseRedirects();
+        self::assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         self::assertNull($client->getContainer()->get(UserRepository::class)->findOneByEmail('oauth-other@example.com'));
         self::assertNull(
             $client->getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('oauth-rightful@example.com')?->convertedAt,
