@@ -136,7 +136,7 @@ An empty result shows a message in the panel.
 
 The **⋯** button at the end of the byline opens a menu about the document. It
 lists the cards linked to the document with their type and column, the
-documents it links to, and the documents that link to it, with their status.
+artifacts of those cards when artifacts are on, the documents it links to, and the documents that link to it, with their status.
 When a kind has more than one link, the menu shows its count and the first
 three links. Select **Show N more** to see the rest. The menu ends with
 **Version history** and, when the document has more than one version,
