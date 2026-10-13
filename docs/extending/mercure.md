@@ -26,7 +26,7 @@ Two feature flags use the hub, and each switches on its own:
 | Flag | Switches |
 |---|---|
 | `agent.push.enabled` | The outbox drain, the bridge CLI's subscriber credentials at `GET /api/events`, its catch-up read at `GET /api/events/replay`, and its worker-run reports at `PUT /api/projects/{handle}/worker-runs/{runId}`, `PUT /api/bridges/{bridgeId}/runs` and `POST /api/projects/{handle}/worker-runs`. |
-| `live_updates.enabled` | Live updates in the browser: the subscriber cookie, the page element, `POST /mercure/authorize`, every publish of `LiveUpdatePublisher`, the live board, the worker run lists, and the inbox count in the sidebar. |
+| `live_updates.enabled` | Live updates in the browser: the subscriber cookie, the page element, `POST /mercure/authorize`, every publish of `LiveUpdatePublisher`, the live board, the worker run lists, the inbox count in the sidebar, and the inbox page. |
 
 Both flags require all three variables. With any of them blank, the flag reads
 as off whatever the admin page stores. Both ship on. An instance that upgrades
@@ -56,6 +56,7 @@ A feature that wants live updates on a page adds three things:
    returns whether the current user may subscribe. `BoardTopicAuthorizer` is the
    example, and it applies the project view permission. `InboxTopicAuthorizer`
    allows a user only their own `/users/{id}/inbox` topic, while the inbox is on.
+   `InboxPageTopicAuthorizer` allows the `/projects/{id}/inbox` topic to whoever may view the project, while the inbox is on.
 2. A call to `{% do mercure_subscribe(topic) %}` in the page template.
 3. A handler in a Stimulus controller, with `on(types, handler, options)` from
    `assets/lib/live.js`. A handler receives each message whose JSON `type` it

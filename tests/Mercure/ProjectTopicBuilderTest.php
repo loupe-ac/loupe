@@ -53,6 +53,25 @@ final class ProjectTopicBuilderTest extends KernelTestCase
         self::assertNull($builder->projectIdFromBoardTopic($topic));
     }
 
+    public function test_the_inbox_topic_names_its_project_and_no_other_topic_does(): void
+    {
+        self::bootKernel();
+        $builder = self::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $builder);
+        $projectId = Uuid::v7();
+
+        $topic = $builder->forInbox($projectId);
+
+        self::assertStringEndsWith('/projects/'.$projectId.'/inbox', $topic);
+        self::assertEquals($projectId, $builder->projectIdFromInboxTopic($topic));
+        self::assertNull($builder->projectIdFromInboxTopic($builder->forProject($projectId)));
+        self::assertNull($builder->projectIdFromInboxTopic($builder->forBoard($projectId)));
+        self::assertNull($builder->projectIdFromInboxTopic($builder->forActivity($projectId)));
+        self::assertNull($builder->projectIdFromInboxTopic($topic.'/extra'));
+        self::assertNull($builder->projectIdFromActivityTopic($topic));
+        self::assertNull($builder->projectIdFromBoardTopic($topic));
+    }
+
     public function test_the_document_topic_names_its_project_and_document_and_no_other_topic_does(): void
     {
         self::bootKernel();

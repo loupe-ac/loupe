@@ -14,6 +14,7 @@
 @import './components/dialog.css';
 @import './components/pagination.css';
 @import './components/tabs.css';
+@import './components/decision.css';
 @import './components/tooltip.css';
 @plugin "@tailwindcss/typography";
 
@@ -249,65 +250,155 @@
         gap: calc(var(--spacing) * 3);
     }
 
+    /* The inbox pages sit straight on a white page, with no frame around them. */
+    .lp-main:has(.lp-core-inbox),
+    .lp-main:has(.lp-account-inbox) {
+        @apply bg-surface-1;
+    }
+
     .lp-core-inbox .lp-inbox-section--queue {
         display: flex;
         flex-direction: column;
         gap: 0;
-        padding: 0;
         overflow: hidden;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xl);
-        background: var(--surface-1);
     }
 
     .lp-core-inbox .lp-inbox-split {
         display: grid;
-        grid-template-columns: minmax(calc(var(--spacing) * 72), 0.58fr) minmax(
-                0,
-                1.42fr
-            );
+        grid-template-columns:
+            minmax(calc(var(--spacing) * 60), calc(var(--spacing) * 70))
+            minmax(0, 1fr);
+        column-gap: calc(var(--spacing) * 10);
     }
 
     .lp-core-inbox .lp-inbox-request-list {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing) * 0.5);
         min-height: 0;
-        border-right: 1px solid var(--border);
+    }
+
+    .lp-core-inbox .lp-inbox-rows {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing) * 0.5);
+    }
+
+    /* The frame wraps the whole view, and the page flex column sees its children. */
+    .lp-core-inbox .lp-inbox-frame {
+        display: contents;
+    }
+
+    .lp-core-inbox .lp-inbox-frame > .lp-split-region {
+        flex: 1 1 0%;
+        min-height: 0;
+    }
+
+    .lp-core-inbox .lp-inbox-list-head {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing) * 2);
+        padding-bottom: calc(var(--spacing) * 2.5);
+    }
+
+    /* The Open and Closed switch is a segmented control: a grey track, and a white segment with olive text for the active side. */
+    .lp-core-inbox .lp-inbox-switch {
+        gap: calc(var(--spacing) * 0.5);
+        margin: 0 0 calc(var(--spacing) * 0.5);
+        padding: calc(var(--spacing) * 0.75);
+        border: 0;
+        border-radius: var(--radius-xl);
         background: var(--surface-2);
     }
 
-    /* Below 560px the list stacks above the detail and keeps a bounded height,
-       so the detail is still reachable without scrolling the whole list first. */
-    @media (width <= 35rem) {
-        .lp-core-inbox .lp-inbox-split {
-            grid-template-columns: minmax(0, 1fr);
-        }
+    .lp-core-inbox .lp-inbox-switch .lp-tabs__tab {
+        flex: 1 1 0%;
+        justify-content: center;
+        height: calc(var(--spacing) * 7.5);
+        padding: 0 calc(var(--spacing) * 2);
+        border: 0;
+        border-radius: var(--radius-lg);
+        color: var(--text-dim);
+    }
 
-        .lp-core-inbox .lp-inbox-request-list {
-            max-height: calc(var(--spacing) * 80);
-            border-right: 0;
-            border-bottom: 1px solid var(--border);
-        }
+    .lp-core-inbox .lp-inbox-switch .lp-tabs__tab[aria-current='page'] {
+        background: var(--surface-1);
+        color: var(--accent-ink);
+        @apply shadow-xs;
+    }
+
+    .lp-core-inbox .lp-inbox-list-head .lp-filter-search {
+        width: 100%;
+    }
+
+    .lp-core-inbox .lp-inbox-filter {
+        display: flex;
+        gap: calc(var(--spacing) * 1);
+    }
+
+    .lp-core-inbox .lp-inbox-filter__button {
+        position: relative;
+        display: flex;
+        flex: 1 1 0%;
+        align-items: center;
+        justify-content: center;
+        height: calc(var(--spacing) * 7.5);
+        padding: 0 calc(var(--spacing) * 2);
+        border-radius: var(--radius-lg);
+        color: var(--text-dim);
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    .lp-core-inbox .lp-inbox-filter__button:hover,
+    .lp-core-inbox .lp-inbox-filter__button:focus-visible {
+        background: var(--surface-2);
+    }
+
+    .lp-core-inbox .lp-inbox-filter__button[aria-current='true'] {
+        background: var(--accent-faint);
+        color: var(--accent-ink);
+    }
+
+    .lp-core-inbox .lp-inbox-filter__button .lp-tooltip {
+        width: max-content;
+        max-width: calc(var(--spacing) * 72);
+    }
+
+    /* The tooltips of the last buttons open leftward, so none overflows the list column. */
+    .lp-core-inbox .lp-inbox-filter__button:nth-last-child(-n + 3) .lp-tooltip {
+        right: 0;
+        left: auto;
+    }
+
+    .lp-core-inbox .lp-inbox-filter__button:hover .lp-tooltip,
+    .lp-core-inbox .lp-inbox-filter__button:focus-visible .lp-tooltip {
+        visibility: visible;
+        opacity: 1;
     }
 
     .lp-core-inbox .lp-inbox-request {
-        display: flex;
-        width: 100%;
-        flex-direction: column;
-        gap: calc(var(--spacing) * 1.5);
-        padding: calc(var(--spacing) * 5);
-        border: 0;
-        border-bottom: 1px solid var(--border);
-        background: transparent;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: calc(var(--spacing) * 2.5);
+        row-gap: calc(var(--spacing) * 0.5);
+        padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3);
+        border-radius: var(--radius-xl);
         color: var(--text);
-        text-align: left;
-        cursor: pointer;
     }
 
     .lp-core-inbox .lp-inbox-request:hover {
+        background: var(--surface-2);
+    }
+
+    .lp-core-inbox .lp-inbox-request[aria-current='true'] {
         background: var(--accent-faint);
     }
 
-    .lp-core-inbox .lp-inbox-request[aria-selected='true'] {
-        background: var(--accent-soft);
+    .lp-core-inbox
+        .lp-inbox-request[aria-current='true']
+        .lp-inbox-request__icon {
+        color: var(--accent-ink);
     }
 
     .lp-core-inbox .lp-inbox-request:focus-visible {
@@ -317,71 +408,73 @@
         outline-offset: -2px;
     }
 
-    .lp-core-inbox .lp-inbox-request__byline,
-    .lp-core-inbox .lp-inbox-request__badges {
+    .lp-core-inbox .lp-inbox-request__icon {
         display: flex;
-        align-items: center;
-        gap: calc(var(--spacing) * 2);
-    }
-
-    .lp-core-inbox .lp-inbox-request__byline {
-        margin-bottom: calc(var(--spacing) * 1);
+        align-items: flex-start;
+        padding-top: calc(var(--spacing) * 0.75);
         color: var(--text-dim);
-        font-size: var(--text-xs);
-    }
-
-    .lp-core-inbox .lp-source-avatar {
-        border-radius: 50%;
-    }
-
-    .lp-core-inbox .lp-inbox-request__byline .lp-source-avatar {
-        width: calc(var(--spacing) * 6);
-        height: calc(var(--spacing) * 6);
-    }
-
-    .lp-core-inbox .lp-inbox-request__byline .lp-source-avatar svg {
-        width: calc(var(--spacing) * 3.5);
-        height: calc(var(--spacing) * 3.5);
-    }
-
-    .lp-core-inbox .lp-inbox-request__byline time {
-        margin-left: auto;
     }
 
     .lp-core-inbox .lp-inbox-request__title {
         color: var(--text);
-        font-family: var(--font-display);
         font-size: var(--text-sm);
-        font-weight: 750;
-        line-height: 1.45;
-        letter-spacing: -0.035em;
+        font-weight: 600;
+        line-height: 1.5;
     }
 
-    .lp-core-inbox .lp-inbox-request__body {
-        display: -webkit-box;
-        overflow: hidden;
+    .lp-core-inbox .lp-inbox-request__meta {
+        display: flex;
+        grid-column: 2;
+        flex-wrap: wrap;
+        gap: calc(var(--spacing) * 1.5);
         color: var(--text-dim);
         font-size: var(--text-xs);
-        line-height: 1.5;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
     }
 
-    /* One label a row, as a small rounded tag rather than a pill. */
-    .lp-core-inbox .lp-inbox-request__badges {
-        margin-top: calc(var(--spacing) * 1.5);
-    }
-
-    .lp-core-inbox .lp-inbox-request__badges > * {
-        padding: calc(var(--spacing) * 0.75) calc(var(--spacing) * 1.75);
-        border-radius: var(--radius-md);
-        font-size: var(--text-xs);
+    .lp-core-inbox .lp-inbox-request__blocking {
+        color: var(--accent-ink);
         font-weight: 600;
+    }
+
+    .lp-core-inbox .lp-inbox-back {
+        display: none;
+        align-items: center;
+        gap: calc(var(--spacing) * 1);
+        height: calc(var(--spacing) * 11);
+        color: var(--text-mute);
+        font-size: var(--text-sm);
+    }
+
+    .lp-core-inbox .lp-inbox-status {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: calc(var(--spacing) * 2);
+        margin: 0 0 calc(var(--spacing) * 5);
+        color: var(--text-mute);
+        font-size: var(--text-sm);
+    }
+
+    .lp-core-inbox .lp-inbox-status__icon {
+        width: calc(var(--spacing) * 4);
+        height: calc(var(--spacing) * 4);
+        color: var(--status-ok-deep);
+    }
+
+    .lp-core-inbox .lp-inbox-status__detail {
+        color: var(--text-dim);
+    }
+
+    .lp-core-inbox .lp-inbox-status a {
+        color: var(--accent-ink);
+    }
+
+    .lp-core-inbox .lp-inbox-item__actions[data-inbox-locked] {
+        @apply opacity-70;
     }
 
     .lp-core-inbox .lp-inbox-request-detail {
         min-width: 0;
-        background: var(--surface-1);
     }
 
     .lp-core-inbox .lp-inbox-ask {
@@ -391,7 +484,7 @@
         gap: 0;
         border: 0;
         border-radius: 0;
-        background: var(--surface-1);
+        background: transparent;
         padding: 0;
     }
 
@@ -404,24 +497,6 @@
         background: var(--surface-1);
     }
 
-    .lp-core-inbox .lp-inbox-ask__head {
-        align-content: start;
-        min-height: 0;
-        padding: 0;
-        gap: calc(var(--spacing) * 2.5);
-        font-size: var(--text-sm);
-    }
-
-    .lp-core-inbox .lp-inbox-ask__head .lp-source-avatar {
-        width: calc(var(--spacing) * 7.5);
-        height: calc(var(--spacing) * 7.5);
-    }
-
-    .lp-core-inbox .lp-inbox-ask__source {
-        font-size: var(--text-sm);
-        font-weight: 700;
-    }
-
     .lp-core-inbox .lp-inbox-ask__context {
         margin: 0;
         padding: 0;
@@ -429,26 +504,276 @@
         background: transparent;
     }
 
-    .lp-core-inbox .lp-inbox-ask__items {
-        flex: 1;
-        padding: calc(var(--spacing) * 6) calc(var(--spacing) * 8)
-            calc(var(--spacing) * 8);
-    }
-
-    /* The options read as a list of choices, not as a panel inside the request. */
-    .lp-core-inbox .lp-decision--inbox {
+    .lp-core-inbox .lp-inbox-ask {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: calc(var(--spacing) * 10);
         padding: 0;
-        border: 0;
+    }
+
+    .lp-core-inbox .lp-inbox-ask__main {
+        display: flex;
+        flex: 999 1 calc(var(--spacing) * 100);
+        flex-direction: column;
+        gap: calc(var(--spacing) * 7);
+        min-width: 0;
+        max-width: calc(var(--spacing) * 175);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__summary {
+        gap: calc(var(--spacing) * 2);
+        padding: 0;
+    }
+
+    .lp-core-inbox .lp-inbox-ask__title {
+        margin: 0;
+    }
+
+    .lp-core-inbox .lp-inbox-ask__byline {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: calc(var(--spacing) * 1.5);
+        margin: 0;
+        color: var(--text-dim);
+        font-size: var(--text-sm);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__message {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing) * 3);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__head {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 2);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__source {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: var(--text-base);
+        font-weight: 700;
+        color: var(--ink);
+    }
+
+    .lp-core-inbox .lp-inbox-ask__context {
+        color: var(--text);
+        font-size: var(--text-base);
+        line-height: 1.625;
+    }
+
+    .lp-core-inbox .lp-inbox-ask__items {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        margin-top: calc(var(--spacing) * 1);
+        padding: 0;
+    }
+
+    /* The sections of a multi-item ask sit under their number. */
+    .lp-core-inbox
+        .lp-inbox-item:has(> .lp-inbox-item__head)
+        > :not(.lp-inbox-item__head) {
+        margin-left: calc(var(--spacing) * 8.5);
+    }
+
+    .lp-core-inbox .lp-inbox-item__response {
+        gap: calc(var(--spacing) * 2);
+        padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4.5);
+        border-radius: var(--radius-xl);
+        background: var(--surface-2);
+        font-size: var(--text-base);
+    }
+
+    .lp-core-inbox .lp-inbox-item {
+        gap: calc(var(--spacing) * 3);
+    }
+
+    .lp-core-inbox .lp-inbox-item + .lp-inbox-item {
+        margin-top: 0;
+        padding-top: calc(var(--spacing) * 7);
+    }
+
+    .lp-core-inbox .lp-inbox-item__head {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 2.5);
+    }
+
+    .lp-core-inbox .lp-inbox-item__number {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: calc(var(--spacing) * 6);
+        height: calc(var(--spacing) * 6);
+        border-radius: 50%;
+        background: var(--surface-3);
+        color: var(--text-mute);
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    .lp-core-inbox .lp-inbox-item__title {
+        margin: 0;
+    }
+
+    .lp-core-inbox .lp-inbox-item__kind {
+        margin-left: auto;
+        padding: 0;
         background: transparent;
+        color: var(--text-dim);
+        font-weight: 400;
     }
 
-    .lp-core-inbox .lp-decision--inbox .lp-decision__option {
-        border: 1px solid var(--border);
-        background: var(--surface-1);
+    .lp-core-inbox .lp-inbox-item__body {
+        margin: 0;
+        color: var(--text);
     }
 
-    .lp-core-inbox .lp-decision--inbox .lp-decision__option:has(input:checked) {
-        border-color: var(--accent);
+    .lp-core-inbox .lp-inbox-item__actions {
+        gap: calc(var(--spacing) * 2.5);
+    }
+
+    .lp-core-inbox .lp-inbox-item__buttons {
+        flex-wrap: wrap;
+        gap: calc(var(--spacing) * 2);
+        margin-top: calc(var(--spacing) * 1.5);
+    }
+
+    .lp-core-inbox .lp-inbox-item__hint {
+        text-align: right;
+    }
+
+    .lp-core-inbox .lp-inbox-item__refusal {
+        border-radius: var(--radius-lg);
+    }
+
+    /* The current wait links to its next step, as a button of the primary colour. */
+    .lp-core-inbox .lp-inbox-waits__link {
+        display: inline-flex;
+        align-items: center;
+        min-height: calc(var(--spacing) * 9);
+        padding: 0 calc(var(--spacing) * 4);
+        border-radius: var(--radius-lg);
+        background: var(--accent);
+        color: var(--ink);
+        text-decoration: none;
+    }
+
+    .lp-core-inbox .lp-inbox-waits__link:hover {
+        text-decoration: none;
+        background: var(--accent-hover);
+    }
+
+    /* The document under review, as a quiet card above the verdict. */
+    .lp-inbox-review-document {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing) * 3);
+        margin-bottom: calc(var(--spacing) * 3.5);
+        padding: calc(var(--spacing) * 3.5) calc(var(--spacing) * 4);
+        border-radius: var(--radius-xl);
+        background: var(--surface-2);
+        color: var(--ink);
+        text-decoration: none;
+    }
+
+    .lp-inbox-review-document__icon {
+        flex: none;
+        width: calc(var(--spacing) * 5);
+        height: calc(var(--spacing) * 5);
+        color: var(--text-dim);
+    }
+
+    .lp-inbox-review-document__text {
+        display: flex;
+        flex: 1 1 0%;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .lp-inbox-review-document__title {
+        font-weight: 600;
+    }
+
+    .lp-inbox-review-document__sub {
+        color: var(--text-dim);
+        font-size: var(--text-xs);
+    }
+
+    .lp-inbox-review-document__action {
+        color: var(--accent-ink);
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    .lp-inbox-review-document:hover .lp-inbox-review-document__action {
+        text-decoration: underline;
+    }
+
+    /* The links of an ask sit in a quiet column beside it. */
+    .lp-core-inbox .lp-inbox-linked-panel {
+        flex: 1 1 calc(var(--spacing) * 65);
+        max-width: calc(var(--spacing) * 75);
+        padding: calc(var(--spacing) * 2);
+        border-radius: var(--radius-2xl);
+        background: var(--surface-2);
+    }
+
+    .lp-core-inbox .lp-inbox-linked-panel__title {
+        margin: 0;
+        padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2)
+            calc(var(--spacing) * 1.5);
+        font-family: var(--font-display);
+        font-size: var(--text-sm);
+        font-weight: 800;
+        color: var(--ink);
+    }
+
+    .lp-core-inbox .lp-inbox-linked-panel__row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2.5);
+        padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 2);
+        border-top: 1px solid var(--border);
+        color: var(--ink);
+        font-size: var(--text-sm);
+        text-decoration: none;
+    }
+
+    .lp-core-inbox .lp-inbox-linked-panel__title + .lp-inbox-linked-panel__row {
+        border-top: 0;
+    }
+
+    .lp-core-inbox
+        a.lp-inbox-linked-panel__row:hover
+        .lp-inbox-linked-panel__name {
+        text-decoration: underline;
+    }
+
+    .lp-core-inbox .lp-inbox-linked-panel__icon {
+        grid-row: span 2;
+        align-self: start;
+        width: calc(var(--spacing) * 4.5);
+        height: calc(var(--spacing) * 4.5);
+        margin-top: calc(var(--spacing) * 0.5);
+        color: var(--text-dim);
+    }
+
+    .lp-core-inbox .lp-inbox-linked-panel__name {
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+    .lp-core-inbox .lp-inbox-linked-panel__sub {
+        grid-column: 2;
+        color: var(--text-dim);
+        font-size: var(--text-xs);
     }
 
     .lp-core-inbox [data-inbox-replies] {
@@ -468,19 +793,19 @@
     }
 
     .lp-core-inbox .lp-inbox-item + .lp-inbox-item {
-        margin-top: calc(var(--spacing) * 8);
-        padding-top: calc(var(--spacing) * 8);
-        border-top: 1px solid var(--border);
+        margin-top: calc(var(--spacing) * 9);
+        padding-top: calc(var(--spacing) * 7);
+        border-top: 1px solid var(--border-faint);
     }
 
     /* The ask names the request in large type; an item title sits below it, smaller. */
     .lp-core-inbox .lp-inbox-ask__title {
-        margin: calc(var(--spacing) * 2) 0 0;
+        margin: 0;
         font-family: var(--font-display);
         font-size: var(--text-2xl);
-        font-weight: 750;
-        line-height: 1.35;
-        letter-spacing: -0.035em;
+        font-weight: 800;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
         color: var(--ink);
     }
 
@@ -488,51 +813,48 @@
         margin-top: 0;
         font-family: var(--font-display);
         font-size: var(--text-lg);
-        font-weight: 700;
-        line-height: 1.4;
-        letter-spacing: -0.02em;
+        font-weight: 800;
+        line-height: 1.3;
     }
 
     .lp-core-inbox .lp-inbox-item__body {
-        max-width: calc(var(--spacing) * 160);
-        margin-top: calc(var(--spacing) * 4.5);
-        margin-bottom: calc(var(--spacing) * 4.5);
-        color: var(--text-mute);
+        max-width: none;
+        margin: 0;
+        color: var(--text);
         font-size: var(--text-base);
-        line-height: 1.65;
+        line-height: 1.625;
     }
 
     .lp-core-inbox .lp-inbox-item__body,
     .lp-core-inbox .lp-inbox-ask__context {
-        --tw-prose-body: var(--text-mute);
+        --tw-prose-body: var(--text);
     }
 
-    /* The options carry a plain question label, not a panel eyebrow. */
-    .lp-core-inbox .lp-decision--inbox .lp-decision__prompt {
-        margin-bottom: calc(var(--spacing) * 2.5);
-        color: var(--text-dim);
-        font-size: var(--text-sm);
-        font-weight: 600;
-        letter-spacing: normal;
-        text-transform: none;
-    }
-
-    .lp-core-inbox .lp-decision--inbox .lp-decision__options {
-        gap: calc(var(--spacing) * 2.5);
-    }
-
-    .lp-core-inbox .lp-decision--inbox .lp-decision__option {
-        padding: calc(var(--spacing) * 3.5);
-        gap: calc(var(--spacing) * 3);
-        border: 1px solid var(--border);
+    /* An empty view reads as a heading and a sentence, with no icon and no box. */
+    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state {
+        align-items: flex-start;
+        gap: calc(var(--spacing) * 2);
+        @apply max-w-md;
+        padding: calc(var(--spacing) * 14) 0;
         background: transparent;
-        font-size: var(--text-sm);
-        font-weight: 400;
+        text-align: left;
     }
 
-    .lp-core-inbox .lp-decision--inbox .lp-decision__option:has(input:checked) {
-        border-color: var(--accent);
-        background: var(--accent-faint);
+    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__title {
+        font-size: var(--text-2xl);
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__body {
+        max-width: none;
+        color: var(--text);
+        font-size: var(--text-lg);
+    }
+
+    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__link {
+        margin-top: calc(var(--spacing) * 1.5);
+        font-size: var(--text-sm);
     }
 
     /* A field label matches the prototype's sentence-case label, not an eyebrow. */
@@ -614,11 +936,24 @@
         font-size: var(--text-xs);
     }
 
+    /* The inbox keeps Clear choice in the heading row on a phone too. */
+    @media (width < 37.5rem) {
+        .lp-core-inbox .lp-decision__clear {
+            position: absolute;
+            margin-bottom: 0;
+        }
+
+        .lp-core-inbox
+            .lp-decision:has(> .lp-decision__clear)
+            .lp-decision__kind {
+            margin-right: calc(var(--spacing) * 21);
+        }
+    }
+
     @media (max-width: 68rem) {
         .lp-core-inbox .lp-inbox-split {
-            grid-template-columns:
-                minmax(calc(var(--spacing) * 60), 0.65fr)
-                minmax(0, 1.35fr);
+            grid-template-columns: calc(var(--spacing) * 60) minmax(0, 1fr);
+            column-gap: calc(var(--spacing) * 7);
         }
     }
 
@@ -627,19 +962,25 @@
             grid-template-columns: 1fr;
         }
 
-        .lp-core-inbox .lp-inbox-ask__summary {
-            padding: calc(var(--spacing) * 5);
-        }
-
         .lp-core-inbox .lp-inbox-request-list {
-            max-height: calc(var(--spacing) * 75);
             overflow-y: auto;
-            border-right: 0;
-            border-bottom: 1px solid var(--border);
         }
 
-        .lp-core-inbox .lp-inbox-ask__items {
-            padding: calc(var(--spacing) * 5);
+        /* A picked view shows the pane alone, and any other shows the list alone. */
+        .lp-core-inbox
+            .lp-inbox-split[data-inbox-picked='true']
+            .lp-inbox-request-list,
+        .lp-core-inbox
+            .lp-inbox-split:not(
+                [data-inbox-picked='true'],
+                [data-inbox-empty='true']
+            )
+            .lp-inbox-request-detail {
+            display: none;
+        }
+
+        .lp-core-inbox .lp-inbox-back {
+            display: flex;
         }
     }
 }
@@ -1420,151 +1761,13 @@
     @apply bg-transparent p-0 text-ink;
 }
 /* ── Decision blocks ────────────────────────────────────────────── */
+/* The shared block in components/decision.css has no border. The document
+   page puts its card back, with the clear link inside its padding. */
 .lp-review .lp-decision {
-    @apply mt-2 mb-7 flex flex-col gap-0.5 rounded-xl border border-line bg-surface-1 px-4 pt-4 pb-3 leading-normal;
-    font-size: calc(var(--spacing) * 3.75);
-}
-/* The question leads as a heading, and the kind of answer it takes sits at
-   its right in quiet words. Still generated content, so it never joins the
-   text every comment anchor is measured against. */
-.lp-review .lp-decision__prompt {
-    @apply float-left mb-0 w-full pb-2.5 font-display text-base leading-normal font-bold text-ink;
-}
-.lp-review .lp-decision__prompt::before {
-    content: 'Pick one';
-    @apply float-right mb-0 ml-3 bg-transparent p-0 font-sans text-xs leading-6 font-normal tracking-normal text-fg-dim normal-case;
-}
-/* A block that asks no question is titled by its id, as the decisions panel names it. */
-.lp-review .lp-decision__prompt[data-untitled]::after {
-    content: attr(data-untitled);
-}
-.lp-review
-    .lp-decision[data-decision-type='multiple']
-    .lp-decision__prompt::before {
-    content: 'Pick any';
-}
-.lp-review
-    .lp-decision:has(> .lp-decision__clear)
-    .lp-decision__prompt::before {
-    content: 'Pick one \00A0\00B7';
-}
-.lp-review
-    .lp-decision[data-decision-type='multiple']:has(> .lp-decision__clear)
-    .lp-decision__prompt::before {
-    content: 'Pick any \00A0\00B7';
-}
-.lp-review .lp-decision__options {
-    @apply clear-both flex flex-col gap-0.5;
-}
-.lp-review .lp-decision__option {
-    @apply flex items-center gap-3 rounded-lg border-0 bg-transparent px-2.5 py-2.25 font-normal text-ink;
-    font-size: inherit;
-}
-.lp-review .lp-decision__option:has(input:checked) {
-    @apply bg-accent-faint;
-}
-.lp-review .lp-decision__option:has(input:not(:disabled, :checked)):hover {
-    @apply bg-surface-3;
-}
-.lp-review .lp-decision__option label {
-    @apply flex-1;
-}
-.lp-review .lp-decision__option input {
-    @apply m-0 shrink-0;
-}
-.lp-review .lp-decision__option input:checked {
-    @apply border-accent-ink bg-accent-ink;
-}
-/* Three stars show the confidence of a recommendation: filled for the steps it
-   reaches, outlined for the rest. The star elements hold no text, so they
-   never join the anchor basis. The words sit in `aria-label` and the tooltip.
-   The star shape is the committed Lucide star, inlined as a mask. */
-.lp-review .lp-decision__badge {
-    @apply relative z-1 ml-auto inline-flex shrink-0 cursor-help items-center gap-px rounded-md bg-transparent px-1.25 py-0.75 font-sans text-xs leading-4 font-semibold text-accent-ink hover:bg-accent-faint;
-}
-.lp-review .lp-decision__star:not(.lp-decision__star--filled) {
-    @apply opacity-45;
-}
-.lp-review .lp-decision__star {
-    @apply inline-block size-3 bg-current;
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-}
-.lp-review .lp-decision__star--filled {
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
-}
-/* A version stored before the stars existed has an empty badge. Generated
-   text names it, and the page names it in the reader's language. */
-.lp-review .lp-decision__badge:empty[data-decision-recommended='high']::after {
-    content: 'Recommended, high confidence';
-}
-.lp-review
-    .lp-decision__badge:empty[data-decision-recommended='moderate']::after {
-    content: 'Recommended, moderate confidence';
-}
-.lp-review .lp-decision__badge:empty[data-decision-recommended='low']::after {
-    content: 'Recommended, low confidence';
-}
-.lp-review .lp-decision__badge:empty[aria-label]::after {
-    content: attr(aria-label);
-}
-/* The Ds tooltip, with its words drawn from an attribute so they never join
-   the anchor basis. It shows at once, on hover and on keyboard focus. */
-.lp-review .lp-decision__badge:not(:empty):focus-visible {
-    @apply outline-2 outline-offset-2 outline-review-tab;
-}
-.lp-review .lp-decision__badge:is(:hover, :focus-visible) {
-    @apply z-10;
-}
-.lp-review .lp-decision__tooltip {
-    @apply right-0 left-auto w-max max-w-72 text-left whitespace-normal transition-none;
-}
-.lp-review .lp-decision__tooltip::before {
-    content: attr(data-label);
-}
-.lp-review
-    .lp-decision__badge:is(:hover, :focus-visible)
-    > .lp-decision__tooltip {
-    @apply visible opacity-100;
-}
-/* Clear choice sits in the header row, beside the kind-of-answer chip and away
-   from the note field. The chip moves left to make room for it. */
-.lp-review .lp-decision {
-    @apply relative;
+    @apply mt-2 mb-7 rounded-xl border border-line bg-surface-1 px-4 pt-4 pb-3;
 }
 .lp-review .lp-decision__clear {
-    @apply absolute top-4 right-4 z-2 m-0 h-6 min-h-6 border-0 bg-transparent p-0 text-xs leading-6 font-semibold text-accent-ink hover:bg-transparent hover:underline;
-}
-.lp-review
-    .lp-decision:has(> .lp-decision__clear)
-    .lp-decision__prompt::before {
-    @apply mr-21;
-}
-@media (width < 37.5rem) {
-    .lp-review .lp-decision__clear {
-        @apply static mb-2 block;
-    }
-    .lp-review
-        .lp-decision:has(> .lp-decision__clear)
-        .lp-decision__prompt::before {
-        @apply mr-0;
-    }
-}
-.lp-review .lp-decision__note {
-    @apply mt-2 flex items-start gap-3;
-}
-.lp-review .lp-decision__note-field {
-    @apply min-h-10 flex-1 resize-y rounded-lg border border-line bg-surface-1 px-2.5 py-2 text-sm;
-}
-.lp-review .lp-decision__note-field[readonly] {
-    @apply cursor-default bg-surface-1 text-fg-mute;
+    @apply top-4 right-4;
 }
 
 /* ── Tables in the document ─────────────────────────────────────── */
@@ -1898,8 +2101,6 @@
 .lp-review
     :is(
         .lp-comment-action,
-        .lp-decision__option,
-        .lp-decision__option input,
         .lp-review-verdict-choice,
         .lp-history__action,
         .lp-diff-views__link
@@ -1910,20 +2111,6 @@
    pointer is over a passage that opens a thread. */
 .lp-review .lp-comment-anchor-hovered {
     @apply cursor-pointer;
-}
-/* The whole option row answers a click, not the words alone. The label covers
-   the row through a pseudo-element, so the native input still does the work. */
-.lp-review .lp-decision__option {
-    @apply relative;
-}
-.lp-review .lp-decision__option label::after {
-    @apply absolute inset-0;
-    content: '';
-}
-/* Above that cover, so a click or a test that targets the control itself
-   reaches the control rather than the label over it. */
-.lp-review .lp-decision__option input {
-    @apply relative z-1;
 }
 
 /* ── Diff pane ──────────────────────────────────────────────────── */
@@ -2595,22 +2782,27 @@
 }
 
 @layer components {
-    .lp-needs-you__summary {
-        @apply inline-flex max-w-full items-center rounded-full bg-status-pending-bg px-3 py-1.5 text-sm font-bold text-status-pending-deep;
+    /* The links of the inbox page sit in the top bar, and only their icons stay on a phone. */
+    .lp-inbox-topbar-actions {
+        @apply flex items-center gap-1 ml-auto;
     }
-    .lp-needs-you__header-actions {
-        @apply flex flex-wrap max-w-full items-center gap-2;
+    .lp-topbar > .lp-inbox-topbar-actions + .lp-topbar__global-actions {
+        @apply ml-0;
     }
-    .lp-needs-you .lp-page-header,
+    @media (width < 40rem) {
+        .lp-inbox-topbar-actions .lp-btn {
+            @apply w-9 px-0;
+        }
+        .lp-inbox-topbar-actions__label {
+            @apply sr-only;
+        }
+    }
     .lp-core-documents .lp-page-header,
     .lp-redesign-projects .lp-page-header {
         @apply flex-wrap;
     }
     .lp-inbox-section {
         scroll-margin-top: calc(var(--spacing) * 20);
-    }
-    .lp-inbox-section--queue {
-        @apply rounded-2xl bg-surface-2 p-4 sm:p-5;
     }
     .lp-inbox-ask__head {
         @apply gap-2;
@@ -2685,17 +2877,6 @@
     /* An unavailable artifact keeps its explanation beside the artifact name. */
     .lp-inbox-linked-table__note {
         @apply m-0 text-xs text-fg-mute;
-    }
-    @media (width < 40rem) {
-        .lp-needs-you .lp-page-header {
-            @apply gap-3;
-        }
-        .lp-needs-you__summary {
-            @apply self-start;
-        }
-        .lp-needs-you__header-actions {
-            @apply w-full justify-between;
-        }
     }
 }
 
@@ -5869,67 +6050,6 @@
         @apply flex;
     }
 
-    /* ── Decision blocks ────────────────────────────────────────────────
-       The eyebrow is generated content rather than markup: the card renders
-       inside the pane whose text is the basis every comment anchor is measured
-       against, so chrome that is not the author's own words must not reach it.
-       Only the prompt does, because the author wrote it. */
-
-    .lp-decision {
-        @apply my-4 rounded-xl border-0 px-5 py-4.5 bg-tint scroll-mt-16;
-    }
-    /* Floated rather than blocked: a legend renders in the fieldset's border
-       notch, so `display: block` alone leaves the eyebrow and the question
-       sitting above the card instead of inside it. Floating puts the legend
-       back in normal flow, and the options below it clear the float. */
-    .lp-decision__prompt {
-        @apply float-left w-full p-0 mb-3 text-base leading-relaxed text-prose;
-    }
-    .lp-decision__prompt::before {
-        content: 'Decision — pick one';
-        @apply block mb-3 uppercase text-fg-mute text-xs font-bold tracking-widest;
-    }
-    .lp-decision[data-decision-type='multiple'] .lp-decision__prompt::before {
-        content: 'Decision — pick any';
-    }
-    .lp-decision__options {
-        @apply clear-both flex flex-col gap-2;
-    }
-    /* No border: a row is told apart from the card by its own fill, and the
-       chosen one by the highlight rather than by an outline. */
-    .lp-decision__option {
-        @apply flex items-center gap-3 py-3 px-3.5 rounded-lg text-base font-semibold bg-elev text-ink transition;
-    }
-    .lp-decision__option:has(input:checked) {
-        @apply bg-accent-soft;
-    }
-    /* The dot is drawn rather than left native: the chosen option fills the
-       whole circle, which a platform radio has no way to express. */
-    .lp-decision__option input {
-        @apply size-4 m-0 shrink-0 appearance-none rounded-full border-2 border-fg-faint;
-    }
-    .lp-decision__option input:checked {
-        @apply border-ink bg-ink;
-    }
-    /* A square box says the block takes more than one answer. */
-    .lp-decision__option input[type='checkbox'] {
-        @apply rounded-sm;
-    }
-    .lp-decision__option label {
-        @apply cursor-pointer;
-    }
-    .lp-decision__option input[disabled] + label {
-        @apply cursor-default text-fg-mute;
-    }
-    /* The chosen option on a locked version is checked AND disabled, and a
-       colour set on the label beats the one the row hands down — without this
-       the answer reads as muted grey text on the filled row. */
-    .lp-decision__option:has(input:checked) input[disabled] + label {
-        @apply text-ink;
-    }
-    .lp-decision__option:has(input:focus-visible) {
-        @apply outline-2 outline-offset-2 outline-accent;
-    }
     /* One shared status region serves the whole page, so this line sits outside
        the card it reports on rather than inside it. */
     /* Collapsed, not hidden: `display: none` drops a live region from the a11y tree. */
@@ -8423,8 +8543,18 @@
     .lp-inbox-item__response {
         @apply flex flex-col gap-1.5 rounded-lg bg-tint py-2.5 px-3 text-sm text-ink;
     }
+    .lp-inbox-item__response-title {
+        @apply m-0 text-sm font-semibold text-fg-dim;
+    }
+    /* A picked option reads as a checked line, as the closed ask of the prototype draws it. */
     .lp-inbox-item__choices {
-        @apply m-0 pl-5 list-disc font-semibold;
+        @apply m-0 p-0 list-none flex flex-col gap-1;
+    }
+    .lp-inbox-item__choices > li {
+        @apply flex items-center gap-2;
+    }
+    .lp-inbox-item__choice-icon {
+        @apply size-4 shrink-0 text-status-ok-deep;
     }
     .lp-inbox-item__answer-text,
     .lp-inbox-item__note {
@@ -8461,49 +8591,55 @@
     }
     /* The account inbox points at the project inboxes and answers nothing
        itself, so a row carries only what chooses between them. */
-    .lp-account-inbox__grid {
-        @apply flex flex-col gap-3 mt-2;
+    .lp-account-inbox__list {
+        @apply flex flex-col gap-0.5 mt-2 max-w-3xl;
     }
-    .lp-account-inbox-card {
-        @apply flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface-1 px-5 py-4 no-underline transition-colors hover:border-accent-border hover:bg-accent-faint;
+    .lp-account-inbox-row {
+        @apply grid items-center gap-x-3.5 gap-y-1 rounded-lg px-3 py-3.5 text-ink no-underline transition-colors hover:bg-surface-2;
+        grid-template-columns: calc(var(--spacing) * 7) minmax(0, 1fr) auto;
     }
-    .lp-account-inbox-card__avatar {
-        @apply inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-danger text-xs font-bold text-white;
+    .lp-account-inbox-row__avatar {
+        @apply row-span-2 grid size-7 place-items-center rounded-lg bg-surface-3 font-display text-sm leading-none font-extrabold text-accent-ink;
     }
-    .lp-account-inbox-card__name {
-        @apply font-display text-base font-extrabold tracking-tight text-ink;
+    .lp-account-inbox-row__name {
+        @apply font-semibold;
     }
-    .lp-account-inbox-card__count {
-        @apply text-sm font-semibold text-accent-ink;
+    .lp-account-inbox-row__go {
+        @apply col-start-3 row-span-2 size-4 text-fg-dim;
     }
-    .lp-account-inbox-card__wait {
-        @apply text-sm text-fg-dim;
+    .lp-account-inbox-row__meta {
+        @apply col-start-2 flex flex-wrap items-center gap-2.5 text-xs text-fg-dim;
     }
-    .lp-account-inbox-card__go {
-        @apply ml-auto size-4 shrink-0 text-fg-dim;
+    .lp-account-inbox-row__meta > * + *::before {
+        @apply mr-2.5;
+        content: '·' / '';
+    }
+    .lp-account-inbox-row__blocking {
+        @apply font-semibold text-accent-ink;
     }
     .lp-inbox-item__actions {
         @apply flex flex-col gap-3;
     }
     .lp-inbox-item__buttons {
-        @apply flex items-center justify-end gap-3;
+        @apply flex items-center justify-end gap-3 rounded-xl bg-surface-2 px-3 py-2;
+    }
+    /* A faint tint sets the answer apart from the agent's message above it. */
+    .lp-decision--inbox {
+        @apply rounded-xl bg-surface-2 p-4;
+    }
+    .lp-decision--inbox > .lp-decision__clear {
+        @apply top-4 right-4;
     }
     .lp-inbox-item__hint {
         @apply m-0 text-xs text-fg-mute;
     }
-    /* The block sits inside a card here, so it drops the page margin the
-       document pane gives it, and its question is the item title above. */
-    .lp-decision--inbox {
-        @apply my-0 bg-surface-2;
-    }
-    .lp-decision--inbox .lp-decision__prompt {
-        @apply mb-2 text-xs font-bold uppercase tracking-widest text-fg-mute;
-    }
+    /* The legend names the answer, and its kind sits at the right, so the
+       generated "Pick one" chip of the review page stays hidden here. */
     .lp-decision--inbox .lp-decision__prompt::before {
         @apply hidden;
     }
-    .lp-inbox-answer__clear {
-        @apply mt-2;
+    .lp-inbox-item__actions .lp-decision + .lp-form-hint {
+        @apply mt-0;
     }
 
     /* ── Inbox section of a card or document page ───────────────────────
@@ -8546,13 +8682,23 @@
 
 /* Same reason as the rule below: the typography plugin sets the prose colour
    and size in a later layer, so the inbox states them unlayered. */
-.lp-core-inbox .lp-inbox-item__body {
-    color: var(--text-mute);
+.lp-core-inbox .lp-inbox-item__body,
+.lp-core-inbox .lp-inbox-ask__context {
+    color: var(--text);
+    font-size: var(--text-base);
+    line-height: 1.625;
 }
 
-.lp-core-inbox .lp-inbox-ask__context {
-    color: var(--text-mute);
-    font-size: var(--text-sm);
+/* The message reads as plain paragraphs, 12px apart. */
+.lp-core-inbox .lp-inbox-ask__context > *,
+.lp-core-inbox .lp-inbox-item__body > * {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.lp-core-inbox .lp-inbox-ask__context > * + *,
+.lp-core-inbox .lp-inbox-item__body > * + * {
+    margin-top: calc(var(--spacing) * 3);
 }
 
 /* The typography plugin wraps inline code in literal backticks. Unlayered, not
