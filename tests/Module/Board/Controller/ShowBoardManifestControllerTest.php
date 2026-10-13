@@ -6,17 +6,13 @@ namespace App\Tests\Module\Board\Controller;
 
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Entity\CardPause;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
-use App\Module\Forge\Entity\PullRequestChecks;
-use App\Module\Forge\PullRequestSnapshot;
 use App\Module\Project\Entity\Project;
-use App\Module\Workflow\Contract\PauseKind;
 use App\Session\ReadOnlyAwareSessionHandler;
 use Doctrine\Bundle\DoctrineBundle\DataCollector\DoctrineDataCollector;
 use Doctrine\ORM\EntityManagerInterface;
@@ -298,29 +294,27 @@ final class ShowBoardManifestControllerTest extends WebTestCase
         self::assertSame($this->page($client, $project)['cards'], array_column($after['cards'], 1, 0));
     }
 
-    public function test_a_digest_changes_with_a_badge_and_stays_the_page_one(): void
+    public function test_a_digest_changes_with_a_stored_marker_and_stays_the_page_one(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $owner = $this->user($em, 'manifest-badge@example.com');
+        $owner = $this->user($em, 'manifest-marker@example.com');
         $project = $this->project($em, $owner);
         $card = $this->card($em, $project, 'Failing', 'next');
         $em->clear();
 
         $client->loginUser($owner);
         $before = $this->digestOf($this->manifest($client, $project), $card);
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        $this->linkReadPullRequest($em, $em->find(Card::class, $card->id) ?? throw new \LogicException('No card.'), new PullRequestSnapshot(checks: PullRequestChecks::Failed));
-        $linked = $this->digestOf($this->manifest($client, $project), $card);
-        $em->clear();
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        $paused = $em->find(Card::class, $card->id) ?? throw new \LogicException('No card.');
-        $em->persist(new CardPause($paused, $paused->project, 'on-hold', 'hold', PauseKind::Rule, new \DateTimeImmutable()));
-        $em->flush();
-        $em->clear();
+        $this->updateCard($card, static function (Card $card): void {
+            $card->markers = [['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => '2026-10-02T09:00:00+00:00']];
+        });
+        $chip = $this->digestOf($this->manifest($client, $project), $card);
+        $this->updateCard($card, static function (Card $card): void {
+            $card->markers = [['key' => 'checks_failed', 'kind' => 'stuck', 'label' => 'marker.checks_failed', 'remedy' => 'marker.checks_failed.remedy', 'params' => ['%number%' => 5], 'since' => '2026-10-02T09:00:00+00:00']];
+        });
         $after = $this->manifest($client, $project);
 
-        self::assertCount(3, array_unique([$before, $linked, $this->digestOf($after, $card)]));
+        self::assertCount(3, array_unique([$before, $chip, $this->digestOf($after, $card)]));
         self::assertSame($this->page($client, $project)['cards'], array_column($after['cards'], 1, 0));
     }
 
@@ -481,9 +475,9 @@ final class ShowBoardManifestControllerTest extends WebTestCase
 
         self::assertGreaterThan(0, $reads['twelve-cards']['cards']);
         self::assertSame(0, $reads['twelve-cards']['links']);
-        // Counts and stage documents for documents, the last outcome and the open runs for runs.
-        self::assertSame(2, $reads['twelve-cards']['documents']);
-        self::assertSame(2, $reads['twelve-cards']['runs']);
+        // The counts for documents, and the last outcome for runs. The open runs reach the card through its stored markers.
+        self::assertSame(1, $reads['twelve-cards']['documents']);
+        self::assertSame(1, $reads['twelve-cards']['runs']);
         self::assertSame($reads['three-cards']['selects'], $reads['twelve-cards']['selects']);
     }
 

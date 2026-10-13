@@ -6,9 +6,9 @@ namespace App\Module\Board\Workflow;
 
 use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\CardsDueForMarkers;
-use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\StoredMarker;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -28,17 +28,9 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
     #[\Override]
     public function read(Uuid $cardId): array
     {
-        return array_map(
-            static fn (array $entry): StoredMarker => new StoredMarker(
-                $entry['key'],
-                MarkerKind::from($entry['kind']),
-                $entry['label'],
-                $entry['remedy'],
-                $entry['params'],
-                new \DateTimeImmutable($entry['since']),
-            ),
-            $this->cards->find($cardId)->markers ?? [],
-        );
+        $card = $this->cards->find($cardId);
+
+        return null === $card ? [] : StoredCardMarkers::of($card)->markers;
     }
 
     #[\Override]
