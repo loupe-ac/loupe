@@ -186,13 +186,13 @@ final class CardCreateToolTest extends KernelTestCase
         self::assertSame(CardLinkKind::Blocks, $link->kind);
     }
 
-    public function test_an_unknown_link_kind_lists_the_three_kinds(): void
+    public function test_an_unknown_link_kind_lists_every_kind(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-create-link-kind'));
         $other = ($this->tool)('Other', 'Body', 'feature');
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('relatedCards[0].kind: unknown kind "sideways". Use one of: relates-to, blocks, blocked-by.');
+        $this->expectExceptionMessage('relatedCards[0].kind: unknown kind "sideways". Use one of: relates-to, blocks, blocked-by, has-follow-up, follow-up-of.');
         ($this->tool)('Linked', 'Body', 'feature', relatedCards: [['cardId' => $other['cardId'], 'kind' => 'sideways']]);
     }
 

@@ -6287,6 +6287,14 @@
                 <source>board.form.card_link_row.kind.choice.blocked-by</source>
                 <target>Blocked by</target>
             </trans-unit>
+            <trans-unit id="board.form.card_link_row.kind.choice.has-follow-up">
+                <source>board.form.card_link_row.kind.choice.has-follow-up</source>
+                <target>Has follow-up</target>
+            </trans-unit>
+            <trans-unit id="board.form.card_link_row.kind.choice.follow-up-of">
+                <source>board.form.card_link_row.kind.choice.follow-up-of</source>
+                <target>Follow-up of</target>
+            </trans-unit>
 
             <!-- Move form -->
             <trans-unit id="board.form.move_card_form.column.label">
@@ -7110,6 +7118,8 @@
             <trans-unit id="board.card.linked_cards.kind.relates_to"><source>board.card.linked_cards.kind.relates_to</source><target>Related to</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.blocks"><source>board.card.linked_cards.kind.blocks</source><target>Blocks</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.blocked_by"><source>board.card.linked_cards.kind.blocked_by</source><target>Blocked by</target></trans-unit>
+            <trans-unit id="board.card.linked_cards.kind.has_follow_up"><source>board.card.linked_cards.kind.has_follow_up</source><target>Has follow-up</target></trans-unit>
+            <trans-unit id="board.card.linked_cards.kind.follow_up_of"><source>board.card.linked_cards.kind.follow_up_of</source><target>Follow-up of</target></trans-unit>
             <trans-unit id="site_review.source.widget"><source>site_review.source.widget</source><target>Site review widget</target></trans-unit>
             <trans-unit id="site_review.comment.open_source"><source>site_review.comment.open_source</source><target>Open source page</target></trans-unit>
             <trans-unit id="site_review.feedback.captured_elements"><source>site_review.feedback.captured_elements</source><target>Captured elements</target></trans-unit>
@@ -8150,6 +8160,8 @@
             <trans-unit id="workflow.waiting.not.card_type"><source>workflow.waiting.not.card_type</source><target>Waiting: the card type is %type%.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_open_blocker"><source>workflow.waiting.card_has_open_blocker</source><target>Waiting: the card has no open blocker.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_has_open_blocker"><source>workflow.waiting.not.card_has_open_blocker</source><target>Waiting: a blocking card is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_follows_finished"><source>workflow.waiting.card_follows_finished</source><target>Waiting: the card follows no card, or a card it follows is still open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_follows_finished"><source>workflow.waiting.not.card_follows_finished</source><target>Waiting: every card that this card follows is finished.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_is_child"><source>workflow.waiting.card_is_child</source><target>Waiting: the card is not a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_is_child"><source>workflow.waiting.not.card_is_child</source><target>Waiting: the card is a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_discovery_requested"><source>workflow.waiting.card_discovery_requested</source><target>Waiting: the card has no requested discovery.</target></trans-unit>
