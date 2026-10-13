@@ -3,9 +3,10 @@
 {% block title %}{{ 'project.list.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__crumb">{{ 'project.list.eyebrow'|trans }}</span>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'project.list.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'project.list.eyebrow'|trans},
+        {label: 'project.list.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}

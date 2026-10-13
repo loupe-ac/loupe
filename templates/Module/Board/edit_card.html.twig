@@ -7,11 +7,11 @@
 {% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_board', {id: card.project.id}) }}">{{ 'nav.link.board'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <a class="lp-topbar__crumb" href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}">{{ card.title }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'board.card.edit.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.board'|trans, url: path('app_project_board', {id: card.project.id})},
+        {label: card.title, url: path('app_board_card', {projectId: card.project.id, cardId: card.id})},
+        {label: 'board.card.edit.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}

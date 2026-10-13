@@ -3,9 +3,9 @@
 {% block title %}{{ 'inbox.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: inbox.project.id}) }}">{{ inbox.project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'inbox.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'inbox.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {# The page has no header of its own, as the prototype draws it, so its two links sit in the top bar. #}

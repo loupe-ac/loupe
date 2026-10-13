@@ -3,7 +3,9 @@
 {% block title %}{{ report.experiment }} — {{ 'bridge.experiments.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    {% include '@Insights/_crumbs.html.twig' with {project: project} only %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'analytics.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}

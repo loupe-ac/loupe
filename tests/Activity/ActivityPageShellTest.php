@@ -52,9 +52,8 @@ final class ActivityPageShellTest extends WebTestCase
         );
         self::assertSame([$activeTab], $crawler->filter('nav.lp-activity-tabs [aria-current="page"]')->each(static fn ($tab): string => trim($tab->text())));
 
-        self::assertSame(['Shell project'], $crawler->filter('.lp-topbar__crumb')->each(static fn ($crumb): string => trim($crumb->text())));
-        self::assertSame($base.'/documents', $crawler->filter('.lp-topbar__crumb')->attr('href'));
-        self::assertSame('Activity', trim($crawler->filter('.lp-topbar__here')->text()));
+        self::assertCount(0, $crawler->filter('.lp-crumbs__link'));
+        self::assertSame('Activity', trim($crawler->filter('.lp-crumbs__here')->text()));
 
         self::assertStringNotContainsString('Run history', $crawler->filter('.lp-sidebar')->text());
         $active = $crawler->filter('a.lp-sidebar__link--active[aria-current="page"]');

@@ -3,9 +3,10 @@
 {% block title %}{{ 'account.settings.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__crumb">{{ 'nav.link.account'|trans }}</span>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'account.settings.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.account'|trans},
+        {label: 'account.settings.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {# Each section names itself, because a forwarded 422 render carries no _route. #}
