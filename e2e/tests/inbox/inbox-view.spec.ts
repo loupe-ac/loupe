@@ -168,6 +168,14 @@ test('the view sits straight on a white page, with no frame or fill', async ({
         await expect(element).toHaveCSS('border-top-width', '0px');
         await expect(element).toHaveCSS('padding-top', '0px');
     }
+
+    const tint = 'rgb(247, 248, 243)';
+    for (const selector of ['.lp-decision--inbox', '.lp-inbox-item__buttons']) {
+        await expect(page.locator(selector).first()).toHaveCSS(
+            'background-color',
+            tint,
+        );
+    }
 });
 
 test('an old fragment link opens the ask of the item', async ({

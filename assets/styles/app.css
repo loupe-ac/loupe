@@ -8552,9 +8552,15 @@
         @apply flex flex-col gap-3;
     }
     .lp-inbox-item__buttons {
-        @apply flex items-center justify-end gap-3;
+        @apply flex items-center justify-end gap-3 rounded-xl bg-surface-2 px-3 py-2;
     }
-    .lp-inbox-item__hint {
+    /* A faint tint sets the answer apart from the agent's message above it. */
+    .lp-decision--inbox {
+        @apply rounded-xl bg-surface-2 p-4;
+    }
+    .lp-decision--inbox > .lp-decision__clear {
+        @apply top-4 right-4;
+    }    .lp-inbox-item__hint {
         @apply m-0 text-xs text-fg-mute;
     }
     /* The legend names the answer, and its kind sits at the right, so the
