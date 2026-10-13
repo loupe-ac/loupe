@@ -48,6 +48,10 @@ the `createdAt` and the `deliveries`. A delivery names the pull request, its
 `state`, its `reason`, the `reviewUrl` and the `settledAt`. The file never holds
 a GitHub token.
 
+`waitlist.json` holds the waitlist entry of the user, if one exists. It gives
+`joinedAt`, the `picks` the user chose and the `other` text. Account deletion
+deletes the entry.
+
 `beta_invite.json` holds `betaTesterSince`, the date the user redeemed a beta
 invite. It is empty for a user who redeemed none. The admin's note on the invite
 stays out of the export.

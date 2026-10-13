@@ -1,6 +1,6 @@
 ---
 title: "Site review"
-description: "An embeddable widget for notes on live web pages. Each note becomes feedback on a board card. Preview, optional, and not release-ready."
+description: "An embeddable widget for notes on live web pages. Each note becomes feedback on a board card."
 ---
 
 The site-review widget brings the select-and-comment flow to any web page. A
@@ -9,9 +9,8 @@ about it. The note saves when the reviewer presses Save. Each note becomes
 feedback on a card of the project [board](board.md), and the agent reads it
 with `feedback_list` or `card_get`. There is no send step.
 
-This is a preview. It works, and this project uses it every day. No release
-promise covers it. The hub and the
-[command-line bridge](../extending/cli-bridge.md) around it are optional and
+This project uses the widget every day. The
+[command-line bridge](../extending/cli-bridge.md) around it is optional and
 unreleased.
 
 ## Embedding it
@@ -28,8 +27,8 @@ The ID is the project's UUID, the same one that is in the project's URLs. The
 widget reads its backend from its own `script.src`, so the host that serves the
 script is the instance it talks to.
 
-Install it on staging and preview environments only. This is a preview, and
-only the owner of the project can sign in. On a public page, no visitor can use
+Install it on staging and preview environments only. Only the owner of the
+project can sign in. On a public page, no visitor can use
 the launcher.
 
 ### Allowing a site and signing in
@@ -140,7 +139,7 @@ allowed sites of the project do not limit where a token works.
 On a page that locks a card, the panel shows three buttons when the card has at
 least one open GitHub pull request: **Approve**, **Request changes** and
 **Comment**. The buttons stay hidden on every other page. That includes a page
-that names no card, a card without an open pull request, and the landing demo.
+that names no card and a card without an open pull request.
 
 A button opens a confirm panel. Loupe records nothing until you press **Send**.
 Press **Cancel** to close the panel without a record.

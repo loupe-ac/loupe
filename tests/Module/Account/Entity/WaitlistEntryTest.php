@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Account\Entity;
 
 use App\Module\Account\Entity\WaitlistEntry;
+use App\Module\Account\Entity\WaitlistPick;
 use PHPUnit\Framework\TestCase;
 
 final class WaitlistEntryTest extends TestCase
@@ -79,5 +80,38 @@ final class WaitlistEntryTest extends TestCase
         $entry->markConverted();
 
         self::assertFalse($entry->needsInvite());
+    }
+
+    public function test_merge_picks_unions_in_the_order_of_the_enum(): void
+    {
+        $entry = new WaitlistEntry('picks@example.com');
+
+        self::assertTrue($entry->mergePicks([WaitlistPick::Pi, WaitlistPick::GitLab], null));
+        self::assertTrue($entry->mergePicks([WaitlistPick::Cursor, WaitlistPick::Pi], null));
+
+        self::assertSame(['gitlab', 'cursor', 'pi'], $entry->picks);
+    }
+
+    public function test_merge_picks_reports_no_change_for_known_picks_and_empty_text(): void
+    {
+        $entry = new WaitlistEntry('picks@example.com');
+        $entry->mergePicks([WaitlistPick::Gitea], 'Jujutsu');
+
+        self::assertFalse($entry->mergePicks([WaitlistPick::Gitea], null));
+        self::assertFalse($entry->mergePicks([], ''));
+        self::assertFalse($entry->mergePicks([], 'Jujutsu'));
+        self::assertSame('Jujutsu', $entry->otherPick);
+    }
+
+    public function test_merge_picks_replaces_the_text_only_with_a_non_empty_text(): void
+    {
+        $entry = new WaitlistEntry('picks@example.com');
+        $entry->mergePicks([], 'Jujutsu');
+
+        $entry->mergePicks([], '');
+        self::assertSame('Jujutsu', $entry->otherPick);
+
+        $entry->mergePicks([], 'Sapling');
+        self::assertSame('Sapling', $entry->otherPick);
     }
 }

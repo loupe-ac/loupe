@@ -66,6 +66,6 @@ final class SeedInstallFlagsHandlerTest extends KernelTestCase
         $handler($command);
 
         $flags = self::getContainer()->get(FeatureFlagRepository::class);
-        self::assertCount(32, $flags->findAll());
+        self::assertCount(31, $flags->findAll());
     }
 }

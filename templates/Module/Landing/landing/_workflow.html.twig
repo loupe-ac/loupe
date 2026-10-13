@@ -1,0 +1,26 @@
+{% set steps = [
+    {key: 'product_design', you: true},
+    {key: 'tech_design', you: true},
+    {key: 'implementation', you: false},
+    {key: 'agent_review', you: false},
+    {key: 'site_review', you: true},
+    {key: 'done', you: false},
+] %}
+<section id="workflow" class="lp-home-section">
+    <div class="lp-home-container">
+        <h2 class="lp-home-title">{{ 'landing.workflow.title'|trans }}</h2>
+        <p class="lp-home-lead">{{ 'landing.workflow.lead'|trans }}</p>
+        <ol class="lp-home-steps">
+            {% for step in steps %}
+                <li class="lp-home-step">
+                    <span class="lp-home-step__head">
+                        <span class="lp-home-step__number">{{ loop.index }}</span>
+                        {% if step.you %}<twig:Ds:Tag tone="amber">{{ 'landing.workflow.you'|trans }}</twig:Ds:Tag>{% endif %}
+                    </span>
+                    <h3 class="lp-home-step__title">{{ ('landing.workflow.step.' ~ step.key ~ '.title')|trans }}</h3>
+                    <p class="lp-home-step__text">{{ ('landing.workflow.step.' ~ step.key ~ '.text')|trans }}</p>
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+</section>

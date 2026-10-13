@@ -43,7 +43,6 @@ export function signIn(project = PROJECT, accessToken = ACCESS_TOKEN) {
  */
 export function bootWidget({
     respond,
-    demo = false,
     context = null,
     project = PROJECT,
     signedIn = true,
@@ -69,20 +68,15 @@ export function bootWidget({
 
     const script = document.createElement('script');
     script.src = `${BACKEND}/site-review/widget.js`;
-    // The landing page's demo names no project and swaps the transport out.
-    if (demo) script.setAttribute('data-demo', '');
-    // Every other embed names its project. The reviewer signs in with OAuth.
+    // An embed names its project. The reviewer signs in with OAuth.
     if (project !== null) script.setAttribute('data-project', project);
-    if (!demo && project !== null && signedIn) signIn(project);
+    if (project !== null && signedIn) signIn(project);
     // The token a preview page carries, which signs the widget in with no popup.
     if (previewToken !== null)
         script.setAttribute('data-preview-token', previewToken);
     // Where notes go, as a reviewer chose it on an earlier visit.
     if (mode !== null) {
-        window.localStorage.setItem(
-            modeKeyFor(demo ? '' : project),
-            JSON.stringify(mode),
-        );
+        window.localStorage.setItem(modeKeyFor(project), JSON.stringify(mode));
     }
     // The marker a preview page proposes. Absent on an ordinary deployment.
     if (context !== null) script.setAttribute('data-context', context);

@@ -153,25 +153,6 @@ describe('verdict buttons', () => {
 
         expect(buttons()).toEqual([]);
     });
-
-    it('stay hidden in the demo', async () => {
-        const fetchMock = bootWidget({
-            demo: true,
-            project: null,
-            context: `card:${CARD}`,
-            respond: () =>
-                ok({ comments: [], context: { label: 'Demo', url: null } }),
-        });
-        await settle();
-        openPanel();
-
-        expect(buttons()).toEqual([]);
-        expect(
-            fetchMock.mock.calls.some(([url]) =>
-                String(url).includes('/verdict'),
-            ),
-        ).toBe(false);
-    });
 });
 
 describe('confirm panel', () => {

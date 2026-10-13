@@ -1,0 +1,10 @@
+<h2 class="lp-dialog-title lp-home-waitlist-dialog__title" id="waitlist-modal-title">{{ 'landing.waitlist_dialog.title'|trans }}</h2>
+<p class="lp-dialog-desc">{{ 'landing.waitlist_dialog.body'|trans }}</p>
+{% do modalForm.picks.setRendered %}
+{% do modalForm.other.setRendered %}
+{{ form_start(modalForm, {attr: {class: 'lp-home-waitlist-dialog__form', novalidate: 'novalidate'}}) }}
+    <twig:Ds:FormField :fieldView="modalForm.email" :widgetAttr="{autofocus: 'autofocus'}" />
+    <div class="lp-dialog-actions">
+        <twig:Ds:Button variant="primary" type="submit" data-turbo-submits-with="{{ 'landing.waitlist_dialog.busy'|trans }}">{{ 'account.waitlist.submit'|trans }}</twig:Ds:Button>
+    </div>
+{{ form_end(modalForm) }}
