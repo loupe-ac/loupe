@@ -51,7 +51,8 @@ the top of its plan.
 When the card links a prototype, the worker reads every page of it before it
 plans. The plan gets a "Prototype map" that names the code for each part of the
 prototype. Each UI sub-agent reads the pages of its own task. The review stage
-fails a part of the prototype that the build leaves out with no recorded reason.
+fails a part of the prototype that the build leaves out with no recorded reason,
+or with a reason that the card and its designs do not support.
 
 The owner can run `/loupe:product-design` by hand in Claude Code, from a card or
 from a one-line idea. The session creates the card in Product design, or moves
