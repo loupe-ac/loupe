@@ -23,6 +23,7 @@
 @import './components/section-heading.css';
 @import './components/form-actions.css';
 @import './components/avatar.css';
+@import './components/relative-time.css';
 @import './components/menu.css';
 @import './components/action-form.css';
 @plugin "@tailwindcss/typography";
