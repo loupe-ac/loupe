@@ -22,6 +22,7 @@
 @import './components/form-actions.css';
 @import './components/avatar.css';
 @import './components/menu.css';
+@import './components/action-form.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
