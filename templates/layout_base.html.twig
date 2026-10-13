@@ -36,8 +36,8 @@
         {% block page %}{% endblock %}
         {% include '@Analytics/_script.html.twig' only %}
         {# A block so a page can swap what loads here. The widget guards itself
-           against a second instance, so the landing page's demo has to replace
-           this one rather than sit alongside it. #}
+           against a second instance, so a page that loads its own replaces
+           this one rather than sitting alongside it. #}
         {% block site_review_widget %}
         {% include '_site_review_widget.html.twig' only %}
         {% endblock %}

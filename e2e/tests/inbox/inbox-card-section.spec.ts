@@ -78,43 +78,51 @@ test('card and inbox show linked PRs with readable status and safe actions', asy
     expect(seeded.status()).toBe(201);
     const { questionNumber } = await seeded.json();
 
-    for (const path of [
-        cardUrl,
-        `/projects/${projectId}/inbox#inbox-item-${questionNumber}`,
-    ]) {
-        await page.goto(path);
-        const rows = page.locator('[data-linked-pull-request]');
-        await expect(rows).toHaveCount(2);
-        await expect(rows.first()).toContainText('example/app #42');
-        await expect(rows.first().locator('.lp-tag')).toHaveText(
-            'Not reported',
-        );
-        await expect(rows.first().getByRole('link')).toHaveAttribute(
-            'href',
-            'https://github.com/example/app/pull/42',
-        );
-        await expect(rows.last().locator('.lp-tag')).toHaveText('Unavailable');
-        await expect(rows.last()).toContainText('Not a web address');
-        await expect(rows.last().getByRole('link')).toHaveCount(0);
-        for (const width of [1440, 1150, 950, 780, 390]) {
-            await page.setViewportSize({ width, height: 900 });
-            for (const badge of await rows.locator('.lp-tag').all()) {
-                await expect(badge).toBeVisible();
-                await expect(badge).toHaveCSS('white-space', 'nowrap');
-                expect(
-                    await badge.evaluate(
-                        (element) => element.scrollWidth - element.clientWidth,
-                    ),
-                ).toBe(0);
-                const bounds = await badge.evaluate((element) => ({
-                    badgeRight: element.getBoundingClientRect().right,
-                    cellRight:
-                        element.parentElement!.getBoundingClientRect().right,
-                }));
-                expect(bounds.badgeRight).toBeLessThanOrEqual(bounds.cellRight);
-            }
+    await page.goto(cardUrl);
+    const rows = page.locator('[data-linked-pull-request]');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toContainText('example/app #42');
+    await expect(rows.first().locator('.lp-tag')).toHaveText('Not reported');
+    await expect(rows.first().getByRole('link')).toHaveAttribute(
+        'href',
+        'https://github.com/example/app/pull/42',
+    );
+    await expect(rows.last().locator('.lp-tag')).toHaveText('Unavailable');
+    await expect(rows.last()).toContainText('Not a web address');
+    await expect(rows.last().getByRole('link')).toHaveCount(0);
+    for (const width of [1440, 1150, 950, 780, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const badge of await rows.locator('.lp-tag').all()) {
+            await expect(badge).toBeVisible();
+            await expect(badge).toHaveCSS('white-space', 'nowrap');
+            expect(
+                await badge.evaluate(
+                    (element) => element.scrollWidth - element.clientWidth,
+                ),
+            ).toBe(0);
+            const bounds = await badge.evaluate((element) => ({
+                badgeRight: element.getBoundingClientRect().right,
+                cellRight: element.parentElement!.getBoundingClientRect().right,
+            }));
+            expect(bounds.badgeRight).toBeLessThanOrEqual(bounds.cellRight);
         }
     }
+
+    // The ask pane lists each pull request on one line of its Linked panel, with no status badge.
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
+    const panelRows = page.locator(
+        '[data-inbox-linked-panel] [data-linked-pull-request]',
+    );
+    await expect(panelRows).toHaveCount(2);
+    await expect(panelRows.first()).toContainText('example/app #42');
+    await expect(panelRows.first()).toHaveAttribute(
+        'href',
+        'https://github.com/example/app/pull/42',
+    );
+    await expect(panelRows.last()).toContainText('Not a web address');
+    await expect(panelRows.last()).not.toHaveAttribute('href');
+    await expect(panelRows.last().locator('a')).toHaveCount(0);
 });
 
 test('an inbox card link reveals its matching request in Conversation', async ({
@@ -151,14 +159,10 @@ test('an inbox card link reveals its matching request in Conversation', async ({
     const { questionNumber } = await seeded.json();
     for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        await page.goto(
-            `/projects/${projectId}/inbox#inbox-item-${questionNumber}`,
-        );
+        await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
         await page
-            .locator(`#inbox-item-${questionNumber}`)
-            .getByRole('link', {
-                name: 'Open Find the matching request conversation',
-            })
+            .locator('[data-inbox-linked-panel] a[data-linked-card]')
+            .filter({ hasText: 'Find the matching request' })
             .click();
         await expect(page).toHaveURL(
             `${cardUrl}?tab=conversation&inboxItem=${questionNumber}#inbox-item-${questionNumber}`,
@@ -172,12 +176,16 @@ test('an inbox card link reveals its matching request in Conversation', async ({
         const target = page.locator(
             `[data-inbox-linked="card"] #inbox-item-${questionNumber}`,
         );
-        await expect(target.getByRole('heading')).toBeInViewport();
+        await expect(
+            target.getByRole('heading', { level: 3 }),
+        ).toBeInViewport();
         await page.reload();
         await expect(
             page.getByRole('tab', { name: 'Conversation' }),
         ).toHaveAttribute('aria-selected', 'true');
-        await expect(target.getByRole('heading')).toBeInViewport();
+        await expect(
+            target.getByRole('heading', { level: 3 }),
+        ).toBeInViewport();
         await page.getByRole('tab', { name: 'Overview' }).click();
         await page.reload();
         await expect(
@@ -306,9 +314,7 @@ for (const target of ['document', 'pull-request']) {
                 .fill('Explain retries before implementation.');
         }
         const draftPage = await page.context().newPage();
-        await draftPage.goto(
-            `/projects/${projectId}/inbox#inbox-item-${number}`,
-        );
+        await draftPage.goto(`/projects/${projectId}/inbox?item=${number}`);
         const draftItem = draftPage.locator(`#inbox-item-${number}`);
         const draftForm = draftItem.locator('form').filter({
             has: draftPage.getByRole('button', {
@@ -336,8 +342,8 @@ for (const target of ['document', 'pull-request']) {
         await draftPage
             .locator(`.lp-sidebar__link[href="/projects/${projectId}/inbox"]`)
             .click();
-        // The review closed its ask, so the request waits in the completed queue.
-        await draftPage.getByRole('link', { name: /^Completed/ }).click();
+        // The review closed its ask, so the request waits on the closed side.
+        await draftPage.getByRole('link', { name: /^Closed/ }).click();
         const recovery = draftItem.locator('[data-inbox-draft-kind="review"]');
         await expect(recovery).toBeVisible();
         await expect(recovery).toContainText('Keep this unsent review.');
@@ -357,7 +363,7 @@ for (const target of ['document', 'pull-request']) {
             'Explain retries before implementation.',
         );
         await draftPage.close();
-        await page.goto(`/projects/${projectId}/inbox#inbox-item-${number}`);
+        await page.goto(`/projects/${projectId}/inbox?item=${number}`);
         const completed = page.locator(`#inbox-item-${number}`);
         await expect(
             completed.locator('[data-inbox-review-verdict]'),
@@ -377,9 +383,7 @@ for (const target of ['document', 'pull-request']) {
             await expect(page.locator('.lp-flash')).toContainText(
                 'Your verdict has been withdrawn.',
             );
-            await page.goto(
-                `/projects/${projectId}/inbox#inbox-item-${number}`,
-            );
+            await page.goto(`/projects/${projectId}/inbox?item=${number}`);
             await expect(
                 completed.locator('[data-inbox-review-withdrawal]'),
             ).toContainText('withdrew this verdict');
@@ -423,7 +427,7 @@ test('an unavailable pull request keeps its unsent review recoverable', async ({
     });
     expect(seededReview.status()).toBe(201);
     const { number } = await seededReview.json();
-    await page.goto(`/projects/${projectId}/inbox#inbox-item-${number}`);
+    await page.goto(`/projects/${projectId}/inbox?item=${number}`);
     const item = page.locator(`#inbox-item-${number}`);
     const form = item.locator('form').filter({
         has: page.getByRole('button', {
@@ -536,14 +540,14 @@ for (const surface of ['page', 'drawer']) {
 
         await question.getByText('CSV', { exact: true }).click();
         await question
-            .getByLabel('Your answer')
+            .getByLabel('Note for the agent')
             .fill('The importer reads CSV.');
         if (surface === 'drawer') {
             await drawer.getByRole('link', { name: 'Close card' }).click();
             await expect(drawer).toBeHidden();
             await page.getByRole('link', { name: /Ship the export/ }).click();
             await drawer.getByRole('tab', { name: 'Conversation' }).click();
-            await expect(question.getByLabel('Your answer')).toHaveValue(
+            await expect(question.getByLabel('Note for the agent')).toHaveValue(
                 'The importer reads CSV.',
             );
             await expect(
@@ -581,19 +585,21 @@ for (const surface of ['page', 'drawer']) {
         );
         // Decline carries whatever stands in the item's own answer field.
         await question
-            .getByLabel('Your answer')
+            .getByLabel('Note for the agent')
             .fill('Wait for the new importer.');
         if (surface === 'drawer') {
             await drawer.getByRole('link', { name: 'Close card' }).click();
             await expect(drawer).toBeHidden();
             await page.getByRole('link', { name: /Ship the export/ }).click();
             await drawer.getByRole('tab', { name: 'Conversation' }).click();
-            await expect(question.getByLabel('Your answer')).toBeVisible();
-            await expect(question.getByLabel('Your answer')).toHaveValue(
+            await expect(
+                question.getByLabel('Note for the agent'),
+            ).toBeVisible();
+            await expect(question.getByLabel('Note for the agent')).toHaveValue(
                 'Wait for the new importer.',
             );
         }
-        await question.getByRole('button', { name: 'Close this item' }).click();
+        await question.getByRole('button', { name: 'Decline' }).click();
         await expect(page.locator('.lp-flash')).toContainText(
             `Item ${questionNumber} is closed.`,
         );
@@ -614,9 +620,7 @@ for (const surface of ['page', 'drawer']) {
                 page.getByRole('link', { name: /Ship the export/ }),
             ).toBeFocused();
         }
-        await page.goto(
-            `/projects/${projectId}/inbox#inbox-item-${questionNumber}`,
-        );
+        await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
         // The decline replaced the answer, and the inbox reads the same record.
         await expect(
             page.locator(`#inbox-item-${questionNumber} [data-inbox-response]`),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Account\Entity;
 
 use App\Module\Account\Repository\WaitlistEntryRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -31,6 +32,17 @@ class WaitlistEntry
 
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $inviteTokenHash = null;
+
+    /**
+     * Values of WaitlistPick, in the order of its cases.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '[]'])]
+    public array $picks = [];
+
+    #[ORM\Column(length: 200, nullable: true)]
+    public ?string $otherPick = null;
 
     public function __construct(
         /** @phpstan-var non-empty-string */
@@ -148,5 +160,32 @@ class WaitlistEntry
         $this->convertedAt = null;
         $this->clearInvite();
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Adds picks to the row and replaces the free text only when the new text
+     * is not empty. Returns whether anything changed.
+     *
+     * @param list<WaitlistPick> $picks
+     */
+    public function mergePicks(array $picks, ?string $other): bool
+    {
+        $wanted = array_map(static fn (WaitlistPick $pick): string => $pick->value, $picks);
+        $merged = [];
+        foreach (WaitlistPick::cases() as $case) {
+            if (\in_array($case->value, $this->picks, true) || \in_array($case->value, $wanted, true)) {
+                $merged[] = $case->value;
+            }
+        }
+
+        $changed = $merged !== $this->picks;
+        $this->picks = $merged;
+
+        if (null !== $other && '' !== $other && $other !== $this->otherPick) {
+            $this->otherPick = $other;
+            $changed = true;
+        }
+
+        return $changed;
     }
 }

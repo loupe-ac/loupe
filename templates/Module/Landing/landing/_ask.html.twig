@@ -1,0 +1,19 @@
+<div class="lp-home-ask" data-controller="landing-ask">
+    <button type="button" class="lp-home-ask__toggle" aria-expanded="false" aria-controls="landing-ask-body"
+            data-landing-ask-target="toggle" data-action="landing-ask#toggle">
+        <span class="lp-home-ask__plus"><twig:UX:Icon name="lucide:plus" class="w-4.5 h-4.5" aria-hidden="true" /></span>
+        <span class="lp-home-ask__heading">
+            <span class="lp-home-ask__title">{{ 'landing.ask.title'|trans }}</span>
+            <span class="lp-home-ask__lead">{{ 'landing.ask.lead'|trans }}</span>
+        </span>
+        <span class="lp-home-ask__state">
+            <span class="lp-home-ask__state-closed">{{ 'landing.ask.open'|trans }}</span>
+            <span class="lp-home-ask__state-open">{{ 'landing.ask.close'|trans }}</span>
+        </span>
+    </button>
+    <div id="landing-ask-body" class="lp-home-ask__body" data-landing-ask-target="body" hidden>
+        <turbo-frame id="waitlist-notify" data-controller="frame-missing-visit" data-action="turbo:frame-missing->frame-missing-visit#visit">
+            {% include 'waitlist/_notify_form.html.twig' with {notifyForm: notifyForm} only %}
+        </turbo-frame>
+    </div>
+</div>

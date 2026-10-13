@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Account\Repository;
 
 use App\Module\Account\Entity\WaitlistEntry;
+use App\Module\Account\Entity\WaitlistPick;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
@@ -58,5 +59,29 @@ class WaitlistEntryRepository extends ServiceEntityRepository
             ->setMaxResults($perPage);
 
         return new Paginator($qb->getQuery());
+    }
+
+    /**
+     * Entries per pick, most picked first, with every pick present so a pick
+     * nobody chose shows as zero.
+     *
+     * @return array<string, int> pick value to entry count
+     */
+    public function pickCounts(): array
+    {
+        $rows = $this->getEntityManager()->getConnection()->fetchAllKeyValue(
+            <<<'SQL'
+                SELECT pick, COUNT(*) FROM waitlist_entries, jsonb_array_elements_text(picks) AS pick
+                GROUP BY pick
+                SQL,
+        );
+
+        $counts = [];
+        foreach (WaitlistPick::cases() as $case) {
+            $counts[$case->value] = (int) ($rows[$case->value] ?? 0);
+        }
+        arsort($counts);
+
+        return $counts;
     }
 }

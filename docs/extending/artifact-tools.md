@@ -30,6 +30,13 @@ Design canvas to a plain page first. See "Pushing a Claude Design canvas" in
 `card_get` lists the artifacts that a card links, each with its `artifactId`.
 Pass that id to `artifact_get`.
 
+The implementation worker reads every page of a linked artifact before it writes
+its plan, and the plan maps each part of the prototype to the code that builds
+it. A child of an epic reads the artifacts of its parent card. A sub-agent that
+writes a template or a stylesheet reads the pages of its own task with
+`artifact_read`. The review stage checks the diff against the same map, and
+fails a part of a page that the map omits.
+
 ## What `artifact_read` returns
 
 1. A text file comes back as text. This covers HTML, CSS, JavaScript, SVG, JSON and Markdown.

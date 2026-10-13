@@ -17,14 +17,10 @@
         /(^|\.)localhost$/.test(BACKEND_HOST) ||
         /^127\./.test(BACKEND_HOST) ||
         /\.local$/.test(BACKEND_HOST);
-    // The landing page runs this widget over itself with no project behind it, so
-    // a visitor can try the flow before signing up. It swaps the transport and
-    // nothing else. Every behaviour below is the widget customers embed.
-    const DEMO = script.hasAttribute('data-demo');
     // The embed names a project. The reviewer signs in with OAuth, so no
     // credential sits in the page source.
     const PROJECT = script.getAttribute('data-project') || '';
-    const OAUTH = !DEMO && !!PROJECT;
+    const OAUTH = !!PROJECT;
     // A preview page names the card it is for as `card:<uuid>`. Notes on that
     // page go to that card, whatever mode the reviewer chose elsewhere.
     const CONTEXT = script.getAttribute('data-context') || '';
@@ -111,8 +107,6 @@
         }
     };
     const writeStoredTarget = (target) => {
-        // The landing demo keeps nothing, so every visit shows the picker.
-        if (DEMO) return;
         try {
             if (target) {
                 window.localStorage.setItem(
@@ -218,179 +212,6 @@
     // Strokes of a saved comment, tolerating a server that predates the column.
     const strokesOf = (comment) =>
         Array.isArray(comment.strokes) ? comment.strokes : [];
-
-    // Demo transport: an in-memory list that dies with the page. Same four calls,
-    // same shapes, same 404 for a row that is gone — so the widget cannot tell.
-    const demoStore = {
-        comments: [],
-        nextId: 1,
-        // A board of its own, because the demo exists to show the flow before
-        // anyone signs up. The demo swaps the transport out and calls no server.
-        cards: [
-            {
-                cardId: 'demo-card-1',
-                number: 3,
-                title: 'Checkout button is hard to find on mobile',
-                status: 'in-progress',
-            },
-            {
-                cardId: 'demo-card-2',
-                number: 2,
-                title: 'Pricing table overflows at 320px',
-                status: 'next',
-            },
-            {
-                cardId: 'demo-card-3',
-                number: 1,
-                title: 'Sign-up form rejects a valid address',
-                status: 'backlog',
-            },
-            {
-                cardId: 'demo-card-4',
-                number: 4,
-                title: 'Launch review',
-                status: 'next',
-                type: 'epic',
-            },
-        ],
-        nextCardNumber: 5,
-    };
-    const demoCard = (title, type) => {
-        const number = demoStore.nextCardNumber++;
-        const card = {
-            cardId: `demo-card-${number}`,
-            number,
-            title,
-            status: 'backlog',
-            type,
-        };
-        demoStore.cards.unshift(card);
-        return card;
-    };
-    // No url: the demo has no card page to open, and a link that goes
-    // nowhere is worse than none.
-    const demoLabel = (card) => ({
-        label: `#${card.number} ${card.title}`,
-        url: null,
-    });
-    const demoApi = async (method, path, body) => {
-        const [route, search] = path.split('?');
-        const query = new URLSearchParams(search || '');
-        // Board paths answer from the fake board above. Without this branch
-        // they fell through to the comment store: GET returned the review
-        // payload, so the picker showed nothing, and POST pushed a phantom
-        // comment whose id became the card marker, as card:undefined.
-        if (route === '/api/board/cards') {
-            if (method === 'GET') {
-                const words = (query.get('q') || '').toLowerCase();
-                const type = query.get('parent') ? 'epic' : query.get('type');
-                return {
-                    cards: demoStore.cards.filter(
-                        (card) =>
-                            (!words ||
-                                card.title.toLowerCase().includes(words)) &&
-                            (!type || (card.type || 'feature') === type),
-                    ),
-                };
-            }
-            const card = demoCard(
-                body.title,
-                body.parent ? body.type || 'epic' : body.type,
-            );
-            return { ...card, ...demoLabel(card) };
-        }
-        // Saving a note makes its card the way the server does, and saves
-        // nothing anywhere else.
-        if (route === '/api/board/feedback' && method === 'POST') {
-            const { target, ...comment } = body;
-            const card = target.cardId
-                ? demoStore.cards.find((each) => each.cardId === target.cardId)
-                : demoCard(
-                      comment.body.split('\n')[0].slice(0, 120),
-                      'site-review',
-                  );
-            if (!card) {
-                throw Object.assign(new Error('HTTP 422'), {
-                    status: 422,
-                    code: 'target_not_found',
-                });
-            }
-            const commentId = `demo-${demoStore.nextId++}`;
-            demoStore.comments.push({
-                id: commentId,
-                ...comment,
-                createdCardId: target.cardId ? null : card.cardId,
-            });
-            return {
-                commentId,
-                cardId: card.cardId,
-                number: card.number,
-                ...demoLabel(card),
-            };
-        }
-        if (route.startsWith('/api/board/feedback/') && method === 'DELETE') {
-            const id = route.slice(route.lastIndexOf('/') + 1);
-            const at = demoStore.comments.findIndex(
-                (comment) => comment.id === id,
-            );
-            if (at === -1)
-                throw Object.assign(new Error('HTTP 404'), { status: 404 });
-            const [gone] = demoStore.comments.splice(at, 1);
-            demoStore.cards = demoStore.cards.filter(
-                (card) => card.cardId !== gone.createdCardId,
-            );
-            return { cardDeleted: !!gone.createdCardId };
-        }
-        if (method === 'GET') {
-            const [kind, cardId] = (query.get('context') || '').split(':');
-            const named = demoStore.cards.find(
-                (card) =>
-                    card.cardId === cardId &&
-                    (kind === 'card' ||
-                        (kind === 'epic' && card.type === 'epic')),
-            );
-            return {
-                projectId: 'demo',
-                context: named ? demoLabel(named) : null,
-                // The demo has no instance behind it, so it shows the whole widget.
-                drawingEnabled: true,
-                parentTypes: [{ key: 'epic', label: 'Epic' }],
-                comments: demoStore.comments.map((comment) => ({
-                    ...comment,
-                    anchors: (comment.anchors || []).map((anchor) => ({
-                        ...anchor,
-                    })),
-                })),
-            };
-        }
-        // Before the generic POST branch: resolving ends with an id rather than
-        // naming the collection, so it would otherwise store a phantom comment.
-        if (path.endsWith('/resolve')) {
-            const target = path.slice(0, -'/resolve'.length);
-            const at = demoStore.comments.findIndex(
-                (comment) =>
-                    comment.id === target.slice(target.lastIndexOf('/') + 1),
-            );
-            if (at === -1)
-                throw Object.assign(new Error('HTTP 404'), { status: 404 });
-            demoStore.comments.splice(at, 1);
-            return null;
-        }
-        if (method === 'POST') {
-            const commentId = `demo-${demoStore.nextId++}`;
-            demoStore.comments.push({ id: commentId, ...body });
-            return { commentId };
-        }
-        const id = path.slice(path.lastIndexOf('/') + 1);
-        const index = demoStore.comments.findIndex(
-            (comment) => comment.id === id,
-        );
-        if (index === -1)
-            throw Object.assign(new Error('HTTP 404'), { status: 404 });
-        if (method === 'PATCH') demoStore.comments[index].body = body.body;
-        else demoStore.comments.splice(index, 1);
-        return null;
-    };
 
     // ---- OAuth sign-in ----
     const OAUTH_CLIENT_ID = 'loupe-site-review-widget';
@@ -536,7 +357,7 @@
         return grant.accessToken;
     };
 
-    const serverApi = async (method, path, body, retried = false) => {
+    const api = async (method, path, body, retried = false) => {
         const token = await accessToken();
         const preview = OAUTH && !grant ? token : '';
         const response = await fetch(`${BACKEND}${path}`, {
@@ -551,7 +372,7 @@
         // revokes the app. One refresh tells a dead token from a dead grant.
         if (OAUTH && response.status === 401 && !retried && grant) {
             await refreshOrFallBack();
-            return serverApi(method, path, body, true);
+            return api(method, path, body, true);
         }
         if (OAUTH && response.status === 401) {
             setGrant(null);
@@ -577,8 +398,6 @@
         }
         return response.status === 204 ? null : response.json();
     };
-
-    const api = DEMO ? demoApi : serverApi;
 
     // A 401/403 from ANY endpoint means the widget's token is unusable — loading, saving
     // and deleting all fail the same way — so it is not a per-action hiccup. Callers
@@ -3352,7 +3171,6 @@
 
     // Whether the card the lock names is the one the loaded answer describes.
     const verdictCurrent = () =>
-        !DEMO &&
         !!lock &&
         lock.state === 'ok' &&
         verdict.cardId === lock.cardId &&
@@ -3365,7 +3183,7 @@
     };
 
     const loadVerdict = async () => {
-        if (DEMO || !lock || lock.state !== 'ok') {
+        if (!lock || lock.state !== 'ok') {
             if (verdict.cardId !== null) {
                 resetVerdict();
                 sync();

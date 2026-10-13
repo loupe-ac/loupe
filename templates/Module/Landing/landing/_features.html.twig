@@ -1,0 +1,44 @@
+{% set features = [
+    {key: 'board', icon: 'lucide:square-kanban'},
+    {key: 'workflow_rules', icon: 'lucide:workflow'},
+    {key: 'sessions', icon: 'lucide:terminal'},
+    {key: 'document_review', icon: 'lucide:file-text'},
+    {key: 'inbox', icon: 'lucide:inbox'},
+    {key: 'agent_review', icon: 'lucide:git-pull-request'},
+    {key: 'site_review', icon: 'lucide:message-square-plus'},
+    {key: 'analytics', icon: 'lucide:chart-column'},
+] %}
+<section id="features" class="lp-home-section lp-home-section--raised" data-controller="landing-features">
+    <div class="lp-home-container">
+        <h2 class="lp-home-title lp-home-title--wide">{{ 'landing.features.title'|trans }}</h2>
+        <div class="lp-home-features">
+            <ul class="lp-home-features__list" aria-label="{{ 'landing.features.list_label'|trans }}">
+                {% for feature in features %}
+                    <li>
+                        <button type="button" class="lp-home-feature" aria-pressed="{{ loop.first ? 'true' : 'false' }}"
+                                data-landing-features-target="item"
+                                data-action="landing-features#pick"
+                                data-landing-features-index-param="{{ loop.index0 }}">
+                            <span class="lp-home-feature__title">
+                                <span class="lp-home-feature__icon"><twig:UX:Icon :name="feature.icon" class="w-4.5 h-4.5" aria-hidden="true" /></span>
+                                {{ ('landing.features.' ~ feature.key ~ '.title')|trans }}
+                            </span>
+                            <span class="lp-home-feature__text" data-landing-features-target="description"{{ loop.first ? '' : ' hidden' }}>{{ ('landing.features.' ~ feature.key ~ '.text')|trans }}</span>
+                        </button>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="lp-home-stage">
+                <div class="lp-home-stage__track" data-landing-features-target="track">
+                    {% include '@Landing/landing/_feature_slides.html.twig' only %}
+                </div>
+                <button type="button" class="lp-home-stage__nav lp-home-stage__nav--previous" data-action="landing-features#previous" aria-label="{{ 'landing.features.previous'|trans }}">
+                    <twig:UX:Icon name="lucide:chevron-left" class="w-5 h-5" aria-hidden="true" />
+                </button>
+                <button type="button" class="lp-home-stage__nav lp-home-stage__nav--next" data-action="landing-features#next" aria-label="{{ 'landing.features.next'|trans }}">
+                    <twig:UX:Icon name="lucide:chevron-right" class="w-5 h-5" aria-hidden="true" />
+                </button>
+            </div>
+        </div>
+    </div>
+</section>

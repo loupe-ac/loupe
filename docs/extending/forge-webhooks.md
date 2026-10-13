@@ -279,6 +279,11 @@ through an installation token. The install does not need it.
 Set both or neither. The *GitHub App access* row on `/admin/status` reports a
 key that GitHub refuses, and an installation that misses a permission.
 
+The workflow rules that react to a review or a merge need this pair. The
+install itself does not need it. Without the pair, a repository still connects,
+and Loupe still receives its deliveries. It gets only the bare events and no
+decisions.
+
 A repository connected through a per-project webhook gets no pull request
 automation, because Loupe has no installation token for it. An App without this
 pair gets none either, and its repositories get the bare events.
