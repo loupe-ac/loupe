@@ -1,0 +1,23 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen for the styleguide, so it is intentionally untranslated. #}
+{# The styleguide page holds the one <main>, so the card area is a div here. #}
+<div class="lp-auth">
+    <div class="lp-auth__grid"></div>
+    <div class="lp-auth__glow"></div>
+    <div class="lp-auth__topbar">
+        <a href="#" class="lp-auth__brand"><twig:Ds:BrandMark /></a>
+        <div class="lp-auth__topbar-nav">
+            <span class="text-sm text-fg-mute">New here? <a href="#" class="auth-link ml-1.5 text-xs">Sign up</a></span>
+        </div>
+    </div>
+    <div class="lp-auth__main">
+        <div class="lp-auth__card">
+            <twig:Ds:FormField>
+                <twig:Ds:Label for="styleguide-auth-email">Email</twig:Ds:Label>
+                <twig:Ds:Input id="styleguide-auth-email" type="email" placeholder="you@example.com" />
+            </twig:Ds:FormField>
+            <twig:Ds:Button variant="primary" size="lg" type="button" class="lp-auth__action">Sign in</twig:Ds:Button>
+        </div>
+    </div>
+    {% include '@Account/_auth_footer.html.twig' with {} only %}
+</div>

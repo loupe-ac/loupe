@@ -242,6 +242,18 @@ readonly class Catalog
                 export: 'BrandMark',
             ),
             new ComponentEntry(
+                name: 'AuthShell',
+                rootClass: 'lp-auth',
+                template: null,
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'The frame of every sign-in, sign-up and install page: a topbar with the brand mark, one centred card and a footer of legal links.',
+                element: 'div',
+                export: 'AuthShell',
+            ),
+            new ComponentEntry(
                 name: 'MarketingShell',
                 rootClass: 'lp-landing',
                 template: null,

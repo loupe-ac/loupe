@@ -1,0 +1,75 @@
+/* The sign-in page frame: the page grid, its background, the topbar, the card
+   and the footer. `templates/Module/Account/auth_base.html.twig` draws it. */
+@layer components {
+    /* Three rows: topbar, content, footer. The explicit column stops a wide
+       child's min-content width sizing the grid, which once pushed the footer
+       off-screen on every auth page. */
+    .lp-auth {
+        @apply grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] min-h-screen;
+        min-height: 100dvh;
+    }
+    .lp-auth__glow {
+        @apply fixed inset-0 z-0 overflow-hidden pointer-events-none;
+    }
+    .lp-auth__glow::before {
+        content: '';
+        @apply absolute w-180 h-180 left-1/2 -translate-x-1/2 -top-50 blur-xl opacity-55;
+        background: radial-gradient(
+            circle at center,
+            var(--accent-soft) 0%,
+            transparent 60%
+        );
+    }
+    .lp-auth__grid {
+        @apply fixed inset-0 z-0 pointer-events-none;
+        background-image:
+            linear-gradient(to right, var(--border) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+        background-size: calc(var(--spacing) * 14) calc(var(--spacing) * 14);
+        mask-image: radial-gradient(
+            ellipse 60% 50% at 50% 35%,
+            #000 30%,
+            transparent 80%
+        );
+        -webkit-mask-image: radial-gradient(
+            ellipse 60% 50% at 50% 35%,
+            #000 30%,
+            transparent 80%
+        );
+        opacity: 0.6;
+    }
+    .lp-auth__topbar {
+        @apply relative z-10 flex items-center gap-2.5 px-7 py-6;
+    }
+    .lp-auth__brand {
+        @apply text-fg no-underline;
+    }
+    .lp-auth__topbar-nav {
+        @apply ml-auto;
+    }
+    /* The page's own <main> landmark: an auth page once inherited one from the
+       app shell, but only while the visitor was signed in. */
+    .lp-auth__main {
+        @apply relative z-10 flex items-start justify-center px-7 pt-8 pb-12;
+    }
+    .lp-auth__card {
+        @apply w-full max-w-sm bg-surface-1 border border-line rounded-xl shadow-md px-8 pt-8 pb-7 flex flex-col gap-6;
+    }
+    /* For a page whose content needs more than a form column. */
+    .lp-auth__card--wide {
+        @apply max-w-lg gap-5;
+    }
+    .lp-auth__footer {
+        @apply relative z-10 flex flex-wrap items-center gap-x-3.5 gap-y-2 px-7 py-5 text-xs text-fg-dim;
+    }
+    .lp-auth__footer-links {
+        @apply ml-auto flex flex-wrap items-center gap-x-3.5 gap-y-2;
+    }
+    .lp-auth__footer-link {
+        @apply inline-flex items-center text-fg-mute no-underline transition-colors hover:text-fg;
+    }
+    /* The submit button or link of a sign-in form: the card's full width. */
+    .lp-auth__action {
+        @apply w-full;
+    }
+}

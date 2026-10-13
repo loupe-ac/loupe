@@ -16,6 +16,7 @@
 @import './components/tabs.css';
 @import './components/tooltip.css';
 @import './components/brand-mark.css';
+@import './components/auth-shell.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -2112,73 +2113,9 @@
         @apply flex-1 h-px bg-line;
     }
 
-    /* Auth page shell — three-row layout: topbar / content / footer */
-    /* The explicit column stops a wide child's min-content width sizing the
-       grid, which is how the footer once pushed every auth page off-screen. */
-    .auth-page {
-        @apply grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] min-h-screen;
-        min-height: 100dvh;
-    }
-
-    /* Auth page background — radial accent glow */
-    .auth-bg-glow {
-        @apply fixed inset-0 z-0 overflow-hidden pointer-events-none;
-    }
-    .auth-bg-glow::before {
-        content: '';
-        @apply absolute w-180 h-180 left-1/2 -translate-x-1/2 -top-50 blur-xl opacity-55;
-        background: radial-gradient(
-            circle at center,
-            var(--accent-soft) 0%,
-            transparent 60%
-        );
-    }
-
-    /* Auth page background — masked grid */
-    .auth-grid-mask {
-        @apply fixed inset-0 z-0 pointer-events-none;
-        background-image:
-            linear-gradient(to right, var(--border) 1px, transparent 1px),
-            linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-        background-size: calc(var(--spacing) * 14) calc(var(--spacing) * 14);
-        mask-image: radial-gradient(
-            ellipse 60% 50% at 50% 35%,
-            #000 30%,
-            transparent 80%
-        );
-        -webkit-mask-image: radial-gradient(
-            ellipse 60% 50% at 50% 35%,
-            #000 30%,
-            transparent 80%
-        );
-        opacity: 0.6;
-    }
-
-    .auth-footer__link {
-        @apply inline-flex items-center text-fg-mute no-underline transition-colors hover:text-fg;
-    }
-
-    /* Auth form text input */
-    .auth-input {
-        @apply w-full font-sans text-base text-fg bg-surface-2 border border-line rounded-md px-3 py-2.5 outline-hidden transition-colors duration-75 placeholder:text-fg-dim focus:bg-surface-1 focus:border-accent focus:shadow-focus;
-    }
-
-    /* Auth form primary submit button */
-    .auth-submit {
-        @apply inline-flex items-center justify-center gap-2 w-full px-3.5 py-2.5 rounded-md border border-accent bg-accent text-ink font-sans text-base font-medium cursor-pointer transition-colors hover:bg-accent-hover hover:enabled:border-accent-hover disabled:opacity-60 disabled:cursor-not-allowed;
-    }
-
-    /* Auth page social sign-in button — secondary counterpart to .auth-submit */
+    /* Auth page social sign-in button — secondary counterpart to the primary button */
     .auth-social-button {
         @apply inline-flex items-center justify-center gap-2.5 w-full px-3.5 py-2.5 rounded-md border border-line bg-surface-2 text-fg font-sans text-base font-medium cursor-pointer transition-colors hover:bg-tint hover:border-line-strong;
-    }
-
-    /* Inline field-level form errors */
-    .field-errors ul {
-        @apply list-none p-0 m-0;
-    }
-    .field-errors li {
-        @apply text-xs mt-1 text-danger;
     }
 
     /* Auth form structure */
@@ -2188,19 +2125,8 @@
     .auth-subheading {
         @apply text-fg-mute text-base leading-normal m-0;
     }
-    .form-label {
-        @apply text-sm font-medium text-fg;
-    }
-    .form-field {
-        @apply flex flex-col gap-1.5;
-    }
     .auth-forgot {
         @apply self-center text-xs text-fg-mute;
-    }
-    /* The auth card, widened for a page whose content needs more than a form
-       column: max-w-lg less the 32px padding and the border leaves 446px. */
-    .auth-shell--wide {
-        @apply w-full max-w-lg bg-surface-1 border border-line rounded-xl shadow-md px-8 pt-8 pb-7 flex flex-col gap-5;
     }
     /* Accent links on the light authentication surfaces. */
     .auth-link {
@@ -2208,9 +2134,6 @@
     }
     .auth-forgot:hover {
         @apply text-fg underline;
-    }
-    .form-stack {
-        @apply flex flex-col gap-3.5;
     }
     .auth-icon-badge {
         @apply w-12 h-12 rounded-full bg-accent-soft text-accent inline-flex items-center justify-center;
@@ -8751,7 +8674,7 @@
     .lp-flash__dismiss,
     .lp-anchor-toolbar__btn,
     .auth-forgot,
-    .auth-footer__link,
+    .lp-auth__footer-link,
     .lp-landing-footer__link,
     .lp-home-footer__link,
     .lp-home-footer__icon {
@@ -9321,6 +9244,14 @@
     }
     .lp-styleguide__specimen .lp-dialog {
         @apply static w-full;
+    }
+    /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
+    .lp-styleguide__specimen .lp-auth {
+        @apply relative w-full min-h-0 h-144 overflow-hidden rounded-lg border border-line bg-app;
+    }
+    .lp-styleguide__specimen .lp-auth__grid,
+    .lp-styleguide__specimen .lp-auth__glow {
+        @apply absolute;
     }
     .lp-styleguide__tooltip-anchor {
         @apply relative inline-block pb-16 text-sm font-semibold text-ink;

@@ -1,38 +1,33 @@
 {% extends 'layout_base.html.twig' %}
 
 {% block page %}
-<div class="auth-page">
+<div class="lp-auth">
 
     {# Background effects #}
-    <div class="auth-grid-mask"></div>
-    <div class="auth-bg-glow"></div>
+    <div class="lp-auth__grid"></div>
+    <div class="lp-auth__glow"></div>
 
     {# Topbar #}
-    <div class="relative z-10 flex items-center gap-2.5 px-7 py-6">
-        <a href="/" class="text-fg no-underline">
+    <div class="lp-auth__topbar">
+        <a href="/" class="lp-auth__brand">
             <twig:Ds:BrandMark />
         </a>
-        <span class="flex-1"></span>
-        {% block topbar_nav %}{% endblock %}
+        <div class="lp-auth__topbar-nav">
+            {% block topbar_nav %}{% endblock %}
+        </div>
     </div>
 
     {# Card. The <main> landmark is the page's own: an auth page used to inherit
        one from the app shell, but only while the visitor happened to be signed
        in, so signed-out visitors never had one at all. #}
-    <main id="main-content" tabindex="-1" class="relative z-10 flex items-start justify-center px-7 pt-8 pb-12">
-        <div class="{% block auth_shell_class %}w-full max-w-sm bg-surface-1 border border-line rounded-xl shadow-md px-8 pt-8 pb-7 flex flex-col gap-6{% endblock %}">
+    <main id="main-content" tabindex="-1" class="lp-auth__main">
+        <div class="{% block auth_shell_class %}lp-auth__card{% endblock %}">
             {% block auth_body %}{% endblock %}
         </div>
     </main>
 
     {# Footer #}
-    <div class="relative z-10 flex flex-wrap items-center gap-x-3.5 gap-y-2 px-7 py-5 text-xs text-fg-dim">
-        <span>{{ 'account.auth.footer.copyright'|trans }}</span>
-        <span class="flex-1"></span>
-        {% include '_source_link.html.twig' with {class: 'auth-footer__link gap-1.5'} only %}
-        <a href="{{ app_docs_url }}/" class="auth-footer__link">{{ 'account.auth.footer.docs'|trans }}</a>
-        {% include '_legal_links.html.twig' with {class: 'auth-footer__link'} only %}
-    </div>
+    {% include '@Account/_auth_footer.html.twig' with {} only %}
 
 </div>
 {% endblock %}
