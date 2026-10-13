@@ -23,6 +23,15 @@
     .lp-main {
         @apply flex-1 min-h-0 bg-app overflow-x-auto overflow-y-auto;
     }
+    /* A white ground, as the paper a document sits on. */
+    .lp-main--paper {
+        @apply bg-surface-1;
+    }
+    /* A column that clips its overflow, so a viewer takes the height the
+       top bar leaves. */
+    .lp-main--fill {
+        @apply flex flex-col overflow-hidden;
+    }
     /* Every page fits one left-aligned frame, except a page that sets the
        shell width to full. The top bar keeps its full-width ground, and its
        items end at the frame edge. */

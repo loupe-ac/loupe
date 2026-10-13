@@ -441,6 +441,21 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
     }
 
+    public function test_the_stylesheet_styles_every_app_shell_option(): void
+    {
+        $css = (string) file_get_contents($this->directory.'/styles.css');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
+
+        foreach (['shellWidth' => 'lp-shell--', 'mainSurface' => 'lp-main--'] as $prop => $prefix) {
+            self::assertSame(1, preg_match('/'.$prop."\\?: ((?:'[a-z]+'(?: \\| )?)+);/", $types, $match), $prop);
+            preg_match_all("/'([a-z]+)'/", $match[1], $options);
+            $default = 'shellWidth' === $prop ? 'default' : 'app';
+            foreach (array_diff($options[1], [$default]) as $option) {
+                self::assertStringContainsString('.'.$prefix.$option, $css, sprintf('The export has no rule for %s="%s".', $prop, $option));
+            }
+        }
+    }
+
     public function test_the_app_shell_wrapper_draws_every_shell_class_of_the_base_template(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
