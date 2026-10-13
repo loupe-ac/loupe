@@ -416,6 +416,7 @@ final class FactsBuilderTest extends KernelTestCase
             parentMerged: false,
             closedAt: null,
             id: $pullRequest->id,
+            headSha: 'abc',
         ), $this->facts($card)->pullRequest);
 
         $pullRequest->checks = PullRequestChecks::Pending;

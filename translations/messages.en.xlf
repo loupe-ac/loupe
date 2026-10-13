@@ -6843,6 +6843,8 @@
             <trans-unit id="board.card_state.remedy.work_requested"><source>board.card_state.remedy.work_requested</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.forge_request_pending"><source>board.card_state.remedy.forge_request_pending</source><target>Nothing. Loupe reads the pull request again on its next sweep.</target></trans-unit>
             <trans-unit id="board.card_state.remedy.held_by_blocker"><source>board.card_state.remedy.held_by_blocker</source><target>Finish the blocking card, or remove the block.</target></trans-unit>
+            <trans-unit id="board.card_state.remedy.waits_for_parent_card"><source>board.card_state.remedy.waits_for_parent_card</source><target>Nothing. When the parent pull request merges, Loupe moves this one onto its target branch.</target></trans-unit>
+            <trans-unit id="board.card_state.remedy.waits_for_parent_branch"><source>board.card_state.remedy.waits_for_parent_branch</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
             <trans-unit id="board.card_state.others"><source>board.card_state.others</source><target>Also applies</target></trans-unit>
             <trans-unit id="board.card_state.stuck"><source>board.card_state.stuck</source><target>Stuck</target></trans-unit>
             <trans-unit id="board.card_state.needs_you"><source>board.card_state.needs_you</source><target>Needs you</target></trans-unit>
@@ -6861,6 +6863,8 @@
             <trans-unit id="board.card_state.reason.run_open"><source>board.card_state.reason.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="board.card_state.reason.forge_request_pending"><source>board.card_state.reason.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>
             <trans-unit id="board.card_state.reason.held_by_blocker"><source>board.card_state.reason.held_by_blocker</source><target>Card #%number% blocks this card: %title%</target></trans-unit>
+            <trans-unit id="board.card_state.reason.waits_for_parent_card"><source>board.card_state.reason.waits_for_parent_card</source><target>Waits for card #%parent_number% (pull request #%pull_request%) to merge, before pull request #%number% can merge.</target></trans-unit>
+            <trans-unit id="board.card_state.reason.waits_for_parent_branch"><source>board.card_state.reason.waits_for_parent_branch</source><target>Pull request #%number% waits for branch %branch% to merge.</target></trans-unit>
             <trans-unit id="board.card_state.open_card"><source>board.card_state.open_card</source><target>Open card</target></trans-unit>
             <trans-unit id="board.card.badge.unmanaged"><source>board.card.badge.unmanaged</source><target>Unmanaged</target></trans-unit>
             <trans-unit id="board.card.history.reason.conflict"><source>board.card.history.reason.conflict</source><target>the pull request has a merge conflict</target></trans-unit>
@@ -7912,6 +7916,8 @@
             <trans-unit id="workflow.waiting.not.agent_review_overridden"><source>workflow.waiting.not.agent_review_overridden</source><target>Waiting: an approval overrides a failed agent review of an open pull request head.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_unposted"><source>workflow.waiting.agent_review_unposted</source><target>Waiting: every agent review has its check on the forge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.agent_review_unposted"><source>workflow.waiting.not.agent_review_unposted</source><target>Waiting: an agent review has no check on the forge yet.</target></trans-unit>
+            <trans-unit id="workflow.waiting.agent_review_uncommented"><source>workflow.waiting.agent_review_uncommented</source><target>Waiting: an agent review with findings and a new check needs its summary comment.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.agent_review_uncommented"><source>workflow.waiting.not.agent_review_uncommented</source><target>Waiting: every recent agent review with findings has its summary comment.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_child_merged_into_epic_branch"><source>workflow.waiting.card_child_merged_into_epic_branch</source><target>Waiting: no child pull request merged into the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_child_merged_into_epic_branch"><source>workflow.waiting.not.card_child_merged_into_epic_branch</source><target>Waiting: a child pull request merged into the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_has_children"><source>workflow.waiting.card_has_children</source><target>Waiting: the card has no child cards.</target></trans-unit>
@@ -8199,6 +8205,13 @@
             <trans-unit id="agent_review.check.overridden"><source>agent_review.check.overridden</source><target>Overridden by the approval of %login%. The findings below stand.</target></trans-unit>
             <trans-unit id="agent_review.check.carried"><source>agent_review.check.carried</source><target>Carried from %sha%: the change is identical.</target></trans-unit>
             <trans-unit id="agent_review.check.summary_more"><source>agent_review.check.summary_more</source><target>{0} No more findings.|{1} And one more finding.|]1,Inf[ And %count% more findings.</target></trans-unit>
+            <trans-unit id="agent_review.comment.verdict"><source>agent_review.comment.verdict</source><target>**Loupe agent review** of `%sha%`: %result%</target></trans-unit>
+            <trans-unit id="agent_review.comment.passed"><source>agent_review.comment.passed</source><target>passed</target></trans-unit>
+            <trans-unit id="agent_review.comment.failed"><source>agent_review.comment.failed</source><target>failed</target></trans-unit>
+            <trans-unit id="agent_review.comment.spec"><source>agent_review.comment.spec</source><target>Spec</target></trans-unit>
+            <trans-unit id="agent_review.comment.more"><source>agent_review.comment.more</source><target>{0} …and no more findings on the check.|{1} …and one more finding on the check.|]1,Inf[ …and %count% more findings on the check.</target></trans-unit>
+            <trans-unit id="agent_review.comment.links"><source>agent_review.comment.links</source><target>[See the check](%check_url%) · [Open the card](%card_url%)</target></trans-unit>
+            <trans-unit id="agent_review.comment.card_link"><source>agent_review.comment.card_link</source><target>[Open the card](%card_url%)</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_more"><source>board.site_review_check.summary_more</source><target>{0} No more notes.|{1} And one more note.|]1,Inf[ And %count% more notes.</target></trans-unit>
             <trans-unit id="artifact.list.page.title"><source>artifact.list.page.title</source><target>Artifacts</target></trans-unit>
             <trans-unit id="artifact.list.heading"><source>artifact.list.heading</source><target>Artifacts</target></trans-unit>
@@ -8258,6 +8271,8 @@
             <trans-unit id="artifact.viewer.source"><source>artifact.viewer.source</source><target>Source</target></trans-unit>
             <trans-unit id="artifact.viewer.stored_on"><source>artifact.viewer.stored_on</source><target>Stored on %date%</target></trans-unit>
             <trans-unit id="artifact.viewer.frame.title"><source>artifact.viewer.frame.title</source><target>Preview of %name%</target></trans-unit>
+            <trans-unit id="artifact.viewer.files.menu"><source>artifact.viewer.files.menu</source><target>Choose a file</target></trans-unit>
+            <trans-unit id="artifact.viewer.files.heading"><source>artifact.viewer.files.heading</source><target>Pages in this version</target></trans-unit>
             <trans-unit id="artifact.viewer.no_files"><source>artifact.viewer.no_files</source><target>This version holds no file to show.</target></trans-unit>
             <trans-unit id="artifact.error.project_not_found"><source>artifact.error.project_not_found</source><target>The project does not exist.</target></trans-unit>
             <trans-unit id="artifact.error.switched_off"><source>artifact.error.switched_off</source><target>Artifacts are switched off</target></trans-unit>

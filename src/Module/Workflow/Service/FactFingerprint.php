@@ -65,6 +65,7 @@ final readonly class FactFingerprint
             EngineFact::Slot => $facts->slot,
             EngineFact::ParentSlot => $facts->parentSlot,
             EngineFact::PullRequest => $facts->pullRequest?->fingerprint(),
+            EngineFact::PullRequestHead => $facts->pullRequest?->headSha,
         };
     }
 }

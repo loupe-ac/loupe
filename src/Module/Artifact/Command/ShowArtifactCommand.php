@@ -12,6 +12,8 @@ final readonly class ShowArtifactCommand
         public Artifact $artifact,
         /** Null for the latest version. */
         public ?int $versionNumber = null,
+        /** Exact path of the file to frame, or null for the main file. */
+        public ?string $filePath = null,
     ) {
     }
 }

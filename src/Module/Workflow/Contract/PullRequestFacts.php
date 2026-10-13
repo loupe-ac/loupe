@@ -9,9 +9,10 @@ use Symfony\Component\Uid\Uuid;
 final readonly class PullRequestFacts
 {
     /**
-     * @param bool  $baseIsMergeTarget the base is the default branch or the branch of the card's epic
-     * @param bool  $baseIsEpicBranch  the base is the branch of the card's epic
-     * @param ?Uuid $id                the id of the Forge pull request row
+     * @param bool    $baseIsMergeTarget the base is the default branch or the branch of the card's epic
+     * @param bool    $baseIsEpicBranch  the base is the branch of the card's epic
+     * @param ?Uuid   $id                the id of the Forge pull request row
+     * @param ?string $headSha           the head commit, read through EngineFact::PullRequestHead and never part of the shared fingerprint
      */
     public function __construct(
         public PullRequestState $state,
@@ -27,6 +28,7 @@ final readonly class PullRequestFacts
         public bool $parentMerged,
         public ?\DateTimeImmutable $closedAt,
         public ?Uuid $id = null,
+        public ?string $headSha = null,
     ) {
     }
 

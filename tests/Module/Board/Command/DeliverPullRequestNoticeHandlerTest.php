@@ -240,6 +240,19 @@ final class DeliverPullRequestNoticeHandlerTest extends KernelTestCase
         self::assertSame('outdated', $notice->cause);
     }
 
+    public function test_a_notice_that_no_body_supports_is_marked_failed_without_a_post(): void
+    {
+        $notice = $this->pending(key: 'unknown-kind:1');
+
+        $this->handle($notice);
+
+        self::assertSame([], $this->commenter->comments);
+        self::assertSame([], $this->commenter->lookups);
+        $notice = $this->reload($notice);
+        self::assertSame(PullRequestCommentState::Failed, $notice->state);
+        self::assertSame('no_body', $notice->cause);
+    }
+
     public function test_a_posted_notice_is_not_posted_again(): void
     {
         $notice = $this->pending();
@@ -251,7 +264,7 @@ final class DeliverPullRequestNoticeHandlerTest extends KernelTestCase
         self::assertSame([], $this->commenter->comments);
     }
 
-    private function pending(?Uuid $forgePullRequestId = null): PullRequestNotice
+    private function pending(?Uuid $forgePullRequestId = null, ?string $key = null): PullRequestNotice
     {
         $notice = new PullRequestNotice(
             project: $this->project,
@@ -259,7 +272,7 @@ final class DeliverPullRequestNoticeHandlerTest extends KernelTestCase
             forge: 'github',
             repository: 'acme/widgets',
             number: 5,
-            noticeKey: StaleApprovalNoticeBody::key(self::HEAD),
+            noticeKey: $key ?? StaleApprovalNoticeBody::key(self::HEAD),
             createdAt: $this->clock->now(),
         );
         $this->em->persist($notice);
@@ -281,7 +294,7 @@ final class DeliverPullRequestNoticeHandlerTest extends KernelTestCase
             pullRequestNotices: $notices,
             forgePullRequests: $pullRequests,
             commenters: new PullRequestCommenters([$this->commenter]),
-            body: $body,
+            bodies: [$body],
             em: $this->em,
             clock: $this->clock,
             logger: new NullLogger(),

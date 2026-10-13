@@ -187,6 +187,12 @@ counts as failing. Each finding shows as a note on its lines. The write has no
 fallback. A project with no GitHub App installation gets no check, and its
 reviews stay stored.
 
+The `comment` write with `comment: agent-review` posts one comment on the pull
+request for a review that has findings. The comment holds the verdict, the
+summary of the agent, up to 20 finding titles, and links to the check and to the
+card. It leaves out the text of each finding. The comment goes out as the GitHub
+App, and it has no fallback. See [Agent review](#agent-review).
+
 ## The Lifecycle template
 
 Lifecycle has the slots Next, Product design, Tech design, Implementation and In
@@ -241,6 +247,15 @@ draft. The review belongs to one head commit. A card of a type that may have
 children, such as an epic, needs no review. The rules of the template turn the
 review on. A template with none of the rules below asks for no review, and its
 cards follow the other rules.
+
+When the check of a review with findings lands, the app rule
+`comment-agent-review` queues one comment on the pull request. The comment sums
+up the review for a person who reads the conversation tab. Loupe posts it once
+for each review, so a carried review, a check that an override posts again, and
+a retry post no second comment. A review that landed more than one hour before
+the rule ran gets no comment. When GitHub refuses the comment because the App
+lacks the permission, Loupe does not try again. A rate limit, a timeout or a
+server error is retried 3 times.
 
 A review run can end with no review, for example when the head moved after the
 request. The review rules then count the run as a failed try and ask again after
@@ -310,7 +325,7 @@ worker pushes only after you answer. A finding where the code simply does not
 build what the design says goes to the fix worker alone. It creates no document
 and no inbox item.
 
-Five conditions of the **Agent review** group read the reviews:
+Six conditions of the **Agent review** group read the reviews:
 
 | Condition | True when |
 |---|---|
@@ -319,6 +334,7 @@ Five conditions of the **Agent review** group read the reviews:
 | `agent_review.passed` | the card is an epic, or every open pull request has a head commit and a review of it that passed. It is false when no open pull request has a head commit |
 | `agent_review.overridden` | the card is not an epic, every open pull request has a head commit and a review of it that passed or that an approval overrides, and an approval overrides at least one |
 | `agent_review.unposted` | a stored review of the card has no check on the forge yet, on its own head or on a head it was carried to |
+| `agent_review.uncommented` | the newest review of an open pull request has at least one finding, its first check on its own head landed in the last hour, and it has no summary comment yet. A clean review, a carried review and a review older than one hour never count |
 
 A review fails when it has a finding of a severity that the template counts as
 failing. The `agentReviewFailingSeverities` value of the template lists those
@@ -341,7 +357,8 @@ Lifecycle uses the conditions in these rules:
 
 The limit of 10 is fixed in the template. The rules `reviewable`, `merge-ready` and `merge-ready-epic-child`
 also need `agent_review.passed` or `agent_review.overridden`. The app rule `sync-agent-review-check` posts the
-check of each stored review. See [Rules the app adds](#rules-the-app-adds).
+check of each stored review, and the app rule `comment-agent-review` posts its
+summary comment. See [Rules the app adds](#rules-the-app-adds).
 
 A person who turns a ready pull request back into a draft makes `review-ready`
 fire again while the review and the checks pass. The rule `back-to-draft` first
@@ -483,7 +500,7 @@ A request of an app rule can carry a prompt that ships with Loupe. A bridge that
 sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
-The app adds four rules.
+The app adds five rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
@@ -494,14 +511,15 @@ the reason that no bridge took the work.
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the
 [site-review widget](site-review.md). Each reads one condition of the Board
-group, and each fires one write. The rule `sync-agent-review-check` also watches
-every column. It reads a condition of the Agent review group:
+group, and each fires one write. The rules `sync-agent-review-check` and `comment-agent-review` also watch
+every column. They read conditions of the Agent review group:
 
 | Rule | Condition | Write |
 |---|---|---|
 | `post-widget-review` | `card.site_review.verdict_unsent`: a verdict of the card has a pull request that no review settled yet | `post-review` |
 | `sync-site-review-check` | `card.site_review.check_stale`: an open GitHub pull request of the card has no check for its head commit, a check with another result than the one the card now wants, or a check that lists other notes than the card now carries | `site-review-check` |
 | `sync-agent-review-check` | `agent_review.unposted`: a stored agent review of the card has no check on the forge yet, on its own head or on a head it was carried to | `agent-review-check` |
+| `comment-agent-review` | `agent_review.uncommented`: the newest review of an open pull request has findings, its first check on its own head landed in the last hour, and it has no summary comment | `comment`, with `comment: agent-review` |
 
 The review is posted under the reviewer's own account. The reviewer connects
 that account from the widget. A review that the connection cannot send, because

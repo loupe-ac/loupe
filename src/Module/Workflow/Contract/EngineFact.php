@@ -10,4 +10,5 @@ enum EngineFact: string
     case Slot = 'slot';
     case ParentSlot = 'parent-slot';
     case PullRequest = 'pull-request';
+    case PullRequestHead = 'pull-request-head';
 }

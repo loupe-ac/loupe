@@ -72,6 +72,41 @@ class CardPullRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param list<array{forge: string, repository: string, number: int}> $keys
+     *
+     * @return array<string, int> `forge/repository/number` => the lowest card number of the project that links that pull request
+     */
+    public function findCardNumbersOfPullRequests(Uuid $projectId, array $keys): array
+    {
+        if ([] === $keys) {
+            return [];
+        }
+        $query = $this->createQueryBuilder('link')
+            ->select('link.forge AS forge', 'LOWER(link.repository) AS repository', 'link.number AS number', 'MIN(card.number) AS cardNumber')
+            ->join('link.card', 'card')
+            ->andWhere('card.project = :project')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->groupBy('link.forge', 'link.repository', 'link.number');
+        $any = $query->expr()->orX();
+        foreach (array_values($keys) as $i => $key) {
+            $any->add("link.forge = :forge$i AND LOWER(link.repository) = :repository$i AND link.number = :number$i");
+            $query->setParameter("forge$i", Forge::from($key['forge']))
+                ->setParameter("repository$i", mb_strtolower($key['repository']))
+                ->setParameter("number$i", $key['number']);
+        }
+
+        $found = [];
+        /** @var list<array{forge: Forge, repository: string, number: int, cardNumber: int|string}> $rows */
+        $rows = $query->andWhere($any)->getQuery()->getResult();
+        foreach ($rows as $row) {
+            $key = $row['forge']->value.'/'.$row['repository'].'/'.$row['number'];
+            $found[$key] = min($found[$key] ?? \PHP_INT_MAX, (int) $row['cardNumber']);
+        }
+
+        return $found;
+    }
+
+    /**
      * The GitHub pull requests one card links, as the database holds them.
      *
      * @return list<array{repository: string, number: int}>

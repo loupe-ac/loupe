@@ -49,6 +49,16 @@ final class FactFingerprintTest extends TestCase
         self::assertSame($hash, new FactFingerprint()->of($this->facts(), $keys));
     }
 
+    public function test_a_new_head_leaves_the_shared_pull_request_group_as_it_was(): void
+    {
+        $fingerprint = new FactFingerprint();
+        $before = FactsMother::facts(pullRequest: FactsMother::pullRequest(headSha: 'one'));
+        $after = FactsMother::facts(pullRequest: FactsMother::pullRequest(headSha: 'two'));
+
+        self::assertSame($fingerprint->of($before, [EngineFact::PullRequest]), $fingerprint->of($after, [EngineFact::PullRequest]));
+        self::assertNotSame($fingerprint->of($before, [EngineFact::PullRequestHead]), $fingerprint->of($after, [EngineFact::PullRequestHead]));
+    }
+
     public function test_the_time_and_the_order_of_lists_do_not_count(): void
     {
         $keys = self::allKeys();
@@ -90,6 +100,7 @@ final class FactFingerprintTest extends TestCase
         yield 'documents' => [DocumentsFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: [new DocumentFacts(['product'], 'approved', '01a10beb-ba65-736b-8626-a6e3fa59dfc5')]), pullRequest: self::primary(), pullRequests: self::all(), run: self::workRun())];
         yield 'parent documents' => [ParentDocumentsFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents(), parentDocuments: [new DocumentFacts(['tech-design'], 'approved', '01a10beb-ba65-736b-8626-a6e3fa59dfc5')]), pullRequest: self::primary(), pullRequests: self::all(), run: self::workRun())];
         yield 'pull request' => [EngineFact::PullRequest, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed), pullRequests: self::all(), run: self::workRun())];
+        yield 'pull request head' => [EngineFact::PullRequestHead, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: FactsMother::pullRequest(checks: ChecksState::Passed, headSha: 'new-head'), pullRequests: self::all(), run: self::workRun())];
         yield 'pull requests' => [PullRequestList::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: [self::primary()], run: self::workRun())];
         yield 'work requests' => [WorkRequestFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: self::all(), run: FactsMother::run(['implement'], 'no-capacity', self::WORKER_KINDS, self::PARENT_KINDS))];
         yield 'refusal' => [RefusalFacts::class, FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: self::documents()), pullRequest: self::primary(), pullRequests: self::all(), run: FactsMother::run(['implement', 'review'], 'no-bridge', self::WORKER_KINDS, self::PARENT_KINDS))];

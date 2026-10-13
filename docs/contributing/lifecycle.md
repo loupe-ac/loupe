@@ -55,8 +55,10 @@ writes the product document with the owner. The session takes its intake from
 the card. When the Claude Design MCP is connected, it recommends one Claude
 Design session at the first choice with a visible side. The session asks every
 open decision in the chat, and writes a decision fence only for a decision that
-the owner defers. The approval of that document moves the card to Tech design.
-When a person requests changes on the document, the workflow asks for
+the owner defers. When the questions end, the session shows a recap with one
+line per decision. The owner corrects any line before the session writes the
+document. The approval of that document moves the card to Tech design. When a
+person requests changes on the document, the workflow asks for
 `product-design-revise` work, which runs `loupe-stage-fix-round`.
 
 The `product-design` work entry opens the session for you. When a card enters

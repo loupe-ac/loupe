@@ -7,13 +7,14 @@ namespace App\Module\Board\Command;
 use App\Module\Board\Entity\PullRequestCommentState;
 use App\Module\Board\Entity\PullRequestNotice;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
-use App\Module\Board\Service\StaleApprovalNoticeBody;
+use App\Module\Board\Service\PullRequestNoticeBody;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
 use App\Module\Forge\Service\PullRequestCommenters;
 use App\Module\Forge\Service\PullRequestCommentFailed;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\Messenger\Exception\RecoverableMessageHandlingException;
 
 /**
@@ -33,7 +34,10 @@ final readonly class DeliverPullRequestNoticeHandler
         private PullRequestNoticeRepository $pullRequestNotices,
         private ForgePullRequestRepository $forgePullRequests,
         private PullRequestCommenters $commenters,
-        private StaleApprovalNoticeBody $body,
+
+        /** @var iterable<PullRequestNoticeBody> */
+        #[AutowireIterator('app.pull_request_notice_body')]
+        private iterable $bodies,
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -65,6 +69,13 @@ final readonly class DeliverPullRequestNoticeHandler
             return;
         }
 
+        $body = $this->bodyOf($notice);
+        if (null === $body) {
+            $this->fail($notice, 'no_body');
+
+            return;
+        }
+
         $commenter = $this->commenters->for($pullRequest->forge);
         if (null === $commenter) {
             $this->fail($notice, 'no_commenter');
@@ -80,17 +91,17 @@ final readonly class DeliverPullRequestNoticeHandler
         try {
             $found = $retry && $commenter->hasComment(
                 $pullRequest,
-                StaleApprovalNoticeBody::marker($notice->noticeKey),
+                self::marker($notice->noticeKey),
                 $notice->createdAt->modify(self::LOOKUP_CLOCK_MARGIN),
             );
             // After the lookup, so a retry of a notice that did post is not marked outdated.
-            if (!$found && !StaleApprovalNoticeBody::stillHolds($notice, $pullRequest)) {
+            if (!$found && !$body->stillHolds($notice, $pullRequest)) {
                 $this->fail($notice, 'outdated');
 
                 return;
             }
             if (!$found) {
-                $commenter->comment($pullRequest, $this->body->of($notice));
+                $commenter->comment($pullRequest, self::marker($notice->noticeKey)."\n\n".$body->of($notice));
             }
         } catch (PullRequestCommentFailed $e) {
             if ($e->permanent) {
@@ -116,6 +127,23 @@ final readonly class DeliverPullRequestNoticeHandler
         $notice->cause = null;
         $this->em->flush();
         $this->logger->info('board.pull_request_notice_posted', $this->context($notice) + ['foundOnRetry' => $found]);
+    }
+
+    /** A hidden line that lets a retry find the comment an earlier try already posted. */
+    private static function marker(string $noticeKey): string
+    {
+        return '<!-- loupe-notice: '.$noticeKey.' -->';
+    }
+
+    private function bodyOf(PullRequestNotice $notice): ?PullRequestNoticeBody
+    {
+        foreach ($this->bodies as $body) {
+            if ($body->supports($notice->noticeKey)) {
+                return $body;
+            }
+        }
+
+        return null;
     }
 
     private function fail(PullRequestNotice $notice, string $cause): void
