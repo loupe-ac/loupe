@@ -1,0 +1,11 @@
+{#
+  Props:  @comment-budget-ignore
+    href     string  Makes the item a link. Without it the item is a button.
+    current  bool|string  Marks the item as the current one, with aria-current. True gives aria-current="true", and a string such as page is used as it is. False by default.
+  Any other attribute, class included, is passed to the element. A button defaults to type="button".
+#}
+{%- props href = null, current = false -%}
+{%- set defaults = href ? {class: 'lp-menu__item', href: href} : {class: 'lp-menu__item', type: 'button'} -%}
+{%- if current -%}{%- set defaults = defaults|merge({'aria-current': true is same as(current) ? 'true' : current}) -%}{%- endif -%}
+{%- set element = href ? 'a' : 'button' -%}
+<{{ element }}{{ attributes.defaults(defaults) }}>{% block content %}{% endblock %}</{{ element }}>

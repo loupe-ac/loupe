@@ -16,6 +16,7 @@
 @import './components/tabs.css';
 @import './components/tooltip.css';
 @import './components/avatar.css';
+@import './components/menu.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -1212,42 +1213,14 @@
 }
 
 /* ── "⋯" page menu ──────────────────────────────────────────────── */
-.lp-review .lp-page-menu {
-    @apply relative;
-}
 .lp-review .lp-page-menu__trigger {
     @apply px-2;
 }
 .lp-review .lp-page-menu__trigger svg {
     @apply size-4;
 }
-.lp-review .lp-page-menu__panel {
-    @apply absolute top-full right-0 z-30 mt-1 flex w-80 flex-col gap-1 rounded-xl border border-line bg-elev p-1.5 shadow-card;
-    max-width: calc(100vw - var(--spacing) * 10);
-}
-.lp-review .lp-page-menu__panel[hidden] {
-    @apply hidden;
-}
 .lp-review .lp-page-menu__group + .lp-page-menu__group {
-    @apply border-t border-line-faint pt-1;
-}
-.lp-review .lp-page-menu__heading {
-    @apply m-0 px-2.5 pt-1.5 pb-1 text-xs font-semibold text-fg-dim;
-}
-.lp-review .lp-page-menu__row {
-    @apply flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-ink no-underline transition-colors hover:bg-tint;
-}
-.lp-review .lp-page-menu__row svg {
-    @apply mt-0.5 size-4 shrink-0 text-fg-mute;
-}
-.lp-review .lp-page-menu__text {
-    @apply flex min-w-0 flex-col;
-}
-.lp-review .lp-page-menu__label {
-    @apply truncate text-sm font-medium;
-}
-.lp-review .lp-page-menu__line {
-    @apply truncate text-xs text-fg-dim;
+    @apply mt-1 border-t border-line-faint pt-1;
 }
 .lp-review .lp-page-menu__more-toggle {
     @apply cursor-pointer list-none rounded-lg px-2.5 py-2 text-sm font-medium text-fg-mute hover:bg-tint hover:text-ink;
@@ -1748,39 +1721,17 @@
     @apply h-8 min-h-8 w-auto min-w-16 rounded-lg border-line-strong bg-surface-1 py-0 pr-8 pl-2 text-sm;
 }
 /* The views wait behind a settings button at the right of the bar. */
-.lp-review .lp-diff-views {
-    @apply relative ml-auto;
+.lp-review .lp-diff-bar__views {
+    @apply ml-auto;
 }
-.lp-review .lp-diff-views__trigger {
+.lp-review .lp-diff-bar__views-trigger {
     @apply size-8 min-h-8 rounded-lg border-transparent bg-transparent text-fg-label hover:bg-surface-3 hover:text-ink;
 }
-.lp-review .lp-diff-views__trigger[aria-expanded='true'] {
+.lp-review .lp-diff-bar__views-trigger[aria-expanded='true'] {
     @apply bg-surface-3 text-ink;
 }
-.lp-review .lp-diff-views__trigger svg {
+.lp-review .lp-diff-bar__views-trigger svg {
     @apply size-4;
-}
-.lp-review .lp-diff-views__panel {
-    @apply absolute top-full right-0 z-30 mt-1 flex w-48 flex-col rounded-xl border border-line bg-elev p-1.5 shadow-card;
-}
-.lp-review .lp-diff-views__panel[hidden] {
-    @apply hidden;
-}
-.lp-review .lp-diff-views__heading {
-    @apply m-0 px-2.5 pt-1 pb-1.5 text-xs font-semibold text-fg-dim;
-}
-.lp-review .lp-diff-views__link {
-    @apply flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-fg-label no-underline transition-colors hover:bg-tint hover:text-ink;
-}
-/* The check and the weight together, so the current view is not colour alone. */
-.lp-review .lp-diff-views__link[aria-current] {
-    @apply font-semibold text-ink;
-}
-.lp-review .lp-diff-views__check {
-    @apply invisible size-4 shrink-0 text-accent-ink;
-}
-.lp-review .lp-diff-views__link[aria-current] .lp-diff-views__check {
-    @apply visible;
 }
 .lp-review .lp-diff-nav {
     @apply ml-0 flex-none justify-end gap-0.5 text-fg-label;
@@ -1880,8 +1831,7 @@
         .lp-decision__option,
         .lp-decision__option input,
         .lp-review-verdict-choice,
-        .lp-history__action,
-        .lp-diff-views__link
+        .lp-history__action
     ) {
     @apply cursor-pointer;
 }
@@ -2360,7 +2310,7 @@
     }
     /* Each actions cell stacks at z-10, so the one with an open menu goes above the rows below it. */
     .lp-document-table--backlog
-        .lp-document-row__actions:has(.lp-backlog-menu:not([hidden])) {
+        .lp-document-row__actions:has(.lp-menu__panel:not([hidden])) {
         @apply z-30;
     }
     /* A ticked row. */
@@ -2383,26 +2333,6 @@
     }
     .lp-backlog-sort-link__idle {
         @apply opacity-50;
-    }
-    /* The Move to menu of a row and of the bulk bar. */
-    .lp-backlog-move {
-        @apply relative;
-    }
-    .lp-backlog-menu {
-        @apply absolute right-0 top-full z-40 mt-1 flex min-w-46 flex-col rounded-xl border border-line bg-surface-1 p-1.5 shadow-xl;
-        animation: lp-appear 120ms ease-out both;
-    }
-    .lp-backlog-menu--up {
-        @apply top-auto bottom-full mt-0 mb-1;
-    }
-    .lp-backlog-menu[hidden] {
-        @apply hidden;
-    }
-    .lp-backlog-menu__item {
-        @apply flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2.5 text-left text-sm text-ink transition-colors hover:bg-tint-strong;
-    }
-    .lp-backlog-menu__item:disabled {
-        @apply cursor-not-allowed text-fg-dim hover:bg-transparent;
     }
     /* The bar that appears when a row is ticked. It sticks to the bottom of the view. */
     .lp-backlog-bulk {
@@ -4944,8 +4874,8 @@
     .lp-verdict-chip__trigger[aria-expanded='true'] .lp-verdict-chip__caret {
         @apply rotate-180;
     }
-    .lp-verdict-chip__panel {
-        @apply absolute top-full right-0 z-40 mt-1 flex w-80 flex-col overflow-hidden rounded-xl border border-line bg-elev text-sm shadow-card max-sm:right-3.5 max-sm:left-3.5 max-sm:w-auto;
+    .lp-verdict-chip .lp-menu__panel {
+        @apply max-sm:right-3.5 max-sm:left-3.5 max-sm:w-auto;
     }
     /* The head takes the verdict's tint, so the dropdown reads as its chip. */
     .lp-verdict-chip__head {
@@ -4978,9 +4908,6 @@
     }
     .lp-verdict-chip__action-icon {
         @apply size-3.5 shrink-0;
-    }
-    .lp-verdict-chip__panel[hidden] {
-        @apply hidden;
     }
     /* The top bar's backdrop blur makes it a stacking context painted under
        the paper, so it rises while the dropdown hangs over the page. */
@@ -5019,11 +4946,8 @@
         .lp-revision-notes__caret {
         @apply rotate-180;
     }
-    .lp-revision-notes__panel {
-        @apply absolute top-full left-0 z-40 mt-1 flex max-h-96 w-96 flex-col gap-3 overflow-y-auto rounded-xl border border-line bg-elev p-4 text-sm shadow-card max-sm:w-72;
-    }
-    .lp-revision-notes__panel[hidden] {
-        @apply hidden;
+    .lp-revision-notes .lp-menu__panel {
+        @apply max-sm:w-72;
     }
     .lp-revision-notes__title {
         @apply text-xs font-semibold tracking-wide text-fg-label uppercase;
@@ -5182,24 +5106,6 @@
         @apply w-3.5 h-3.5 shrink-0 text-fg-mute;
     }
 
-    /* Panel that drops directly under the switcher. */
-    .lp-switcher {
-        @apply relative;
-    }
-    .lp-switcher__panel {
-        @apply absolute left-0 right-0 z-30 flex flex-col gap-1 p-1.5 rounded-xl bg-chrome-raised;
-        animation: lp-appear 120ms ease-out both;
-    }
-    .lp-switcher__panel[hidden] {
-        @apply hidden;
-    }
-    .lp-switcher__item {
-        @apply flex items-center gap-2.5 px-2 py-1.5 rounded-lg no-underline transition-colors;
-    }
-    .lp-switcher__item:hover,
-    .lp-switcher__item[aria-current='true'] {
-        @apply bg-chrome-control;
-    }
     /* Current-project indicator in the workspace picker. */
     .lp-switcher__item-check {
         @apply ml-auto w-4 h-4 shrink-0 text-accent;
@@ -5214,10 +5120,7 @@
         @apply font-mono text-chrome-mute truncate text-xs;
     }
     .lp-switcher__all {
-        @apply flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-accent text-xs font-bold no-underline transition-colors;
-    }
-    .lp-switcher__all:hover {
-        @apply bg-chrome-control;
+        @apply text-accent text-xs font-bold;
     }
     /* Boxed to the same 6×6 as the xs avatar so the label column lines up with
        the project rows above it. */
@@ -7885,22 +7788,18 @@
         @apply font-semibold text-ink;
     }
     /* The more-actions menu holds Download, Archive, the linked cards and the versions. */
-    .lp-backlog-menu.lp-artifact-menu {
-        @apply w-75 overflow-y-auto;
-        max-width: calc(100vw - var(--spacing) * 8);
+    .lp-artifact-bar__menu .lp-menu__panel {
+        @apply overflow-y-auto;
         max-height: calc(100dvh - var(--spacing) * 32);
     }
     .lp-artifact-menu__actions {
         @apply grid grid-cols-2 gap-1;
     }
-    .lp-artifact-menu__actions .lp-backlog-menu__item {
+    .lp-artifact-menu__actions .lp-menu__item {
         @apply justify-center;
     }
     .lp-artifact-menu__icon {
         @apply size-4 shrink-0 text-fg-dim;
-    }
-    .lp-artifact-menu__rule {
-        @apply mt-1 mb-2 h-px bg-line;
     }
     .lp-artifact-menu__heading {
         @apply m-0 mb-1 border-b border-line px-2.5 pt-1.5 pb-2 text-xs font-semibold tracking-wider text-fg-mute uppercase;
@@ -7938,8 +7837,8 @@
         @apply m-0 px-2.5 py-2 text-sm text-fg-mute;
     }
     /* One version in the menu: its badge, then when it was stored with its notes below. */
-    .lp-backlog-menu__item.lp-artifact-revision {
-        @apply grid items-center gap-x-2 gap-y-1.5 p-2.5;
+    .lp-menu__item.lp-artifact-revision {
+        @apply grid items-center font-normal gap-x-2 gap-y-1.5 p-2.5;
         grid-template-columns: auto minmax(0, 1fr);
     }
     .lp-artifact-revision__head {
@@ -9254,6 +9153,12 @@
     }
     .lp-styleguide__specimen .lp-dialog {
         @apply static w-full;
+    }
+    .lp-styleguide__specimen .lp-menu__panel {
+        @apply static mt-2;
+    }
+    .lp-styleguide__specimen .lp-menu--chrome {
+        @apply rounded-xl bg-chrome-raised p-2;
     }
     .lp-styleguide__tooltip-anchor {
         @apply relative inline-block pb-16 text-sm font-semibold text-ink;
