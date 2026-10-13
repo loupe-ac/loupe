@@ -24,15 +24,11 @@
     {% else %}
     {% do form.picks.setRendered %}
     {% do form.other.setRendered %}
-    {{ form_start(form, {'attr': {'class': 'form-stack', 'novalidate': 'novalidate'}}) }}
+    {{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
 
-        <div class="form-field">
-            {{ form_label(form.email, null, {'label_attr': {'class': 'form-label'}}) }}
-            {{ form_widget(form.email, {'attr': {'class': 'auth-input', 'placeholder': 'account.form.waitlist_join_form.email.placeholder'}}) }}
-            <div class="field-errors">{{ form_errors(form.email) }}</div>
-        </div>
+        <twig:Ds:FormField :fieldView="form.email" :widgetAttr="{ 'placeholder': 'account.form.waitlist_join_form.email.placeholder'}" />
 
-        <button type="submit" class="auth-submit mt-1.5">{{ 'account.waitlist.submit'|trans }}</button>
+        <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.waitlist.submit'|trans }}</twig:Ds:Button>
 
     {{ form_end(form) }}
     {% endif %}

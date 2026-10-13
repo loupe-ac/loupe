@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="The sign-in page frame with a form" viewport="900x640"
+ */
+export interface {{ entry.name }}Props {
+    /** Content at the right of the topbar, such as a link to the other sign-in page. */
+    nav?: React.ReactNode;
+    /** The footer row. Put the links in a `{{ entry.rootClass }}__footer-links` element. */
+    footer?: React.ReactNode;
+    /** Widens the card for a page that needs more than a form column. */
+    wide?: boolean;
+    className?: string;
+    /** The content of the card: a heading, a form and a link. */
+    children?: React.ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

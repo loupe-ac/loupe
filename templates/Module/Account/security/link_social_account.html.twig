@@ -15,13 +15,9 @@
     </div>
 {% endif %}
 
-{{ form_start(form, {'attr': {'class': 'form-stack', 'novalidate': 'novalidate'}}) }}
-    <div class="form-field">
-        {{ form_label(form.password, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.password, {'attr': {'class': 'auth-input', 'placeholder': 'account.form.link_social_account_form.password.placeholder'}}) }}
-        <div class="field-errors">{{ form_errors(form.password) }}</div>
-    </div>
-    <button type="submit" class="auth-submit mt-1.5">{{ 'account.social.link.form.submit.label'|trans }}</button>
+{{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
+    <twig:Ds:FormField :fieldView="form.password" :widgetAttr="{ 'placeholder': 'account.form.link_social_account_form.password.placeholder'}" />
+    <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.social.link.form.submit.label'|trans }}</twig:Ds:Button>
 {{ form_end(form) }}
 
 <div class="text-center text-sm text-fg-mute">

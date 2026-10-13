@@ -1,0 +1,28 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set brand = 'nav.brand'|trans %}
+import React from 'react';
+
+export function {{ entry.name }}({ nav, footer, wide = false, className: extra, children, ...rest }) {
+    const card = ['{{ entry.rootClass }}__card', wide ? '{{ entry.rootClass }}__card--wide' : '', extra].filter(Boolean).join(' ');
+
+    return (
+        <div {...rest} className="{{ entry.rootClass }}">
+            <div className="{{ entry.rootClass }}__grid"></div>
+            <div className="{{ entry.rootClass }}__glow"></div>
+            <div className="{{ entry.rootClass }}__topbar">
+                <a href="/" className="{{ entry.rootClass }}__brand">
+                    <span className="lp-brand lp-brand--md">
+                        <span className="lp-brand__mark" aria-hidden="true"></span>
+                        <span className="lp-brand__word">{{ brand }}</span>
+                    </span>
+                </a>
+                {nav ? <div className="{{ entry.rootClass }}__topbar-nav">{nav}</div> : null}
+            </div>
+            <main className="{{ entry.rootClass }}__main">
+                <div className={card}>{children}</div>
+            </main>
+            {footer ? <div className="{{ entry.rootClass }}__footer">{footer}</div> : null}
+        </div>
+    );
+}
+{% endautoescape %}
