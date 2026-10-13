@@ -20,7 +20,7 @@ final readonly class ParentDocumentsFacts implements SwapsDocumentStatus
     public function withDocumentStatus(string $documentId, string $status): static
     {
         return new static(array_map(
-            static fn (DocumentFacts $document): DocumentFacts => $document->id === $documentId ? new DocumentFacts($document->tags, $status, $document->id) : $document,
+            static fn (DocumentFacts $document): DocumentFacts => $document->id === $documentId ? $document->withStatus($status) : $document,
             $this->documents,
         ));
     }
