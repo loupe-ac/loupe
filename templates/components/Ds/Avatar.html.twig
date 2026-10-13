@@ -1,0 +1,22 @@
+{#
+  Props:  @comment-budget-ignore
+    name      string   The name of a person or project. The avatar shows its first letter.
+    icon      string   A Lucide icon name, such as lucide:bot, for an avatar with no name.
+    size      string   xs, sm, md or lg. md by default.
+    shape     string   round or square. round by default.
+    tone      string   accent, tint, ink, danger or chrome. accent by default.
+    presence  string   live, quiet or none, for a dot at the corner. No dot without it.
+  With no name and no icon, the content of the tag is drawn.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props name = null, icon = null, size = 'md', shape = 'round', tone = 'accent', presence = null -%}
+<span{{ attributes.defaults({class: 'lp-avatar lp-avatar--' ~ size ~ ' lp-avatar--' ~ shape ~ ' lp-avatar--' ~ tone}) }}>
+    {%- if name is not null -%}
+        {{ name|ds_initial }}
+    {%- elseif icon is not null -%}
+        {{ ux_icon(icon) }}
+    {%- else -%}
+        {% block content %}{% endblock %}
+    {%- endif -%}
+    {%- if presence is not null %}<span class="lp-avatar__dot lp-avatar__dot--{{ presence }}" aria-hidden="true"></span>{% endif -%}
+</span>

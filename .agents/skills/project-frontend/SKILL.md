@@ -187,6 +187,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 13. Menu: `<twig:Ds:Menu id="..." align="start" size="md">` with a `trigger` block and a `content` block. The content holds `Ds:MenuItem` (a link with `href`, a button without), `Ds:MenuHeading` and `Ds:MenuDivider`. The trigger carries `data-popover-target="trigger"`, `data-action="click->popover#toggle"`, `aria-expanded="false"` and `aria-controls`. Tones are light and chrome. The CSS is `assets/styles/components/menu.css`.
 2. Form parts: `<twig:Ds:FormField :fieldView="form.title" />` draws the label, widget, hint and errors of a Symfony field, and `widgetKind="select"` or `widgetKind="textarea"` picks the widget classes. `Ds:Input`, `Ds:Select`, `Ds:Textarea`, `Ds:Label`, `Ds:Hint` and `Ds:FieldErrors` draw one part each. A Symfony widget in a custom layout takes `ds_input_class('select')` and `ds_label_class()`. The CSS is `assets/styles/components/form.css`.
 
+13. Avatar: `<twig:Ds:Avatar :name="project.name" size="sm" shape="square" tone="danger" />`, or `icon="lucide:bot"` for an icon. Sizes are xs, sm, md and lg. Tones are accent, tint, ink, danger and chrome. `presence="live"` draws the bridge dot. The `ds_initial` filter gives the letter. The CSS is `assets/styles/components/avatar.css`.
+
 A child card that adds a component adds it to this list in the same branch.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".

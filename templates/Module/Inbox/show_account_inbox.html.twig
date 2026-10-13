@@ -21,7 +21,7 @@
     <div class="lp-account-inbox__list">
         {% for row in inbox.rows %}
         <a class="lp-account-inbox-row" href="{{ path('app_project_inbox', {id: row.project.id}) }}" data-account-inbox-project="{{ row.project.id }}">
-            <span class="lp-account-inbox-row__avatar" aria-hidden="true">{{ row.project.name|slice(0, 1)|upper }}</span>
+            <twig:Ds:Avatar :name="row.project.name" size="xs" shape="square" tone="tint" class="lp-account-inbox-row__avatar" aria-hidden="true" />
             <span class="lp-account-inbox-row__name">{{ row.project.name }}</span>
             <twig:ux:icon name="lucide:arrow-right" class="lp-account-inbox-row__go" />
             <span class="lp-account-inbox-row__meta">

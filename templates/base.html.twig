@@ -31,7 +31,7 @@
                                 aria-expanded="false"
                                 aria-controls="project-switcher-panel"
                                 aria-label="{{ 'nav.switcher.label'|trans }}">
-                            <span class="lp-sidebar__switcher-avatar">{{ project.name|slice(0, 1)|upper }}</span>
+                            <twig:Ds:Avatar :name="project.name" size="sm" shape="square" tone="danger" />
                             <span class="lp-sidebar__switcher-text">
                                 <span class="lp-sidebar__switcher-label">{{ 'nav.switcher.project_label'|trans }}</span>
                                 <span class="lp-sidebar__switcher-name">{{ project.name }}</span>
@@ -43,7 +43,7 @@
                         {% for switcherProject in switcherProjects %}
                         {% set currentProject = switcherProject.id.equals(project.id) %}
                         <twig:Ds:MenuItem :href="path('app_project_workshop', {id: switcherProject.id})" :current="currentProject">
-                            <span class="lp-switcher__item-avatar">{{ switcherProject.name|slice(0, 1)|upper }}</span>
+                            <twig:Ds:Avatar :name="switcherProject.name" size="xs" shape="square" tone="chrome" />
                             <span class="lp-switcher__item-text">
                                 <span class="lp-switcher__item-name">{{ switcherProject.name }}</span>
                                 <span class="lp-switcher__item-count">{{ 'nav.switcher.document_count'|trans({'%count%': switcherCounts[switcherProject.id.toRfc4122()]|default(0)}) }}</span>
@@ -188,7 +188,7 @@
                     </a>
                 </nav>
                 <div class="lp-sidebar__account">
-                    <span class="lp-sidebar__account-avatar">{{ app.user.userIdentifier|slice(0, 1)|upper }}</span>
+                    <twig:Ds:Avatar :name="app.user.userIdentifier" size="xs" tone="chrome" />
                     <span class="lp-sidebar__account-text">
                         <span class="lp-sidebar__account-name">{{ app.user.userIdentifier }}</span>
                     </span>
