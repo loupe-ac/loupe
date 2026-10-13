@@ -134,7 +134,7 @@ final class EditInboxSettingsControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('.lp-needs-you__header-actions a[href="'.$this->url($project).'"]'));
+        self::assertCount(1, $crawler->filter('.lp-inbox-topbar-actions a[href="'.$this->url($project).'"]'));
 
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/edit');
         self::assertCount(1, $crawler->filter('.lp-settings-nav a[href="'.$this->url($project).'"]'));
