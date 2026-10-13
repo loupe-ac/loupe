@@ -643,9 +643,9 @@ final class CardWaitReconcilerTest extends KernelTestCase
     /** @return iterable<string, array{WorkerRunState, InboxCardWaitTrigger, string}> */
     public static function waitingRuns(): iterable
     {
-        yield 'blocked' => [WorkerRunState::Blocked, InboxCardWaitTrigger::RunBlocked, 'The implement worker on card 12 is blocked: Needs the API key. Open the run.'];
-        yield 'gave up' => [WorkerRunState::GaveUp, InboxCardWaitTrigger::RunGaveUp, 'The implement worker on card 12 gave up: Needs the API key. Open the run.'];
-        yield 'waiting for a person' => [WorkerRunState::WaitingForPerson, InboxCardWaitTrigger::RunWaitingForPerson, 'The implement worker on card 12 waits for an answer from you: Needs the API key. Open the run.'];
+        yield 'blocked' => [WorkerRunState::Blocked, InboxCardWaitTrigger::RunBlocked, 'The implement worker on card 12 is blocked: Needs the API key. Open card 12.'];
+        yield 'gave up' => [WorkerRunState::GaveUp, InboxCardWaitTrigger::RunGaveUp, 'The implement worker on card 12 gave up: Needs the API key. Open card 12.'];
+        yield 'waiting for a person' => [WorkerRunState::WaitingForPerson, InboxCardWaitTrigger::RunWaitingForPerson, 'The implement worker on card 12 waits for an answer from you: Needs the API key. Open card 12.'];
     }
 
     #[DataProvider('waitingRuns')]
@@ -727,7 +727,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertCount(2, $watches);
         self::assertSame(InboxItemState::Open, $watches[1]->item->state);
         self::assertEquals($newer->id, $this->onlyWait($watches[1])->runId);
-        self::assertSame('The implement worker on card 12 is blocked: Stuck again. Open the run.', $watches[1]->item->body);
+        self::assertSame('The implement worker on card 12 is blocked: Stuck again. Open card 12.', $watches[1]->item->body);
     }
 
     public function test_a_document_wait_and_a_run_wait_share_one_item_and_the_end_of_one_keeps_it_open(): void
@@ -840,7 +840,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertCount(2, $this->openWaits($watch));
         self::assertSame('Implement worker blocked: cannot reach github.com: DNS lookup failed', $watch->item->title);
         self::assertSame(
-            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open the card to resume it.',
+            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open card 12.',
             $watch->item->body,
         );
     }
@@ -861,7 +861,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $again = $this->onlyWatch();
         self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
         self::assertCount(1, $again->waits);
-        self::assertSame('The implement worker on card 12 is blocked: Stuck. Open the run.', $again->item->body);
+        self::assertSame('The implement worker on card 12 is blocked: Stuck. Open card 12.', $again->item->body);
         self::assertEquals($updatedAt, $again->item->updatedAt);
     }
 
@@ -887,7 +887,7 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame($watch->id?->toRfc4122(), $again->id?->toRfc4122());
         self::assertSame('Implement worker blocked: cannot reach github.com: DNS lookup failed', $again->item->title);
         self::assertSame(
-            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open the card to resume it.',
+            'The implement worker on card 12 is blocked: cannot reach github.com: DNS lookup failed. Open card 12.',
             $again->item->body,
         );
     }

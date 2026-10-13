@@ -23,6 +23,8 @@
     {% if watch %}
         {# A deleted document drops its link row, so a wait of it shows as text. #}
         {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
+        {# The next step of each current wait goes in the action row, beside Dismiss. #}
+        {% set waitLinks = [] %}
         <ul class="lp-inbox-waits" data-inbox-waits>
             {% for wait in watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
                 <li{% if wait.endedAt %} class="lp-inbox-waits__wait--ended"{% endif %} data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
@@ -37,12 +39,18 @@
                     {%- endif %}
                     {%- if wait.endedAt %}
                         <span class="lp-inbox-waits__ended">{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</span>
-                    {%- elseif line.href %}
-                        <a class="lp-inbox-waits__link" href="{{ line.href }}" data-turbo-frame="_top"{% if wait.type.value == 'pull-request' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ line.actionKey|trans(line.params) }}</a>
+                    {%- elseif line.href and line.href not in waitLinks|map(link => link.href) %}
+                        {%- set waitLinks = waitLinks|merge([{href: line.href, label: line.actionKey|trans(line.params), external: wait.type.value == 'pull-request', drawer: home and wait.type.value in ['worker-run', 'card-pause']}]) %}
                     {%- endif %}
                 </li>
             {% endfor %}
         </ul>
+        {% set dismissShown = home and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
+        {% if not dismissShown and waitLinks is not empty %}
+            <div class="lp-inbox-waits__actions">
+                {% include '@Inbox/_wait_links.html.twig' with {links: waitLinks} only %}
+            </div>
+        {% endif %}
     {% endif %}
 
     {% if not open %}
@@ -199,6 +207,7 @@
                             <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" aria-describedby="inbox-dismiss-help-{{ item.id }}">{{ 'inbox.item.dismiss'|trans }}</twig:Ds:Button>
                             <twig:Ds:Tooltip id="inbox-dismiss-help-{{ item.id }}">{{ 'inbox.wait.dismiss_help'|trans }}</twig:Ds:Tooltip>
                         </span>
+                        {% include '@Inbox/_wait_links.html.twig' with {links: waitLinks ?? []} only %}
                     </div>
                 {% endif %}
             {{ form_end(declineForm) }}

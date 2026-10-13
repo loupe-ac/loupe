@@ -153,8 +153,10 @@ final class WaitItemPageTest extends WebTestCase
         $current = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
         self::assertCount(1, $current);
         self::assertStringContainsString('The document "Tech design", version 2, of card 4 waits for your review.', $current->text());
-        self::assertStringContainsString('Review the document', $current->filter('a')->text());
-        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $current->filter('a')->attr('href'));
+        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
+        self::assertCount(1, $link);
+        self::assertStringContainsString('Review the document', $link->text());
+        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $link->attr('href'));
         $ended = $crawler->filter('#inbox-item-1 [data-inbox-wait="ended"]');
         self::assertCount(1, $ended);
         self::assertStringContainsString('version 1', $ended->text());
@@ -186,7 +188,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $wait->filter('a'));
     }
 
-    public function test_a_run_wait_links_its_reason_to_the_worker_runs_page(): void
+    public function test_a_run_wait_opens_its_card_in_the_drawer(): void
     {
         $this->document->status = DocumentStatus::Approved;
         $run = new WorkerRun(
@@ -210,11 +212,11 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('The implement worker stopped because it is blocked.', $wait->filter('.lp-inbox-waits__reason')->text());
         self::assertSame('What the implement worker reported', $wait->filter('.lp-inbox-waits__detail-label')->text());
         self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-inbox-waits__detail .prose')->text()));
-        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"] a');
+        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
         self::assertCount(1, $link);
-        self::assertSame('Open the run', trim($link->text()));
-        self::assertSame('/projects/'.$this->project->id.'/worker-runs?search='.$run->id, $link->attr('href'));
-        self::assertSame('_top', $link->attr('data-turbo-frame'));
+        self::assertSame('Open card 4', trim($link->text()));
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
+        self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void

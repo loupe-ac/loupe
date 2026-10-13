@@ -5280,7 +5280,7 @@
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.blocked.action">
                 <source>bridge.inbox_wait.blocked.action</source>
-                <target>Open the run</target>
+                <target>Open card %card%</target>
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.gave_up">
                 <source>bridge.inbox_wait.gave_up</source>
@@ -5288,7 +5288,7 @@
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.gave_up.action">
                 <source>bridge.inbox_wait.gave_up.action</source>
-                <target>Open the run</target>
+                <target>Open card %card%</target>
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.waits_for_person">
                 <source>bridge.inbox_wait.waits_for_person</source>
@@ -5296,7 +5296,7 @@
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.waits_for_person.action">
                 <source>bridge.inbox_wait.waits_for_person.action</source>
-                <target>Open the run</target>
+                <target>Open card %card%</target>
             </trans-unit>
             <trans-unit id="board.inbox_wait.rule">
                 <source>board.inbox_wait.rule</source>
@@ -5432,7 +5432,7 @@
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.folded.action">
                 <source>bridge.inbox_wait.folded.action</source>
-                <target>Open the card to resume it</target>
+                <target>Open card %card%</target>
             </trans-unit>
             <trans-unit id="inbox.wait.ended.resolved">
                 <source>inbox.wait.ended.resolved</source>
@@ -7199,6 +7199,10 @@
             <trans-unit id="inbox.live.closed.obsolete"><source>inbox.live.closed.obsolete</source><target>No longer needed.</target></trans-unit>
             <trans-unit id="inbox.live.closed.other"><source>inbox.live.closed.other</source><target>This ask was closed elsewhere: %outcome%.</target></trans-unit>
             <trans-unit id="inbox.live.next"><source>inbox.live.next</source><target>Go to the next open ask</target></trans-unit>
+            <trans-unit id="inbox.pane.loading">
+                <source>inbox.pane.loading</source>
+                <target>Loading request…</target>
+            </trans-unit>
             <trans-unit id="inbox.pane.back"><source>inbox.pane.back</source><target>All asks</target></trans-unit>
             <trans-unit id="inbox.pane.missing"><source>inbox.pane.missing</source><target>This ask does not exist. Pick one from the list.</target></trans-unit>
             <trans-unit id="inbox.closed.empty"><source>inbox.closed.empty</source><target>No ask is closed yet.</target></trans-unit>

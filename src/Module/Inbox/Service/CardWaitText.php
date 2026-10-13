@@ -124,7 +124,7 @@ final readonly class CardWaitText
                 break;
             case InboxCardWaitType::WorkerRun:
                 $run = null === $wait->runId ? null : $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $projectId);
-                $href = null === $wait->runId ? null : $this->urls->generate('app_project_worker_runs', ['id' => $projectId, 'search' => $wait->runId]);
+                $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
                 $headline = null === $run ? '' : RunOutputText::headline($run->output);
                 $detail = null === $run ? null : RunOutputText::clean($run->output);
                 $worker = null === $run || null === $run->workKind || '' === $run->workKind ? 'worker' : str_replace('-', ' ', $run->workKind).' worker';
@@ -139,7 +139,6 @@ final readonly class CardWaitText
                     $action = $base.'.action';
                 }
                 if (self::hasFoldedPause($wait)) {
-                    $href = $this->urls->generate('app_board_card', ['projectId' => $projectId, 'cardId' => $wait->watch->cardId]);
                     $action = 'bridge.inbox_wait.folded.action';
                 }
                 break;
