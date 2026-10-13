@@ -53,9 +53,10 @@ Codex has no named agent such as `senior-dev`. Start the message with the full t
 - Make the smallest change that meets the task.
 - Write a failing test first, then the code that makes it pass.
 - Report a blocker and stop.
+
 - End with the status, the changed files, the tests and their result, and any concern.
 
-Then put the rules the stage skill names into the message, because the sub-agent inherits no loaded instruction. Wait for every sub-agent before the turn ends.
+Then put the rules the stage skill names into the message, because the sub-agent inherits no loaded instruction. A sub-agent reads a prototype page with `artifact_read`. When it cannot call the `loupe` tools, put the text of its pages into its prompt. Wait for every sub-agent before the turn ends. Wait for every sub-agent before the turn ends.
 
 ## Write a plan
 
