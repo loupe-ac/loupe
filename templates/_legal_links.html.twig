@@ -1,0 +1,12 @@
+{# The privacy, terms and AI policy links, shared by every public footer.
+   Props: class (the link class), listItem (true wraps each link in an <li>). #}
+{% set links = [
+    {route: 'app_privacy', label: 'account.auth.footer.privacy'},
+    {route: 'app_terms', label: 'account.auth.footer.terms'},
+    {route: 'app_ai_policy', label: 'account.auth.footer.ai_policy'},
+] %}
+{% for link in links %}
+    {%- if listItem|default(false) %}<li>{% endif -%}
+    <a href="{{ path(link.route) }}" class="{{ class }}">{{ link.label|trans }}</a>
+    {%- if listItem|default(false) %}</li>{% endif %}
+{% endfor %}

@@ -37,9 +37,7 @@
             <nav class="lp-home-footer__column" aria-label="{{ 'landing.footer.legal'|trans }}">
                 <span class="lp-home-footer__heading">{{ 'landing.footer.legal'|trans }}</span>
                 <ul class="lp-home-footer__list">
-                    <li><a href="{{ path('app_privacy') }}" class="lp-home-footer__link">{{ 'account.auth.footer.privacy'|trans }}</a></li>
-                    <li><a href="{{ path('app_terms') }}" class="lp-home-footer__link">{{ 'account.auth.footer.terms'|trans }}</a></li>
-                    <li><a href="{{ path('app_ai_policy') }}" class="lp-home-footer__link">{{ 'account.auth.footer.ai_policy'|trans }}</a></li>
+                    {% include '_legal_links.html.twig' with {class: 'lp-home-footer__link', listItem: true} only %}
                 </ul>
             </nav>
         </div>

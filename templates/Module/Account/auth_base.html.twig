@@ -31,9 +31,7 @@
         <span class="flex-1"></span>
         {% include '_source_link.html.twig' with {class: 'auth-footer__link gap-1.5'} only %}
         <a href="{{ app_docs_url }}/" class="auth-footer__link">{{ 'account.auth.footer.docs'|trans }}</a>
-        <a href="{{ path('app_privacy') }}" class="auth-footer__link">{{ 'account.auth.footer.privacy'|trans }}</a>
-        <a href="{{ path('app_terms') }}" class="auth-footer__link">{{ 'account.auth.footer.terms'|trans }}</a>
-        <a href="{{ path('app_ai_policy') }}" class="auth-footer__link">{{ 'account.auth.footer.ai_policy'|trans }}</a>
+        {% include '_legal_links.html.twig' with {class: 'auth-footer__link'} only %}
     </div>
 
 </div>

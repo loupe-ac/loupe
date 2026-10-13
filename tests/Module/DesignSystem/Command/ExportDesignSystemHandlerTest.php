@@ -232,6 +232,25 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
     }
 
+    public function test_the_marketing_shell_export_draws_the_header_the_body_and_the_footer(): void
+    {
+        foreach (['MarketingShell.jsx', 'MarketingShell.d.ts', 'MarketingShell.prompt.md'] as $file) {
+            self::assertContains('components/layout/'.$file, $this->written);
+        }
+
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/MarketingShell.jsx');
+        self::assertStringContainsString("const classes = ['lp-landing'];", $jsx);
+        self::assertStringContainsString('<header className="lp-landing-nav">', $jsx);
+        self::assertStringContainsString('<main>{children}</main>', $jsx);
+        self::assertStringContainsString('<footer className="lp-landing-footer">', $jsx);
+
+        $types = (string) file_get_contents($this->directory.'/components/layout/MarketingShell.d.ts');
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        self::assertStringContainsString('<MarketingShell>', $card);
+    }
+
     public function test_the_brand_mark_export_draws_the_brand_name_and_each_option(): void
     {
         foreach (['BrandMark.jsx', 'BrandMark.d.ts', 'BrandMark.prompt.md', 'layout.card.html'] as $file) {
@@ -253,7 +272,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('BrandMark')", $card);
+        self::assertStringContainsString("dsFind('BrandMark', 'MarketingShell')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }

@@ -241,6 +241,18 @@ readonly class Catalog
                 element: 'span',
                 export: 'BrandMark',
             ),
+            new ComponentEntry(
+                name: 'MarketingShell',
+                rootClass: 'lp-landing',
+                template: null,
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'The frame of a public page for a signed-out visitor: the marketing header, the page body and the footer with the legal links.',
+                element: 'div',
+                export: 'MarketingShell',
+            ),
         ];
     }
 }
