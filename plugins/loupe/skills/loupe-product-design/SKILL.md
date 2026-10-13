@@ -13,7 +13,7 @@ Move the card only in P0. Never move it when you stop, and never move it after P
 
 P0 opens an interactive run on the card with `card_run_open`. Close the run with `card_run_close` in P10. When you stop at any other point after P0, call `card_run_close` before you stop.
 
-`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P11. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Claude Design rules C1 to C8.
+`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Claude Design rules C1 to C9.
 
 ## Procedure
 
@@ -28,7 +28,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 6. Run P0 to get the card into the Product design column and open the run, as `session-flow.md` says.
 7. Run the phases of the level that P2 sets. Ask each question as `question-rules.md` says. Use AskUserQuestion when the answer has clear options, and plain chat when the tool is missing.
 8. Read `../loupe-stage-product-design/references/product-document.md` before P10. It is the template, and it lists the sections a Light document keeps.
-9. Run P11, then P8 to P10, when the questions end. Ask for no confirmation after P11, because the document is the full readback (P9).
+9. Run P12, P11, then P8 to P10, when the questions end. Ask for no confirmation after P11, because the document is the full readback (P9).
 
 ## Where session output goes
 
@@ -37,6 +37,7 @@ Put each item in its section of the product document.
 - A technical choice that Q6 parks goes in "For tech design".
 - A guess that no code, doc, command or board history can check goes in "Assumptions" (A4). Check every other guess first, as Q1 of `question-rules.md` says.
 - Each question and its answer go in "Decisions log" (A5).
+- Each conflict of P12 and its outcome go in "Decisions log".
 - A decision that the owner defers goes in "Open questions" (Q8).
 - A deferred decision in "Open questions" gets the worked example of `../loupe-documents/references/design-structure.md` "Decisions", and no "How each option works" list. A question in chat gets no example.
 - The whole product document follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
