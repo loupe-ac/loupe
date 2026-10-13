@@ -93,7 +93,7 @@
     </div>
     {% endif %}
     {% if items|length > 0 %}
-    <twig:DataTable modifier="runs" :columns="[
+    <twig:Ds:DataTable modifier="runs" :label="'bridge.worker_runs.table.label'|trans" :columns="[
         {label: 'bridge.worker_runs.column.work'|trans},
         {label: 'bridge.worker_runs.column.outcome'|trans},
         {label: 'bridge.worker_runs.column.work_kind'|trans},
@@ -105,8 +105,8 @@
         {% set shownAt = run.startedAt ?? run.receivedAt %}
         {# A search by this run's id is a link to it, so its drawer opens on arrival, and not on each live reload.
            The drawer stays inside the row and the frame, so a live reload sees it open and waits. #}
-        <div class="lp-data-table__row" data-worker-run-id="{{ run.id }}" data-controller="modal" data-modal-drawer-value="true"{% if not frameRequest and listQuery.search|lower == (run.id ~ '')|lower %} data-modal-reopen-value="true"{% endif %}>
-            <div class="lp-data-table__cell lp-data-table__primary">
+        <div class="lp-data-table__row" role="row" data-worker-run-id="{{ run.id }}" data-controller="modal" data-modal-drawer-value="true"{% if not frameRequest and listQuery.search|lower == (run.id ~ '')|lower %} data-modal-reopen-value="true"{% endif %}>
+            <div class="lp-data-table__cell lp-data-table__primary" role="cell">
                 <button type="button" class="lp-data-table__target" data-action="modal#open">
                     {% if run.cardNumber is not null %}<span class="lp-data-table__number">{{ 'bridge.worker_runs.card_number'|trans({'%number%': run.cardNumber}) }}</span>{% else %}<span class="lp-data-table__number" data-worker-run-subject>{{ run.subjectType }}</span>{% endif %}
                     {% if item.cardTitle is not null %}<span class="lp-data-table__title">{{ item.cardTitle }}</span>{% endif %}
@@ -115,17 +115,17 @@
                 {% if item.interactive %}<twig:Ds:Tag tone="neutral">{{ 'bridge.worker_runs.interactive'|trans }}</twig:Ds:Tag>{% endif %}
                 {% if item.command %}<twig:Ds:Tag tone="neutral" data-worker-run-command>{{ 'bridge.worker_runs.command'|trans }}</twig:Ds:Tag>{% endif %}
             </div>
-            <div class="lp-worker-run-outcome">
+            <div class="lp-worker-run-outcome" role="cell">
                 <twig:Ds:StatusChip :modifier="item.state.chipModifier()" :label="item.state.translationKey()|trans" :reason="run.failureReason" :id="'worker-run-reason-' ~ run.id" />
                 {% if item.control and item.control.label %}{% set controlLabel = item.control.label|trans(item.control.labelParameters) %}<span class="lp-worker-run-control-label{{ item.control.labelWarns ? ' lp-worker-run-control-label--warns' : '' }}" title="{{ controlLabel }}" data-worker-run-control-label>{{ controlLabel }}</span>{% endif %}
             </div>
-            <span class="lp-data-table__cell">{{ run.workKind ?? 'bridge.worker_runs.no_work_kind'|trans }}{% if run.workerPool is not null %} <twig:Ds:Tag tone="neutral" data-worker-pool>{{ 'bridge.worker_runs.worker_pool_label'|trans({'%pool%': run.workerPool}) }}</twig:Ds:Tag>{% endif %}{% if run.harness is not null %} <twig:Ds:Tag tone="neutral" title="{{ 'bridge.worker_runs.details.harness'|trans }}" data-worker-run-harness>{{ run.harness }}</twig:Ds:Tag>{% endif %}{% if run.account is not null %} <twig:Ds:Tag tone="neutral" title="{{ 'bridge.worker_runs.details.account'|trans }}" data-worker-run-account>{{ run.account }}</twig:Ds:Tag>{% endif %}{% if run.model is not null %} <twig:Ds:Tag tone="neutral" title="{{ 'bridge.worker_runs.details.model'|trans }}" data-worker-run-model>{{ run.model }}</twig:Ds:Tag>{% endif %}</span>
-            <span class="lp-data-table__cell lp-data-table__cell--end">{% if item.interactive and item.state.isOpen() and item.duration() is not null %}{{ 'bridge.worker_runs.running_for'|trans({'%duration%': item.duration()}) }}{% else %}{{ item.duration() }}{% endif %}</span>
-            <span class="lp-data-table__cell"><time datetime="{{ shownAt|date('c') }}" title="{{ shownAt|date('Y-m-d H:i:s T') }}">{{ shownAt|relative_time }}</time></span>
+            <span class="lp-data-table__cell" role="cell">{{ run.workKind ?? 'bridge.worker_runs.no_work_kind'|trans }}{% if run.workerPool is not null %} <twig:Ds:Tag tone="neutral" data-worker-pool>{{ 'bridge.worker_runs.worker_pool_label'|trans({'%pool%': run.workerPool}) }}</twig:Ds:Tag>{% endif %}{% if run.harness is not null %} <twig:Ds:Tag tone="neutral" title="{{ 'bridge.worker_runs.details.harness'|trans }}" data-worker-run-harness>{{ run.harness }}</twig:Ds:Tag>{% endif %}{% if run.account is not null %} <twig:Ds:Tag tone="neutral" title="{{ 'bridge.worker_runs.details.account'|trans }}" data-worker-run-account>{{ run.account }}</twig:Ds:Tag>{% endif %}{% if run.model is not null %} <twig:Ds:Tag tone="neutral" title="{{ 'bridge.worker_runs.details.model'|trans }}" data-worker-run-model>{{ run.model }}</twig:Ds:Tag>{% endif %}</span>
+            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{% if item.interactive and item.state.isOpen() and item.duration() is not null %}{{ 'bridge.worker_runs.running_for'|trans({'%duration%': item.duration()}) }}{% else %}{{ item.duration() }}{% endif %}</span>
+            <span class="lp-data-table__cell" role="cell"><time datetime="{{ shownAt|date('c') }}" title="{{ shownAt|date('Y-m-d H:i:s T') }}">{{ shownAt|relative_time }}</time></span>
             {% include '@Bridge/_worker_run_drawer.html.twig' with {item: item, project: project, bridgeLabels: bridgeLabels} only %}
         </div>
         {% endfor %}
-    </twig:DataTable>
+    </twig:Ds:DataTable>
 
     <twig:Ds:Pagination route="app_project_worker_runs" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
     {% else %}

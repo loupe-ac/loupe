@@ -308,11 +308,13 @@ final class ListDocumentsControllerTest extends WebTestCase
         self::assertSelectorTextContains($rowSelector.' .lp-badge', 'In review');
 
         self::assertSelectorTextContains($rowSelector.' .lp-document-row__author', 'Alice3');
-        self::assertSelectorExists('.lp-document-table[role="table"]');
-        self::assertSelectorTextContains('.lp-document-table__head', 'Document');
-        self::assertSelectorTextContains('.lp-document-table__head', 'Status');
-        self::assertSelectorTextContains('.lp-document-table__head', 'Author');
-        self::assertSelectorTextContains('.lp-document-table__head', 'Updated');
+        self::assertSelectorExists('.lp-data-table[role="table"]');
+        self::assertSelectorNotExists('.lp-document-table, .lp-document-row');
+        self::assertSelectorExists('.lp-data-table > .lp-data-table__row[data-document-id]');
+        self::assertSelectorTextContains('.lp-data-table__header', 'Document');
+        self::assertSelectorTextContains('.lp-data-table__header', 'Status');
+        self::assertSelectorTextContains('.lp-data-table__header', 'Author');
+        self::assertSelectorTextContains('.lp-data-table__header', 'Updated');
 
         // Nothing waits for the reader, so the row carries no indicator at all.
         self::assertSelectorNotExists($rowSelector.' .lp-document-row__waiting');
