@@ -50,7 +50,8 @@ A card that needs no product design does not use this skill. The owner moves it 
    - Compare each entry of the "Decisions log" with it. A conflict is a field, an order, a label or a state that an answer and a shown screen contradict, or a state that an answer adds to a screen the prototype shows. A screen that the prototype never draws is not a conflict.
    - List the conflicts for yourself, in a numbered list. Ask one question per conflict, with the rules of `question-rules.md` (Q2, Q3).
    - Ask with AskUserQuestion, with the options "Keep the answer, revise the prototype", "Keep the prototype, change the answer" and "Decide later". Put the answer and the part of the prototype side by side in the `preview` of each option, because the question box hides the chat text above it. Mark the recommended option "(Recommended)".
-   - "Keep the answer" revises the prototype with the rules of `claude-design.md` (C3, C4), and stores a new library version when C8 stored one.
+   - "Keep the answer" revises the prototype in the source that the owner edits. Revise a canvas in the same Claude Design project (C3), and read back the owner's check (C4). Revise a claude.ai artifact in the chat, and confirm the change with one AskUserQuestion. When C8 stored the prototype, push the new files as a new library version, as C8 says.
+   - For a library artifact that the session linked with no canvas, read its files with `artifact_read` into a folder outside the checkout. Change the files there, and confirm the change with one AskUserQuestion. Then run `loupe artifact push <folder> --artifact <artifact id>`.
    - "Keep the prototype" changes the "Decisions log" entry. When a later answer depends on it, ask that answer again.
    - "Decide later" is the owner's word (Q8). The conflict goes in "Open questions".
    - Log each conflict and its outcome in the "Decisions log". The recap of P11 then shows them.
