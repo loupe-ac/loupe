@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\Workflow;
 
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Workflow\BoardCardDirectory;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Tests\Module\Board\CardPauseScenario;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
@@ -115,6 +118,23 @@ final class BoardCardDirectoryTest extends KernelTestCase
         self::assertSame((string) $done->id, (string) $snapshot->parentColumn?->id);
         self::assertNull($this->directory()->findWithParentColumn($parent->id ?? throw new \LogicException())?->parentColumn);
         self::assertNull($this->directory()->findWithParentColumn(Uuid::v7()));
+    }
+
+    public function test_the_newest_move_is_the_latest_moved_event_of_the_card(): void
+    {
+        $card = $this->cardIn($this->makeProject('directory-moves'));
+        $cardId = $card->id ?? throw new \LogicException();
+        $events = self::getContainer()->get(CardEventRepository::class);
+        self::assertInstanceOf(CardEventRepository::class, $events);
+
+        self::assertNull($this->directory()->newestMoveAt($cardId));
+
+        $events->record($card, CardEventKind::Moved, Actor::Human, null, [], new \DateTimeImmutable('2026-10-01 09:00:00'));
+        $events->record($card, CardEventKind::Moved, Actor::Human, null, [], new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $events->record($card, CardEventKind::Synced, Actor::Human, null, [], new \DateTimeImmutable('2026-10-01 11:00:00'));
+        $this->em->flush();
+
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 10:00:00'), $this->directory()->newestMoveAt($cardId));
     }
 
     private function directory(): CardDirectory

@@ -2,10 +2,10 @@
 
 {% block title %}{{ 'landing.meta.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
-{% block meta_description %}<meta name="description" content="{{ 'landing.meta.description'|trans }}">{% endblock %}
+{% block description %}{{ 'landing.meta.description'|trans }}{% endblock %}
 
 {% block body_unauthenticated %}
-<div class="lp-home" data-controller="modal">
+<div class="lp-home" data-controller="modal analytics">
     {% include '@Landing/landing/_nav.html.twig' only %}
 
     <main id="main-content" tabindex="-1">

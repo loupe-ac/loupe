@@ -31,7 +31,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertSame('*/10 * * * *', ScheduledTasks::cronExpressions(self::getContainer())[SweepWorkflowCardsTask::class] ?? null);
     }
 
-    public function test_the_sweep_queues_the_open_cards_of_bound_projects_and_logs_the_count(): void
+    public function test_the_sweep_queues_the_open_cards_of_bound_projects_held_ones_too_and_logs_the_count(): void
     {
         self::bootKernel();
         $bound = $this->workflowProject('sweep-bound');
@@ -52,7 +52,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         self::assertContains((string) $open->id, $sent);
         self::assertContains((string) $backlog->id, $sent);
         self::assertNotContains((string) $finished->id, $sent);
-        self::assertNotContains((string) $held->id, $sent);
+        self::assertContains((string) $held->id, $sent);
         self::assertNotContains((string) $unbound->id, $sent);
         self::assertCount(1, $logger->records);
         self::assertSame('workflow.sweep_finished', $logger->records[0]['message']);
@@ -68,13 +68,17 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         $this->card($bound, 'next');
         $async = self::getContainer()->get('messenger.transport.async');
         self::assertInstanceOf(InMemoryTransport::class, $async);
+        $workflow = self::getContainer()->get('messenger.transport.workflow');
+        self::assertInstanceOf(InMemoryTransport::class, $workflow);
         $async->reset();
+        $workflow->reset();
         $this->transport()->reset();
 
         $this->task(new RecordingLogger())();
 
         self::assertNotSame([], $this->sent());
         self::assertSame([], $async->getSent());
+        self::assertSame([], $workflow->getSent());
     }
 
     public function test_the_sweep_queues_nothing_while_the_previous_sweep_still_waits(): void

@@ -15,6 +15,7 @@ use App\Module\Workflow\Contract\ChildFacts;
 use App\Module\Workflow\Contract\DocumentStatuses;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\LabelTone;
+use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ParameterType;
@@ -41,6 +42,7 @@ final readonly class TemplateParser
     private const array TYPE_KEYS = ['key', 'label', 'tone', 'capabilities'];
     private const int TYPE_KEY_MAX_LENGTH = 20;
     private const array TYPE_CAPABILITIES = ['children', 'lane'];
+    private const array MARKER_KEYS = ['key', 'kind', 'label', 'remedy', 'slots', 'when', 'fallback'];
 
     /** The names an action call keeps for the parameter types that have a field of their own. */
     private const array KEPT_PARAMETERS = ['expression' => ['until', 'refill'], 'list' => ['checks'], 'options' => ['options']];
@@ -222,6 +224,7 @@ final readonly class TemplateParser
         $childChoices = $this->childChoices($source['childChoices'] ?? null, $slotKeys, $types, $errors, $lenient);
         $manualMoves = $this->manualMoves(self::topLevelList($source, 'manualMoves', $errors), $slotKeys, $errors);
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $errors, $lenient, app: false);
+        $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $errors, $lenient);
         // The engine tells a repair request apart by its kind, so no rule may ask for that kind.
         foreach ($rules as $rule) {
             $kind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
@@ -234,7 +237,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers);
     }
 
     /**
@@ -512,6 +515,91 @@ final readonly class TemplateParser
         }
 
         return $rules;
+    }
+
+    /**
+     * @param list<string>                     $slotKeys
+     * @param ?array<string, TemplateCardType> $types
+     * @param list<string>                     $errors
+     *
+     * @return list<TemplateMarker>
+     */
+    private function markers(mixed $given, array $slotKeys, ?array $types, array &$errors, bool $lenient): array
+    {
+        if (!\is_array($given) || !array_is_list($given)) {
+            $errors[] = 'markers: must be a list';
+
+            return [];
+        }
+        $markers = [];
+        $seen = [];
+        foreach ($given as $index => $entry) {
+            $where = \sprintf('markers[%d]', $index);
+            if (!self::isMap($entry)) {
+                $errors[] = $where.': must be a map';
+                continue;
+            }
+            $errorCount = \count($errors);
+
+            $key = $entry['key'] ?? null;
+            if (!\is_string($key) || '' === $key) {
+                $errors[] = $where.' key: must be a non-empty string';
+            } else {
+                $where .= \sprintf(' (%s)', $key);
+                if (isset($seen[$key])) {
+                    $errors[] = \sprintf('%s: duplicate marker key "%s"', $where, $key);
+                }
+                $seen[$key] = true;
+            }
+            foreach (array_keys($entry) as $name) {
+                if (!\in_array($name, self::MARKER_KEYS, true)) {
+                    $errors[] = \sprintf('%s: unknown key "%s"', $where, $name);
+                }
+            }
+
+            $kind = $entry['kind'] ?? null;
+            $kind = \is_string($kind) ? MarkerKind::tryFrom($kind) : null;
+            if (null === $kind) {
+                $errors[] = \sprintf('%s kind: must be one of %s', $where, implode(', ', array_column(MarkerKind::cases(), 'value')));
+            }
+            $label = $entry['label'] ?? null;
+            if (!\is_string($label) || '' === $label) {
+                $errors[] = $where.' label: must be a non-empty string';
+            }
+            $remedy = $entry['remedy'] ?? null;
+            if (null !== $remedy && (!\is_string($remedy) || '' === $remedy)) {
+                $errors[] = $where.' remedy: must be a non-empty string';
+                $remedy = null;
+            }
+            $fallback = $entry['fallback'] ?? false;
+            if (!\is_bool($fallback)) {
+                $errors[] = $where.' fallback: must be a boolean';
+                $fallback = false;
+            }
+            $slots = $entry['slots'] ?? [];
+            if (!\is_array($slots) || !array_is_list($slots)) {
+                $errors[] = $where.' slots: must be a list of slot keys';
+                $slots = [];
+            }
+            foreach ($slots as $slot) {
+                if (!\is_string($slot) || !\in_array($slot, $slotKeys, true)) {
+                    $errors[] = \sprintf('%s slots: unknown slot "%s"', $where, \is_string($slot) ? $slot : get_debug_type($slot));
+                }
+            }
+
+            $when = null;
+            if (\array_key_exists('when', $entry)) {
+                $when = $this->expression($entry['when'], $where.' when', $slotKeys, $types, $errors, $lenient);
+            } else {
+                $errors[] = $where.' when: is missing';
+            }
+
+            if (\count($errors) === $errorCount && \is_string($key) && null !== $kind && \is_string($label) && null !== $when) {
+                $markers[] = new TemplateMarker($key, $kind, $label, $remedy, array_values(array_unique($slots)), $when, $fallback);
+            }
+        }
+
+        return $markers;
     }
 
     /**

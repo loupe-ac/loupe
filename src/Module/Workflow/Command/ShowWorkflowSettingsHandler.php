@@ -22,6 +22,7 @@ use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\Slot;
 use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateCardType;
+use App\Module\Workflow\Template\TemplateMarker;
 use App\Module\Workflow\Template\TemplateSource;
 
 final readonly class ShowWorkflowSettingsHandler
@@ -77,10 +78,24 @@ final readonly class ShowWorkflowSettingsHandler
                 ),
                 $template->manualMoves,
             ),
+            markers: array_map(static fn (TemplateMarker $marker): WorkflowMarkerView => self::marker($template, $marker), $template->markers),
             backoffMinutes: $template->backoffMinutes,
             workTimeoutMinutes: $template->workTimeoutMinutes,
             workFailedBackoffMinutes: $template->onWorkFailed?->backoffMinutes,
         ));
+    }
+
+    private static function marker(Template $template, TemplateMarker $marker): WorkflowMarkerView
+    {
+        return new WorkflowMarkerView(
+            key: $marker->key,
+            labelKey: $marker->label,
+            kind: $marker->kind->value,
+            slotLabelKeys: array_map(static fn (string $slot): string => self::placeKey($template, $slot), $marker->slots),
+            fallback: $marker->fallback,
+            whenGroups: self::groups($marker->when),
+            missingConditions: array_values(array_unique($marker->when->missingKeys())),
+        );
     }
 
     private function rule(Template $template, Rule $rule): WorkflowRuleView

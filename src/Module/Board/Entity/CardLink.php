@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * One link from a source card to a target card. The target reads the inverse
- * of the stored kind, so a row never stores `BlockedBy`.
+ * of the stored kind, so a row never stores `BlockedBy` or `FollowUpOf`.
  */
 #[ORM\Entity(repositoryClass: CardLinkRepository::class)]
 #[ORM\Table(name: 'board_card_links')]
@@ -36,8 +36,8 @@ class CardLink
         #[ORM\Column(length: 20, enumType: CardLinkKind::class)]
         public CardLinkKind $kind {
             set(CardLinkKind $kind) {
-                if (CardLinkKind::BlockedBy === $kind) {
-                    throw new \LogicException('A card link stores blocked-by as the inverse row: swap the cards and store blocks.');
+                if ($kind->stored()[1]) {
+                    throw new \LogicException(\sprintf('A card link stores %s as the inverse row: swap the cards and store %s.', $kind->value, $kind->inverse()->value));
                 }
                 $this->kind = $kind;
             }

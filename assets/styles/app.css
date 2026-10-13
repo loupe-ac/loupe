@@ -14,6 +14,8 @@
 @import './components/dialog.css';
 @import './components/pagination.css';
 @import './components/filter-bar.css';
+@import './components/code-block.css';
+@import './components/copy-button.css';
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
@@ -23,6 +25,7 @@
 @import './components/avatar.css';
 @import './components/data-table.css';
 @import './components/menu.css';
+@import './components/action-form.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -2572,7 +2575,7 @@
     .lp-board-list__work {
         @apply flex min-w-0 items-center gap-2 pr-4;
     }
-    .lp-board-list__work strong {
+    .lp-board-list__work > strong {
         @apply truncate text-ink;
     }
     .lp-board__columns {
@@ -7342,13 +7345,6 @@
     }
     .lp-board-card__meta {
         @apply flex flex-wrap items-center gap-2;
-    }
-    /* The pull request and automation problems and the workflow markers of a card, on its tile and its list row. */
-    .lp-board-card__badges {
-        @apply flex flex-wrap items-center gap-1;
-    }
-    .lp-board-card__badges .lp-status-chip {
-        @apply ml-0;
     }
     /* The epic of a card that sits outside that epic's lane. */
     .lp-board-card__parent {

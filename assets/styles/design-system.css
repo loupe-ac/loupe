@@ -23,6 +23,7 @@
 @import './components/avatar.css';
 @import './components/data-table.css';
 @import './components/menu.css';
+@import './components/action-form.css';
 
 @source "../../templates/components/Ds";
 

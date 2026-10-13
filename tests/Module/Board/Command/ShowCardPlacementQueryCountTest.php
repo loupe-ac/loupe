@@ -49,10 +49,9 @@ final class ShowCardPlacementQueryCountTest extends KernelTestCase
 
         self::assertNotEmpty($forSmall);
         self::assertSame(\count($forSmall), \count($forBig), "The placement query count grew with the board:\n".implode("\n", $forBig));
-        // The badges of the placed card read its own links, and never those of the board with its cards.
-        $linkReads = array_values(array_filter($forBig, static fn (string $sql): bool => str_contains($sql, 'board_card_pull_requests')));
-        self::assertCount(1, $linkReads, 'The placement read pull requests more than once.');
-        self::assertStringNotContainsString('board_cards', $linkReads[0], 'The placement read the pull requests of the board.');
+        // The markers are stored on the card, so the placement reads no pull request, pause or hold for them.
+        $stateReads = array_values(array_filter($forBig, static fn (string $sql): bool => 1 === preg_match('/board_card_pull_requests|forge_pull_requests|card_pauses|bridge_card_holds/', $sql)));
+        self::assertSame([], $stateReads, 'The placement read what the stored markers replace.');
     }
 
     /**

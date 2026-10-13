@@ -69,6 +69,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 | DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
+| ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |
 
 Write a button like this:
 

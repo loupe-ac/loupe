@@ -45,8 +45,10 @@ use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\FactsPass;
+use App\Module\Workflow\Contract\ForgeRequest;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
+use App\Module\Workflow\Contract\StackParent;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
@@ -295,9 +297,9 @@ final class FactsBuilderTest extends KernelTestCase
         $this->document($this->card($project, 'next'), DocumentStatus::Approved, ['elsewhere']);
 
         self::assertEquals([
-            new DocumentFacts(['product'], 'approved', $product),
-            new DocumentFacts(['design', 'tech'], 'changes-requested', $design),
-            new DocumentFacts([], 'in-review', $untagged),
+            new DocumentFacts(['product'], 'approved', $product, 'Design'),
+            new DocumentFacts(['design', 'tech'], 'changes-requested', $design, 'Design'),
+            new DocumentFacts([], 'in-review', $untagged, 'Design'),
         ], $this->facts($card)->get(DocumentsFacts::class)->documents);
     }
 
@@ -313,8 +315,8 @@ final class FactsBuilderTest extends KernelTestCase
         $own = $this->document($child, DocumentStatus::InReview, ['notes']);
 
         $childFacts = $this->facts($child);
-        self::assertEquals([new DocumentFacts(['tech-design'], 'approved', $design)], $childFacts->get(ParentDocumentsFacts::class)->documents);
-        self::assertEquals([new DocumentFacts(['notes'], 'in-review', $own)], $childFacts->get(DocumentsFacts::class)->documents);
+        self::assertEquals([new DocumentFacts(['tech-design'], 'approved', $design, 'Design')], $childFacts->get(ParentDocumentsFacts::class)->documents);
+        self::assertEquals([new DocumentFacts(['notes'], 'in-review', $own, 'Design')], $childFacts->get(DocumentsFacts::class)->documents);
         self::assertSame([], $this->facts($epic)->get(ParentDocumentsFacts::class)->documents);
     }
 
@@ -417,6 +419,7 @@ final class FactsBuilderTest extends KernelTestCase
             closedAt: null,
             id: $pullRequest->id,
             headSha: 'abc',
+            number: $pullRequest->number,
         ), $this->facts($card)->pullRequest);
 
         $pullRequest->checks = PullRequestChecks::Pending;
@@ -758,6 +761,143 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertTrue($this->facts($card)->pullRequest?->baseIsMergeTarget);
     }
 
+    public function test_a_pull_request_gives_its_number_and_the_start_times_of_its_row(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-times');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->readyToMerge = true;
+        $pullRequest->readySince = new \DateTimeImmutable('2026-10-02 08:00:00');
+        $pullRequest->checksFailedSince = new \DateTimeImmutable('2026-10-02 08:01:00');
+        $pullRequest->checksPendingSince = new \DateTimeImmutable('2026-10-02 08:02:00');
+        $pullRequest->conflictingSince = new \DateTimeImmutable('2026-10-02 08:03:00');
+        $pullRequest->waitsForApprovalSince = new \DateTimeImmutable('2026-10-02 08:04:00');
+        $this->em()->flush();
+
+        $facts = $this->facts($card)->pullRequest;
+
+        self::assertNotNull($facts);
+        self::assertSame($pullRequest->number, $facts->number);
+        self::assertTrue($facts->readyToMerge);
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 08:00:00'), $facts->readySince);
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 08:01:00'), $facts->checksFailedSince);
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 08:02:00'), $facts->checksPendingSince);
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 08:03:00'), $facts->conflictingSince);
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 08:04:00'), $facts->waitsForApprovalSince);
+    }
+
+    public function test_a_green_pull_request_into_the_default_branch_waits_for_approval_until_one_covers_the_head(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-waits-approval');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->checks = PullRequestChecks::Passed;
+        $pullRequest->headSha = 'abc';
+        $this->em()->flush();
+        self::assertTrue($this->waitsForApproval($card));
+
+        $pullRequest->review = PullRequestReview::Approved;
+        $pullRequest->approvalId = 'review-1';
+        $pullRequest->coveredSha = 'abc';
+        $this->em()->flush();
+        self::assertFalse($this->waitsForApproval($card));
+
+        $pullRequest->headSha = 'def';
+        $this->em()->flush();
+        self::assertTrue($this->waitsForApproval($card), 'A stale approval covers no head.');
+
+        $pullRequest->draft = true;
+        $this->em()->flush();
+        self::assertFalse($this->waitsForApproval($card));
+
+        $pullRequest->draft = false;
+        $pullRequest->baseBranch = 'epic/1';
+        $this->em()->flush();
+        self::assertFalse($this->waitsForApproval($card));
+    }
+
+    public function test_the_requests_to_the_forge_of_an_open_pull_request_expire_when_loupe_would_ask_again(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-forge-requests');
+        $card = $this->card($project, 'in-review');
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->mergeRequestedSha = 'abc';
+        $pullRequest->mergeRequestedAt = new \DateTimeImmutable('2026-10-02 11:55:00');
+        $pullRequest->syncFromSha = 'abc';
+        $pullRequest->syncRequestedAt = new \DateTimeImmutable('2026-10-02 11:50:00');
+        $pullRequest->baseChangeRequestedTo = 'main';
+        $pullRequest->baseChangeRequestedAt = new \DateTimeImmutable('2026-10-02 11:45:00');
+        $this->em()->flush();
+
+        $facts = $this->facts($card)->pullRequest;
+
+        self::assertNotNull($facts);
+        self::assertEqualsCanonicalizing([
+            new ForgeRequest(new \DateTimeImmutable('2026-10-02 11:55:00'), new \DateTimeImmutable('2026-10-02 12:05:00'), merge: true),
+            new ForgeRequest(new \DateTimeImmutable('2026-10-02 11:50:00'), new \DateTimeImmutable('2026-10-02 12:00:00')),
+            new ForgeRequest(new \DateTimeImmutable('2026-10-02 11:45:00'), new \DateTimeImmutable('2026-10-02 11:55:00')),
+        ], $facts->forgeRequests);
+
+        $pullRequest->state = ForgePullRequestState::Merged;
+        $this->em()->flush();
+        self::assertSame([], $this->facts($card)->pullRequest?->forgeRequests);
+    }
+
+    public function test_a_stacked_pull_request_names_the_open_parent_and_the_card_that_links_it(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-stack-parent');
+        $parentCard = $this->card($project, 'in-review');
+        $parent = $this->pullRequest($parentCard, head: 'parent-branch');
+        $this->pullRequest($parentCard, state: ForgePullRequestState::Closed, head: 'parent-branch');
+        $card = $this->card($project, 'in-review');
+        $this->pullRequest($card, base: 'parent-branch', head: 'child-branch');
+
+        self::assertEquals(new StackParent('parent-branch', $parent->number, $parentCard->number), $this->facts($card)->pullRequest?->stackParent);
+    }
+
+    public function test_a_stacked_pull_request_whose_parent_no_card_links_knows_only_the_parent_number(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-stack-unlinked');
+        $parent = new ForgePullRequest($project, 'github', self::REPOSITORY, 900);
+        $parent->headBranch = 'parent-branch';
+        $this->em()->persist($parent);
+        $card = $this->card($project, 'in-review');
+        $this->pullRequest($card, base: 'parent-branch', head: 'child-branch');
+
+        $stackParent = $this->facts($card)->pullRequest?->stackParent;
+
+        self::assertEquals(new StackParent('parent-branch', 900), $stackParent);
+        self::assertFalse($stackParent?->known());
+    }
+
+    public function test_a_base_with_no_stored_pull_request_waits_for_the_branch_and_one_whose_pull_requests_finished_waits_for_nothing(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('facts-pr-stack-branch');
+        $unknown = $this->card($project, 'in-review');
+        $this->pullRequest($unknown, base: 'nobody-branch', head: 'child-a');
+        $finishedParent = $this->card($project, 'in-review');
+        $this->pullRequest($finishedParent, state: ForgePullRequestState::Merged, head: 'finished-branch');
+        $finished = $this->card($project, 'in-review');
+        $this->pullRequest($finished, base: 'finished-branch', head: 'child-b');
+        $onMain = $this->card($project, 'in-review');
+        $this->pullRequest($onMain, base: 'main', head: 'child-c');
+        $epic = $this->card($project, 'in-progress', 'epic');
+        $child = $this->card($project, 'in-review');
+        $child->parent = $epic;
+        $this->pullRequest($child, base: 'epic/'.$epic->number, head: 'child-d');
+
+        self::assertEquals(new StackParent('nobody-branch'), $this->facts($unknown)->pullRequest?->stackParent);
+        self::assertNull($this->facts($finished)->pullRequest?->stackParent);
+        self::assertNull($this->facts($onMain)->pullRequest?->stackParent);
+        self::assertNull($this->facts($child)->pullRequest?->stackParent);
+    }
+
     private function epicBranchPattern(Project $project, ?string $pattern): void
     {
         $binding = $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
@@ -765,6 +905,11 @@ final class FactsBuilderTest extends KernelTestCase
         unset($definition['epicBranch']);
         $binding->definition = null === $pattern ? $definition : [...$definition, 'epicBranch' => $pattern];
         $this->em()->flush();
+    }
+
+    private function waitsForApproval(Card $card): bool
+    {
+        return ($this->facts($card)->pullRequest ?? throw new \LogicException('The card has a pull request.'))->waitsForApproval;
     }
 
     private function changesRequested(Card $card): bool

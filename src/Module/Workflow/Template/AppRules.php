@@ -79,6 +79,7 @@ final class AppRules
             $template->childChoices,
             $template->epicBranch,
             $template->agentReviewFailingSeverities,
+            $template->markers,
         );
     }
 

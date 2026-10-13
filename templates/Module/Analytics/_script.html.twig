@@ -1,4 +1,8 @@
 {% set analytics = analytics_script() %}
-{% if analytics %}
-    <script defer src="{{ analytics.src }}" data-website-id="{{ analytics.websiteId }}"></script>
+{% if analytics and not app.user and is_public_page() %}
+    <script defer src="{{ analytics.src }}"
+            data-website-id="{{ analytics.websiteId }}"
+            data-do-not-track="true"
+            data-before-send="loupeAnalyticsBeforeSend"
+            data-public-paths="{{ public_page_paths()|json_encode }}"></script>
 {% endif %}
