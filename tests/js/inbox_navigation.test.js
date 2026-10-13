@@ -1,15 +1,15 @@
 /** @vitest-environment jsdom */
 import { Application } from '@hotwired/stimulus';
 import { afterEach, expect, it } from 'vitest';
-import InboxScrollController from '../../assets/controllers/inbox_scroll_controller.js';
+import InboxNavigationController from '../../assets/controllers/inbox_navigation_controller.js';
 
 let application;
 
 async function mount() {
     document.body.innerHTML =
-        '<div data-controller="inbox-scroll"><turbo-frame id="inbox-view"><div data-inbox-scroll></div></turbo-frame><turbo-frame id="other"></turbo-frame></div>';
+        '<div data-controller="inbox-navigation"><turbo-frame id="inbox-view"><div data-inbox-scroll><a class="lp-inbox-request" id="first" aria-current="true" href="#"></a><a class="lp-inbox-request" id="second" href="#"><span></span></a></div></turbo-frame><turbo-frame id="other"></turbo-frame></div>';
     application = Application.start();
-    application.register('inbox-scroll', InboxScrollController);
+    application.register('inbox-navigation', InboxNavigationController);
     await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
@@ -55,4 +55,38 @@ it('leaves the list alone when another frame renders', async () => {
         );
 
     expect(document.querySelector('[data-inbox-scroll]').scrollTop).toBe(10);
+});
+
+it('marks the picked row as current before the frame loads', async () => {
+    await mount();
+
+    document
+        .querySelector('#second span')
+        .dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+
+    expect(document.getElementById('second').getAttribute('aria-current')).toBe(
+        'true',
+    );
+    expect(document.getElementById('first').hasAttribute('aria-current')).toBe(
+        false,
+    );
+});
+
+it('leaves the current row alone when a row opens in a new tab', async () => {
+    await mount();
+
+    document.getElementById('second').dispatchEvent(
+        new MouseEvent('click', {
+            bubbles: true,
+            button: 0,
+            metaKey: true,
+        }),
+    );
+
+    expect(document.getElementById('first').getAttribute('aria-current')).toBe(
+        'true',
+    );
+    expect(document.getElementById('second').hasAttribute('aria-current')).toBe(
+        false,
+    );
 });

@@ -477,6 +477,52 @@
         min-width: 0;
     }
 
+    /* While a picked row loads, the old request fades and a bar runs at the top of the pane.
+       Both wait a moment, so a fast load shows nothing. */
+    .lp-core-inbox .lp-inbox-request-detail > * {
+        transition: opacity var(--duration-base) var(--ease-standard);
+    }
+
+    .lp-core-inbox turbo-frame[aria-busy='true'] .lp-inbox-request-detail > * {
+        opacity: 0.45;
+        transition-delay: var(--duration-fast);
+    }
+
+    .lp-core-inbox turbo-frame[aria-busy='true'] .lp-inbox-request-detail {
+        cursor: progress;
+    }
+
+    .lp-core-inbox
+        turbo-frame[aria-busy='true']
+        .lp-inbox-request-detail::before {
+        content: '';
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: block;
+        height: calc(var(--spacing) * 0.5);
+        margin-bottom: calc(var(--spacing) * -0.5);
+        background: linear-gradient(
+            90deg,
+            transparent,
+            var(--accent-ink),
+            transparent
+        );
+        background-size: 50% 100%;
+        background-repeat: no-repeat;
+        animation: lp-inbox-loading calc(var(--duration-slow) * 3)
+            var(--ease-standard) var(--duration-fast) infinite both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lp-core-inbox
+            turbo-frame[aria-busy='true']
+            .lp-inbox-request-detail::before {
+            animation: none;
+            background-size: 100% 100%;
+        }
+    }
+
     .lp-core-inbox .lp-inbox-ask {
         display: flex;
         min-height: 100%;
@@ -8859,6 +8905,15 @@
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes lp-inbox-loading {
+    from {
+        background-position: -100% 0;
+    }
+    to {
+        background-position: 200% 0;
     }
 }
 
