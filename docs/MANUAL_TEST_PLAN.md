@@ -169,23 +169,20 @@ Every branch this wave touched the deletion chains, and a mistake there is a
    highlights and at least one answered decision. It must succeed.
 2. **Delete an account** that owns such a project. It must succeed.
 
-## 7. Landing page — **UNCOVERED (visual)**
+## 7. Home page — **UNCOVERED (visual)**
 
-Only reachable signed out, and only where `landing.enabled` is on — the flag
-is seeded off, and while it is off `/` still bounces to `/login`, which is
-what a self-hosted instance must keep seeing. Flip it in
-`/admin/feature-flags` and open `/` in a private window.
+Only reachable signed out, and only where the host of the instance is the
+hosted service. Development and test show it at once, because
+`app.home_page_host` is null there. Open `/` in a private window.
 
-1. **The app still in the hero must be there at first paint**, at full size,
-   before any JavaScript runs — throttle the network and reload. It is built
-   from the real shell and review classes, so a change to the sidebar or the
-   comment card shows up here too.
-2. **Narrow the window slowly.** The still scales down rather than clipping, and
-   the page never scrolls sideways.
-3. **The floating toolbar sits in the gap between the two paragraphs** and the
-   comment card is level with the highlighted passage. Both offsets are fixed,
-   so re-flowing the sample copy moves them off.
-4. Copy the demo command and check the button says "Copied".
+1. **Narrow the window to 390 pixels.** Every section stacks, the feature list
+   sits above its slide, and the page never scrolls sideways.
+2. **Step through the features** with the list and with the previous and next
+   buttons. Both buttons wrap around at the ends.
+3. **Open "Use something else?"**, pick two chips and send the form with no
+   email. The email error shows, and nothing is stored.
+4. **Turn on "reduce motion"** in the system settings. The slides change with no
+   slide animation.
 
 ## 8. The re-render command — **UNCOVERED (console only)**
 

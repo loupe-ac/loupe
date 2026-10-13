@@ -52,6 +52,7 @@ final class ListWaitlistController extends AppController
             'pageList' => $view->pageList,
             'sort' => $listRequest->sort,
             'dir' => $listRequest->dir,
+            'pickCounts' => $view->pickCounts,
             'filters' => [],
         ]);
     }

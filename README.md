@@ -11,7 +11,7 @@ selecting text, leaving comments, and either approving it or requesting changes.
 A **Model Context Protocol (MCP)** endpoint lets AI coding agents create documents
 and hand back a review URL, so a long-form plan or spec gets considered human
 feedback instead of scrolling past in a terminal. A companion **site-review**
-widget — a preview, not yet release-ready — brings the same select-and-comment
+widget brings the same select-and-comment
 flow to live web pages.
 
 Built with Symfony, Tailwind CSS and Symfony UX (Stimulus + Turbo).
@@ -22,7 +22,7 @@ Built with Symfony, Tailwind CSS and Symfony UX (Stimulus + Turbo).
   passages, approve or request changes, and revise across versions.
 - **MCP endpoint** — an agent signs in through OAuth and calls
   `document_create` / `document_revise`, receiving a shareable review URL.
-- **Site review** *(preview, not release-ready)* — an embeddable widget for
+- **Site review** — an embeddable widget for
   leaving review comments on any web page, streamed back to the reviewer over
   Mercure.
 - **Command-line bridge** *(preview, unreleased)* — a Go binary

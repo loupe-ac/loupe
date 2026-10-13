@@ -85,12 +85,27 @@ it.
   they did.
 - The records the deletion itself writes carry no name for the account they
   erase.
+- The waitlist entry that has the email address of the account is deleted.
 
 ## Waitlist
 
 When a registration cap is closed, `/waitlist` collects addresses and
 `/admin/waitlist` works through them: invite a single entry, invite a selection,
 or invite the oldest. Redeeming an invite converts the entry into an account.
+
+A person who joins the waitlist can also pick what they want Loupe to support,
+under the question "Which forges and agents do you use?". The forges are
+GitLab, Bitbucket, Gitea, Forgejo and GitHub Enterprise. The agents are Cursor,
+Gemini CLI, OpenCode, Aider and Pi. The person can also write a short text under
+"Something else?". The landing page of the hosted instance shows the form behind
+its **Notify me** button.
+
+Above the table, the page shows how many entries picked each choice. The
+counts run from the most picked choice to the least. They cover the ten named
+choices. The "Something else" text is not counted.
+
+A person's waitlist entry is deleted with their account. It appears in their
+[data export](data-exports.md) as `waitlist.json`.
 
 ## Beta invites
 
