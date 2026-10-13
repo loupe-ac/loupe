@@ -11,7 +11,9 @@ use App\Module\DesignSystem\ComponentEntry;
 use App\Module\DesignSystem\Service\TailwindCompiler;
 use App\Module\DesignSystem\Token\TokenReader;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
+use Twig\Environment;
 
 final class ExportDesignSystemHandlerTest extends KernelTestCase
 {
@@ -249,6 +251,22 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
         self::assertStringContainsString('<MarketingShell>', $card);
+    }
+
+    public function test_the_marketing_shell_export_names_every_link_of_the_shared_footer(): void
+    {
+        $twig = static::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+        $footer = new Crawler($twig->render('_marketing_footer.html.twig'));
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/MarketingShell.jsx');
+
+        $names = $footer->filter('footer a')->each(static fn (Crawler $link): string => $link->attr('aria-label') ?? trim($link->text()));
+        self::assertCount(8, $names);
+        foreach ($names as $name) {
+            self::assertNotSame('', $name);
+            self::assertStringContainsString($name, $jsx);
+        }
+        self::assertStringContainsString('lp-landing-nav__brand--sm', $jsx);
     }
 
     public function test_the_brand_mark_export_draws_the_brand_name_and_each_option(): void

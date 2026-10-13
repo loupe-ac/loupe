@@ -26,11 +26,21 @@ export function {{ entry.name }}({ className: extra, children, ...rest }) {
             <main>{children}</main>
             <footer className="lp-landing-footer">
                 <div className="lp-landing-inner lp-landing-footer__row">
+                    <a href="#" className="lp-landing-nav__brand lp-landing-nav__brand--sm">
+                        <span className="lp-brand lp-brand--sm">
+                            <span className="lp-brand__mark" aria-hidden="true"></span>
+                            <span className="lp-brand__word">{{ brand }}</span>
+                        </span>
+                    </a>
                     <span className="lp-landing-footer__copyright">{{ 'account.auth.footer.copyright'|trans }}</span>
                     <nav className="lp-landing-footer__nav">
+                        <a href="#" className="lp-landing-footer__link">{{ 'footer.source.label'|trans }}</a>
+                        <a href="#" className="lp-landing-footer__link">{{ 'account.auth.footer.docs'|trans }}</a>
                         <a href="#" className="lp-landing-footer__link">{{ 'account.auth.footer.privacy'|trans }}</a>
                         <a href="#" className="lp-landing-footer__link">{{ 'account.auth.footer.terms'|trans }}</a>
                         <a href="#" className="lp-landing-footer__link">{{ 'account.auth.footer.ai_policy'|trans }}</a>
+                        <a href="#" className="lp-landing-footer__link" aria-label="{{ 'footer.social.x'|trans }}">X</a>
+                        <a href="#" className="lp-landing-footer__link" aria-label="{{ 'footer.social.bluesky'|trans }}">Bluesky</a>
                     </nav>
                 </div>
             </footer>
