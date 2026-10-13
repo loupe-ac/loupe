@@ -521,3 +521,8 @@ rules:
     - id: child-to-next
       when: { card.parent.exists: {} }
       then: { move: { to: next, from: '@backlog' } }
+
+    # No slot, so its truth outlives a move: a follow-up that a person sends back to the Backlog stays there.
+    - id: follow-up-to-next
+      when: { card.follows.finished: {} }
+      then: { move: { to: next, from: '@backlog' } }
