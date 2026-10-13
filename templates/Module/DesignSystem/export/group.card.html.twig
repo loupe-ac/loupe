@@ -1,16 +1,18 @@
 {% set names = entries|map(e => e.name) %}
-<!-- @dsCard group="Components" viewport="700x{{ 80 + 70 * entries|length }}" subtitle="{{ names|join(', ') }}" name="{{ name }}" -->
+<!-- @dsCard group="Components" viewport="{% block viewport %}700x{{ 80 + 70 * entries|length }}{% endblock %}" subtitle="{{ names|join(', ') }}" name="{{ name }}" -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
 <style>
+{% block styles %}
   body { padding: 16px 18px; }
   .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
   .col { display: flex; flex-direction: column; gap: 10px; }
   .row > dialog[open] { position: static; margin: 0; }
   .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+{% endblock %}
 </style>
 </head>
 <body>
@@ -27,10 +29,18 @@ const { {{ names|join(', ') }} } =
 function Demo() {
   return (
     <div className="col">
+{% block demo %}
 {% for entry in entries %}
 {% set open = 'dialog' == entry.element ? ' open' : '' %}
 {% set void = 'input' == entry.element %}
 {% set select = 'select' == entry.element %}
+{% if 'lp-tabs' == entry.rootClass %}
+{% for variant in [null]|merge(entry.variants) %}
+      <div className="row">
+        <{{ entry.name }}{% if variant %} variant="{{ variant }}"{% endif %}><a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a><a className="lp-tabs__tab" href="#">All</a></{{ entry.name }}>
+      </div>
+{% endfor %}
+{% else %}
       <div className="row">
 {% if entry.variants %}
 {% for variant in entry.variants %}
@@ -46,6 +56,7 @@ function Demo() {
         <{{ entry.name }}{{ open }}>{% if select %}<option>Example</option>{% else %}Example{% endif %}</{{ entry.name }}>
 {% endif %}
       </div>
+{% endif %}
 {% if entry.sizes or 'button' == entry.element %}
       <div className="row">
 {% for size in entry.sizes %}
@@ -58,6 +69,7 @@ function Demo() {
       </div>
 {% endif %}
 {% endfor %}
+{% endblock %}
     </div>
   );
 }

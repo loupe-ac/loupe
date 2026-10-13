@@ -79,12 +79,14 @@ final readonly class ExportDesignSystemHandler
             $groups[$entry->group][] = $entry;
             $base = sprintf('components/%s/%s', $entry->group, $entry->name);
             $context = ['entry' => $entry, 'section' => ucfirst($entry->group)];
-            $write($base.'.jsx', $this->render('component.jsx.twig', $context));
-            $write($base.'.d.ts', $this->render('component.d.ts.twig', $context));
-            $write($base.'.prompt.md', $this->render('component.prompt.md.twig', $context));
+            $folder = null === $entry->export ? '' : 'layout/'.$entry->export.'/';
+            $write($base.'.jsx', $this->render($folder.'component.jsx.twig', $context));
+            $write($base.'.d.ts', $this->render($folder.'component.d.ts.twig', $context));
+            $write($base.'.prompt.md', $this->render($folder.'component.prompt.md.twig', $context));
         }
         foreach ($groups as $group => $members) {
-            $write(sprintf('components/%s/%s.card.html', $group, $group), $this->render('group.card.html.twig', [
+            $card = 'layout' === $group ? 'layout/layout.card.html.twig' : 'group.card.html.twig';
+            $write(sprintf('components/%s/%s.card.html', $group, $group), $this->render($card, [
                 'group' => $group,
                 'name' => ucfirst($group),
                 'entries' => $members,

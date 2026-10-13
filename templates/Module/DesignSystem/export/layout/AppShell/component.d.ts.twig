@@ -1,0 +1,55 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }} It draws the markup of the signed-in pages: the project switcher, the nav, the account row and the top bar. The page goes in as the children.
+ *
+ * @startingPoint section="{{ section }}" subtitle="The page frame with sidebar and top bar" viewport="900x520"
+ */
+export interface {{ entry.name }}Props {
+    /** The project of the sidebar, shown in the project switcher. On a page outside a project, the app shows the last project you visited. Pass null when there is none: the switcher, the project nav, Project settings and New work then stay hidden. */
+    projectName?: string | null;
+    /** True when the page belongs to the project. Pass false for a page outside a project, such as the account page: the sidebar keeps the project, and New work stays hidden. */
+    projectPage?: boolean;
+    /** The nav link that is current. */
+    active?:
+        | 'workshop'
+        | 'inbox'
+        | 'board'
+        | 'documents'
+        | 'artifacts'
+        | 'agents'
+        | 'workflow'
+        | 'activity'
+        | 'analytics'
+        | 'outbox'
+        | 'project_settings'
+        | 'billing'
+        | 'account_inboxes'
+        | 'account'
+        | 'admin'
+        | 'about';
+    /** The breadcrumb. A string is a crumb with no link target. The last one is the page you are on. */
+    crumbs?: Array<string | { label: string; href: string }>;
+    /** A short line after the breadcrumb, such as a count. */
+    meta?: ReactNode;
+    /** Page actions in the top bar, before the global actions. */
+    actions?: ReactNode;
+    /** The signed-in user, shown in the account row. */
+    userName?: string;
+    /** Numbers shown beside a nav link, keyed by the link name. Documents and Artifacts always show their count, 0 included. Any other link shows it only above 0. */
+    counts?: { [link: string]: number };
+    /** The projects that the switcher lists, with the document count of each. The entry whose name is projectName gets the current marker. Defaults to projectName alone. */
+    projects?: Array<{ name: string; documentCount?: number }>;
+    /** The feature flags that are on, as the app reads them. Each is off by default, as on a fresh install. inbox shows Needs you and All inboxes, artifacts shows Artifacts, and billing shows Billing. */
+    features?: { inbox?: boolean; artifacts?: boolean; billing?: boolean };
+    /** True when the user is an admin. It shows the Admin link. */
+    admin?: boolean;
+    className?: string;
+    /** The page. It fills the main column. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

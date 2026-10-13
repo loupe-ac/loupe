@@ -75,23 +75,21 @@ test('a row click moves the address without a page load, and back returns', asyn
     const inboxUrl = `/projects/${first.projectId}/inbox`;
     await page.goto(inboxUrl);
 
-    await expect(page.locator('a.lp-inbox-request')).toHaveCount(2);
+    await expect(page.locator('a.lp-list-row')).toHaveCount(2);
     await expect(page.locator('[data-inbox-ask-id]')).toHaveCount(1);
     await page.evaluate(() => {
         (window as unknown as { stayed: boolean }).stayed = true;
     });
 
     await page
-        .locator(`a.lp-inbox-request[data-inbox-request="${second.askId}"]`)
+        .locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`)
         .click();
     await expect(page).toHaveURL(`${inboxUrl}?ask=${second.askId}`);
     await expect(
         page.locator(`[data-inbox-ask-id="${second.askId}"]`),
     ).toBeVisible();
     await expect(
-        page.locator(
-            `a.lp-inbox-request[data-inbox-request="${second.askId}"]`,
-        ),
+        page.locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`),
     ).toHaveAttribute('aria-current', 'true');
     expect(
         await page.evaluate(
@@ -124,11 +122,11 @@ test('the type filter and the switch change the list and keep the address', asyn
 
     await page.locator('[data-inbox-type="todo"]').click();
     await expect(page).toHaveURL(`${inboxUrl}?type=todo`);
-    await expect(page.locator('a.lp-inbox-request')).toHaveCount(2);
+    await expect(page.locator('a.lp-list-row')).toHaveCount(2);
 
     await page.locator('[data-inbox-type="review"]').click();
     await expect(page).toHaveURL(`${inboxUrl}?type=review`);
-    await expect(page.locator('a.lp-inbox-request')).toHaveCount(0);
+    await expect(page.locator('a.lp-list-row')).toHaveCount(0);
     await expect(page.locator('[data-inbox-type-empty]')).toBeVisible();
 
     await page.locator('[data-inbox-side="closed"]').click();
@@ -142,7 +140,7 @@ test('the type filter and the switch change the list and keep the address', asyn
     ).toContainText('No ask is closed yet.');
 
     await page.locator('[data-inbox-side="open"]').click();
-    await expect(page.locator('a.lp-inbox-request')).toHaveCount(2);
+    await expect(page.locator('a.lp-list-row')).toHaveCount(2);
 });
 
 test('the view sits straight on a white page, with no frame or fill', async ({
@@ -224,7 +222,7 @@ test('at phone width the list and the ask take turns', async ({
     await expect(page.locator('.lp-inbox-request-detail')).toBeHidden();
 
     await page
-        .locator(`a.lp-inbox-request[data-inbox-request="${second.askId}"]`)
+        .locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`)
         .click();
     await expect(page).toHaveURL(`${inboxUrl}?ask=${second.askId}`);
     await expect(page.locator('.lp-inbox-request-list')).toBeHidden();

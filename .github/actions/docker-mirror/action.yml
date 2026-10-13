@@ -10,7 +10,8 @@ runs:
   using: composite
   steps:
     # The runner sends its Docker Hub credentials to a daemon mirror too, and
-    # mirror.gcr.io refuses them, so each image is pulled by its mirror name.
+    # mirror.gcr.io refuses them, so each image is pulled by its mirror name. A
+    # pull that hangs falls back, or fails, before the job timeout.
     - shell: bash
       env:
         IMAGES: ${{ inputs.images }}
@@ -22,10 +23,10 @@ runs:
           fi
           ref=${image#docker.io/}
           case "$ref" in */*) ;; *) ref="library/$ref" ;; esac
-          if docker pull -q "mirror.gcr.io/$ref"; then
+          if timeout 180 docker pull -q "mirror.gcr.io/$ref"; then
             docker tag "mirror.gcr.io/$ref" "$image"
           else
             echo "::warning::mirror.gcr.io has no $image, so it comes from Docker Hub"
-            docker pull -q "$image"
+            timeout 180 docker pull -q "$image"
           fi
         done

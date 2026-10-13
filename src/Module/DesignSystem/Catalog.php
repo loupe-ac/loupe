@@ -8,7 +8,7 @@ namespace App\Module\DesignSystem;
  * Every building block of the design system, in one place. A child card adds
  * the entry for its component in the same branch that adds the component.
  */
-final readonly class Catalog
+readonly class Catalog
 {
     /** @return list<ComponentEntry> */
     public function entries(): array
@@ -199,11 +199,11 @@ final readonly class Catalog
                 name: 'Tabs',
                 rootClass: 'lp-tabs',
                 template: 'components/Ds/Tabs.html.twig',
-                variants: [],
+                variants: ['segmented'],
                 states: ['hover', 'selected'],
                 enforced: true,
                 group: 'core',
-                summary: 'A row of tabs that switches between views of one page.',
+                summary: 'A row of tabs that switches between views of one page, or a pill group that switches a view or a setting.',
                 element: 'nav',
             ),
             new ComponentEntry(
@@ -227,6 +227,54 @@ final readonly class Catalog
                 group: 'core',
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
+            ),
+            new ComponentEntry(
+                name: 'AppShell',
+                rootClass: 'lp-app',
+                template: null,
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column.',
+                element: 'div',
+                export: 'AppShell',
+            ),
+            new ComponentEntry(
+                name: 'PageHeader',
+                rootClass: 'lp-page-header',
+                template: 'components/Ds/PageHeader.html.twig',
+                variants: ['workshop'],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'The heading row of a page: a title, an optional description and the actions beside them.',
+                element: 'header',
+                export: 'PageHeader',
+            ),
+            new ComponentEntry(
+                name: 'SplitView',
+                rootClass: 'lp-split-page',
+                template: 'components/Ds/SplitView.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'A master-detail page: a held header over a list pane beside a detail pane, each scrolling on its own.',
+                element: 'div',
+                export: 'SplitView',
+            ),
+            new ComponentEntry(
+                name: 'ListRow',
+                rootClass: 'lp-list-row',
+                template: 'components/Ds/ListRow.html.twig',
+                variants: [],
+                states: ['hover', 'current'],
+                enforced: true,
+                group: 'layout',
+                summary: 'One row of a list: an icon, a title and a meta line. The current row is highlighted.',
+                element: 'a',
+                export: 'ListRow',
             ),
         ];
     }

@@ -1,0 +1,18 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ title, icon, meta, current, href, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <a {...rest} href={href} className={classes.join(' ')} aria-current={current ? 'true' : undefined}>
+            <span className="{{ entry.rootClass }}__icon">{icon}</span>
+            <span className="{{ entry.rootClass }}__title">{title}</span>
+            <span className="{{ entry.rootClass }}__meta">{meta}</span>
+        </a>
+    );
+}
+{% endautoescape %}

@@ -12,7 +12,7 @@ export default class extends Controller {
     connect() {
         this.scrollTop = null;
         this.pick = (event) => {
-            const row = event.target.closest('a.lp-inbox-request');
+            const row = event.target.closest('a.lp-list-row');
             if (
                 row === null ||
                 event.button !== 0 ||
@@ -24,7 +24,7 @@ export default class extends Controller {
                 return;
             }
             for (const current of this.element.querySelectorAll(
-                'a.lp-inbox-request[aria-current]',
+                'a.lp-list-row[aria-current]',
             )) {
                 current.removeAttribute('aria-current');
             }

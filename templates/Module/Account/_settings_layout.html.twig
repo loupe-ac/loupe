@@ -14,12 +14,7 @@
 {% block body %}
 {% set section = block('settings_section') %}
 <div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
-    <header class="lp-page-header">
-        <div>
-            <h1 class="lp-workspace-title">{{ 'account.settings.page.title'|trans }}</h1>
-            <p class="lp-workspace-desc">{{ 'account.settings.page.description'|trans }}</p>
-        </div>
-    </header>
+    <twig:Ds:PageHeader :title="'account.settings.page.title'|trans" :description="'account.settings.page.description'|trans" />
 
     <div class="lp-settings-layout">
         <nav class="lp-settings-nav" aria-label="{{ 'account.settings.nav.label'|trans }}">

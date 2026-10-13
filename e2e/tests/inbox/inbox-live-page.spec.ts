@@ -48,7 +48,7 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     const first = await seeded.json();
 
     await watcher.goto(`/projects/${first.projectId}/inbox`);
-    await expect(watcher.locator('a.lp-inbox-request')).toHaveCount(1);
+    await expect(watcher.locator('a.lp-list-row')).toHaveCount(1);
     // The hub keeps no history, so a change made before this connects is lost.
     await expect(
         watcher.locator('a[data-controller="inbox-pill"]'),
@@ -62,13 +62,11 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     const actor = await signedInPage(browser, email, PASSWORD);
     const second = await (await actor.request.post('/dev/seed/inbox')).json();
 
-    await expect(watcher.locator('a.lp-inbox-request')).toHaveCount(2, {
+    await expect(watcher.locator('a.lp-list-row')).toHaveCount(2, {
         timeout: 15_000,
     });
     await expect(
-        watcher.locator(
-            `a.lp-inbox-request[data-inbox-request="${second.askId}"]`,
-        ),
+        watcher.locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`),
     ).toBeVisible();
     await expect(note).toHaveValue('Use CSV, the importer reads it faster');
 
