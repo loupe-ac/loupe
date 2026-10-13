@@ -447,7 +447,9 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
 
         foreach (['shellWidth' => 'lp-shell--', 'mainSurface' => 'lp-main--'] as $prop => $prefix) {
-            self::assertSame(1, preg_match('/'.$prop."\\?: ((?:'[a-z]+'(?: \\| )?)+);/", $types, $match), $prop);
+            if (1 !== preg_match('/'.$prop."\\?: ((?:'[a-z]+'(?: \\| )?)+);/", $types, $match)) {
+                self::fail(sprintf('AppShell.d.ts declares no %s union.', $prop));
+            }
             preg_match_all("/'([a-z]+)'/", $match[1], $options);
             $default = 'shellWidth' === $prop ? 'default' : 'app';
             foreach (array_diff($options[1], [$default]) as $option) {
