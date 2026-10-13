@@ -1,8 +1,6 @@
 {#
-  Props:
-    tag       string   The element: nav (default) or div.
-    variant   string   segmented for a pill group, else the underline strip.
-  Other attributes, class included, go to the element. Each tab keeps its lp-tabs__tab class.
+  Props: tag (nav by default, or div), variant (segmented for a pill group).
+  Other attributes go to the element. Each tab keeps its lp-tabs__tab class.
 #}
 {%- props tag = 'nav', variant = null -%}
 <{{ tag }}{{ attributes.defaults({class: 'lp-tabs' ~ (variant ? ' lp-tabs--' ~ variant : '')}) }}>{% block content %}{% endblock %}</{{ tag }}>
