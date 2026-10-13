@@ -34,6 +34,13 @@ function Demo() {
 {% set open = 'dialog' == entry.element ? ' open' : '' %}
 {% set void = 'input' == entry.element %}
 {% set select = 'select' == entry.element %}
+{% if 'lp-tabs' == entry.rootClass %}
+{% for variant in [null]|merge(entry.variants) %}
+      <div className="row">
+        <{{ entry.name }}{% if variant %} variant="{{ variant }}"{% endif %}><a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a><a className="lp-tabs__tab" href="#">All</a></{{ entry.name }}>
+      </div>
+{% endfor %}
+{% else %}
       <div className="row">
 {% if entry.variants %}
 {% for variant in entry.variants %}
@@ -49,6 +56,7 @@ function Demo() {
         <{{ entry.name }}{{ open }}>{% if select %}<option>Example</option>{% else %}Example{% endif %}</{{ entry.name }}>
 {% endif %}
       </div>
+{% endif %}
 {% if entry.sizes or 'button' == entry.element %}
       <div className="row">
 {% for size in entry.sizes %}
