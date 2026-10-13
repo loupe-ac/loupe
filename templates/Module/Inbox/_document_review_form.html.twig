@@ -9,13 +9,17 @@
     <twig:Ds:FieldErrors :fieldView="form.versionNumber" />
     {{ form_widget(form.expectedReviewId, {attr: {'data-form-draft-target': 'guard'}}) }}
     <twig:Ds:FieldErrors :fieldView="form.expectedReviewId" />
-    <twig:Ds:FormField as="fieldset">
-        <twig:Ds:Label as="legend">{{ form.verdict.vars.label|trans }}</twig:Ds:Label>
-        {% for choice in form.verdict %}
-            <label class="lp-review-verdict-choice">{{ form_widget(choice, {attr: {'data-form-draft-target': 'option', 'data-action': 'change->form-draft#select'}}) }}<span>{{ choice.vars.label|trans }}</span></label>
-        {% endfor %}
-        <twig:Ds:FieldErrors :fieldView="form.verdict" />
-    </twig:Ds:FormField>
-    <twig:Ds:FormField :fieldView="form.note" widgetKind="textarea" :widgetAttr="{rows: 3, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'}" />
+    {% if documentCard ?? true %}
+        {% set version = inbox_review_version(review) %}
+        <a class="lp-inbox-review-document" href="{{ path('app_document_review', {projectId: review.document.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top" data-inbox-review-document-card>
+            <twig:ux:icon name="lucide:file-text" class="lp-inbox-review-document__icon" />
+            <span class="lp-inbox-review-document__text">
+                <span class="lp-inbox-review-document__title">{{ review.document.title }}</span>
+                <span class="lp-inbox-review-document__sub">{% if version %}{{ 'inbox.review.version'|trans({'%version%': version}) }} · {% endif %}{{ review.document.status.translationKey()|trans }}</span>
+            </span>
+            <span class="lp-inbox-review-document__action">{{ 'inbox.review.read_it'|trans }}</span>
+        </a>
+    {% endif %}
+    {% include '@Inbox/_verdict_block.html.twig' with {form: form} only %}
     <div class="lp-inbox-item__buttons">{% include '@Inbox/_decline_button.html.twig' with {formId: declineFormId, label: declineLabel} only %}<twig:Ds:Button variant="primary" type="submit">{{ 'inbox.review.submit'|trans }}</twig:Ds:Button></div>
 {{ form_end(form) }}
