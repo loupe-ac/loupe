@@ -67,7 +67,7 @@ final readonly class CardWaitReconciler
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
         private InboxSearchIndexer $searchIndexer,
-        private InboxOpenCountPublisher $openCount,
+        private InboxChangedPublisher $inboxChanged,
         private InboxAvailability $inbox,
         private InboxWaitSwitches $switches,
         private WorkerRunRepository $workerRuns,
@@ -156,7 +156,7 @@ final readonly class CardWaitReconciler
         });
 
         if ($countChanged) {
-            $this->openCount->countChanged($project);
+            $this->inboxChanged->changed($project);
         }
     }
 

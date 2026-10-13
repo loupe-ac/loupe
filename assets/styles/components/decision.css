@@ -1,0 +1,190 @@
+/* The decision block: a question, its options, a note and a clear link.
+   The document review page and the inbox render it. `.lp-review .lp-decision`
+   in app.css puts the border back on the review page. */
+@layer components {
+    .lp-decision {
+        @apply scroll-mt-16 flex flex-col gap-0.5 border-0 p-0 leading-normal;
+        font-size: calc(var(--spacing) * 3.75);
+    }
+    /* The question leads as a heading, and the kind of answer it takes sits at
+       its right in quiet words. Still generated content, so it never joins the
+       text every comment anchor is measured against. */
+    .lp-decision__prompt {
+        @apply float-left mb-0 w-full pb-2.5 font-display text-base leading-normal font-bold text-ink;
+    }
+    .lp-decision__prompt::before {
+        content: 'Pick one';
+        @apply float-right mb-0 ml-3 bg-transparent p-0 font-sans text-xs leading-6 font-normal tracking-normal text-fg-dim normal-case;
+    }
+    /* A block that asks no question is titled by its id, as the decisions panel names it. */
+    .lp-decision__prompt[data-untitled]::after {
+        content: attr(data-untitled);
+    }
+    .lp-decision[data-decision-type='multiple'] .lp-decision__prompt::before {
+        content: 'Pick any';
+    }
+    .lp-decision:has(> .lp-decision__clear) .lp-decision__prompt::before {
+        content: 'Pick one \00A0\00B7';
+    }
+    .lp-decision[data-decision-type='multiple']:has(> .lp-decision__clear)
+        .lp-decision__prompt::before {
+        content: 'Pick any \00A0\00B7';
+    }
+    .lp-decision__options {
+        @apply clear-both flex flex-col gap-0.5;
+    }
+    .lp-decision__option {
+        @apply flex items-center gap-3 rounded-lg border-0 bg-transparent px-2.5 py-2.25 font-normal text-ink;
+        font-size: inherit;
+    }
+    .lp-decision__option:has(input:checked) {
+        @apply bg-accent-faint;
+    }
+    .lp-decision__option:has(input:not(:disabled, :checked)):hover {
+        @apply bg-surface-3;
+    }
+    .lp-decision__option label {
+        @apply flex-1;
+    }
+    .lp-decision__option input {
+        @apply m-0 shrink-0;
+    }
+    .lp-decision__option input:checked {
+        @apply border-accent-ink bg-accent-ink;
+    }
+    /* Three stars show the confidence of a recommendation: filled for the steps it
+       reaches, outlined for the rest. The star elements hold no text, so they
+       never join the anchor basis. The words sit in `aria-label` and the tooltip.
+       The star shape is the committed Lucide star, inlined as a mask. */
+    .lp-decision__badge {
+        @apply relative z-1 ml-auto inline-flex shrink-0 cursor-help items-center gap-px rounded-md bg-transparent px-1.25 py-0.75 font-sans text-xs leading-4 font-semibold text-accent-ink hover:bg-accent-faint;
+    }
+    .lp-decision__star:not(.lp-decision__star--filled) {
+        @apply opacity-45;
+    }
+    .lp-decision__star {
+        @apply inline-block size-3 bg-current;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+    }
+    .lp-decision__star--filled {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z'/%3E%3C/svg%3E");
+    }
+    /* A version stored before the stars existed has an empty badge. Generated
+       text names it, and the page names it in the reader's language. */
+    .lp-decision__badge:empty[data-decision-recommended='high']::after {
+        content: 'Recommended, high confidence';
+    }
+    .lp-decision__badge:empty[data-decision-recommended='moderate']::after {
+        content: 'Recommended, moderate confidence';
+    }
+    .lp-decision__badge:empty[data-decision-recommended='low']::after {
+        content: 'Recommended, low confidence';
+    }
+    .lp-decision__badge:empty[aria-label]::after {
+        content: attr(aria-label);
+    }
+    /* The Ds tooltip, with its words drawn from an attribute so they never join
+       the anchor basis. It shows at once, on hover and on keyboard focus. */
+    .lp-decision__badge:not(:empty):focus-visible {
+        @apply outline-2 outline-offset-2 outline-review-tab;
+    }
+    .lp-decision__badge:is(:hover, :focus-visible) {
+        @apply z-10;
+    }
+    .lp-decision__tooltip {
+        @apply right-0 left-auto w-max max-w-72 text-left whitespace-normal transition-none;
+    }
+    .lp-decision__tooltip::before {
+        content: attr(data-label);
+    }
+    .lp-decision__badge:is(:hover, :focus-visible) > .lp-decision__tooltip {
+        @apply visible opacity-100;
+    }
+    /* Clear choice sits in the header row, beside the kind-of-answer chip and away
+       from the note field. The chip moves left to make room for it. */
+    .lp-decision {
+        @apply relative;
+    }
+    .lp-decision__clear {
+        @apply absolute top-0 right-0 z-2 m-0 h-6 min-h-6 border-0 bg-transparent p-0 text-xs leading-6 font-semibold text-accent-ink hover:bg-transparent hover:underline;
+    }
+    .lp-decision:has(> .lp-decision__clear) .lp-decision__prompt::before {
+        @apply mr-21;
+    }
+    @media (width < 37.5rem) {
+        .lp-decision__clear {
+            @apply static mb-2 block;
+        }
+        .lp-decision:has(> .lp-decision__clear) .lp-decision__prompt::before {
+            @apply mr-0;
+        }
+    }
+    .lp-decision__note {
+        @apply mt-2 flex items-start gap-3;
+    }
+    .lp-decision__note-field {
+        @apply min-h-10 w-full flex-1 resize-y rounded-lg border border-line bg-surface-1 px-2.5 py-2 text-sm;
+    }
+    .lp-decision__note-field[readonly] {
+        @apply cursor-default bg-surface-1 text-fg-mute;
+    }
+
+    /* The whole option row answers a click, not the words alone. The label covers
+       the row through a pseudo-element, so the native input still does the work. */
+    .lp-decision__option {
+        @apply relative;
+    }
+    .lp-decision__option label::after {
+        @apply absolute inset-0;
+        content: '';
+    }
+    /* Above that cover, so a click or a test that targets the control itself
+       reaches the control rather than the label over it. */
+    .lp-decision__option input {
+        @apply relative z-1;
+    }
+
+    /* The kind of answer as a real element, for a block whose words need a
+       translation. It sits where the generated chip sits, so the two never show together. */
+    .lp-decision__kind {
+        @apply float-right mb-0 ml-3 font-sans text-xs leading-6 font-normal tracking-normal text-fg-dim normal-case;
+    }
+    .lp-decision:has(> .lp-decision__clear) .lp-decision__kind {
+        @apply mr-21;
+    }
+    .lp-decision:has(> .lp-decision__clear) .lp-decision__kind::after {
+        content: '\00A0\00B7';
+    }
+    /* The dot is drawn rather than left native: the chosen option fills the whole
+       circle, which a platform radio has no way to express. */
+    .lp-decision__option input {
+        @apply size-4 appearance-none rounded-full border-2 border-fg-faint;
+    }
+    .lp-decision__option input[type='checkbox'] {
+        @apply rounded-sm;
+    }
+    .lp-decision__option label {
+        @apply cursor-pointer;
+    }
+    .lp-decision__option input[disabled] + label {
+        @apply cursor-default text-fg-mute;
+    }
+    .lp-decision__option:has(input:checked) input[disabled] + label {
+        @apply text-ink;
+    }
+    .lp-decision__option:has(input:focus-visible) {
+        @apply outline-2 outline-offset-2 outline-accent;
+    }
+    .lp-decision__option,
+    .lp-decision__option input {
+        @apply cursor-pointer;
+    }
+}

@@ -7,6 +7,7 @@ namespace App\Module\Inbox\Command;
 use App\Exception\DomainErrors;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSessionAsks;
@@ -28,6 +29,7 @@ final readonly class JoinInboxAskHandler
         private InboxSessionAsks $sessionAsks,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private InboxChangedPublisher $inboxChanged,
     ) {
     }
 
@@ -67,6 +69,7 @@ final readonly class JoinInboxAskHandler
         if ($view instanceof InboxRefusal) {
             throw new DomainErrors([$view->field => $view->key]);
         }
+        $this->inboxChanged->pageChanged($project, [$view->ask->id ?? throw new \LogicException('A stored ask has an id.')]);
 
         $this->auditor->record(
             'inbox.item_joined',

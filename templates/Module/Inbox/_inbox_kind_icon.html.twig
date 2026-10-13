@@ -1,0 +1,3 @@
+{#- The icon of an item kind. Props: kind (InboxItemKind value), class. -#}
+{% set icons = {question: 'lucide:circle-help', review: 'lucide:eye', todo: 'lucide:square-check-big', wait: 'lucide:hourglass', workflow: 'lucide:workflow'} %}
+{{ ux_icon(icons[kind] ?? 'lucide:inbox', {class: class|default('w-4 h-4')}) }}
