@@ -1,0 +1,14 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the Drawer for the styleguide, so it is intentionally untranslated. The styleguide gives the dialog a height and draws it in place. #}
+<twig:Ds:Drawer open>
+    <twig:block name="header">
+        <h2 class="lp-drawer__title"><twig:ux:icon name="lucide:activity" />Recent activity</h2>
+        <twig:Ds:Button variant="icon" type="button" aria-label="Close"><twig:ux:icon name="lucide:x" /></twig:Ds:Button>
+    </twig:block>
+    <twig:block name="body">
+        <p class="lp-dialog-desc">The body scrolls when its content is taller than the drawer.</p>
+    </twig:block>
+    <twig:block name="footer">
+        <twig:Ds:Button type="button">Open the full list</twig:Ds:Button>
+    </twig:block>
+</twig:Ds:Drawer>
