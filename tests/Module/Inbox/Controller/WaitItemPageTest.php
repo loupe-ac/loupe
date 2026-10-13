@@ -83,7 +83,7 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('.lp-inbox-ask__byline [data-inbox-kind-label]', 'Waiting on card #4 Ship it');
+        self::assertSelectorTextSame('.lp-inbox-ask__byline [data-inbox-kind-label]', '#4 Card #4 waits on you Ship it');
         $link = $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]');
         self::assertSame('#4', $link->text());
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));

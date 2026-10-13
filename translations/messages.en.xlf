@@ -7199,9 +7199,9 @@
             <trans-unit id="inbox.live.closed.obsolete"><source>inbox.live.closed.obsolete</source><target>No longer needed.</target></trans-unit>
             <trans-unit id="inbox.live.closed.other"><source>inbox.live.closed.other</source><target>This ask was closed elsewhere: %outcome%.</target></trans-unit>
             <trans-unit id="inbox.live.next"><source>inbox.live.next</source><target>Go to the next open ask</target></trans-unit>
-            <trans-unit id="inbox.wait.byline_before">
-                <source>inbox.wait.byline_before</source>
-                <target>Waiting on card</target>
+            <trans-unit id="inbox.wait.byline_tooltip">
+                <source>inbox.wait.byline_tooltip</source>
+                <target>Card #%card% waits on you</target>
             </trans-unit>
             <trans-unit id="inbox.pane.loading">
                 <source>inbox.pane.loading</source>
