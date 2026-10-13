@@ -12,6 +12,10 @@ Loupe's {{ name|lower }}. {{ entry.summary }}
 {% for variant in entry.variants %}
 <{{ name }} variant="{{ variant }}" placeholder="Example" />
 {% endfor %}
+{% elseif 'svg' == entry.element %}
+{% for variant in entry.variants %}
+<{{ name }} variant="{{ variant }}" />
+{% endfor %}
 {% elseif 'select' == entry.element %}
 <{{ name }}><option>Example</option></{{ name }}>
 {% elseif entry.variants %}

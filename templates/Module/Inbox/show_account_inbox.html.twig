@@ -16,7 +16,7 @@
     </header>
 
     {% if inbox.isEmpty %}
-    <twig:Ds:EmptyState icon="lucide:inbox" iconClass="text-accent w-12 h-12" :title="'inbox.account.page.empty'|trans" />
+    <twig:Ds:EmptyState icon="lucide:inbox" iconClass="text-accent" :title="'inbox.account.page.empty'|trans" />
     {% else %}
     <div class="lp-account-inbox__list">
         {% for row in inbox.rows %}

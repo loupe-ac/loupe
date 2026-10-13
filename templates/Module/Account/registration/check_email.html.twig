@@ -5,7 +5,7 @@
 {% block auth_body %}
 <div class="flex flex-col items-center gap-3 py-4 text-center">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:mail" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:mail" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <h1 class="text-xl font-semibold tracking-tight text-fg">{{ 'account.registration.check_email.heading'|trans }}</h1>
@@ -19,9 +19,9 @@
         {% for message in messages %}
             <div class="{{ label == 'error' ? 'auth-error' : 'auth-notice' }} w-full text-left">
                 {% if label == 'error' %}
-                    <twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" aria-hidden="true" />
                 {% else %}
-                    <twig:UX:Icon name="lucide:check" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <twig:ux:icon name="lucide:check" class="lp-icon lp-icon--sm" aria-hidden="true" />
                 {% endif %}
                 {{ message }}
             </div>
@@ -30,7 +30,7 @@
 
     <twig:Ds:ActionForm :action="path('app_register_resend')" token="resend-verification" class="mt-1.5">
         <twig:Ds:Button type="submit" variant="primary" size="sm">
-            <twig:UX:Icon name="lucide:rotate-cw" class="w-3.5 h-3.5" aria-hidden="true" />
+            <twig:ux:icon name="lucide:rotate-cw" class="lp-icon lp-icon--sm" aria-hidden="true" />
             {{ 'account.registration.check_email.resend'|trans }}
         </twig:Ds:Button>
     </twig:Ds:ActionForm>

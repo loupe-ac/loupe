@@ -68,6 +68,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | CopyButton | A button that copies a text and shows that it did. It owns the `clipboard` controller | text, icon. Tones light, chrome |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 | RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |
+| Icon | The size of a `ux:icon` tag. A class scale, with no component to render | xs (3), sm (3.5), md (4), lg (5), and xl (8) and 2xl (12) for an empty-state icon. Write `class="lp-icon lp-icon--sm"` |
 | DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
 | ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |

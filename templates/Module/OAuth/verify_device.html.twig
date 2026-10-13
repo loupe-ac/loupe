@@ -10,9 +10,9 @@
 <div class="lp-consent" data-testid="oauth-device-{{ result }}">
     <div class="auth-icon-badge">
         {% if result == 'approved' %}
-        <twig:UX:Icon name="lucide:circle-check" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:circle-check" class="lp-icon lp-icon--lg" aria-hidden="true" />
         {% else %}
-        <twig:UX:Icon name="lucide:circle-x" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:circle-x" class="lp-icon lp-icon--lg" aria-hidden="true" />
         {% endif %}
     </div>
     <div>
@@ -26,7 +26,7 @@
 
     <div class="lp-consent__rows">
         <div class="lp-consent__row">
-            <twig:UX:Icon name="lucide:terminal" class="lp-consent__row-icon" aria-hidden="true" />
+            <twig:ux:icon name="lucide:terminal" class="lp-consent__row-icon" aria-hidden="true" />
             <div class="lp-consent__row-body">
                 <p class="lp-consent__row-primary">{{ 'oauth.device.row.code'|trans({'%code%': '<span class="lp-consent__row-code" data-testid="oauth-device-user-code">' ~ view.displayUserCode|e ~ '</span>'})|raw }}</p>
                 <p class="lp-consent__row-second">{{ 'oauth.device.warning'|trans }}</p>
@@ -39,7 +39,7 @@
 
         {% if view.allProjects %}
         <div class="lp-consent__row">
-            <twig:UX:Icon name="lucide:folder" class="lp-consent__row-icon" aria-hidden="true" />
+            <twig:ux:icon name="lucide:folder" class="lp-consent__row-icon" aria-hidden="true" />
             <div class="lp-consent__row-body">
                 <p class="lp-consent__row-primary" data-testid="oauth-consent-all-projects">{{ 'oauth.consent.row.all_projects'|trans }}</p>
                 <p class="lp-consent__row-second">{{ 'oauth.consent.row.all_projects_hint'|trans }}</p>
@@ -67,7 +67,7 @@
 {% else %}
 <div class="lp-consent" data-testid="oauth-device-entry">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:terminal" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:terminal" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <h1 class="lp-consent__title">{{ 'oauth.device.entry.heading'|trans }}</h1>

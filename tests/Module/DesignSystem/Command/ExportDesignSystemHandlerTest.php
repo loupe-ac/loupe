@@ -228,4 +228,20 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString("const classes = ['lp-label'];", (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
         self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
     }
+
+    public function test_the_icon_wrapper_draws_an_svg_at_each_size(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/core/Icon.jsx');
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Icon.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+
+        self::assertStringContainsString('<svg {...rest} className={className} viewBox="0 0 24 24"', $jsx);
+        self::assertStringContainsString('{children || <path d=', $jsx);
+        self::assertStringNotContainsString('<span', $jsx);
+        foreach (['xs', 'sm', 'md', 'lg', 'xl', '2xl'] as $size) {
+            self::assertStringContainsString('<Icon variant="'.$size.'" />', $card);
+            self::assertStringContainsString('<Icon variant="'.$size.'" />', $prompt);
+        }
+        self::assertStringNotContainsString('</Icon>', $card);
+    }
 }

@@ -11,7 +11,7 @@
 {% for label, messages in app.flashes %}
     {% for message in messages %}
         <div class="auth-error">
-            <twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+            <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm mt-px" aria-hidden="true" />
             {{ message }}
         </div>
     {% endfor %}

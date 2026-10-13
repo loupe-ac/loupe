@@ -25,7 +25,7 @@
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
             {% if card.pullRequests|length > 0 %}
             <span class="lp-board-card__pulls">
-                <twig:ux:icon name="lucide:git-pull-request" class="w-3.5 h-3.5 shrink-0" />
+                <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--sm" />
                 {{ card.pullRequests|length }}
             </span>
             {% endif %}

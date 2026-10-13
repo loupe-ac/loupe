@@ -40,6 +40,9 @@ function designSystemComponents(array $entries): array
 {
     $components = [];
     foreach ($entries as $entry) {
+        if ($entry->classOnly) {
+            continue;
+        }
         $own = 'templates/'.$entry->template;
         $components[] = new DesignSystemComponent($entry->name, $entry->rootClass, $own, $entry->enforced);
         foreach ($entry->legacyClasses as $legacy) {

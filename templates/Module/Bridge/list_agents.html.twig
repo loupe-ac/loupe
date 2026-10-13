@@ -56,7 +56,7 @@
                                     aria-controls="agent-menu-{{ bridge.id }}"
                                     data-popover-target="trigger"
                                     data-action="click->popover#toggle">
-                                <twig:ux:icon name="lucide:ellipsis" class="size-4" />
+                                <twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" />
                             </twig:Ds:Button>
                         </twig:block>
                         <twig:block name="content">
@@ -64,14 +64,14 @@
                             {% set pauseAction = bridge.pauseRequested ? 'unpause' : 'pause' %}
                             <twig:Ds:ActionForm :action="path(pauseAction == 'pause' ? 'app_project_bridge_pause' : 'app_project_bridge_unpause', {id: project.id, bridgeId: bridge.id})" token="bridge-pause" frame="_top" data-agent-pause-control="{{ pauseAction }}">
                                 <twig:Ds:MenuItem type="submit">
-                                    {% if pauseAction == 'pause' %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% endif %}
+                                    {% if pauseAction == 'pause' %}<twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md" />{% else %}<twig:ux:icon name="lucide:circle-play" class="lp-icon lp-icon--md" />{% endif %}
                                     {{ (pauseAction == 'pause' ? 'bridge.agents.pause' : 'bridge.agents.unpause')|trans }}
                                 </twig:Ds:MenuItem>
                             </twig:Ds:ActionForm>
                             {% else %}
                             {% set reason = 'bridge.agents.pause_outdated'|trans({'%version%': constant('App\\Module\\Bridge\\View\\WorkerRunControls::COMMANDS_SINCE_VERSION')}) %}
                             <twig:Ds:MenuItem title="{{ reason }}" data-agent-pause-control="pause" disabled>
-                                <twig:ux:icon name="lucide:circle-pause" class="size-4" />
+                                <twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md" />
                                 {{ 'bridge.agents.pause'|trans }}
                                 <span class="sr-only">{{ reason }}</span>
                             </twig:Ds:MenuItem>
@@ -148,7 +148,7 @@
                 </footer>
                 {% if connection.updateChip and connection.updateChip.command %}
                 <div id="agent-update-{{ connection.bridge.id }}" class="lp-connect-field lp-agent-update-command" data-disclosure-target="content">
-                    <twig:ux:icon name="lucide:terminal" class="lp-connect-field__glyph w-4 h-4" />
+                    <twig:ux:icon name="lucide:terminal" class="lp-icon lp-icon--md lp-connect-field__glyph" />
                     <code class="lp-connect-field__value" data-agent-update-command>{{ connection.updateChip.command }}</code>
                     <twig:Ds:CopyButton :text="connection.updateChip.command" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" />
                 </div>

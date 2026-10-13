@@ -10,7 +10,7 @@
     {% set widgetClientId = constant('App\\Module\\OAuth\\Widget\\WidgetClient::ID') %}
     {% for app in view.apps|filter(app => app.clientId != widgetClientId) %}
     <div class="lp-identity-row" data-connected-app="{{ app.clientId }}">
-        <twig:ux:icon name="lucide:plug" class="lp-identity-row__glyph w-4 h-4" />
+        <twig:ux:icon name="lucide:plug" class="lp-icon lp-icon--md lp-identity-row__glyph" />
         <span class="lp-identity-row__text">
             <span class="lp-identity-row__name">{{ app.clientName }}</span>
             {% for grant in app.grants %}
@@ -40,7 +40,7 @@
     {% set widget = view.apps|filter(app => app.clientId == widgetClientId)|first %}
     <div class="lp-app-group" data-preview-widget>
         <div class="lp-identity-row lp-app-group__head" data-connected-app="{{ widgetClientId }}">
-            <twig:ux:icon name="lucide:plug" class="lp-identity-row__glyph w-4 h-4" />
+            <twig:ux:icon name="lucide:plug" class="lp-icon lp-icon--md lp-identity-row__glyph" />
             <span class="lp-identity-row__text">
                 <span class="lp-identity-row__name">{{ 'oauth.connected_apps.preview_tokens.app_name'|trans }}</span>
                 <span class="lp-identity-row__meta lp-identity-row__meta--plain">{{ 'oauth.connected_apps.preview_tokens.description'|trans }}</span>

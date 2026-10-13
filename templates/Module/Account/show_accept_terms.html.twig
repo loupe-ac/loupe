@@ -5,7 +5,7 @@
 {% block auth_body %}
 <div class="flex flex-col items-center gap-3 py-4 text-center">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:file-text" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <h1 class="text-xl font-semibold tracking-tight text-fg">{{ 'account.accept_terms.heading'|trans }}</h1>
@@ -21,7 +21,7 @@
 
     <twig:Ds:ActionForm :action="path('app_account_accept_terms_submit')" token="accept-terms" class="mt-1.5 w-full">
         <twig:Ds:Button type="submit" variant="primary" size="sm" class="w-full justify-center">
-            <twig:UX:Icon name="lucide:check" class="w-3.5 h-3.5" aria-hidden="true" />
+            <twig:ux:icon name="lucide:check" class="lp-icon lp-icon--sm" aria-hidden="true" />
             {{ 'account.accept_terms.submit'|trans }}
         </twig:Ds:Button>
     </twig:Ds:ActionForm>

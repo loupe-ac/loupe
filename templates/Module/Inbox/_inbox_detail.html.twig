@@ -21,7 +21,7 @@
                 <twig:Ds:RelativeTime :datetime="row.createdAt" />
                 <span aria-hidden="true">·</span>
                 <span class="lp-inbox-ask__kind">
-                    {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'w-4 h-4 shrink-0'} only %}
+                    {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'lp-icon lp-icon--md'} only %}
                     {# A wait names the card that waits on the owner, as the document review byline does. #}
                     {% set waitCard = row.kind.value == 'wait' ? row.firstCard : null %}
                     {% if waitCard %}

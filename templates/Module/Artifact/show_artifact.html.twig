@@ -27,9 +27,9 @@
                         data-popover-target="trigger"
                         data-action="click->popover#toggle"
                         data-artifact-file-button>
-                    <twig:ux:icon name="lucide:file-text" class="w-4 h-4" />
+                    <twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--md" />
                     <span class="lp-artifact-file__name">{{ file is null ? '' : file.path }}</span>
-                    <twig:ux:icon name="lucide:chevron-down" class="w-4 h-4" />
+                    <twig:ux:icon name="lucide:chevron-down" class="lp-icon lp-icon--md" />
                 </twig:Ds:Button>
             </twig:block>
             <twig:block name="content">
@@ -47,7 +47,7 @@
             <twig:Ds:Button variant="ghost icon" href="{{ pinned ? path('app_project_artifact_version_full', versionParams|merge(fileParams)) : path('app_project_artifact_full', {id: project.id, artifactId: artifact.id}|merge(fileParams)) }}"
                     target="_blank" rel="noopener" data-turbo="false"
                     title="{{ 'artifact.viewer.full_screen'|trans }}" aria-label="{{ 'artifact.viewer.full_screen'|trans }}" data-artifact-full-screen>
-                <twig:ux:icon name="lucide:maximize-2" class="w-4 h-4" />
+                <twig:ux:icon name="lucide:maximize-2" class="lp-icon lp-icon--md" />
             </twig:Ds:Button>
             {% endif %}
 
@@ -62,7 +62,7 @@
                             aria-controls="artifact-menu"
                             data-popover-target="trigger"
                             data-action="click->popover#toggle">
-                        <twig:ux:icon name="lucide:ellipsis" class="w-4 h-4" />
+                        <twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" />
                     </twig:Ds:Button>
                 </twig:block>
                 <twig:block name="content">

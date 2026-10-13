@@ -12,7 +12,7 @@
         {% for repository in repositories %}
         {% set health = repository.health(now).value %}
         <div class="lp-identity-row" data-forge-repository="{{ repository.id }}">
-            <twig:ux:icon name="lucide:git-pull-request" class="lp-identity-row__glyph w-4 h-4" />
+            <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--md lp-identity-row__glyph" />
             <span class="lp-identity-row__text">
                 <span class="lp-identity-row__name lp-identity-row__name--mono" data-testid="forge-repository-path">{{ repository.path }}</span>
                 <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="forge-repository-health">
@@ -49,7 +49,7 @@
             <p class="lp-connect-hint">{{ 'github.app.purpose'|trans }}</p>
             {% for installation in installations %}
             <div class="lp-identity-row" data-github-installation="{{ installation.installationId }}">
-                <twig:ux:icon name="lucide:package" class="lp-identity-row__glyph w-4 h-4" />
+                <twig:ux:icon name="lucide:package" class="lp-icon lp-icon--md lp-identity-row__glyph" />
                 <span class="lp-identity-row__text">
                     <span class="lp-identity-row__name" data-testid="github-installation-account">{{ installation.accountLogin }}</span>
                     <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="github-installation-state">
@@ -115,7 +115,7 @@
             {% if newSecret %}
             <div class="lp-connect-secret">
                 <div class="lp-connect-alert">
-                    <twig:ux:icon name="lucide:triangle-alert" class="lp-connect-alert__icon w-4 h-4" />
+                    <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--md lp-connect-alert__icon" />
                     <p class="lp-connect-alert__text">{{ 'github.repositories.hook.secret_once'|trans }}</p>
                 </div>
                 <twig:Ds:CodeBlock

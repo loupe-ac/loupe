@@ -9,7 +9,7 @@
      data-connected-apps-url="{{ connectedAppsUrl }}"
      data-done-text="{{ 'github.connect.callback.close'|trans }}">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:plug" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:plug" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <p class="lp-consent__lead" data-callback-text>{{ 'github.connect.callback.connected'|trans({'%login%': connected.login}) }}</p>
     <twig:Ds:Button variant="ghost" href="{{ connectedAppsUrl }}">{{ 'github.connect.callback.connected_apps'|trans }}</twig:Ds:Button>

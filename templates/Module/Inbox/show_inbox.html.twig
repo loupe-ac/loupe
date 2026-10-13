@@ -12,12 +12,12 @@
 {% block topbar_actions %}
     <div class="lp-inbox-topbar-actions">
         <twig:Ds:Button variant="ghost" href="{{ path('app_project_activity', {id: inbox.project.id}) }}" aria-label="{{ 'inbox.activity'|trans }}">
-            <twig:ux:icon name="lucide:activity" class="w-4 h-4" />
+            <twig:ux:icon name="lucide:activity" class="lp-icon lp-icon--md" />
             <span class="lp-inbox-topbar-actions__label">{{ 'inbox.activity'|trans }}</span>
         </twig:Ds:Button>
         {% if is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), inbox.project) %}
         <twig:Ds:Button variant="ghost" href="{{ path('app_inbox_settings', {id: inbox.project.id}) }}" aria-label="{{ 'inbox.settings_link'|trans }}">
-            <twig:ux:icon name="lucide:settings" class="w-4 h-4" />
+            <twig:ux:icon name="lucide:settings" class="lp-icon lp-icon--md" />
             <span class="lp-inbox-topbar-actions__label">{{ 'inbox.settings_link'|trans }}</span>
         </twig:Ds:Button>
         {% endif %}
@@ -143,7 +143,7 @@
                         <a class="lp-inbox-back"
                            href="{{ path('app_project_inbox', {id: inbox.project.id}|merge(view.withoutSelection.toQuery)) }}"
                            data-turbo-frame="inbox-view">
-                            <twig:ux:icon name="lucide:arrow-left" class="w-4 h-4" />
+                            <twig:ux:icon name="lucide:arrow-left" class="lp-icon lp-icon--md" />
                             {{ 'inbox.pane.back'|trans }}
                         </a>
                     {% endif %}
@@ -165,7 +165,7 @@
                 </div>
                 {# Covers the detail pane, outside its scroll, while a picked row loads, as the board's card drawer does. #}
                 <div class="lp-inbox-pane-loading" role="status">
-                    <twig:ux:icon name="lucide:loader-circle" class="w-5 h-5" />
+                    <twig:ux:icon name="lucide:loader-circle" class="lp-icon lp-icon--lg" />
                     {{ 'inbox.pane.loading'|trans }}
                 </div>
             </div>

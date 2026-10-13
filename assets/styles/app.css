@@ -27,6 +27,7 @@
 @import './components/data-table.css';
 @import './components/menu.css';
 @import './components/action-form.css';
+@import './components/icon.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's

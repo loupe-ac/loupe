@@ -75,7 +75,7 @@
        metadata bar below, so only an older version still earns a banner. #}
     {% if readOnly and not diffMode %}
     <div class="lp-version-banner">
-        <twig:ux:icon name="lucide:history" class="w-4 h-4 shrink-0" />
+        <twig:ux:icon name="lucide:history" class="lp-icon lp-icon--md" />
         <span>
             {{ 'review.document.version.read_only'|trans({'%version%': version.versionNumber}) }}
             {# References belong to the document, not to a version, so this page
@@ -240,7 +240,7 @@
 
                 {% if diffUnmarked %}
                 <p id="diff-unmarked-notice" class="lp-diff-notice">
-                    <twig:ux:icon name="lucide:info" class="w-4 h-4 shrink-0 mt-0.5" />
+                    <twig:ux:icon name="lucide:info" class="lp-icon lp-icon--md mt-0.5" />
                     <span>{{ 'review.document.diff.unmarked_notice'|trans }}</span>
                 </p>
                 {% endif %}
@@ -338,9 +338,9 @@
             {# Outside the prose for the same reason as below. The controller clones
                these into a shadow root beside each diagram, which no anchor walk enters. #}
             {% if hasMermaid %}
-            <template data-mermaid-target="disabledNotice"><p class="lp-mermaid__notice" role="note"><twig:UX:Icon name="lucide:info" /><span>{{ 'review.document.mermaid.disabled'|trans }}</span></p></template>
-            <template data-mermaid-target="errorNotice"><p class="lp-mermaid__notice lp-mermaid__notice--error" role="note"><twig:UX:Icon name="lucide:triangle-alert" /><span>{{ 'review.document.mermaid.error'|trans }}</span></p></template>
-            <template data-mermaid-target="toggle"><button type="button" class="lp-mermaid__toggle" aria-expanded="false" data-label-show="{{ 'review.document.mermaid.show_source'|trans }}" data-label-hide="{{ 'review.document.mermaid.hide_source'|trans }}"><twig:UX:Icon name="lucide:code" /><span data-label>{{ 'review.document.mermaid.show_source'|trans }}</span></button></template>
+            <template data-mermaid-target="disabledNotice"><p class="lp-mermaid__notice" role="note"><twig:ux:icon name="lucide:info" /><span>{{ 'review.document.mermaid.disabled'|trans }}</span></p></template>
+            <template data-mermaid-target="errorNotice"><p class="lp-mermaid__notice lp-mermaid__notice--error" role="note"><twig:ux:icon name="lucide:triangle-alert" /><span>{{ 'review.document.mermaid.error'|trans }}</span></p></template>
+            <template data-mermaid-target="toggle"><button type="button" class="lp-mermaid__toggle" aria-expanded="false" data-label-show="{{ 'review.document.mermaid.show_source'|trans }}" data-label-hide="{{ 'review.document.mermaid.hide_source'|trans }}"><twig:ux:icon name="lucide:code" /><span data-label>{{ 'review.document.mermaid.show_source'|trans }}</span></button></template>
             {% endif %}
 
             {# Outside the prose on purpose: that textContent must stay identical
@@ -390,21 +390,21 @@
                only keyboard shortcut on this pane. #}
             <div class="lp-anchor-toolbar" data-comment-anchor-target="toolbar" hidden>
                 <button type="button" class="lp-anchor-toolbar__btn" data-action="comment-anchor#startComment">
-                    <twig:ux:icon name="lucide:message-square-plus" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:message-square-plus" class="lp-icon lp-icon--sm" />
                     {{ 'review.document.comment.add'|trans }}
                 </button>
                 <button type="button" class="lp-anchor-toolbar__btn" data-action="comment-anchor#startSuggestion">
-                    <twig:ux:icon name="lucide:replace" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:replace" class="lp-icon lp-icon--sm" />
                     {{ 'review.document.suggestion.add'|trans }}
                 </button>
                 <button type="button" class="lp-anchor-toolbar__btn" data-action="comment-anchor#strike">
-                    <twig:ux:icon name="lucide:strikethrough" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:strikethrough" class="lp-icon lp-icon--sm" />
                     {{ 'review.document.strike.add'|trans }}
                     <kbd class="lp-anchor-toolbar__key">{{ 'review.document.strike.shortcut'|trans }}</kbd>
                 </button>
                 <button type="button" class="lp-anchor-toolbar__btn" data-action="comment-anchor#dismissSelection"
                         aria-label="{{ 'review.document.selection.dismiss'|trans }}" title="{{ 'review.document.selection.dismiss'|trans }}">
-                    <twig:ux:icon name="lucide:x" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />
                 </button>
             </div>
 
