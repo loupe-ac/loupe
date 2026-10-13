@@ -1,0 +1,14 @@
+{# twig-cs-fixer-disable #}{% extends '@DesignSystem/export/group.card.html.twig' %}
+{% block styles %}
+  body { padding: 0; }
+  .part { border-bottom: 1px solid var(--border); }
+  .part__name { margin: 0; padding: 8px 18px; font: 600 12px/1 var(--font-sans); color: var(--text-mute); }
+{% endblock %}
+{% block demo %}
+{% for entry in entries %}
+      <section className="part">
+        <h2 className="part__name">{{ entry.name }}</h2>
+{% include '@DesignSystem/export/layout/' ~ entry.export ~ '/demo.jsx.twig' with {entry: entry} only %}
+      </section>
+{% endfor %}
+{% endblock %}

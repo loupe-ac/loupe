@@ -6,11 +6,13 @@
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
 <style>
+{% block styles %}
   body { padding: 16px 18px; }
   .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
   .col { display: flex; flex-direction: column; gap: 10px; }
   .row > dialog[open] { position: static; margin: 0; }
   .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+{% endblock %}
 </style>
 </head>
 <body>
@@ -27,6 +29,7 @@ const { {{ names|join(', ') }} } =
 function Demo() {
   return (
     <div className="col">
+{% block demo %}
 {% for entry in entries %}
 {% set open = 'dialog' == entry.element ? ' open' : '' %}
 {% set void = 'input' == entry.element %}
@@ -66,6 +69,7 @@ function Demo() {
       </div>
 {% endif %}
 {% endfor %}
+{% endblock %}
     </div>
   );
 }
