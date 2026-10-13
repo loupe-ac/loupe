@@ -5437,25 +5437,6 @@
         }
     }
 
-    /* ── Code / pre blocks ──────────────────────────────────────────────── */
-
-    .lp-pre {
-        @apply font-mono text-sm bg-surface-3 rounded-xl p-4 overflow-x-auto text-ink leading-relaxed;
-        white-space: pre;
-    }
-
-    /* ── MCP connection card ─────────────────────────────────────────── */
-
-    .lp-code-block {
-        @apply mb-4;
-    }
-    .lp-code-block__header {
-        @apply flex items-center justify-between gap-2 mb-1.5;
-    }
-    .lp-code-block__label {
-        @apply text-xs font-medium text-fg-mute;
-    }
-
     /* ── Connect agent (handoff §5) ─────────────────────────────────────
        Left-aligned single column (max 760px). Each labeled block is a mono
        uppercase eyebrow (.lp-eyebrow) over a bordered field / code block. */
@@ -5619,27 +5600,6 @@
     }
     .lp-connect-toggle__state {
         @apply text-xs text-fg-mute;
-    }
-
-    /* Dark .mcp.json block — header bar + syntax-neutral body. */
-    /* The .mcp.json and widget-snippet panels are identical by design — the two
-       steps are the same shape of task, and styling them differently would
-       suggest otherwise. */
-    .lp-code-dark {
-        @apply rounded-xl overflow-hidden border-0 bg-code-dark-bg;
-    }
-    .lp-code-dark__header {
-        @apply flex items-center justify-between gap-2 bg-code-dark-header py-2.5 px-3.5;
-    }
-    .lp-code-dark__label {
-        @apply font-mono text-chrome-mute m-0 text-xs;
-    }
-    .lp-code-dark__copy {
-        @apply inline-flex items-center h-7 px-3 rounded-full font-semibold bg-chrome-control text-accent border-none cursor-pointer transition-colors hover:bg-chrome-line text-xs;
-    }
-    .lp-code-dark__body {
-        @apply bg-code-dark-bg text-code-dark-text font-mono overflow-x-auto m-0 pt-0 px-4 pb-4 text-xs leading-relaxed;
-        white-space: pre;
     }
 
     /* Agent tools — hairline divider list: mono accent-soft pill + description. */
@@ -7758,17 +7718,6 @@
     .lp-artifact-table .lp-document-row__actions {
         @apply gap-1;
     }
-    /* An icon button that copies a link: the link icon swaps for a check once copied. */
-    .lp-copy-icon {
-        @apply contents;
-    }
-    .lp-copy-icon__done,
-    [data-copied] > .lp-copy-icon__idle {
-        @apply hidden;
-    }
-    [data-copied] > .lp-copy-icon__done {
-        @apply block text-status-ok;
-    }
     /* The viewer fills the page below the top bar, so the frame takes the
        height the bar and the band leave. */
     .lp-main:has(.lp-artifact-viewer) {
@@ -8637,7 +8586,7 @@
    deliberately unchanged, so this is scoped to coarse pointers only. */
 @media (pointer: coarse) {
     .lp-btn,
-    .lp-code-dark__copy,
+    .lp-copy-button__chip,
     .lp-flash__dismiss,
     .lp-anchor-toolbar__btn,
     .auth-forgot,

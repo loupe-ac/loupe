@@ -43,7 +43,7 @@ test.describe('first-run wizard', () => {
         const promptText = (await setupPrompt.textContent()) ?? '';
         await expect(
             page
-                .locator('[data-controller="clipboard"]')
+                .locator('.lp-code-dark')
                 .filter({ has: setupPrompt })
                 .getByRole('button', { name: 'Copy' }),
         ).toBeVisible();
