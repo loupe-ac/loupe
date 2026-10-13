@@ -1,0 +1,20 @@
+{#
+  Props:  @comment-budget-ignore
+    label        string   The title in the header bar, such as the file name or what the text is.
+    text         string   The text of the block. It is also what the copy button copies.
+    copy         bool     Whether the header shows a copy button. true by default.
+    copyLabel    string   The words on the copy button. Needed when copy is true.
+    copiedLabel  string   The words shown for two seconds after the copy. Optional.
+    testid       string   A data-testid for the code element. Optional.
+  Any other attribute, class included, is passed to the block.
+#}
+{%- props label, text, copy = true, copyLabel = null, copiedLabel = null, testid = null -%}
+<div{{ attributes.defaults({class: 'lp-code-dark'}) }}>
+    <div class="lp-code-dark__header">
+        <span class="lp-code-dark__label">{{ label }}</span>
+        {%- if copy %}
+            <twig:Ds:CopyButton :text="text" :label="copyLabel" :copiedLabel="copiedLabel" tone="chrome" />
+        {%- endif %}
+    </div>
+    <pre class="lp-code-dark__body"><code{% if testid is not null %} data-testid="{{ testid }}"{% endif %}>{{ text }}</code></pre>
+</div>

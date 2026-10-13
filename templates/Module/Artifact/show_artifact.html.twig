@@ -51,11 +51,7 @@
             </twig:Ds:Button>
             {% endif %}
 
-            {% include '@Artifact/_copy_link_button.html.twig' with {
-                link: shareLink,
-                label: 'artifact.viewer.copy_link'|trans,
-                buttonClass: ds_button_class('ghost icon'),
-            } only %}
+            <twig:Ds:CopyButton variant="icon" :text="shareLink" :label="'artifact.viewer.copy_link'|trans" :copiedLabel="'artifact.viewer.copied'|trans" :class="ds_button_class('ghost icon')" data-artifact-copy-link />
 
             <twig:Ds:Menu id="artifact-menu" class="lp-artifact-bar__menu" size="md" data-artifact-menu>
                 <twig:block name="trigger">
