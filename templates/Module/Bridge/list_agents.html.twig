@@ -83,7 +83,7 @@
                 <p class="lp-agent-card__purpose">{{ 'bridge.agents.project_connection'|trans({'%project%': project.name}) }}</p>
                 <div class="lp-agent-card__current">
                     <span>{{ 'bridge.agents.last_seen'|trans }}</span>
-                    <strong>{{ connection.status.lastSeenAt ? connection.status.lastSeenAt|date('M j, H:i') : 'bridge.agents.never'|trans }}</strong>
+                    <strong>{{ connection.status.lastSeenAt ? connection.status.lastSeenAt|date('j M Y, H:i') : 'bridge.agents.never'|trans }}</strong>
                 </div>
                 {% if bridge.nameClashes() %}
                 <div class="lp-agent-card__current lp-agent-card__name-clash" data-agent-name-clash>
@@ -96,14 +96,14 @@
                 <div class="lp-agent-card__current lp-agent-card__paused" data-agent-paused>
                     <span>{{ (bridge.pausedReported ? 'bridge.agents.paused' : 'bridge.agents.pause_requested')|trans }}</span>
                     {% if bridge.pauseRequestedAt %}
-                    {% set pausedAt = bridge.pauseRequestedAt|date('M j, H:i') %}
+                    {% set pausedAt = bridge.pauseRequestedAt|date('j M Y, H:i') %}
                     <strong>{{ bridge.pauseRequestedBy ? 'bridge.agents.paused_by'|trans({'%time%': pausedAt, '%person%': bridge.pauseRequestedBy.fullName ?: bridge.pauseRequestedBy.email}) : pausedAt }}</strong>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% if connection.bridge.workerPools is not empty %}
                 <div class="lp-agent-card__current lp-agent-card__pools" data-agent-worker-pools>
-                    <span>{{ 'bridge.agents.worker_pools.heading'|trans }}{% if connection.bridge.workerPoolsReportedAt %} · {{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('M j, H:i')}) }}{% endif %}</span>
+                    <span>{{ 'bridge.agents.worker_pools.heading'|trans }}{% if connection.bridge.workerPoolsReportedAt %} · {{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('j M Y, H:i')}) }}{% endif %}</span>
                     {% for pool in connection.bridge.workerPools %}
                     <p class="lp-agent-card__pool" data-agent-worker-pool>
                         <strong>{{ pool.name }}</strong>
@@ -114,7 +114,7 @@
                 {% endif %}
                 {% if connection.bridge.accounts is not empty %}
                 <div class="lp-agent-card__current lp-agent-card__accounts" data-agent-accounts>
-                    <span>{{ 'bridge.agents.accounts.heading'|trans }}{% if connection.bridge.accountsReportedAt %} · {{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('M j, H:i')}) }}{% endif %}</span>
+                    <span>{{ 'bridge.agents.accounts.heading'|trans }}{% if connection.bridge.accountsReportedAt %} · {{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('j M Y, H:i')}) }}{% endif %}</span>
                     {% for account in connection.bridge.accounts %}
                     <div class="lp-agent-card__account{% if account.state == 'failing' %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
                         <p class="lp-agent-card__account-line">

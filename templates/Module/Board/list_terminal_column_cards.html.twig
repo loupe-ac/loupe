@@ -30,7 +30,7 @@
             </span>
             {% endif %}
             <span class="lp-done-row__when">
-                {% if card.completedAt %}{{ card.completedAt|relative_time }}{% else %}{{ 'board.terminal.no_completion'|trans }}{% endif %}
+                {% if card.completedAt %}<twig:Ds:RelativeTime :datetime="card.completedAt" />{% else %}{{ 'board.terminal.no_completion'|trans }}{% endif %}
             </span>
         </div>
         {% endfor %}

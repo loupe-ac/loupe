@@ -75,7 +75,7 @@
             </span>
             <span class="lp-data-table__cell" role="cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
             <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ event.sequence ?? '—' }}</span>
-            <span class="lp-data-table__cell" role="cell"><time datetime="{{ event.createdAt|date('c') }}" title="{{ event.createdAt|date('Y-m-d H:i:s T') }}">{{ event.createdAt|relative_time }}</time></span>
+            <span class="lp-data-table__cell" role="cell"><twig:Ds:RelativeTime :datetime="event.createdAt" /></span>
         </div>
         {% endfor %}
     </twig:Ds:DataTable>

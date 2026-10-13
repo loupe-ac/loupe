@@ -154,7 +154,7 @@
                     <span aria-label="{{ 'review.dashboard.table.no_linked_card'|trans }}">—</span>
                 {% endif %}
             </span>
-            <time class="lp-data-table__cell lp-document-row__updated" datetime="{{ item.updatedAt|date('c') }}" role="cell">{{ item.updatedAt|relative_time }}</time>
+            <twig:Ds:RelativeTime :datetime="item.updatedAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />
             <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <a href="{{ path('app_document_rename', {projectId: project.id, documentId: document.id}|merge(listQuery.routeParams)) }}"
                    class="lp-document-row__action"

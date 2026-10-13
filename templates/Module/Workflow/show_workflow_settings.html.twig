@@ -24,7 +24,7 @@
             <p class="lp-workspace-desc">{{ template.descriptionKey|trans }}</p>
             <p class="lp-workspace-desc">
                 {{ 'workflow.settings.version'|trans({'%version%': template.version}) }}
-                · <time datetime="{{ template.boundAt|date('c') }}">{{ 'workflow.settings.bound_at'|trans({'%date%': template.boundAt|date('M j, Y')}) }}</time>
+                · <time datetime="{{ template.boundAt|date('c') }}">{{ 'workflow.settings.bound_at'|trans({'%date%': template.boundAt|date('j M Y')}) }}</time>
             </p>
         </div>
     </header>

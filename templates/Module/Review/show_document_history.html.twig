@@ -89,7 +89,7 @@
                 {% else %}
                 <strong class="lp-history__note lp-history__note--empty">{{ (isLatest ? 'review.document.history.current' : 'review.document.history.no_note')|trans }}</strong>
                 {% endif %}
-                <span class="lp-history__date">{{ meta.createdAt|relative_time }}</span>
+                <twig:Ds:RelativeTime :datetime="meta.createdAt" class="lp-history__date" />
             </td>
             <td>{{ 'review.document.history.threads'|trans({'%count%': meta.threadCount}) }}</td>
             <td>
@@ -123,7 +123,7 @@
             <span class="lp-history__verdict lp-history__verdict--{{ entry.review.verdict.value }}">{{ ('review.document.verdict.' ~ entry.review.verdict.value)|trans }}</span>
             <span>{{ entry.review.reviewer.fullName }}</span>
             <span class="lp-history__version">{{ 'v' ~ entry.versionNumber }}</span>
-            <time class="lp-history__date" datetime="{{ entry.review.submittedAt|date('c') }}" title="{{ entry.review.submittedAt|date('Y-m-d H:i:s T') }}">{{ entry.review.submittedAt|relative_time }}</time>
+            <twig:Ds:RelativeTime :datetime="entry.review.submittedAt" class="lp-history__date" />
             {% if entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
         </div>
         {% else %}

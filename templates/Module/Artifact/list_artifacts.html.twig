@@ -63,7 +63,7 @@
                     <span aria-label="{{ 'artifact.list.no_card'|trans }}">—</span>
                 {% endif %}
             </span>
-            <time class="lp-data-table__cell lp-document-row__updated" role="cell" datetime="{{ item.latest.createdAt|date('c') }}" title="{{ item.latest.createdAt|date('Y-m-d H:i:s T') }}">{{ item.latest.createdAt|relative_time }}</time>
+            <twig:Ds:RelativeTime :datetime="item.latest.createdAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />
             <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <twig:Ds:CopyButton variant="icon" :text="url('app_project_artifact', {id: project.id, artifactId: artifact.id})" :label="'artifact.list.copy_link'|trans({'%name%': artifact.name})" :copiedLabel="'artifact.viewer.copied'|trans" class="lp-document-row__action" data-artifact-copy-link />
                 {# Both states are written out, because the icon importer sees only literal names. #}

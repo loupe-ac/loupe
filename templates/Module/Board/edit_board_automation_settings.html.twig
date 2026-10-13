@@ -27,7 +27,7 @@
                     <twig:ux:icon name="lucide:triangle-alert" class="lp-connect-alert__icon w-4 h-4" />
                     <p class="lp-connect-alert__text">
                         {{ 'board.automation.comment_failure.summary'|trans({'%pull_request%': failedComment.repository ~ '#' ~ failedComment.number}) -}}
-                        {% if failedComment.failedAt %} (<time datetime="{{ failedComment.failedAt|date('c') }}" title="{{ failedComment.failedAt|date('Y-m-d H:i:s T') }}">{{ failedComment.failedAt|relative_time }}</time>){% endif %}.
+                        {% if failedComment.failedAt %} (<twig:Ds:RelativeTime :datetime="failedComment.failedAt" />){% endif %}.
                         {% if cause in ['permission', 'no_installation', 'installation_suspended', 'unknown_pull_request', 'no_commenter', 'lookup_incomplete'] %}
                             {{ ('board.automation.comment_failure.cause.' ~ cause)|trans }}
                         {% else %}

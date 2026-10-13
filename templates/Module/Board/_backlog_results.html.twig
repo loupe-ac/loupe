@@ -36,7 +36,7 @@
                 {% if card.parent %}<span class="lp-board-card__number">#{{ card.parent.number }}</span> {{ card.parent.title }}{% else %}<span aria-label="{{ 'board.backlog.table.no_epic'|trans }}">—</span>{% endif %}
             </span>
             <span class="lp-data-table__cell lp-document-row__linked-card" role="cell">{{ view.pendingComments[card.id ~ '']|default(0) ?: '—' }}</span>
-            <time class="lp-data-table__cell lp-document-row__updated" datetime="{{ card.createdAt|date('c') }}" role="cell">{{ card.createdAt|relative_time }}</time>
+            <twig:Ds:RelativeTime :datetime="card.createdAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />
             <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <twig:Ds:Menu id="backlog-move-{{ card.id }}" as="form" :panel="{method: 'post', action: path('app_project_board_backlog_move', routeParams)}">
                     <twig:block name="trigger">

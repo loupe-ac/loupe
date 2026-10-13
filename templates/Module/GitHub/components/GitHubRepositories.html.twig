@@ -17,9 +17,9 @@
                 <span class="lp-identity-row__name lp-identity-row__name--mono" data-testid="forge-repository-path">{{ repository.path }}</span>
                 <span class="lp-identity-row__meta lp-identity-row__meta--plain" data-testid="forge-repository-health">
                     {%- if health == 'working' -%}
-                        {{ 'github.repositories.health.working'|trans({'%time%': repository.lastAcceptedAt|date('Y-m-d H:i')}) }}
+                        {{ 'github.repositories.health.working'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
                     {%- elseif health == 'quiet' -%}
-                        {{ 'github.repositories.health.quiet'|trans({'%time%': repository.lastAcceptedAt|date('Y-m-d H:i')}) }}
+                        {{ 'github.repositories.health.quiet'|trans({'%time%': repository.lastAcceptedAt|date('j M Y, H:i')}) }}
                     {%- else -%}
                         {{ 'github.repositories.health.waiting'|trans }}
                     {%- endif -%}
@@ -89,13 +89,13 @@
             <p class="lp-connect-hint" data-testid="github-hook-health">
                 {%- if hookHealth == 'failing' -%}
                     {{ 'github.repositories.hook.health.failing'|trans({
-                        '%time%': hook.lastRefusedAt|date('Y-m-d H:i'),
+                        '%time%': hook.lastRefusedAt|date('j M Y, H:i'),
                         '%reason%': (hook.lastRefusedReason in ['bad_signature', 'bad_payload']
                             ? 'github.repositories.hook.reason.' ~ hook.lastRefusedReason
                             : 'github.repositories.hook.reason.unknown')|trans,
                     }) }}
                 {%- elseif hookHealth == 'working' -%}
-                    {{ 'github.repositories.hook.health.working'|trans({'%time%': hook.lastAcceptedAt|date('Y-m-d H:i')}) }}
+                    {{ 'github.repositories.hook.health.working'|trans({'%time%': hook.lastAcceptedAt|date('j M Y, H:i')}) }}
                 {%- else -%}
                     {{ 'github.repositories.hook.health.waiting'|trans }}
                 {%- endif -%}

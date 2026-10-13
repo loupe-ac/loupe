@@ -8,7 +8,7 @@
         <p class="lp-hook-bridge">
             <twig:ux:icon name="lucide:cable" />
             <span title="{{ bridge.id }}" data-hook-bridge-label>{{ bridge.label }}</span>
-            <time datetime="{{ bridge.lastSeenAt|date('c') }}">{{ 'bridge.hooks.last_seen'|trans({'%time%': bridge.lastSeenAt|date('M j, H:i')}) }}</time>
+            <time datetime="{{ bridge.lastSeenAt|date('c') }}">{{ 'bridge.hooks.last_seen'|trans({'%time%': bridge.lastSeenAt|date('j M Y, H:i')}) }}</time>
         </p>
         {% for hook in bridge.hooks %}
         <article class="lp-rule-row" data-hook-row data-hook-event="{{ hook.event }}">
@@ -25,7 +25,7 @@
             <twig:Ds:StatusChip :modifier="outcomeChips[hook.outcome] ?? 'neutral'" class="lp-rule-row__state">
                 {{ ('bridge.hooks.outcome.' ~ hook.outcome)|trans }}
             </twig:Ds:StatusChip>
-            {% if hook.lastRunAt %}<time class="lp-rule-row__report" datetime="{{ hook.lastRunAt }}">{{ 'bridge.hooks.last_run'|trans({'%time%': hook.lastRunAt|date('M j, H:i')}) }}</time>{% endif %}
+            {% if hook.lastRunAt %}<time class="lp-rule-row__report" datetime="{{ hook.lastRunAt }}">{{ 'bridge.hooks.last_run'|trans({'%time%': hook.lastRunAt|date('j M Y, H:i')}) }}</time>{% endif %}
             {% if hook.error %}<p class="lp-rule-row__reason">{{ hook.error }}</p>{% endif %}
         </article>
         {% else %}
