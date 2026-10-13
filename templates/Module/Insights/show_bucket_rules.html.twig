@@ -49,15 +49,14 @@
             </div>
             <div class="lp-reports-proposal__actions">
                 {% for direction in ['up', 'down'] %}
-                <form method="post" action="{{ path('app_project_analytics_bucket_rule_move', {id: project.id, ruleId: rule.id, direction: direction}) }}">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-bucket-rule-move') }}">
-                    <twig:Ds:Button variant="outline" size="sm" type="submit" :disabled="(direction == 'up' and loop.parent.loop.first) or (direction == 'down' and loop.parent.loop.last)" data-bucket-rule-move="{{ direction }}">{{ ('insights.bucket_rules.move.' ~ direction)|trans }}</twig:Ds:Button>
-                </form>
+                {% set moveDisabled = (direction == 'up' and loop.parent.loop.first) or (direction == 'down' and loop.parent.loop.last) %}
+                <twig:Ds:ActionForm :action="path('app_project_analytics_bucket_rule_move', {id: project.id, ruleId: rule.id, direction: direction})" token="insights-bucket-rule-move">
+                    <twig:Ds:Button variant="outline" size="sm" type="submit" :disabled="moveDisabled" data-bucket-rule-move="{{ direction }}">{{ ('insights.bucket_rules.move.' ~ direction)|trans }}</twig:Ds:Button>
+                </twig:Ds:ActionForm>
                 {% endfor %}
-                <form method="post" action="{{ path('app_project_analytics_bucket_rule_delete', {id: project.id, ruleId: rule.id}) }}">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-bucket-rule-delete') }}">
+                <twig:Ds:ActionForm :action="path('app_project_analytics_bucket_rule_delete', {id: project.id, ruleId: rule.id})" token="insights-bucket-rule-delete">
                     <twig:Ds:Button variant="outline" size="sm" type="submit" data-bucket-rule-delete>{{ 'insights.bucket_rules.delete'|trans }}</twig:Ds:Button>
-                </form>
+                </twig:Ds:ActionForm>
             </div>
         </li>
         {% endfor %}

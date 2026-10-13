@@ -303,6 +303,17 @@ final readonly class Catalog
                 ],
                 legacyEnforced: true,
             ),
+            new ComponentEntry(
+                name: 'ActionForm',
+                rootClass: 'lp-action-form',
+                template: 'components/Ds/ActionForm.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                group: 'core',
+                summary: 'A form that posts with a CSRF token and holds one button, such as an archive, a revoke or a skip.',
+                element: 'form',
+            ),
         ];
     }
 }

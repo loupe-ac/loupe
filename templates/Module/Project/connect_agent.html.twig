@@ -79,14 +79,13 @@
                             : 'project.connect.forwarding.state.off')|trans }}
                     </span>
                 </span>
-                <form method="POST" action="{{ path('app_project_widget_forwarding_toggle', {id: project.id}) }}">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('toggle-project-widget-forwarding') }}">
+                <twig:Ds:ActionForm :action="path('app_project_widget_forwarding_toggle', {id: project.id})" token="toggle-project-widget-forwarding">
                     <twig:Ds:Button size="sm" type="submit">
                         {{ (project.forwardsToAgent
                             ? 'project.connect.forwarding.disable'
                             : 'project.connect.forwarding.enable')|trans }}
                     </twig:Ds:Button>
-                </form>
+                </twig:Ds:ActionForm>
             </div>
             <p class="lp-connect-note"><twig:ux:icon name="lucide:shield" />{{ 'project.connect.forwarding.warning'|trans }}</p>
 

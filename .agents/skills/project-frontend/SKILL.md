@@ -190,6 +190,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 
 13. Avatar: `<twig:Ds:Avatar :name="project.name" size="sm" shape="square" tone="danger" />`, or `icon="lucide:bot"` for an icon. Sizes are xs, sm, md and lg. Tones are accent, tint, ink, danger and chrome. `presence="live"` draws the bridge dot. The `ds_initial` filter gives the letter. The CSS is `assets/styles/components/avatar.css`.
 
+14. ActionForm: `<twig:Ds:ActionForm action="{{ path('app_x') }}" token="x-action" frame="_top">` with the button as content. It renders the form, the hidden `_csrf_token` from `csrf_token(token)` and the passthrough attributes. Use it for a form that holds only a token and one button. A form with a second field or button stays a plain form. The CSS is `assets/styles/components/action-form.css`.
+
 A child card that adds a component adds it to this list in the same branch.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".

@@ -19,10 +19,9 @@
     <p class="lp-card-held" data-card-held><twig:ux:icon name="lucide:circle-pause" class="lp-card-held__icon" />{{ 'board.card.runs.held'|trans }}</p>
     {% endif %}
     {% if canManage %}
-    <form method="post" action="{{ path(held ? 'app_project_card_agents_release' : 'app_project_card_agents_pause', {id: project.id, cardId: cardId}) }}" data-turbo-frame="card-worker-runs" {{ held ? 'data-card-agents-release' : 'data-card-agents-pause' }}>
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('card-agents') }}">
+    <twig:Ds:ActionForm :action="path(held ? 'app_project_card_agents_release' : 'app_project_card_agents_pause', {id: project.id, cardId: cardId})" token="card-agents" frame="card-worker-runs" :data-card-agents-release="held ? true : false" :data-card-agents-pause="held ? false : true">
         <twig:Ds:Button variant="outline" size="sm" type="submit">{% if held %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% endif %}{{ (held ? 'board.card.runs.release' : 'board.card.runs.pause')|trans }}</twig:Ds:Button>
-    </form>
+    </twig:Ds:ActionForm>
     {% endif %}
     {% for item in runs %}
     {% set control = item.control %}
@@ -39,10 +38,9 @@
             {% if canManage and control and control.action %}
             {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: item.run, control: control, frame: 'card-worker-runs', compact: true} only %}
             {% elseif canManage and item.closable %}
-            <form method="post" action="{{ path('app_project_worker_run_close', {id: project.id, runId: item.run.id}) }}" class="lp-card-run__action" data-turbo-frame="card-worker-runs" data-card-run-close>
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token('worker-run-close') }}">
+            <twig:Ds:ActionForm :action="path('app_project_worker_run_close', {id: project.id, runId: item.run.id})" token="worker-run-close" frame="card-worker-runs" class="lp-card-run__action" data-card-run-close>
                 <twig:Ds:Button variant="icon compact" type="submit"  title="{{ 'bridge.worker_runs.close_session'|trans }}" aria-label="{{ 'bridge.worker_runs.close_session'|trans }}"><twig:ux:icon name="lucide:x" class="size-3.5" /></twig:Ds:Button>
-            </form>
+            </twig:Ds:ActionForm>
             {% endif %}
         </div>
         <twig:Ds:StatusChip :modifier="item.state.chipModifier()" :dot="false">{{ item.state.translationKey()|trans }}</twig:Ds:StatusChip>
