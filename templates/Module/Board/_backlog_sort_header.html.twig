@@ -1,6 +1,6 @@
 {#- A Backlog column header that sorts the list. Props: project (Project), listQuery (BacklogListQuery), column (BacklogSort), label (string). -#}
 {% set ariaSort = listQuery.ariaSort(column) %}
-<span role="columnheader" aria-sort="{{ ariaSort }}">
+<span class="lp-data-table__cell" role="columnheader" aria-sort="{{ ariaSort }}">
     <a class="lp-backlog-sort-link" href="{{ path('app_project_board_backlog', {projectId: project.id}|merge(listQuery.sortParams(column))) }}">
         {{ label }}
         {% if ariaSort == 'ascending' %}

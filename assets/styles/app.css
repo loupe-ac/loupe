@@ -21,6 +21,7 @@
 @import './components/section-heading.css';
 @import './components/form-actions.css';
 @import './components/avatar.css';
+@import './components/data-table.css';
 @import './components/menu.css';
 @plugin "@tailwindcss/typography";
 
@@ -859,41 +860,6 @@
 
     .lp-core-inbox .lp-inbox-item__buttons {
         gap: calc(var(--spacing) * 2);
-    }
-
-    .lp-core-documents .lp-document-table {
-        border-radius: var(--radius-xl);
-        background: var(--surface-1);
-    }
-
-    .lp-core-documents .lp-document-table__head {
-        background: var(--surface-2);
-        color: var(--text-dim);
-        font-size: var(--text-xs);
-        font-weight: 500;
-        letter-spacing: 0.04em;
-        text-transform: none;
-    }
-
-    .lp-core-documents .lp-document-table .lp-document-row {
-        display: grid;
-        grid-template-columns:
-            minmax(0, 2fr) minmax(calc(var(--spacing) * 34), 0.75fr)
-            minmax(calc(var(--spacing) * 32), 0.7fr)
-            minmax(calc(var(--spacing) * 28), 0.6fr) minmax(
-                calc(var(--spacing) * 28),
-                0.6fr
-            )
-            calc(var(--spacing) * 20);
-        align-items: center;
-        gap: calc(var(--spacing) * 4);
-        min-height: calc(var(--spacing) * 18);
-        padding-top: calc(var(--spacing) * 4);
-        padding-bottom: calc(var(--spacing) * 4);
-    }
-
-    .lp-core-documents .lp-document-table .lp-document-row:hover {
-        background: var(--accent-faint-2);
     }
 
     .lp-core-documents .lp-document-row__head {
@@ -2394,45 +2360,11 @@
 }
 
 @layer components {
-    /* Dense document table for scanning current versions and review state. */
-    .lp-document-table {
-        @apply min-w-0 overflow-x-auto rounded-2xl border border-line;
-    }
-    .lp-document-table__head,
-    .lp-document-row {
-        @apply grid items-center gap-4;
-        grid-template-columns:
-            minmax(0, 2fr) minmax(calc(var(--spacing) * 34), 0.75fr)
-            minmax(calc(var(--spacing) * 32), 0.7fr)
-            minmax(calc(var(--spacing) * 28), 0.6fr) minmax(
-                calc(var(--spacing) * 28),
-                0.6fr
-            )
-            calc(var(--spacing) * 20);
-    }
-    .lp-document-table__head {
-        @apply min-w-4xl px-5 py-3 bg-surface-3 text-xs font-bold uppercase tracking-wider text-fg-dim;
-    }
-    .lp-document-table .lp-document-list {
-        @apply min-w-4xl gap-0 mt-0;
-    }
-    .lp-document-table .lp-document-row {
-        @apply min-w-4xl rounded-none bg-surface-1 px-5 py-4 border-t border-line;
-    }
-    .lp-document-table .lp-document-row:hover {
-        @apply bg-surface-2;
-    }
     .lp-document-row__main {
         @apply min-w-0 flex flex-col gap-1.5;
     }
-    .lp-document-table .lp-document-row__head {
-        @apply flex items-center gap-2 min-w-0;
-    }
     .lp-document-row__description {
         @apply m-0 text-sm text-fg-dim truncate;
-    }
-    .lp-document-table .lp-document-row__meta {
-        @apply flex flex-wrap items-center gap-1.5;
     }
     .lp-document-row__status {
         @apply flex items-center;
@@ -2442,46 +2374,59 @@
     .lp-document-row__updated {
         @apply text-sm text-fg-mute;
     }
-    .lp-document-table .lp-document-row__actions {
-        @apply relative z-10 flex items-center justify-end;
+
+    /* Document, Status, Author, Linked card, Updated, Actions. The artifacts list shares it.
+       A row is a title line and a meta line, so it grows past the one-line height. */
+    .lp-data-table--documents {
+        --lp-data-table-columns: minmax(0, 2fr)
+            minmax(calc(var(--spacing) * 34), 0.75fr)
+            minmax(calc(var(--spacing) * 32), 0.7fr)
+            minmax(calc(var(--spacing) * 28), 0.6fr)
+            minmax(calc(var(--spacing) * 28), 0.6fr) calc(var(--spacing) * 20);
+        @apply overflow-x-auto;
     }
-    .lp-document-table .lp-document-row__archive-reason {
-        @apply col-span-full;
+    .lp-data-table--documents .lp-data-table__header,
+    .lp-data-table--documents .lp-data-table__row {
+        @apply min-w-4xl;
+    }
+    .lp-data-table--documents .lp-data-table__row {
+        @apply min-h-18 py-4;
+        grid-auto-flow: row;
+    }
+    .lp-data-table--documents
+        .lp-data-table__row:has(.lp-data-table__target):not(
+            :has(dialog[open])
+        ):hover {
+        @apply bg-accent-faint-2;
     }
 
-    /* The Backlog page reuses the document table with its own columns. From
-       lg up the table fits the page and lets the row menus overflow it, so a
-       menu is never clipped. Below lg it scrolls sideways as the documents do. */
-    .lp-document-table--backlog {
-        @apply lg:overflow-visible;
+    /* The Backlog page has its own columns. From lg up the table fits the page
+       and lets the row menus overflow it, so a menu is never clipped. Below lg
+       it scrolls sideways as the documents do. */
+    .lp-data-table--backlog {
+        --lp-data-table-columns: calc(var(--spacing) * 4) minmax(0, 2.6fr)
+            minmax(calc(var(--spacing) * 24), 0.55fr)
+            minmax(calc(var(--spacing) * 24), 1.2fr) calc(var(--spacing) * 19)
+            calc(var(--spacing) * 25) calc(var(--spacing) * 28);
+        @apply max-lg:overflow-x-auto lg:overflow-visible;
     }
-    /* Three classes on the row, to win over the documents row of redesign-core.css. */
-    .lp-document-table--backlog .lp-document-table__head,
-    .lp-document-table--backlog .lp-document-list,
-    .lp-document-table--backlog .lp-document-row.lp-backlog-row {
-        @apply lg:min-w-0;
+    .lp-data-table--backlog .lp-data-table__header,
+    .lp-data-table--backlog .lp-data-table__row {
+        @apply gap-3 max-lg:min-w-4xl;
     }
-    .lp-document-table--backlog .lp-document-table__head,
-    .lp-document-table--backlog .lp-document-row.lp-backlog-row {
-        @apply gap-3;
-        grid-template-columns:
-            calc(var(--spacing) * 4)
-            minmax(0, 2.6fr) minmax(calc(var(--spacing) * 24), 0.55fr)
-            minmax(calc(var(--spacing) * 24), 1.2fr)
-            calc(var(--spacing) * 19) calc(var(--spacing) * 25)
-            calc(var(--spacing) * 28);
-    }
-    .lp-document-table--backlog .lp-document-row.lp-backlog-row {
+    .lp-data-table--backlog .lp-data-table__row {
         @apply min-h-15 py-2.5;
     }
+    .lp-data-table--backlog .lp-data-table__row:hover {
+        @apply bg-surface-2;
+    }
     /* Each actions cell stacks at z-10, so the one with an open menu goes above the rows below it. */
-    .lp-document-table--backlog
+    .lp-data-table--backlog
         .lp-document-row__actions:has(.lp-menu__panel:not([hidden])) {
         @apply z-30;
     }
     /* A ticked row. */
-    .lp-document-table--backlog
-        .lp-document-row:has(.lp-backlog-check:checked) {
+    .lp-data-table--backlog .lp-data-table__row:has(.lp-backlog-check:checked) {
         @apply bg-accent-faint-2;
     }
     .lp-backlog-row__title {
@@ -3448,31 +3393,14 @@
 
     /* ── Documents list ─────────────────────────────────────────────── */
 
-    /* Flush hairline divider list of document rows: top hairline, per-row bottom
-       hairline, subtle hover. Its rhythm and version pill are local to this
-       screen rather than shared with the token and site-review row lists. */
-    .lp-document-list {
-        @apply flex flex-col mt-2;
-    }
-    /* Divider on top rather than bottom, so the last row does not end on a rule
-       the eye reads as "more below". A column at every width: the title owns the
-       first line whole, and every other thing the row says goes on the line
-       under it. Sharing one line left the title about 50px, which rendered every
-       document on the list as one letter and an ellipsis. */
-    .lp-document-row {
-        @apply relative flex flex-col gap-1.5 border-t border-line-strong transition-colors py-5 px-1;
-    }
-    .lp-document-row:hover {
-        @apply bg-tint;
-    }
-    /* Stretch the review link across the whole row; the badge and chevron are
-       non-interactive so they sit beneath it. */
+    /* The content parts of a document row, inside a data table row. The review
+       link stretches across the row; the badge and chevron sit beneath it. */
     .lp-document-row__link {
         @apply absolute inset-0;
     }
     /* Line 1: the title, and nothing else on it. */
     .lp-document-row__head {
-        @apply flex min-w-0;
+        @apply flex items-center gap-2 min-w-0;
     }
     /* The title has the line to itself, so it wraps rather than truncates at
        every width. One ellipsised letter tells the reader nothing. */
@@ -3488,7 +3416,7 @@
        a document may carry more tag names than one line holds. The actions ride
        the right end. */
     .lp-document-row__meta {
-        @apply flex flex-wrap items-center gap-x-3 gap-y-1.5 text-fg-dim text-sm;
+        @apply flex flex-wrap items-center gap-1.5 text-fg-dim text-sm;
     }
     .lp-document-row__meta > .lp-document-row__actions {
         @apply ml-auto;
@@ -3525,12 +3453,12 @@
        short: two lines keep a long reason from stretching the row past its
        neighbours. Only archived rows can carry one. */
     .lp-document-row__archive-reason {
-        @apply m-0 text-sm italic text-fg-dim line-clamp-2;
+        @apply m-0 col-span-full text-sm italic text-fg-dim line-clamp-2;
     }
     /* Rename and archive sit above the full-row overlay link (z-10) so they stay
        clickable rather than the row's review link swallowing the click. */
     .lp-document-row__actions {
-        @apply relative z-10 shrink-0 flex items-center gap-1;
+        @apply relative z-10 shrink-0 flex items-center justify-end gap-1;
     }
     /* The archive form wraps a single icon button; it must not introduce a line
        box of its own between the rename link and the chevron. */
@@ -7638,66 +7566,7 @@
 
     /* ── Data table ─────────────────────────────────────────────────── */
 
-    /* A one-line-per-row list with a header. A modifier sets
-       --lp-data-table-columns; with none, the columns share the width.
-       No overflow clip on the box, or the last row's tooltip is cut off.
-       Narrow screens trade that for a horizontal scroll. */
-    .lp-data-table {
-        @apply mt-6 rounded-xl border border-line bg-surface-1 max-md:overflow-x-auto;
-    }
-    .lp-data-table__header,
-    .lp-data-table__row {
-        @apply grid items-center gap-4 px-5 max-md:min-w-3xl;
-        grid-template-columns: var(--lp-data-table-columns);
-        grid-auto-flow: column;
-        grid-auto-columns: minmax(0, 1fr);
-    }
-    .lp-data-table__header {
-        @apply min-h-10 rounded-t-xl border-b border-line bg-app text-xs font-semibold uppercase tracking-wider text-fg-dim;
-    }
-    .lp-data-table__row {
-        @apply relative min-h-13 border-b border-line bg-white text-sm text-fg-mute last:rounded-b-xl last:border-b-0;
-    }
-    .lp-data-table__row:has(.lp-data-table__target):not(
-            :has(dialog[open])
-        ):hover {
-        @apply bg-surface-2;
-    }
-    .lp-data-table__row:has(dialog[open]) {
-        @apply bg-accent-faint;
-    }
-    .lp-data-table__cell {
-        @apply min-w-0;
-    }
-    .lp-data-table__cell--end {
-        @apply text-right;
-    }
-    .lp-data-table__row > .lp-data-table__cell--end {
-        @apply font-mono text-xs;
-    }
-    .lp-data-table .lp-status-chip {
-        @apply ml-0 justify-self-start;
-    }
-    .lp-data-table__primary {
-        @apply flex min-w-0 items-center gap-2;
-    }
-    .lp-data-table__number {
-        @apply shrink-0 font-mono font-bold text-ink;
-    }
-    .lp-data-table__title {
-        @apply min-w-0 truncate font-semibold text-ink;
-    }
-    /* The row's one control. Its ::after covers the row, so a click anywhere lands on it. */
-    .lp-data-table__target {
-        @apply flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left text-inherit no-underline cursor-pointer outline-none;
-    }
-    .lp-data-table__target::after {
-        content: '';
-        @apply absolute inset-0;
-    }
-    .lp-data-table__target:focus-visible::after {
-        @apply outline-solid outline-2 -outline-offset-2 outline-accent-ink;
-    }
+    /* The base rules are in components/data-table.css. These are the column grids of each page. */
     /* Work, Outcome, Rule, Duration, Started. A long rule name truncates, so a row stays one line. */
     .lp-data-table--runs {
         --lp-data-table-columns: minmax(0, 1fr) calc(var(--spacing) * 36)
@@ -7754,10 +7623,6 @@
 
     /* ── Artifacts ──────────────────────────────────────────────────── */
 
-    /* The archive and copy buttons of a library row sit side by side. */
-    .lp-artifact-table .lp-document-row__actions {
-        @apply gap-1;
-    }
     /* An icon button that copies a link: the link icon swaps for a check once copied. */
     .lp-copy-icon {
         @apply contents;
