@@ -1,0 +1,17 @@
+/* A dark block of code or a command, with a header bar and a copy button.
+   `templates/components/Ds/CodeBlock.html.twig` renders it. */
+@layer components {
+    .lp-code-dark {
+        @apply rounded-xl overflow-hidden border-0 bg-code-dark-bg;
+    }
+    .lp-code-dark__header {
+        @apply flex items-center justify-between gap-2 bg-code-dark-header py-2.5 px-3.5;
+    }
+    .lp-code-dark__label {
+        @apply font-mono text-chrome-mute m-0 text-xs;
+    }
+    .lp-code-dark__body {
+        @apply bg-code-dark-bg text-code-dark-text font-mono overflow-x-auto m-0 pt-0 px-4 pb-4 text-xs leading-relaxed;
+        white-space: pre;
+    }
+}

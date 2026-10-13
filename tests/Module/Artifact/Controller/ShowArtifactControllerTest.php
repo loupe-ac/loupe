@@ -316,7 +316,7 @@ final class ShowArtifactControllerTest extends WebTestCase
 
     private function copyLink(Crawler $crawler): string
     {
-        return (string) $crawler->filter('.lp-copy-icon')->attr('data-clipboard-text-value');
+        return (string) $crawler->filter('.lp-copy-button')->attr('data-clipboard-text-value');
     }
 
     private function bandText(Crawler $crawler): string

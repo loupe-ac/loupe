@@ -61,6 +61,11 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| Panel | A bordered tinted card that holds one block of a page | none. Takes `as` for the element |
+| SectionHeading | The title of a section, with an optional sentence and optional actions | none. The content is the title. Takes `level`, `description`, `titleId` and an `actions` block, and no `title` prop |
+| FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
+| CodeBlock | A dark block of code or a command, with a header label and a copy button | none |
+| CopyButton | A button that copies a text and shows that it did. It owns the `clipboard` controller | text, icon. Tones light, chrome |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 | RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
@@ -105,10 +110,12 @@ Write a dialog, tabs, pagination and a tooltip like this:
 
 <twig:Ds:FilterBar :action="path('app_projects')" :search="{id: 'q', name: 'q', value: query, label: 'Search', placeholder: 'Search'}" clearHref="{{ path('app_projects') }}" clearLabel="Clear" count="3 projects" />
 
+<twig:Ds:CodeBlock label="Terminal" text="npm install" copyLabel="Copy" copiedLabel="Copied!" />
+
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
 
 Write a menu like this:
 
@@ -199,4 +206,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-tooltip` or `lp-menu` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-code-dark`, `lp-copy-button`, `lp-tooltip` or `lp-menu` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.

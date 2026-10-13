@@ -13,7 +13,7 @@
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'reports'} only %}
 
     <section class="lp-reports-panel" data-start-analysis-form>
-        <h2 class="lp-section-title">{{ 'insights.reports.start.title'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'insights.reports.start.title'|trans }}</twig:Ds:SectionHeading>
         {{ form_start(startForm, {action: path('app_project_analytics_analysis_start', {id: project.id}), attr: {class: 'lp-form lp-reports-form'}}) }}
             <twig:Ds:FieldErrors :fieldView="startForm" />
             <div class="lp-reports-form__fields">
@@ -36,9 +36,9 @@
                 </twig:Ds:FormField>
             </div>
             <twig:Ds:Hint>{{ 'insights.reports.start.defaults'|trans({'%model%': settings.model, '%effort%': ('insights.reports.effort.' ~ settings.effort)|trans}) }}</twig:Ds:Hint>
-            <div class="lp-settings-form-actions">
+            <twig:Ds:FormActions>
                 <twig:Ds:Button variant="primary" type="submit">{{ 'insights.reports.start.submit'|trans }}</twig:Ds:Button>
-            </div>
+            </twig:Ds:FormActions>
         {{ form_end(startForm) }}
     </section>
 
@@ -71,9 +71,9 @@
                 {% if settingsForm.collectFullText.vars.help %}<twig:Ds:Hint as="div" id="{{ settingsForm.collectFullText.vars.id }}_help">{{ settingsForm.collectFullText.vars.help|trans(settingsForm.collectFullText.vars.help_translation_parameters, settingsForm.collectFullText.vars.translation_domain) }}</twig:Ds:Hint>{% endif %}
                 <twig:Ds:FieldErrors :fieldView="settingsForm.collectFullText" data-field-errors="collectFullText" />
             </twig:Ds:FormField>
-            <div class="lp-settings-form-actions">
+            <twig:Ds:FormActions>
                 <twig:Ds:Button variant="primary" type="submit">{{ 'insights.reports.settings.submit'|trans }}</twig:Ds:Button>
-            </div>
+            </twig:Ds:FormActions>
         {{ form_end(settingsForm) }}
     </details>
 

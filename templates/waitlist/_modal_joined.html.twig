@@ -1,5 +1,5 @@
 <h2 class="lp-dialog-title lp-home-waitlist-dialog__title" id="waitlist-modal-title">{{ 'account.waitlist.joined.title'|trans }}</h2>
 <p class="lp-dialog-desc">{{ 'account.waitlist.joined.body'|trans }}</p>
-<div class="lp-dialog-actions">
+<twig:Ds:FormActions>
     <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'landing.waitlist_dialog.close'|trans }}</twig:Ds:Button>
-</div>
+</twig:Ds:FormActions>

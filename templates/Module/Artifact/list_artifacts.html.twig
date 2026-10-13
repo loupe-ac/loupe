@@ -67,11 +67,7 @@
             </span>
             <twig:Ds:RelativeTime :datetime="item.latest.createdAt" class="lp-document-row__updated" role="cell" />
             <div class="lp-document-row__actions" role="cell">
-                {% include '@Artifact/_copy_link_button.html.twig' with {
-                    link: url('app_project_artifact', {id: project.id, artifactId: artifact.id}),
-                    label: 'artifact.list.copy_link'|trans({'%name%': artifact.name}),
-                    buttonClass: 'lp-document-row__action',
-                } only %}
+                <twig:Ds:CopyButton variant="icon" :text="url('app_project_artifact', {id: project.id, artifactId: artifact.id})" :label="'artifact.list.copy_link'|trans({'%name%': artifact.name})" :copiedLabel="'artifact.viewer.copied'|trans" class="lp-document-row__action" data-artifact-copy-link />
                 {# Both states are written out, because the icon importer sees only literal names. #}
                 <form method="post" class="lp-document-row__action-form"
                       action="{{ path(archived ? 'app_project_artifact_unarchive' : 'app_project_artifact_archive', {id: project.id, artifactId: artifact.id}) }}">

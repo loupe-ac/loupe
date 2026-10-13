@@ -12,9 +12,14 @@
 @import './components/dialog.css';
 @import './components/pagination.css';
 @import './components/filter-bar.css';
+@import './components/code-block.css';
+@import './components/copy-button.css';
 @import './components/tabs.css';
 @import './components/decision.css';
 @import './components/tooltip.css';
+@import './components/panel.css';
+@import './components/section-heading.css';
+@import './components/form-actions.css';
 @import './components/avatar.css';
 @import './components/relative-time.css';
 @import './components/menu.css';

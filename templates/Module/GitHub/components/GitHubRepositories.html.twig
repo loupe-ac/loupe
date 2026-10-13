@@ -1,6 +1,6 @@
 {% if visible %}
-<section class="lp-settings-section lp-settings-panel-card" id="repositories" data-testid="github-repositories">
-    <h2 class="lp-section-title">{{ 'github.repositories.title'|trans }}</h2>
+<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories">
+    <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
 
     {% if not appConfigured and not hookAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
@@ -32,10 +32,10 @@
                     <p class="lp-dialog-desc">{{ 'github.repositories.remove.description'|trans({'%path%': repository.path}) }}</p>
                     <form method="post" action="{{ path('app_forge_repository_remove', {id: project.id, repositoryId: repository.id}) }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('forge-repository-remove') }}">
-                        <div class="lp-dialog-actions">
+                        <twig:Ds:FormActions>
                             <twig:Ds:Button variant="ghost" type="button"  data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
                             <twig:Ds:Button variant="danger" type="submit">{{ 'github.repositories.remove.confirm'|trans }}</twig:Ds:Button>
-                        </div>
+                        </twig:Ds:FormActions>
                     </form>
                 </twig:Ds:Dialog>
             </div>
@@ -105,14 +105,12 @@
             <p class="lp-connect-hint">{{ 'github.repositories.hook.instructions'|trans }}</p>
 
             {% set hookUrl = url('webhook_forge_github_hook', {hookKey: hook.hookKey}) %}
-            <div class="lp-code-dark" data-controller="clipboard" data-clipboard-text-value="{{ hookUrl }}"
-                 data-clipboard-copied-label-value="{{ 'project.connect.copied'|trans }}">
-                <div class="lp-code-dark__header">
-                    <span class="lp-code-dark__label">{{ 'github.repositories.hook.url'|trans }}</span>
-                    <button type="button" class="lp-code-dark__copy" data-clipboard-target="button" data-action="clipboard#copy">{{ 'project.connect.copy'|trans }}</button>
-                </div>
-                <pre class="lp-code-dark__body"><code data-testid="github-hook-url">{{ hookUrl }}</code></pre>
-            </div>
+            <twig:Ds:CodeBlock
+                :label="'github.repositories.hook.url'|trans"
+                :text="hookUrl"
+                :copyLabel="'project.connect.copy'|trans"
+                :copiedLabel="'project.connect.copied'|trans"
+                testid="github-hook-url" />
             <p class="lp-connect-hint">{{ 'github.repositories.hook.content_type'|trans({'%type%': 'application/json'}) }}</p>
 
             {% if newSecret %}
@@ -121,14 +119,12 @@
                     <twig:ux:icon name="lucide:triangle-alert" class="lp-connect-alert__icon w-4 h-4" />
                     <p class="lp-connect-alert__text">{{ 'github.repositories.hook.secret_once'|trans }}</p>
                 </div>
-                <div class="lp-code-dark" data-controller="clipboard" data-clipboard-text-value="{{ newSecret }}"
-                     data-clipboard-copied-label-value="{{ 'project.connect.copied'|trans }}">
-                    <div class="lp-code-dark__header">
-                        <span class="lp-code-dark__label">{{ 'github.repositories.hook.secret'|trans }}</span>
-                        <button type="button" class="lp-code-dark__copy" data-clipboard-target="button" data-action="clipboard#copy">{{ 'project.connect.copy'|trans }}</button>
-                    </div>
-                    <pre class="lp-code-dark__body"><code data-testid="github-hook-secret">{{ newSecret }}</code></pre>
-                </div>
+                <twig:Ds:CodeBlock
+                    :label="'github.repositories.hook.secret'|trans"
+                    :text="newSecret"
+                    :copyLabel="'project.connect.copy'|trans"
+                    :copiedLabel="'project.connect.copied'|trans"
+                    testid="github-hook-secret" />
             </div>
             {% endif %}
 
@@ -143,15 +139,15 @@
                     <p class="lp-dialog-desc">{{ 'github.repositories.hook.rotate.description'|trans }}</p>
                     <form method="post" action="{{ path('app_github_hook_secret_rotate', {id: project.id}) }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('github-hook-secret-rotate') }}">
-                        <div class="lp-dialog-actions">
+                        <twig:Ds:FormActions>
                             <twig:Ds:Button variant="ghost" type="button"  data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
                             <twig:Ds:Button variant="primary" type="submit">{{ 'github.repositories.hook.rotate.confirm'|trans }}</twig:Ds:Button>
-                        </div>
+                        </twig:Ds:FormActions>
                     </form>
                 </twig:Ds:Dialog>
             </div>
             {% endif %}
         </div>
     {% endif %}
-</section>
+</twig:Ds:Panel>
 {% endif %}

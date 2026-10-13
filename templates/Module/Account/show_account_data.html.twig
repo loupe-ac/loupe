@@ -3,8 +3,8 @@
 {% block settings_section 'data' %}
 
 {% block settings_content %}
-<section class="lp-connect-block lp-settings-section lp-settings-panel-card" data-testid="export-section">
-    <h2 class="lp-section-title">{{ 'account.settings.export.heading'|trans }}</h2>
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="export-section">
+    <twig:Ds:SectionHeading>{{ 'account.settings.export.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'account.settings.export.intro'|trans }}</p>
 
     {% for export in view.exports %}
@@ -34,14 +34,14 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('request-data-export') }}">
         <twig:Ds:Button variant="primary" type="submit">{{ 'account.settings.export.request_button'|trans }}</twig:Ds:Button>
     </form>
-</section>
+</twig:Ds:Panel>
 
-<section class="lp-danger-zone lp-settings-panel-card" data-testid="delete-account-section">
+<twig:Ds:Panel as="section" class="lp-danger-zone" data-testid="delete-account-section">
     <h2 class="lp-danger-zone-title">{{ 'account.delete.danger.heading'|trans }}</h2>
     <p class="lp-danger-zone-desc">{{ 'account.delete.danger.body'|trans }}</p>
     <form method="post" action="{{ path('app_account_delete_request') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('request-account-deletion') }}">
         <twig:Ds:Button variant="danger" type="submit">{{ 'account.delete.danger.cta'|trans }}</twig:Ds:Button>
     </form>
-</section>
+</twig:Ds:Panel>
 {% endblock %}

@@ -30,7 +30,7 @@
     </header>
 
     <section class="lp-workflow-section">
-        <h2 class="lp-section-title">{{ 'workflow.settings.slots.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.slots.heading'|trans }}</twig:Ds:SectionHeading>
         {% if template.slots is not empty %}
         <twig:DataTable :columns="[
             {label: 'workflow.settings.slots.slot'|trans},
@@ -51,7 +51,7 @@
     </section>
 
     <section class="lp-workflow-section" data-workflow-types>
-        <h2 class="lp-section-title">{{ 'workflow.settings.types.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.types.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.types.description'|trans }}</p>
         <twig:DataTable :columns="[
             {label: 'workflow.settings.types.type'|trans},
@@ -75,20 +75,20 @@
     </section>
 
     <section class="lp-workflow-section" data-workflow-template-rules>
-        <h2 class="lp-section-title">{{ 'workflow.settings.rules.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.rules.heading'|trans }}</twig:Ds:SectionHeading>
         {% include '@Workflow/_rule_table.html.twig' with {rules: template.rules} only %}
     </section>
 
     {% if template.appRules is not empty %}
     <section class="lp-workflow-section" data-workflow-app-rules>
-        <h2 class="lp-section-title">{{ 'workflow.settings.app_rules.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.app_rules.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.app_rules.description'|trans }}</p>
         {% include '@Workflow/_rule_table.html.twig' with {rules: template.appRules} only %}
     </section>
     {% endif %}
 
     <section class="lp-workflow-section">
-        <h2 class="lp-section-title">{{ 'workflow.settings.moves.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.moves.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.moves.description'|trans }}</p>
         {% if template.manualMoves is not empty %}
         <twig:DataTable :columns="[
@@ -110,7 +110,7 @@
     </section>
 
     <section class="lp-workflow-section" data-workflow-timings>
-        <h2 class="lp-section-title">{{ 'workflow.settings.timings.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.timings.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.timings.backoff'|trans({'%minutes%': template.backoffMinutes|join(', ')}) }}</p>
         {% if template.workFailedBackoffMinutes is not null %}
             <p class="lp-workspace-desc">{{ 'workflow.settings.timings.work_failed_backoff'|trans({'%minutes%': template.workFailedBackoffMinutes|join(', ')}) }}</p>
