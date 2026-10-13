@@ -250,15 +250,16 @@
         gap: calc(var(--spacing) * 3);
     }
 
+    /* The inbox sits straight on a white page, with no frame around it. */
+    .lp-main:has(.lp-core-inbox) {
+        @apply bg-surface-1;
+    }
+
     .lp-core-inbox .lp-inbox-section--queue {
         display: flex;
         flex-direction: column;
         gap: 0;
-        padding: calc(var(--spacing) * 7);
         overflow: hidden;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xl);
-        background: var(--surface-1);
     }
 
     .lp-core-inbox .lp-inbox-split {
@@ -470,7 +471,6 @@
 
     .lp-core-inbox .lp-inbox-request-detail {
         min-width: 0;
-        background: var(--surface-1);
     }
 
     .lp-core-inbox .lp-inbox-ask {
@@ -480,7 +480,7 @@
         gap: 0;
         border: 0;
         border-radius: 0;
-        background: var(--surface-1);
+        background: transparent;
         padding: 0;
     }
 
@@ -957,10 +957,6 @@
     @media (max-width: 42.5rem) {
         .lp-core-inbox .lp-inbox-split {
             grid-template-columns: 1fr;
-        }
-
-        .lp-core-inbox .lp-inbox-section--queue {
-            padding: calc(var(--spacing) * 4);
         }
 
         .lp-core-inbox .lp-inbox-request-list {
@@ -2796,9 +2792,6 @@
     }
     .lp-inbox-section {
         scroll-margin-top: calc(var(--spacing) * 20);
-    }
-    .lp-inbox-section--queue {
-        @apply rounded-2xl bg-surface-2 p-4 sm:p-5;
     }
     .lp-inbox-ask__head {
         @apply gap-2;

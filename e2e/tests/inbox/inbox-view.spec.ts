@@ -145,6 +145,31 @@ test('the type filter and the switch change the list and keep the address', asyn
     await expect(page.locator('a.lp-inbox-request')).toHaveCount(2);
 });
 
+test('the view sits straight on a white page, with no frame or fill', async ({
+    page,
+}, testInfo) => {
+    const { first } = await seedTwoAsks(
+        page,
+        testInfo.testId.replace(/[^a-z0-9]/gi, ''),
+    );
+    await page.goto(`/projects/${first.projectId}/inbox`);
+    await expect(page.locator('[data-inbox-ask-id]')).toHaveCount(1);
+
+    const white = 'rgb(255, 255, 255)';
+    const clear = 'rgba(0, 0, 0, 0)';
+    await expect(page.locator('.lp-main')).toHaveCSS('background-color', white);
+    for (const selector of [
+        '.lp-inbox-section--queue',
+        '.lp-inbox-request-detail',
+        '.lp-inbox-ask',
+    ]) {
+        const element = page.locator(selector);
+        await expect(element).toHaveCSS('background-color', clear);
+        await expect(element).toHaveCSS('border-top-width', '0px');
+        await expect(element).toHaveCSS('padding-top', '0px');
+    }
+});
+
 test('an old fragment link opens the ask of the item', async ({
     page,
 }, testInfo) => {
