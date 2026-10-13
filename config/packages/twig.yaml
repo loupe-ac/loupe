@@ -40,3 +40,5 @@ when@test:
             # Backs AdminUserPanelFixture. A fixture template must not sit under
             # templates/Module/, which is production markup.
             '%kernel.project_dir%/tests/Support/templates': 'TestFixtures'
+            # Backs the layout export test with a sample part, until a real one ships.
+            '%kernel.project_dir%/tests/Support/design-system-templates': 'DesignSystem'
