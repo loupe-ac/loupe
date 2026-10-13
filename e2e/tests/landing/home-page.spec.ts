@@ -104,8 +104,11 @@ test.describe('home page', () => {
         expect(steps.every((index) => index >= 0)).toBe(true);
         expect([...steps].sort((a, b) => a - b)).toEqual(steps);
 
+        const player = explainer.locator('#player');
+        await expect(player).toHaveClass(/is-poster/);
         await play.click();
         await expect(play).toBeHidden();
+        await expect(player).not.toHaveClass(/is-poster/);
         await expect
             .poll(async () =>
                 frame.evaluate((element) => {
