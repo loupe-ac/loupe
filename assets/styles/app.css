@@ -2696,7 +2696,9 @@
     .lp-card-drawer__header-actions {
         @apply flex items-center gap-2;
     }
-    .lp-card-drawer__icon,
+    .lp-card-drawer__icon {
+        @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
+    }
     .lp-card-drawer__body {
         @apply px-6 py-2.5;
     }
