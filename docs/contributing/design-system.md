@@ -158,6 +158,8 @@ The command prints each path it wrote, relative to the directory, one per line.
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
+A part with an inner structure, such as a sidebar, sets `export` on its catalog entry and goes in the `layout` group. The value names a folder under `templates/Module/DesignSystem/export/layout/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates. `demo.jsx.twig` draws the part in the `layout` group card. An entry with no Twig component sets `template` to null.
+
 The command never writes `_ds_bundle.js`, `_ds_manifest.json`, `_adherence.oxlintrc.json`, `.thumbnail` or `ds-mount.js`. The platform makes those files.
 
 The command does not copy icons. A catalog entry that needs icons must add them to the command.
