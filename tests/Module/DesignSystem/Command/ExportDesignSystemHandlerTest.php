@@ -441,6 +441,29 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertSame(3, substr_count($jsx, '.filter(shown).map('));
     }
 
+    public function test_the_app_shell_wrapper_always_shows_the_counts_the_base_template_always_shows(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        preg_match_all('/<a\b(?:(?!<\/a>).)*?\'nav\.link\.([a-z_]+)\'\|trans(?:(?!<\/a>).)*<\/a>/s', $base, $anchors, \PREG_SET_ORDER);
+        $expected = [];
+        foreach ($anchors as [$anchor, $key]) {
+            if (str_contains($anchor, '<span class="lp-sidebar__pill"')) {
+                $expected[] = $key;
+            }
+        }
+        sort($expected);
+        self::assertSame(['artifacts', 'documents'], $expected);
+
+        preg_match_all("/\\{ key: '([a-z_]+)'[^}]*alwaysCount: true[^}]*\\}/", $jsx, $links);
+        $actual = $links[1];
+        sort($actual);
+        self::assertSame($expected, $actual);
+        self::assertStringContainsString('<span className="lp-sidebar__pill">{count ?? 0}</span>', $jsx);
+        self::assertStringContainsString(') : count > 0 && (', $jsx);
+    }
+
     /** @return list<string> the body of each `{% if <condition> %}` block, nested blocks included */
     private function ifBlocks(string $twig, string $condition): array
     {
