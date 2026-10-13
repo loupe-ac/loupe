@@ -6,14 +6,16 @@ namespace App\Module\Bridge\Workflow\Condition;
 
 use App\Module\Bridge\Workflow\WorkRequestFacts;
 use App\Module\Workflow\Contract\Condition;
+use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
 /** A work request is open or claimed, of the given kind, or of any kind when no kind is given. */
-final readonly class RunWorkActive implements Condition
+final readonly class RunWorkActive implements Condition, MarkerEvidence
 {
     #[\Override]
     public static function key(): string
@@ -52,5 +54,11 @@ final readonly class RunWorkActive implements Condition
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
         return new TranslatableMessage($negated ? 'workflow.waiting.not.run_work_active' : 'workflow.waiting.run_work_active');
+    }
+
+    #[\Override]
+    public function evidence(Facts $facts, array $params): ?Evidence
+    {
+        return ActiveKindEvidence::of($facts->get(WorkRequestFacts::class)->since, ParameterValue::optionalString($params, 'kind'));
     }
 }

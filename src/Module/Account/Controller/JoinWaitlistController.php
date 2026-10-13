@@ -10,6 +10,7 @@ use App\Module\Account\Command\JoinWaitlistHandler;
 use App\Module\Account\Form\WaitlistJoinFormType;
 use App\Module\Account\Form\WaitlistJoinRequest;
 use App\Module\Account\Service\RegistrationGate;
+use App\Module\Account\Service\WaitlistJoinTicket;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -46,6 +47,7 @@ final class JoinWaitlistController extends AppController
         private readonly TranslatorInterface $translator,
         private readonly Auditor $auditor,
         private readonly FormFactoryInterface $formFactory,
+        private readonly WaitlistJoinTicket $joinTicket,
 
         #[Autowire(service: 'limiter.waitlist_join')]
         private readonly RateLimiterFactory $waitlistJoinLimiter,
@@ -73,7 +75,16 @@ final class JoinWaitlistController extends AppController
         // already added the provider email, so show the confirmation directly.
         // It comes before the open-gate redirect, which would hide it.
         if ($request->query->getBoolean('joined')) {
-            return $this->render('@Account/registration/waitlist_joined.html.twig', ['modal' => $modal]);
+            return $this->render('@Account/registration/waitlist_joined.html.twig', [
+                'modal' => $modal,
+                // A reload or a direct visit carries no live ticket, so it
+                // sends no join event.
+                'joinForm' => $this->joinTicket->consume($request->query->getString(WaitlistJoinTicket::QUERY_PARAMETER)) ? match (true) {
+                    $modal => 'dialog',
+                    $notify => 'notify',
+                    default => 'page',
+                } : null,
+            ]);
         }
 
         // The home page forms always join the waitlist, even while sign-up has
@@ -116,7 +127,11 @@ final class JoinWaitlistController extends AppController
             // to another location" for a direct 200 on a non-frame submission.
             // Always the same response, joined or already-listed, so the endpoint
             // enumerates nothing.
-            return $this->redirectToRoute($modal ? 'app_waitlist_modal' : 'app_waitlist_join', ['joined' => 1]);
+            return $this->redirectToRoute(match (true) {
+                $modal => 'app_waitlist_modal',
+                $notify => 'app_waitlist_notify',
+                default => 'app_waitlist_join',
+            }, ['joined' => 1, WaitlistJoinTicket::QUERY_PARAMETER => $this->joinTicket->issue()]);
         }
 
         return $this->renderFormResponse('@Account/registration/waitlist.html.twig', $form, ['notify' => $notify, 'modal' => $modal]);

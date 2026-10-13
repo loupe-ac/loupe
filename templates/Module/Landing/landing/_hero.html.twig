@@ -7,7 +7,7 @@
             <span class="lp-home-hero__line">{{ 'landing.hero.lead_first'|trans }}</span>
             <span class="lp-home-hero__line">{{ 'landing.hero.lead_second'|trans }}</span>
         </p>
-        <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->modal#open" class="lp-home-hero__action">{{ 'landing.cta.join_beta'|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="primary" size="lg" href="{{ path('app_waitlist_join') }}" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="hero" class="lp-home-hero__action">{{ 'landing.cta.join_beta'|trans }}</twig:Ds:Button>
     </div>
 
     <div class="lp-home-container lp-home-hero__stage">

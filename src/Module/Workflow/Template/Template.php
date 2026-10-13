@@ -29,6 +29,7 @@ final readonly class Template
      * @param array<string, list<ActionCall>> $childChoices                 the actions of each choice an agent states for a card it files under a parent, by `inherit` or `own`
      * @param ?string                         $epicBranch                   the branch of an epic, with the card number as the placeholder, or null when the template has no epic branches
      * @param list<string>                    $agentReviewFailingSeverities the severities of a finding that fail an agent review
+     * @param list<TemplateMarker>            $markers                      the card markers, in template order
      */
     public function __construct(
         public string $key,
@@ -44,6 +45,7 @@ final readonly class Template
         public array $childChoices = [],
         public ?string $epicBranch = null,
         public array $agentReviewFailingSeverities = self::DEFAULT_AGENT_REVIEW_FAILING_SEVERITIES,
+        public array $markers = [],
     ) {
     }
 

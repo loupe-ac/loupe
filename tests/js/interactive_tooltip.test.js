@@ -51,6 +51,13 @@ it('opens under the anchor, level with its right edge, when the pointer enters i
     expect(tooltip().style.top).toBe('124px');
 });
 
+it('opens level with the left edge of an anchor that aligns it to the start', () => {
+    anchor().setAttribute('data-interactive-tooltip-align-value', 'start');
+    anchor().dispatchEvent(new Event('pointerenter'));
+
+    expect(tooltip().style.left).toBe('396px');
+});
+
 it('stays open while the pointer crosses from the anchor into the tooltip', async () => {
     anchor().dispatchEvent(new Event('pointerenter'));
     anchor().dispatchEvent(new Event('pointerleave'));

@@ -13,11 +13,8 @@ use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Service\BoardColumnCards;
 use App\Module\Board\Service\BoardLanes;
-use App\Module\Board\Service\CardMarkers;
-use App\Module\Board\Service\CardPullRequestStates;
-use App\Module\Board\Service\CardStates;
 use App\Module\Board\Service\LaneDecks;
-use App\Module\Bridge\Service\CardRunWarnings;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 
 /** Reads one card and its neighbours, so the cost does not grow with the board. */
@@ -30,12 +27,8 @@ final readonly class ShowCardPlacementHandler
         private CardSiteReviewCommentRepository $cardSiteReviewComments,
         private CardDocumentRepository $cardDocuments,
         private LaneDecks $laneDecks,
-        private CardPullRequestStates $pullRequestStates,
-        private CardMarkers $markers,
         private BoardAutomation $automation,
         private CardTypeCatalog $catalog,
-        private CardStates $cardStates,
-        private CardRunWarnings $runWarnings,
     ) {
     }
 
@@ -112,9 +105,7 @@ final readonly class ShowCardPlacementHandler
             }
         }
 
-        $pullRequestStates = $this->pullRequestStates->forCards([$card]);
-        $cardId = (string) $card->id;
-        $warning = $this->runWarnings->forCard($card->project, $card->id ?? throw new \LogicException('A stored card has an id.'));
+        $markers = StoredCardMarkers::of($card);
 
         return new CardPlacementView(
             $card,
@@ -130,8 +121,7 @@ final readonly class ShowCardPlacementHandler
             $laneHead,
             $laneAfter,
             $laneHead ? ($this->laneDecks->forEpics($backlog, [(string) $card->id])[(string) $card->id] ?? null) : null,
-            [...$pullRequestStates->badgesOf($card), ...($this->markers->forCards($card->project, [$card])[$cardId] ?? [])],
-            state: $this->cardStates->forCards($card->project, [$card], $pullRequestStates, null === $warning ? [] : [$cardId => $warning])[$cardId] ?? null,
+            markers: $markers->isEmpty() || $card->column->terminal ? null : $markers,
         );
     }
 }

@@ -11,13 +11,18 @@ use App\Module\Board\Workflow\Condition\PullRequestBehind;
 use App\Module\Board\Workflow\Condition\PullRequestChangesRequested;
 use App\Module\Board\Workflow\Condition\PullRequestChecksFailed;
 use App\Module\Board\Workflow\Condition\PullRequestChecksPassed;
+use App\Module\Board\Workflow\Condition\PullRequestChecksPending;
 use App\Module\Board\Workflow\Condition\PullRequestConflicting;
 use App\Module\Board\Workflow\Condition\PullRequestDraft;
+use App\Module\Board\Workflow\Condition\PullRequestForgeRequestPending;
 use App\Module\Board\Workflow\Condition\PullRequestLinked;
 use App\Module\Board\Workflow\Condition\PullRequestOpen;
 use App\Module\Board\Workflow\Condition\PullRequestParentMerged;
+use App\Module\Board\Workflow\Condition\PullRequestReadyFor;
 use App\Module\Board\Workflow\Condition\PullRequestsAllFinishedOneMerged;
 use App\Module\Board\Workflow\Condition\PullRequestStacked;
+use App\Module\Board\Workflow\Condition\PullRequestStackParent;
+use App\Module\Board\Workflow\Condition\PullRequestWaitsForApproval;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\EngineFact;
@@ -133,6 +138,11 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), []];
         yield 'pr.stacked' => [new PullRequestStacked(), []];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), []];
+        yield 'pr.checks_pending' => [new PullRequestChecksPending(), []];
+        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), []];
+        yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), []];
+        yield 'pr.stack_parent' => [new PullRequestStackParent(), []];
+        yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 1]];
     }
 
     /**
@@ -171,6 +181,13 @@ final class PullRequestConditionsTest extends TestCase
         yield 'pr.base_is_epic_branch' => [new PullRequestBaseIsEpicBranch(), [], 'pr_base_is_epic_branch', [], $one];
         yield 'pr.stacked' => [new PullRequestStacked(), [], 'pr_stacked', [], $one];
         yield 'pr.parent_merged' => [new PullRequestParentMerged(), [], 'pr_parent_merged', [], $one];
+        yield 'pr.checks_pending' => [new PullRequestChecksPending(), [], 'pr_checks_pending', [], $one];
+        yield 'pr.waits_for_approval' => [new PullRequestWaitsForApproval(), [], 'pr_waits_for_approval', [], $one];
+        yield 'pr.forge_request_pending' => [new PullRequestForgeRequestPending(), [], 'pr_forge_request_pending', [], $one];
+        yield 'pr.stack_parent' => [new PullRequestStackParent(), [], 'pr_stack_parent', [], $one];
+        yield 'pr.stack_parent, known' => [new PullRequestStackParent(), ['parent' => 'known'], 'pr_stack_parent_known', [], $one];
+        yield 'pr.stack_parent, unknown' => [new PullRequestStackParent(), ['parent' => 'unknown'], 'pr_stack_parent_unknown', [], $one];
+        yield 'pr.ready_for' => [new PullRequestReadyFor(), ['delay' => 30], 'pr_ready_for', ['%delay%' => '30'], $one];
         yield 'card.pr.linked' => [new PullRequestLinked(), [], 'pr_linked', [], [PullRequestList::class]];
         yield 'card.pr.all_finished_one_merged' => [new PullRequestsAllFinishedOneMerged(), [], 'pr_all_finished_one_merged', [], [PullRequestList::class]];
     }

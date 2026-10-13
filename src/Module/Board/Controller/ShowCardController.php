@@ -42,7 +42,7 @@ final class ShowCardController extends AppController
             'progress' => $view->progress,
             'pullRequestStates' => $view->pullRequestStates,
             'history' => $view->history,
-            'state' => $view->state,
+            'markers' => $view->markers,
             'agentReviews' => $view->agentReviews,
             'artifacts' => $view->artifacts,
         ]);

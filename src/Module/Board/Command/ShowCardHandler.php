@@ -12,8 +12,7 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardPullRequestStates;
-use App\Module\Board\Service\CardStates;
-use App\Module\Bridge\Service\CardRunWarnings;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 
 final readonly class ShowCardHandler
@@ -25,8 +24,6 @@ final readonly class ShowCardHandler
         private CardPullRequestStates $pullRequestStates,
         private ShowCardHistoryHandler $history,
         private CardTypeCatalog $catalog,
-        private CardStates $cardStates,
-        private CardRunWarnings $runWarnings,
         private CardAgentReviews $agentReviews,
         private CardArtifactRepository $cardArtifacts,
     ) {
@@ -45,9 +42,7 @@ final readonly class ShowCardHandler
         }
 
         $pullRequestStates = $this->pullRequestStates->forCards([$command->card]);
-        $id = $command->card->id ?? throw new \LogicException('A stored card has an id.');
-        $cardId = (string) $id;
-        $warning = $this->runWarnings->forCard($command->card->project, $id);
+        $cardId = (string) ($command->card->id ?? throw new \LogicException('A stored card has an id.'));
 
         return new CardView(
             $command->card,
@@ -60,7 +55,7 @@ final readonly class ShowCardHandler
             ($this->history)(new ShowCardHistoryCommand($command->card)),
             $children,
             $progress,
-            $this->cardStates->forCards($command->card->project, [$command->card], $pullRequestStates, null === $warning ? [] : [$cardId => $warning])[$cardId] ?? null,
+            $command->card->column->terminal ? new StoredCardMarkers([]) : StoredCardMarkers::of($command->card),
             $this->agentReviews->forCards([$command->card]),
             $this->cardArtifacts->findWithLatestVersionForCards([$command->card])[$cardId] ?? [],
         );

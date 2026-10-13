@@ -20,15 +20,14 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardPullRequestStates;
-use App\Module\Board\Service\CardState;
-use App\Module\Board\Service\CardStateReason;
-use App\Module\Board\Service\CardStates;
 use App\Module\Board\Service\PullRequestStates;
 use App\Module\Board\Service\PullRequestStateView;
-use App\Module\Bridge\Service\CardRunWarnings;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\Workflow\Contract\CardTypeCatalog;
+use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\StoredMarker;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -47,9 +46,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * @phpstan-type CardRelatedCardSummary array{cardId: string, number: int, title: string, status: string, kind: string}
  * @phpstan-type CardPauseSummary array{pauseId: string, kind: string, reason: string, ruleId: string, since: string}
  * @phpstan-type CardRefSummary array{cardId: string, number: int, title: string, status: string}
- * @phpstan-type CardStateReasonSummary array{kind: string, code: string, reason: string, since: ?string}
- * @phpstan-type CardStateSummary array{kind: string, code: string, since: ?string, reason: string, others: list<CardStateReasonSummary>}
- * @phpstan-type CardListStateSummary array{kind: string, code: string, since: ?string}
+ * @phpstan-type CardStateReasonSummary array{kind: string, code: string, reason: string, since: string}
+ * @phpstan-type CardStateSummary array{kind: string, code: string, since: string, reason: string, others: list<CardStateReasonSummary>}
+ * @phpstan-type CardListStateSummary array{kind: string, code: string, since: string}
  * @phpstan-type CardSummary array{cardId: string, number: int, title: string, body: string, type: string, status: string, reporter: string, position: int, completedAt: ?string, createdAt: string, updatedAt: string, pullRequests: list<CardPullRequestSummary>, documents: list<CardDocumentSummary>, artifacts: list<CardArtifactSummary>, siteReviewComments: list<FeedbackSummary>, relatedCards: list<CardRelatedCardSummary>, parent: ?CardRefSummary, laneEnabled: bool, children: list<CardRefSummary>, progress: ?array{done: int, total: int}, pause: ?CardPauseSummary, state: ?CardStateSummary}
  * @phpstan-type CardListSummary array{cardId: string, number: int, title: string, type: string, status: string, reporter: string, parentCardId: ?string, updatedAt: string, state: ?CardListStateSummary}
  */
@@ -63,8 +62,6 @@ final readonly class CardPayload
         private CardPauseRepository $cardPauses,
         private CardTypeCatalog $catalog,
         private CardAgentReviews $agentReviews,
-        private CardStates $cardStates,
-        private CardRunWarnings $runWarnings,
         private TranslatorInterface $translator,
         private CardArtifactRepository $cardArtifacts,
     ) {
@@ -80,7 +77,7 @@ final readonly class CardPayload
     {
         $card = $view->card;
 
-        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->state, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? []);
+        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->markers, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? []);
     }
 
     /**
@@ -103,7 +100,6 @@ final readonly class CardPayload
         $states = $this->pullRequestStates->forCards($cards);
         $reviews = $this->agentReviews->forCards($cards);
         $pausesByCard = $this->cardPauses->findActiveForCardIds(array_values(array_filter(array_map(static fn (Card $card): ?Uuid => $card->id, $cards))));
-        $stateByCard = $this->statesOf($cards, $states, $pausesByCard);
         $artifactsByCard = $this->cardArtifacts->findWithLatestVersionForCards($cards);
 
         return array_map(
@@ -118,7 +114,7 @@ final readonly class CardPayload
                 $states,
                 $reviews,
                 $pausesByCard[(string) $card->id] ?? null,
-                $stateByCard[(string) $card->id] ?? null,
+                StoredCardMarkers::of($card),
                 $artifactsByCard[(string) $card->id] ?? [],
             ),
             $cards,
@@ -138,10 +134,8 @@ final readonly class CardPayload
      */
     public function forCardList(array $cards): array
     {
-        $stateByCard = $this->statesOf($cards);
-
         return array_map(
-            static fn (Card $card): array => [
+            fn (Card $card): array => [
                 'cardId' => (string) $card->id,
                 'number' => $card->number,
                 'title' => $card->title,
@@ -151,34 +145,20 @@ final readonly class CardPayload
                 // The id alone, which a parent proxy holds without a query.
                 'parentCardId' => null === $card->parent ? null : (string) $card->parent->id,
                 'updatedAt' => $card->updatedAt->format(\DATE_ATOM),
-                'state' => null === ($state = $stateByCard[(string) $card->id] ?? null) ? null : [
+                'state' => null === ($state = $this->stateOf($card)) ? null : [
                     'kind' => $state->kind->value,
-                    'code' => $state->reason->code->value,
-                    'since' => $state->reason->since?->format(\DATE_ATOM),
+                    'code' => $state->key,
+                    'since' => $state->since->format(\DATE_ATOM),
                 ],
             ],
             $cards,
         );
     }
 
-    /**
-     * The state of every open card of the page, in the reads that the board makes: one
-     * for the pull requests, one for the run warnings and the batches of the state service.
-     *
-     * @param list<Card>                    $cards
-     * @param array<string, CardPause>|null $paused the active pauses by card id, when the caller holds them
-     *
-     * @return array<string, CardState> keyed by card id
-     */
-    private function statesOf(array $cards, ?PullRequestStates $pullRequests = null, ?array $paused = null): array
+    /** The marker that gives the card its mark, or null for a card with none, a card in a terminal column and a card with only chips. */
+    private function stateOf(Card $card): ?StoredMarker
     {
-        if ([] === $cards) {
-            return [];
-        }
-        $project = $cards[0]->project;
-        $this->cards->loadPullRequestsOf($cards);
-
-        return $this->cardStates->forCards($project, $cards, $pullRequests ?? $this->pullRequestStates->forCards($cards), $this->runWarnings->forProject($project), $paused);
+        return $card->column->terminal ? null : StoredCardMarkers::of($card)->state();
     }
 
     /**
@@ -190,7 +170,7 @@ final readonly class CardPayload
      *
      * @return CardSummary
      */
-    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, ?CardState $state, array $artifacts): array
+    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, StoredCardMarkers $markers, array $artifacts): array
     {
         $progress = $this->catalog->forProject($card->project->requireId())->get($card->type)->children
             ? ['done' => \count(array_filter($children, static fn (Card $child): bool => $child->column->terminal)), 'total' => \count($children)]
@@ -250,7 +230,7 @@ final readonly class CardPayload
                 $links,
             ),
             // The kind reads from this card's side: the target of a blocks
-            // link reads blocked-by.
+            // link reads blocked-by, and the target of a has-follow-up link reads follow-up-of.
             'relatedCards' => array_map(
                 static fn (RelatedCard $related): array => [
                     'cardId' => (string) $related->card->id,
@@ -272,27 +252,27 @@ final readonly class CardPayload
                 'ruleId' => $pause->ruleId,
                 'since' => $pause->createdAt->format(\DATE_ATOM),
             ],
-            'state' => null === $state ? null : [
+            'state' => null === ($state = $card->column->terminal ? null : $markers->state()) ? null : [
                 'kind' => $state->kind->value,
-                'code' => $state->reason->code->value,
-                'since' => $state->reason->since?->format(\DATE_ATOM),
-                'reason' => $this->sentence($state->reason),
+                'code' => $state->key,
+                'since' => $state->since->format(\DATE_ATOM),
+                'reason' => $this->sentence($state),
                 'others' => array_map(
-                    fn (CardStateReason $other): array => [
-                        'kind' => $other->code->kind()->value,
-                        'code' => $other->code->value,
+                    fn (StoredMarker $other): array => [
+                        'kind' => $other->kind->value,
+                        'code' => $other->key,
                         'reason' => $this->sentence($other),
-                        'since' => $other->since?->format(\DATE_ATOM),
+                        'since' => $other->since->format(\DATE_ATOM),
                     ],
-                    $state->others,
+                    array_values(array_filter($markers->others(), static fn (StoredMarker $other): bool => MarkerKind::Chip !== $other->kind)),
                 ),
             ],
         ];
     }
 
-    private function sentence(CardStateReason $reason): string
+    private function sentence(StoredMarker $marker): string
     {
-        return $this->translator->trans($reason->translationKey(), $reason->params);
+        return $this->translator->trans($marker->label, $marker->params);
     }
 
     /**

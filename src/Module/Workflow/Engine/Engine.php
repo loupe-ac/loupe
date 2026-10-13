@@ -89,6 +89,7 @@ final readonly class Engine
         private WorkOpener $opener,
         private ActionContexts $contexts,
         private RuleSubject $ruleSubject,
+        private MarkerPass $markers,
         private RuleAsks $ruleAsks,
         private EventDispatcherInterface $events,
         private LoggerInterface $logger,
@@ -158,26 +159,33 @@ final readonly class Engine
         $this->workflowRuleStates->lockCard($cardId);
         $card = $this->cards->find($cardId);
         $project = null === $card ? null : $this->projects->find($card->projectId);
-        // A held card is unmanaged: settling its requests would cancel or expire them.
-        if (null === $card || null === $project || $this->ledger->isHeld($card->projectId, $cardId)) {
+        if (null === $card || null === $project) {
             return null;
         }
+        // A held card is unmanaged: settling its requests would cancel or expire them. Its markers still show.
+        $held = $this->ledger->isHeld($card->projectId, $cardId);
+        $automated = !$held && $this->automation->runsFor($project);
         // The mark makes the first pass after the automation is on again quiet.
-        if (!$this->automation->runsFor($project)) {
+        if (!$held && !$automated) {
             $this->workflowPendingBaselines->markCards($card->projectId, [$cardId]);
-
-            return null;
         }
-        $baseline = $this->workflowPendingBaselines->consume($cardId);
+        $baseline = $automated && $this->workflowPendingBaselines->consume($cardId);
         $card = $this->cards->refresh($cardId) ?? throw new \LogicException('A card stays stored for the pass.');
 
         try {
             $template = $this->templates->forProject($card->projectId);
         } catch (TemplateMissing) {
+            $this->markers->clear($card);
+
             return null;
         }
 
-        $run = new Evaluation($card, $project, $template, $this->facts($card, $now), $this->workflowRuleStates->findForCard($cardId), $now);
+        $run = new Evaluation($card, $project, $template, $this->facts($card, $now), $automated ? $this->workflowRuleStates->findForCard($cardId) : [], $now);
+        if (!$automated) {
+            $this->markers->run($run);
+
+            return $run;
+        }
         $this->logMissingProviders($run);
         $this->logMissingActions($run);
         if ($baseline) {
@@ -187,6 +195,7 @@ final readonly class Engine
             $this->baseline($run);
             $this->withdrawRemovedAsks($run);
             $this->em->flush();
+            $this->runMarkers($run);
 
             return $run;
         }
@@ -202,8 +211,19 @@ final readonly class Engine
         }
         $this->withdrawRemovedAsks($run);
         $this->em->flush();
+        $this->runMarkers($run);
 
         return $run;
+    }
+
+    /** The marker pass reads the facts of the rule pass, unless the pass changed what they read. Then it builds them again from the flushed rows. */
+    private function runMarkers(Evaluation $run): void
+    {
+        if ($run->factsStale) {
+            $run->facts = $this->facts($run->card, $run->now, $run->facts);
+            $run->factsStale = false;
+        }
+        $this->markers->run($run);
     }
 
     /** Doctrine compares a Uuid by identity, so assigning an equal id would write the row again. */
@@ -464,6 +484,7 @@ final readonly class Engine
 
         // A null release means another writer ended the pause and recorded it.
         $released = $this->cardPauses->release($pause, $code);
+        $run->factsStale = true;
         if (null !== $released) {
             $this->cardPauses->recordReleased($released, Actor::System, null);
         }
@@ -679,6 +700,7 @@ final readonly class Engine
             $state->repaired = $repairedBefore;
         }
         $run->fired[] = ['rule' => $rule->id, 'outcome' => $outcome->kind->value, 'code' => $outcome->code];
+        $run->factsStale = true;
         // An action can release the pause that holds the card, and the view of it is a copy.
         if (null !== $run->holdingPause && null === $this->cardPauses->findActive($run->card->id)) {
             $run->holdingPause = null;
@@ -880,6 +902,7 @@ final readonly class Engine
         $change($state);
         if (self::snapshot($state) !== $before) {
             $state->updatedAt = $run->now;
+            $run->factsStale = true;
         }
         if ($heldBefore !== (null !== $state->heldByBlockerSince)) {
             $run->holdChanged = true;
@@ -895,6 +918,7 @@ final readonly class Engine
     private function pause(Evaluation $run, PauseKind $kind, string $code, string $ruleId): void
     {
         $run->ended = true;
+        $run->factsStale = true;
         $pause = $this->cardPauses->pause($run->card, $code, $ruleId, $kind);
         if (null !== $pause) {
             $run->pauses[] = $pause;
