@@ -52,7 +52,7 @@ final class ShowLegalPagesControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('div.lp-home[data-controller="modal"] > header.lp-home-nav');
+        self::assertSelectorExists('div.lp-home[data-controller~="modal"] > header.lp-home-nav');
         self::assertSelectorCount(1, 'main#main-content');
         self::assertSelectorExists('div.lp-home > footer.lp-home-footer');
         self::assertSelectorExists('div.lp-home dialog');
