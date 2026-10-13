@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Board\Controller\ShowCardController;
+use App\Module\Inbox\Command\ShowInboxCommand;
 use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Controller\ShowInboxController;
 use App\Module\Inbox\Entity\InboxAsk;
@@ -15,6 +16,10 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxLinkedPage;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\View\InboxReturnTarget;
+use App\Module\Inbox\View\InboxRow;
+use App\Module\Inbox\View\InboxSide;
+use App\Module\Inbox\View\InboxView;
+use App\Module\Project\Entity\Project;
 use App\Module\Review\Controller\ShowDocumentController;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Repository\DocumentVersionRepository;
@@ -34,10 +39,14 @@ final readonly class InboxReturnTargetResolver
     public function __construct(
         private DocumentVersionRepository $documentVersions,
         private InboxAskRepository $inboxAsks,
+        private ShowInboxHandler $inboxPage,
     ) {
     }
 
-    public function resolve(Request $request, InboxItem $item): InboxReturnTarget
+    /**
+     * @param ?InboxReturnTarget $before the target read before the action. With it, the inbox target opens the next ask.
+     */
+    public function resolve(Request $request, InboxItem $item, ?InboxReturnTarget $before = null): InboxReturnTarget
     {
         $projectId = (string) $item->project->id;
         $page = InboxLinkedPage::tryFrom($request->query->getString(InboxReturnTarget::PAGE_QUERY));
@@ -65,53 +74,104 @@ final readonly class InboxReturnTargetResolver
             return new InboxReturnTarget('app_document_review', $target, ShowDocumentController::class, $target, []);
         }
 
-        // The queue, the page and the search the owner was on, kept on the way back.
-        $search = trim($request->query->getString('q'));
+        // The view the owner was on, kept on the way back.
+        $view = InboxView::fromQuery($request->query);
         // Read as objects, so an ask closed in this request counts as closed.
         $asks = $this->inboxAsks->findHolding($item);
         $closed = InboxItemState::Open !== $item->state;
-        $completed = 'completed' === $request->query->getString('queue')
-            || ($closed && [] !== $asks && [] === array_filter($asks, static fn (InboxAsk $ask): bool => null === $ask->closedAt));
 
-        // A queue switch leaves the page behind, because the page the owner was
-        // on numbers the other queue. The closed ask that shows first decides
-        // which completed page holds this item.
-        $switching = $completed && 'completed' !== $request->query->getString('queue');
-        $page = $switching
-            ? $this->inboxAsks->closedPageOf($this->firstClosed($asks), ShowInboxHandler::CLOSED_ASKS_PER_PAGE)
-            : $request->query->getInt('page', 1);
+        // Only the open list moves on to a next ask. A search or the closed side keeps the ask the owner acted on.
+        $ordered = InboxSide::Open === $view->side && !$view->isSearch();
+        $rowKeys = $ordered ? ($before->rowKeys ?? $this->rowKeys($item->project, $view)) : [];
+        $acted = $ordered ? $this->actedRow($view, $item, $asks, $rowKeys) : null;
+        // The status line names the ask in every view, also where the list does not move on.
+        $actedAsk = $ordered ? ($acted[1] ?? null) : $this->heldAsk($view, $asks);
 
-        $pageQuery = [
-            ...('' === $search && $completed ? ['queue' => 'completed'] : []),
-            ...($page > 1 ? ['page' => $page] : []),
-            ...('' === $search ? [] : ['q' => $search]),
-        ];
+        if (null !== $before && null !== $acted) {
+            $view = $this->nextView($item, $view, $before->rowKeys, $acted);
+            $pageQuery = $view->toQuery();
 
-        // The fragment opens the request on arrival, so it is named only where
-        // the page shows it. A closed item that no ask holds is on neither
-        // queue, and naming it would send the owner hunting for it instead of
-        // back to the work that is left. A forward needs no fragment at all: it
-        // re-renders the page the form was already on.
-        $shown = '' !== $search || !$closed || [] !== $asks;
-        $redirect = [
-            'id' => $projectId,
-            ...$pageQuery,
-            ...($shown ? ['_fragment' => 'inbox-item-'.$item->number] : []),
-        ];
+            return new InboxReturnTarget(InboxReturnTarget::INBOX_ROUTE, ['id' => $projectId, ...$pageQuery], ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery, $rowKeys, $acted[1]);
+        }
 
-        return new InboxReturnTarget('app_project_inbox', $redirect, ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery);
+        // The pane opens on the request the address names, so it is named only
+        // where the page shows it. A closed item that no ask holds is on neither
+        // side, and naming it would send the owner hunting for it instead of
+        // back to the work that is left. A forward re-renders the page the form
+        // was already on, so it needs no name.
+        $shown = $view->isSearch() || !$closed || [] !== $asks;
+        if (!$shown) {
+            $view = $view->withoutSelection();
+        } elseif (!$view->isPicked()) {
+            $view = $view->withItem($item->number);
+        }
+
+        $pageQuery = $view->toQuery();
+
+        return new InboxReturnTarget(InboxReturnTarget::INBOX_ROUTE, ['id' => $projectId, ...$pageQuery], ShowInboxController::class, ['id' => $projectId, 'project' => $item->project], $pageQuery, $rowKeys, $actedAsk);
     }
 
     /**
-     * The ask the completed queue lists first, which is the newest close.
+     * The keys of the rows the view lists, in list order.
      *
-     * @param list<InboxAsk> $asks all closed, because the caller switches queues
+     * @return list<string>
      */
-    private function firstClosed(array $asks): InboxAsk
+    private function rowKeys(Project $project, InboxView $view): array
     {
-        usort($asks, static fn (InboxAsk $a, InboxAsk $b): int => ($b->closedAt <=> $a->closedAt) ?: ((string) $a->id <=> (string) $b->id));
+        return array_map(static fn (InboxRow $row): string => $row->key(), ($this->inboxPage)(new ShowInboxCommand($project, $view))->rows);
+    }
 
-        return $asks[0] ?? throw new \LogicException('A completed queue switch needs the closed ask that holds the item.');
+    /**
+     * The row of the open list the owner acted on, with its ask. The row the
+     * address selects wins. An item that sits in two asks, or an address that
+     * names no row, falls back to the first open row that holds the item.
+     *
+     * @param list<InboxAsk> $asks    every ask that holds the item
+     * @param list<string>   $rowKeys the open list before the action
+     *
+     * @return ?array{string, ?InboxAsk}
+     */
+    private function actedRow(InboxView $view, InboxItem $item, array $asks, array $rowKeys): ?array
+    {
+        $selected = null !== $view->askId ? (string) $view->askId : (null !== $view->itemNumber ? 'item-'.$view->itemNumber : null);
+        if (null !== $selected && \in_array($selected, $rowKeys, true)) {
+            $ask = array_find($asks, static fn (InboxAsk $held): bool => (string) $held->id === $selected);
+
+            return [$selected, $ask];
+        }
+
+        foreach ($asks as $ask) {
+            if (\in_array((string) $ask->id, $rowKeys, true)) {
+                return [(string) $ask->id, $ask];
+            }
+        }
+
+        return \in_array('item-'.$item->number, $rowKeys, true) ? ['item-'.$item->number, null] : null;
+    }
+
+    /**
+     * The ask the address names when it holds the item, else the ask the page shows for the item.
+     *
+     * @param list<InboxAsk> $asks every ask that holds the item
+     */
+    private function heldAsk(InboxView $view, array $asks): ?InboxAsk
+    {
+        return array_find($asks, static fn (InboxAsk $held): bool => null !== $view->askId && (string) $held->id === (string) $view->askId) ?? ShownInboxAsk::of($asks);
+    }
+
+    /**
+     * The acted row stays selected while it is open. Otherwise the next row
+     * of the list opens, and an empty list names none.
+     *
+     * @param list<string>             $before the open list before the action
+     * @param array{string, ?InboxAsk} $acted
+     */
+    private function nextView(InboxItem $item, InboxView $view, array $before, array $acted): InboxView
+    {
+        $after = $this->rowKeys($item->project, $view);
+        $key = \in_array($acted[0], $after, true) ? $acted[0] : NextInboxRow::after($before, $after, $acted[0]);
+
+        return null === $key ? $view->withoutSelection() : NextInboxRow::select($view, $key);
     }
 
     private function linkedDocument(InboxItem $item, Uuid $id): ?Document

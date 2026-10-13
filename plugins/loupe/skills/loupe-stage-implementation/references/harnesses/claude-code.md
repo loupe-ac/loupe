@@ -52,7 +52,7 @@ A Claude Docs `read` denial says nothing about an artifact. Claude Docs is a dif
 
 ## Dispatch a sub-agent
 
-Dispatch a sub-agent with the Agent tool, and `subagent_type` set to `senior-dev`. The agent reads the instruction files of the repository itself. Put the rules the stage skill names into its prompt, because it inherits no loaded instruction.
+Dispatch a sub-agent with the Agent tool, and `subagent_type` set to `senior-dev`. The agent reads the instruction files of the repository itself. Put the rules the stage skill names into its prompt, because it inherits no loaded instruction. The `senior-dev` agent has every tool, so it reads a prototype page with `artifact_read` itself.
 
 ## Write a plan
 

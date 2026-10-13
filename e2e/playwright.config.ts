@@ -118,6 +118,7 @@ export default defineConfig({
             // below. Adding a spec here asserts that it is safe beside all of them.
             testIgnore: [
                 /account\/waitlist\.spec\.ts/,
+                /landing\/home-page-waitlist\.spec\.ts/,
                 /billing\/beta-invite\.spec\.ts/,
                 /billing\/trial-end-lifecycle\.spec\.ts/,
                 /install\/.*\.spec\.ts/,
@@ -130,7 +131,6 @@ export default defineConfig({
                 /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
-                /landing\/try-it-demo\.spec\.ts/,
             ],
             use: {
                 ...devices['Desktop Chrome'],
@@ -148,7 +148,7 @@ export default defineConfig({
         {
             name: 'global-flags',
             // billing.enabled, inbox.enabled, search.topbar.enabled,
-            // review.mermaid.enabled, live_updates.enabled, landing.enabled
+            // review.mermaid.enabled, live_updates.enabled
             // and the OAuth provider flags change what signed-in pages and the login form
             // render, so nothing else runs beside these.
             testMatch: [
@@ -160,7 +160,6 @@ export default defineConfig({
                 /project\/project-switcher\.spec\.ts/,
                 /review\/mermaid-diagrams\.spec\.ts/,
                 /review\/decision-live\.spec\.ts/,
-                /landing\/try-it-demo\.spec\.ts/,
             ],
             workers: 1,
             use: {
@@ -170,7 +169,12 @@ export default defineConfig({
         },
         {
             name: 'waitlist',
-            testMatch: /account\/waitlist\.spec\.ts/,
+            // Both specs close registration.cap and reopen it when they end.
+            testMatch: [
+                /account\/waitlist\.spec\.ts/,
+                /landing\/home-page-waitlist\.spec\.ts/,
+            ],
+            workers: 1,
             use: {
                 ...devices['Desktop Chrome'],
             },

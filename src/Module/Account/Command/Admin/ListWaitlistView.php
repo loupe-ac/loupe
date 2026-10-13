@@ -12,6 +12,7 @@ final readonly class ListWaitlistView
     /**
      * @param Paginator<WaitlistEntry> $entries
      * @param list<int|null>           $pageList
+     * @param array<string, int>       $pickCounts pick value to entry count
      */
     public function __construct(
         public Paginator $entries,
@@ -19,6 +20,7 @@ final readonly class ListWaitlistView
         public int $totalPages,
         public array $pageList,
         public ?int $clampedPage,
+        public array $pickCounts,
     ) {
     }
 }

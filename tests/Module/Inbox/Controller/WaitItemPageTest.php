@@ -66,9 +66,11 @@ final class WaitItemPageTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.lp-inbox-request__byline', 'Loupe');
-        self::assertSelectorTextNotContains('.lp-inbox-request__byline', 'Agent request');
-        self::assertSelectorTextSame('.lp-inbox-ask__source', 'Loupe');
+        // The wait links its card, so the row names the card and the pane names the sender.
+        self::assertSelectorTextContains('.lp-inbox-request__meta [data-inbox-card]', '#4');
+        self::assertSelectorNotExists('[data-inbox-source="agent"]');
+        self::assertSelectorExists('.lp-inbox-request [data-inbox-kind="wait"]');
+        self::assertSelectorTextSame('.lp-inbox-ask__source', 'From Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));
         self::assertCount(0, $crawler->filter('.lp-presence__dot'));
@@ -83,7 +85,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('.lp-inbox-ask__title', '#4 Document version 1 waits for your review · Ship it');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-linked-card="'.$this->card->id.'"]'));
+        self::assertCount(1, $crawler->filter('[data-inbox-linked-panel] [data-linked-card="'.$this->card->id.'"]'));
     }
 
     /** @return iterable<string, array{string}> */
@@ -133,7 +135,7 @@ final class WaitItemPageTest extends WebTestCase
         $results = $crawler->filter('[data-inbox-section="search-results"]');
         self::assertCount(1, $results->filter('[data-inbox-item]'));
         self::assertCount(1, $results->filter('[data-inbox-item="'.$item->number.'"]'));
-        self::assertCount(1, $crawler->filter('.lp-inbox-request__byline [data-inbox-source="loupe"]'));
+        self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-source="agent"]'));
     }
 
@@ -212,14 +214,15 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('_top', $link->attr('data-turbo-frame'));
     }
 
-    public function test_dismiss_closes_the_item_declined_and_moves_it_to_completed(): void
+    public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void
     {
         $this->reconcile();
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
         $this->client->submit($crawler->selectButton('Dismiss')->form());
 
-        self::assertResponseRedirects($this->pageUrl().'?queue=completed#inbox-item-1');
+        // The ask closed with its item and no other ask is open, so the page names none.
+        self::assertResponseRedirects($this->pageUrl());
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Declined, $watch->item->state);
         self::assertNotNull($watch->dismissedAt);
@@ -229,6 +232,8 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame(InboxCardWaitEndReason::Dismissed, $wait->endReason);
 
         $crawler = $this->client->followRedirect();
+        self::assertSelectorExists('[data-inbox-queue-empty="open-asks"]');
+        self::assertSelectorTextContains('[data-inbox-status]', 'Closed.');
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
     }
 

@@ -10,8 +10,8 @@ use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
+use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Inbox\Service\InboxItemCloser;
-use App\Module\Inbox\Service\InboxOpenCountPublisher;
 use App\Module\Review\Event\ReviewSubmitted;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
@@ -22,7 +22,7 @@ final readonly class CompleteInboxReviewOnReviewSubmittedListener
         private InboxReviewRepository $inboxReviews,
         private InboxItemRepository $inboxItems,
         private InboxItemCloser $closer,
-        private InboxOpenCountPublisher $openCount,
+        private InboxChangedPublisher $inboxChanged,
         private InboxCardTileRefresher $cardTiles,
     ) {
     }
@@ -43,7 +43,7 @@ final readonly class CompleteInboxReviewOnReviewSubmittedListener
             $review->reviewer = $result->reviewer;
             $review->reviewedVersionNumber = $result->version->versionNumber;
             $review->documentReview = $result;
-            $this->openCount->countChanged($review->item->project);
+            $this->inboxChanged->changed($review->item->project);
             $this->cardTiles->refresh($review->item);
         }
     }

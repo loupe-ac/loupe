@@ -138,7 +138,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertCount(1, $inbox->filter('[data-inbox-item="1"]'));
         self::assertCount(1, $inbox->filter('[data-inbox-item="2"]'));
 
-        $link = $inbox->filter('#inbox-item-1 a[aria-label="Open Ship the export conversation"]');
+        $link = $inbox->filter('[data-inbox-linked-panel] a[data-linked-card]');
         self::assertCount(1, $link);
         self::assertSame($this->cardUrl().'?tab=conversation&inboxItem=1#inbox-item-1', $link->attr('href'));
         $destination = $this->client->click($link->link());
@@ -311,7 +311,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertResponseRedirects($this->cardUrl().'?tab=conversation');
 
         $this->post($fromInbox, 'done', [], ['returnTo' => 'card', 'returnId' => (string) $this->card->id, 'q' => '  export  ']);
-        self::assertResponseRedirects('/projects/'.$this->project->id.'/inbox?q=export#inbox-item-3');
+        self::assertResponseRedirects('/projects/'.$this->project->id.'/inbox?side=open&q=export&item=3');
     }
 
     /** @return iterable<string, array{array<string, string>}> */

@@ -8,6 +8,7 @@ use App\Module\Account\Command\JoinWaitlistCommand;
 use App\Module\Account\Command\JoinWaitlistHandler;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Entity\WaitlistEntry;
+use App\Module\Account\Entity\WaitlistPick;
 use App\Module\Account\Repository\UserRepository;
 use App\Module\Account\Repository\WaitlistEntryRepository;
 use App\Tests\Support\DirectLogging;
@@ -339,5 +340,137 @@ final class JoinWaitlistHandlerTest extends KernelTestCase
         self::assertNotNull($fetched);
         self::assertNotNull($fetched->convertedAt);
         self::assertFalse($fetched->needsInvite());
+    }
+
+    public function test_a_new_entry_stores_the_picks_and_the_trimmed_text(): void
+    {
+        [$handler, $repo] = $this->services();
+
+        $handler(new JoinWaitlistCommand('picks-new@example.com', [WaitlistPick::GitLab, WaitlistPick::Aider], '  Jujutsu  '));
+
+        $entry = $repo->findOneByEmail('picks-new@example.com');
+        self::assertNotNull($entry);
+        self::assertSame(['gitlab', 'aider'], $entry->picks);
+        self::assertSame('Jujutsu', $entry->otherPick);
+    }
+
+    public function test_a_blank_text_is_stored_as_no_text(): void
+    {
+        [$handler, $repo] = $this->services();
+
+        $handler(new JoinWaitlistCommand('picks-blank@example.com', [], '   '));
+
+        self::assertNull($repo->findOneByEmail('picks-blank@example.com')?->otherPick);
+    }
+
+    public function test_a_second_join_merges_picks_and_keeps_the_join_date(): void
+    {
+        [$handler, $repo, $em] = $this->services();
+        $joinedAt = new \DateTimeImmutable('-10 days');
+        $em->persist(new WaitlistEntry('picks-merge@example.com', $joinedAt));
+        $em->flush();
+        $audit = new RecordingAuditor($this->actorProvider());
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor);
+
+        $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::Cursor], 'Jujutsu'));
+        $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::GitLab], ''));
+        $handler(new JoinWaitlistCommand('picks-merge@example.com', [WaitlistPick::Pi], 'Sapling'));
+
+        $em->clear();
+        $entry = $repo->findOneByEmail('picks-merge@example.com');
+        self::assertNotNull($entry);
+        self::assertSame(['gitlab', 'cursor', 'pi'], $entry->picks);
+        self::assertSame('Sapling', $entry->otherPick);
+        self::assertSame($joinedAt->getTimestamp(), $entry->createdAt->getTimestamp());
+        self::assertCount(1, $repo->findBy(['email' => 'picks-merge@example.com']));
+        self::assertSame(
+            ['account.waitlist_picks_merged', 'account.waitlist_picks_merged', 'account.waitlist_picks_merged'],
+            $audit->operations(),
+        );
+    }
+
+    public function test_a_repeat_join_with_the_same_picks_is_a_plain_duplicate(): void
+    {
+        [, $repo, $em] = $this->services();
+        $audit = new RecordingAuditor($this->actorProvider());
+        $handler = new JoinWaitlistHandler($repo, $this->users(), $em, $audit->auditor);
+
+        $handler(new JoinWaitlistCommand('picks-same@example.com', [WaitlistPick::Gitea], 'Jujutsu'));
+        $audit->forget();
+        $handler(new JoinWaitlistCommand('picks-same@example.com', [WaitlistPick::Gitea], 'Jujutsu'));
+
+        self::assertSame(['account.waitlist_duplicate_join'], $audit->operations());
+    }
+
+    public function test_a_pending_row_of_an_address_with_an_enabled_account_gains_nothing(): void
+    {
+        [$handler, $repo, $em] = $this->services();
+        $em->persist(new WaitlistEntry('picks-enabled@example.com'));
+        $em->persist(new User(fullName: 'Enabled', email: 'picks-enabled@example.com', password: 'x'));
+        $em->flush();
+
+        $handler(new JoinWaitlistCommand('picks-enabled@example.com', [WaitlistPick::GitLab], 'Jujutsu'));
+
+        $em->clear();
+        $entry = $repo->findOneByEmail('picks-enabled@example.com');
+        self::assertNotNull($entry);
+        self::assertSame([], $entry->picks);
+        self::assertNull($entry->otherPick);
+    }
+
+    public function test_an_address_with_an_enabled_account_and_picks_stores_no_row(): void
+    {
+        [$handler, $repo, $em] = $this->services();
+        $em->persist(new User(fullName: 'Enabled Two', email: 'picks-enabled-two@example.com', password: 'x'));
+        $em->flush();
+
+        $handler(new JoinWaitlistCommand('picks-enabled-two@example.com', [WaitlistPick::GitLab], 'Jujutsu'));
+
+        self::assertNull($repo->findOneByEmail('picks-enabled-two@example.com'));
+    }
+
+    public function test_the_reopen_path_merges_the_picks_too(): void
+    {
+        [$handler, $repo, $em] = $this->services();
+        $entry = new WaitlistEntry('picks-reopen@example.com', new \DateTimeImmutable('-30 days'));
+        $entry->markConverted();
+        $entry->mergePicks([WaitlistPick::Gitea], 'Jujutsu');
+        $em->persist($entry);
+        $user = new User(fullName: 'Reopen', email: 'picks-reopen@example.com', password: 'x');
+        $user->disabledAt = new \DateTimeImmutable();
+        $em->persist($user);
+        $em->flush();
+
+        $handler(new JoinWaitlistCommand('picks-reopen@example.com', [WaitlistPick::Pi], ''));
+
+        $em->clear();
+        $reopened = $repo->findOneByEmail('picks-reopen@example.com');
+        self::assertNotNull($reopened);
+        self::assertNull($reopened->convertedAt);
+        self::assertSame(['gitea', 'pi'], $reopened->picks);
+        self::assertSame('Jujutsu', $reopened->otherPick);
+    }
+
+    private function users(): UserRepository
+    {
+        $users = self::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+
+        return $users;
+    }
+
+    /** @return array{JoinWaitlistHandler, WaitlistEntryRepository, EntityManagerInterface} */
+    private function services(): array
+    {
+        self::bootKernel();
+        $container = self::getContainer();
+        $handler = $container->get(JoinWaitlistHandler::class);
+        self::assertInstanceOf(JoinWaitlistHandler::class, $handler);
+        $repo = $container->get(WaitlistEntryRepository::class);
+        self::assertInstanceOf(WaitlistEntryRepository::class, $repo);
+        $em = $container->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return [$handler, $repo, $em];
     }
 }

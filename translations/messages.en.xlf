@@ -466,6 +466,58 @@
                 <source>account.form.waitlist_join_form.email.placeholder</source>
                 <target>you@company.com</target>
             </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.label">
+                <source>account.form.waitlist_join_form.picks.label</source>
+                <target>Which forges and agents do you use?</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.gitlab">
+                <source>account.form.waitlist_join_form.picks.choice.gitlab</source>
+                <target>GitLab</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.bitbucket">
+                <source>account.form.waitlist_join_form.picks.choice.bitbucket</source>
+                <target>Bitbucket</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.gitea">
+                <source>account.form.waitlist_join_form.picks.choice.gitea</source>
+                <target>Gitea</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.forgejo">
+                <source>account.form.waitlist_join_form.picks.choice.forgejo</source>
+                <target>Forgejo</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.github-enterprise">
+                <source>account.form.waitlist_join_form.picks.choice.github-enterprise</source>
+                <target>GitHub Enterprise</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.cursor">
+                <source>account.form.waitlist_join_form.picks.choice.cursor</source>
+                <target>Cursor</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.gemini-cli">
+                <source>account.form.waitlist_join_form.picks.choice.gemini-cli</source>
+                <target>Gemini CLI</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.opencode">
+                <source>account.form.waitlist_join_form.picks.choice.opencode</source>
+                <target>OpenCode</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.aider">
+                <source>account.form.waitlist_join_form.picks.choice.aider</source>
+                <target>Aider</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.picks.choice.pi">
+                <source>account.form.waitlist_join_form.picks.choice.pi</source>
+                <target>Pi</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.other.label">
+                <source>account.form.waitlist_join_form.other.label</source>
+                <target>Something else?</target>
+            </trans-unit>
+            <trans-unit id="account.form.waitlist_join_form.other.placeholder">
+                <source>account.form.waitlist_join_form.other.placeholder</source>
+                <target>Name a forge or an agent</target>
+            </trans-unit>
             <trans-unit id="account.waitlist.page.title">
                 <source>account.waitlist.page.title</source>
                 <target>Join the waitlist</target>
@@ -3182,6 +3234,10 @@
                 <source>account.admin.waitlist.empty</source>
                 <target>No waitlist entries yet.</target>
             </trans-unit>
+            <trans-unit id="account.admin.waitlist.counts.title">
+                <source>account.admin.waitlist.counts.title</source>
+                <target>Entries per pick</target>
+            </trans-unit>
             <trans-unit id="account.admin.waitlist.column.email">
                 <source>account.admin.waitlist.column.email</source>
                 <target>Email</target>
@@ -3193,6 +3249,10 @@
             <trans-unit id="account.admin.waitlist.column.invited">
                 <source>account.admin.waitlist.column.invited</source>
                 <target>Invited</target>
+            </trans-unit>
+            <trans-unit id="account.admin.waitlist.column.picks">
+                <source>account.admin.waitlist.column.picks</source>
+                <target>Picks</target>
             </trans-unit>
             <trans-unit id="account.admin.waitlist.column.status">
                 <source>account.admin.waitlist.column.status</source>
@@ -4273,9 +4333,782 @@
                 <target>Annotation</target>
             </trans-unit>
 
+            <!-- Home page -->
+            <trans-unit id="landing.meta.title">
+                <source>landing.meta.title</source>
+                <target>A software factory for coding agents</target>
+            </trans-unit>
             <trans-unit id="landing.meta.description">
                 <source>landing.meta.description</source>
-                <target>Your AI agent writes docs and pages faster than you can skim them. Loupe lets you read them rendered, comment on any line, and send structured feedback straight back to the agent over MCP.</target>
+                <target>Loupe is a software factory for coding agents. Product design, tech design, code and review, in one workflow. Join the private beta waitlist.</target>
+            </trans-unit>
+            <trans-unit id="landing.cta.join">
+                <source>landing.cta.join</source>
+                <target>Join the waitlist</target>
+            </trans-unit>
+            <trans-unit id="landing.cta.join_beta">
+                <source>landing.cta.join_beta</source>
+                <target>Join the private beta waitlist</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.label">
+                <source>landing.nav.label</source>
+                <target>Main</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.workflow">
+                <source>landing.nav.workflow</source>
+                <target>Workflow</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.features">
+                <source>landing.nav.features</source>
+                <target>Features</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.works_with">
+                <source>landing.nav.works_with</source>
+                <target>Works with</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.requirements">
+                <source>landing.nav.requirements</source>
+                <target>Requirements</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.open_source">
+                <source>landing.nav.open_source</source>
+                <target>Open source</target>
+            </trans-unit>
+            <trans-unit id="landing.nav.docs">
+                <source>landing.nav.docs</source>
+                <target>Docs</target>
+            </trans-unit>
+            <trans-unit id="landing.hero.title_before">
+                <source>landing.hero.title_before</source>
+                <target>From ideas to </target>
+            </trans-unit>
+            <trans-unit id="landing.hero.title_accent">
+                <source>landing.hero.title_accent</source>
+                <target>features</target>
+            </trans-unit>
+            <trans-unit id="landing.hero.title_after">
+                <source>landing.hero.title_after</source>
+                <target>.</target>
+            </trans-unit>
+            <trans-unit id="landing.hero.lead_first">
+                <source>landing.hero.lead_first</source>
+                <target>A software factory for coding agents.</target>
+            </trans-unit>
+            <trans-unit id="landing.hero.lead_second">
+                <source>landing.hero.lead_second</source>
+                <target>Product design, tech design, code and review, in one workflow.</target>
+            </trans-unit>
+            <trans-unit id="landing.hero.explainer_label">
+                <source>landing.hero.explainer_label</source>
+                <target>Loupe Explainer: one card moves through the workflow</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.title">
+                <source>landing.workflow.title</source>
+                <target>One workflow, end to end.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.lead">
+                <source>landing.workflow.lead</source>
+                <target>Each card moves through the same stages. Agents do the work at every stage, and the workflow stops for you at the ones marked You.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.you">
+                <source>landing.workflow.you</source>
+                <target>You</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.product_design.title">
+                <source>landing.workflow.step.product_design.title</source>
+                <target>Product design</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.product_design.text">
+                <source>landing.workflow.step.product_design.text</source>
+                <target>An agent drafts the product document and a clickable prototype, or you shape them together in a session. You review them before any code.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.tech_design.title">
+                <source>landing.workflow.step.tech_design.title</source>
+                <target>Tech design</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.tech_design.text">
+                <source>landing.workflow.step.tech_design.text</source>
+                <target>An agent writes the technical design from the approved product. You comment, then approve.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.implementation.title">
+                <source>landing.workflow.step.implementation.title</source>
+                <target>Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.implementation.text">
+                <source>landing.workflow.step.implementation.text</source>
+                <target>A worker builds the approved design and opens a pull request on GitHub.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.agent_review.title">
+                <source>landing.workflow.step.agent_review.title</source>
+                <target>Agent review</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.agent_review.text">
+                <source>landing.workflow.step.agent_review.text</source>
+                <target>A second agent reviews the change against the design. Fix rounds run until it passes.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.site_review.title">
+                <source>landing.workflow.step.site_review.title</source>
+                <target>Site review</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.site_review.text">
+                <source>landing.workflow.step.site_review.text</source>
+                <target>Try the change on a preview. Leave notes on the page with the widget, then approve.</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.done.title">
+                <source>landing.workflow.step.done.title</source>
+                <target>Done</target>
+            </trans-unit>
+            <trans-unit id="landing.workflow.step.done.text">
+                <source>landing.workflow.step.done.text</source>
+                <target>The pull request merges and the card moves to Done.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.title">
+                <source>landing.features.title</source>
+                <target>Everything the factory needs.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.list_label">
+                <source>landing.features.list_label</source>
+                <target>Features</target>
+            </trans-unit>
+            <trans-unit id="landing.features.previous">
+                <source>landing.features.previous</source>
+                <target>Previous feature</target>
+            </trans-unit>
+            <trans-unit id="landing.features.next">
+                <source>landing.features.next</source>
+                <target>Next feature</target>
+            </trans-unit>
+            <trans-unit id="landing.features.board.title">
+                <source>landing.features.board.title</source>
+                <target>Board</target>
+            </trans-unit>
+            <trans-unit id="landing.features.board.text">
+                <source>landing.features.board.text</source>
+                <target>See every card, its stage and its state: working, waiting, stuck or needs you. Epics get their own lane, and each card links its documents and prototypes.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.board.caption">
+                <source>landing.features.board.caption</source>
+                <target>Every card, its stage and its state at a glance.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.workflow_rules.title">
+                <source>landing.features.workflow_rules.title</source>
+                <target>Workflow rules</target>
+            </trans-unit>
+            <trans-unit id="landing.features.workflow_rules.text">
+                <source>landing.features.workflow_rules.text</source>
+                <target>Rules decide when a card moves, which work it needs and where it waits for a person.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.workflow_rules.caption">
+                <source>landing.features.workflow_rules.caption</source>
+                <target>Rules move the cards and stop where a person decides.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.sessions.title">
+                <source>landing.features.sessions.title</source>
+                <target>Interactive sessions</target>
+            </trans-unit>
+            <trans-unit id="landing.features.sessions.text">
+                <source>landing.features.sessions.text</source>
+                <target>Take the wheel on any card. Work it through with the agent, and the card carries on from there.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.sessions.caption">
+                <source>landing.features.sessions.caption</source>
+                <target>Work a card through with the agent, then hand it back.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.document_review.title">
+                <source>landing.features.document_review.title</source>
+                <target>Document review</target>
+            </trans-unit>
+            <trans-unit id="landing.features.document_review.text">
+                <source>landing.features.document_review.text</source>
+                <target>Product and tech designs arrive rendered. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.document_review.caption">
+                <source>landing.features.document_review.caption</source>
+                <target>Select any line. Comment on it, then approve or ask for changes.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.inbox.title">
+                <source>landing.features.inbox.title</source>
+                <target>Inbox</target>
+            </trans-unit>
+            <trans-unit id="landing.features.inbox.text">
+                <source>landing.features.inbox.text</source>
+                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.inbox.caption">
+                <source>landing.features.inbox.caption</source>
+                <target>Every question from every agent, in one list.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.agent_review.title">
+                <source>landing.features.agent_review.title</source>
+                <target>Agent review</target>
+            </trans-unit>
+            <trans-unit id="landing.features.agent_review.text">
+                <source>landing.features.agent_review.text</source>
+                <target>A second agent reviews every pull request against the approved design, and sends it back for fixes before you see it.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.agent_review.caption">
+                <source>landing.features.agent_review.caption</source>
+                <target>A second agent checks the change against your design.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.site_review.title">
+                <source>landing.features.site_review.title</source>
+                <target>Site review</target>
+            </trans-unit>
+            <trans-unit id="landing.features.site_review.text">
+                <source>landing.features.site_review.text</source>
+                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.site_review.caption">
+                <source>landing.features.site_review.caption</source>
+                <target>Click anything on your preview app. The note lands on the card.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.analytics.title">
+                <source>landing.features.analytics.title</source>
+                <target>Analytics</target>
+            </trans-unit>
+            <trans-unit id="landing.features.analytics.text">
+                <source>landing.features.analytics.text</source>
+                <target>Cost per finished card, merge rate, fix rounds and hours to merge. Compare models with experiments.</target>
+            </trans-unit>
+            <trans-unit id="landing.features.analytics.caption">
+                <source>landing.features.analytics.caption</source>
+                <target>See what each finished card costs, by model.</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.lane.product_design">
+                <source>landing.slide.board.lane.product_design</source>
+                <target>Product design</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.lane.implementation">
+                <source>landing.slide.board.lane.implementation</source>
+                <target>Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.lane.in_review">
+                <source>landing.slide.board.lane.in_review</source>
+                <target>In review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.lane.done">
+                <source>landing.slide.board.lane.done</source>
+                <target>Done</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.card.nightly_price">
+                <source>landing.slide.board.card.nightly_price</source>
+                <target>Nightly price on search cards</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.card.booking_calendar">
+                <source>landing.slide.board.card.booking_calendar</source>
+                <target>Booking calendar</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.card.safer_checkout">
+                <source>landing.slide.board.card.safer_checkout</source>
+                <target>Safer checkout</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.card.guest_reviews">
+                <source>landing.slide.board.card.guest_reviews</source>
+                <target>Guest reviews</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.card.faster_search">
+                <source>landing.slide.board.card.faster_search</source>
+                <target>Faster search</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.state.needs_you">
+                <source>landing.slide.board.state.needs_you</source>
+                <target>Needs you</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.state.working">
+                <source>landing.slide.board.state.working</source>
+                <target>Working</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.state.stuck">
+                <source>landing.slide.board.state.stuck</source>
+                <target>Stuck</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.board.state.merged">
+                <source>landing.slide.board.state.merged</source>
+                <target>Merged</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.heading">
+                <source>landing.slide.rules.heading</source>
+                <target>Lifecycle rules</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.rule">
+                <source>landing.slide.rules.rule</source>
+                <target>Rule</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.applies">
+                <source>landing.slide.rules.applies</source>
+                <target>Applies in</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.action">
+                <source>landing.slide.rules.action</source>
+                <target>Action</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.column_tech_design">
+                <source>landing.slide.rules.column_tech_design</source>
+                <target>Tech design</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.column_implementation">
+                <source>landing.slide.rules.column_implementation</source>
+                <target>Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.column_in_review">
+                <source>landing.slide.rules.column_in_review</source>
+                <target>In review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.any_column">
+                <source>landing.slide.rules.any_column</source>
+                <target>Any column</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.move_to_implementation">
+                <source>landing.slide.rules.move_to_implementation</source>
+                <target>Move to Implementation</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.move_to_in_review">
+                <source>landing.slide.rules.move_to_in_review</source>
+                <target>Move to In review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.request_review">
+                <source>landing.slide.rules.request_review</source>
+                <target>Request work: review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.rules.move_to_done">
+                <source>landing.slide.rules.move_to_done</source>
+                <target>Move to Done</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.session.card_title">
+                <source>landing.slide.session.card_title</source>
+                <target>Show the nightly price on search cards</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.session.run_open">
+                <source>landing.slide.session.run_open</source>
+                <target>Interactive run open</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.session.question">
+                <source>landing.slide.session.question</source>
+                <target>Where the price sits is a look-and-feel choice. Want two mockups to compare?</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.title">
+                <source>landing.slide.document.title</source>
+                <target>Product design: nightly price on search cards</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.finish">
+                <source>landing.slide.document.finish</source>
+                <target>Finish review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.paragraph_first">
+                <source>landing.slide.document.paragraph_first</source>
+                <target>Guests compare cabins from the search page. Each card shows a photo, the name and the rating.</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.paragraph_second_before">
+                <source>landing.slide.document.paragraph_second_before</source>
+                <target>The card adds</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.paragraph_second_marked">
+                <source>landing.slide.document.paragraph_second_marked</source>
+                <target>the nightly price and the total for the dates</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.paragraph_second_after">
+                <source>landing.slide.document.paragraph_second_after</source>
+                <target>, so a guest never opens a cabin only to learn its price.</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.note_author">
+                <source>landing.slide.document.note_author</source>
+                <target>You</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.note">
+                <source>landing.slide.document.note</source>
+                <target>Put the total first. That is what guests compare.</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.toolbar_comment">
+                <source>landing.slide.document.toolbar_comment</source>
+                <target>Comment</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.toolbar_suggest">
+                <source>landing.slide.document.toolbar_suggest</source>
+                <target>Suggest</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.document.toolbar_strike">
+                <source>landing.slide.document.toolbar_strike</source>
+                <target>Strike</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.heading">
+                <source>landing.slide.inbox.heading</source>
+                <target>Needs you</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.question">
+                <source>landing.slide.inbox.question</source>
+                <target>Show the total, the nightly price, or both?</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.review">
+                <source>landing.slide.inbox.review</source>
+                <target>Tech design: nightly price on search cards</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.todo">
+                <source>landing.slide.inbox.todo</source>
+                <target>Check the price against a real booking</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.kind_question">
+                <source>landing.slide.inbox.kind_question</source>
+                <target>Question, blocking</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.kind_review">
+                <source>landing.slide.inbox.kind_review</source>
+                <target>Review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.inbox.kind_todo">
+                <source>landing.slide.inbox.kind_todo</source>
+                <target>To-do</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.agent_review.status">
+                <source>landing.slide.agent_review.status</source>
+                <target>Changes requested, 1 finding</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.agent_review.finding_label">
+                <source>landing.slide.agent_review.finding_label</source>
+                <target>spec</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.agent_review.finding">
+                <source>landing.slide.agent_review.finding</source>
+                <target>The approved design puts the total for the dates first. This shows only the nightly price.</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.tagline">
+                <source>landing.slide.site_review.tagline</source>
+                <target>Cabins near Lake Tahoe, Friday to Sunday</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_first">
+                <source>landing.slide.site_review.cabin_first</source>
+                <target>Pine Hollow cabin</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_first_meta">
+                <source>landing.slide.site_review.cabin_first_meta</source>
+                <target>4.9 stars, sleeps 4</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.price">
+                <source>landing.slide.site_review.price</source>
+                <target>$180 / night</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_second">
+                <source>landing.slide.site_review.cabin_second</source>
+                <target>Lakeview loft</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_second_meta">
+                <source>landing.slide.site_review.cabin_second_meta</source>
+                <target>4.7 stars, sleeps 2</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_third">
+                <source>landing.slide.site_review.cabin_third</source>
+                <target>Cedar ridge</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.cabin_third_meta">
+                <source>landing.slide.site_review.cabin_third_meta</source>
+                <target>4.8 stars, sleeps 6</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.widget">
+                <source>landing.slide.site_review.widget</source>
+                <target>Review</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.selected">
+                <source>landing.slide.site_review.selected</source>
+                <target>Selected element</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.note">
+                <source>landing.slide.site_review.note</source>
+                <target>Show the total for the dates here too.</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.saves">
+                <source>landing.slide.site_review.saves</source>
+                <target>Saves to card #42</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.site_review.submit">
+                <source>landing.slide.site_review.submit</source>
+                <target>Comment</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.metric">
+                <source>landing.slide.analytics.metric</source>
+                <target>Cost</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.per">
+                <source>landing.slide.analytics.per</source>
+                <target>Per finished card</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.statistic">
+                <source>landing.slide.analytics.statistic</source>
+                <target>Median</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.group">
+                <source>landing.slide.analytics.group</source>
+                <target>By model</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.claude_code">
+                <source>landing.slide.analytics.claude_code</source>
+                <target>Claude Code</target>
+            </trans-unit>
+            <trans-unit id="landing.slide.analytics.codex">
+                <source>landing.slide.analytics.codex</source>
+                <target>Codex</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.title">
+                <source>landing.works_with.title</source>
+                <target>Works with</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.lead">
+                <source>landing.works_with.lead</source>
+                <target>Bring the agents and the tools you already use. Workers run on your machine, on your own subscriptions.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.claude_code.name">
+                <source>landing.works_with.claude_code.name</source>
+                <target>Claude Code</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.claude_code.text">
+                <source>landing.works_with.claude_code.text</source>
+                <target>Runs any stage, or an interactive session.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.codex.name">
+                <source>landing.works_with.codex.name</source>
+                <target>Codex</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.codex.text">
+                <source>landing.works_with.codex.text</source>
+                <target>Runs any stage, with its own models.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.openrouter.name">
+                <source>landing.works_with.openrouter.name</source>
+                <target>OpenRouter</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.openrouter.text">
+                <source>landing.works_with.openrouter.text</source>
+                <target>Other models, through a Codex profile.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.github.name">
+                <source>landing.works_with.github.name</source>
+                <target>GitHub</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.github.text">
+                <source>landing.works_with.github.text</source>
+                <target>Pull requests, checks and reviews.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.mcp.name">
+                <source>landing.works_with.mcp.name</source>
+                <target>MCP</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.mcp.text">
+                <source>landing.works_with.mcp.text</source>
+                <target>Any MCP client can read and write the board.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.claude_design.name">
+                <source>landing.works_with.claude_design.name</source>
+                <target>Claude Design</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.claude_design.text">
+                <source>landing.works_with.claude_design.text</source>
+                <target>Store a Claude Design canvas as an artifact, and link it to a card.</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.more.name">
+                <source>landing.works_with.more.name</source>
+                <target>More coming</target>
+            </trans-unit>
+            <trans-unit id="landing.works_with.more.text">
+                <source>landing.works_with.more.text</source>
+                <target>More agents and forges are on the way.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.title">
+                <source>landing.requirements.need.title</source>
+                <target>What you need</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.lead">
+                <source>landing.requirements.need.lead</source>
+                <target>Loupe brings the workflow. You bring the agents.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.agent.name">
+                <source>landing.requirements.need.agent.name</source>
+                <target>Claude Code or Codex</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.agent.text">
+                <source>landing.requirements.need.agent.text</source>
+                <target>On your own subscription or API key.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.github.name">
+                <source>landing.requirements.need.github.name</source>
+                <target>A GitHub.com repository with the Loupe GitHub App</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.github.text">
+                <source>landing.requirements.need.github.text</source>
+                <target>The app lets Loupe read pull request status and move cards. GitHub Enterprise and other forges are not supported yet.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.machine.name">
+                <source>landing.requirements.need.machine.name</source>
+                <target>A Mac or Linux machine for the bridge</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.machine.text">
+                <source>landing.requirements.need.machine.text</source>
+                <target>The bridge starts the workers, so it must be running while work happens.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.need.action">
+                <source>landing.requirements.need.action</source>
+                <target>I'm all set, I want in!</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.title">
+                <source>landing.requirements.better.title</source>
+                <target>Loupe is even better with</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.lead">
+                <source>landing.requirements.better.lead</source>
+                <target>Optional, and worth the few minutes they take to set up.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.account.name">
+                <source>landing.requirements.better.account.name</source>
+                <target>A GitHub account for your agents</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.account.text">
+                <source>landing.requirements.better.account.text</source>
+                <target>A second account opens the pull requests, so you can approve them.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.previews.name">
+                <source>landing.requirements.better.previews.name</source>
+                <target>Preview deployments</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.previews.text">
+                <source>landing.requirements.better.previews.text</source>
+                <target>A URL for each pull request lets you review the change with the site review widget.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.worktree.name">
+                <source>landing.requirements.better.worktree.name</source>
+                <target>A worktree script</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.worktree.text">
+                <source>landing.requirements.better.worktree.text</source>
+                <target>The bridge runs it before each worker, so workers run side by side in their own checkout instead of sharing one.</target>
+            </trans-unit>
+            <trans-unit id="landing.requirements.better.action">
+                <source>landing.requirements.better.action</source>
+                <target>Missing one? Let Loupe build it for you</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.title">
+                <source>landing.ask.title</source>
+                <target>Use something else?</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.lead">
+                <source>landing.ask.lead</source>
+                <target>Tell us what you need, and we will email you when Loupe supports it.</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.open">
+                <source>landing.ask.open</source>
+                <target>Tell us</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.close">
+                <source>landing.ask.close</source>
+                <target>Close</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.title">
+                <source>landing.waitlist_dialog.title</source>
+                <target>Join the private beta waitlist</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.body">
+                <source>landing.waitlist_dialog.body</source>
+                <target>Leave your email. We send you an invite when a place opens.</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.busy">
+                <source>landing.waitlist_dialog.busy</source>
+                <target>Saving…</target>
+            </trans-unit>
+            <trans-unit id="landing.waitlist_dialog.close">
+                <source>landing.waitlist_dialog.close</source>
+                <target>Close</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.group.forges">
+                <source>landing.ask.group.forges</source>
+                <target>Forges</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.group.agents">
+                <source>landing.ask.group.agents</source>
+                <target>Agents</target>
+            </trans-unit>
+            <trans-unit id="landing.ask.submit">
+                <source>landing.ask.submit</source>
+                <target>Notify me</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.title">
+                <source>landing.open_source.title</source>
+                <target>Open source. Run it anywhere.</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.lead">
+                <source>landing.open_source.lead</source>
+                <target>Loupe is AGPL. Host it yourself with Docker Compose, or join the private beta of the hosted version.</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.self_host.tag">
+                <source>landing.open_source.self_host.tag</source>
+                <target>Self-host</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.self_host.headline">
+                <source>landing.open_source.self_host.headline</source>
+                <target>Free</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.self_host.text">
+                <source>landing.open_source.self_host.text</source>
+                <target>One Docker Compose file: web, worker and Postgres. Needs no outside service.</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.self_host.action">
+                <source>landing.open_source.self_host.action</source>
+                <target>Read the install guide</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.hosted.tag">
+                <source>landing.open_source.hosted.tag</source>
+                <target>Hosted</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.hosted.headline">
+                <source>landing.open_source.hosted.headline</source>
+                <target>Private beta</target>
+            </trans-unit>
+            <trans-unit id="landing.open_source.hosted.text">
+                <source>landing.open_source.hosted.text</source>
+                <target>We run it and back it up. We let teams in a few at a time.</target>
+            </trans-unit>
+            <trans-unit id="landing.closing.title">
+                <source>landing.closing.title</source>
+                <target>Put the first card on the board.</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.tagline">
+                <source>landing.footer.tagline</source>
+                <target>A software factory for coding agents. Open source, and free to host yourself.</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.source_label">
+                <source>landing.footer.source_label</source>
+                <target>Source code on GitHub</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.x_label">
+                <source>landing.footer.x_label</source>
+                <target>Loupe on X</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.product">
+                <source>landing.footer.product</source>
+                <target>Product</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.resources">
+                <source>landing.footer.resources</source>
+                <target>Resources</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.legal">
+                <source>landing.footer.legal</source>
+                <target>Legal</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.documentation">
+                <source>landing.footer.documentation</source>
+                <target>Documentation</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.getting_started">
+                <source>landing.footer.getting_started</source>
+                <target>Getting started</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.self_hosting">
+                <source>landing.footer.self_hosting</source>
+                <target>Self-hosting guide</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.changelog">
+                <source>landing.footer.changelog</source>
+                <target>Changelog</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.license">
+                <source>landing.footer.license</source>
+                <target>Open source under AGPL-3.0</target>
             </trans-unit>
             <trans-unit id="legal.privacy.meta_description">
                 <source>legal.privacy.meta_description</source>
@@ -4289,30 +5122,6 @@
                 <source>legal.ai_policy.meta_description</source>
                 <target>How Loupe uses AI, what it does with the content you submit, and what it never trains on.</target>
             </trans-unit>
-            <trans-unit id="landing.meta.title">
-                <source>landing.meta.title</source>
-                <target>The human review layer for your agent loop</target>
-            </trans-unit>
-            <trans-unit id="landing.nav.how">
-                <source>landing.nav.how</source>
-                <target>How it works</target>
-            </trans-unit>
-            <trans-unit id="landing.nav.features">
-                <source>landing.nav.features</source>
-                <target>Features</target>
-            </trans-unit>
-            <trans-unit id="landing.nav.selfhost">
-                <source>landing.nav.selfhost</source>
-                <target>Self-host</target>
-            </trans-unit>
-            <trans-unit id="landing.nav.pricing">
-                <source>landing.nav.pricing</source>
-                <target>Pricing</target>
-            </trans-unit>
-            <trans-unit id="landing.nav.faq">
-                <source>landing.nav.faq</source>
-                <target>FAQ</target>
-            </trans-unit>
             <trans-unit id="landing.nav.login">
                 <source>landing.nav.login</source>
                 <target>Sign in</target>
@@ -4320,578 +5129,6 @@
             <trans-unit id="landing.cta.signup">
                 <source>landing.cta.signup</source>
                 <target>Sign up free</target>
-            </trans-unit>
-            <trans-unit id="landing.cta.selfhost">
-                <source>landing.cta.selfhost</source>
-                <target>Host it yourself</target>
-            </trans-unit>
-            <trans-unit id="landing.hero.title_before">
-                <source>landing.hero.title_before</source>
-                <target>The human review layer for your</target>
-            </trans-unit>
-            <trans-unit id="landing.hero.title_accent">
-                <source>landing.hero.title_accent</source>
-                <target>agent loop</target>
-            </trans-unit>
-            <trans-unit id="landing.hero.title_after">
-                <source>landing.hero.title_after</source>
-                <target>.</target>
-            </trans-unit>
-            <trans-unit id="landing.hero.lead">
-                <source>landing.hero.lead</source>
-                <target>Your AI agent produces docs and whole web pages faster than you can skim them. Loupe makes reviewing them effortless — read it rendered, select any line, leave a comment where it matters, and send structured feedback straight back over MCP.</target>
-            </trans-unit>
-            <trans-unit id="landing.hero.note">
-                <source>landing.hero.note</source>
-                <target>14-day trial. No card. Or run it yourself under AGPL, forever free.</target>
-            </trans-unit>
-            <trans-unit id="landing.how.title">
-                <source>landing.how.title</source>
-                <target>From raw to reviewed.</target>
-            </trans-unit>
-            <trans-unit id="landing.how.step1.title">
-                <source>landing.how.step1.title</source>
-                <target>The agent submits</target>
-            </trans-unit>
-            <trans-unit id="landing.how.step1.text">
-                <source>landing.how.step1.text</source>
-                <target>Your agent posts the plan to Loupe instead of your terminal, and you get a link.</target>
-            </trans-unit>
-            <trans-unit id="landing.how.step2.title">
-                <source>landing.how.step2.title</source>
-                <target>A human reviews</target>
-            </trans-unit>
-            <trans-unit id="landing.how.step2.text">
-                <source>landing.how.step2.text</source>
-                <target>Highlight anything and comment on it. Then approve, or ask for changes.</target>
-            </trans-unit>
-            <trans-unit id="landing.how.step3.title">
-                <source>landing.how.step3.title</source>
-                <target>The agent revises</target>
-            </trans-unit>
-            <trans-unit id="landing.how.step3.text">
-                <source>landing.how.step3.text</source>
-                <target>Your agent picks up the comments and posts a new version, with your notes still on the passages they were about.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.anchors.title">
-                <source>landing.feature.anchors.title</source>
-                <target>Anchored comments</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.anchors.text">
-                <source>landing.feature.anchors.text</source>
-                <target>Comments attach to the passage itself, so a revision carries each one along with the text it belongs to.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.suggest.title">
-                <source>landing.feature.suggest.title</source>
-                <target>Suggest and strike</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.suggest.text">
-                <source>landing.feature.suggest.text</source>
-                <target>Reword a sentence with before/after, or strike a passage in one keystroke. Faster than writing a paragraph explaining what to delete.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.versions.title">
-                <source>landing.feature.versions.title</source>
-                <target>Versions and diffs</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.versions.text">
-                <source>landing.feature.versions.text</source>
-                <target>Every revision is a version. Compare any two, and reach the discussion an earlier draft left behind.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.tokens.title">
-                <source>landing.feature.tokens.title</source>
-                <target>Scoped OAuth access</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.tokens.text">
-                <source>landing.feature.tokens.text</source>
-                <target>An agent signs in through your browser and you choose what it reaches. Separate MCP, agent and site-review scopes, and no credential to copy.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.decisions.title">
-                <source>landing.feature.decisions.title</source>
-                <target>Structured decisions</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.decisions.text">
-                <source>landing.feature.decisions.text</source>
-                <target>An agent can mark a passage as a decision with options. The reviewer picks one or several, and the choice comes back structured.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.diagrams.title">
-                <source>landing.feature.diagrams.title</source>
-                <target>Diagrams in the document</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.diagrams.text">
-                <source>landing.feature.diagrams.text</source>
-                <target>A Mermaid block renders as a diagram on the review page, once an operator turns diagrams on.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.site_review.title">
-                <source>landing.feature.site_review.title</source>
-                <target>Site review</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.site_review.text">
-                <source>landing.feature.site_review.text</source>
-                <target>An embeddable widget that brings the same select-and-comment flow to a live page. Each note lands on your board as a card. Quote a passage of text, or point one note at several elements to say how they relate.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.harnesses.title">
-                <source>landing.feature.harnesses.title</source>
-                <target>Claude Code and Codex workers</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.harnesses.text">
-                <source>landing.feature.harnesses.text</source>
-                <target>Your bridge runs each stage worker on Claude Code or Codex, on your own subscriptions or on an API key such as OpenRouter. An experiment compares them on cost, speed and outcome.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.agent_review.title">
-                <source>landing.feature.agent_review.title</source>
-                <target>An agent reviews each pull request</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.agent_review.text">
-                <source>landing.feature.agent_review.text</source>
-                <target>A separate agent reviews each pull request before you see it. It also checks that the change builds what you approved in the design, and posts its findings beside the lines they concern. A failed review asks for a fix at once. The pull request reaches you when the review passes.</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.cost_analysis.title">
-                <source>landing.feature.cost_analysis.title</source>
-                <target>Cost and experiment analysis</target>
-            </trans-unit>
-            <trans-unit id="landing.feature.cost_analysis.text">
-                <source>landing.feature.cost_analysis.text</source>
-                <target>An agent reads the worker runs and explains where the cost goes. It compares the variants of an experiment and recommends one. It proposes cards, and you create or dismiss each one.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.title">
-                <source>landing.tech.title</source>
-                <target>How it plugs in.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.lead">
-                <source>landing.tech.lead</source>
-                <target>Two ways in: an MCP server your agent drives itself, and a drop-in widget that makes any page you ship reviewable.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.docs_link">
-                <source>landing.tech.docs_link</source>
-                <target>Read the MCP docs.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.widget_docs_link">
-                <source>landing.tech.widget_docs_link</source>
-                <target>Read the site review docs.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.tools.title">
-                <source>landing.tech.tools.title</source>
-                <target>One MCP server</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.tools.text">
-                <source>landing.tech.tools.text</source>
-                <target>%count% tools. Add the server URL to Claude or Claude Code and sign in, with no token to copy. Your agent then submits a document, reads the verdict and the open threads back, and revises.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.markdown.title">
-                <source>landing.tech.markdown.title</source>
-                <target>Markdown in, prose out</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.markdown.text">
-                <source>landing.tech.markdown.text</source>
-                <target>Comments anchor to quoted text, so a revision re-anchors the open threads and flags the ones whose passage is gone.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.widget.title">
-                <source>landing.tech.widget.title</source>
-                <target>Review any page</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.widget.text">
-                <source>landing.tech.widget.text</source>
-                <target>Drop the site review widget into your app and the same select-and-comment flow works on a live page. Each note lands on your board as a card, and your agent reads it back over MCP.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.tablist">
-                <source>landing.tech.tablist</source>
-                <target>How Loupe plugs in</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.reanchored">
-                <source>landing.tech.still.reanchored</source>
-                <target>Re-anchored</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.doc_title">
-                <source>landing.tech.still.doc_title</source>
-                <target>Comment re-anchoring on revision</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.version">
-                <source>landing.tech.still.version</source>
-                <target>v2</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.doc_heading">
-                <source>landing.tech.still.doc_heading</source>
-                <target>Orphans</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.doc_before">
-                <source>landing.tech.still.doc_before</source>
-                <target>A comment whose quote is gone is</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.doc_quote">
-                <source>landing.tech.still.doc_quote</source>
-                <target>marked orphaned rather than deleted</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.doc_after">
-                <source>landing.tech.still.doc_after</source>
-                <target>. The reviewer said something; losing it because the author rewrote the sentence is the wrong trade.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.comment_body">
-                <source>landing.tech.still.comment_body</source>
-                <target>Good. Say what the reviewer sees when that happens — a flag on the thread, or a separate list?</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.url">
-                <source>landing.tech.still.url</source>
-                <target>your-app.com/pricing</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.page_heading">
-                <source>landing.tech.still.page_heading</source>
-                <target>Simple pricing</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.page_cta">
-                <source>landing.tech.still.page_cta</source>
-                <target>Start free</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.launcher">
-                <source>landing.tech.still.launcher</source>
-                <target>Review</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.target_label">
-                <source>landing.tech.still.target_label</source>
-                <target>Simple pricing</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.composer_title">
-                <source>landing.tech.still.composer_title</source>
-                <target>Add a comment</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.composer_body">
-                <source>landing.tech.still.composer_body</source>
-                <target>This promises a free tier the pricing table does not have.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.composer_hint">
-                <source>landing.tech.still.composer_hint</source>
-                <target>Sent to your agent</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.still.composer_send">
-                <source>landing.tech.still.composer_send</source>
-                <target>Comment</target>
-            </trans-unit>
-            <trans-unit id="landing.demo.author">
-                <source>landing.demo.author</source>
-                <target>You</target>
-            </trans-unit>
-            <trans-unit id="landing.demo.select_hint_lead">
-                <source>landing.demo.select_hint_lead</source>
-                <target>Go on, pick a fight with this page.</target>
-            </trans-unit>
-            <trans-unit id="landing.demo.select_hint">
-                <source>landing.demo.select_hint</source>
-                <target>Select any piece of text and leave a comment — the headline, the footer, this very sentence, all fair game. Nothing is saved and nobody's feelings are involved.</target>
-            </trans-unit>
-            <trans-unit id="landing.demo.widget_hint_lead">
-                <source>landing.demo.widget_hint_lead</source>
-                <target>This widget is a demo.</target>
-            </trans-unit>
-            <trans-unit id="landing.demo.widget_hint">
-                <source>landing.demo.widget_hint</source>
-                <target>Point it at anything on the page.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.title">
-                <source>landing.selfhost.title</source>
-                <target>Host it yourself.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.lead">
-                <source>landing.selfhost.lead</source>
-                <target>Loupe is AGPL-3.0, and the whole thing fits on one machine. Read the source, or run it — both start in the same place.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.copy">
-                <source>landing.selfhost.copy</source>
-                <target>Copy</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.copied">
-                <source>landing.selfhost.copied</source>
-                <target>Copied</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.compose_file">
-                <source>landing.selfhost.compose_file</source>
-                <target>docker/compose/prod.yaml (abridged)</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.run.title">
-                <source>landing.selfhost.run.title</source>
-                <target>Run it for real</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.run.text">
-                <source>landing.selfhost.run.text</source>
-                <target>One compose file runs the production image as three services — web, worker and Postgres — with no cloud account of any kind.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.run.note">
-                <source>landing.selfhost.run.note</source>
-                <target>Fill in the env file first: an install token, an SMTP server and a reverse proxy in front. Nothing starts half-configured — a missing setting aborts the run.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.docs_link">
-                <source>landing.selfhost.docs_link</source>
-                <target>Single-host install docs.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.install_action">
-                <source>landing.selfhost.install_action</source>
-                <target>Read the install docs</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.demo.title">
-                <source>landing.selfhost.demo.title</source>
-                <target>Just look at it</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.demo.text">
-                <source>landing.selfhost.demo.text</source>
-                <target>One container, already set up and signed in. Nothing to clone or configure.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.demo.note">
-                <source>landing.selfhost.demo.note</source>
-                <target>Keep it on localhost — it is built for trying Loupe, not running it.</target>
-            </trans-unit>
-            <trans-unit id="landing.selfhost.demo_docs_link">
-                <source>landing.selfhost.demo_docs_link</source>
-                <target>Demo docs.</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.title">
-                <source>landing.pricing.title</source>
-                <target>Your machine, or ours.</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.name">
-                <source>landing.pricing.self_host.name</source>
-                <target>Self-host</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.desc">
-                <source>landing.pricing.self_host.desc</source>
-                <target>One container, a Postgres database, anywhere you like.</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.price">
-                <source>landing.pricing.self_host.price</source>
-                <target>Free</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.period">
-                <source>landing.pricing.self_host.period</source>
-                <target>forever, AGPL-3.0</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.item1">
-                <source>landing.pricing.self_host.item1</source>
-                <target>Every feature, no seat limit</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.item2">
-                <source>landing.pricing.self_host.item2</source>
-                <target>Your data on your infrastructure</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.item3">
-                <source>landing.pricing.self_host.item3</source>
-                <target>Community support on GitHub</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.self_host.action">
-                <source>landing.pricing.self_host.action</source>
-                <target>Read the install docs</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.name">
-                <source>landing.pricing.hosted.name</source>
-                <target>Hosted</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.badge">
-                <source>landing.pricing.hosted.badge</source>
-                <target>Beta pricing</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.desc">
-                <source>landing.pricing.hosted.desc</source>
-                <target>We run it, patch it and back it up, so you only have to review.</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.price">
-                <source>landing.pricing.hosted.price</source>
-                <target>$%price%</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.period">
-                <source>landing.pricing.hosted.period</source>
-                <target>per month during beta</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.item1">
-                <source>landing.pricing.hosted.item1</source>
-                <target>14-day trial, no card up front</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.item2">
-                <source>landing.pricing.hosted.item2</source>
-                <target>Managed MCP endpoint and Mercure streaming</target>
-            </trans-unit>
-            <trans-unit id="landing.pricing.hosted.item3">
-                <source>landing.pricing.hosted.item3</source>
-                <target>Beta price locked for as long as you stay</target>
-            </trans-unit>
-            <trans-unit id="landing.opensource.title">
-                <source>landing.opensource.title</source>
-                <target>Built for humans, wired for agents.</target>
-            </trans-unit>
-            <trans-unit id="landing.opensource.lead">
-                <source>landing.opensource.lead</source>
-                <target>Loupe is free and open source under AGPL-3.0-or-later. Self-host it and it costs nothing, forever. Your documents, your comments and your database stay yours — there is no lock-in to walk away from.</target>
-            </trans-unit>
-            <trans-unit id="landing.opensource.docs">
-                <source>landing.opensource.docs</source>
-                <target>Documentation</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.title">
-                <source>landing.faq.title</source>
-                <target>Before you sign up.</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.agents.question">
-                <source>landing.faq.agents.question</source>
-                <target>Which agents does it work with?</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.agents.answer_before">
-                <source>landing.faq.agents.answer_before</source>
-                <target>Any agent that speaks Model Context Protocol. It authenticates with a scoped API token and calls</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.agents.answer_or">
-                <source>landing.faq.agents.answer_or</source>
-                <target>or</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.agents.answer_after">
-                <source>landing.faq.agents.answer_after</source>
-                <target>, and gets a shareable review URL back.</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.board.question">
-                <source>landing.faq.board.question</source>
-                <target>Can my agent track work in Loupe?</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.board.answer">
-                <source>landing.faq.board.answer</source>
-                <target>Yes. Your agent files cards on the project board over MCP, in the columns you set for each board, and links the pull requests that carry each one. An epic card groups the small cards of one large feature, and the board shows each epic as a swimlane with its progress. Each board follows a workflow template, so Loupe moves a card through its stages and asks your bridge for the next piece of work. When you connect a repository through the GitHub App, Loupe follows the pull request of each card, shows its checks, conflicts and review, and can carry it through to the merge. Each card on the board shows one mark that says what it needs now: Stuck, Needs you, Working or Waiting. A tooltip gives the reason, and your agent reads the same state over MCP.</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.harnesses.question">
-                <source>landing.faq.harnesses.question</source>
-                <target>Which agents does it run?</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.harnesses.answer">
-                <source>landing.faq.harnesses.answer</source>
-                <target>The bridge on your machine runs each stage worker on Claude Code or Codex. Each rule picks a named account, so one board can use a Claude subscription, a ChatGPT subscription and an OpenRouter key together. The keys stay on your machine. An experiment compares the accounts on the same stage.</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.technical.question">
-                <source>landing.faq.technical.question</source>
-                <target>Do reviewers need to be technical?</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.technical.answer">
-                <source>landing.faq.technical.answer</source>
-                <target>No. They open a URL and read rendered Markdown. Selecting text and leaving a comment is the whole interaction. No repository access, no terminal, no diff to parse.</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.anchors.question">
-                <source>landing.faq.anchors.question</source>
-                <target>What happens to a comment when the document changes?</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.anchors.answer">
-                <source>landing.faq.anchors.answer</source>
-                <target>Anchors are re-located against the new text. When the quoted passage is genuinely gone, the thread stays and says so rather than silently attaching itself to the wrong paragraph.</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.migrate.question">
-                <source>landing.faq.migrate.question</source>
-                <target>Can I move from hosted to self-hosted later?</target>
-            </trans-unit>
-            <trans-unit id="landing.faq.migrate.answer">
-                <source>landing.faq.migrate.answer</source>
-                <target>Yes, it is the same application. Export your data and run the container. The AGPL licence guarantees you the source either way.</target>
-            </trans-unit>
-            <trans-unit id="landing.closing.title">
-                <source>landing.closing.title</source>
-                <target>Review it before it ships.</target>
-            </trans-unit>
-            <trans-unit id="landing.closing.lead">
-                <source>landing.closing.lead</source>
-                <target>Point your agent at Loupe, drop the widget into your app, and review your first document or page in about five minutes.</target>
-            </trans-unit>
-            <trans-unit id="landing.closing.note">
-                <source>landing.closing.note</source>
-                <target>14 days free. Then $%price% a month, or host it yourself for nothing.</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.project.name">
-                <source>landing.mock.project.name</source>
-                <target>Atlas</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.project.domain">
-                <source>landing.mock.project.domain</source>
-                <target>atlas.internal</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.reviewer">
-                <source>landing.mock.reviewer</source>
-                <target>Geoffrey</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.agent">
-                <source>landing.mock.agent</source>
-                <target>Agent</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.email">
-                <source>landing.mock.email</source>
-                <target>geoffrey@example.com</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.document.title">
-                <source>landing.mock.document.title</source>
-                <target>Checkout rewrite — technical plan</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.document.version">
-                <source>landing.mock.document.version</source>
-                <target>v3</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.document.threads">
-                <source>landing.mock.document.threads</source>
-                <target>2 open · 5 resolved</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.document.updated">
-                <source>landing.mock.document.updated</source>
-                <target>4 minutes ago</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.decision.one.tag">
-                <source>landing.mock.decision.one.tag</source>
-                <target>D1</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.decision.one.label">
-                <source>landing.mock.decision.one.label</source>
-                <target>How the second write is retried</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.decision.one.answer">
-                <source>landing.mock.decision.one.answer</source>
-                <target>Queue it and retry</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.decision.two.tag">
-                <source>landing.mock.decision.two.tag</source>
-                <target>D2</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.decision.two.label">
-                <source>landing.mock.decision.two.label</source>
-                <target>When the legacy writer goes</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.body.heading">
-                <source>landing.mock.body.heading</source>
-                <target>Migration strategy</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.body.paragraph1_before">
-                <source>landing.mock.body.paragraph1_before</source>
-                <target>We move the checkout off the legacy session store in three passes. The first introduces the new</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.body.paragraph1_middle">
-                <source>landing.mock.body.paragraph1_middle</source>
-                <target>aggregate behind a feature flag,</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.body.paragraph2">
-                <source>landing.mock.body.paragraph2</source>
-                <target>The second pass flips reads to the new aggregate for internal accounts only. We accept a two-week window where both stores are authoritative and reconcile nightly. The third pass removes the legacy writer and drops the old table.</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.comment.quote">
-                <source>landing.mock.comment.quote</source>
-                <target>writing to both stores so nothing user-facing changes</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.comment.body">
-                <source>landing.mock.comment.body</source>
-                <target>What happens when the second write fails? A silent divergence here is worse than a checkout that errors.</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.reply.body">
-                <source>landing.mock.reply.body</source>
-                <target>Rewritten in v3. Rollback is now a flag flip in every pass.</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.tools.tool_create">
-                <source>landing.tech.tools.tool_create</source>
-                <target>document_create</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.tools.tool_review">
-                <source>landing.tech.tools.tool_review</source>
-                <target>document_get_review</target>
-            </trans-unit>
-            <trans-unit id="landing.tech.tools.tool_revise">
-                <source>landing.tech.tools.tool_revise</source>
-                <target>document_revise</target>
-            </trans-unit>
-            <trans-unit id="landing.mock.body.aggregate">
-                <source>landing.mock.body.aggregate</source>
-                <target>Cart</target>
             </trans-unit>
 
 
@@ -4907,10 +5144,6 @@
             <trans-unit id="inbox.page.title">
                 <source>inbox.page.title</source>
                 <target>Needs you</target>
-            </trans-unit>
-            <trans-unit id="inbox.page.description">
-                <source>inbox.page.description</source>
-                <target>The decisions, reviews, and questions that keep your crew moving.</target>
             </trans-unit>
             <trans-unit id="inbox.activity"><source>inbox.activity</source><target>View activity</target></trans-unit>
             <trans-unit id="inbox.settings_link"><source>inbox.settings_link</source><target>Settings</target></trans-unit>
@@ -4932,17 +5165,13 @@
             <trans-unit id="inbox.form.update_inbox_settings_form.pull_request_fix_stopped.help"><source>inbox.form.update_inbox_settings_form.pull_request_fix_stopped.help</source><target>Loupe stopped asking for fixes on a linked GitHub pull request.</target></trans-unit>
             <trans-unit id="inbox.form.update_inbox_settings_form.card_paused.label"><source>inbox.form.update_inbox_settings_form.card_paused.label</source><target>Workflow paused the card</target></trans-unit>
             <trans-unit id="inbox.form.update_inbox_settings_form.card_paused.help"><source>inbox.form.update_inbox_settings_form.card_paused.help</source><target>The workflow stopped acting on a card, and a person must look at it.</target></trans-unit>
-            <trans-unit id="inbox.page.empty">
-                <source>inbox.page.empty</source>
-                <target>No agent has asked you anything yet.</target>
-            </trans-unit>
             <trans-unit id="inbox.search.label">
                 <source>inbox.search.label</source>
-                <target>Search the inbox</target>
+                <target>Search asks</target>
             </trans-unit>
             <trans-unit id="inbox.search.placeholder">
                 <source>inbox.search.placeholder</source>
-                <target>Search requests</target>
+                <target>Search asks</target>
             </trans-unit>
             <trans-unit id="inbox.search.clear">
                 <source>inbox.search.clear</source>
@@ -4950,11 +5179,11 @@
             </trans-unit>
             <trans-unit id="inbox.search.count">
                 <source>inbox.search.count</source>
-                <target>{0}No item matches|{1}1 item matches|]1,Inf[%count% items match</target>
+                <target>{0}No ask matches|{1}1 ask matches|]1,Inf[%count% asks match</target>
             </trans-unit>
             <trans-unit id="inbox.search.empty">
                 <source>inbox.search.empty</source>
-                <target>No item matches this search.</target>
+                <target>No ask matches this search.</target>
             </trans-unit>
             <trans-unit id="inbox.section.loose_items_note">
                 <source>inbox.section.loose_items_note</source>
@@ -4985,10 +5214,6 @@
             <trans-unit id="inbox.presence.label.quiet"><source>inbox.presence.label.quiet</source><target>Agent bridge quiet</target></trans-unit>
             <trans-unit id="inbox.presence.label.none"><source>inbox.presence.label.none</source><target>Agent without a bridge</target></trans-unit>
             <trans-unit id="inbox.presence.label.closed"><source>inbox.presence.label.closed</source><target>Agent session</target></trans-unit>
-            <trans-unit id="inbox.item.number">
-                <source>inbox.item.number</source>
-                <target>item %number%</target>
-            </trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>
                 <target>Question</target>
@@ -5303,7 +5528,7 @@
             </trans-unit>
             <trans-unit id="inbox.answer.clear">
                 <source>inbox.answer.clear</source>
-                <target>Clear the option</target>
+                <target>Clear choice</target>
             </trans-unit>
             <trans-unit id="inbox.answer.submit">
                 <source>inbox.answer.submit</source>
@@ -5355,7 +5580,7 @@
             </trans-unit>
             <trans-unit id="inbox.decline.submit">
                 <source>inbox.decline.submit</source>
-                <target>Close this item</target>
+                <target>Decline</target>
             </trans-unit>
             <trans-unit id="inbox.flash.answered">
                 <source>inbox.flash.answered</source>
@@ -5383,23 +5608,15 @@
             </trans-unit>
             <trans-unit id="inbox.account.page.description">
                 <source>inbox.account.page.description</source>
-                <target>Every project you own with open requests. Answer them in the project inbox.</target>
+                <target>Every project you own with open asks. Answer them in the project inbox.</target>
             </trans-unit>
             <trans-unit id="inbox.account.page.empty">
                 <source>inbox.account.page.empty</source>
                 <target>No project has an open inbox item.</target>
             </trans-unit>
-            <trans-unit id="inbox.account.project.open_items">
-                <source>inbox.account.project.open_items</source>
-                <target>{0}0 open items|{1}1 open item|]1,Inf[%count% open items</target>
-            </trans-unit>
-            <trans-unit id="inbox.account.ask.open">
-                <source>inbox.account.ask.open</source>
-                <target>Answer in the project inbox</target>
-            </trans-unit>
-            <trans-unit id="inbox.account.item.open">
-                <source>inbox.account.item.open</source>
-                <target>Respond in the project inbox</target>
+            <trans-unit id="inbox.account.project.open_asks">
+                <source>inbox.account.project.open_asks</source>
+                <target>{0}0 open asks|{1}1 open ask|]1,Inf[%count% open asks</target>
             </trans-unit>
             <trans-unit id="inbox.linked.title">
                 <source>inbox.linked.title</source>
@@ -6896,17 +7113,56 @@
             <trans-unit id="bridge.worker_runs.worker_pool_label"><source>bridge.worker_runs.worker_pool_label</source><target>%pool% pool</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.duration"><source>bridge.worker_runs.column.duration</source><target>Duration</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.started"><source>bridge.worker_runs.column.started</source><target>Started</target></trans-unit>
-            <trans-unit id="inbox.page.waiting_count"><source>inbox.page.waiting_count</source><target>{0}Nothing waiting|{1}1 waiting|]1,Inf[%count% waiting</target></trans-unit>
-            <trans-unit id="inbox.page.completed_count"><source>inbox.page.completed_count</source><target>{0}Nothing completed|{1}1 completed|]1,Inf[%count% completed</target></trans-unit>
-            <trans-unit id="inbox.page.open_empty"><source>inbox.page.open_empty</source><target>Nothing waits for you.</target></trans-unit>
-            <trans-unit id="inbox.page.completed_empty"><source>inbox.page.completed_empty</source><target>No request is completed yet.</target></trans-unit>
-            <trans-unit id="inbox.answer.placeholder"><source>inbox.answer.placeholder</source><target>Add a detail or write a different answer…</target></trans-unit>
-            <trans-unit id="inbox.tabs.label"><source>inbox.tabs.label</source><target>Request state</target></trans-unit>
-            <trans-unit id="inbox.tabs.open"><source>inbox.tabs.open</source><target>Open</target></trans-unit>
-            <trans-unit id="inbox.tabs.completed"><source>inbox.tabs.completed</source><target>Completed</target></trans-unit>
-            <trans-unit id="inbox.source.agent"><source>inbox.source.agent</source><target>Agent request</target></trans-unit>
-            <trans-unit id="inbox.source.loupe"><source>inbox.source.loupe</source><target>Loupe</target></trans-unit>
-            <trans-unit id="inbox.linked_items.title"><source>inbox.linked_items.title</source><target>Linked items</target></trans-unit>
+            <trans-unit id="inbox.answer.placeholder"><source>inbox.answer.placeholder</source><target>Note for the agent (optional)</target></trans-unit>
+            <trans-unit id="inbox.view.label"><source>inbox.view.label</source><target>Ask list</target></trans-unit>
+            <trans-unit id="inbox.view.open"><source>inbox.view.open</source><target>Open · %count%</target></trans-unit>
+            <trans-unit id="inbox.view.closed"><source>inbox.view.closed</source><target>Closed</target></trans-unit>
+            <trans-unit id="inbox.filter.label"><source>inbox.filter.label</source><target>Filter by type</target></trans-unit>
+            <trans-unit id="inbox.filter.all"><source>inbox.filter.all</source><target>All</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.question"><source>inbox.filter.kind.question</source><target>Question</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.review"><source>inbox.filter.kind.review</source><target>Review</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.todo"><source>inbox.filter.kind.todo</source><target>To-do</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.wait"><source>inbox.filter.kind.wait</source><target>Card waits</target></trans-unit>
+            <trans-unit id="inbox.filter.kind.workflow"><source>inbox.filter.kind.workflow</source><target>Workflow</target></trans-unit>
+            <trans-unit id="inbox.filter.empty"><source>inbox.filter.empty</source><target>No ask of this type.</target></trans-unit>
+            <trans-unit id="inbox.row.more_cards"><source>inbox.row.more_cards</source><target>+%count%</target></trans-unit>
+            <trans-unit id="inbox.row.closed"><source>inbox.row.closed</source><target>Closed</target></trans-unit>
+            <trans-unit id="inbox.row.source.agent"><source>inbox.row.source.agent</source><target>Agent</target></trans-unit>
+            <trans-unit id="inbox.row.source.loupe"><source>inbox.row.source.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.answered"><source>inbox.row.outcome.answered</source><target>Answered</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.approved"><source>inbox.row.outcome.approved</source><target>Approved</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.changes_requested"><source>inbox.row.outcome.changes_requested</source><target>Changes requested</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.done"><source>inbox.row.outcome.done</source><target>Done</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.dismissed"><source>inbox.row.outcome.dismissed</source><target>Dismissed</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.declined"><source>inbox.row.outcome.declined</source><target>Declined</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.withdrawn"><source>inbox.row.outcome.withdrawn</source><target>Withdrawn</target></trans-unit>
+            <trans-unit id="inbox.row.outcome.obsolete"><source>inbox.row.outcome.obsolete</source><target>No longer needed</target></trans-unit>
+            <trans-unit id="inbox.answer.legend"><source>inbox.answer.legend</source><target>Your answer</target></trans-unit>
+            <trans-unit id="inbox.answer.write"><source>inbox.answer.write</source><target>Write an answer</target></trans-unit>
+            <trans-unit id="inbox.answer.write_placeholder"><source>inbox.answer.write_placeholder</source><target>Write your answer for the agent</target></trans-unit>
+            <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
+            <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
+            <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
+            <trans-unit id="inbox.linked.panel"><source>inbox.linked.panel</source><target>Linked</target></trans-unit>
+            <trans-unit id="inbox.status.verb.answered"><source>inbox.status.verb.answered</source><target>Answer sent</target></trans-unit>
+            <trans-unit id="inbox.status.verb.done"><source>inbox.status.verb.done</source><target>Marked done</target></trans-unit>
+            <trans-unit id="inbox.status.verb.declined"><source>inbox.status.verb.declined</source><target>Closed</target></trans-unit>
+            <trans-unit id="inbox.status.verb.reviewed"><source>inbox.status.verb.reviewed</source><target>Review recorded</target></trans-unit>
+            <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%.</target></trans-unit>
+            <trans-unit id="inbox.status.ask_closed_detail"><source>inbox.status.ask_closed_detail</source><target>%title% is closed.</target></trans-unit>
+            <trans-unit id="inbox.status.ask_left"><source>inbox.status.ask_left</source><target>{0}%verb%.|{1}%verb%. 1 item of this ask is still open.|]1,Inf[%verb%. %count% items of this ask are still open.</target></trans-unit>
+            <trans-unit id="inbox.status.item"><source>inbox.status.item</source><target>%verb%: item %number%.</target></trans-unit>
+            <trans-unit id="inbox.status.view"><source>inbox.status.view</source><target>View it</target></trans-unit>
+            <trans-unit id="inbox.live.closed.withdrawn"><source>inbox.live.closed.withdrawn</source><target>Withdrawn by the agent.</target></trans-unit>
+            <trans-unit id="inbox.live.closed.obsolete"><source>inbox.live.closed.obsolete</source><target>No longer needed.</target></trans-unit>
+            <trans-unit id="inbox.live.closed.other"><source>inbox.live.closed.other</source><target>This ask was closed elsewhere: %outcome%.</target></trans-unit>
+            <trans-unit id="inbox.live.next"><source>inbox.live.next</source><target>Go to the next open ask</target></trans-unit>
+            <trans-unit id="inbox.pane.back"><source>inbox.pane.back</source><target>All asks</target></trans-unit>
+            <trans-unit id="inbox.pane.missing"><source>inbox.pane.missing</source><target>This ask does not exist. Pick one from the list.</target></trans-unit>
+            <trans-unit id="inbox.closed.empty"><source>inbox.closed.empty</source><target>No ask is closed yet.</target></trans-unit>
+            <trans-unit id="inbox.empty.title"><source>inbox.empty.title</source><target>Nothing needs you</target></trans-unit>
+            <trans-unit id="inbox.empty.body"><source>inbox.empty.body</source><target>Agents ask here when they need a decision, a review or a hand. Loupe adds a card when it waits on you.</target></trans-unit>
+            <trans-unit id="inbox.empty.closed_link"><source>inbox.empty.closed_link</source><target>See what you already answered</target></trans-unit>
             <trans-unit id="inbox.linked_items.item"><source>inbox.linked_items.item</source><target>Item</target></trans-unit>
             <trans-unit id="inbox.linked_items.status"><source>inbox.linked_items.status</source><target>Status</target></trans-unit>
             <trans-unit id="inbox.linked_items.open"><source>inbox.linked_items.open</source><target>Open</target></trans-unit>
@@ -7619,6 +7875,7 @@
             <trans-unit id="inbox.review.verdict.changes-requested"><source>inbox.review.verdict.changes-requested</source><target>Changes requested</target></trans-unit>
             <trans-unit id="inbox.review.version"><source>inbox.review.version</source><target>Version %version%</target></trans-unit>
             <trans-unit id="inbox.review.open_document"><source>inbox.review.open_document</source><target>Review document</target></trans-unit>
+            <trans-unit id="inbox.review.read_it"><source>inbox.review.read_it</source><target>Read it</target></trans-unit>
             <trans-unit id="inbox.review.local_only"><source>inbox.review.local_only</source><target>This records your review in Loupe. It does not post a review to the code host.</target></trans-unit>
             <trans-unit id="inbox.review.submit"><source>inbox.review.submit</source><target>Submit review</target></trans-unit>
             <trans-unit id="inbox.review.submitted"><source>inbox.review.submitted</source><target>Review recorded.</target></trans-unit>
@@ -7639,10 +7896,9 @@
             <trans-unit id="inbox.answer.unsent"><source>inbox.answer.unsent</source><target>Your unsent answer</target></trans-unit>
             <trans-unit id="inbox.answer.unsent_closed"><source>inbox.answer.unsent_closed</source><target>This request no longer accepts responses. This draft was not sent.</target></trans-unit>
             <trans-unit id="inbox.answer.discard_draft"><source>inbox.answer.discard_draft</source><target>Discard draft</target></trans-unit>
-            <trans-unit id="inbox.account.project.open"><source>inbox.account.project.open</source><target>Open inbox</target></trans-unit>
             <trans-unit id="about.hero.licence"><source>about.hero.licence</source><target>Free software, AGPL-3.0</target></trans-unit>
             <trans-unit id="board.card.tab.details"><source>board.card.tab.details</source><target>Details</target></trans-unit>
-            <trans-unit id="inbox.account.project.oldest"><source>inbox.account.project.oldest</source><target>Oldest waiting %time%</target></trans-unit>
+            <trans-unit id="inbox.account.project.oldest"><source>inbox.account.project.oldest</source><target>oldest %time%</target></trans-unit>
             <trans-unit id="account.settings.nav.connected_apps"><source>account.settings.nav.connected_apps</source><target>Connected apps</target></trans-unit>
             <trans-unit id="oauth.consent.page.title"><source>oauth.consent.page.title</source><target>Connect an app</target></trans-unit>
             <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and site reviews of one project, through MCP.</target></trans-unit>

@@ -40,7 +40,7 @@ final class ExecuteAccountDeletionControllerTest extends WebTestCase
         self::assertNull($em->find(User::class, $userId));
 
         // The old session must no longer authenticate.
-        $client->request(Request::METHOD_GET, '/');
+        $client->request(Request::METHOD_GET, '/projects');
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));
     }
@@ -96,7 +96,7 @@ final class ExecuteAccountDeletionControllerTest extends WebTestCase
                 $cookieJar->expire($cookie->getName());
             }
         }
-        $client->request(Request::METHOD_GET, '/');
+        $client->request(Request::METHOD_GET, '/projects');
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));
     }

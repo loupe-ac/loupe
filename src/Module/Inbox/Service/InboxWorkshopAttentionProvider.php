@@ -39,7 +39,7 @@ final readonly class InboxWorkshopAttentionProvider implements WorkshopAttention
         foreach ($items as $item) {
             $attention[] = new WorkshopAttentionItem(
                 $item->title,
-                $this->urls->generate('app_project_inbox', ['id' => (string) $project->id, '_fragment' => 'inbox-item-'.$item->number]),
+                $this->urls->generate('app_project_inbox', ['id' => (string) $project->id, 'item' => $item->number]),
                 $item->kind->value,
                 $item->blocking,
                 InboxAskOrigin::Loupe === $item->origin ? InboxAskOrigin::Loupe->value : $subjects[(string) $item->id] ?? 'agent',

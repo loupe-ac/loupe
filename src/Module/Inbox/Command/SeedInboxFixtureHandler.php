@@ -12,6 +12,7 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Review\Repository\DocumentRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,13 +33,14 @@ final readonly class SeedInboxFixtureHandler
         private CardRepository $cards,
         private DocumentRepository $documents,
         private EntityManagerInterface $em,
+        private InboxChangedPublisher $inboxChanged,
     ) {
     }
 
     /** @return array{ask: InboxAsk, question: InboxItem, todo: InboxItem} */
     public function __invoke(SeedInboxFixtureCommand $command): array
     {
-        return $this->em->wrapInTransaction(function () use ($command): array {
+        $seeded = $this->em->wrapInTransaction(function () use ($command): array {
             $project = $command->project;
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             $number = $this->inboxItems->nextNumber($project);
@@ -87,5 +89,8 @@ final readonly class SeedInboxFixtureHandler
 
             return ['ask' => $ask, 'question' => $question, 'todo' => $todo];
         });
+        $this->inboxChanged->changed($command->project, [$seeded['ask']->id ?? throw new \LogicException('A stored ask has an id.')]);
+
+        return $seeded;
     }
 }

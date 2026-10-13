@@ -1,0 +1,16 @@
+{#- The verdict choice and the note of a review, as a decision block. Props: form (the review form view). -#}
+<fieldset class="lp-decision lp-decision--inbox" data-decision-type="single" data-action="change->form-draft#select">
+    <legend class="lp-decision__prompt">{{ 'inbox.review.legend'|trans }}<span class="lp-decision__kind">{{ 'inbox.answer.pick_one'|trans }}</span></legend>
+    <button type="button" class="lp-decision__clear" data-action="form-draft#clear">{{ 'inbox.answer.clear'|trans }}</button>
+    <div class="lp-decision__options">
+        {% for choice in form.verdict %}
+            <div class="lp-decision__option">
+                {{ form_widget(choice, {attr: {'data-form-draft-target': 'option'}}) }}
+                <label for="{{ choice.vars.id }}">{{ choice.vars.label|trans }}</label>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="lp-decision__note">{{ form_widget(form.note, {attr: {class: 'lp-decision__note-field', rows: 2, placeholder: 'inbox.answer.placeholder'|trans, 'aria-label': 'inbox.answer.placeholder'|trans, 'data-form-draft-target': 'text', 'data-inbox-decline-target': 'note', 'data-action': 'input->form-draft#remember'}}) }}</div>
+</fieldset>
+<twig:Ds:FieldErrors :fieldView="form.verdict" />
+<twig:Ds:FieldErrors :fieldView="form.note" />
