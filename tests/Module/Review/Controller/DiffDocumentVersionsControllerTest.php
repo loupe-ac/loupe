@@ -217,7 +217,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         self::assertSelectorTextContains('.lp-diff-nav__count', 'No changes');
         // The way out of the state this view cannot describe. Gating the toggle
         // on a count above zero would strand the reader exactly here.
-        self::assertCount(3, $rendered->filter('.lp-diff-views__link'));
+        self::assertCount(3, $rendered->filter('.lp-diff-bar__views .lp-menu__item'));
 
         $source = $client->request(Request::METHOD_GET, $base.'?view=source');
         self::assertResponseIsSuccessful();
@@ -288,9 +288,9 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         // reaches it by keyboard.
         self::assertSame(
             'diff-unmarked-notice',
-            $crawler->filter('.lp-diff-views__link')->eq(1)->attr('aria-describedby'),
+            $crawler->filter('.lp-diff-bar__views .lp-menu__item')->eq(1)->attr('aria-describedby'),
         );
-        self::assertCount(3, $crawler->filter('.lp-diff-views__link'));
+        self::assertCount(3, $crawler->filter('.lp-diff-bar__views .lp-menu__item'));
 
         // Side by side pairs the same rendered pane, so it marks nothing either
         // and misleads in the same way.
@@ -417,28 +417,28 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         $base = '/projects/'.$projectId.'/documents/'.$id.'/review/diff/1/2';
 
         $rendered = $client->request(Request::METHOD_GET, $base);
-        self::assertCount(3, $rendered->filter('.lp-diff-views__link'));
+        self::assertCount(3, $rendered->filter('.lp-diff-bar__views .lp-menu__item'));
         // The views wait behind a settings button, in a menu that starts closed.
-        self::assertSame('Diff view', $rendered->filter('.lp-diff-views__trigger')->attr('aria-label'));
-        self::assertCount(3, $rendered->filter('.lp-diff-views__panel[hidden] .lp-diff-views__link'));
+        self::assertSame('Diff view', $rendered->filter('.lp-diff-bar__views-trigger')->attr('aria-label'));
+        self::assertCount(3, $rendered->filter('.lp-diff-bar__views .lp-menu__panel[hidden] .lp-menu__item'));
         self::assertSame(
             'Rendered',
-            $rendered->filter('.lp-diff-views__link[aria-current]')->text(),
+            $rendered->filter('.lp-diff-bar__views .lp-menu__item[aria-current]')->text(),
         );
         // Document, Markdown, Side by side. Markdown reads the same document and
         // sits next to it; the columns rebuild the page and go last.
         self::assertSame(
             ['Rendered', 'Markdown', 'Side by side'],
-            $rendered->filter('.lp-diff-views__link')->each(
+            $rendered->filter('.lp-diff-bar__views .lp-menu__item')->each(
                 static fn (Crawler $link): string => $link->text(),
             ),
         );
-        self::assertStringContainsString('view=source', (string) $rendered->filter('.lp-diff-views__link')->eq(1)->attr('href'));
+        self::assertStringContainsString('view=source', (string) $rendered->filter('.lp-diff-bar__views .lp-menu__item')->eq(1)->attr('href'));
 
         $source = $client->request(Request::METHOD_GET, $base.'?view=source');
         self::assertSame(
             'Markdown',
-            $source->filter('.lp-diff-views__link[aria-current]')->text(),
+            $source->filter('.lp-diff-bar__views .lp-menu__item[aria-current]')->text(),
         );
         // The picker keeps the view, so comparing another pair does not silently
         // send the reader back to the rendered one. Two pickers, because the
@@ -650,7 +650,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         self::assertSelectorTextContains('.lp-empty', 'too large to compare');
         // The versions themselves are still readable from History, which is what
         // the message points the reviewer at. The ⋯ menu holds the way there.
-        self::assertCount(1, $crawler->filter('a.lp-page-menu__row[href$="/review/history"]'));
+        self::assertCount(1, $crawler->filter('a.lp-menu__item[href$="/review/history"]'));
     }
 
     /**
@@ -1197,7 +1197,7 @@ final class DiffDocumentVersionsControllerTest extends WebTestCase
         self::assertCount(1, $columns->filter('.lp-diff-columns'));
         self::assertSame(
             'Side by side',
-            $columns->filter('.lp-diff-views__link[aria-current]')->text(),
+            $columns->filter('.lp-diff-bar__views .lp-menu__item[aria-current]')->text(),
         );
 
         // Every cell belongs to a pair, and a block one version does not hold

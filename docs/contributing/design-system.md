@@ -61,6 +61,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
 
 Write a button like this:
 
@@ -106,6 +107,25 @@ Write a dialog, tabs, pagination and a tooltip like this:
 ```
 
 The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+
+Write a menu like this:
+
+```twig
+<twig:Ds:Menu id="row-menu" align="start" size="md">
+    <twig:block name="trigger">
+        <twig:Ds:Button type="button" variant="ghost" aria-expanded="false" aria-controls="row-menu"
+                data-popover-target="trigger" data-action="click->popover#toggle">More</twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuHeading>Open in</twig:Ds:MenuHeading>
+        <twig:Ds:MenuItem :href="path('app_home')" :current="true">Home</twig:Ds:MenuItem>
+        <twig:Ds:MenuDivider />
+        <twig:Ds:MenuItem type="submit" form="row-form">Delete</twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:Menu>
+```
+
+The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
 
 Write the state of a card like this:
 
@@ -177,4 +197,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters` or `lp-tooltip` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-tooltip` or `lp-menu` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.

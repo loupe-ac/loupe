@@ -30,6 +30,8 @@ Read a stored artifact with `artifact_get` and `artifact_read`, a file of the re
 
 When the harness supports sub-agents, dispatch one with the `senior-dev` instruction and repeat every stage rule in its prompt. Otherwise, perform the task in the worker folder and apply the same instruction.
 
+A sub-agent reads a prototype page with `artifact_read`. When it cannot call the `loupe` tools, put the text of its pages into its prompt.
+
 ## Write and run a plan
 
 Write a task-by-task plan, submit it to Loupe, and execute it in order. Do not save a second plan file, merge into the base branch, or remove the worker folder.

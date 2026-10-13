@@ -76,6 +76,9 @@
     .lp-core-inbox .lp-list-filters {
         gap: calc(var(--spacing) * 3);
     }
+    .lp-core-inbox .lp-inbox-list-head .lp-list-filters {
+        @apply m-0;
+    }
     .lp-redesign-rules .lp-filter-primary .lp-btn--icon {
         @apply shrink-0;
     }

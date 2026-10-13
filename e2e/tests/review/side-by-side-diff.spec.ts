@@ -90,7 +90,7 @@ const CELL = '.lp-diff-columns__cell';
 const VOID_CELL = '.lp-diff-columns__cell--void';
 const MARGIN = '.lp-review-margin';
 const WHOLE_DOCUMENT = '.lp-comment-whole-document';
-const VIEWS = '.lp-diff-views';
+const VIEWS = '.lp-diff-bar__views';
 
 test('comparison controls keep the compact compare bar metrics', async ({
     page,
@@ -112,7 +112,7 @@ test('comparison controls keep the compact compare bar metrics', async ({
     });
     await expect(trigger).toHaveCSS('height', '32px');
     await trigger.click();
-    const views = page.locator('.lp-diff-views__link');
+    const views = page.locator('.lp-diff-bar__views .lp-menu__item');
     await expect(views).toHaveCount(3);
     for (const view of await views.all()) {
         await expect(view).toBeVisible();
@@ -236,9 +236,9 @@ test('the two columns pair the blocks and carry no comment column', async ({
         `${reviewPath}/diff/1/2?view=side-by-side`,
         VISIT,
     );
-    await expect(page.locator('.lp-diff-views__link[aria-current]')).toHaveText(
-        'Side by side',
-    );
+    await expect(
+        page.locator('.lp-diff-bar__views .lp-menu__item[aria-current]'),
+    ).toHaveText('Side by side');
 
     const grid = page.locator('.lp-diff-columns');
     await expect(grid).toBeVisible();
@@ -367,7 +367,9 @@ test('the toolbar holds the same two columns in every view', async ({
         for (const view of ['rendered', 'source', 'side-by-side']) {
             await page.goto(`${reviewPath}/diff/1/2?view=${view}`);
             await expect(
-                page.locator('.lp-diff-views__link[aria-current]'),
+                page.locator(
+                    '.lp-diff-bar__views .lp-menu__item[aria-current]',
+                ),
             ).toHaveCount(1);
             rows.push({
                 width,

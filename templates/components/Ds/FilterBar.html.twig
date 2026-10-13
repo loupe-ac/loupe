@@ -5,6 +5,7 @@
     search            hash|null     {id, name, value, label, placeholder} of the search field. Optional.
     clearHref         string|null   Link of the Clear control. Shown with clearLabel.
     clearLabel        string|null   Text of the Clear control.
+    clearAttributes   hash          Extra attributes of the Clear link, such as {'data-turbo-frame': 'x'}. Optional.
     count             string|null   Right-aligned count text. Optional.
     countAttributes   hash          Extra attributes of the count, such as {id: 'x'}. Optional.
     countFrame        string|null   Id of a turbo-frame that wraps the count. Optional.
@@ -14,7 +15,7 @@
   what follows that row inside the form, such as selects that wrap and hidden fields.
   Any other attribute, class included, is passed to the root.
 #}
-{%- props action = null, formAttributes = {}, search = null, clearHref = null, clearLabel = null, count = null, countAttributes = {}, countFrame = null, switch = null -%}
+{%- props action = null, formAttributes = {}, search = null, clearHref = null, clearLabel = null, clearAttributes = {}, count = null, countAttributes = {}, countFrame = null, switch = null -%}
 {%- macro attrs(map) -%}
     {%- for key, value in map %} {{ key }}{% if value is not same as(true) %}="{{ value }}"{% endif %}{% endfor -%}
 {%- endmacro -%}
@@ -62,7 +63,7 @@
     </label>
     {%- endif -%}
     {%- if clearHref is not null -%}
-    <a href="{{ clearHref }}" data-autosearch-target="clearButton" class="lp-filter-clear">{{ clearLabel }}</a>
+    <a href="{{ clearHref }}" data-autosearch-target="clearButton" class="lp-filter-clear"{{ bar.attrs(clearAttributes) }}>{{ clearLabel }}</a>
     {%- endif -%}
 {%- endset -%}
 <div{{ attributes.defaults({class: 'lp-list-filters'}) }}>
