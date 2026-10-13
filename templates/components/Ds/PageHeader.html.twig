@@ -1,0 +1,13 @@
+{#
+  Props: title, description (optional), variant (workshop, optional), titleClass (extra h1 class).
+  The named block actions holds the buttons beside the heading.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props title, description = null, variant = null, titleClass = '' -%}
+<header{{ attributes.defaults({class: 'lp-page-header' ~ (variant ? ' lp-page-header--' ~ variant : '')}) }}>
+    <div class="lp-page-header__copy">
+        <h1 class="{{ ('workshop' == variant ? 'lp-workshop-title' : 'lp-workspace-title') ~ (titleClass ? ' ' ~ titleClass : '') }}">{{ title }}</h1>
+        {% if description %}<p class="lp-workspace-desc">{{ description }}</p>{% endif %}
+    </div>
+    {% block actions %}{% endblock %}
+</header>

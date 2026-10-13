@@ -1,0 +1,29 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export const {{ entry.name|upper }}_VARIANTS = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
+
+export function {{ entry.name }}({ title, description, variant, titleClass, actions, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (variant) {
+        classes.push('{{ entry.rootClass }}--' + variant);
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+    const titleClasses = ['workshop' === variant ? 'lp-workshop-title' : 'lp-workspace-title'];
+    if (titleClass) {
+        titleClasses.push(titleClass);
+    }
+
+    return (
+        <header {...rest} className={classes.join(' ')}>
+            <div className="{{ entry.rootClass }}__copy">
+                <h1 className={titleClasses.join(' ')}>{title}</h1>
+                {description && <p className="lp-workspace-desc">{description}</p>}
+            </div>
+            {actions}
+        </header>
+    );
+}
+{% endautoescape %}

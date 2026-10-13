@@ -228,6 +228,18 @@ readonly class Catalog
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
             ),
+            new ComponentEntry(
+                name: 'PageHeader',
+                rootClass: 'lp-page-header',
+                template: 'components/Ds/PageHeader.html.twig',
+                variants: ['workshop'],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'The heading row of a page: a title, an optional description and the actions beside them.',
+                element: 'header',
+                export: 'PageHeader',
+            ),
         ];
     }
 }
