@@ -54,6 +54,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             'components/core/Button.d.ts',
             'components/core/Button.prompt.md',
             'components/core/core.card.html',
+            'components/layout/PageHeader.jsx',
+            'components/layout/PageHeader.d.ts',
+            'components/layout/PageHeader.prompt.md',
+            'components/layout/layout.card.html',
             'guidelines/colour.html',
             'assets/fonts/Geist-Variable.woff2',
             'assets/fonts/LICENSE.txt',
@@ -258,7 +262,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
@@ -459,6 +463,24 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         return $blocks;
     }
 
+    public function test_the_page_header_wrapper_draws_the_copy_block_and_the_actions(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/PageHeader.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/PageHeader.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/PageHeader.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+
+        self::assertStringContainsString('export function PageHeader({ title, description, variant, titleClass, actions, className: extra, ...rest })', $jsx);
+        self::assertStringContainsString('<div className="lp-page-header__copy">', $jsx);
+        self::assertStringContainsString('{actions}', $jsx);
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+        self::assertStringContainsString("| 'workshop'", $types);
+        self::assertStringContainsString('<PageHeader title=', $prompt);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader')", $card);
+        self::assertStringContainsString('<PageHeader variant="workshop"', $card);
+        self::assertStringNotContainsString('<Button', $card);
+    }
+
     public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void
     {
         $directory = sys_get_temp_dir().'/ds-export-layout-'.bin2hex(random_bytes(4));
@@ -500,7 +522,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart.d.ts'));
 
             $card = (string) file_get_contents($directory.'/components/layout/layout.card.html');
-            self::assertStringContainsString("dsFind('AppShell', 'SamplePart')", $card);
+            self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SamplePart')", $card);
             self::assertStringContainsString('<SamplePart title="Example" />', $card);
             self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
             self::assertStringNotContainsString('<Button', $card);

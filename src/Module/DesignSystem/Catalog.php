@@ -240,6 +240,18 @@ readonly class Catalog
                 element: 'div',
                 export: 'AppShell',
             ),
+            new ComponentEntry(
+                name: 'PageHeader',
+                rootClass: 'lp-page-header',
+                template: 'components/Ds/PageHeader.html.twig',
+                variants: ['workshop'],
+                states: [],
+                enforced: true,
+                group: 'layout',
+                summary: 'The heading row of a page: a title, an optional description and the actions beside them.',
+                element: 'header',
+                export: 'PageHeader',
+            ),
         ];
     }
 }

@@ -16,6 +16,7 @@
 @import './components/tabs.css';
 @import './components/tooltip.css';
 @import './components/shell.css';
+@import './components/page-header.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -2602,11 +2603,6 @@
     .lp-needs-you__header-actions {
         @apply flex flex-wrap max-w-full items-center gap-2;
     }
-    .lp-needs-you .lp-page-header,
-    .lp-core-documents .lp-page-header,
-    .lp-redesign-projects .lp-page-header {
-        @apply flex-wrap;
-    }
     .lp-inbox-section {
         scroll-margin-top: calc(var(--spacing) * 20);
     }
@@ -2688,9 +2684,6 @@
         @apply m-0 text-xs text-fg-mute;
     }
     @media (width < 40rem) {
-        .lp-needs-you .lp-page-header {
-            @apply gap-3;
-        }
         .lp-needs-you__summary {
             @apply self-start;
         }
@@ -3285,17 +3278,6 @@
        interstitials carry their own type scale. */
     .lp-main :is(h1, h2, h3, h4) {
         @apply font-display tracking-tight;
-    }
-    .lp-workspace-title {
-        @apply font-display font-extrabold text-ink m-0 text-3xl tracking-tight leading-10;
-    }
-    /* Documents/Connect page H1 — same tier as the base class. Kept separate
-       because templates apply it and it records which screens use this tier. */
-    .lp-workspace-title--doc {
-        @apply text-3xl tracking-tight;
-    }
-    .lp-workspace-desc {
-        @apply text-fg-mute m-0 mt-2 mb-8 text-base leading-relaxed;
     }
 
     /* One sunken card per project rather than a hairline list — a project is a
@@ -8413,16 +8395,8 @@
 }
 
 @layer components {
-    /* Shared heading row for route-level workspaces. */
-    .lp-page-header {
-        @apply flex items-start justify-between gap-6 mb-7;
-    }
-    .lp-page-header .lp-workspace-desc,
     .lp-orchestration-header .lp-workspace-desc {
         @apply max-w-none mt-1.5 mb-0 text-sm leading-normal text-fg-dim;
-    }
-    .lp-page-header__copy {
-        @apply flex-1 basis-80 min-w-0;
     }
     .lp-section-title {
         @apply font-display text-lg font-bold tracking-tight text-ink m-0 mt-1;
@@ -8432,9 +8406,6 @@
     }
 
     /* Workshop overview with the handoff's wide work column and support rail. */
-    .lp-workshop-title {
-        @apply m-0 font-display text-3xl leading-tight font-extrabold tracking-tight text-ink;
-    }
     .lp-workshop-summary {
         @apply flex flex-col items-stretch gap-0 p-5 mb-7 rounded-xl border border-accent-border bg-accent-faint sm:flex-row sm:items-center sm:gap-7;
     }
@@ -8631,6 +8602,7 @@
     .lp-readiness-guide {
         @apply flex flex-col gap-6 max-w-3xl;
     }
+    /* The guide card sets its own gap, so its heading row takes no bottom margin. */
     .lp-readiness-guide .lp-page-header {
         @apply mb-0;
     }
