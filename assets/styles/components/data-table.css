@@ -1,0 +1,69 @@
+/* The data table: a list of one-line rows under a header. `templates/components/Ds/DataTable.html.twig` renders it. */
+@layer components {
+    /* A one-line-per-row list with a header. A modifier sets
+       --lp-data-table-columns; with none, the columns share the width.
+       No overflow clip on the box, or the last row's tooltip is cut off.
+       Narrow screens trade that for a horizontal scroll. */
+    .lp-data-table {
+        @apply mt-6 rounded-xl border border-line bg-surface-1 max-md:overflow-x-auto;
+    }
+    .lp-data-table__header,
+    .lp-data-table__row {
+        @apply grid items-center gap-4 px-5 max-md:min-w-3xl;
+        grid-template-columns: var(--lp-data-table-columns);
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+    }
+    .lp-data-table__header {
+        @apply min-h-10 rounded-t-xl border-b border-line bg-app text-xs font-semibold uppercase tracking-wider text-fg-dim;
+    }
+    .lp-data-table__row {
+        @apply relative min-h-13 border-b border-line bg-white text-sm text-fg-mute last:rounded-b-xl last:border-b-0;
+    }
+    .lp-data-table__row:has(.lp-data-table__target):not(
+            :has(dialog[open])
+        ):hover {
+        @apply bg-surface-2;
+    }
+    .lp-data-table__row:has(dialog[open]) {
+        @apply bg-accent-faint;
+    }
+    .lp-data-table__cell {
+        @apply min-w-0;
+    }
+    .lp-data-table__cell--end {
+        @apply text-right;
+    }
+    .lp-data-table__row > .lp-data-table__cell--end {
+        @apply font-mono text-xs;
+    }
+    .lp-data-table .lp-status-chip {
+        @apply ml-0 justify-self-start;
+    }
+    .lp-data-table__primary {
+        @apply flex min-w-0 items-center gap-2;
+    }
+    .lp-data-table__number {
+        @apply shrink-0 font-mono font-bold text-ink;
+    }
+    .lp-data-table__title {
+        @apply min-w-0 truncate font-semibold text-ink;
+    }
+    /* The row's one control. Its ::after covers the row, so a click anywhere lands on it. */
+    .lp-data-table__target {
+        @apply flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left text-inherit no-underline cursor-pointer outline-none;
+    }
+    .lp-data-table__target::after {
+        content: '';
+        @apply absolute inset-0;
+    }
+    .lp-data-table__target:focus-visible::after {
+        @apply outline-solid outline-2 -outline-offset-2 outline-accent-ink;
+    }
+    /* A chip keeps its tooltip, so the cell that holds it does not clip. */
+    .lp-data-table
+        .lp-data-table__row
+        > .lp-data-table__cell:has(> .lp-status-chip) {
+        @apply overflow-visible;
+    }
+}

@@ -17,6 +17,7 @@ use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\AcceptedTerms;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Yaml\Yaml;
 
@@ -102,6 +103,11 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-marker-key="quiet"] [data-marker-fallback]', 'Fallback');
         self::assertSelectorNotExists('[data-marker-key="blocked"] [data-marker-fallback]');
         self::assertSelectorNotExists('[data-marker-missing]');
+        self::assertSame('Markers', $crawler->filter('[data-workflow-markers] .lp-data-table[role="table"]')->attr('aria-label'));
+        $crawler->filter('[data-workflow-markers] [data-marker-key]')->each(static function (Crawler $row): void {
+            self::assertSame('row', $row->attr('role'));
+            self::assertSame(['cell', 'cell', 'cell', 'cell'], $row->children()->extract(['role']));
+        });
     }
 
     public function test_a_template_without_markers_says_so(): void

@@ -90,24 +90,22 @@
 
     {% if items|length > 0 %}
     {% set cardLinkMap = document_card_link_map(items) %}
-    <div class="lp-document-table" role="table" aria-label="{{ 'review.dashboard.table.label'|trans }}">
-        <div class="lp-document-table__head" role="row">
-            <span role="columnheader">{{ 'review.dashboard.table.document'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.status'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.author'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.linked_card'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.updated'|trans }}</span>
-            <span class="sr-only" role="columnheader">{{ 'review.dashboard.table.actions'|trans }}</span>
-        </div>
-        <div class="lp-document-list" role="rowgroup">
+    <twig:Ds:DataTable modifier="documents" :label="'review.dashboard.table.label'|trans" :columns="[
+        {label: 'review.dashboard.table.document'|trans},
+        {label: 'review.dashboard.table.status'|trans},
+        {label: 'review.dashboard.table.author'|trans},
+        {label: 'review.dashboard.table.linked_card'|trans},
+        {label: 'review.dashboard.table.updated'|trans},
+        {label: 'review.dashboard.table.actions'|trans, srOnly: true},
+    ]">
         {% for item in items %}
         {% set document = item.document %}
         {% set archived = document.archivedAt is not null %}
         {% set cardLinks = cardLinkMap[document.id ~ '']|default([]) %}
-        <div class="lp-document-row{% if archived %} lp-document-row--archived{% endif %}" data-document-id="{{ document.id }}" role="row">
+        <div class="lp-data-table__row{% if archived %} lp-document-row--archived{% endif %}" data-document-id="{{ document.id }}" role="row">
             <a href="{{ path('app_document_review', {projectId: project.id, documentId: document.id}) }}"
-               class="lp-document-row__link" aria-label="{{ document.title }}"></a>
-            <div class="lp-document-row__main" role="cell">
+               class="lp-data-table__target lp-document-row__link" aria-label="{{ document.title }}"></a>
+            <div class="lp-data-table__cell lp-document-row__main" role="cell">
                 <div class="lp-document-row__head">
                     <twig:ux:icon name="lucide:file-text" class="lp-document-row__icon w-4 h-4 shrink-0" />
                     <span class="lp-document-row__title">{{ document.title }}</span>
@@ -143,21 +141,21 @@
                 {% endif %}
                 </div>
             </div>
-            <div class="lp-document-row__status" role="cell">
+            <div class="lp-data-table__cell lp-document-row__status" role="cell">
                 <twig:Ds:Badge :status="document.status.value">
                     {{ document.status.translationKey()|trans }}
                 </twig:Ds:Badge>
             </div>
-            <span class="lp-document-row__author" role="cell">{{ document.owner.fullName }}</span>
-            <span class="lp-document-row__linked-card" role="cell">
+            <span class="lp-data-table__cell lp-document-row__author" role="cell">{{ document.owner.fullName }}</span>
+            <span class="lp-data-table__cell lp-document-row__linked-card" role="cell">
                 {% if cardLinks|length > 0 %}
                     #{{ cardLinks|first.card.number }}{% if cardLinks|length > 1 %} +{{ cardLinks|length - 1 }}{% endif %}
                 {% else %}
                     <span aria-label="{{ 'review.dashboard.table.no_linked_card'|trans }}">—</span>
                 {% endif %}
             </span>
-            <twig:Ds:RelativeTime :datetime="item.updatedAt" class="lp-document-row__updated" role="cell" />
-            <div class="lp-document-row__actions" role="cell">
+            <twig:Ds:RelativeTime :datetime="item.updatedAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />
+            <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <a href="{{ path('app_document_rename', {projectId: project.id, documentId: document.id}|merge(listQuery.routeParams)) }}"
                    class="lp-document-row__action"
                    aria-label="{{ 'review.dashboard.rename'|trans({'%title%': document.title}) }}">
@@ -184,12 +182,11 @@
                rendered then: a label with an empty value beside it, or a
                dash, reads as a document whose reason went missing. #}
             {% if archived and document.archiveReason %}
-            <p class="lp-document-row__archive-reason">{{ 'review.dashboard.archive_reason'|trans({'%reason%': document.archiveReason}) }}</p>
+            <p class="lp-document-row__archive-reason" role="cell">{{ 'review.dashboard.archive_reason'|trans({'%reason%': document.archiveReason}) }}</p>
             {% endif %}
         </div>
         {% endfor %}
-        </div>
-    </div>
+    </twig:Ds:DataTable>
 
     <twig:Ds:Pagination route="app_project_documents" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
     {% elseif listQuery.isNarrowed %}
