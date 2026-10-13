@@ -1,0 +1,22 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ label, icon, active = false, count, href = '#', className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (active) {
+        classes.push('{{ entry.rootClass }}--active');
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <a {...rest} href={href} className={classes.join(' ')} aria-current={active ? 'page' : undefined}>
+            {icon}
+            <span className="{{ entry.rootClass }}-label">{label}</span>
+            {undefined !== count && <span className="lp-sidebar__pill">{count}</span>}
+            {children}
+        </a>
+    );
+}
+{% endautoescape %}

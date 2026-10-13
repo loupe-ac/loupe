@@ -1,0 +1,24 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's settings layout. {{ entry.summary }}
+
+```jsx
+<{{ name }}
+  title="Project settings"
+  description="Rename the project, or change how it works."
+  navLabel="Project settings"
+  items={[
+    { label: 'General', href: '#', active: true },
+    { label: 'Columns', href: '#' },
+  ]}
+>
+  <section className="lp-settings-panel-card">
+    <h2 className="lp-section-title">General</h2>
+  </section>
+</{{ name }}>
+```
+
+Pass one item for each section and mark the open one `active`. Put each panel of the open section in a `lp-settings-panel-card` section inside the content. Pass `columns` for a page whose content needs its own column width.
+
+Titles are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

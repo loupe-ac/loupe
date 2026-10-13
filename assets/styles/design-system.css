@@ -15,12 +15,15 @@
 @import './components/decision.css';
 @import './components/tooltip.css';
 @import './components/shell.css';
+@import './components/nav-item.css';
 @import './components/page-header.css';
 @import './components/workspace.css';
 @import './components/split-view.css';
 @import './components/list-row.css';
 @import './components/brand-mark.css';
 @import './components/auth-shell.css';
+@import './components/settings-layout.css';
+@import './components/drawer.css';
 
 @source "../../templates/components/Ds";
 

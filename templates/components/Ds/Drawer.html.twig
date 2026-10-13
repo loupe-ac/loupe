@@ -1,0 +1,15 @@
+{#
+  Props: none. Other attributes, class included, go to the dialog, such as a controller target.
+  The blocks header, body and footer each draw their band only when they hold content.
+  The block content replaces all three.
+#}
+<dialog{{ attributes.defaults({class: 'lp-drawer'}) }}>
+    {%- block content -%}
+        {%- set headerContent -%}{% block header %}{% endblock %}{%- endset -%}
+        {%- set bodyContent -%}{% block body %}{% endblock %}{%- endset -%}
+        {%- set footerContent -%}{% block footer %}{% endblock %}{%- endset -%}
+        {%- if headerContent|trim %}<header class="lp-drawer__header">{{ headerContent }}</header>{% endif -%}
+        {%- if bodyContent|trim %}<div class="lp-drawer__body">{{ bodyContent }}</div>{% endif -%}
+        {%- if footerContent|trim %}<footer class="lp-drawer__footer">{{ footerContent }}</footer>{% endif -%}
+    {%- endblock -%}
+</dialog>

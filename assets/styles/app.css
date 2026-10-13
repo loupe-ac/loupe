@@ -17,12 +17,15 @@
 @import './components/decision.css';
 @import './components/tooltip.css';
 @import './components/shell.css';
+@import './components/nav-item.css';
 @import './components/page-header.css';
 @import './components/workspace.css';
 @import './components/split-view.css';
 @import './components/list-row.css';
 @import './components/brand-mark.css';
 @import './components/auth-shell.css';
+@import './components/settings-layout.css';
+@import './components/drawer.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -1241,15 +1244,6 @@
     }
 
     /* Settings pages keep section navigation beside narrow paper panels. */
-    .lp-redesign-settings .lp-settings-layout {
-        @apply grid grid-cols-1 gap-8;
-    }
-    .lp-redesign-settings .lp-settings-content {
-        @apply max-w-none;
-    }
-    .lp-settings-panel-card {
-        @apply rounded-xl border border-line bg-white p-6;
-    }
     .lp-danger-zone.lp-settings-panel-card {
         @apply border-line pt-6;
     }
@@ -1278,43 +1272,6 @@
     /* Holds an absent row action's place, so each action keeps its column. */
     .lp-settings-column__slot {
         @apply w-9 h-9 shrink-0;
-    }
-    @media (width >= 64rem) {
-        .lp-redesign-settings .lp-settings-layout {
-            grid-template-columns: 11.25rem minmax(0, 46.25rem);
-            column-gap: 2.125rem;
-        }
-        .lp-redesign-settings .lp-settings-content {
-            grid-column: 2;
-        }
-    }
-    .lp-redesign-settings:has(.lp-settings-layout--columns) {
-        @apply @container;
-    }
-    .lp-redesign-settings .lp-settings-layout--columns {
-        @apply grid-cols-1;
-    }
-    .lp-settings-layout--columns .lp-settings-nav {
-        @apply flex-row;
-    }
-    .lp-redesign-settings .lp-settings-layout--columns .lp-settings-content {
-        @apply col-start-1 col-span-1 p-4;
-    }
-    .lp-settings-layout--columns .lp-btn svg {
-        @apply shrink-0;
-    }
-    @container (min-width: 48rem) {
-        .lp-redesign-settings .lp-settings-layout--columns {
-            grid-template-columns: calc(var(--spacing) * 44) minmax(0, 1fr);
-        }
-        .lp-settings-layout--columns .lp-settings-nav {
-            @apply flex-col;
-        }
-        .lp-redesign-settings
-            .lp-settings-layout--columns
-            .lp-settings-content {
-            @apply col-start-2 p-6;
-        }
     }
 }
 
@@ -3037,7 +2994,7 @@
     .lp-worker-run-outcome .lp-worker-run-control-label {
         @apply max-w-full;
     }
-    .lp-run-drawer__header .lp-worker-run-control-label {
+    .lp-run-drawer .lp-drawer__header .lp-worker-run-control-label {
         @apply mt-2 block whitespace-normal;
     }
     /* A refused stop or resume, inside the frame that the request reloads. */
@@ -3744,35 +3701,11 @@
         @apply overflow-y-auto;
     }
 
-    /* The right-hand drawer shell for the card, run and activity drawers.
-       The modal controller slides it; the dialog itself stays still. */
-    /* z-50 carries the modeless case, which sits outside the top layer. */
-    .lp-drawer {
-        @apply fixed inset-y-0 right-0 left-auto z-50 m-0 p-0 w-full max-w-142.5 overflow-hidden rounded-none border-0 bg-surface-1 shadow-2xl;
-        height: 100dvh;
-        max-height: 100dvh;
-    }
-    .lp-drawer[open] {
-        @apply flex flex-col;
-    }
-    .lp-drawer::backdrop {
-        @apply bg-ink/40 backdrop-blur-xs;
-        animation: lp-dialog-backdrop-in 200ms ease;
-    }
-    .lp-run-drawer__header {
-        @apply flex items-start justify-between gap-3 p-6 border-b border-line shrink-0;
-    }
-    .lp-run-drawer__header > div {
-        @apply min-w-0;
-    }
     .lp-run-drawer .lp-btn {
         @apply max-w-full whitespace-normal shrink-0;
     }
     .lp-run-drawer__identifier {
         @apply block break-all text-xs text-fg-dim my-2;
-    }
-    .lp-run-drawer__body {
-        @apply min-h-0 flex-1 overflow-y-auto p-6;
     }
     .lp-run-drawer__metadata {
         @apply grid grid-cols-1 sm:grid-cols-2 gap-4 m-0;
@@ -3794,12 +3727,6 @@
     }
     .lp-run-drawer__timeline time {
         @apply block text-xs text-fg-dim;
-    }
-    .lp-run-drawer__footer {
-        @apply flex flex-wrap items-center justify-end gap-3 p-4 border-t border-line shrink-0;
-    }
-    .lp-run-drawer__footer p {
-        @apply m-0 mr-auto text-sm;
     }
     /** Project search dialog, results, and paging controls. */
     .lp-dialog--search {
@@ -3828,22 +3755,6 @@
     }
     .lp-search-pagination {
         @apply flex flex-wrap gap-3 py-4;
-    }
-    /** Recent project events in the topbar's right-hand drawer. */
-    .lp-activity-drawer__header {
-        @apply flex shrink-0 items-center justify-between gap-4 min-h-15.5 border-b border-line px-6;
-    }
-    .lp-activity-drawer__title {
-        @apply m-0 flex items-center gap-2 font-sans text-xs font-bold tracking-normal text-fg-mute;
-    }
-    .lp-activity-drawer__title svg {
-        @apply w-4 h-4 shrink-0;
-    }
-    .lp-activity-drawer__body {
-        @apply min-h-0 flex-1 overflow-y-auto px-6 py-4;
-    }
-    .lp-activity-drawer__footer {
-        @apply flex shrink-0 justify-end border-t border-line bg-field px-6 py-4;
     }
     /* A compact event list: icon, what happened, the work it touched, and when. */
     .lp-feed__item {
@@ -8705,32 +8616,6 @@
         @apply cursor-pointer;
     }
 
-    /* Responsive section navigation for project and account settings. */
-    .lp-settings-layout {
-        @apply grid grid-cols-1 lg:grid-cols-4 gap-8;
-    }
-    .lp-settings-nav {
-        @apply flex lg:flex-col gap-1 overflow-x-auto;
-        scrollbar-width: none;
-    }
-    .lp-settings-nav::-webkit-scrollbar {
-        display: none;
-    }
-    .lp-settings-nav__item {
-        @apply inline-flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-normal text-fg-mute no-underline whitespace-nowrap transition-colors;
-    }
-    .lp-settings-nav__item:hover {
-        @apply bg-tint-strong text-ink;
-    }
-    .lp-settings-nav__item--active {
-        @apply bg-accent-soft text-accent-ink;
-    }
-    .lp-settings-nav__item svg {
-        @apply w-4 h-4 shrink-0;
-    }
-    .lp-settings-content {
-        @apply lg:col-span-3 max-w-2xl;
-    }
     .lp-settings-section {
         @apply rounded-xl border border-line bg-surface-1 p-6;
     }
@@ -8960,6 +8845,9 @@
     }
     .lp-styleguide__specimen .lp-dialog {
         @apply static w-full;
+    }
+    .lp-styleguide__specimen .lp-drawer {
+        @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
     }
     /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
     .lp-styleguide__specimen .lp-auth {

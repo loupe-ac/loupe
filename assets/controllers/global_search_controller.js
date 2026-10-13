@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { LazyFrame } from '../lib/lazy_frame.js';
 
 export default class extends Controller {
     static targets = [
@@ -11,6 +12,14 @@ export default class extends Controller {
         'error',
         'close',
     ];
+
+    get lazyFrame() {
+        return new LazyFrame({
+            frame: this.frameTarget,
+            loading: this.loadingTarget,
+            error: this.errorTarget,
+        });
+    }
 
     disconnect() {
         clearTimeout(this.timer);
@@ -54,15 +63,12 @@ export default class extends Controller {
     }
 
     loading() {
-        this.loadingTarget.hidden = false;
-        this.errorTarget.hidden = true;
-        this.frameTarget.hidden = true;
+        this.lazyFrame.showLoading();
     }
 
     received(event) {
         const response = event.detail.fetchResponse;
-        if (!response.succeeded || !response.isHTML || response.redirected)
-            this.failed(event);
+        if (LazyFrame.refuses(event) || response.redirected) this.failed(event);
     }
 
     loaded() {
@@ -73,15 +79,11 @@ export default class extends Controller {
             '',
         );
         if (query !== currentQuery) return;
-        this.loadingTarget.hidden = true;
-        this.errorTarget.hidden = true;
-        this.frameTarget.hidden = false;
+        this.lazyFrame.showReady();
     }
 
     failed(event) {
         event.preventDefault();
-        this.loadingTarget.hidden = true;
-        this.errorTarget.hidden = false;
-        this.frameTarget.hidden = true;
+        this.lazyFrame.showError();
     }
 }
