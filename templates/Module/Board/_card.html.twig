@@ -26,13 +26,14 @@
         {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
         {% include '@Board/_card_source_tag.html.twig' with {card: card} only %}
         {% if card.parent and not inLane %}
-        <span class="lp-board-card__parent" data-card-parent-tag title="{{ card.parent.title }}">
-            <twig:ux:icon name="lucide:arrow-up" class="w-3 h-3 shrink-0" aria-hidden="true" />
-            #{{ card.parent.number }}
-        </span>
+        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__parent', marker: 'data-card-parent-tag', tooltip: 'board.card.parent.tooltip'|trans({'%number%': card.parent.number, '%title%': card.parent.title}), card: card} only %}
+            {% block marker %}<twig:ux:icon name="lucide:arrow-up" class="w-3 h-3 shrink-0" aria-hidden="true" />#{{ card.parent.number }}{% endblock %}
+        {% endembed %}
         {% endif %}
         {% if progress %}
-        <span class="lp-board-card__progress" data-card-progress>{{ 'board.card.children.progress'|trans({'%done%': progress.done, '%total%': progress.total}) }}</span>
+        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__progress', marker: 'data-card-progress', tooltip: 'board.card.children.progress_tooltip'|trans({'%done%': progress.done, '%total%': progress.total}), progress: progress} only %}
+            {% block marker %}{{ 'board.card.children.progress'|trans({'%done%': progress.done, '%total%': progress.total}) }}{% endblock %}
+        {% endembed %}
         {% endif %}
         {% if markers is not null %}
         {% include '@Board/_card_state_mark.html.twig' with {card: card, markers: markers, link: true} only %}
@@ -53,22 +54,19 @@
     {% if pendingComments > 0 or card.pullRequests|length > 0 or documentCount > 0 %}
     <div class="lp-board-card__meta">
         {% if pendingComments > 0 %}
-        <span class="lp-board-card__reviews" title="{{ 'board.card.site_review.count'|trans({'%count%': pendingComments}) }}">
-            <twig:ux:icon name="lucide:message-square" class="w-3.5 h-3.5 shrink-0" />
-            {{ pendingComments }}
-        </span>
+        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__reviews', tooltip: 'board.card.site_review.count'|trans({'%count%': pendingComments}), count: pendingComments} only %}
+            {% block marker %}<twig:ux:icon name="lucide:message-square" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />{{ count }}{% endblock %}
+        {% endembed %}
         {% endif %}
         {% if card.pullRequests|length > 0 %}
-        <span class="lp-board-card__pulls" title="{{ 'board.card.pull_requests.count'|trans({'%count%': card.pullRequests|length}) }}">
-            <twig:ux:icon name="lucide:git-pull-request" class="w-3.5 h-3.5 shrink-0" />
-            {{ card.pullRequests|length }}
-        </span>
+        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__pulls', tooltip: 'board.card.pull_requests.count'|trans({'%count%': card.pullRequests|length}), count: card.pullRequests|length} only %}
+            {% block marker %}<twig:ux:icon name="lucide:git-pull-request" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />{{ count }}{% endblock %}
+        {% endembed %}
         {% endif %}
         {% if documentCount > 0 %}
-        <span class="lp-board-card__documents" title="{{ 'board.card.documents.count'|trans({'%count%': documentCount}) }}">
-            <twig:ux:icon name="lucide:file-text" class="w-3.5 h-3.5 shrink-0" />
-            {{ documentCount }}
-        </span>
+        {% embed '@Board/_card_marker.html.twig' with {class: 'lp-board-card__documents', tooltip: 'board.card.documents.count'|trans({'%count%': documentCount}), count: documentCount} only %}
+            {% block marker %}<twig:ux:icon name="lucide:file-text" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />{{ count }}{% endblock %}
+        {% endembed %}
         {% endif %}
     </div>
     {% endif %}

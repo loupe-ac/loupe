@@ -176,6 +176,7 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-card-id="'.$linked->id.'"] .lp-board-card__pulls'));
         self::assertCount(0, $crawler->filter('[data-card-id="'.$plain->id.'"] .lp-board-card__pulls'));
+        self::assertMarkerTooltip($crawler, '[data-card-id="'.$linked->id.'"] .lp-board-card__pulls', 'one pull request');
         self::assertStringContainsString('Feature', $crawler->filter('[data-card-id="'.$plain->id.'"]')->text());
 
         $list = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/list');
@@ -368,6 +369,18 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('2', trim($crawler->filter('#board-card-'.$documented->id.' .lp-board-card__documents')->text()));
         self::assertCount(0, $crawler->filter('#board-card-'.$plain->id.' .lp-board-card__documents'));
+        self::assertMarkerTooltip($crawler, '#board-card-'.$documented->id.' .lp-board-card__documents', '2 linked documents');
+    }
+
+    /** A card face marker explains itself in a Ds:Tooltip, never in a native title. */
+    private static function assertMarkerTooltip(Crawler $crawler, string $selector, string $text): void
+    {
+        $marker = $crawler->filter($selector);
+        self::assertCount(1, $marker);
+        self::assertNull($marker->attr('title'));
+        $tooltip = $crawler->filter('.lp-tooltip[role="tooltip"]#'.$marker->attr('aria-describedby'));
+        self::assertCount(1, $tooltip);
+        self::assertSame($text, trim($tooltip->text()));
     }
 
     public function test_a_card_face_shows_the_title_and_not_the_body(): void

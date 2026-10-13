@@ -6848,8 +6848,10 @@
             <trans-unit id="board.card.linked_cards.title"><source>board.card.linked_cards.title</source><target>Linked cards</target></trans-unit>
             <trans-unit id="board.card.linked_cards.relation"><source>board.card.linked_cards.relation</source><target>Link</target></trans-unit>
             <trans-unit id="board.card.parent.title"><source>board.card.parent.title</source><target>Parent epic</target></trans-unit>
+            <trans-unit id="board.card.parent.tooltip"><source>board.card.parent.tooltip</source><target>Part of #%number%: %title%</target></trans-unit>
             <trans-unit id="board.card.children.title"><source>board.card.children.title</source><target>Child cards</target></trans-unit>
             <trans-unit id="board.card.children.progress"><source>board.card.children.progress</source><target>%done%/%total% done</target></trans-unit>
+            <trans-unit id="board.card.children.progress_tooltip"><source>board.card.children.progress_tooltip</source><target>%done% of %total% child cards are done</target></trans-unit>
             <trans-unit id="board.card.children.empty"><source>board.card.children.empty</source><target>This epic has no child cards yet.</target></trans-unit>
             <trans-unit id="board.card.lane.show"><source>board.card.lane.show</source><target>Show as a lane on the board</target></trans-unit>
             <trans-unit id="board.card.lane.hide"><source>board.card.lane.hide</source><target>Hide the lane on the board</target></trans-unit>

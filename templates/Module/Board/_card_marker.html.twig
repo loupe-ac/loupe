@@ -1,0 +1,9 @@
+{# A marker of a card face that explains itself in a tooltip. Props: class (string, optional), tooltip (string), marker (string,
+   optional): a data attribute that tests and scripts find the marker by. The marker block holds what the marker shows. #}
+{% set tooltipId = 'card-marker-' ~ random() %}
+<span data-controller="interactive-tooltip"
+      data-interactive-tooltip-align-value="start"
+      data-action="pointerenter->interactive-tooltip#open pointerleave->interactive-tooltip#scheduleClose focusin->interactive-tooltip#open focusout->interactive-tooltip#leaveFocus keydown.esc->interactive-tooltip#close">
+    <span{% if class|default(null) %} class="{{ class }}"{% endif %} tabindex="0" aria-describedby="{{ tooltipId }}" data-action="pointerdown->interactive-tooltip#pressed"{% if marker|default(null) %} {{ marker }}{% endif %}>{% block marker %}{% endblock %}</span>
+    <twig:Ds:Tooltip id="{{ tooltipId }}" :interactive="true">{{ tooltip }}</twig:Ds:Tooltip>
+</span>
