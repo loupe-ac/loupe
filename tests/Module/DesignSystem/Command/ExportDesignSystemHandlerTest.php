@@ -232,6 +232,34 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
     }
 
+    public function test_the_brand_mark_export_draws_the_brand_name_and_each_option(): void
+    {
+        foreach (['BrandMark.jsx', 'BrandMark.d.ts', 'BrandMark.prompt.md', 'layout.card.html'] as $file) {
+            self::assertContains('components/layout/'.$file, $this->written);
+        }
+
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/BrandMark.jsx');
+        self::assertStringContainsString("export const BRANDMARK_SIZES = ['sm', 'md'];", $jsx);
+        self::assertStringContainsString("'lp-brand--' + size", $jsx);
+        self::assertStringContainsString("classes.push('lp-brand--mark-only')", $jsx);
+        self::assertStringContainsString('<span className="lp-brand__mark" role="img" aria-label="loupe"></span>', $jsx);
+        self::assertStringContainsString('<span className="lp-brand__mark" aria-hidden="true"></span>', $jsx);
+        self::assertStringContainsString('<span className="lp-brand__word">loupe</span>', $jsx);
+        self::assertStringContainsString('{...rest}', $jsx);
+
+        $types = (string) file_get_contents($this->directory.'/components/layout/BrandMark.d.ts');
+        self::assertStringContainsString("size?: 'sm' | 'md';", $types);
+        self::assertStringContainsString('markOnly?: boolean;', $types);
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        self::assertStringContainsString("dsFind('BrandMark')", $card);
+        foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
+            self::assertStringContainsString($example, $card);
+        }
+        self::assertStringNotContainsString('>Example</BrandMark>', $card);
+    }
+
     public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void
     {
         $directory = sys_get_temp_dir().'/ds-export-layout-'.bin2hex(random_bytes(4));
@@ -273,7 +301,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart.d.ts'));
 
             $card = (string) file_get_contents($directory.'/components/layout/layout.card.html');
-            self::assertStringContainsString("dsFind('SamplePart')", $card);
+            self::assertMatchesRegularExpression("~dsFind\([^)]*'SamplePart'\)~", $card);
             self::assertStringContainsString('<SamplePart title="Example" />', $card);
             self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
             self::assertStringNotContainsString('<Button', $card);

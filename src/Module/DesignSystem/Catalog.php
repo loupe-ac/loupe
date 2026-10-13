@@ -239,8 +239,7 @@ readonly class Catalog
                 group: 'layout',
                 summary: 'The logo square and the brand name, as the sidebar, the sign-in pages and the marketing pages draw them.',
                 element: 'span',
-                dotClass: 'lp-brand__mark',
-                contentClass: 'lp-brand__word',
+                export: 'BrandMark',
             ),
         ];
     }
