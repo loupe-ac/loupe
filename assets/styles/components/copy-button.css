@@ -1,0 +1,17 @@
+/* A button that copies text to the clipboard. `templates/components/Ds/CopyButton.html.twig`
+   renders it. The icon variant swaps its link icon for a check once copied. */
+@layer components {
+    .lp-copy-button {
+        @apply contents;
+    }
+    .lp-copy-button__chip {
+        @apply inline-flex items-center h-7 px-3 rounded-full font-semibold bg-chrome-control text-accent border-none cursor-pointer transition-colors hover:bg-chrome-line text-xs;
+    }
+    .lp-copy-button__done,
+    [data-copied] > .lp-copy-button__idle {
+        @apply hidden;
+    }
+    [data-copied] > .lp-copy-button__done {
+        @apply block text-status-ok;
+    }
+}
