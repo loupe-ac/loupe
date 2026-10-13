@@ -187,56 +187,6 @@
     .lp-sidebar__nav-label--spaced {
         @apply mt-4;
     }
-    .lp-sidebar__link {
-        @apply flex items-center gap-2.5 h-9.5 px-3 rounded-lg font-medium text-chrome-mute no-underline transition-colors text-sm;
-    }
-    .lp-sidebar__link:hover {
-        @apply bg-chrome-raised text-chrome-fg;
-    }
-    .lp-sidebar__link--active {
-        @apply bg-chrome-control text-chrome-fg font-semibold;
-    }
-    /* Needed because `.lp-sidebar__link:hover` outranks `--active` on
-       specificity: without it, hovering the selected item drops it to the dark
-       raised fill, which reads as deselecting it. */
-    .lp-sidebar__link--active:hover {
-        @apply bg-chrome-control text-white;
-    }
-    .lp-sidebar__link svg {
-        @apply w-4.5 h-4.5 shrink-0 text-chrome-mute;
-    }
-    .lp-sidebar__link--active svg {
-        @apply text-accent;
-    }
-    .lp-sidebar__link-label {
-        @apply truncate;
-    }
-    .lp-sidebar__nav--secondary
-        .lp-sidebar__link:not(.lp-sidebar__link--active) {
-        @apply text-chrome-dim;
-    }
-    .lp-sidebar__nav--secondary {
-        @apply mt-0;
-    }
-    .lp-sidebar__nav--secondary .lp-sidebar__link svg {
-        @apply w-4 h-4;
-    }
-
-    /* Nav counts are plain numerals, not pills. */
-    .lp-sidebar__pill {
-        @apply ml-auto text-xs font-bold leading-none;
-    }
-    .lp-sidebar__pill--amber {
-        @apply text-accent;
-    }
-    /* A reloadable frame around a pill. It takes no box, so the pill still sits in the link's flex row. */
-    .lp-sidebar__pill-frame {
-        @apply contents;
-    }
-    .lp-sidebar__link--active .lp-sidebar__pill {
-        @apply text-chrome-fg;
-    }
-
     .lp-sidebar__spacer {
         @apply mt-auto;
     }

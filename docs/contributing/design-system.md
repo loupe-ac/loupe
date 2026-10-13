@@ -61,6 +61,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 | BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
+| NavItem | One link of the sidebar. Props `url`, `icon`, `label`, `active` and `count`. Its content adds anything after the label | none |
 | AuthShell | The frame of the sign-in, sign-up and install pages. It has no Twig component: `@Account/auth_base.html.twig` draws it with the `lp-auth` classes, and a page fills the `auth_body` block. `lp-auth__action` makes a submit button fill the card | none |
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
@@ -68,6 +69,8 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Drawer | A panel that slides in from the right edge. The `modal` controller opens it | none |
 
 The Drawer takes the named blocks `header`, `body` and `footer`, and draws a band only for a block that holds content. The block `content` replaces all three, for a drawer that fills the dialog itself, such as the card drawer. Pass the target attribute of the controller that opens it, such as `data-modal-target="dialog"`. A drawer that loads a Turbo frame on opening pairs the `modal` controller with `lazy-frame`, which shows the loading and error states around the frame. A controller with more states than that calls `LazyFrame` from `assets/lib/lazy_frame.js`. Its CSS is `assets/styles/components/drawer.css`.
+
+A `Ds:NavItem` icon is a prop, so `bin/console ux:icons:lock` cannot read it. Import a new sidebar icon by hand with `bin/console ux:icons:import lucide:<name>`.
 
 The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
 
