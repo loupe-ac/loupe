@@ -183,6 +183,7 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 
 11. StatusBox: `<twig:Ds:StatusBox kind="stuck" :title="..." :chip="..." :lead="..." :fields="..." :others="...">`. Kinds are stuck, needs-you, working and waiting. The CSS is `assets/styles/components/status-box.css`.
 12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working and waiting. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
+13. FilterBar: `<twig:Ds:FilterBar :action="..." :search="{id, name, value, label, placeholder}" :clearHref="..." :clearLabel="..." :count="...">` with the selects of the first row as the body and a `secondary` block for hidden fields and wrapping selects. Other props are `formAttributes`, `countAttributes`, `countFrame` and `switch`. Write no `lp-filter-*` class in a template. `Ds:Select` and `Ds:Input` take `compact` outside a bar. The CSS is `assets/styles/components/filter-bar.css`.
 
 13. Panel: `<twig:Ds:Panel as="section">`. It draws one bordered tinted card and has no variants. The CSS is `assets/styles/components/panel.css`.
 14. SectionHeading: `<twig:Ds:SectionHeading :description="...">Title<twig:block name="actions">...</twig:block></twig:Ds:SectionHeading>`. The content is the title, and `level` is 2 or 3. `titleId` sets the heading id. The CSS is `assets/styles/components/section-heading.css`.

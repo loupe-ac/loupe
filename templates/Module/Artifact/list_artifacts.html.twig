@@ -18,22 +18,11 @@
     </header>
 
     {% if items is not empty or includeArchived %}
-    <div class="lp-list-filters">
-        <form method="get" action="{{ path('app_project_artifacts', {id: project.id}) }}" data-controller="autosearch" class="lp-filter-form">
-            <label class="lp-filter-switch">
-                <input type="checkbox"
-                       class="lp-switch"
-                       role="switch"
-                       name="archived"
-                       value="1"
-                       {{ includeArchived ? 'checked' }}
-                       data-artifact-archived-toggle
-                       data-action="change->autosearch#search">
-                {{ 'artifact.list.show_archived'|trans }}
-            </label>
-        </form>
-        <span class="lp-filter-count" data-artifact-count>{{ 'artifact.list.count'|trans({'%count%': items|length}) }}</span>
-    </div>
+    <twig:Ds:FilterBar
+        :action="path('app_project_artifacts', {id: project.id})"
+        :switch="{name: 'archived', label: 'artifact.list.show_archived'|trans, checked: includeArchived, attributes: {'data-artifact-archived-toggle': true}}"
+        :count="'artifact.list.count'|trans({'%count%': items|length})"
+        :countAttributes="{'data-artifact-count': true}" />
     {% endif %}
 
     {% if items is empty %}
