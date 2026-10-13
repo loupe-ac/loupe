@@ -24,6 +24,9 @@ final class ShowDocumentArtifactMenuTest extends WebTestCase
         $first = $this->linkedCard($project, $artifact, 'First card', 706);
         $second = $this->linkedCard($project, $artifact, 'Second card', 707);
         $document = $this->linkedDocument($project, $first, $second);
+        foreach ([[$first, '2026-01-01'], [$second, '2026-01-02']] as [$card, $at]) {
+            $this->em()->getConnection()->executeStatement('UPDATE board_card_documents SET linked_at = ? WHERE card_id = ?', [$at, (string) $card->id]);
+        }
         [$projectId, $artifactId, $documentId] = [(string) $project->id, (string) $artifact->id, (string) $document->id];
         $this->em()->clear();
 
