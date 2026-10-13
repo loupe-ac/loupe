@@ -8,6 +8,7 @@ use App\Module\Board\Command\BoardColumnView;
 use App\Module\Board\Command\CardProgress;
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardArtifact;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Form\AddBoardColumnFormType;
 use App\Module\Board\Form\AddBoardColumnRequest;
@@ -25,6 +26,7 @@ use App\Module\Board\Form\SaveBoardTerminalWindowRequest;
 use App\Module\Board\Form\SetCardLaneFormType;
 use App\Module\Board\Form\SetCardLaneRequest;
 use App\Module\Board\Repository\BoardColumnRepository;
+use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Service\BoardColumnTonePicker;
 use App\Module\Board\Service\CardDigest;
@@ -50,6 +52,7 @@ final class BoardExtension extends AbstractExtension
         private readonly MarkdownRenderer $markdown,
         private readonly TranslatorInterface $translator,
         private readonly CardDocumentRepository $cardDocuments,
+        private readonly CardArtifactRepository $cardArtifacts,
         private readonly BoardColumnRepository $boardColumns,
         private readonly BoardColumnTonePicker $tonePicker,
         private readonly CardDigest $digest,
@@ -83,6 +86,7 @@ final class BoardExtension extends AbstractExtension
             new TwigFunction('board_column_order', $this->boardColumnOrder(...)),
             new TwigFunction('safe_pull_request_url', $this->safePullRequestUrl(...)),
             new TwigFunction('document_card_links', $this->documentCardLinks(...)),
+            new TwigFunction('document_artifact_links', $this->documentArtifactLinks(...)),
             new TwigFunction('document_card_link_map', $this->documentCardLinkMap(...)),
         ];
     }
@@ -136,6 +140,27 @@ final class BoardExtension extends AbstractExtension
     public function documentCardLinks(Document $document): array
     {
         return $this->cardDocuments->findForDocument($document);
+    }
+
+    /**
+     * The artifacts of the cards the document is linked to, in card order then
+     * link order, with an artifact that two cards share listed once.
+     *
+     * @return list<array{link: CardArtifact, versionNumber: int}>
+     */
+    public function documentArtifactLinks(Document $document): array
+    {
+        $cards = array_map(static fn (CardDocument $link): Card => $link->card, $this->cardDocuments->findForDocument($document));
+        $byCard = $this->cardArtifacts->findWithLatestVersionForCards($cards);
+
+        $entries = [];
+        foreach ($cards as $card) {
+            foreach ($byCard[(string) $card->id] ?? [] as $entry) {
+                $entries[(string) $entry['link']->artifact->id] ??= $entry;
+            }
+        }
+
+        return array_values($entries);
     }
 
     /**

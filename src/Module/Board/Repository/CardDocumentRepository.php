@@ -65,6 +65,7 @@ final class CardDocumentRepository extends ServiceEntityRepository
             ->where('link.document = :document')
             ->setParameter('document', $document)
             ->orderBy('link.linkedAt', 'ASC')
+            ->addOrderBy('link.id', 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -87,6 +88,7 @@ final class CardDocumentRepository extends ServiceEntityRepository
             ->where('link.document IN (:documents)')
             ->setParameter('documents', $documents)
             ->orderBy('link.linkedAt', 'ASC')
+            ->addOrderBy('link.id', 'ASC')
             ->getQuery()
             ->getResult();
     }

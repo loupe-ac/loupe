@@ -11,6 +11,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Form\AddBoardColumnRequest;
 use App\Module\Board\Form\MoveCardFormType;
 use App\Module\Board\Repository\BoardColumnRepository;
+use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Service\BoardColumnTonePicker;
 use App\Module\Board\Service\CardDigest;
@@ -149,6 +150,7 @@ final class BoardExtensionTest extends KernelTestCase
             $container->get(MarkdownRenderer::class),
             $container->get(TranslatorInterface::class),
             $container->get(CardDocumentRepository::class),
+            $container->get(CardArtifactRepository::class),
             $container->get(BoardColumnRepository::class),
             new BoardColumnTonePicker($firstFree),
             new CardDigest(),
