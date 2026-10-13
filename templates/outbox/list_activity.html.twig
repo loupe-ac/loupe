@@ -45,7 +45,7 @@
          data-worker-run-refresh-whole-value="{{ filtered ? 'false' : 'true' }}"{% endif %}>
     <turbo-frame id="activity-frame" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
     {% if entries|length > 0 %}
-    <twig:DataTable modifier="events" :columns="[
+    <twig:Ds:DataTable modifier="events" :label="'activity.table.label'|trans" :columns="[
         {label: 'activity.column.event'|trans},
         {label: 'activity.column.delivery'|trans},
         {label: 'activity.column.family'|trans},
@@ -58,25 +58,27 @@
         {% set prefix = event.type|split('.')|first %}
         {% set delivery = event.publishedAt ? 'delivered' : (event.lastPublishError ? 'failed' : 'pending') %}
         {% set event_content %}<span class="lp-data-table__title">{% include 'outbox/_event_type_label.html.twig' with {type: event.type} only %}</span>{% if entry.link %}<span class="lp-data-table__subject">{{ entry.link.subject }}</span>{% endif %}{% endset %}
-        <div class="lp-data-table__row" data-activity-event-id="{{ event.id }}" data-event-family="{{ family ? family.value : prefix }}">
-            <div class="lp-data-table__cell lp-data-table__primary">
+        <div class="lp-data-table__row" role="row" data-activity-event-id="{{ event.id }}" data-event-family="{{ family ? family.value : prefix }}">
+            <div class="lp-data-table__cell lp-data-table__primary" role="cell">
                 {% if entry.link %}
                 <a class="lp-data-table__target" href="{{ entry.link.url }}" data-activity-work-link>{{ event_content }}</a>
                 {% else %}
                 {{ event_content }}
                 {% endif %}
             </div>
-            <twig:Ds:StatusChip
-                :modifier="{delivered: 'ok', failed: 'failed', pending: 'pending'}[delivery]"
-                :label="('activity.delivery.' ~ delivery)|trans"
-                :reason="event.lastPublishError ? 'activity.delivery.reason'|trans({'%count%': event.publishAttempts, '%error%': event.lastPublishError}) : null"
-                :id="'activity-reason-' ~ event.id" />
-            <span class="lp-data-table__cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
-            <span class="lp-data-table__cell lp-data-table__cell--end">{{ event.sequence ?? '—' }}</span>
-            <span class="lp-data-table__cell"><time datetime="{{ event.createdAt|date('c') }}" title="{{ event.createdAt|date('Y-m-d H:i:s T') }}">{{ event.createdAt|relative_time }}</time></span>
+            <span class="lp-data-table__cell" role="cell">
+                <twig:Ds:StatusChip
+                    :modifier="{delivered: 'ok', failed: 'failed', pending: 'pending'}[delivery]"
+                    :label="('activity.delivery.' ~ delivery)|trans"
+                    :reason="event.lastPublishError ? 'activity.delivery.reason'|trans({'%count%': event.publishAttempts, '%error%': event.lastPublishError}) : null"
+                    :id="'activity-reason-' ~ event.id" />
+            </span>
+            <span class="lp-data-table__cell" role="cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
+            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ event.sequence ?? '—' }}</span>
+            <span class="lp-data-table__cell" role="cell"><time datetime="{{ event.createdAt|date('c') }}" title="{{ event.createdAt|date('Y-m-d H:i:s T') }}">{{ event.createdAt|relative_time }}</time></span>
         </div>
         {% endfor %}
-    </twig:DataTable>
+    </twig:Ds:DataTable>
 
     <twig:Ds:Pagination route="app_project_activity" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
     {% elseif listQuery.isNarrowed %}

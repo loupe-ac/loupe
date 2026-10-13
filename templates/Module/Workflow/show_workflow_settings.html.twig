@@ -32,19 +32,19 @@
     <section class="lp-workflow-section">
         <twig:Ds:SectionHeading>{{ 'workflow.settings.slots.heading'|trans }}</twig:Ds:SectionHeading>
         {% if template.slots is not empty %}
-        <twig:DataTable :columns="[
+        <twig:Ds:DataTable :label="'workflow.settings.slots.table.label'|trans" :columns="[
             {label: 'workflow.settings.slots.slot'|trans},
             {label: 'workflow.settings.slots.column'|trans},
         ]">
             {% for slot in template.slots %}
-            <div class="lp-data-table__row" data-slot-key="{{ slot.key }}">
-                <span class="lp-data-table__cell lp-data-table__title">{{ slot.labelKey|trans }}</span>
-                <span class="lp-data-table__cell" data-slot-column>
+            <div class="lp-data-table__row" role="row" data-slot-key="{{ slot.key }}">
+                <span class="lp-data-table__cell lp-data-table__title" role="cell">{{ slot.labelKey|trans }}</span>
+                <span class="lp-data-table__cell" role="cell" data-slot-column>
                     {%- if slot.columnLabel is not null %}{{ slot.columnLabel|trans }}{% else %}<twig:Ds:Tag tone="amber">{{ 'workflow.settings.slots.not_linked'|trans }}</twig:Ds:Tag>{% endif -%}
                 </span>
             </div>
             {% endfor %}
-        </twig:DataTable>
+        </twig:Ds:DataTable>
         {% else %}
         <p class="lp-workspace-desc">{{ 'workflow.settings.slots.none'|trans }}</p>
         {% endif %}
@@ -53,17 +53,17 @@
     <section class="lp-workflow-section" data-workflow-types>
         <twig:Ds:SectionHeading>{{ 'workflow.settings.types.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.types.description'|trans }}</p>
-        <twig:DataTable :columns="[
+        <twig:Ds:DataTable :label="'workflow.settings.types.table.label'|trans" :columns="[
             {label: 'workflow.settings.types.type'|trans},
             {label: 'workflow.settings.types.capabilities'|trans},
         ]">
             {% for type in template.types %}
-            <div class="lp-data-table__row" data-card-type="{{ type.key }}">
-                <span class="lp-data-table__cell lp-data-table__title">
+            <div class="lp-data-table__row" role="row" data-card-type="{{ type.key }}">
+                <span class="lp-data-table__cell lp-data-table__title" role="cell">
                     {% include '_tone_tag.html.twig' with {label: type.labelKey|trans, tone: type.tone} only %}
                     {%- if type.isDefault %} <twig:Ds:Tag tone="neutral" data-card-type-default>{{ 'workflow.settings.types.default'|trans }}</twig:Ds:Tag>{% endif -%}
                 </span>
-                <span class="lp-data-table__cell" data-card-type-capabilities>
+                <span class="lp-data-table__cell" role="cell" data-card-type-capabilities>
                     {%- set capabilities = [] -%}
                     {%- if type.children %}{% set capabilities = capabilities|merge(['workflow.settings.types.capability.children'|trans]) %}{% endif -%}
                     {%- if type.lane %}{% set capabilities = capabilities|merge(['workflow.settings.types.capability.lane'|trans]) %}{% endif -%}
@@ -71,7 +71,7 @@
                 </span>
             </div>
             {% endfor %}
-        </twig:DataTable>
+        </twig:Ds:DataTable>
     </section>
 
     <section class="lp-workflow-section" data-workflow-template-rules>
@@ -91,19 +91,19 @@
         <twig:Ds:SectionHeading>{{ 'workflow.settings.moves.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.moves.description'|trans }}</p>
         {% if template.manualMoves is not empty %}
-        <twig:DataTable :columns="[
+        <twig:Ds:DataTable :label="'workflow.settings.moves.table.label'|trans" :columns="[
             {label: 'workflow.settings.moves.from'|trans},
             {label: 'workflow.settings.moves.to'|trans},
             {label: 'workflow.settings.moves.by'|trans},
         ]">
             {% for move in template.manualMoves %}
-            <div class="lp-data-table__row" data-manual-move>
-                <span class="lp-data-table__cell">{{ move.fromKey|trans }}</span>
-                <span class="lp-data-table__cell">{{ move.toKey|trans }}</span>
-                <span class="lp-data-table__cell" data-manual-move-by>{{ move.byKey|trans }}</span>
+            <div class="lp-data-table__row" role="row" data-manual-move>
+                <span class="lp-data-table__cell" role="cell">{{ move.fromKey|trans }}</span>
+                <span class="lp-data-table__cell" role="cell">{{ move.toKey|trans }}</span>
+                <span class="lp-data-table__cell" role="cell" data-manual-move-by>{{ move.byKey|trans }}</span>
             </div>
             {% endfor %}
-        </twig:DataTable>
+        </twig:Ds:DataTable>
         {% else %}
         <p class="lp-workspace-desc">{{ 'workflow.settings.moves.none'|trans }}</p>
         {% endif %}

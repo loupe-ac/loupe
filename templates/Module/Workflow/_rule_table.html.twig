@@ -1,15 +1,15 @@
-<twig:DataTable :columns="[
+<twig:Ds:DataTable :label="'workflow.settings.rules.table.label'|trans" :columns="[
     {label: 'workflow.settings.rules.id'|trans},
     {label: 'workflow.settings.rules.applies_to'|trans},
     {label: 'workflow.settings.rules.action'|trans},
     {label: 'workflow.settings.rules.conditions'|trans},
 ]">
     {% for rule in rules %}
-    <div class="lp-data-table__row" data-rule-id="{{ rule.id }}"{% if rule.missingConditions is not empty or rule.missingAction is not null %} data-rule-missing{% endif %}>
-        <span class="lp-data-table__cell lp-data-table__title">{{ rule.id }}</span>
-        <span class="lp-data-table__cell">{{ rule.appliesToKey|trans }}</span>
-        <span class="lp-data-table__cell">{{ rule.actionKey|trans({'%target%': rule.targetKey is null ? '' : rule.targetKey|trans, '%kind%': rule.kind ?? ''}) }}</span>
-        <div class="lp-data-table__cell" data-rule-conditions>
+    <div class="lp-data-table__row" role="row" data-rule-id="{{ rule.id }}"{% if rule.missingConditions is not empty or rule.missingAction is not null %} data-rule-missing{% endif %}>
+        <span class="lp-data-table__cell lp-data-table__title" role="cell">{{ rule.id }}</span>
+        <span class="lp-data-table__cell" role="cell">{{ rule.appliesToKey|trans }}</span>
+        <span class="lp-data-table__cell" role="cell">{{ rule.actionKey|trans({'%target%': rule.targetKey is null ? '' : rule.targetKey|trans, '%kind%': rule.kind ?? ''}) }}</span>
+        <div class="lp-data-table__cell" role="cell" data-rule-conditions>
             {% for group in rule.whenGroups %}
             {% include '@Workflow/_condition_group.html.twig' with {group: group} only %}
             {% endfor %}
@@ -36,4 +36,4 @@
         </div>
     </div>
     {% endfor %}
-</twig:DataTable>
+</twig:Ds:DataTable>

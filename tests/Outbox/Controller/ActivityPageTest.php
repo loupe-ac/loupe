@@ -419,7 +419,7 @@ final class ActivityPageTest extends WebTestCase
 
     private function chip(Crawler $crawler, OutboxEvent $event): string
     {
-        $chip = $crawler->filter('[data-activity-event-id="'.$event->id.'"] > .lp-status-chip');
+        $chip = $crawler->filter('[data-activity-event-id="'.$event->id.'"] > .lp-data-table__cell > .lp-status-chip');
         self::assertCount(1, $chip);
 
         return trim($chip->filter('.lp-tooltip')->count() > 0
