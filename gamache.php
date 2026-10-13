@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Module\DesignSystem\Catalog;
 use Gamache\Check\CommentBudgetCheck;
 use Gamache\Check\DeploymentConfigParityCheck;
 use Gamache\Check\DesignSystemAdoptionCheck;
@@ -25,6 +26,26 @@ use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
 use PhpCsFixer\FixerDefinition\FixerDefinition;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
+
+/**
+ * The adoption check reads the catalog, so a new component is one catalog entry.
+ * An old class an entry replaces is checked with the same own template.
+ *
+ * @return list<DesignSystemComponent>
+ */
+function designSystemComponents(): array
+{
+    $components = [];
+    foreach ((new Catalog())->entries() as $entry) {
+        $own = 'templates/'.$entry->template;
+        $components[] = new DesignSystemComponent($entry->name, $entry->rootClass, $own, $entry->enforced);
+        foreach ($entry->legacyClasses as $legacy) {
+            $components[] = new DesignSystemComponent($entry->name, $legacy, $own, $entry->legacyEnforced);
+        }
+    }
+
+    return $components;
+}
 
 return (new GamacheConfig())->registerChecks([
     new ServicesYamlCheck(),
@@ -135,27 +156,7 @@ return (new GamacheConfig())->registerChecks([
         severity: Severity::Error,
     ),
     new DesignSystemAdoptionCheck(
-        components: [
-            new DesignSystemComponent('Button', 'lp-btn', 'templates/components/Ds/Button.html.twig', enforced: true),
-            new DesignSystemComponent('Input', 'lp-input', 'templates/components/Ds/Input.html.twig', enforced: true),
-            new DesignSystemComponent('Select', 'lp-select', 'templates/components/Ds/Select.html.twig', enforced: true),
-            new DesignSystemComponent('Textarea', 'lp-textarea', 'templates/components/Ds/Textarea.html.twig', enforced: true),
-            new DesignSystemComponent('FormField', 'lp-form-field', 'templates/components/Ds/FormField.html.twig', enforced: true),
-            new DesignSystemComponent('Label', 'lp-label', 'templates/components/Ds/Label.html.twig', enforced: true),
-            new DesignSystemComponent('FieldErrors', 'lp-field-errors', 'templates/components/Ds/FieldErrors.html.twig', enforced: true),
-            new DesignSystemComponent('Hint', 'lp-form-hint', 'templates/components/Ds/Hint.html.twig', enforced: true),
-            new DesignSystemComponent('Tag', 'lp-tag', 'templates/components/Ds/Tag.html.twig', enforced: true),
-            new DesignSystemComponent('Badge', 'lp-badge', 'templates/components/Ds/Badge.html.twig', enforced: true),
-            new DesignSystemComponent('StatusChip', 'lp-status-chip', 'templates/components/Ds/StatusChip.html.twig', enforced: true),
-            new DesignSystemComponent('StatusBox', 'lp-status-box', 'templates/components/Ds/StatusBox.html.twig', enforced: true),
-            new DesignSystemComponent('EmptyState', 'lp-empty-state', 'templates/components/Ds/EmptyState.html.twig', enforced: true),
-            new DesignSystemComponent('Flash', 'lp-flash', 'templates/components/Ds/Flash.html.twig', enforced: true),
-            new DesignSystemComponent('Dialog', 'lp-dialog', 'templates/components/Ds/Dialog.html.twig', enforced: true),
-            new DesignSystemComponent('Tabs', 'lp-tabs', 'templates/components/Ds/Tabs.html.twig', enforced: true),
-            new DesignSystemComponent('Pagination', 'lp-pagination', 'templates/components/Ds/Pagination.html.twig', enforced: true),
-            new DesignSystemComponent('StateMark', 'lp-state-mark', 'templates/components/Ds/StateMark.html.twig', enforced: true),
-            new DesignSystemComponent('Tooltip', 'lp-tooltip', 'templates/components/Ds/Tooltip.html.twig', enforced: true),
-        ],
+        components: designSystemComponents(),
     ),
     new FormTypeTranslationKeysCheck(),
     new TurboStreamTargetsCheck(),
