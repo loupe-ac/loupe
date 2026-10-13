@@ -75,7 +75,7 @@
     </section>
 
     <section class="lp-workflow-section" data-workflow-markers>
-        <h2 class="lp-section-title">{{ 'workflow.settings.markers.heading'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'workflow.settings.markers.heading'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-workspace-desc">{{ 'workflow.settings.markers.description'|trans }}</p>
         {% if template.markers is not empty %}
         <twig:DataTable :columns="[
