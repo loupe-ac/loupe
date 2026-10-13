@@ -2,10 +2,10 @@
 
 {% block title %}{{ 'landing.meta.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
-{% block meta_description %}<meta name="description" content="{{ 'landing.meta.description'|trans }}">{% endblock %}
+{% block description %}{{ 'landing.meta.description'|trans }}{% endblock %}
 
 {% set marketingClass = 'lp-home' %}
-{% set marketingAttributes = {'data-controller': 'modal'} %}
+{% set marketingAttributes = {'data-controller': 'modal analytics'} %}
 
 {% block marketing_header %}{% include '@Landing/landing/_nav.html.twig' only %}{% endblock %}
 

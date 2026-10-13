@@ -1083,16 +1083,18 @@ for. See [Workflows](workflows.md).
 ## Cards linked to a card
 
 A card links to other cards of the same project. From one card, each link reads
-as one of three kinds:
+as one of five kinds:
 
 | Kind | Label | Meaning |
 |---|---|---|
 | `relates-to` | Related to | The two cards concern each other. |
 | `blocks` | Blocks | This card must finish before the other card can. |
 | `blocked-by` | Blocked by | The other card must finish before this card can. |
+| `has-follow-up` | Has follow-up | The other card is a follow-up of this card. It has no parent, and it waits for this card. |
+| `follow-up-of` | Follow-up of | This card is a follow-up of the other card. It has no parent, and it waits for the other card. |
 
 Both cards show the link. A `relates-to` link reads the same from both ends. A
-`blocks` link from card A to card B reads `blocked-by` from card B. A pair of
+`blocks` link from card A to card B reads `blocked-by` from card B. In the same way, a `has-follow-up` link from card A to card B reads `follow-up-of` from card B. A pair of
 cards holds one link, so card A cannot both block and relate to card B.
 
 Pass `relatedCards` to `card_create` or `card_update`. Each entry takes a

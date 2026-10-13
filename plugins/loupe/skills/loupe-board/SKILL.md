@@ -154,8 +154,10 @@ unknown id. `card_get` returns them as `artifacts`, each with `artifactId`, `nam
 
 `relatedCards` links other cards of this project, on `card_create` and
 `card_update`. Each entry takes a `cardId` and a `kind`: `relates-to` (the
-default), `blocks` or `blocked-by`. A pair of cards holds one link, and both cards
-show it. A `blocks` link from card A reads `blocked-by` from card B. `card_get`
+default), `blocks`, `blocked-by`, `has-follow-up` or `follow-up-of`. A pair of cards
+holds one link, and both cards show it. A `blocks` link from card A reads
+`blocked-by` from card B. A `has-follow-up` link from card A reads `follow-up-of`
+from card B. `card_get`
 returns `relatedCards` with `cardId`, `number`, `title`, `status` and `kind`, and
 you can send that list back unchanged. The omit-versus-empty rule applies. A sent
 list replaces every link that touches the card, including links written from the

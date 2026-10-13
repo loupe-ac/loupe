@@ -33,9 +33,8 @@ the items. An item that blocks the agent carries a **Blocking** label.
 Open **Inbox** in the project sidebar. An amber count next to the link shows how
 many items are still open. The link is absent while the flag is off.
 
-The header keeps its View activity link visible on narrow screens, including
-with enlarged text. It wraps below the title when needed. The count of what
-waits sits at the end of the search row.
+The page has no header of its own. Its **View activity** and **Settings** links
+sit in the top bar, and on a phone they show as icons.
 
 The count changes without a reload when an agent asks, when you or an agent
 close an item, and when a finished card makes an item obsolete. It goes away at
@@ -43,43 +42,119 @@ zero. This needs a Mercure hub and the `live_updates.enabled` flag. Without
 them, the count is correct each time a page loads. See
 [Mercure hub](../extending/mercure.md).
 
-The search field keeps its compact width beside **Clear**.
-After a search, the result count remains visible without covering either control.
+The page has two columns: a list of asks on the left and the selected ask on
+the right. The list column opens with an **Open · N** and **Closed** switch, a
+search field and a type filter.
 
-**Open** and **Completed** are the two queues of the page. Each queue shows its
-requests in a list, and the selected request beside that list.
+### The address holds the view
 
-The **Open** queue lists the open asks first, oldest first, then the open items
-that no open ask holds. No agent waits on such an item, but nobody has closed
-it yet. A to-do from an ask that already closed is the usual case.
+The address of the page describes what you see, so a reload or a shared link
+shows the same view. The page reads these values from the query string:
 
-The **Completed** queue lists the closed asks, newest close first, ten to a
-page. Its address is `?queue=completed`.
+- `side` is `open` or `closed`. The address `?queue=completed` of an old link
+  reads as `side=closed`.
+- `type` is `question`, `review`, `todo`, `wait` or `workflow`. Without it the
+  list shows every type.
+- `q` is the search.
+- `ask` is the id of the selected ask.
+- `item` is the number of an item. The page opens the open ask that holds the
+  item, else the newest closed ask that holds it, else the item on its own.
+- `page` is the page of the closed asks or of the search results.
 
-A list row shows the source, the time, the title, the summary and one label,
-which is **Blocking**, the kind of the item, or its state. The request beside
-the list takes its heading from its first item, as the list row does. The
-agent's note follows, then the items. An ask with one item shows that title
-once. The document or pull request that a review item names is a row of the
-item's linked items, with the version under review. Replies under an item show
-each author's initial, name and time.
+A value that does not parse falls back to its default. An `ask` of another
+project selects nothing.
 
-The agent's avatar carries a dot for its bridge: green while the bridge sends
-heartbeats, amber when it is quiet, and grey when no bridge started the
-session. Hover over or focus the avatar to read the details and the session id.
+A click on a row, the switch, a filter, the search or the pager reloads the
+list and the selected ask without reloading the page, and it adds a step to
+the browser history. The back button returns to the view before. Each visit
+from the sidebar starts on **Open** with every type and no search.
 
-An item can show in both queues, for example in a closed ask and as an open
-item outside one. Its forms show once, in the queue that still takes a
-response, and the other place links there.
+An old link of the form `#inbox-item-12` still works. The page turns it into
+`?item=12`.
+
+### The list
+
+The **Open** side lists the open asks and the open items that no open ask
+holds. No agent waits on such an item, but nobody has closed it yet. A to-do
+from an ask that already closed is the usual case. Such an item is a row of its
+own. An ask that holds an open blocking item comes first, then the others. Each
+group is oldest first. The **Open** side shows every row.
+
+The **Closed** side lists the closed asks, newest close first, ten to a page.
+
+A row is one ask. It shows the icon of the first open item of the ask, and the
+icon of the first item of a closed ask. The title of the first item follows.
+A grey line below the title shows the first linked card and the age, such as
+"#1 Checkout · 2h". An ask with more cards shows "+2" after the first. An ask
+with no card shows its source, **Agent** or **Loupe**, instead. An ask that
+holds an open blocking item ends the line with **Blocking**. A closed ask shows
+how it ended: answered, approved, changes requested, done, dismissed, declined,
+withdrawn or no longer needed.
+
+The type filter has **All** and one icon for each type: question, review,
+to-do, card wait and workflow question. Hover over an icon to read its name. A
+filter keeps an ask when any of its items has that type.
+
+Select a row to read its ask on the right. The ask takes its heading from its
+first item. A grey line under the heading shows the type icon, the type and the
+age of the ask, such as **Question · 3 weeks ago**. A closed ask also shows when
+it closed.
+
+A bold **From the agent** heading opens the message of the ask. An ask that
+Loupe opened, such as a card wait or a workflow question, says **From Loupe**.
+The items follow the message. An ask with one item shows that title once. An
+ask with two or more items gives each item its own section, with a number, its
+title and its type. Replies under an item show each author's initial, name and
+time.
+
+The agent's avatar beside **From the agent** carries a dot for its bridge:
+green while the bridge sends heartbeats, amber when it is quiet, and grey when
+no bridge started the session. Hover over or focus the avatar to read the
+details and the session id.
+
+A **Linked** panel sits beside the ask, or under it on a narrow screen. The
+panel shows each card, document and pull request that the ask links, once, on
+one line with its type icon. A review shows the version under review on the
+document line. Select a line to open the card, the document or the pull
+request.
+
+When no ask is open, the **Open** side shows **Nothing needs you**, a line on
+what agents ask here, and a link to the closed asks.
+
+### The page follows changes
+
+The page reads the inbox again when an agent, Loupe or another person changes an
+ask while the page is open. Every member who can open the page gets this, not
+only the project owner. A new ask appears in the list, an ask that closes leaves the **Open**
+side, and the counts follow. The page keeps the ask you have open, so a new
+blocking ask never takes its place.
+
+A response you were typing stays in the form. When the agent withdraws the ask
+you have open, or Loupe closes it because it is no longer needed, the ask stays
+on screen. A line says why and links to the next open ask. The choices and the
+buttons lock, and your note stays readable.
+
+The page does not reload while a dialog is open. It reads the inbox when the
+dialog closes. This needs a Mercure hub and the `live_updates.enabled` flag.
+Without them, the page is correct each time it loads.
+
+### On a phone
+
+At phone width the list and the selected ask take turns. The page shows the
+list until you select a row. Then it shows the ask, with an **All asks** link
+above it. The link returns to the list.
 
 ## Searching
 
-Type in the search field above the asks. The page then lists the items whose
-title or body holds your words, best match first, 25 to a page. Closed items
-match too. The search matches whole words in the search language of the
-project, so in English "exports" also finds "export". An item in the results
-shows its forms when it still takes a response. The results use the same list
-and request layout as the queues. Select **Clear** to go back to the queues.
+Type in the search field above the list. The page then lists the asks that hold
+an item whose title or body holds your words, best match first, 25 to a page.
+An ask ranks by its best item. Closed asks match too, and an open item that no
+open ask holds is a row of its own. The search matches whole words in the
+search language of the project, so in English "exports" also finds "export".
+The type filter still applies to the results.
+
+During a search neither side of the switch is pressed. A closed ask shows how
+it ended in its grey line. Select **Clear** to return to the side you were on.
 
 ## When a bridge goes quiet
 
@@ -106,16 +181,40 @@ interval. See [Bridge heartbeat API](../reference/bridge-heartbeat.md).
 
 Every item that takes a response shows its forms under its text.
 
-- **Answer a question.** Pick an option, write an answer, or do both, as the
-  question allows. Then select **Send answer**. The page needs JavaScript to
-  send the options you pick.
+- **Answer a question.** The **Your answer** block lists the options, and says
+  whether you pick one or any. A hovered option turns grey, and a picked option
+  turns pale lime. Pick an option, write a note for the agent, or do both, as
+  the question allows. Then select **Send answer**. Select **Clear choice** at
+  the right of the block heading to remove your pick. The page needs JavaScript
+  to send the options you pick. A question with no options shows the same
+  block with one field, where you write your answer.
 - **Mark a to-do done.** Select **Mark complete**.
-- **Close an item.** Write an optional note for the agent in the answer field,
-  then select **Close this item**. Close any item that you cannot or will not
-  answer, including a question whose options do not fit.
+- **Decline an item.** Write an optional note for the agent in the note field,
+  then select **Decline**. Decline any item that you cannot or will not answer,
+  including a question whose options do not fit. A workflow question has no
+  **Decline**, because Loupe needs one of its options.
 
-The item then shows your response and its new state: answered, done or
-closed.
+The buttons sit at the right of the item, with the main button last. Only the
+project owner sees them. Another member who can see the project reads the ask
+and sees no buttons.
+
+### After you send a response
+
+The page opens the next ask. It takes the first ask below the one you closed,
+in the list you looked at. When the closed ask was the last one, it takes the
+ask above it. The filter you used still applies. An ask that still holds an open
+item stays open on the right, so you can answer the next item.
+
+A line above the ask says what happened. It names the ask that closed, such as
+"Answer sent. Which format? is closed.", and links to it with **View it**. When
+the ask stays open, the line counts the items that are left. The line shows
+once, so a reload removes it.
+
+When no ask is left, the page shows **Nothing needs you**. The closed ask is
+still on the **Closed** side.
+
+A search or the **Closed** side keeps the ask you answered. A response sent from
+a card or a document page returns to that page, as before.
 
 Unsent question answers keep their text and selected options when you close and reopen a card drawer in the same browser tab.
 A closing note also survives drawer replacement.
@@ -147,7 +246,7 @@ behind it finishes. Such an item takes no response from you.
 
 ## Review requests
 
-Open the linked document or pull request before choosing **Approve** or **Request changes**.
+Open the linked document or pull request before choosing **Approve** or **Request changes** in the **Your verdict** block.
 In a document review, Request changes needs a note only when the version has no open comment.
 A pull request review always needs a note that explains what to change.
 Select **Submit review** in the inbox, or on the card that links the request.
@@ -294,7 +393,7 @@ Each project has seven switches, one for each cause of a wait:
 - **Workflow paused the card**
 
 The switches are on the inbox settings page, at **Project settings > Inbox**.
-The **Settings** button at the top of the inbox page also opens it. Only the
+The **Settings** link in the top bar of the inbox page also opens it. Only the
 project owner can open the page. Every switch is on until you change it. An
 agent connected to the project can change the switches with the
 `inbox_settings_update` [MCP tool](mcp.md#changing-the-project-settings). A
@@ -366,18 +465,15 @@ An agent reads its answers with its own session id as `readerSessionId`.
 Open **All inboxes** in the lower part of the sidebar to see what waits on you
 in every project you own. The link is absent while the flag is off.
 
-The page groups by project, in project name order, and shows each project that
-has an open item. Each project shows how many items it has open, and its name
-links to its inbox. Inside a project, the page lists two things:
+The page shows one row for each project you own that has an open item, in
+project name order. Each row shows the first letter of the project, its name,
+the number of open asks, and how long its oldest open ask or item waits. An open
+item that no open ask holds counts as one ask, as on the **Open** side. A row
+also shows **Blocking** when it holds an open item that an agent waits on, in an
+open ask or outside one.
 
-1. **Open asks**, oldest first, each with its session, its context and the
-   number, state and title of each item.
-2. **Open items outside an open ask**, such as a to-do from an ask that already
-   closed.
-
-The page is read-only. Select **Answer in the project inbox** on an ask, or
-**Respond in the project inbox** on an item outside an open ask. The link opens
-that ask or item on its project inbox page, where the forms are.
+Select a row to open the inbox of its project, where the forms are. The page
+itself is read-only.
 
 ## On a card page and a document page
 
@@ -391,10 +487,10 @@ review**, or **Cards #N and #M wait on this review** for two or more cards. The
 item is absent while the flag is off, and when no card waits on the document.
 Answer the item in the inbox.
 
-The project inbox lists linked cards, documents, and the pull requests attached to those cards.
-Each pull request URL appears once per item, even when several linked cards share it.
-Web links open on the code host. Their status reads **Not reported** because Loupe does not fetch code-host status.
-Other stored addresses read **Unavailable**, with an explanation and no open action.
+The **Linked** panel of the project inbox lists linked cards, documents, and the pull requests attached to those cards.
+Each card, document and pull request URL appears once per ask, even when several items or cards share it.
+Web links open on the code host. Loupe does not fetch code-host status.
+Other stored addresses show a note that they are not web addresses, and have no link.
 
 A card link opens **Conversation** at the matching inbox item.
 If that item falls outside the ten newest closed items, it replaces the oldest item in that list.

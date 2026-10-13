@@ -508,8 +508,8 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame(['child-to-next'], $this->firingRuleIds($backlog));
         self::assertContainsEquals($toNext, $this->actions($backlog));
         self::assertNotContainsEquals($toNext, $this->actions(FactsMother::facts(card: FactsMother::card(slot: '@backlog'))));
-        $rules = $this->lifecycle()->rules;
-        self::assertSame('child-to-next', $rules[\count($rules) - 1]->id);
+        $tail = array_map(static fn ($rule): string => $rule->id, \array_slice($this->lifecycle()->rules, -2));
+        self::assertSame(['child-to-next', 'follow-up-to-next'], $tail);
     }
 
     public function test_an_epic_entering_implementation_evaluates_its_children_and_only_there(): void

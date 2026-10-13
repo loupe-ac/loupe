@@ -153,21 +153,8 @@ class InboxItemRepository extends ServiceEntityRepository
             ->setFirstResult(($page - 1) * $perPage)
             ->setMaxResults($perPage);
 
-        // One branch per language with a constant configuration, so Postgres can
-        // use the GIN index. The configuration comes from the enum, never from input.
-        $branches = [];
-        foreach ($this->searchLanguagesOf($project) as $index => $language) {
-            $branches[] = \sprintf(
-                "(i.searchLanguage = :searchLanguage%d AND TSMATCH(i.searchVector, WEBSEARCH_TO_TSQUERY('%s', :search)) = true)",
-                $index,
-                $language->value,
-            );
-            $qb->setParameter('searchLanguage'.$index, $language);
-        }
-
-        $qb->andWhere('('.implode(' OR ', $branches).')')
-            ->setParameter('search', $query)
-            ->orderBy('TS_RANK(i.searchVector, WEBSEARCH_TO_TSQUERY(CAST(i.searchLanguage AS regconfig), :search))', 'DESC')
+        $qb->andWhere(InboxSearchPredicate::match($qb, 'i', $this->searchLanguagesOf($project), $query))
+            ->orderBy(InboxSearchPredicate::rank('i'), 'DESC')
             ->addOrderBy('i.number', 'DESC');
 
         return new Paginator($qb->getQuery(), fetchJoinCollection: false);
@@ -256,6 +243,34 @@ class InboxItemRepository extends ServiceEntityRepository
             ->addOrderBy('i.id', 'ASC')
             ->getQuery()
             ->getResult());
+    }
+
+    /** The project's item with this number, or null. */
+    public function findOneByProjectAndNumber(Project $project, int $number): ?InboxItem
+    {
+        return $this->findOneBy(['project' => $project, 'number' => $number]);
+    }
+
+    /**
+     * Loads the card links of every item in one query, so a page that names the
+     * cards of many rows does not read them one item at a time.
+     *
+     * @param list<InboxItem> $items
+     */
+    public function loadCards(array $items): void
+    {
+        if ([] === $items) {
+            return;
+        }
+
+        $this->createQueryBuilder('i')
+            ->select('i', 'c', 'card')
+            ->leftJoin('i.cards', 'c')
+            ->leftJoin('c.card', 'card')
+            ->andWhere('i IN (:items)')
+            ->setParameter('items', $items)
+            ->getQuery()
+            ->getResult();
     }
 
     /** The item with this id inside this project, so a URL cannot reach another project's item. */
