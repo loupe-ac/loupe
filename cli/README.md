@@ -1232,7 +1232,7 @@ the hold.
 The resume runs `claude --resume` on the session with a fixed prompt, in a
 worker slot of the entry's pool. Its `queued` report carries `continues` with
 the run key, and the work kind of the run. A resume with the cause `ask-closed`
-gets the prompt of [Resuming a session](#resuming-a-session). The resume waits
+gets the prompt of [Resuming a session](#resuming-a-session). A resume with the cause `inbox-action` gets the prompt of a person's resume. The resume waits
 for any other worker of the card, and a paused bridge keeps it queued.
 
 A rerun, of the kind `rerun-command`, names a

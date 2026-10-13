@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\EventListener;
 
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Entity\InboxAction;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitReason;
@@ -29,7 +31,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_project_settings'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_project_settings', 'inbox_actions'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -121,6 +123,8 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($watch);
         $settings = new InboxProjectSettings($project);
         $this->em->persist($settings);
+        $action = new InboxAction($item, InboxActionKind::Dismiss, $owner);
+        $this->em->persist($action);
 
         return [$project, [
             'inbox_items' => $item,
@@ -131,6 +135,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_card_watches' => $watch,
             'inbox_card_waits' => $wait,
             'inbox_project_settings' => $settings,
+            'inbox_actions' => $action,
         ]];
     }
 

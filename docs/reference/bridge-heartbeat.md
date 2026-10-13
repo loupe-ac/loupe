@@ -316,7 +316,7 @@ holds, by `commandId`. Each command carries these fields:
 | `workRequestId`, `workKind`, `ruleId` | the work request of the run, or `null` for a run from before the work map |
 | `startedAt`, `endedAt` | the start and the end of the run, as RFC 3339 dates to the second, or `null` when the run has none |
 | `expiresAt` | the time the command expires, as an RFC 3339 date |
-| `cause` | `person` when a person asked, or `ask-closed` when Loupe resumes a session whose ask the owner closed. The bridge words the resume prompt from it |
+| `cause` | `person` when a person asked, `ask-closed` when Loupe resumes a session whose ask the owner closed, or `inbox-action` when the owner clicked an action on an inbox item. The bridge words the resume prompt from it. An `inbox-action` resume uses the prompt of a person's resume |
 | `context` | the context of the work request of the run, taken when the command was stored, with the five keys of the [work request context](#work-requests). Each key is `null` for a run with no work request. A server from before the context sends no `context` key |
 | `model`, `effort` | the [model and the effort](#work-requests) of the work request of the run, taken when the command was stored, or `null`. A resume runs with them, as the first run did. A server from before these keys sends none |
 | `harness`, `account`, `runModel` | what the run started on, as its reports recorded them, or `null` when a report named none. A resume runs on that account, with that model. A server from before these keys sends none of them |
