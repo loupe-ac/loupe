@@ -95,3 +95,23 @@ test('the catalog draws each form part', async ({ page }) => {
         ).toBeVisible();
     }
 });
+
+test('the catalog draws the app shell inside its frame', async ({ page }) => {
+    await page.goto('/styleguide');
+    const section = page.locator('[data-component="AppShell"]');
+    await expect(section).toBeVisible();
+    for (const selector of [
+        '.lp-sidebar',
+        '.lp-sidebar__link--active',
+        '.lp-topbar__crumb',
+        '.lp-main',
+    ]) {
+        await expect(section.locator(selector).first()).toBeVisible();
+    }
+
+    const frame = await section
+        .locator('.lp-styleguide__specimen')
+        .boundingBox();
+    const shell = await section.locator('.lp-app').boundingBox();
+    expect(shell!.height).toBeLessThanOrEqual(frame!.height);
+});

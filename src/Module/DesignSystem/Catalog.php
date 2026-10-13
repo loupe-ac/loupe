@@ -228,6 +228,18 @@ readonly class Catalog
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
             ),
+            new ComponentEntry(
+                name: 'AppShell',
+                rootClass: 'lp-app',
+                template: null,
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column.',
+                element: 'div',
+                export: 'AppShell',
+            ),
         ];
     }
 }

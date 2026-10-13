@@ -1,0 +1,49 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }} It draws the markup of the signed-in pages: the project switcher, the nav, the account row and the top bar. The page goes in as the children.
+ *
+ * @startingPoint section="{{ section }}" subtitle="The page frame with sidebar and top bar" viewport="900x520"
+ */
+export interface {{ entry.name }}Props {
+    /** The current project, shown in the project switcher. */
+    projectName?: string;
+    /** The nav link that is current. */
+    active?:
+        | 'workshop'
+        | 'inbox'
+        | 'board'
+        | 'documents'
+        | 'artifacts'
+        | 'agents'
+        | 'workflow'
+        | 'activity'
+        | 'analytics'
+        | 'outbox'
+        | 'project_settings'
+        | 'billing'
+        | 'account_inboxes'
+        | 'account'
+        | 'admin'
+        | 'about';
+    /** The breadcrumb. A string is a crumb with no link target. The last one is the page you are on. */
+    crumbs?: Array<string | { label: string; href: string }>;
+    /** A short line after the breadcrumb, such as a count. */
+    meta?: ReactNode;
+    /** Page actions in the top bar, before the New work button. */
+    actions?: ReactNode;
+    /** The signed-in user, shown in the account row. */
+    userName?: string;
+    /** Numbers shown beside a nav link, keyed by the link name. */
+    counts?: { [link: string]: number };
+    /** The document count that the project switcher shows for the current project. */
+    documentCount?: number;
+    className?: string;
+    /** The page. It fills the main column. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

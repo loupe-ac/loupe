@@ -232,6 +232,69 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
     }
 
+    public function test_the_export_writes_the_app_shell_wrapper_and_names_it_on_the_layout_card(): void
+    {
+        foreach (['AppShell.jsx', 'AppShell.d.ts', 'AppShell.prompt.md', 'layout.card.html'] as $file) {
+            self::assertContains('components/layout/'.$file, $this->written);
+        }
+
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        self::assertStringContainsString("dsFind('AppShell')", $card);
+        self::assertStringContainsString('<AppShell projectName="Acme"', $card);
+        self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
+
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+        self::assertStringContainsString('className?: string;', $types);
+        self::assertStringContainsString('[attribute: string]: unknown;', $types);
+    }
+
+    public function test_the_app_shell_wrapper_forwards_attributes_and_merges_a_caller_class(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        self::assertStringContainsString('className: extra', $jsx);
+        self::assertStringContainsString('classes.push(extra)', $jsx);
+        self::assertStringContainsString('<div {...rest} className={className}>', $jsx);
+    }
+
+    public function test_the_stylesheet_holds_the_real_shell_rules(): void
+    {
+        $css = (string) file_get_contents($this->directory.'/styles.css');
+
+        foreach (['.lp-sidebar__link', '.lp-topbar__crumb', '.lp-shell'] as $selector) {
+            self::assertStringContainsString($selector, $css);
+        }
+    }
+
+    public function test_the_app_shell_wrapper_draws_every_shell_class_of_the_base_template(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        preg_match_all('/lp-(?:app|shell|main|scrim|sidebar|switcher|topbar)[a-z_-]*/', $base, $matches);
+        $classes = array_unique($matches[0]);
+
+        self::assertNotEmpty($classes);
+        foreach ($classes as $class) {
+            self::assertStringContainsString($class, $jsx, sprintf('base.html.twig uses %s and the wrapper does not.', $class));
+        }
+    }
+
+    public function test_the_app_shell_wrapper_has_a_link_for_every_nav_link_of_the_base_template(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        preg_match_all('/nav\.link\.([a-z_]+)/', $base, $matches);
+        $names = array_unique($matches[1]);
+
+        self::assertNotEmpty($names);
+        foreach ($names as $name) {
+            self::assertStringContainsString("key: '".$name."'", $jsx, sprintf('base.html.twig has nav.link.%s and the wrapper has no link for it.', $name));
+        }
+    }
+
     public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void
     {
         $directory = sys_get_temp_dir().'/ds-export-layout-'.bin2hex(random_bytes(4));
@@ -273,7 +336,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart.d.ts'));
 
             $card = (string) file_get_contents($directory.'/components/layout/layout.card.html');
-            self::assertStringContainsString("dsFind('SamplePart')", $card);
+            self::assertStringContainsString("dsFind('AppShell', 'SamplePart')", $card);
             self::assertStringContainsString('<SamplePart title="Example" />', $card);
             self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
             self::assertStringNotContainsString('<Button', $card);

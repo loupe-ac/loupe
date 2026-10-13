@@ -1,0 +1,18 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+Loupe's app shell. {{ entry.summary }}
+
+```jsx
+<{{ entry.name }}
+  projectName="Acme"
+  active="board"
+  crumbs={['Acme', 'Board']}
+  userName="riley@example.com"
+>
+  <h1>Board</h1>
+</{{ entry.name }}>
+```
+
+Wrap every signed-in page in it. The sidebar and the top bar are part of the shell, so do not draw your own. The page content goes in as the children. Pass `meta` for a short line after the breadcrumb and `actions` for page buttons in the top bar. The New work button is always there.
+
+`active` takes the name of a nav link. The wrapper holds the same links as the app, with the same labels. The component emits the real `{{ entry.rootClass }}`, `lp-sidebar`, `lp-topbar` and `lp-main` classes of the app.
+{% endautoescape %}

@@ -29,7 +29,7 @@ A new token appears on the styleguide with no other change.
 ## The stylesheets
 
 1. `tokens.css` holds the tokens and nothing else.
-2. `components/<name>.css` holds the styles of one building block. A child card adds each file with its component.
+2. `components/<name>.css` holds the styles of one building block. A child card adds each file with its component. `components/shell.css` holds the app shell, which has no Twig component.
 3. `app.css` imports both, and holds the rules of the features.
 
 The widget and the email stylesheet cannot import `tokens.css`. They hold copies of the values they need, and a test keeps each copy equal to the token.
@@ -134,6 +134,54 @@ A plain field uses `Input`, `Select` or `Textarea`. A Symfony widget in a custom
 
 `just gamache` blocks a template that writes `lp-input`, `lp-select`, `lp-textarea`, `lp-label`, `lp-form-field`, `lp-field-errors` or `lp-form-hint` by hand.
 
+### The page parts
+
+A page part is the frame of a page. It sits in the `layout` group of the catalog. The catalog entry names its root class, and its export wrapper draws the inner structure.
+
+| Part | Use | Root class |
+|---|---|---|
+| AppShell | The frame of every signed-in page: the sidebar, the top bar and the main column | `lp-app` |
+
+`templates/base.html.twig` draws the app shell. It stays there, because the sidebar reads the current user, the current project, the feature flags and the routes. The CSS lives in `assets/styles/components/shell.css`, which `app.css` and `design-system.css` both import.
+
+The export wrapper in `templates/Module/DesignSystem/export/layout/AppShell/` is a second copy of that markup. It holds the nav links with their English labels and draws the icons as inline SVG. `ExportDesignSystemHandlerTest` keeps the copy in step: every shell class and every `nav.link.*` key of `base.html.twig` must appear in the wrapper. Change both files when you change the shell markup.
+
+The wrapper takes these props: `projectName`, `active` (the name of the current nav link), `crumbs`, `meta`, `actions`, `userName`, `counts` and `documentCount`. The page goes in as the children:
+
+```jsx
+<AppShell projectName="Acme" active="board" crumbs={['Acme', 'Board']} userName="riley@example.com">
+  <h1>Board</h1>
+</AppShell>
+```
+
+These are the documented shell classes.
+
+| Class | What it is |
+|---|---|
+| `lp-app` | The root. A flex row that fills the window, with the dark chrome colour |
+| `lp-sidebar` | The left rail. `lp-sidebar--drawer` makes it a slide-in drawer below the `lg` breakpoint, and `lp-sidebar--open` opens it |
+| `lp-sidebar__close` | The button that closes the drawer |
+| `lp-sidebar__brand` and `lp-sidebar__brand-mark` | The logo lockup |
+| `lp-sidebar__switcher` and its `__avatar`, `__text`, `__label`, `__name`, `__caret` parts | The button that shows the current project |
+| `lp-switcher` | The wrapper of the switcher button and its panel |
+| `lp-switcher__panel` | The list of projects that drops under the button |
+| `lp-switcher__item` and its `__avatar`, `__text`, `__name`, `__count`, `__check` parts | One project in the panel |
+| `lp-switcher__all` and `lp-switcher__all-glyph` | The link to all projects |
+| `lp-sidebar__nav` | A group of links. `lp-sidebar__nav--secondary` is the group at the bottom |
+| `lp-sidebar__nav-label` | The heading of a group. `--spaced` adds space above it |
+| `lp-sidebar__link` | One nav link. `--active` marks the current page, and `__label` holds its text |
+| `lp-sidebar__pill` | A count at the end of a link. `--amber` is the colour for something that waits on you |
+| `lp-sidebar__spacer` | Pushes the bottom group down |
+| `lp-sidebar__account` and its `__avatar`, `__text`, `__name`, `__logout-form`, `__logout` parts | The signed-in user and the log out button |
+| `lp-scrim` | Dims the page behind an open drawer |
+| `lp-shell` | The column to the right of the sidebar. It holds the top bar and the main column |
+| `lp-topbar` | The bar above the page |
+| `lp-topbar__menu` | The button that opens the drawer |
+| `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
+| `lp-topbar__global-actions` | The tools at the right end of the bar |
+| `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
+| `lp-main` | The main column. It is the only scroll container of the page |
+
 ## The Claude Design copy
 
 A Claude Design project holds a copy of the design system. The app repository is the source of the copy.
@@ -161,7 +209,7 @@ A part with an inner structure, such as a sidebar, sets `export` on its catalog 
 
 The command never writes `_ds_bundle.js`, `_ds_manifest.json`, `_adherence.oxlintrc.json`, `.thumbnail` or `ds-mount.js`. The platform makes those files.
 
-The command does not copy icons. A catalog entry that needs icons must add them to the command.
+The command does not copy icons. A wrapper that needs icons draws them as inline SVG, as the AppShell wrapper does.
 
 ## The rules
 

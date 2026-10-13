@@ -8942,6 +8942,12 @@
     .lp-styleguide__specimen .lp-dialog {
         @apply static w-full;
     }
+    /* The shell fills the viewport, so the frame gives it a fixed height and
+       contains it. */
+    .lp-styleguide__specimen .lp-app {
+        @apply h-160 w-full overflow-hidden rounded-xl;
+        contain: layout paint;
+    }
     .lp-styleguide__tooltip-anchor {
         @apply relative inline-block pb-16 text-sm font-semibold text-ink;
     }
