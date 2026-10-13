@@ -11,7 +11,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /** The Markdown a stale approval notice posts on the pull request. */
-final readonly class StaleApprovalNoticeBody
+final readonly class StaleApprovalNoticeBody implements PullRequestNoticeBody
 {
     private const string KEY_PREFIX = 'stale-approval:';
 
@@ -28,14 +28,15 @@ final readonly class StaleApprovalNoticeBody
         return self::KEY_PREFIX.$headSha;
     }
 
-    /** A hidden line that lets a retry find the comment an earlier try already posted. */
-    public static function marker(string $noticeKey): string
+    #[\Override]
+    public function supports(string $noticeKey): bool
     {
-        return '<!-- loupe-notice: '.$noticeKey.' -->';
+        return str_starts_with($noticeKey, self::KEY_PREFIX);
     }
 
     /** Delivery is async, so a new head, a new approval or a merge can outdate the notice before it posts. */
-    public static function stillHolds(PullRequestNotice $notice, ForgePullRequest $pullRequest): bool
+    #[\Override]
+    public function stillHolds(PullRequestNotice $notice, ForgePullRequest $pullRequest): bool
     {
         return PullRequestState::Open === $pullRequest->state
             && null !== $pullRequest->headSha
@@ -44,14 +45,14 @@ final readonly class StaleApprovalNoticeBody
             && $pullRequest->approvalIsStale();
     }
 
+    #[\Override]
     public function of(PullRequestNotice $notice): string
     {
-        if (!str_starts_with($notice->noticeKey, self::KEY_PREFIX)) {
+        if (!$this->supports($notice->noticeKey)) {
             throw new \LogicException('Not a stale approval notice: '.$notice->noticeKey);
         }
         $sha = substr($notice->noticeKey, \strlen(self::KEY_PREFIX), 7);
 
-        return self::marker($notice->noticeKey)."\n\n"
-            .$this->translator->trans('board.stale_approval_notice.body', ['%sha%' => $sha], 'messages', $this->locale);
+        return $this->translator->trans('board.stale_approval_notice.body', ['%sha%' => $sha], 'messages', $this->locale);
     }
 }

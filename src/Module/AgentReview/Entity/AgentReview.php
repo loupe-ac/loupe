@@ -38,6 +38,7 @@ class AgentReview
     #[ORM\Column]
     public int $annotationsPosted = 0;
 
+    /** When the first check of this review landed. A repost of the same check, such as for an override, keeps it. */
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $postedAt = null;
 

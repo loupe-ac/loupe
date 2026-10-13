@@ -5,15 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Messenger\PostPullRequestNotice;
 use App\Module\Board\Repository\PullRequestNoticeRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Service\PullRequestCommenters;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Clock\ClockInterface;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\Messenger\MessageBusInterface;
 
 /** A stale approval starts no merge worker, so the board tells the pull request once per head. */
 final readonly class StaleApprovalNoticeQueue
@@ -22,10 +18,8 @@ final readonly class StaleApprovalNoticeQueue
         private CardPullRequests $cardPullRequests,
         private PullRequestCommenters $commenters,
         private PullRequestNoticeRepository $pullRequestNotices,
+        private PullRequestNoticeQueue $queue,
         private EntityManagerInterface $em,
-        private MessageBusInterface $bus,
-        private ClockInterface $clock,
-        private LoggerInterface $logger,
     ) {
     }
 
@@ -57,38 +51,9 @@ final readonly class StaleApprovalNoticeQueue
     {
         $queued = false;
         foreach ($this->unnoticed($card) as $pullRequest) {
-            $queued = $this->queuePullRequest($pullRequest) || $queued;
+            $queued = $this->queue->queue($pullRequest, StaleApprovalNoticeBody::key($pullRequest->headSha ?? throw new \LogicException('A stale approval has a head.'))) || $queued;
         }
 
         return $queued;
-    }
-
-    private function queuePullRequest(ForgePullRequest $pullRequest): bool
-    {
-        $projectId = $pullRequest->project->id ?? throw new \LogicException('A stored pull request has a project id.');
-        $pullRequestId = $pullRequest->id ?? throw new \LogicException('A stored pull request has an id.');
-        $key = StaleApprovalNoticeBody::key($pullRequest->headSha ?? throw new \LogicException('A stale approval has a head.'));
-
-        // A DBAL transaction nests as a savepoint in the transaction of the evaluation.
-        $noticeId = $this->em->getConnection()->transactional(function () use ($projectId, $pullRequestId, $pullRequest, $key) {
-            $noticeId = $this->pullRequestNotices->insertIfMissing($projectId, $pullRequestId, $pullRequest->forge, $pullRequest->repository, $pullRequest->number, $key, $this->clock->now());
-            if (null !== $noticeId) {
-                $this->bus->dispatch(new PostPullRequestNotice($noticeId));
-            }
-
-            return $noticeId;
-        });
-        if (null === $noticeId) {
-            return false;
-        }
-
-        $this->logger->info('board.pull_request_notice_queued', [
-            'noticeId' => (string) $noticeId,
-            'projectId' => (string) $projectId,
-            'forgePullRequestId' => (string) $pullRequestId,
-            'noticeKey' => $key,
-        ]);
-
-        return true;
     }
 }

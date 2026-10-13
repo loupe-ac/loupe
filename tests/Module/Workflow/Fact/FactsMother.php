@@ -85,7 +85,7 @@ final class FactsMother
             ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker), new ParentFacts($card->isChild)),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
-            ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false)),
+            ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
         ];

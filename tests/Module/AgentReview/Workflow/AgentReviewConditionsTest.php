@@ -10,6 +10,7 @@ use App\Module\AgentReview\Workflow\Condition\AgentReviewDue;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewFailed;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewOverridden;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewPassed;
+use App\Module\AgentReview\Workflow\Condition\AgentReviewUncommented;
 use App\Module\AgentReview\Workflow\Condition\AgentReviewUnposted;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Workflow\Contract\Condition;
@@ -73,6 +74,8 @@ final class AgentReviewConditionsTest extends TestCase
         yield 'overridden: epic' => [new AgentReviewOverridden(), self::review([$overridden], epic: true), false];
         yield 'unposted: all posted' => [new AgentReviewUnposted(), self::review([$success]), false];
         yield 'unposted: a review waits' => [new AgentReviewUnposted(), self::review([$success], unposted: true), true];
+        yield 'uncommented: none waits' => [new AgentReviewUncommented(), self::review([$success]), false];
+        yield 'uncommented: a review waits' => [new AgentReviewUncommented(), self::review([$success], uncommented: ['review-1']), true];
     }
 
     #[DataProvider('cases')]
@@ -99,7 +102,7 @@ final class AgentReviewConditionsTest extends TestCase
 
     public function test_each_condition_has_a_key_and_a_waiting_message_for_both_senses(): void
     {
-        foreach ([new AgentReviewDue(), new AgentReviewFailed(), new AgentReviewPassed(), new AgentReviewOverridden(), new AgentReviewUnposted()] as $condition) {
+        foreach ([new AgentReviewDue(), new AgentReviewFailed(), new AgentReviewPassed(), new AgentReviewOverridden(), new AgentReviewUnposted(), new AgentReviewUncommented()] as $condition) {
             self::assertStringStartsWith('agent_review.', $condition::key());
             self::assertSame('workflow.source.agent_review', $condition::source());
             self::assertNotSame($condition->waitingFor([])->getMessage(), $condition->waitingFor([], negated: true)->getMessage());
@@ -111,10 +114,13 @@ final class AgentReviewConditionsTest extends TestCase
         return new ReviewedHead($pullRequestId, str_repeat('a', 40), $conclusion, $answered, $overriddenBy);
     }
 
-    /** @param list<ReviewedHead> $heads */
-    private static function review(array $heads, bool $epic = false, bool $unposted = false): AgentReviewFacts
+    /**
+     * @param list<ReviewedHead> $heads
+     * @param list<string>       $uncommented
+     */
+    private static function review(array $heads, bool $epic = false, bool $unposted = false, array $uncommented = []): AgentReviewFacts
     {
-        return new AgentReviewFacts($heads, $epic, $unposted);
+        return new AgentReviewFacts($heads, $epic, $unposted, $uncommented);
     }
 
     private static function facts(AgentReviewFacts $review): Facts
