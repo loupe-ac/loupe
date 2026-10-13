@@ -60,6 +60,29 @@ final class InboxListToolTest extends KernelTestCase
         self::assertSame(['agent', 'loupe'], array_column($result['items'], 'origin'));
     }
 
+    public function test_two_wait_items_with_the_same_title_name_their_cards(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-list-card-numbers');
+        $first = $this->card($this->em, $project, 4);
+        $second = $this->card($this->em, $project, 7);
+        $this->em->flush();
+        foreach ([$first, $second] as $card) {
+            $this->documentInReview($project, $card);
+            $this->reconcileWaits($project, $card);
+        }
+        $this->actAsMcpTokenBoundTo($project);
+        $this->askQuestion('From an agent');
+        $this->em->clear();
+
+        $items = ($this->tool)()['items'];
+        $rows = ($this->tool)(readerSessionId: (string) Uuid::v4())['items'];
+
+        self::assertSame(['From an agent', 'Document version 1 waits for your review', 'Document version 1 waits for your review'], array_column($items, 'title'));
+        self::assertSame([[], [7], [4]], array_column($items, 'cardNumbers'));
+        self::assertSame([[], [7], [4]], array_column($rows, 'cardNumbers'));
+    }
+
     public function test_the_items_of_the_project_read_newest_first_and_another_project_s_are_absent(): void
     {
         $this->enableInbox();
