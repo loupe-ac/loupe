@@ -250,7 +250,7 @@ final readonly class CardPayload
                 $links,
             ),
             // The kind reads from this card's side: the target of a blocks
-            // link reads blocked-by.
+            // link reads blocked-by, and the target of a has-follow-up link reads follow-up-of.
             'relatedCards' => array_map(
                 static fn (RelatedCard $related): array => [
                     'cardId' => (string) $related->card->id,

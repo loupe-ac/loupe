@@ -609,7 +609,7 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * The parents of these cards and the cards they block, each once, without the given ids.
+     * The parents of these cards, the cards they block and their follow-ups, each once, without the given ids.
      *
      * @param list<string> $cardIds
      *
@@ -627,7 +627,7 @@ class CardRepository extends ServiceEntityRepository
                  WHERE c.id IN (:ids)
                  UNION
                  SELECT t.id, 1 AS rank, t.number FROM board_card_links l JOIN board_cards t ON t.id = l.target_card_id
-                 WHERE l.kind = 'blocks' AND l.source_card_id IN (:ids)
+                 WHERE l.kind IN ('blocks', 'has-follow-up') AND l.source_card_id IN (:ids)
              ) r
              WHERE r.id NOT IN (:ids)
              ORDER BY r.rank, r.number",
@@ -706,6 +706,25 @@ class CardRepository extends ServiceEntityRepository
              ORDER BY s.number",
             ['id' => (string) $card->id],
         ));
+    }
+
+    /**
+     * How many cards this card follows, and how many of them sit in a column that is not terminal.
+     *
+     * @return array{followed: int, open: int}
+     */
+    public function followedCardsOpenCount(Card $card): array
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            "SELECT COUNT(*) AS followed, COUNT(*) FILTER (WHERE k.terminal = false) AS open
+             FROM board_card_links l
+             JOIN board_cards s ON s.id = l.source_card_id
+             JOIN board_columns k ON k.id = s.column_id
+             WHERE l.target_card_id = :id AND l.kind = 'has-follow-up'",
+            ['id' => (string) $card->id],
+        );
+
+        return ['followed' => (int) ($row['followed'] ?? 0), 'open' => (int) ($row['open'] ?? 0)];
     }
 
     /**
