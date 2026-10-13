@@ -242,28 +242,6 @@
     .lp-topbar__lead {
         @apply flex flex-col justify-center gap-y-0.5 min-w-0 flex-1 basis-0 lg:flex-row lg:flex-wrap lg:items-baseline lg:justify-start lg:gap-x-3.5 lg:gap-y-1;
     }
-    .lp-topbar__trail {
-        @apply flex items-baseline gap-2 min-w-0 max-w-full;
-    }
-    /* Below lg the bar holds the document title alone. A crumb, a separator and
-       a version pill beside it leave the title nothing to truncate into. */
-    .lp-topbar__crumb,
-    .lp-topbar__sep,
-    .lp-topbar__trail .lp-version-pill {
-        @apply hidden lg:inline-flex;
-    }
-    .lp-topbar__crumb {
-        @apply text-sm text-fg-dim no-underline transition-colors;
-    }
-    .lp-topbar__crumb:hover {
-        @apply text-ink;
-    }
-    .lp-topbar__sep {
-        @apply text-sm text-fg-dim;
-    }
-    .lp-topbar__here {
-        @apply text-sm font-medium text-ink min-w-0 truncate;
-    }
     .lp-topbar__meta {
         @apply text-fg-dim truncate text-xs lg:text-sm lg:whitespace-nowrap;
     }
@@ -321,11 +299,6 @@
         }
         .lp-topbar__lead {
             @apply flex-row flex-wrap items-baseline justify-start gap-x-3.5 gap-y-1;
-        }
-        .lp-topbar__crumb,
-        .lp-topbar__sep,
-        .lp-topbar__trail .lp-version-pill {
-            @apply inline-flex;
         }
         .lp-topbar__meta {
             @apply text-sm whitespace-nowrap;

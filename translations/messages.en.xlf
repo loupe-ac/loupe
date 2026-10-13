@@ -2026,6 +2026,10 @@
                 <source>nav.link.account</source>
                 <target>Account</target>
             </trans-unit>
+            <trans-unit id="nav.breadcrumbs.label">
+                <source>nav.breadcrumbs.label</source>
+                <target>Breadcrumb</target>
+            </trans-unit>
             <trans-unit id="nav.drawer.open">
                 <source>nav.drawer.open</source>
                 <target>Open navigation</target>

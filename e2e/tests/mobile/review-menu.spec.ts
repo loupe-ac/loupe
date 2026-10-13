@@ -167,7 +167,7 @@ test('the review bar is one row of the height of the desktop bar', async ({
     // overflow and still renders one letter and a dot.
     const widths = await page.evaluate(() => {
         const lead = document.querySelector('.lp-topbar__lead');
-        const here = document.querySelector('.lp-topbar__here');
+        const here = document.querySelector('.lp-crumbs__here');
         return {
             lead: lead === null ? 0 : lead.getBoundingClientRect().width,
             here: here === null ? 0 : here.getBoundingClientRect().width,
@@ -183,7 +183,7 @@ test('a title that fits the bar is not clipped', async ({ page }) => {
     const short = await seedDocument(page, SHORT_TITLE);
     await page.goto(reviewPath(short));
 
-    for (const spill of await overflowOf(page, '.lp-topbar__here')) {
+    for (const spill of await overflowOf(page, '.lp-crumbs__here')) {
         expect(spill, 'a title that fits is still clipped').toBeLessThanOrEqual(
             0,
         );
@@ -352,14 +352,14 @@ test('the diff bar names the document, not the comparison', async ({
     );
     await page.goto(`${reviewPath(revised)}/diff/1/2`);
 
-    const here = page.locator('.lp-topbar__here');
+    const here = page.locator('.lp-crumbs__here');
     await expect(here).toHaveText(DOCUMENT_TITLE);
 
     // The title has to hold the bar as well as read it. A lead squeezed to
     // nothing reports no overflow and still renders one letter and a dot.
     const widths = await page.evaluate(() => {
         const lead = document.querySelector('.lp-topbar__lead');
-        const slot = document.querySelector('.lp-topbar__here');
+        const slot = document.querySelector('.lp-crumbs__here');
         return {
             lead: lead === null ? 0 : lead.getBoundingClientRect().width,
             here: slot === null ? 0 : slot.getBoundingClientRect().width,

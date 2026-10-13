@@ -69,11 +69,10 @@
     <div class="lp-shell">
         <header class="lp-topbar">
             <div class="lp-topbar__lead">
-                <nav class="lp-topbar__trail">
-                    <a class="lp-topbar__crumb" href="#">Acme</a>
-                    <span class="lp-topbar__sep">/</span>
-                    <span class="lp-topbar__here">Board</span>
-                </nav>
+                <twig:Ds:Breadcrumbs :items="[
+                    {label: 'Documents', url: '#'},
+                    {label: 'Tech design'},
+                ]" />
                 <span class="lp-topbar__meta">12 cards</span>
             </div>
             <div class="lp-topbar__global-actions">

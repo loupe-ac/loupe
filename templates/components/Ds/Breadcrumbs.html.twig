@@ -1,0 +1,21 @@
+{#
+  Props:
+    items  list  Each item is {label, url = null}. The last item is the current page.
+  The content block draws after the list, such as a version pill.
+#}
+{%- props items = [] -%}
+<nav{{ attributes.defaults({class: 'lp-crumbs', 'aria-label': 'nav.breadcrumbs.label'|trans}) }}>
+    <ol class="lp-crumbs__list">
+        {%- for item in items %}
+        {%- if loop.last %}
+        <li class="lp-crumbs__item lp-crumbs__item--current"><span class="lp-crumbs__here" aria-current="page">{{ item.label }}</span></li>
+        {%- else %}
+        <li class="lp-crumbs__item">
+            {%- if item.url|default(null) %}<a class="lp-crumbs__link" href="{{ item.url }}">{{ item.label }}</a>{% else %}<span class="lp-crumbs__link">{{ item.label }}</span>{% endif -%}
+            <span class="lp-crumbs__sep" aria-hidden="true">/</span>
+        </li>
+        {%- endif %}
+        {%- endfor %}
+    </ol>
+    {%- block content %}{% endblock %}
+</nav>

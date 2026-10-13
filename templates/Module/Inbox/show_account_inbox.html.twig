@@ -3,7 +3,9 @@
 {% block title %}{{ 'inbox.account.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__here">{{ 'inbox.account.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'inbox.account.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}

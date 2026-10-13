@@ -3,9 +3,9 @@
 {% block title %}{{ 'board.automation.heading'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__crumb">{{ project.name }}</span>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.project_settings'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans},
+    ]" />
 {% endblock %}
 
 {% block settings_section 'automation' %}

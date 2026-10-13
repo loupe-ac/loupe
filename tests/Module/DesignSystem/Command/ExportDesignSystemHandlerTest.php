@@ -322,7 +322,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }
@@ -372,7 +372,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
@@ -436,7 +436,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     {
         $css = (string) file_get_contents($this->directory.'/styles.css');
 
-        foreach (['.lp-sidebar__link', '.lp-topbar__crumb', '.lp-shell'] as $selector) {
+        foreach (['.lp-sidebar__link', '.lp-crumbs__link', '.lp-shell'] as $selector) {
             self::assertStringContainsString($selector, $css);
         }
     }
@@ -668,7 +668,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString("| 'workshop'", $types);
         self::assertStringContainsString('<PageHeader title=', $prompt);
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
         self::assertStringContainsString('<PageHeader variant="workshop"', $card);
         self::assertStringNotContainsString('<Button', $card);
     }

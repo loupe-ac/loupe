@@ -18,6 +18,7 @@
 @import './components/tooltip.css';
 @import './components/shell.css';
 @import './components/nav-item.css';
+@import './components/breadcrumbs.css';
 @import './components/page-header.css';
 @import './components/workspace.css';
 @import './components/split-view.css';
@@ -3432,25 +3433,6 @@
     }
     .lp-project-new__panel.open {
         @apply block;
-    }
-
-    /* ── Breadcrumb (handoff §2) ────────────────────────────────────── */
-
-    /* Mono, 12px, dim. `{project} / Documents` above the page title. */
-    .lp-crumbs {
-        @apply flex items-center gap-2 font-mono text-fg-dim m-0 text-xs;
-    }
-    .lp-crumbs__link {
-        @apply text-fg-dim no-underline transition-colors;
-    }
-    .lp-crumbs__link:hover {
-        @apply text-fg;
-    }
-    .lp-crumbs__sep {
-        @apply text-fg-faint;
-    }
-    .lp-crumbs__here {
-        @apply text-fg-mute;
     }
 
     /* ── Documents list ─────────────────────────────────────────────── */

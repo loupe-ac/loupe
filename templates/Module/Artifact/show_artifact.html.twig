@@ -7,9 +7,10 @@
 {% block main_surface 'fill' %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_artifacts', {id: project.id}) }}">{{ 'nav.link.artifacts'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ artifact.name }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.artifacts'|trans, url: path('app_project_artifacts', {id: project.id})},
+        {label: artifact.name},
+    ]" />
 {% endblock %}
 
 {% block body %}

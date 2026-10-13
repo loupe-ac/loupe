@@ -7,10 +7,12 @@
 {% block main_surface 'paper' %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: document.project.id}) }}">{{ 'nav.link.documents'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ document.title }}</span>
-    <span class="lp-version-pill">{{ 'v' ~ version.versionNumber }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.documents'|trans, url: path('app_project_documents', {id: document.project.id})},
+        {label: document.title},
+    ]">
+        <span class="lp-version-pill">{{ 'v' ~ version.versionNumber }}</span>
+    </twig:Ds:Breadcrumbs>
 {% endblock %}
 
 {# The thread counts live in the Comments panel and its toolbar button. #}

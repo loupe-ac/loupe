@@ -134,7 +134,7 @@
                            different sizes, so centring each against the bar
                            independently leaves their text sitting off each other. #}
                         <div class="lp-topbar__lead">
-                            <nav class="lp-topbar__trail">{% block topbar_crumbs %}{% endblock %}</nav>
+                            {% block topbar_crumbs %}{% endblock %}
                             {% block topbar_meta %}{% endblock %}
                         </div>
                         {# Before the global actions, so the bell and New work stay right-most on every page. #}
