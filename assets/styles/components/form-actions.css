@@ -1,0 +1,10 @@
+/* The row of form buttons. `templates/components/Ds/FormActions.html.twig` renders it. */
+@layer components {
+    .lp-form-actions {
+        @apply flex flex-wrap items-center justify-end gap-3 pt-2;
+    }
+    /* The first control sits left and the rest stay right. */
+    .lp-form-actions--between > :first-child {
+        @apply mr-auto;
+    }
+}

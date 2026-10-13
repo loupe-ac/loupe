@@ -1,0 +1,8 @@
+{#
+  Props:  @comment-budget-ignore
+    as   string   The element, div by default. section, article or a for a card of its own.
+  The content is the body of the panel.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props as = 'div' -%}
+<{{ as }}{{ attributes.defaults({class: 'lp-panel'}) }}>{% block content %}{% endblock %}</{{ as }}>

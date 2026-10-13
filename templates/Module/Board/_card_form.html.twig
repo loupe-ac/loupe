@@ -63,10 +63,10 @@
     </twig:Ds:FormField>
     {% do linkRows.setRendered %}
 
-    <div class="flex items-center justify-end gap-3 pt-2">
+    <twig:Ds:FormActions>
         <twig:Ds:Button variant="ghost" class="mr-auto" href="{{ cancelUrl }}" :data-turbo-frame="cancelLeavesFrame ? '_top' : null" :data-action="cancelLeavesFrame ? 'card-drawer#close' : null">{{ 'board.card.form.cancel'|trans }}</twig:Ds:Button>
         <twig:Ds:Button variant="primary" type="submit" data-turbo-submits-with="{{ busyLabel|trans }}" data-submit-feedback-target="button">{{ submitLabel|trans }}</twig:Ds:Button>
-    </div>
+    </twig:Ds:FormActions>
     <p class="sr-only" role="status" data-submit-feedback-target="status"></p>
 
     {% if card %}

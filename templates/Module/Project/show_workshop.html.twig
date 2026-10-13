@@ -28,7 +28,7 @@
             </div>
         </header>
         <section class="lp-readiness-discovery" aria-labelledby="readiness-discovery-title">
-            <h2 class="lp-workshop-section__title" id="readiness-discovery-title">{{ 'readiness.discovery.title'|trans }}</h2>
+            <twig:Ds:SectionHeading titleId="readiness-discovery-title">{{ 'readiness.discovery.title'|trans }}</twig:Ds:SectionHeading>
             <p>{{ 'readiness.discovery.body'|trans }}</p>
             {% set discovery = readiness.row('repository') %}
             {% if discovery is not null %}<span class="lp-readiness-discovery__status">{{ discovery.status|trans(discovery.statusParameters) }}</span>{% endif %}
@@ -68,10 +68,9 @@
     <div class="lp-workshop-layout">
         <div class="lp-workshop-primary">
         <section class="lp-workshop-section">
-            <div class="lp-section-heading">
-                <h2 class="lp-workshop-section__title">{{ 'project.workshop.needs_you.title'|trans }}{% if is_feature_enabled('inbox.enabled') %} <span>{{ workshop.stats.openInboxItemCount }}</span>{% endif %}</h2>
-                {% if is_feature_enabled('inbox.enabled') %}<a class="lp-workshop-text-link" href="{{ path('app_project_inbox', {id: workshop.project.id}) }}">{{ 'project.workshop.needs_you.action'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>{% endif %}
-            </div>
+            <twig:Ds:SectionHeading>{{ 'project.workshop.needs_you.title'|trans }}{% if is_feature_enabled('inbox.enabled') %} <span>{{ workshop.stats.openInboxItemCount }}</span>{% endif %}
+                <twig:block name="actions">{% if is_feature_enabled('inbox.enabled') %}<a class="lp-workshop-text-link" href="{{ path('app_project_inbox', {id: workshop.project.id}) }}">{{ 'project.workshop.needs_you.action'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>{% endif %}</twig:block>
+            </twig:Ds:SectionHeading>
             {% if workshop.attention is not empty %}
             <div class="lp-workshop-attention-list">
                 {% for item in workshop.attention %}
@@ -89,10 +88,9 @@
         </section>
 
         <section class="lp-workshop-section">
-            <div class="lp-section-heading">
-                <h2 class="lp-workshop-section__title">{{ 'project.workshop.in_motion.title'|trans }}</h2>
-                <a class="lp-workshop-text-link" href="{{ path('app_project_board', {id: workshop.project.id}) }}">{{ 'project.workshop.in_motion.action'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
-            </div>
+            <twig:Ds:SectionHeading>{{ 'project.workshop.in_motion.title'|trans }}
+                <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_board', {id: workshop.project.id}) }}">{{ 'project.workshop.in_motion.action'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a></twig:block>
+            </twig:Ds:SectionHeading>
             {% do mercure_subscribe(board_topic(workshop.project)) %}
             <div class="lp-live-frame"
                  data-controller="worker-run-refresh"
@@ -108,10 +106,9 @@
             {% include '@Project/_readiness_checklist.html.twig' with {project: workshop.project, readiness: readiness, layout: 'sidebar'} only %}
             {% endif %}
             <section class="lp-workshop-crew">
-                <div class="lp-section-heading">
-                    <h2 class="lp-workshop-section__title">{{ 'bridge.agents.heading'|trans }}</h2>
-                    <a class="lp-workshop-icon-link" href="{{ path('app_project_agents', {id: workshop.project.id}) }}" aria-label="{{ 'nav.link.agents'|trans }}"><twig:ux:icon name="lucide:chevron-right" /></a>
-                </div>
+                <twig:Ds:SectionHeading>{{ 'bridge.agents.heading'|trans }}
+                    <twig:block name="actions"><a class="lp-workshop-icon-link" href="{{ path('app_project_agents', {id: workshop.project.id}) }}" aria-label="{{ 'nav.link.agents'|trans }}"><twig:ux:icon name="lucide:chevron-right" /></a></twig:block>
+                </twig:Ds:SectionHeading>
                 {% for connection in workshop.connections %}
                 <a class="lp-workshop-crew__row" href="{{ connection.url }}" data-workshop-connection="{{ connection.id }}">
                     <twig:Ds:Avatar icon="lucide:bot" size="xs" />
@@ -137,10 +134,9 @@
             </section>
 
             <section class="lp-workshop-recent">
-                <div class="lp-section-heading">
-                    <h2 class="lp-workshop-section__title">{{ 'nav.link.activity'|trans }}</h2>
-                    <a class="lp-workshop-text-link" href="{{ path('app_project_activity', {id: workshop.project.id}) }}">{{ 'project.workshop.activity.view_all'|trans }}</a>
-                </div>
+                <twig:Ds:SectionHeading>{{ 'nav.link.activity'|trans }}
+                    <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_activity', {id: workshop.project.id}) }}">{{ 'project.workshop.activity.view_all'|trans }}</a></twig:block>
+                </twig:Ds:SectionHeading>
                 {% for entry in workshop.activity %}
                 <a class="lp-workshop-recent__row" href="{{ entry.link ? entry.link.url : path('app_project_activity', {id: workshop.project.id}) }}" data-workshop-event="{{ entry.event.id }}">
                     <span><twig:ux:icon name="lucide:activity" /></span>

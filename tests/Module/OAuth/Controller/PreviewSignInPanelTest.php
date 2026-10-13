@@ -59,7 +59,7 @@ final class PreviewSignInPanelTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-preview-sign-in]'));
-        self::assertCount(1, $crawler->filter('[data-preview-sign-in] .lp-card-panel__title'));
+        self::assertCount(1, $crawler->filter('[data-preview-sign-in] h2.lp-section-heading__title'));
         self::assertCount(1, $crawler->filter('[data-preview-sign-in] a[href="/account/connected-apps"]'));
         self::assertCount(0, $crawler->filter('[data-preview-sign-in] > .lp-section-heading form'));
         foreach (['pr-12' => $first, 'pr-13' => $second] as $label => $id) {

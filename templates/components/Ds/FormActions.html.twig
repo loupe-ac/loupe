@@ -1,0 +1,8 @@
+{#
+  Props:  @comment-budget-ignore
+    align   string   end, or between to push the first control left. end by default.
+  The content is the buttons and links of the row.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props align = 'end' -%}
+<div{{ attributes.defaults({class: 'lp-form-actions' ~ (align == 'between' ? ' lp-form-actions--between' : '')}) }}>{% block content %}{% endblock %}</div>

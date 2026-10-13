@@ -6,10 +6,9 @@
 {# A manager always sees the section, because the pause control shows on a card with no runs. #}
 {% if canManage or runs is not empty or usage.known or held or commandErrors|default([]) is not empty %}
 <section class="lp-card-overview__section" data-card-runs>
-    <div class="lp-section-heading">
-        <h2 class="lp-card-panel__title">{{ (runs is not empty ? 'board.card.runs.open_title' : 'board.card.runs.title')|trans }}</h2>
-        <a class="lp-workshop-text-link" href="{{ path('app_project_worker_runs', {id: project.id}) }}" data-turbo-frame="_top" data-card-runs-all>{{ 'board.card.runs.all'|trans }}</a>
-    </div>
+    <twig:Ds:SectionHeading>{{ (runs is not empty ? 'board.card.runs.open_title' : 'board.card.runs.title')|trans }}
+        <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_worker_runs', {id: project.id}) }}" data-turbo-frame="_top" data-card-runs-all>{{ 'board.card.runs.all'|trans }}</a></twig:block>
+    </twig:Ds:SectionHeading>
     {% if commandErrors|default([]) is not empty %}
     <div class="lp-worker-run-flashes" data-worker-run-command-flash>
         {% include '_flash_messages.html.twig' with {flashes: {error: commandErrors}} only %}

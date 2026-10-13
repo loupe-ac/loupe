@@ -18,8 +18,8 @@
     </header>
     <div class="lp-settings-layout">
         {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'readiness'} only %}
-        <section class="lp-settings-content lp-settings-panel-card" data-agent-account>
-            <h2 class="lp-section-title">{{ 'readiness.agent_account.title'|trans }}</h2>
+        <twig:Ds:Panel as="section" class="lp-settings-content" data-agent-account>
+            <twig:Ds:SectionHeading>{{ 'readiness.agent_account.title'|trans }}</twig:Ds:SectionHeading>
             <p class="lp-connect-hint">{{ 'readiness.agent_account.description'|trans }}</p>
 
             <p class="lp-connect-hint" data-agent-account-state="{{ check.done ? 'done' : 'open' }}">
@@ -27,7 +27,7 @@
                 {{ check.status|trans(check.statusParameters) }}
             </p>
 
-            <h3 class="lp-workshop-section__title">{{ 'readiness.agent_account.steps.title'|trans }}</h3>
+            <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.steps.title'|trans }}</twig:Ds:SectionHeading>
             <div class="prose lp-prose">
                 <ol>
                     <li>{{ 'readiness.agent_account.steps.create'|trans }}</li>
@@ -39,7 +39,7 @@
                 <p>{{ 'readiness.agent_account.steps.privacy'|trans }}</p>
             </div>
 
-            <h3 class="lp-workshop-section__title">{{ 'readiness.agent_account.login.title'|trans }}</h3>
+            <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.login.title'|trans }}</twig:Ds:SectionHeading>
             {{ form_start(form, {attr: {class: 'lp-form'}}) }}
                 <twig:Ds:FormField>
                     {{ form_label(form.login, null, {label_attr: {class: ds_label_class()}}) }}
@@ -49,11 +49,11 @@
                     {% endif %}
                     <twig:Ds:FieldErrors :fieldView="form.login" />
                 </twig:Ds:FormField>
-                <div class="lp-settings-form-actions">
+                <twig:Ds:FormActions>
                     <twig:Ds:Button variant="primary" type="submit">{{ 'readiness.agent_account.submit'|trans }}</twig:Ds:Button>
-                </div>
+                </twig:Ds:FormActions>
             {{ form_end(form) }}
-        </section>
+        </twig:Ds:Panel>
     </div>
 </div>
 {% endblock %}

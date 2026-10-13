@@ -1,0 +1,16 @@
+{#
+  Props:  @comment-budget-ignore
+    level         int      2 or 3, the level of the heading. 2 by default.
+    description   string   Translated sentence under the title. Optional.
+    titleId       string   The id of the heading, for aria-labelledby. Optional.
+  The content is the title. The actions block holds the controls on the right. Optional.
+  Any other attribute, class included, is passed to the element.
+#}
+{%- props level = 2, description = null, titleId = null -%}
+<div{{ attributes.defaults({class: 'lp-section-heading'}) }}>
+    <div class="lp-section-heading__copy">
+        <h{{ level }} class="lp-section-heading__title"{% if titleId %} id="{{ titleId }}"{% endif %}>{% block content %}{% endblock %}</h{{ level }}>
+        {% if description %}<p class="lp-section-heading__description">{{ description }}</p>{% endif %}
+    </div>
+    <div class="lp-section-heading__actions">{% block actions %}{% endblock %}</div>
+</div>

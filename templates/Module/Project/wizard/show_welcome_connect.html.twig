@@ -23,11 +23,11 @@
         </section>
     </div>
 
-    <div class="flex items-center justify-end gap-3 pt-2">
+    <twig:Ds:FormActions>
         <twig:Ds:ActionForm :action="path('app_welcome_skip')" token="wizard-skip">
             <twig:Ds:Button variant="ghost" type="submit">{{ 'project.wizard.skip'|trans }}</twig:Ds:Button>
         </twig:Ds:ActionForm>
         <twig:Ds:Button variant="primary" href="{{ path('app_welcome_widget') }}">{{ 'project.wizard.connect.continue'|trans }}</twig:Ds:Button>
-    </div>
+    </twig:Ds:FormActions>
 </div>
 {% endblock %}

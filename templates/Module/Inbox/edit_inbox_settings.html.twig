@@ -18,8 +18,8 @@
     </header>
     <div class="lp-settings-layout">
         {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'inbox'} only %}
-        <section class="lp-settings-content lp-settings-panel-card" data-inbox-settings>
-            <h2 class="lp-section-title">{{ 'inbox.settings.heading'|trans }}</h2>
+        <twig:Ds:Panel as="section" class="lp-settings-content" data-inbox-settings>
+            <twig:Ds:SectionHeading>{{ 'inbox.settings.heading'|trans }}</twig:Ds:SectionHeading>
             <p class="lp-connect-hint">{{ 'inbox.settings.description'|trans }}</p>
             {{ form_start(form, {attr: {class: 'lp-form'}}) }}
                 {% for formItem in [form.documentInReview, form.runBlocked, form.runGaveUp, form.runWaitingForPerson, form.pullRequestReady, form.pullRequestFixStopped, form.cardPaused] %}
@@ -32,11 +32,11 @@
                     <twig:Ds:FieldErrors :fieldView="formItem" data-field-errors="{{ formItem.vars.name }}" />
                 </twig:Ds:FormField>
                 {% endfor %}
-                <div class="lp-settings-form-actions">
+                <twig:Ds:FormActions>
                     <twig:Ds:Button variant="primary" type="submit">{{ 'inbox.settings.submit'|trans }}</twig:Ds:Button>
-                </div>
+                </twig:Ds:FormActions>
             {{ form_end(form) }}
-        </section>
+        </twig:Ds:Panel>
     </div>
 </div>
 {% endblock %}
