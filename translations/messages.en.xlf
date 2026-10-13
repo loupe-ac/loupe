@@ -5416,7 +5416,7 @@
             </trans-unit>
             <trans-unit id="bridge.inbox_wait.folded.action">
                 <source>bridge.inbox_wait.folded.action</source>
-                <target>Fix the cause, then resume the card</target>
+                <target>Open the card to resume it</target>
             </trans-unit>
             <trans-unit id="inbox.wait.ended.resolved">
                 <source>inbox.wait.ended.resolved</source>

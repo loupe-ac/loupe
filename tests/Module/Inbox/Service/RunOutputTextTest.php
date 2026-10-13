@@ -36,4 +36,20 @@ final class RunOutputTextTest extends TestCase
         self::assertSame(120, mb_strlen($headline));
         self::assertStringEndsWith('…', $headline);
     }
+
+    #[TestWith(['STAGE RESULT: blocked: cannot reach github.com [reason: needs-person]. Restore the network.', 'Restore the network.'])]
+    #[TestWith(["First line\nSecond line", 'Second line'])]
+    #[TestWith(['Only one sentence.', ''])]
+    #[TestWith(['', ''])]
+    public function test_the_text_after_the_headline_leaves_the_headline_out(string $output, string $expected): void
+    {
+        self::assertSame($expected, RunOutputText::afterHeadline($output));
+    }
+
+    public function test_the_text_after_a_cut_headline_is_all_of_it(): void
+    {
+        $output = str_repeat('word ', 60).'. Second sentence.';
+
+        self::assertSame(RunOutputText::clean($output), RunOutputText::afterHeadline($output));
+    }
 }

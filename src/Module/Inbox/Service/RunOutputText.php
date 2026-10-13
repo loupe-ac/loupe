@@ -26,4 +26,16 @@ final class RunOutputText
 
         return mb_strlen($first) > $maxLength ? rtrim(mb_substr($first, 0, $maxLength - 1)).'…' : $first;
     }
+
+    /** The cleaned output after the headline, or all of it when the headline was cut. */
+    public static function afterHeadline(string $output, int $maxLength = 120): string
+    {
+        $text = self::clean($output);
+        $parts = preg_split('/(?<=[.!?])\s|\R/u', $text, 2);
+        if (false === $parts || mb_strlen(rtrim($parts[0], '.')) > $maxLength) {
+            return $text;
+        }
+
+        return trim($parts[1] ?? '');
+    }
 }

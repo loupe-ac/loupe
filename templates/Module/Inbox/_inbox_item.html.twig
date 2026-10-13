@@ -28,13 +28,13 @@
                 <li{% if wait.endedAt %} class="lp-inbox-waits__wait--ended"{% endif %} data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
                     {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
                     <span class="lp-inbox-waits__reason">{{ line.key|trans(line.params) }}</span>
+                    {%- if line.detail %}
+                        <pre class="lp-inbox-waits__detail">{{ line.detail }}</pre>
+                    {%- endif %}
                     {%- if wait.endedAt %}
                         <span class="lp-inbox-waits__ended">{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</span>
                     {%- elseif line.href %}
                         <a class="lp-inbox-waits__link" href="{{ line.href }}" data-turbo-frame="_top"{% if wait.type.value == 'pull-request' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ line.actionKey|trans(line.params) }}</a>
-                    {%- endif %}
-                    {%- if line.detail %}
-                        <pre class="lp-inbox-waits__detail">{{ line.detail }}</pre>
                     {%- endif %}
                 </li>
             {% endfor %}
@@ -190,7 +190,7 @@
                 {{ form_widget(declineForm.closeNote, {attr: {'data-inbox-decline-target': 'value'}}) }}
                 <twig:Ds:FieldErrors>{{ form_errors(declineForm) }}{{ form_errors(declineForm.closeNote) }}</twig:Ds:FieldErrors>
                 {% if item.kind.value == 'wait' %}
-                    <div class="lp-inbox-item__buttons">
+                    <div class="lp-inbox-item__buttons lp-inbox-item__buttons--dismiss">
                         <twig:Ds:Button variant="danger-ghost" size="sm" type="submit">{{ 'inbox.item.dismiss'|trans }}</twig:Ds:Button>
                         <p class="lp-inbox-item__hint">{{ 'inbox.wait.dismiss_help'|trans }}</p>
                     </div>
