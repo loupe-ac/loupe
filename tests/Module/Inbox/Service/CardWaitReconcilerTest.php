@@ -6,6 +6,8 @@ namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
+use App\Module\Board\Command\UpdateCardCommand;
+use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPullRequest;
@@ -44,6 +46,7 @@ use App\Module\Review\Command\SetDocumentTagsCommand;
 use App\Module\Review\Command\SetDocumentTagsHandler;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
@@ -122,6 +125,21 @@ final class CardWaitReconcilerTest extends KernelTestCase
 
         self::assertStringNotContainsString('Launcher', $this->onlyWatch()->item->title);
         self::assertSame(1, $this->searchHits('launcher'));
+    }
+
+    public function test_a_card_rename_reindexes_its_wait_item(): void
+    {
+        $this->card->title = 'Launcher overlaps the footer';
+        $this->linkedDocument('Tech design');
+        $this->reconcile();
+        self::assertSame(1, $this->searchHits('launcher'));
+
+        $update = self::getContainer()->get(UpdateCardHandler::class);
+        self::assertInstanceOf(UpdateCardHandler::class, $update);
+        $update(new UpdateCardCommand($this->card, Actor::Human, title: 'Sidebar hides the avatar'));
+
+        self::assertSame(0, $this->searchHits('launcher'));
+        self::assertSame(1, $this->searchHits('sidebar'));
     }
 
     public function test_a_card_in_next_with_no_parent_opens_no_wait_for_a_tech_design_in_review(): void

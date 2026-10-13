@@ -7,10 +7,11 @@ namespace App\Module\Inbox\Service;
 use App\Doctrine\FullTextSearch;
 use App\Module\Inbox\Entity\InboxItem;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\Uid\Uuid;
 
 /**
- * Rebuilds an item's search vector from its title and its body. A caller runs it
- * after the flush that wrote the row, inside the same transaction.
+ * Rebuilds the search vector of an item from its title, its body and the
+ * titles of its linked cards. A caller runs it after the flush that wrote the row.
  */
 final readonly class InboxSearchIndexer
 {
@@ -20,6 +21,21 @@ final readonly class InboxSearchIndexer
     }
 
     public function index(InboxItem $item): void
+    {
+        $this->rebuild('id = :id', ['id' => (string) $item->id]);
+    }
+
+    /** A rename of the card changes the vector of every item linked to it. */
+    public function reindexForCard(Uuid $cardId): void
+    {
+        $this->rebuild(
+            'id IN (SELECT item_id FROM inbox_item_cards WHERE card_id = :card)',
+            ['card' => (string) $cardId],
+        );
+    }
+
+    /** @param array<string, string> $parameters */
+    private function rebuild(string $where, array $parameters): void
     {
         // COALESCE, because the body is nullable and a NULL operand turns the
         // whole vector NULL, which leaves the title unsearchable too. The linked
@@ -36,12 +52,13 @@ final readonly class InboxSearchIndexer
                             JOIN board_cards card ON card.id = link.card_id
                             WHERE link.item_id = inbox_items.id
                         ), '')), '%2$s')
-                    WHERE id = :id
+                    WHERE %3$s
                     SQL,
                 FullTextSearch::TITLE_WEIGHT,
                 FullTextSearch::BODY_WEIGHT,
+                $where,
             ),
-            ['id' => (string) $item->id],
+            $parameters,
         );
     }
 }
