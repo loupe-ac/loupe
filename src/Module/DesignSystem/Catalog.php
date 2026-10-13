@@ -290,6 +290,18 @@ readonly class Catalog
                 export: 'BrandMark',
             ),
             new ComponentEntry(
+                name: 'NavItem',
+                rootClass: 'lp-sidebar__link',
+                template: 'components/Ds/NavItem.html.twig',
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'One link of the sidebar: an icon, a label, an optional count and the current-page mark.',
+                element: 'a',
+                export: 'NavItem',
+            ),
+            new ComponentEntry(
                 name: 'AuthShell',
                 rootClass: 'lp-auth',
                 template: null,

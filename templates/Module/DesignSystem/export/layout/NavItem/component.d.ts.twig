@@ -1,0 +1,26 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A sidebar link, current and not" viewport="700x200"
+ */
+export interface {{ entry.name }}Props {
+    /** The link text. */
+    label: ReactNode;
+    /** The icon, drawn before the label. Pass an svg that uses `currentColor`. */
+    icon?: ReactNode;
+    /** Marks the current page. */
+    active?: boolean;
+    /** A plain numeral at the end of the row. Left out when undefined. */
+    count?: number;
+    href?: string;
+    className?: string;
+    /** Anything else drawn after the label, such as an amber pill. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

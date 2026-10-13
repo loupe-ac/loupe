@@ -319,7 +319,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'NavItem', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }
@@ -353,7 +353,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'NavItem', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
@@ -576,10 +576,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
         $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
 
-        preg_match_all('/<a\b(?:(?!<\/a>).)*?\'nav\.link\.([a-z_]+)\'\|trans(?:(?!<\/a>).)*<\/a>/s', $base, $anchors, \PREG_SET_ORDER);
+        preg_match_all('/<twig:Ds:NavItem\b.*?\'nav\.link\.([a-z_]+)\'\|trans.*?(?:\/>|<\/twig:Ds:NavItem>)/s', $base, $anchors, \PREG_SET_ORDER);
         $expected = [];
         foreach ($anchors as [$anchor, $key]) {
-            if (str_contains($anchor, '<span class="lp-sidebar__pill"')) {
+            if (str_contains($anchor, ':count=') || str_contains($anchor, '<span class="lp-sidebar__pill"')) {
                 $expected[] = $key;
             }
         }
@@ -649,7 +649,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString("| 'workshop'", $types);
         self::assertStringContainsString('<PageHeader title=', $prompt);
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'NavItem', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
         self::assertStringContainsString('<PageHeader variant="workshop"', $card);
         self::assertStringNotContainsString('<Button', $card);
     }
