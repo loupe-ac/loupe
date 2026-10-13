@@ -62,6 +62,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
+| RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
 
 Write a button like this:

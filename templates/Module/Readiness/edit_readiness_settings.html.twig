@@ -37,7 +37,7 @@
                         {{ form.showGuide.vars.label|trans }}
                     </label>
                     {% if project.readinessGuideHiddenAt is not null %}
-                    <twig:Ds:Hint data-readiness-hidden-at>{{ 'readiness.settings.guide.hidden_at'|trans({'%date%': project.readinessGuideHiddenAt|date('Y-m-d')}) }}</twig:Ds:Hint>
+                    <twig:Ds:Hint data-readiness-hidden-at>{{ 'readiness.settings.guide.hidden_at'|trans({'%date%': project.readinessGuideHiddenAt|date('j M Y')}) }}</twig:Ds:Hint>
                     {% endif %}
                     <twig:Ds:FieldErrors :fieldView="form.showGuide" />
                 </twig:Ds:FormField>

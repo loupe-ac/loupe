@@ -15,7 +15,7 @@
                 {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'w-4 h-4 shrink-0'} only %}
                 <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
                 <span aria-hidden="true">·</span>
-                <time datetime="{{ row.createdAt|date('c') }}">{{ row.createdAt|relative_time }}</time>
+                <twig:Ds:RelativeTime :datetime="row.createdAt" />
                 {% if ask and ask.closedAt %}
                     <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>
                 {% endif %}

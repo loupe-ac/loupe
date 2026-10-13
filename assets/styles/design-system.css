@@ -16,6 +16,7 @@
 @import './components/decision.css';
 @import './components/tooltip.css';
 @import './components/avatar.css';
+@import './components/relative-time.css';
 @import './components/menu.css';
 
 @source "../../templates/components/Ds";

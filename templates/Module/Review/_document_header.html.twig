@@ -20,7 +20,7 @@
                     <span class="lp-revision-notes__entry-body">
                         <span class="lp-revision-notes__entry-head">
                             <twig:Ds:Tag tone="{{ meta.versionNumber == version.versionNumber ? 'lime' : 'neutral' }}">{{ 'v' ~ meta.versionNumber }}</twig:Ds:Tag>
-                            <span class="lp-revision-notes__time">{{ meta.createdAt|relative_time }}</span>
+                            <twig:Ds:RelativeTime :datetime="meta.createdAt" class="lp-revision-notes__time" />
                         </span>
                         {% if meta.description is not empty %}<span class="lp-revision-notes__text">{{ meta.description }}</span>{% endif %}
                     </span>

@@ -33,7 +33,7 @@
                 {% if item.interactive %}<twig:Ds:Tag tone="neutral" class="lp-card-run__kind">{{ 'bridge.worker_runs.interactive'|trans }}</twig:Ds:Tag>{% endif %}
                 {% if item.command %}<twig:Ds:Tag tone="neutral" class="lp-card-run__kind" data-worker-run-command>{{ 'bridge.worker_runs.command'|trans }}</twig:Ds:Tag>{% endif %}
                 {% set shownAt = item.run.startedAt ?? item.run.receivedAt %}
-                <span class="lp-card-run__meta"><time datetime="{{ shownAt|date('c') }}">{{ shownAt|relative_time }}</time>{% if item.duration() is not null %} · {% if item.interactive and item.state.isOpen() %}{{ 'bridge.worker_runs.running_for'|trans({'%duration%': item.duration()}) }}{% else %}{{ item.duration() }}{% endif %}{% endif %}</span>
+                <span class="lp-card-run__meta"><twig:Ds:RelativeTime :datetime="shownAt" />{% if item.duration() is not null %} · {% if item.interactive and item.state.isOpen() %}{{ 'bridge.worker_runs.running_for'|trans({'%duration%': item.duration()}) }}{% else %}{{ item.duration() }}{% endif %}{% endif %}</span>
                 {% if control and control.label %}{% set controlLabel = control.label|trans(control.labelParameters) %}<span class="lp-worker-run-control-label{{ control.labelWarns ? ' lp-worker-run-control-label--warns' : '' }}" title="{{ controlLabel }}" data-worker-run-control-label>{{ controlLabel }}</span>{% endif %}
             </a>
             {% if canManage and control and control.action %}

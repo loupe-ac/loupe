@@ -188,7 +188,7 @@ final class ShowArtifactControllerTest extends WebTestCase
         self::assertStringContainsString('Stored by Claude, interactive session', $caption->text());
         self::assertSame('https://design.example/canvas/1', $caption->filter('[data-artifact-source] a')->attr('href'));
         self::assertSame('noopener noreferrer', $caption->filter('[data-artifact-source] a')->attr('rel'));
-        self::assertStringContainsString('Stored on '.date('Y-m-d'), $caption->filter('[data-artifact-source]')->text());
+        self::assertStringContainsString('Stored on '.date('j M Y'), $caption->filter('[data-artifact-source]')->text());
 
         $crawler = $client->request(\Symfony\Component\HttpFoundation\Request::METHOD_GET, '/projects/'.$projectId.'/artifacts/'.$oddId);
         self::assertStringContainsString('Stored by Riley Chen', $crawler->filter('[data-artifact-caption]')->text());

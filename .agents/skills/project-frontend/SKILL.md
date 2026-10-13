@@ -190,6 +190,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 
 13. Avatar: `<twig:Ds:Avatar :name="project.name" size="sm" shape="square" tone="danger" />`, or `icon="lucide:bot"` for an icon. Sizes are xs, sm, md and lg. Tones are accent, tint, ink, danger and chrome. `presence="live"` draws the bridge dot. The `ds_initial` filter gives the letter. The CSS is `assets/styles/components/avatar.css`.
 
+14. RelativeTime: `<twig:Ds:RelativeTime :datetime="card.updatedAt" />` draws "2h ago". `mode="date"` draws "5 Oct 2026" and `mode="datetime"` adds the hour. `:now` sets the moment that relative counts from. The `relative_time` filter stays for a sentence that holds the age. The CSS is `assets/styles/components/relative-time.css`.
+
 A child card that adds a component adds it to this list in the same branch.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".

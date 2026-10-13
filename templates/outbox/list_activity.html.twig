@@ -73,7 +73,7 @@
                 :id="'activity-reason-' ~ event.id" />
             <span class="lp-data-table__cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
             <span class="lp-data-table__cell lp-data-table__cell--end">{{ event.sequence ?? '—' }}</span>
-            <span class="lp-data-table__cell"><time datetime="{{ event.createdAt|date('c') }}" title="{{ event.createdAt|date('Y-m-d H:i:s T') }}">{{ event.createdAt|relative_time }}</time></span>
+            <span class="lp-data-table__cell"><twig:Ds:RelativeTime :datetime="event.createdAt" /></span>
         </div>
         {% endfor %}
     </twig:DataTable>

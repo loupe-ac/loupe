@@ -150,7 +150,7 @@
                             {% endif %}
                         </td>
                         <td class="lp-metric-table__number">{{ row.value|metric_value(metric) }}</td>
-                        <td><time datetime="{{ row.time|date('c') }}">{{ row.time|date('M j, Y H:i') }}</time></td>
+                        <td><twig:Ds:RelativeTime :datetime="row.time" mode="datetime" /></td>
                     </tr>
                     {% endfor %}
                 </tbody>

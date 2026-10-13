@@ -120,7 +120,7 @@
                                     :current="current" data-artifact-version-link="{{ entry.number }}">
                                 <span class="lp-artifact-revision__head">
                                     <span class="lp-artifact-revision__badge{% if current %} lp-artifact-revision__badge--current{% endif %}">{{ 'artifact.viewer.version'|trans({'%number%': entry.number}) }}</span>
-                                    <time class="lp-artifact-revision__when" datetime="{{ entry.createdAt|date('c') }}">{{ entry.createdAt|relative_time }}</time>
+                                    <twig:Ds:RelativeTime :datetime="entry.createdAt" class="lp-artifact-revision__when" />
                                 </span>
                                 {% if entry.notes is not empty %}
                                 <span class="lp-artifact-revision__notes" data-artifact-version-notes>{{ entry.notes }}</span>
@@ -141,7 +141,7 @@
                             <dt>{{ 'artifact.viewer.stored_by'|trans }}</dt>
                             <dd>
                                 {% include '@Artifact/_stored_by.html.twig' with {version: version} only %}
-                                <time class="lp-artifact-details__meta" datetime="{{ version.createdAt|date('c') }}" title="{{ version.createdAt|date('Y-m-d H:i:s T') }}">{{ version.createdAt|relative_time }}</time>
+                                <twig:Ds:RelativeTime :datetime="version.createdAt" class="lp-artifact-details__meta" />
                             </dd>
                             {% if artifact.sourceLink is not null %}
                             <dt>{{ 'artifact.viewer.source'|trans }}</dt>
@@ -151,7 +151,7 @@
                                 {% else %}
                                 {{ artifact.sourceLink }}
                                 {% endif %}
-                                <span class="lp-artifact-details__meta">{{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('Y-m-d')}) }}</span>
+                                <span class="lp-artifact-details__meta">{{ 'artifact.viewer.stored_on'|trans({'%date%': version.createdAt|date('j M Y')}) }}</span>
                             </dd>
                             {% endif %}
                             <dt>{{ 'artifact.viewer.sandbox'|trans }}</dt>

@@ -303,6 +303,17 @@ final readonly class Catalog
                 ],
                 legacyEnforced: true,
             ),
+            new ComponentEntry(
+                name: 'RelativeTime',
+                rootClass: 'lp-relative-time',
+                template: 'components/Ds/RelativeTime.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                group: 'core',
+                summary: 'A moment as a short age such as 2h ago, or as a date. The title holds the full timestamp.',
+                element: 'time',
+            ),
         ];
     }
 }

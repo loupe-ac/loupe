@@ -106,7 +106,7 @@
                 </div>
                 <div>
                     <dt>{{ 'insights.reports.created'|trans }}</dt>
-                    <dd><time datetime="{{ analysis.createdAt|date('c') }}" title="{{ analysis.createdAt|date('Y-m-d H:i:s T') }}">{{ analysis.createdAt|relative_time }}</time></dd>
+                    <dd><twig:Ds:RelativeTime :datetime="analysis.createdAt" /></dd>
                 </div>
                 {% if analysis.documentId is not null %}
                 <div>

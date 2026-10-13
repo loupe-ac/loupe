@@ -3,7 +3,7 @@
     <h2 class="lp-card-panel__title">{{ 'workflow.panel.title'|trans }}</h2>
     {% if panel.pause %}
     <div class="lp-workflow-panel__pause" data-workflow-pause="{{ panel.pause.code }}">
-        <p class="lp-workflow-panel__pause-title"><twig:ux:icon name="lucide:circle-pause" class="lp-card-held__icon" />{{ 'workflow.panel.paused'|trans({'%kind%': panel.pause.kind}) }} <time datetime="{{ panel.pause.since|date('c') }}">{{ panel.pause.since|relative_time }}</time></p>
+        <p class="lp-workflow-panel__pause-title"><twig:ux:icon name="lucide:circle-pause" class="lp-card-held__icon" />{{ 'workflow.panel.paused'|trans({'%kind%': panel.pause.kind}) }} <twig:Ds:RelativeTime :datetime="panel.pause.since" /></p>
         <p class="lp-workflow-panel__line">{{ panel.pause.reason }}</p>
         <p class="lp-workflow-panel__line" data-workflow-release>{{ panel.pause.release }}</p>
         {% if panel.pause.releasable and is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), project) %}
@@ -22,7 +22,7 @@
         {% if progress.waiting %}<div class="lp-card-field lp-card-field--wide lp-card-field--prose" data-workflow-waiting><dt>{{ 'workflow.panel.waiting'|trans }}</dt><dd>{{ progress.waiting }}</dd></div>{% endif %}
         {% if progress.lastRefusal %}
         {% set refusal = progress.lastRefusal %}
-        <div class="lp-card-field lp-card-field--wide lp-card-field--prose" data-workflow-last-refusal="{{ refusal.code }}"><dt>{{ 'workflow.panel.last_refusal'|trans }}</dt><dd>{{ refusal.reason }} · <time datetime="{{ refusal.at|date('c') }}">{{ refusal.at|relative_time }}</time> · {{ 'workflow.panel.attempts'|trans({'%count%': refusal.attempts}) }}</dd></div>
+        <div class="lp-card-field lp-card-field--wide lp-card-field--prose" data-workflow-last-refusal="{{ refusal.code }}"><dt>{{ 'workflow.panel.last_refusal'|trans }}</dt><dd>{{ refusal.reason }} · <twig:Ds:RelativeTime :datetime="refusal.at" /> · {{ 'workflow.panel.attempts'|trans({'%count%': refusal.attempts}) }}</dd></div>
         {% endif %}
     </dl>
     {% endif %}

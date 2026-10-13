@@ -11,7 +11,7 @@
     <div class="lp-identity-row">
         <twig:ux:icon name="lucide:package" class="lp-identity-row__glyph w-4 h-4" />
         <span class="lp-identity-row__text">
-            <span class="lp-identity-row__name lp-identity-row__name--mono">{{ export.requestedAt|date('Y-m-d H:i') }}</span>
+            <span class="lp-identity-row__name lp-identity-row__name--mono">{{ export.requestedAt|date('j M Y, H:i') }}</span>
             <span class="lp-identity-row__meta lp-identity-row__meta--plain">
                 {% if export.isExpired %}
                     {{ 'account.settings.export.status.expired'|trans }}

@@ -8546,6 +8546,15 @@
             <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
             <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>
             <trans-unit id="artifact.error.too_large"><source>artifact.error.too_large</source><target>The files together are larger than the size limit of this instance allows.</target></trans-unit>
+            <trans-unit id="ds.relative_time.just_now"><source>ds.relative_time.just_now</source><target>just now</target></trans-unit>
+            <trans-unit id="ds.relative_time.minutes"><source>ds.relative_time.minutes</source><target>%count%m ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.hours"><source>ds.relative_time.hours</source><target>%count%h ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.days"><source>ds.relative_time.days</source><target>%count%d ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.last_week"><source>ds.relative_time.last_week</source><target>last week</target></trans-unit>
+            <trans-unit id="ds.relative_time.weeks"><source>ds.relative_time.weeks</source><target>%count%w ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.last_month"><source>ds.relative_time.last_month</source><target>last month</target></trans-unit>
+            <trans-unit id="ds.relative_time.months"><source>ds.relative_time.months</source><target>%count%mo ago</target></trans-unit>
+            <trans-unit id="ds.relative_time.years"><source>ds.relative_time.years</source><target>%count%y ago</target></trans-unit>
         </body>
     </file>
 </xliff>

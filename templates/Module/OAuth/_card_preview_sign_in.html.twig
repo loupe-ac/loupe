@@ -18,7 +18,7 @@
         <dl class="lp-card-fields">
             <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.status'|trans }}</dt><dd><twig:Ds:StatusChip modifier="ok" :label="'oauth.preview_sign_in.active'|trans" /></dd></div>
             <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.expires'|trans }}</dt><dd>{{ 'oauth.preview_sign_in.expires_in'|trans({'%count%': token.expiresAt|preview_token_days_left}) }}</dd></div>
-            <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.last_used'|trans }}</dt><dd>{{ token.lastUsedAt ? token.lastUsedAt|relative_time : 'oauth.connected_apps.preview_tokens.not_used'|trans }}</dd></div>
+            <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.last_used'|trans }}</dt><dd>{% if token.lastUsedAt %}<twig:Ds:RelativeTime :datetime="token.lastUsedAt" />{% else %}{{ 'oauth.connected_apps.preview_tokens.not_used'|trans }}{% endif %}</dd></div>
         </dl>
     </div>
     {% else %}

@@ -12,7 +12,7 @@
                 {%- if this.expired -%}
                     {{ 'github.connect.state.expired'|trans }}
                 {%- else -%}
-                    {{ 'github.connect.state.connected'|trans({'%time%': connection.connectedAt|date('Y-m-d H:i')}) }}
+                    {{ 'github.connect.state.connected'|trans({'%time%': connection.connectedAt|date('j M Y, H:i')}) }}
                 {%- endif -%}
             </span>
         </span>
