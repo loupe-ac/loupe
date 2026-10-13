@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Module\DesignSystem\Catalog;
+use App\Module\DesignSystem\ComponentEntry;
 use Gamache\Check\CommentBudgetCheck;
 use Gamache\Check\DeploymentConfigParityCheck;
 use Gamache\Check\DesignSystemAdoptionCheck;
@@ -31,12 +32,14 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * The adoption check reads the catalog, so a new component is one catalog entry.
  * An old class an entry replaces is checked with the same own template.
  *
+ * @param list<ComponentEntry> $entries
+ *
  * @return list<DesignSystemComponent>
  */
-function designSystemComponents(): array
+function designSystemComponents(array $entries): array
 {
     $components = [];
-    foreach ((new Catalog())->entries() as $entry) {
+    foreach ($entries as $entry) {
         $own = 'templates/'.$entry->template;
         $components[] = new DesignSystemComponent($entry->name, $entry->rootClass, $own, $entry->enforced);
         foreach ($entry->legacyClasses as $legacy) {
@@ -156,7 +159,7 @@ return (new GamacheConfig())->registerChecks([
         severity: Severity::Error,
     ),
     new DesignSystemAdoptionCheck(
-        components: designSystemComponents(),
+        components: designSystemComponents((new Catalog())->entries()),
     ),
     new FormTypeTranslationKeysCheck(),
     new TurboStreamTargetsCheck(),
