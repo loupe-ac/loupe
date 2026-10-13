@@ -17,16 +17,16 @@
     </div>
     <div class="lp-card-drawer-overlay__error" data-card-drawer-target="error" hidden>
         <p class="lp-dialog-desc" role="alert">{{ 'board.card.drawer.failed'|trans }}</p>
-        <div class="lp-dialog-actions">
+        <twig:Ds:FormActions>
             <twig:Ds:Button variant="primary" type="button" data-action="card-drawer#retry">{{ 'board.card.drawer.retry'|trans }}</twig:Ds:Button>
             <twig:Ds:Button type="button" data-action="card-drawer#close">{{ 'board.card.drawer.close'|trans }}</twig:Ds:Button>
-        </div>
+        </twig:Ds:FormActions>
     </div>
     <div class="lp-card-drawer-overlay__deleted" data-card-drawer-target="deleted" hidden>
         <p class="lp-dialog-desc" role="alert">{{ 'board.card.drawer.deleted'|trans }}</p>
-        <div class="lp-dialog-actions">
+        <twig:Ds:FormActions>
             <twig:Ds:Button type="button" data-action="card-drawer#close">{{ 'board.card.drawer.close'|trans }}</twig:Ds:Button>
-        </div>
+        </twig:Ds:FormActions>
     </div>
     <turbo-frame id="card-drawer-frame"
                  data-card-drawer-target="frame"

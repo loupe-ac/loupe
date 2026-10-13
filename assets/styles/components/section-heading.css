@@ -1,0 +1,24 @@
+/* The section heading: a title, an optional sentence and optional actions. `templates/components/Ds/SectionHeading.html.twig` renders it. */
+@layer components {
+    .lp-section-heading {
+        @apply flex items-start justify-between gap-4;
+    }
+    .lp-section-heading__copy {
+        @apply min-w-0;
+    }
+    .lp-section-heading__title {
+        @apply m-0 font-display text-lg font-bold tracking-tight text-ink;
+    }
+    .lp-section-heading__actions:not(:has(*)) {
+        @apply hidden;
+    }
+    .lp-section-heading__title > span {
+        @apply inline-grid place-items-center min-w-5 h-5 ml-1 rounded-md bg-surface-3 text-xs text-fg-dim;
+    }
+    .lp-section-heading__description {
+        @apply m-0 mt-1 text-sm text-fg-mute;
+    }
+    .lp-section-heading__actions {
+        @apply flex shrink-0 items-center gap-3;
+    }
+}

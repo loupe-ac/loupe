@@ -3,8 +3,8 @@
 {% block settings_section 'connected-apps' %}
 
 {% block settings_content %}
-<section class="lp-connect-block lp-settings-section lp-settings-panel-card" data-testid="connected-apps-section">
-    <h2 class="lp-section-title">{{ 'oauth.connected_apps.heading'|trans }}</h2>
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="connected-apps-section">
+    <twig:Ds:SectionHeading>{{ 'oauth.connected_apps.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'oauth.connected_apps.intro'|trans }}</p>
 
     {% set widgetClientId = constant('App\\Module\\OAuth\\Widget\\WidgetClient::ID') %}
@@ -27,10 +27,10 @@
                 <p class="lp-dialog-desc">{{ 'oauth.connected_apps.revoke.description'|trans({'%client%': app.clientName}) }}</p>
                 <form method="post" action="{{ path('app_account_connected_app_revoke', {clientId: app.clientId}) }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke-connected-app') }}">
-                    <div class="lp-dialog-actions">
+                    <twig:Ds:FormActions>
                         <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.connected_apps.revoke.cancel'|trans }}</twig:Ds:Button>
                         <twig:Ds:Button variant="danger" type="submit">{{ 'oauth.connected_apps.revoke.confirm'|trans }}</twig:Ds:Button>
-                    </div>
+                    </twig:Ds:FormActions>
                 </form>
             </twig:Ds:Dialog>
         </div>
@@ -59,10 +59,10 @@
                     <p class="lp-dialog-desc">{{ 'oauth.connected_apps.preview_tokens.revoke_all.description'|trans }}</p>
                     <form method="post" action="{{ path('app_account_connected_app_revoke', {clientId: widgetClientId}) }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke-connected-app') }}">
-                        <div class="lp-dialog-actions">
+                        <twig:Ds:FormActions>
                             <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.connected_apps.revoke.cancel'|trans }}</twig:Ds:Button>
                             <twig:Ds:Button variant="danger" type="submit">{{ 'oauth.connected_apps.preview_tokens.revoke_all.confirm'|trans }}</twig:Ds:Button>
-                        </div>
+                        </twig:Ds:FormActions>
                     </form>
                 </twig:Ds:Dialog>
             </div>
@@ -94,10 +94,10 @@
                         <p class="lp-dialog-desc">{{ 'oauth.connected_apps.preview_tokens.revoke.description'|trans }}</p>
                         <form method="post" action="{{ path('app_account_preview_token_revoke', {accessTokenId: token.accessTokenId}) }}">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke-preview-token') }}">
-                            <div class="lp-dialog-actions">
+                            <twig:Ds:FormActions>
                                 <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.connected_apps.revoke.cancel'|trans }}</twig:Ds:Button>
                                 <twig:Ds:Button variant="danger" type="submit">{{ 'oauth.connected_apps.revoke.confirm'|trans }}</twig:Ds:Button>
-                            </div>
+                            </twig:Ds:FormActions>
                         </form>
                     </twig:Ds:Dialog>
                 </div>
@@ -106,7 +106,7 @@
         </ul>
         {% endif %}
     </div>
-</section>
+</twig:Ds:Panel>
 
 <twig:GitHubAccountConnection />
 {% endblock %}

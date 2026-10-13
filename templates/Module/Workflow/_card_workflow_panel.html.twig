@@ -1,6 +1,6 @@
 {# The Workflow panel of a card page and its drawer. Props: panel (CardWorkflowPanel), card (CardSnapshot), project (Project). #}
 <section class="lp-card-overview__section" data-workflow-panel>
-    <h2 class="lp-card-panel__title">{{ 'workflow.panel.title'|trans }}</h2>
+    <twig:Ds:SectionHeading>{{ 'workflow.panel.title'|trans }}</twig:Ds:SectionHeading>
     {% if panel.pause %}
     <div class="lp-workflow-panel__pause" data-workflow-pause="{{ panel.pause.code }}">
         <p class="lp-workflow-panel__pause-title"><twig:ux:icon name="lucide:circle-pause" class="lp-card-held__icon" />{{ 'workflow.panel.paused'|trans({'%kind%': panel.pause.kind}) }} <time datetime="{{ panel.pause.since|date('c') }}">{{ panel.pause.since|relative_time }}</time></p>
