@@ -3,8 +3,8 @@
 {% block settings_section 'profile' %}
 
 {% block settings_content %}
-<section class="lp-connect-block lp-settings-section lp-settings-panel-card" data-testid="profile-section">
-    <h2 class="lp-section-title">{{ 'account.settings.profile.heading'|trans }}</h2>
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="profile-section">
+    <twig:Ds:SectionHeading>{{ 'account.settings.profile.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'account.settings.profile.description'|trans }}</p>
     {{ form_start(form, {'action': path('app_account_profile'), 'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
         <twig:Ds:FormField :fieldView="form.fullName" />
@@ -13,9 +13,9 @@
             <twig:Ds:Input id="account-profile-email" type="email" value="{{ app.user.email }}" readonly />
             <twig:Ds:Hint>{{ 'account.settings.profile.email_hint'|trans }}</twig:Ds:Hint>
         </twig:Ds:FormField>
-        <div class="flex items-center justify-end gap-3 pt-2">
+        <twig:Ds:FormActions>
             <twig:Ds:Button variant="primary" type="submit">{{ 'account.profile.save_button'|trans }}</twig:Ds:Button>
-        </div>
+        </twig:Ds:FormActions>
     {{ form_end(form) }}
-</section>
+</twig:Ds:Panel>
 {% endblock %}

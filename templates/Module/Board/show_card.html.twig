@@ -65,7 +65,7 @@
                 />
                 {% endif %}
                 <section class="lp-card-overview__section">
-                    <h2 class="lp-card-panel__title">{{ 'board.card.overview.description'|trans }}</h2>
+                    <twig:Ds:SectionHeading>{{ 'board.card.overview.description'|trans }}</twig:Ds:SectionHeading>
                     {% if card.body|trim is not empty %}<div class="prose lp-prose lp-card-detail__body">{{ card.body|card_body }}</div>{% else %}<p class="lp-card-detail__empty">{{ 'board.card.body.empty'|trans }}</p>{% endif %}
                 </section>
                 <section class="lp-card-docs lp-card-pulls lp-card-overview__section">
@@ -88,7 +88,7 @@
                             </tbody>
                         </table>
                     </div>
-                    {% else %}<h2 class="lp-card-panel__title">{{ 'board.card.linked_work.title'|trans }}</h2><p class="lp-card-detail__empty">{{ 'board.card.linked_work.empty'|trans }}</p>{% endif %}
+                    {% else %}<twig:Ds:SectionHeading>{{ 'board.card.linked_work.title'|trans }}</twig:Ds:SectionHeading><p class="lp-card-detail__empty">{{ 'board.card.linked_work.empty'|trans }}</p>{% endif %}
                 </section>
                 {% if artifacts is not empty and is_feature_enabled('artifacts.enabled') %}
                 <section class="lp-card-overview__section" data-card-artifacts>
@@ -126,7 +126,7 @@
                 {% if progress %}
                 <section class="lp-card-overview__section" data-epic-children>
                     <div class="lp-card-epic__head">
-                        <h2 class="lp-card-panel__title">{{ 'board.card.children.title'|trans }}</h2>
+                        <twig:Ds:SectionHeading>{{ 'board.card.children.title'|trans }}</twig:Ds:SectionHeading>
                         <span class="lp-card-epic__progress" data-epic-progress>{{ 'board.card.children.progress'|trans({'%done%': progress.done, '%total%': progress.total}) }}</span>
                         {% include '@Board/_card_lane_form.html.twig' with {card: card, returnTo: 'card'} only %}
                     </div>
@@ -190,12 +190,12 @@
         </section>
 
         <section class="lp-card-panel" id="card-panel-conversation" role="tabpanel" aria-labelledby="card-tab-conversation" data-panel-tabs-target="panel" data-panel-panel="conversation"{% if activeTab != 'conversation' %} hidden{% endif %}>
-            <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:messages-square" size="sm" shape="square" tone="tint" /><div><h2 class="lp-card-panel__title">{{ 'board.card.conversation.title'|trans }}</h2><p>{{ 'board.card.conversation.description'|trans }}</p></div></div>
+            <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:messages-square" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.conversation.description'|trans">{{ 'board.card.conversation.title'|trans }}</twig:Ds:SectionHeading></div>
             {{ inbox_card_section(card) }}
         </section>
 
         <section class="lp-card-panel" id="card-panel-feedback" role="tabpanel" aria-labelledby="card-tab-feedback" data-panel-tabs-target="panel" data-panel-panel="feedback"{% if activeTab != 'feedback' %} hidden{% endif %}>
-            <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" /><div><h2 class="lp-card-panel__title">{{ 'board.card.site_review.title'|trans }}</h2><p>{{ 'board.card.feedback.description'|trans }}</p></div></div>
+            <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.feedback.description'|trans">{{ 'board.card.site_review.title'|trans }}</twig:Ds:SectionHeading></div>
             {% if siteReviewLinks|length > 0 %}
             <ul class="lp-card-feedback-list">
                 {% for link in siteReviewLinks %}

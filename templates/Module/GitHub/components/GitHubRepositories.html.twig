@@ -1,6 +1,6 @@
 {% if visible %}
-<section class="lp-settings-section lp-settings-panel-card" id="repositories" data-testid="github-repositories">
-    <h2 class="lp-section-title">{{ 'github.repositories.title'|trans }}</h2>
+<twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories">
+    <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
 
     {% if not appConfigured and not hookAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
@@ -32,10 +32,10 @@
                     <p class="lp-dialog-desc">{{ 'github.repositories.remove.description'|trans({'%path%': repository.path}) }}</p>
                     <form method="post" action="{{ path('app_forge_repository_remove', {id: project.id, repositoryId: repository.id}) }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('forge-repository-remove') }}">
-                        <div class="lp-dialog-actions">
+                        <twig:Ds:FormActions>
                             <twig:Ds:Button variant="ghost" type="button"  data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
                             <twig:Ds:Button variant="danger" type="submit">{{ 'github.repositories.remove.confirm'|trans }}</twig:Ds:Button>
-                        </div>
+                        </twig:Ds:FormActions>
                     </form>
                 </twig:Ds:Dialog>
             </div>
@@ -143,15 +143,15 @@
                     <p class="lp-dialog-desc">{{ 'github.repositories.hook.rotate.description'|trans }}</p>
                     <form method="post" action="{{ path('app_github_hook_secret_rotate', {id: project.id}) }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('github-hook-secret-rotate') }}">
-                        <div class="lp-dialog-actions">
+                        <twig:Ds:FormActions>
                             <twig:Ds:Button variant="ghost" type="button"  data-action="click->modal#close">{{ 'github.repositories.cancel'|trans }}</twig:Ds:Button>
                             <twig:Ds:Button variant="primary" type="submit">{{ 'github.repositories.hook.rotate.confirm'|trans }}</twig:Ds:Button>
-                        </div>
+                        </twig:Ds:FormActions>
                     </form>
                 </twig:Ds:Dialog>
             </div>
             {% endif %}
         </div>
     {% endif %}
-</section>
+</twig:Ds:Panel>
 {% endif %}

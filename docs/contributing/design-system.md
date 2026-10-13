@@ -61,6 +61,9 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Pagination | The previous, next and page-number control of a list | none |
 | FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| Panel | A bordered tinted card that holds one block of a page | none. Takes `as` for the element |
+| SectionHeading | The title of a section, with an optional sentence and optional actions | none. The content is the title. Takes `level`, `description`, `titleId` and an `actions` block, and no `title` prop |
+| FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
 
