@@ -44,6 +44,23 @@ it('reads the path of an absolute url', () => {
     ).toBeNull();
 });
 
+it('removes the waitlist ticket and keeps the campaign tags', () => {
+    expect(
+        beforeSend('pageview', {
+            url: '/waitlist?joined=1&t=0123456789abcdef0123456789abcdef&utm_source=hn',
+            title: 'Joined',
+        }),
+    ).toEqual({ url: '/waitlist?joined=1&utm_source=hn', title: 'Joined' });
+});
+
+it('removes the waitlist ticket from an absolute url', () => {
+    expect(
+        beforeSend('event', {
+            url: 'https://loupe.ac/waitlist?joined=1&t=0123456789abcdef0123456789abcdef',
+        }).url,
+    ).toBe('https://loupe.ac/waitlist?joined=1');
+});
+
 it('drops a payload with no url', () => {
     expect(beforeSend('event', {})).toBeNull();
 });

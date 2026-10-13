@@ -3,6 +3,8 @@
  * every page view and event, and a null answer cancels the send.
  */
 
+const WAITLIST_TICKET = 't';
+
 function publicPaths() {
     const tag = document.querySelector('script[data-public-paths]');
     try {
@@ -18,9 +20,22 @@ export function beforeSend(type, payload) {
         return null;
     }
 
-    const path = new URL(payload.url, window.location.origin).pathname;
+    const url = new URL(payload.url, window.location.origin);
+    if (!publicPaths().includes(url.pathname)) {
+        return null;
+    }
 
-    return publicPaths().includes(path) ? payload : null;
+    // The one-time waitlist ticket would make each join its own page in Umami.
+    if (!url.searchParams.has(WAITLIST_TICKET)) {
+        return payload;
+    }
+    url.searchParams.delete(WAITLIST_TICKET);
+    const relative = !/^[a-z][a-z0-9+.-]*:/i.test(payload.url);
+
+    return {
+        ...payload,
+        url: relative ? url.pathname + url.search + url.hash : url.href,
+    };
 }
 
 export function track(name, data) {

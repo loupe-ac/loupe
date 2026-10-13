@@ -12,6 +12,7 @@ use App\Module\Account\Service\PendingSocialLink;
 use App\Module\Account\Service\SocialLoginRace;
 use App\Module\Account\Service\SocialProfileFactory;
 use App\Module\Account\Service\UnverifiedProviderEmail;
+use App\Module\Account\Service\WaitlistJoinTicket;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
 use League\OAuth2\Client\Provider\Exception\IdentityProviderException;
@@ -46,6 +47,7 @@ final class SocialAuthenticator extends OAuth2Authenticator
         private readonly ResolveSocialLoginHandler $resolveSocialLogin,
         private readonly PendingSocialLink $pendingSocialLink,
         private readonly FeatureFlagService $featureFlags,
+        private readonly WaitlistJoinTicket $joinTicket,
     ) {
     }
 
@@ -137,7 +139,7 @@ final class SocialAuthenticator extends OAuth2Authenticator
         }
 
         if ($exception instanceof WaitlistedException) {
-            return new RedirectResponse($this->router->generate('app_waitlist_join', ['joined' => 1]));
+            return new RedirectResponse($this->router->generate('app_waitlist_join', ['joined' => 1, WaitlistJoinTicket::QUERY_PARAMETER => $this->joinTicket->issue()]));
         }
 
         $reason = match (true) {

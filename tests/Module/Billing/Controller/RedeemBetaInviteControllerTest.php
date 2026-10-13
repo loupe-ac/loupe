@@ -219,7 +219,8 @@ final class RedeemBetaInviteControllerTest extends WebTestCase
         $client->getContainer()->get(EntityManagerInterface::class)->flush();
         $client->request(Request::METHOD_GET, self::GOOGLE_CALLBACK);
 
-        self::assertResponseRedirects('/waitlist?joined=1');
+        self::assertResponseRedirects();
+        self::assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         self::assertNull($client->getContainer()->get(UserRepository::class)->findOneByEmail('beta-late-oauth@example.com'));
         self::assertNotNull($client->getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('beta-late-oauth@example.com'));
         self::assertSame('first-tester@example.com', $this->reload($client, $invite)->redeemedBy?->email);

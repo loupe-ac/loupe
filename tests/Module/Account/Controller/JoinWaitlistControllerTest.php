@@ -53,7 +53,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
         // Post/Redirect/Get: Turbo Drive requires a redirect on a successful
         // top-level form submission, so the controller redirects to the same
         // joined-confirmation branch the OAuth-at-cap flow uses.
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $client->request(Request::METHOD_GET, '/waitlist?joined=1');
         $this->assertResponseIsSuccessful();
         $this->assertSelectorTextContains('body', "You're on the list");
@@ -77,7 +78,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
             'waitlist_join_form[email]' => 'dup-waiting@example.com',
         ]);
 
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $client->request(Request::METHOD_GET, '/waitlist?joined=1');
         $this->assertResponseIsSuccessful();
         $this->assertSelectorTextContains('body', "You're on the list");
@@ -136,7 +138,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'notify@example.com', 'picks' => ['cursor']], '/waitlist/notify');
 
-        $this->assertResponseRedirects('/waitlist/notify?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist/notify\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $entry = static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('notify@example.com');
         $this->assertNotNull($entry);
         $this->assertSame(['cursor'], $entry->picks);
@@ -164,25 +167,69 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->assertSelectorExists('turbo-frame#waitlist-notify');
     }
 
-    /** @return iterable<string, array{string, string}> */
+    /** @return iterable<string, array{string, string, string}> */
     public static function confirmations(): iterable
     {
-        yield 'the dialog' => ['/waitlist/modal?joined=1', 'dialog'];
-        yield 'the Notify me form' => ['/waitlist/notify?joined=1', 'notify'];
-        yield 'the plain page and the sign-in at the cap' => ['/waitlist?joined=1', 'page'];
+        yield 'the dialog' => ['/waitlist/modal', 'waitlist_modal_form', 'dialog'];
+        yield 'the Notify me form' => ['/waitlist/notify', 'waitlist_join_form', 'notify'];
+        yield 'the plain page' => ['/waitlist', 'waitlist_join_form', 'page'];
     }
 
     #[DataProvider('confirmations')]
-    public function test_each_confirmation_names_the_form_that_saved_the_email(string $url, string $form): void
+    public function test_each_confirmation_names_the_form_that_saved_the_email(string $path, string $formName, string $form): void
     {
         $client = static::createClient();
         $this->closeRegistration();
 
-        $client->request(Request::METHOD_GET, $url);
+        $this->post($client, ['email' => 'named-'.$form.'@example.com'], $path, $formName);
+        $client->followRedirect();
 
         $this->assertResponseIsSuccessful();
         $this->assertSelectorCount(1, '[data-controller="analytics-join"]');
         $this->assertSelectorExists('[data-controller="analytics-join"][data-analytics-join-form-value="'.$form.'"]');
+    }
+
+    #[DataProvider('confirmations')]
+    public function test_a_reload_of_the_confirmation_sends_no_second_join(string $path, string $formName, string $form): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => 'reload-'.$form.'@example.com'], $path, $formName);
+        $client->followRedirect();
+        $client->request(Request::METHOD_GET, $client->getRequest()->getUri());
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('body', "You're on the list");
+        $this->assertSelectorNotExists('[data-controller="analytics-join"]');
+    }
+
+    #[DataProvider('confirmations')]
+    public function test_a_direct_visit_to_the_confirmation_sends_no_join(string $path, string $formName, string $form): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $client->request(Request::METHOD_GET, $path.'?joined=1');
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorNotExists('[data-controller="analytics-join"]');
+
+        $client->request(Request::METHOD_GET, $path.'?joined=1&t='.str_repeat('a', 32));
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorNotExists('[data-controller="analytics-join"]');
+    }
+
+    public function test_a_repeat_submit_of_a_listed_address_shows_the_same_confirmation(): void
+    {
+        $client = static::createClient();
+        $this->closeRegistration();
+
+        $this->post($client, ['email' => 'repeat@example.com'], '/waitlist/modal', 'waitlist_modal_form');
+        $this->post($client, ['email' => 'repeat@example.com'], '/waitlist/modal', 'waitlist_modal_form');
+        $client->followRedirect();
+
+        $this->assertSelectorExists('[data-controller="analytics-join"][data-analytics-join-form-value="dialog"]');
+        $this->assertSame([], $client->getCookieJar()->all());
     }
 
     public function test_a_refused_submit_carries_no_join_event(): void
@@ -204,7 +251,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'picker@example.com', 'picks' => ['gitlab', 'pi'], 'other' => 'Jujutsu']);
 
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $entry = static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('picker@example.com');
         $this->assertNotNull($entry);
         $this->assertSame(['gitlab', 'pi'], $entry->picks);
@@ -219,7 +267,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
         $this->post($client, ['email' => 'again@example.com', 'picks' => ['gitlab']]);
         $this->post($client, ['email' => 'again@example.com', 'picks' => ['cursor']]);
 
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $entries = static::getContainer()->get(WaitlistEntryRepository::class)->findBy(['email' => 'again@example.com']);
         $this->assertCount(1, $entries);
         $this->assertSame(['gitlab', 'cursor'], $entries[0]->picks);
@@ -267,7 +316,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'modal@example.com'], '/waitlist/modal', 'waitlist_modal_form');
 
-        $this->assertResponseRedirects('/waitlist/modal?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist/modal\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $entry = static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('modal@example.com');
         $this->assertNotNull($entry);
         $this->assertSame([], $entry->picks);
@@ -297,7 +347,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'open-modal@example.com'], '/waitlist/modal', 'waitlist_modal_form');
 
-        $this->assertResponseRedirects('/waitlist/modal?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist/modal\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $this->assertNotNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('open-modal@example.com'));
 
         $client->request(Request::METHOD_GET, '/waitlist/modal?joined=1');
@@ -312,7 +363,8 @@ final class JoinWaitlistControllerTest extends WebTestCase
 
         $this->post($client, ['email' => 'open-notify@example.com', 'picks' => ['gitlab']], '/waitlist/notify');
 
-        $this->assertResponseRedirects('/waitlist/notify?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist/notify\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
         $this->assertNotNull(static::getContainer()->get(WaitlistEntryRepository::class)->findOneByEmail('open-notify@example.com'));
 
         $client->request(Request::METHOD_GET, '/waitlist/notify?joined=1');

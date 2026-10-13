@@ -2,8 +2,8 @@ import { Controller } from '@hotwired/stimulus';
 import { track } from '../lib/analytics.js';
 
 /**
- * Sits on the confirmation the server renders after a saved waitlist email,
- * and sends the join event once.
+ * Sits on the confirmation the server renders after an accepted waitlist
+ * submit, and sends the join event once.
  */
 export default class extends Controller {
     static values = { form: String };
