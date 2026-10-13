@@ -8,7 +8,7 @@ namespace App\Module\DesignSystem;
  * Every building block of the design system, in one place. A child card adds
  * the entry for its component in the same branch that adds the component.
  */
-final readonly class Catalog
+readonly class Catalog
 {
     /** @return list<ComponentEntry> */
     public function entries(): array
@@ -227,6 +227,19 @@ final readonly class Catalog
                 group: 'core',
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
+            ),
+            new ComponentEntry(
+                name: 'BrandMark',
+                rootClass: 'lp-brand',
+                template: 'components/Ds/BrandMark.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                sizes: ['sm', 'md'],
+                group: 'layout',
+                summary: 'The logo square and the brand name, as the sidebar, the sign-in pages and the marketing pages draw them.',
+                element: 'span',
+                export: 'BrandMark',
             ),
         ];
     }

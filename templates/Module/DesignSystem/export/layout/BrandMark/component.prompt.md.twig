@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+Loupe's brand mark. {{ entry.summary }}
+
+```jsx
+<{{ entry.name }} />
+<{{ entry.name }} size="sm" />
+<{{ entry.name }} markOnly />
+```
+
+Sizes: {{ entry.sizes|map(v => '`' ~ v ~ '`')|join(', ') }}. The mark draws the brand name itself, so never pass a label or children. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

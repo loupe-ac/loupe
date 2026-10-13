@@ -7,6 +7,9 @@ namespace App\Tests\Module\DesignSystem\Command;
 use App\Module\DesignSystem\Catalog;
 use App\Module\DesignSystem\Command\ExportDesignSystemCommand;
 use App\Module\DesignSystem\Command\ExportDesignSystemHandler;
+use App\Module\DesignSystem\ComponentEntry;
+use App\Module\DesignSystem\Service\TailwindCompiler;
+use App\Module\DesignSystem\Token\TokenReader;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -227,5 +230,84 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString("const classes = ['lp-input', 'lp-textarea'];", (string) file_get_contents($this->directory.'/components/core/Textarea.jsx'));
         self::assertStringContainsString("const classes = ['lp-label'];", (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
         self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
+    }
+
+    public function test_the_brand_mark_export_draws_the_brand_name_and_each_option(): void
+    {
+        foreach (['BrandMark.jsx', 'BrandMark.d.ts', 'BrandMark.prompt.md', 'layout.card.html'] as $file) {
+            self::assertContains('components/layout/'.$file, $this->written);
+        }
+
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/BrandMark.jsx');
+        self::assertStringContainsString("export const BRANDMARK_SIZES = ['sm', 'md'];", $jsx);
+        self::assertStringContainsString("'lp-brand--' + size", $jsx);
+        self::assertStringContainsString("classes.push('lp-brand--mark-only')", $jsx);
+        self::assertStringContainsString('<span className="lp-brand__mark" role="img" aria-label="loupe"></span>', $jsx);
+        self::assertStringContainsString('<span className="lp-brand__mark" aria-hidden="true"></span>', $jsx);
+        self::assertStringContainsString('<span className="lp-brand__word">loupe</span>', $jsx);
+        self::assertStringContainsString('{...rest}', $jsx);
+
+        $types = (string) file_get_contents($this->directory.'/components/layout/BrandMark.d.ts');
+        self::assertStringContainsString("size?: 'sm' | 'md';", $types);
+        self::assertStringContainsString('markOnly?: boolean;', $types);
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        self::assertStringContainsString("dsFind('BrandMark')", $card);
+        foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
+            self::assertStringContainsString($example, $card);
+        }
+        self::assertStringNotContainsString('>Example</BrandMark>', $card);
+    }
+
+    public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void
+    {
+        $directory = sys_get_temp_dir().'/ds-export-layout-'.bin2hex(random_bytes(4));
+        $catalog = new readonly class extends Catalog {
+            #[\Override]
+            public function entries(): array
+            {
+                return [
+                    ...parent::entries(),
+                    new ComponentEntry(
+                        name: 'SamplePart',
+                        rootClass: 'lp-sample-part',
+                        template: null,
+                        variants: [],
+                        states: [],
+                        enforced: false,
+                        group: 'layout',
+                        summary: 'A sample part.',
+                        export: 'Sample',
+                    ),
+                ];
+            }
+        };
+        $handler = new ExportDesignSystemHandler(
+            $catalog,
+            static::getContainer()->get(TokenReader::class),
+            static::getContainer()->get(TailwindCompiler::class),
+            static::getContainer()->get('twig'),
+            \dirname(__DIR__, 4),
+        );
+
+        try {
+            $written = $handler(new ExportDesignSystemCommand($directory));
+
+            foreach (['SamplePart.jsx', 'SamplePart.d.ts', 'SamplePart.prompt.md', 'layout.card.html'] as $file) {
+                self::assertContains('components/layout/'.$file, $written);
+            }
+            self::assertStringContainsString('<header className="lp-sample-part">', (string) file_get_contents($directory.'/components/layout/SamplePart.jsx'));
+            self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart.d.ts'));
+
+            $card = (string) file_get_contents($directory.'/components/layout/layout.card.html');
+            self::assertMatchesRegularExpression("~dsFind\([^)]*'SamplePart'\)~", $card);
+            self::assertStringContainsString('<SamplePart title="Example" />', $card);
+            self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
+            self::assertStringNotContainsString('<Button', $card);
+            self::assertFileExists($directory.'/components/core/Button.jsx');
+        } finally {
+            new Filesystem()->remove($directory);
+        }
     }
 }

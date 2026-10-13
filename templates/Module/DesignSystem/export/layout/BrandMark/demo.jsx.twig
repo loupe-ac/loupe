@@ -1,0 +1,6 @@
+        <div className="row">
+{% for size in entry.sizes|reverse %}
+          <{{ entry.name }} size="{{ size }}" />
+{% endfor %}
+          <{{ entry.name }} markOnly />
+        </div>

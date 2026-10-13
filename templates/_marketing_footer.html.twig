@@ -3,8 +3,7 @@
 <footer class="lp-landing-footer">
     <div class="lp-landing-inner lp-landing-footer__row">
         <a href="{{ path('app_home') }}" class="lp-landing-nav__brand lp-landing-nav__brand--sm">
-            <span class="lp-landing-nav__mark lp-landing-nav__mark--sm"></span>
-            {{ 'nav.brand'|trans }}
+            <twig:Ds:BrandMark size="sm" />
         </a>
         <span class="lp-landing-footer__copyright">{{ 'account.auth.footer.copyright'|trans }}</span>
         <nav class="lp-landing-footer__nav">
