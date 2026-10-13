@@ -227,12 +227,12 @@ final class CardUpdateToolTest extends KernelTestCase
         self::assertSame(0, $this->links()->count([]));
     }
 
-    public function test_an_unknown_link_kind_lists_the_three_kinds(): void
+    public function test_an_unknown_link_kind_lists_every_kind(): void
     {
         $created = $this->card('card-update-link-kind');
 
         $this->expectException(ToolCallException::class);
-        $this->expectExceptionMessage('relatedCards[0].kind: unknown kind "sideways". Use one of: relates-to, blocks, blocked-by.');
+        $this->expectExceptionMessage('relatedCards[0].kind: unknown kind "sideways". Use one of: relates-to, blocks, blocked-by, has-follow-up, follow-up-of.');
         ($this->tool)($created['cardId'], relatedCards: [['cardId' => $created['cardId'], 'kind' => 'sideways']]);
     }
 
@@ -242,7 +242,7 @@ final class CardUpdateToolTest extends KernelTestCase
         yield 'not an object' => ['0199c0de-0000-7000-8000-0000000000ff', 'relatedCards[0] must be an object with a cardId.'];
         yield 'no card id' => [['kind' => 'blocks'], 'relatedCards[0].cardId must be a string.'];
         yield 'a card id that is not a string' => [['cardId' => 42], 'relatedCards[0].cardId must be a string.'];
-        yield 'a kind that is not a string' => [['cardId' => 'x', 'kind' => 1], 'relatedCards[0].kind: unknown kind "int". Use one of: relates-to, blocks, blocked-by.'];
+        yield 'a kind that is not a string' => [['cardId' => 'x', 'kind' => 1], 'relatedCards[0].kind: unknown kind "int". Use one of: relates-to, blocks, blocked-by, has-follow-up, follow-up-of.'];
     }
 
     #[DataProvider('malformedLinkItems')]

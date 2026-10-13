@@ -167,7 +167,7 @@ final class BoardToolRegistrationTest extends KernelTestCase
 
             self::assertContains('array', (array) $schema['properties']['relatedCards']['type'], $toolName);
             self::assertSame(['cardId'], $items['required'], $toolName);
-            self::assertSame(['relates-to', 'blocks', 'blocked-by'], $items['properties']['kind']['enum'], $toolName);
+            self::assertSame(['relates-to', 'blocks', 'blocked-by', 'has-follow-up', 'follow-up-of'], $items['properties']['kind']['enum'], $toolName);
             self::assertArrayNotHasKey('additionalProperties', $items, $toolName);
             self::assertNotContains('relatedCards', $schema['required'] ?? [], $toolName);
         }

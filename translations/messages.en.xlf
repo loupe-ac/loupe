@@ -6070,6 +6070,14 @@
                 <source>board.form.card_link_row.kind.choice.blocked-by</source>
                 <target>Blocked by</target>
             </trans-unit>
+            <trans-unit id="board.form.card_link_row.kind.choice.has-follow-up">
+                <source>board.form.card_link_row.kind.choice.has-follow-up</source>
+                <target>Has follow-up</target>
+            </trans-unit>
+            <trans-unit id="board.form.card_link_row.kind.choice.follow-up-of">
+                <source>board.form.card_link_row.kind.choice.follow-up-of</source>
+                <target>Follow-up of</target>
+            </trans-unit>
 
             <!-- Move form -->
             <trans-unit id="board.form.move_card_form.column.label">
@@ -6893,6 +6901,8 @@
             <trans-unit id="board.card.linked_cards.kind.relates_to"><source>board.card.linked_cards.kind.relates_to</source><target>Related to</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.blocks"><source>board.card.linked_cards.kind.blocks</source><target>Blocks</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.blocked_by"><source>board.card.linked_cards.kind.blocked_by</source><target>Blocked by</target></trans-unit>
+            <trans-unit id="board.card.linked_cards.kind.has_follow_up"><source>board.card.linked_cards.kind.has_follow_up</source><target>Has follow-up</target></trans-unit>
+            <trans-unit id="board.card.linked_cards.kind.follow_up_of"><source>board.card.linked_cards.kind.follow_up_of</source><target>Follow-up of</target></trans-unit>
             <trans-unit id="site_review.source.widget"><source>site_review.source.widget</source><target>Site review widget</target></trans-unit>
             <trans-unit id="site_review.comment.open_source"><source>site_review.comment.open_source</source><target>Open source page</target></trans-unit>
             <trans-unit id="site_review.feedback.captured_elements"><source>site_review.feedback.captured_elements</source><target>Captured elements</target></trans-unit>
