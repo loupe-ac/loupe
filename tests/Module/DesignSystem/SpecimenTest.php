@@ -33,10 +33,10 @@ final class SpecimenTest extends KernelTestCase
 
         $html = static::getContainer()->get(Environment::class)->render('@DesignSystem/specimen/appshell.html.twig', ['variant' => null]);
 
-        foreach (['lp-app', 'lp-sidebar', 'lp-switcher', 'lp-shell', 'lp-topbar', 'lp-main', 'lp-sidebar__link--active'] as $class) {
+        foreach (['lp-app', 'lp-sidebar', 'lp-menu lp-menu--chrome', 'lp-avatar', 'lp-shell', 'lp-topbar', 'lp-main', 'lp-sidebar__link--active'] as $class) {
             self::assertStringContainsString($class, $html);
         }
-        self::assertStringNotContainsString('data-controller', $html);
+        self::assertStringNotContainsString('data-controller="drawer"', $html);
         self::assertStringNotContainsString('lp-sidebar--drawer', $html);
     }
 }

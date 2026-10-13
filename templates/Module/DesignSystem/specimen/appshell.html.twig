@@ -6,16 +6,29 @@
             <span class="lp-sidebar__brand-mark" aria-hidden="true"></span>
             <span>loupe</span>
         </a>
-        <div class="lp-switcher">
-            <button type="button" class="lp-sidebar__switcher" aria-label="Switch project">
-                <span class="lp-sidebar__switcher-avatar">A</span>
-                <span class="lp-sidebar__switcher-text">
-                    <span class="lp-sidebar__switcher-label">Project</span>
-                    <span class="lp-sidebar__switcher-name">Acme</span>
-                </span>
-                <twig:ux:icon name="lucide:arrow-down" class="lp-sidebar__switcher-caret" />
-            </button>
-        </div>
+        <twig:Ds:Menu id="specimen-switcher-panel" tone="chrome" align="stretch">
+            <twig:block name="trigger">
+                <button type="button" class="lp-sidebar__switcher" data-popover-target="trigger" data-action="click->popover#toggle"
+                        aria-expanded="false" aria-controls="specimen-switcher-panel" aria-label="Switch project">
+                    <twig:Ds:Avatar name="Acme" size="sm" shape="square" tone="danger" />
+                    <span class="lp-sidebar__switcher-text">
+                        <span class="lp-sidebar__switcher-label">Project</span>
+                        <span class="lp-sidebar__switcher-name">Acme</span>
+                    </span>
+                    <twig:ux:icon name="lucide:arrow-down" class="lp-sidebar__switcher-caret" />
+                </button>
+            </twig:block>
+            <twig:block name="content">
+                <twig:Ds:MenuItem href="#" :current="true">
+                    <twig:Ds:Avatar name="Acme" size="xs" shape="square" tone="chrome" />
+                    <span class="lp-switcher__item-text">
+                        <span class="lp-switcher__item-name">Acme</span>
+                        <span class="lp-switcher__item-count">12 documents</span>
+                    </span>
+                    <twig:ux:icon name="lucide:check" class="lp-switcher__item-check" />
+                </twig:Ds:MenuItem>
+            </twig:block>
+        </twig:Ds:Menu>
         <nav class="lp-sidebar__nav">
             <span class="lp-sidebar__nav-label">Workspace</span>
             <a href="#" class="lp-sidebar__link">
@@ -58,7 +71,7 @@
             </a>
         </nav>
         <div class="lp-sidebar__account">
-            <span class="lp-sidebar__account-avatar">R</span>
+            <twig:Ds:Avatar name="riley@example.com" size="xs" tone="chrome" />
             <span class="lp-sidebar__account-text">
                 <span class="lp-sidebar__account-name">riley@example.com</span>
             </span>
@@ -79,7 +92,7 @@
             </div>
             <div class="lp-topbar__global-actions">
                 <twig:Ds:Button variant="primary" class="lp-topbar__new-work" href="#" aria-label="New work">
-                    <twig:ux:icon name="lucide:plus" class="w-4 h-4 shrink-0" />
+                    <twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />
                     <span>New work</span>
                 </twig:Ds:Button>
             </div>

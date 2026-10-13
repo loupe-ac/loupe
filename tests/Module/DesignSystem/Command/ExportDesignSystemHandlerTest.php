@@ -311,7 +311,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
 
         self::assertStringContainsString('{% for switcherProject in switcherProjects %}', $base);
-        self::assertStringContainsString('{% if currentProject %} aria-current="true"{% endif %}', $base);
+        self::assertStringContainsString(':current="currentProject"', $base);
         self::assertStringContainsString('{% if currentProject %}<twig:ux:icon name="lucide:check"', $base);
 
         self::assertStringContainsString('switcherProjects.map((project) => {', $jsx);
@@ -330,6 +330,33 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         foreach (['.lp-sidebar__link', '.lp-topbar__crumb', '.lp-shell'] as $selector) {
             self::assertStringContainsString($selector, $css);
         }
+    }
+
+    public function test_no_layout_wrapper_draws_a_class_that_a_component_replaced(): void
+    {
+        $legacy = [];
+        foreach (new Catalog()->entries() as $entry) {
+            $legacy = [...$legacy, ...$entry->legacyClasses];
+        }
+        self::assertNotEmpty($legacy);
+
+        foreach (['AppShell', 'PageHeader', 'SplitView', 'ListRow'] as $name) {
+            $jsx = (string) file_get_contents($this->directory.'/components/layout/'.$name.'.jsx');
+            foreach ($legacy as $class) {
+                self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $jsx, sprintf('The %s wrapper draws %s, which a component replaced.', $name, $class));
+            }
+        }
+    }
+
+    public function test_the_app_shell_wrapper_draws_the_menu_and_avatar_classes_of_the_base_template(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        self::assertStringContainsString('<div className="lp-menu lp-menu--chrome lp-menu--stretch">', $jsx);
+        self::assertStringContainsString('className="lp-menu__item"', $jsx);
+        self::assertStringContainsString('lp-avatar lp-avatar--sm lp-avatar--square lp-avatar--danger', $jsx);
+        self::assertStringContainsString('lp-avatar lp-avatar--xs lp-avatar--round lp-avatar--chrome', $jsx);
+        self::assertStringContainsString('<Icon name="plus" className="lp-icon lp-icon--md" />', $jsx);
     }
 
     public function test_the_app_shell_wrapper_draws_every_shell_class_of_the_base_template(): void
@@ -392,7 +419,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $sidebarOnly = $projectOnly($sidebarGated);
         $topbarOnly = $projectOnly($topbarGated);
 
-        self::assertContains('lp-switcher', $sidebarOnly);
+        self::assertContains('lp-sidebar__switcher', $sidebarOnly);
         self::assertSame(['lp-topbar__new-work'], array_values($topbarOnly));
         foreach (['hasProject' => [$sidebarOnly, $sidebarGuarded], 'onProjectPage' => [$topbarOnly, $topbarGuarded]] as $guard => [$classes, $guarded]) {
             foreach ($classes as $class) {

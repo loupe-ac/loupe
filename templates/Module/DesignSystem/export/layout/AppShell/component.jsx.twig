@@ -178,7 +178,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                 </a>
                 {hasProject && (
                     <>
-                        <div className="lp-switcher">
+                        <div className="lp-menu lp-menu--chrome lp-menu--stretch">
                             <button
                                 type="button"
                                 className="lp-sidebar__switcher"
@@ -187,21 +187,21 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                                 aria-label="Switch project"
                                 onClick={() => setSwitcherOpen(!switcherOpen)}
                             >
-                                <span className="lp-sidebar__switcher-avatar">{initial(projectName)}</span>
+                                <span className="lp-avatar lp-avatar--sm lp-avatar--square lp-avatar--danger">{initial(projectName)}</span>
                                 <span className="lp-sidebar__switcher-text">
                                     <span className="lp-sidebar__switcher-label">Project</span>
                                     <span className="lp-sidebar__switcher-name">{projectName}</span>
                                 </span>
                                 <Icon name="arrow-down" className="lp-sidebar__switcher-caret" />
                             </button>
-                            <div className="lp-switcher__panel" id="project-switcher-panel" hidden={!switcherOpen}>
+                            <div className="lp-menu__panel" id="project-switcher-panel" hidden={!switcherOpen}>
                                 {switcherProjects.map((project) => {
                                     const current = project.name === projectName;
                                     const documentCount = project.documentCount ?? 0;
 
                                     return (
-                                        <a key={project.name} href="#" className="lp-switcher__item" aria-current={current ? 'true' : undefined}>
-                                            <span className="lp-switcher__item-avatar">{initial(project.name)}</span>
+                                        <a key={project.name} href="#" className="lp-menu__item" aria-current={current ? 'true' : undefined}>
+                                            <span className="lp-avatar lp-avatar--xs lp-avatar--square lp-avatar--chrome">{initial(project.name)}</span>
                                             <span className="lp-switcher__item-text">
                                                 <span className="lp-switcher__item-name">{project.name}</span>
                                                 <span className="lp-switcher__item-count">{documentCount === 1 ? '1 document' : documentCount + ' documents'}</span>
@@ -210,7 +210,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                                         </a>
                                     );
                                 })}
-                                <a href="#" className="lp-switcher__all">
+                                <a href="#" className="lp-menu__item lp-switcher__all">
                                     <span className="lp-switcher__all-glyph">
                                         <Icon name="plus" />
                                     </span>
@@ -237,11 +237,11 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                     ))}
                 </nav>
                 <div className="lp-sidebar__account">
-                    <span className="lp-sidebar__account-avatar">{initial(userName)}</span>
+                    <span className="lp-avatar lp-avatar--xs lp-avatar--round lp-avatar--chrome">{initial(userName)}</span>
                     <span className="lp-sidebar__account-text">
                         <span className="lp-sidebar__account-name">{userName}</span>
                     </span>
-                    <form className="lp-sidebar__account-logout-form" onSubmit={(event) => event.preventDefault()}>
+                    <form className="lp-action-form lp-sidebar__account-logout-form" onSubmit={(event) => event.preventDefault()}>
                         <button type="submit" className="lp-sidebar__account-logout" aria-label={LOGOUT.label}>
                             <Icon name={LOGOUT.icon} />
                         </button>
@@ -270,7 +270,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                     <div className="lp-topbar__global-actions" aria-label="Global tools">
                         {onProjectPage && (
                             <a className="lp-btn lp-btn--primary lp-topbar__new-work" href="#" aria-label="New work">
-                                <Icon name="plus" className="w-4 h-4 shrink-0" />
+                                <Icon name="plus" className="lp-icon lp-icon--md" />
                                 <span>New work</span>
                             </a>
                         )}
