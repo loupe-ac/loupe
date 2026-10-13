@@ -136,6 +136,19 @@ A plain field uses `Input`, `Select` or `Textarea`. A Symfony widget in a custom
 
 `just gamache` blocks a template that writes `lp-input`, `lp-select`, `lp-textarea`, `lp-label`, `lp-form-field`, `lp-field-errors` or `lp-form-hint` by hand.
 
+## The marketing shell
+
+A public page for a signed-out visitor extends `templates/marketing_base.html.twig`. The base draws the header, the page body and the footer. A page fills `block body`, or swaps `marketing_header`, `marketing_main` and `marketing_footer` when it draws its own, as the home page does. A signed-in visitor gets the app shell instead.
+
+The shell is a base template with page blocks, so it has no Twig component. Its catalog entry has no template, and the `lp-landing` classes are documented here.
+
+Every public footer takes the privacy, terms and AI policy links from `templates/_legal_links.html.twig`:
+
+```twig
+{% include '_legal_links.html.twig' with {class: 'lp-landing-footer__link'} only %}
+{% include '_legal_links.html.twig' with {class: 'lp-home-footer__link', listItem: true} only %}
+```
+
 ## The sign-in shell
 
 Every sign-in, sign-up, password reset, install and consent page extends `@Account/auth_base.html.twig`. The base draws the topbar with the brand mark, one centred card and the footer, through the classes of `assets/styles/components/auth-shell.css`. The footer lives in `@Account/_auth_footer.html.twig`, which the styleguide specimen also draws. A page fills the blocks `title`, `topbar_nav` and `auth_body`. A page that needs a wider card sets `{% block auth_shell_class 'lp-auth__card lp-auth__card--wide' %}`.
