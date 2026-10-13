@@ -196,7 +196,7 @@ These are the documented shell classes.
 | `lp-app` | The root. A flex row that fills the window, with the dark chrome colour |
 | `lp-sidebar` | The left rail. `lp-sidebar--drawer` makes it a slide-in drawer below the `lg` breakpoint, and `lp-sidebar--open` opens it |
 | `lp-sidebar__close` | The button that closes the drawer |
-| `lp-sidebar__brand` and `lp-sidebar__brand-mark` | The logo lockup |
+| `lp-sidebar__brand` | The link around the `Ds:BrandMark` logo lockup |
 | `lp-sidebar__switcher` and its `__avatar`, `__text`, `__label`, `__name`, `__caret` parts | The button that shows the current project |
 | `lp-switcher` | The wrapper of the switcher button and its panel |
 | `lp-switcher__panel` | The list of projects that drops under the button |

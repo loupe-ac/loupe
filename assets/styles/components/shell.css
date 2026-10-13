@@ -102,13 +102,6 @@
     .lp-sidebar__brand {
         @apply flex items-center px-2 pb-7 text-white no-underline;
     }
-    .lp-sidebar__brand-mark {
-        @apply relative grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-accent -rotate-6;
-    }
-    .lp-sidebar__brand-mark::after {
-        @apply block w-2.5 h-2.5 rounded-full border-3 border-sidebar;
-        content: '';
-    }
 
     /* Current-project switcher: a button that opens the project list beneath it. */
     .lp-sidebar__switcher {

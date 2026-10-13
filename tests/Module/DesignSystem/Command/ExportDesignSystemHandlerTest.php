@@ -415,6 +415,24 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
     }
 
+    public function test_the_app_shell_wrapper_draws_the_brand_mark_the_base_template_renders(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        self::assertMatchesRegularExpression('~class="lp-sidebar__brand">\s*<twig:Ds:BrandMark />~', $base);
+
+        $twig = static::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+        $mark = new Crawler($twig->createTemplate('<twig:Ds:BrandMark />')->render());
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        $classes = $mark->filter('[class]')->each(static fn (Crawler $node): string => (string) $node->attr('class'));
+        self::assertNotEmpty($classes);
+        foreach ($classes as $class) {
+            self::assertStringContainsString('className="'.$class.'"', $jsx);
+        }
+        self::assertStringNotContainsString('lp-sidebar__brand-mark', $jsx);
+    }
+
     public function test_the_app_shell_wrapper_has_a_link_for_every_nav_link_of_the_base_template(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');

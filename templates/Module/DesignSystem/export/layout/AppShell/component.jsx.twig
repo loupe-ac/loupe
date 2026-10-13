@@ -173,8 +173,10 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                     <Icon name="x" />
                 </button>
                 <a href="#" className="lp-sidebar__brand">
-                    <span className="lp-sidebar__brand-mark" aria-hidden="true"></span>
-                    <span>loupe</span>
+                    <span className="lp-brand lp-brand--md">
+                        <span className="lp-brand__mark" aria-hidden="true"></span>
+                        <span className="lp-brand__word">loupe</span>
+                    </span>
                 </a>
                 {hasProject && (
                     <>
