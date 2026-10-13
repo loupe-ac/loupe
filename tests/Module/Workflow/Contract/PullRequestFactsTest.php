@@ -21,13 +21,14 @@ final class PullRequestFactsTest extends TestCase
 
         self::assertTrue($facts->mergeInFlight(new \DateTimeImmutable('11:59')));
         self::assertEquals(new \DateTimeImmutable('11:50'), $facts->forgeRequestedAt(new \DateTimeImmutable('11:59')));
-        self::assertEquals(new \DateTimeImmutable('12:05'), $facts->forgeRequestsEndAt(new \DateTimeImmutable('11:59')));
+        self::assertEquals(new \DateTimeImmutable('12:00'), $facts->firstForgeRequestExpiresAt(new \DateTimeImmutable('11:59')));
 
         self::assertFalse($facts->mergeInFlight(new \DateTimeImmutable('12:00')));
         self::assertEquals(new \DateTimeImmutable('11:55'), $facts->forgeRequestedAt(new \DateTimeImmutable('12:00')));
+        self::assertEquals(new \DateTimeImmutable('12:05'), $facts->firstForgeRequestExpiresAt(new \DateTimeImmutable('12:00')));
 
         self::assertNull($facts->forgeRequestedAt(new \DateTimeImmutable('12:05')));
-        self::assertNull($facts->forgeRequestsEndAt(new \DateTimeImmutable('12:05')));
+        self::assertNull($facts->firstForgeRequestExpiresAt(new \DateTimeImmutable('12:05')));
     }
 
     public function test_a_ready_pull_request_with_nothing_pending_needs_each_part(): void

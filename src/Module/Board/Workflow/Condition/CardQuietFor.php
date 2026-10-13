@@ -65,9 +65,9 @@ final readonly class CardQuietFor implements Condition, MarkerEvidence, TimedCon
     #[\Override]
     public function evidence(Facts $facts, array $params): ?Evidence
     {
-        $endsAt = self::delayEndsAt($facts, $params);
+        $newestEventAt = $facts->get(CardActivityFacts::class)->newestEventAt;
 
-        return null === $endsAt ? null : new Evidence($endsAt);
+        return null === $newestEventAt ? null : new Evidence($newestEventAt);
     }
 
     #[\Override]

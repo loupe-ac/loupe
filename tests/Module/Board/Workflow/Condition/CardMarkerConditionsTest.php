@@ -87,11 +87,11 @@ final class CardMarkerConditionsTest extends TestCase
         self::assertFalse($condition->evaluate(self::activity(null), ['delay' => 1]));
     }
 
-    public function test_a_quiet_card_is_stuck_from_the_end_of_the_delay(): void
+    public function test_a_quiet_card_is_stuck_from_its_newest_event(): void
     {
         $condition = new CardQuietFor();
 
-        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 11:30:00')), $condition->evidence(self::activity('2026-10-01 11:00:00'), ['delay' => 30]));
+        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 11:00:00')), $condition->evidence(self::activity('2026-10-01 11:00:00'), ['delay' => 30]));
         self::assertNull($condition->evidence(self::activity(null), ['delay' => 30]));
     }
 
@@ -133,7 +133,7 @@ final class CardMarkerConditionsTest extends TestCase
         self::assertNotContains(StuckDelayFacts::class, $condition->reads(['delay' => 5]));
         self::assertTrue($condition->evaluate($facts(120), []));
         self::assertFalse($condition->evaluate($facts(121), []));
-        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 10:30:00'), ['%number%' => 7]), $condition->evidence($facts(30), []));
+        self::assertEquals(new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), ['%number%' => 7]), $condition->evidence($facts(30), []));
         self::assertEquals(new \DateTimeImmutable('2026-10-01 13:00:00'), $condition->changesAt($facts(180), []));
         self::assertSame('workflow.waiting.pr_ready_for_stuck_delay', $condition->waitingFor([])->getMessage());
         self::assertSame(['%delay%' => '5'], $condition->waitingFor(['delay' => 5])->getParameters());

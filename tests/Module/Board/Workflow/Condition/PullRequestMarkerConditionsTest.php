@@ -138,11 +138,11 @@ final class PullRequestMarkerConditionsTest extends TestCase
             new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), [...$number, '%branch%' => 'parent-branch']),
         ];
 
-        yield 'ready for, the end of the delay' => [
+        yield 'ready for, the ready time' => [
             new PullRequestReadyFor(),
             ['delay' => 30],
             self::ready(),
-            new Evidence(new \DateTimeImmutable('2026-10-01 10:30:00'), $number),
+            new Evidence(new \DateTimeImmutable('2026-10-01 10:00:00'), $number),
         ];
         yield 'ready for, no ready time' => [new PullRequestReadyFor(), ['delay' => 30], self::ready(readySince: null), new Evidence(null, $number)];
     }
@@ -164,7 +164,7 @@ final class PullRequestMarkerConditionsTest extends TestCase
         yield 'ready for, the delay ends first' => [new PullRequestReadyFor(), ['delay' => 122], self::ready(forgeRequests: [self::request('11:55', '12:05', merge: true)]), '2026-10-01 12:02:00'];
         yield 'ready for, no pull request' => [new PullRequestReadyFor(), ['delay' => 180], FactsMother::pullRequest(state: PullRequestState::Closed), null];
 
-        yield 'forge request, the last one ends' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:55', '12:05'), self::request('11:58', '12:08')]), '2026-10-01 12:08:00'];
+        yield 'forge request, the first one ends' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:58', '12:08'), self::request('11:55', '12:05')]), '2026-10-01 12:05:00'];
         yield 'forge request, none pending' => [new PullRequestForgeRequestPending(), [], FactsMother::pullRequest(forgeRequests: [self::request('11:40', '11:50')]), null];
 
         yield 'stack parent, a request ends' => [new PullRequestStackParent(), [], self::ready(stackParent: new StackParent('b'), forgeRequests: [self::request('11:55', '12:05')]), '2026-10-01 12:05:00'];

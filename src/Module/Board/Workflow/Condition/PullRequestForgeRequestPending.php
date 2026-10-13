@@ -62,6 +62,6 @@ final readonly class PullRequestForgeRequestPending implements Condition, Marker
     #[\Override]
     public function changesAt(Facts $facts, array $params): ?\DateTimeImmutable
     {
-        return $facts->pullRequest?->forgeRequestsEndAt($facts->now);
+        return $facts->pullRequest?->firstForgeRequestExpiresAt($facts->now);
     }
 }

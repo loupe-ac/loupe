@@ -58,12 +58,12 @@ final readonly class PullRequestFacts
         return [] === $pending ? null : min($pending);
     }
 
-    /** When the last pending request expires, or null when none is pending. */
-    public function forgeRequestsEndAt(\DateTimeImmutable $now): ?\DateTimeImmutable
+    /** When the first pending request expires, or null when none is pending. */
+    public function firstForgeRequestExpiresAt(\DateTimeImmutable $now): ?\DateTimeImmutable
     {
         $pending = array_map(static fn (ForgeRequest $request): \DateTimeImmutable => $request->expiresAt, $this->pendingRequests($now));
 
-        return [] === $pending ? null : max($pending);
+        return [] === $pending ? null : min($pending);
     }
 
     /** Open and ready to merge, with no approval missing and no request to the forge pending. */

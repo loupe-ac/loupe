@@ -76,7 +76,7 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
     {
         $pullRequest = $facts->pullRequest;
 
-        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, self::delayEndsAt($facts, $pullRequest, $params));
+        return null === $pullRequest ? null : PullRequestEvidence::of($pullRequest, $pullRequest->readySince);
     }
 
     #[\Override]
@@ -88,7 +88,7 @@ final readonly class PullRequestReadyFor implements Condition, MarkerEvidence, T
         }
         $endsAt = self::delayEndsAt($facts, $pullRequest, $params);
         $times = array_filter(
-            [null !== $endsAt && $endsAt > $facts->now ? $endsAt : null, $pullRequest->forgeRequestsEndAt($facts->now)],
+            [null !== $endsAt && $endsAt > $facts->now ? $endsAt : null, $pullRequest->firstForgeRequestExpiresAt($facts->now)],
             static fn (?\DateTimeImmutable $time): bool => null !== $time,
         );
 
