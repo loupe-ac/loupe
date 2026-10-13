@@ -26,6 +26,8 @@ final readonly class StoreArtifactVersionHandler
     private const int MAX_PATH_LENGTH = 1024;
     private const int MAX_CONTENT_TYPE_LENGTH = 255;
     private const int MAX_SESSION_LENGTH = 255;
+    // A canvas needs the runtime that only Claude Design supplies, so it renders broken here.
+    private const string CLAUDE_DESIGN_CANVAS_SUFFIX = '.dc.html';
 
     public function __construct(
         private ProjectRepository $projects,
@@ -157,6 +159,9 @@ final readonly class StoreArtifactVersionHandler
         foreach ($files as $file) {
             if (!self::isSafePath($file->path)) {
                 return ['files' => 'artifact.error.unsafe_path'];
+            }
+            if (str_ends_with(strtolower($file->path), self::CLAUDE_DESIGN_CANVAS_SUFFIX)) {
+                return ['files' => 'artifact.error.claude_design_canvas'];
             }
             if (isset($seen[$file->path])) {
                 return ['files' => 'artifact.error.duplicate_path'];

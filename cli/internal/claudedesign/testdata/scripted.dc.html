@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+.card{padding:8px}
+</style>
+</helmet>
+
+<h1>{{ title }}</h1>
+<p class="{{ tone }}" title="a {{ title }} b">{{ count }} of {{ missing.key }}</p>
+<sc-for list="{{ cards }}" as="card">
+  <div class="card">
+    <span>{{ card.name }}</span>
+    <sc-if value="{{ card.done }}"><b>done</b></sc-if>
+    <sc-for list="{{ card.tags }}" as="tag"><i>{{tag}}</i></sc-for>
+  </div>
+</sc-for>
+<sc-if value="{{ hidden }}"><p>never</p></sc-if>
+<sc-if value="{{ missing }}"><p>never either</p></sc-if>
+<div dangerouslySetInnerHTML="{{ body }}"></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1120},&quot;tone&quot;:{&quot;editor&quot;:&quot;string&quot;,&quot;default&quot;:&quot;calm&quot;}}">
+class Component extends DCLogic {
+  state = { n: 2 };
+  cards = [
+    { name: 'One <b>', done: true, tags: ['x', 'y'] },
+    { name: 'Two', done: false, tags: [] },
+  ];
+  componentDidMount() { throw new Error('must not run'); }
+  renderVals() {
+    setInterval(() => this.setState({ n: 9 }), 10);
+    this.setState({ n: this.state.n + 1 });
+    return {
+      title: 'Plan & "go"',
+      tone: this.props.tone,
+      count: this.state.n,
+      cards: this.cards,
+      hidden: false,
+      body: { __html: '<em>raw</em>' },
+    };
+  }
+}
+</script>
+</body>
+</html>
