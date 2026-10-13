@@ -35,6 +35,9 @@ func isCanvas(p string) bool { return strings.HasSuffix(p, canvasSuffix) }
 
 func isSupportScript(p string) bool { return path.Base(p) == "support.js" }
 
+// isBoardLayout matches canvas.json, which holds the layout of the canvas board.
+func isBoardLayout(p string) bool { return path.Base(p) == "canvas.json" }
+
 // pagePath is the output path of an artboard. The index artboard goes to the
 // root index.html, because the viewer opens that file first.
 func pagePath(canvas string, index bool) string {
@@ -52,7 +55,7 @@ func (compiler) Compile(files []api.ArtifactFile, opts artifactcompile.Options) 
 		switch {
 		case isCanvas(f.Path):
 			boards = append(boards, f)
-		case isSupportScript(f.Path):
+		case isSupportScript(f.Path), isBoardLayout(f.Path):
 		default:
 			gaps := companionGaps(f)
 			if len(gaps) > 0 {

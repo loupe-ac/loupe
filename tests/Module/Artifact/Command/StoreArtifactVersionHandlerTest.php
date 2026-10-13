@@ -25,6 +25,7 @@ use App\Tests\Module\Artifact\ArtifactScenario;
 use App\Tests\Support\FeatureFlags;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -264,6 +265,18 @@ final class StoreArtifactVersionHandlerTest extends KernelTestCase
         $project = $this->setUpProject('store-path-'.md5($path).'@example.com');
 
         $this->assertRefused($project, ['files' => 'artifact.error.unsafe_path'], name: 'Widget tokens', files: [new ArtifactFileInput($path, 'a', 'text/html')]);
+    }
+
+    #[TestWith(['Main.dc.html'])]
+    #[TestWith(['design/Main.DC.HTML'])]
+    public function test_it_refuses_a_claude_design_canvas(string $path): void
+    {
+        $project = $this->setUpProject('store-canvas-'.md5($path).'@example.com');
+
+        $this->assertRefused($project, ['files' => 'artifact.error.claude_design_canvas'], name: 'Widget tokens', files: [
+            new ArtifactFileInput('index.html', 'a', 'text/html'),
+            new ArtifactFileInput($path, 'b', 'text/html'),
+        ]);
     }
 
     public function test_it_refuses_a_duplicate_path(): void
