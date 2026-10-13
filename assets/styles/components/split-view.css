@@ -1,0 +1,54 @@
+/* A master-detail page: a held header over panes that scroll alone. `templates/components/Ds/SplitView.html.twig` renders the root. */
+@layer components {
+    /* A master-detail page holds its header still and scrolls each pane on its
+       own, so reading one pane never moves the other. Below the stacking
+       breakpoint the panes sit one above the other and the page scrolls. */
+    .lp-split-page {
+        @apply flex flex-col min-h-0 h-full;
+    }
+    .lp-split-page > *:not(.lp-split-region) {
+        @apply shrink-0;
+    }
+    .lp-split-page > .lp-split-region {
+        @apply flex-1 min-h-0;
+    }
+    .lp-split-region > * {
+        @apply min-h-0 h-full;
+    }
+    /* The two-pane grid: a list column beside a detail column. */
+    .lp-split-view {
+        display: grid;
+        grid-template-columns:
+            minmax(calc(var(--spacing) * 60), calc(var(--spacing) * 70))
+            minmax(0, 1fr);
+        column-gap: calc(var(--spacing) * 10);
+    }
+    /* The pane is positioned, so an absolute child such as an .sr-only label
+       cannot escape the clip and stretch the page. */
+    .lp-split-pane {
+        @apply relative min-h-0 overflow-y-auto;
+    }
+    @media (max-width: 68rem) {
+        .lp-split-view {
+            grid-template-columns: calc(var(--spacing) * 60) minmax(0, 1fr);
+            column-gap: calc(var(--spacing) * 7);
+        }
+    }
+    @media (width <= 42.5rem) {
+        .lp-split-page {
+            @apply h-auto;
+        }
+        .lp-split-page > .lp-split-region,
+        .lp-split-region > * {
+            @apply flex-none h-auto;
+        }
+        .lp-split-pane {
+            @apply overflow-visible;
+        }
+    }
+    @media (max-width: 42.5rem) {
+        .lp-split-view {
+            grid-template-columns: 1fr;
+        }
+    }
+}

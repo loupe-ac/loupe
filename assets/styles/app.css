@@ -18,6 +18,8 @@
 @import './components/tooltip.css';
 @import './components/shell.css';
 @import './components/page-header.css';
+@import './components/split-view.css';
+@import './components/list-row.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -317,14 +319,6 @@
         overflow: hidden;
     }
 
-    .lp-core-inbox .lp-inbox-split {
-        display: grid;
-        grid-template-columns:
-            minmax(calc(var(--spacing) * 60), calc(var(--spacing) * 70))
-            minmax(0, 1fr);
-        column-gap: calc(var(--spacing) * 10);
-    }
-
     .lp-core-inbox .lp-inbox-request-list {
         display: flex;
         flex-direction: column;
@@ -429,65 +423,6 @@
     .lp-core-inbox .lp-inbox-filter__button:focus-visible .lp-tooltip {
         visibility: visible;
         opacity: 1;
-    }
-
-    .lp-core-inbox .lp-inbox-request {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        column-gap: calc(var(--spacing) * 2.5);
-        row-gap: calc(var(--spacing) * 0.5);
-        padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3);
-        border-radius: var(--radius-xl);
-        color: var(--text);
-    }
-
-    .lp-core-inbox .lp-inbox-request:hover {
-        background: var(--surface-2);
-    }
-
-    .lp-core-inbox .lp-inbox-request[aria-current='true'] {
-        background: var(--accent-faint);
-    }
-
-    .lp-core-inbox
-        .lp-inbox-request[aria-current='true']
-        .lp-inbox-request__icon {
-        color: var(--accent-ink);
-    }
-
-    .lp-core-inbox .lp-inbox-request:focus-visible {
-        position: relative;
-        z-index: 1;
-        outline: 2px solid var(--accent);
-        outline-offset: -2px;
-    }
-
-    .lp-core-inbox .lp-inbox-request__icon {
-        display: flex;
-        align-items: flex-start;
-        padding-top: calc(var(--spacing) * 0.75);
-        color: var(--text-dim);
-    }
-
-    .lp-core-inbox .lp-inbox-request__title {
-        color: var(--text);
-        font-size: var(--text-sm);
-        font-weight: 600;
-        line-height: 1.5;
-    }
-
-    .lp-core-inbox .lp-inbox-request__meta {
-        display: flex;
-        grid-column: 2;
-        flex-wrap: wrap;
-        gap: calc(var(--spacing) * 1.5);
-        color: var(--text-dim);
-        font-size: var(--text-xs);
-    }
-
-    .lp-core-inbox .lp-inbox-request__blocking {
-        color: var(--accent-ink);
-        font-weight: 600;
     }
 
     .lp-core-inbox .lp-inbox-back {
@@ -1139,18 +1074,7 @@
         }
     }
 
-    @media (max-width: 68rem) {
-        .lp-core-inbox .lp-inbox-split {
-            grid-template-columns: calc(var(--spacing) * 60) minmax(0, 1fr);
-            column-gap: calc(var(--spacing) * 7);
-        }
-    }
-
     @media (max-width: 42.5rem) {
-        .lp-core-inbox .lp-inbox-split {
-            grid-template-columns: 1fr;
-        }
-
         .lp-core-inbox .lp-inbox-request-list {
             overflow-y: auto;
         }
@@ -3076,38 +3000,6 @@
     .lp-sidebar--drawer {
         scrollbar-width: thin;
         scrollbar-color: var(--border-strong) transparent;
-    }
-    /* A master-detail page holds its header still and scrolls each pane on its
-       own, so reading one pane never moves the other. Below the stacking
-       breakpoint the panes sit one above the other and the page scrolls. */
-    .lp-split-page {
-        @apply flex flex-col min-h-0 h-full;
-    }
-    .lp-split-page > *:not(.lp-split-region) {
-        @apply shrink-0;
-    }
-    .lp-split-page > .lp-split-region {
-        @apply flex-1 min-h-0;
-    }
-    .lp-split-region > * {
-        @apply min-h-0 h-full;
-    }
-    /* The pane is positioned, so an absolute child such as an .sr-only label
-       cannot escape the clip and stretch the page. */
-    .lp-split-pane {
-        @apply relative min-h-0 overflow-y-auto;
-    }
-    @media (width <= 42.5rem) {
-        .lp-split-page {
-            @apply h-auto;
-        }
-        .lp-split-page > .lp-split-region,
-        .lp-split-region > * {
-            @apply flex-none h-auto;
-        }
-        .lp-split-pane {
-            @apply overflow-visible;
-        }
     }
     .lp-feedback-detail__actions {
         @apply flex flex-wrap items-center justify-end gap-2 pt-5 border-t border-line;
@@ -9248,6 +9140,13 @@
     .lp-styleguide__specimen .lp-app {
         @apply h-160 w-full overflow-hidden rounded-xl;
         contain: layout paint;
+    }
+    /* A split page fills its height, so the frame gives it a fixed one. */
+    .lp-styleguide__specimen .lp-split-page {
+        @apply h-72 w-full overflow-hidden rounded-xl border border-line;
+    }
+    .lp-styleguide__specimen .lp-list-row {
+        @apply w-full;
     }
     .lp-styleguide__tooltip-anchor {
         @apply relative inline-block pb-16 text-sm font-semibold text-ink;

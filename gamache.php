@@ -156,6 +156,8 @@ return (new GamacheConfig())->registerChecks([
             new DesignSystemComponent('StateMark', 'lp-state-mark', 'templates/components/Ds/StateMark.html.twig', enforced: true),
             new DesignSystemComponent('Tooltip', 'lp-tooltip', 'templates/components/Ds/Tooltip.html.twig', enforced: true),
             new DesignSystemComponent('PageHeader', 'lp-page-header', 'templates/components/Ds/PageHeader.html.twig', enforced: true),
+            new DesignSystemComponent('SplitView', 'lp-split-page', 'templates/components/Ds/SplitView.html.twig', enforced: true),
+            new DesignSystemComponent('ListRow', 'lp-list-row', 'templates/components/Ds/ListRow.html.twig', enforced: true),
         ],
     ),
     new FormTypeTranslationKeysCheck(),

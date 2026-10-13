@@ -57,6 +57,12 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             'components/layout/PageHeader.jsx',
             'components/layout/PageHeader.d.ts',
             'components/layout/PageHeader.prompt.md',
+            'components/layout/SplitView.jsx',
+            'components/layout/SplitView.d.ts',
+            'components/layout/SplitView.prompt.md',
+            'components/layout/ListRow.jsx',
+            'components/layout/ListRow.d.ts',
+            'components/layout/ListRow.prompt.md',
             'components/layout/layout.card.html',
             'guidelines/colour.html',
             'assets/fonts/Geist-Variable.woff2',
@@ -262,7 +268,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
@@ -519,9 +525,42 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString("| 'workshop'", $types);
         self::assertStringContainsString('<PageHeader title=', $prompt);
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow')", $card);
         self::assertStringContainsString('<PageHeader variant="workshop"', $card);
         self::assertStringNotContainsString('<Button', $card);
+    }
+
+    public function test_the_split_view_wrapper_draws_the_region_the_view_and_two_panes(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/SplitView.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/SplitView.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/SplitView.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+
+        self::assertStringContainsString('export function SplitView({ header, list, detail, className: extra, ...rest })', $jsx);
+        self::assertStringContainsString('<div className="lp-split-region">', $jsx);
+        self::assertStringContainsString('<div className="lp-split-view">', $jsx);
+        self::assertStringContainsString('<div className="lp-split-pane">{list}</div>', $jsx);
+        self::assertStringContainsString('<div className="lp-split-pane">{detail}</div>', $jsx);
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+        self::assertStringContainsString('<SplitView', $prompt);
+        self::assertStringContainsString('<SplitView style={{ height: 240 }}', $card);
+        self::assertStringNotContainsString('<Button', $card);
+    }
+
+    public function test_the_list_row_wrapper_draws_the_icon_the_title_and_the_meta_line(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/ListRow.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/ListRow.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/ListRow.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+
+        self::assertStringContainsString('export function ListRow({ title, icon, meta, current, href, className: extra, ...rest })', $jsx);
+        self::assertStringContainsString("aria-current={current ? 'true' : undefined}", $jsx);
+        self::assertStringContainsString('<span className="lp-list-row__title">{title}</span>', $jsx);
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+        self::assertStringContainsString('lp-list-row__flag', $prompt);
+        self::assertStringContainsString('<ListRow href="#" title="Which format?"', $card);
     }
 
     public function test_an_entry_with_an_export_folder_renders_its_own_templates(): void
@@ -565,7 +604,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart.d.ts'));
 
             $card = (string) file_get_contents($directory.'/components/layout/layout.card.html');
-            self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SamplePart')", $card);
+            self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'SamplePart')", $card);
             self::assertStringContainsString('<SamplePart title="Example" />', $card);
             self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
             self::assertStringNotContainsString('<Button', $card);
