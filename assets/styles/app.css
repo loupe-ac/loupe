@@ -15,6 +15,7 @@
 @import './components/pagination.css';
 @import './components/tabs.css';
 @import './components/tooltip.css';
+@import './components/brand-mark.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -5199,14 +5200,7 @@
 
     /* Compact brand lockup used by the application rail. */
     .lp-sidebar__brand {
-        @apply flex items-center gap-2.5 px-2 pb-7 font-display font-extrabold text-2xl tracking-tight text-white no-underline;
-    }
-    .lp-sidebar__brand-mark {
-        @apply relative grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-accent -rotate-6;
-    }
-    .lp-sidebar__brand-mark::after {
-        @apply block w-2.5 h-2.5 rounded-full border-3 border-sidebar;
-        content: '';
+        @apply flex items-center px-2 pb-7 text-white no-underline;
     }
 
     /* Current-project switcher: a button that opens the project list beneath it. */
@@ -6245,10 +6239,7 @@
         @apply sticky top-0 z-40 flex items-center gap-2.5 px-7 py-4 border-b border-line bg-app/90 backdrop-blur-md;
     }
     .lp-landing-nav__brand {
-        @apply inline-flex items-center gap-2.5 mr-auto font-display font-extrabold text-2xl tracking-tight lowercase text-ink no-underline;
-    }
-    .lp-landing-nav__mark {
-        @apply w-7 h-7 rounded-lg bg-accent shrink-0;
+        @apply inline-flex items-center mr-auto text-ink no-underline;
     }
     .lp-landing-nav__links {
         @apply flex items-center gap-4 text-sm;
@@ -6283,17 +6274,10 @@
         @apply sticky top-0 z-40 flex flex-wrap items-center gap-4 px-4 py-3 sm:px-7 bg-chrome;
     }
     .lp-home-brand {
-        @apply inline-flex items-center gap-2.5 mr-auto font-display font-extrabold text-2xl tracking-tighter lowercase text-chrome-fg no-underline;
+        @apply inline-flex items-center mr-auto text-chrome-fg no-underline;
     }
     .lp-home-brand--small {
-        @apply text-xl mr-0;
-    }
-    .lp-home-brand__mark {
-        @apply grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-accent -rotate-6;
-    }
-    .lp-home-brand__mark::before {
-        content: '';
-        @apply block w-2.5 h-2.5 box-border rounded-full border-3 border-chrome;
+        @apply mr-0;
     }
     .lp-home-nav__links {
         @apply flex flex-wrap items-center gap-5 text-sm;
@@ -7006,10 +6990,7 @@
         @apply flex flex-wrap items-center gap-5 text-xs text-chrome-dim;
     }
     .lp-landing-nav__brand--sm {
-        @apply text-base mr-0 text-chrome-fg;
-    }
-    .lp-landing-nav__mark--sm {
-        @apply w-5 h-5 rounded-md;
+        @apply mr-0 text-chrome-fg;
     }
     .lp-landing-footer__copyright {
         @apply mr-auto;

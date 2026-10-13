@@ -17,8 +17,7 @@
                     <twig:ux:icon name="lucide:x" />
                 </button>
                 <a href="{{ path('app_projects') }}" class="lp-sidebar__brand">
-                    <span class="lp-sidebar__brand-mark" aria-hidden="true"></span>
-                    <span>{{ 'nav.brand'|trans }}</span>
+                    <twig:Ds:BrandMark />
                 </a>
                 {% if project %}
                 <div class="lp-switcher" data-controller="popover">

@@ -228,6 +228,20 @@ final readonly class Catalog
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
             ),
+            new ComponentEntry(
+                name: 'BrandMark',
+                rootClass: 'lp-brand',
+                template: 'components/Ds/BrandMark.html.twig',
+                variants: [],
+                states: [],
+                enforced: true,
+                sizes: ['sm', 'md'],
+                group: 'layout',
+                summary: 'The logo square and the brand name, as the sidebar, the sign-in pages and the marketing pages draw them.',
+                element: 'span',
+                dotClass: 'lp-brand__mark',
+                contentClass: 'lp-brand__word',
+            ),
         ];
     }
 }

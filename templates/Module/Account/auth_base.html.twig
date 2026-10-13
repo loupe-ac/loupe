@@ -9,9 +9,8 @@
 
     {# Topbar #}
     <div class="relative z-10 flex items-center gap-2.5 px-7 py-6">
-        <a href="/" class="inline-flex items-center gap-2.5 text-fg font-semibold tracking-tight text-lg no-underline">
-            <span class="w-7 h-7 rounded-lg bg-accent shrink-0"></span>
-            {{ 'nav.brand'|trans }}
+        <a href="/" class="text-fg no-underline">
+            <twig:Ds:BrandMark />
         </a>
         <span class="flex-1"></span>
         {% block topbar_nav %}{% endblock %}

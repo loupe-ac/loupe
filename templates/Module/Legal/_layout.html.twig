@@ -16,8 +16,7 @@
 <div class="lp-landing">
     <header class="lp-landing-nav">
         <a href="{{ path('app_home') }}" class="lp-landing-nav__brand">
-            <span class="lp-landing-nav__mark"></span>
-            {{ 'nav.brand'|trans }}
+            <twig:Ds:BrandMark />
         </a>
         <nav class="lp-landing-nav__links">
             <a href="{{ path('app_home') }}" class="lp-landing-nav__link">{{ 'legal.nav.back_home'|trans }}</a>

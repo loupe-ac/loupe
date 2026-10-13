@@ -155,6 +155,7 @@ return (new GamacheConfig())->registerChecks([
             new DesignSystemComponent('Pagination', 'lp-pagination', 'templates/components/Ds/Pagination.html.twig', enforced: true),
             new DesignSystemComponent('StateMark', 'lp-state-mark', 'templates/components/Ds/StateMark.html.twig', enforced: true),
             new DesignSystemComponent('Tooltip', 'lp-tooltip', 'templates/components/Ds/Tooltip.html.twig', enforced: true),
+            new DesignSystemComponent('BrandMark', 'lp-brand', 'templates/components/Ds/BrandMark.html.twig', enforced: true),
         ],
     ),
     new FormTypeTranslationKeysCheck(),
