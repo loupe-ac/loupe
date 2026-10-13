@@ -1,0 +1,94 @@
+/* The menu. `templates/components/Ds/Menu.html.twig` renders it, and the
+   `popover` Stimulus controller opens it. The root holds the trigger and the
+   panel, and its modifiers set the tone, the edge, the direction, the width and
+   the padding of the panel. */
+@layer components {
+    .lp-menu {
+        @apply relative;
+    }
+    .lp-menu__panel {
+        @apply absolute top-full right-0 z-40 mt-1 flex min-w-46 flex-col rounded-xl border border-line bg-elev p-1.5 text-sm shadow-card;
+        max-width: calc(100vw - var(--spacing) * 8);
+        animation: lp-appear 120ms ease-out both;
+    }
+    .lp-menu__panel[hidden] {
+        @apply hidden;
+    }
+    .lp-menu--start .lp-menu__panel {
+        @apply right-auto left-0;
+    }
+    .lp-menu--stretch .lp-menu__panel {
+        @apply right-0 left-0 max-w-none;
+    }
+    .lp-menu--up .lp-menu__panel {
+        @apply top-auto bottom-full mt-0 mb-1;
+    }
+    .lp-menu--sm .lp-menu__panel {
+        @apply w-48;
+    }
+    .lp-menu--md .lp-menu__panel {
+        @apply w-80;
+    }
+    .lp-menu--lg .lp-menu__panel {
+        @apply w-96;
+    }
+    /* A panel that holds its own sections, which supply their padding. */
+    .lp-menu--flush .lp-menu__panel {
+        @apply overflow-hidden p-0;
+    }
+    /* A panel that reads as a note, so it scrolls when it grows tall. */
+    .lp-menu--roomy .lp-menu__panel {
+        @apply max-h-96 gap-3 overflow-y-auto p-4;
+    }
+    .lp-menu--chrome .lp-menu__panel {
+        @apply mt-0 gap-1 border-0 bg-chrome-raised text-chrome-fg shadow-none;
+    }
+
+    .lp-menu__item {
+        @apply flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2.5 text-left text-sm text-ink no-underline transition-colors hover:bg-tint-strong;
+    }
+    .lp-menu__item:disabled {
+        @apply cursor-not-allowed text-fg-dim hover:bg-transparent;
+    }
+    /* A current item says so with its weight and a check, so colour is not the only sign. */
+    .lp-menu__item[aria-current] {
+        @apply font-semibold;
+    }
+    .lp-menu__item:has(.lp-menu__line) {
+        @apply items-start py-2;
+    }
+    .lp-menu--chrome .lp-menu__item {
+        @apply min-h-0 gap-2.5 px-2 py-1.5 text-chrome-fg hover:bg-chrome-control;
+    }
+    .lp-menu--chrome .lp-menu__item[aria-current] {
+        @apply bg-chrome-control;
+    }
+    .lp-menu__item > :where(svg) {
+        @apply size-4 shrink-0 text-fg-mute;
+    }
+    .lp-menu__item:has(.lp-menu__line) > :where(svg) {
+        @apply mt-0.5;
+    }
+    .lp-menu__check {
+        @apply invisible size-4 shrink-0 text-accent-ink;
+    }
+    .lp-menu__item[aria-current] .lp-menu__check {
+        @apply visible;
+    }
+    /* Two lines in one item: what it is, then a quiet line under it. */
+    .lp-menu__text {
+        @apply flex min-w-0 flex-col;
+    }
+    .lp-menu__label {
+        @apply truncate font-medium;
+    }
+    .lp-menu__line {
+        @apply truncate text-xs font-normal text-fg-dim;
+    }
+    .lp-menu__heading {
+        @apply m-0 px-2.5 pt-1.5 pb-1 text-xs font-semibold text-fg-dim;
+    }
+    .lp-menu__divider {
+        @apply my-1 h-px shrink-0 bg-line-faint;
+    }
+}

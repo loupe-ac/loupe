@@ -13,6 +13,7 @@
 @import './components/pagination.css';
 @import './components/tabs.css';
 @import './components/tooltip.css';
+@import './components/menu.css';
 
 @source "../../templates/components/Ds";
 
