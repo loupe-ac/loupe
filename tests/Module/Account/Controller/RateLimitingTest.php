@@ -210,7 +210,8 @@ final class RateLimitingTest extends WebTestCase
         $client->submitForm('Join the waitlist', [
             'waitlist_join_form[email]' => 'first-waiter@example.com',
         ]);
-        $this->assertResponseRedirects('/waitlist?joined=1');
+        $this->assertResponseRedirects();
+        $this->assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
 
         $client->request(Request::METHOD_GET, '/waitlist');
         $client->submitForm('Join the waitlist', [

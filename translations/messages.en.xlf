@@ -522,6 +522,10 @@
                 <source>account.waitlist.page.title</source>
                 <target>Join the waitlist</target>
             </trans-unit>
+            <trans-unit id="account.waitlist.page.description">
+                <source>account.waitlist.page.description</source>
+                <target>Loupe is a software factory for coding agents. Leave your email to join the private beta waitlist.</target>
+            </trans-unit>
             <trans-unit id="account.waitlist.title">
                 <source>account.waitlist.title</source>
                 <target>Registration is full</target>
@@ -4341,6 +4345,10 @@
             <trans-unit id="landing.meta.description">
                 <source>landing.meta.description</source>
                 <target>Loupe is a software factory for coding agents. Product design, tech design, code and review, in one workflow. Join the private beta waitlist.</target>
+            </trans-unit>
+            <trans-unit id="landing.open_graph.image_alt">
+                <source>landing.open_graph.image_alt</source>
+                <target>Loupe: from ideas to features. A software factory for coding agents.</target>
             </trans-unit>
             <trans-unit id="landing.cta.join">
                 <source>landing.cta.join</source>

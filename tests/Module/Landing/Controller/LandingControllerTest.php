@@ -42,6 +42,29 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorNotExists('a[href="/register"]');
     }
 
+    public function test_each_waitlist_button_names_its_click_event_and_still_opens_the_dialog(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home[data-controller~="analytics"][data-controller~="modal"]');
+        $buttons = $client->getCrawler()->filter('a[href="/waitlist"][data-action~="click->modal#open"]');
+        self::assertCount(7, $buttons);
+        $names = $buttons->each(static function ($button): string {
+            self::assertSame('click->analytics#track click->modal#open', $button->attr('data-action'));
+            self::assertSame('waitlist-click', $button->attr('data-analytics-name-param'));
+
+            return (string) $button->attr('data-analytics-button-param');
+        });
+        sort($names);
+        self::assertSame(
+            ['closing', 'footer', 'hero', 'nav', 'open-source', 'requirements-missing', 'requirements-ready'],
+            $names,
+        );
+    }
+
     public function test_home_page_shows_six_steps_eight_features_and_no_price(): void
     {
         $client = static::createClient();
@@ -93,7 +116,7 @@ final class LandingControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $ctas = $crawler->filter('a[href="/waitlist"]');
         self::assertGreaterThan(0, $ctas->count());
-        self::assertSame($ctas->count(), $crawler->filter('a[href="/waitlist"][data-action="click->modal#open"]')->count());
+        self::assertSame($ctas->count(), $crawler->filter('a[href="/waitlist"][data-action~="click->modal#open"]')->count());
         self::assertSelectorCount(1, '[data-controller~="modal"] dialog.lp-dialog');
         self::assertSelectorExists('dialog turbo-frame#waitlist-modal form[action="/waitlist/modal"] input[name="waitlist_modal_form[email]"]');
         self::assertSelectorNotExists('turbo-frame#waitlist-modal input[type="checkbox"]');

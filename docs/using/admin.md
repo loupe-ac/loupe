@@ -43,6 +43,12 @@ credentials alone are not enough.
 Mermaid diagrams, and each reader's browser loads Mermaid from jsDelivr. See
 [Diagrams](documents.md#diagrams).
 
+The **Open Graph image** flag, `open_graph.image`, picks the preview image of a
+shared link to a public page. It is a list flag with two values, `hero` and
+`board`, and `hero` is the default. The flags page lists the flag by its key. A
+change applies to every public page on the next page load. Sites such as X and
+Reddit can keep the old image for a link that they already fetched.
+
 ## Audit log
 
 **`/admin/audit-log`** lists every recorded audit event on the instance, newest
