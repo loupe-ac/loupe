@@ -26,7 +26,7 @@
         {% for item in group.looseItems %}{% set waiting = waiting|merge([item.createdAt]) %}{% endfor %}
         {% set blocking = group.looseItems|filter(item => item.blocking)|length > 0 %}
         <a class="lp-account-inbox-card" href="{{ path('app_project_inbox', {id: group.project.id}) }}" data-account-inbox-project="{{ group.project.id }}">
-            <span class="lp-account-inbox-card__avatar" aria-hidden="true">{{ group.project.name|slice(0, 1)|upper }}</span>
+            <twig:Ds:Avatar :name="group.project.name" size="sm" shape="square" tone="danger" aria-hidden="true" />
             <span class="lp-account-inbox-card__name">{{ group.project.name }}</span>
             <span class="lp-account-inbox-card__count" data-account-inbox-open-count>{{ 'inbox.account.project.open_items'|trans({'%count%': group.openItemCount}) }}</span>
             {% if waiting|length > 0 %}

@@ -60,6 +60,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Tabs | A strip of links or tab buttons with an underline | none |
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 
 Write a button like this:
 

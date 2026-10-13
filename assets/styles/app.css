@@ -15,6 +15,7 @@
 @import './components/pagination.css';
 @import './components/tabs.css';
 @import './components/tooltip.css';
+@import './components/avatar.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -330,20 +331,6 @@
         font-size: var(--text-xs);
     }
 
-    .lp-core-inbox .lp-source-avatar {
-        border-radius: 50%;
-    }
-
-    .lp-core-inbox .lp-inbox-request__byline .lp-source-avatar {
-        width: calc(var(--spacing) * 6);
-        height: calc(var(--spacing) * 6);
-    }
-
-    .lp-core-inbox .lp-inbox-request__byline .lp-source-avatar svg {
-        width: calc(var(--spacing) * 3.5);
-        height: calc(var(--spacing) * 3.5);
-    }
-
     .lp-core-inbox .lp-inbox-request__byline time {
         margin-left: auto;
     }
@@ -410,11 +397,6 @@
         padding: 0;
         gap: calc(var(--spacing) * 2.5);
         font-size: var(--text-sm);
-    }
-
-    .lp-core-inbox .lp-inbox-ask__head .lp-source-avatar {
-        width: calc(var(--spacing) * 7.5);
-        height: calc(var(--spacing) * 7.5);
     }
 
     .lp-core-inbox .lp-inbox-ask__source {
@@ -828,9 +810,6 @@
     }
     .lp-project-tile-grid .lp-project-tile {
         @apply min-h-64 flex-col items-start rounded-xl border border-line bg-white p-6;
-    }
-    .lp-project-tile-grid .lp-project-row__avatar {
-        @apply h-11 w-11 rounded-lg mb-4 text-lg;
     }
     .lp-project-tile-grid .lp-project-row__main {
         @apply w-full;
@@ -2068,25 +2047,6 @@
         @apply not-sr-only fixed top-2 left-2 z-100 max-w-full rounded-lg border border-line bg-surface-1 px-4 py-2 text-base font-semibold text-ink outline-2 outline-offset-2 outline-accent;
     }
 
-    /* Avatar — default is the indigo accent-soft initial (account, agent). */
-    .avatar {
-        @apply w-5 h-5 rounded-full bg-accent-soft text-accent-hover inline-flex items-center justify-center shrink-0 font-semibold text-xs;
-    }
-    .avatar.sm {
-        @apply w-4 h-4 text-xs;
-    }
-    .avatar.lg {
-        @apply w-7 h-7 text-xs;
-    }
-    /* Green avatar for human reply authors */
-    .avatar.ok {
-        @apply bg-status-ok-bg text-status-ok-deep;
-    }
-    /* Dark rounded-square mark for a site / project (initial on ink) */
-    .avatar.site {
-        @apply rounded-md bg-ink text-white;
-    }
-
     .auth-error {
         @apply flex items-start gap-2 px-3 py-2.5 border border-red-300 bg-red-50 text-red-700 rounded-md text-sm leading-snug;
     }
@@ -2807,9 +2767,6 @@
         @apply flex items-center gap-2;
     }
     .lp-card-drawer__icon,
-    .lp-source-avatar {
-        @apply inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-tint text-accent-ink;
-    }
     .lp-card-drawer__body {
         @apply px-6 py-2.5;
     }
@@ -3312,9 +3269,6 @@
        non-interactive so they sit beneath it. */
     .lp-project-row__link {
         @apply absolute inset-0;
-    }
-    .lp-project-row__avatar {
-        @apply shrink-0 w-9.5 h-9.5 rounded-lg bg-ink text-accent inline-flex items-center justify-center font-bold text-base;
     }
     .lp-project-row__main {
         @apply min-w-0 flex-1 flex flex-col gap-1;
@@ -4798,10 +4752,6 @@
     .lp-comment-author {
         @apply text-ink font-bold text-sm;
     }
-    /* Equal identity container for people and agents in document threads. */
-    .lp-comment-avatar {
-        @apply inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-tint text-xs font-bold text-fg-mute;
-    }
     /* How long ago the comment was written, beside its author. Quiet enough that
        a thread's ages read as a timeline rather than as competing labels. */
     .lp-comment-age {
@@ -5216,9 +5166,6 @@
     .lp-sidebar__switcher:hover {
         @apply border-switcher-hover;
     }
-    .lp-sidebar__switcher-avatar {
-        @apply w-8 h-8 bg-status-danger shrink-0 inline-flex items-center justify-center text-white text-xs font-bold rounded-lg;
-    }
     .lp-sidebar__switcher-text {
         @apply flex flex-col leading-tight min-w-0 mr-auto;
     }
@@ -5257,9 +5204,6 @@
     .lp-switcher__item-check {
         @apply ml-auto w-4 h-4 shrink-0 text-accent;
     }
-    .lp-switcher__item-avatar {
-        @apply w-6 h-6 bg-chrome shrink-0 inline-flex items-center justify-center text-accent text-xs font-bold rounded-lg;
-    }
     .lp-switcher__item-text {
         @apply flex flex-col leading-tight min-w-0;
     }
@@ -5275,8 +5219,8 @@
     .lp-switcher__all:hover {
         @apply bg-chrome-control;
     }
-    /* Boxed to the same 6×6 as .lp-switcher__item-avatar so the label column
-       lines up with the project rows above it. */
+    /* Boxed to the same 6×6 as the xs avatar so the label column lines up with
+       the project rows above it. */
     .lp-switcher__all-glyph {
         @apply inline-flex items-center justify-center shrink-0 w-6 h-6 rounded-lg border border-dashed border-chrome-control;
     }
@@ -5348,9 +5292,6 @@
     }
     .lp-sidebar__account {
         @apply flex items-center gap-2.5 px-2 mt-2.5 pt-3 border-t border-chrome-control;
-    }
-    .lp-sidebar__account-avatar {
-        @apply w-6.5 h-6.5 shrink-0 inline-flex items-center justify-center rounded-full bg-chrome-control text-accent text-xs font-bold;
     }
     .lp-sidebar__account-text {
         @apply flex flex-col leading-tight min-w-0 mr-auto;
@@ -5582,9 +5523,6 @@
        token row inside a step card and therefore leads with mono. */
     .lp-identity-row {
         @apply flex items-center gap-3 rounded-xl bg-surface-2 py-3.5 px-4;
-    }
-    .lp-identity-row__avatar {
-        @apply w-7 h-7 shrink-0 inline-flex items-center justify-center rounded-full bg-ink text-accent text-xs font-bold;
     }
     .lp-identity-row__glyph {
         @apply shrink-0 text-fg-mute;
@@ -8351,19 +8289,10 @@
     .lp-inbox-ask__title {
         @apply m-0 font-display text-xl font-extrabold tracking-tight text-ink;
     }
-    /* The agent's avatar with a dot for its bridge: green live, amber quiet,
-       grey with no bridge. Hover or focus shows the tooltip. */
+    /* The anchor around an agent avatar with a bridge dot. Hover or focus shows
+       the tooltip. */
     .lp-presence {
         @apply relative inline-flex shrink-0 rounded-full outline-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-ink;
-    }
-    .lp-presence__dot {
-        @apply absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-surface-2 bg-fg-faint;
-    }
-    .lp-presence--live .lp-presence__dot {
-        @apply bg-status-ok;
-    }
-    .lp-presence--quiet .lp-presence__dot {
-        @apply bg-status-pending;
     }
     /* Show the tooltip of these anchors on hover and on keyboard focus. */
     .lp-presence:hover .lp-tooltip,
@@ -8466,9 +8395,6 @@
     }
     .lp-account-inbox-card {
         @apply flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface-1 px-5 py-4 no-underline transition-colors hover:border-accent-border hover:bg-accent-faint;
-    }
-    .lp-account-inbox-card__avatar {
-        @apply inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-status-danger text-xs font-bold text-white;
     }
     .lp-account-inbox-card__name {
         @apply font-display text-base font-extrabold tracking-tight text-ink;
@@ -8954,12 +8880,6 @@
     .lp-workshop-work-more svg {
         @apply w-4 h-4;
     }
-    .lp-workshop-crew__avatar {
-        @apply inline-grid place-items-center w-7 h-7 shrink-0 rounded-full bg-accent-soft text-accent-ink;
-    }
-    .lp-workshop-crew__avatar svg {
-        @apply w-3.5 h-3.5;
-    }
     .lp-workshop-supporting {
         @apply min-w-0;
     }
@@ -9182,12 +9102,6 @@
     }
     .lp-agent-card {
         @apply flex gap-5 rounded-2xl border border-line bg-surface-2 p-5;
-    }
-    .lp-agent-card__avatar {
-        @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-ink text-accent;
-    }
-    .lp-agent-card__avatar svg {
-        @apply h-7 w-7;
     }
     .lp-agent-card__body {
         @apply min-w-0 flex-1;

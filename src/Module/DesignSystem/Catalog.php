@@ -228,6 +228,29 @@ final readonly class Catalog
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
             ),
+            new ComponentEntry(
+                name: 'Avatar',
+                rootClass: 'lp-avatar',
+                template: 'components/Ds/Avatar.html.twig',
+                variants: ['accent', 'tint', 'ink', 'danger', 'chrome'],
+                states: [],
+                enforced: true,
+                sizes: ['xs', 'sm', 'md', 'lg'],
+                group: 'core',
+                summary: 'The first letter of a name, or an icon, in a disc or a rounded square. A dot shows a connection.',
+                element: 'span',
+                legacyClasses: [
+                    'lp-sidebar__switcher-avatar',
+                    'lp-switcher__item-avatar',
+                    'lp-sidebar__account-avatar',
+                    'lp-account-inbox-card__avatar',
+                    'lp-project-row__avatar',
+                    'lp-comment-avatar',
+                    'lp-source-avatar',
+                    'lp-workshop-crew__avatar',
+                ],
+                legacyEnforced: true,
+            ),
         ];
     }
 }

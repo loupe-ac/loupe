@@ -17,7 +17,7 @@
         {% set origin = entry.ask ? entry.ask.origin : item.origin %}
         {% set review = item.kind.value == 'review' ? inbox_review(item) : null %}
         {% set subject = origin.value == 'loupe' ? 'loupe' : (review ? review.targetKind.value : 'agent') %}
-        <span class="lp-source-avatar" aria-hidden="true" data-subject="{{ subject }}">{% include '_attention_subject_icon.html.twig' with {subject: subject} only %}</span>
+        <twig:Ds:Avatar size="xs" tone="tint" aria-hidden="true" data-subject="{{ subject }}">{% include '_attention_subject_icon.html.twig' with {subject: subject} only %}</twig:Ds:Avatar>
         <strong data-inbox-source="{{ origin.value }}">{{ ('inbox.source.' ~ origin.value)|trans }}</strong>
         <time datetime="{{ asked|date('c') }}">{{ asked|relative_time }}</time>
     </span>
