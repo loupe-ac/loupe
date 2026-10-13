@@ -36,6 +36,9 @@ export interface {{ entry.name }}Props {
 {% if 'input' == entry.element %}
     /** An input is a void element, so it takes no children. */
     children?: never;
+{% elseif 'svg' == entry.element %}
+    /** The SVG shapes of a 24 by 24 Lucide icon. A check mark draws when you leave it out. */
+    children?: ReactNode;
 {% else %}
     children?: ReactNode;
 {% endif %}

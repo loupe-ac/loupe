@@ -421,7 +421,7 @@ final readonly class Catalog
                 enforced: false,
                 group: 'core',
                 summary: 'A size scale for the icon tag: xs is 3, sm is 3.5, md is 4 and lg is 5. No component wraps it.',
-                element: 'span',
+                element: 'svg',
                 classOnly: true,
             ),
         ];
