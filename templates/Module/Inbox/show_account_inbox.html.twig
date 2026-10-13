@@ -18,23 +18,22 @@
     {% if inbox.isEmpty %}
     <twig:Ds:EmptyState icon="lucide:inbox" iconClass="text-accent w-12 h-12" :title="'inbox.account.page.empty'|trans" />
     {% else %}
-    <div class="lp-account-inbox__grid">
-        {# One card per project: what it is, how much waits, how long, and the way in. #}
-        {% for group in inbox.groups %}
-        {% set waiting = [] %}
-        {% for ask in group.openAsks %}{% set waiting = waiting|merge([ask.createdAt]) %}{% endfor %}
-        {% for item in group.looseItems %}{% set waiting = waiting|merge([item.createdAt]) %}{% endfor %}
-        {% set blocking = group.looseItems|filter(item => item.blocking)|length > 0 %}
-        <twig:Ds:Panel as="a" class="lp-account-inbox-link" href="{{ path('app_project_inbox', {id: group.project.id}) }}" data-account-inbox-project="{{ group.project.id }}">
-            <span class="lp-account-inbox-card__avatar" aria-hidden="true">{{ group.project.name|slice(0, 1)|upper }}</span>
-            <span class="lp-account-inbox-card__name">{{ group.project.name }}</span>
-            <span class="lp-account-inbox-card__count" data-account-inbox-open-count>{{ 'inbox.account.project.open_items'|trans({'%count%': group.openItemCount}) }}</span>
-            {% if waiting|length > 0 %}
-            <span class="lp-account-inbox-card__wait">{{ 'inbox.account.project.oldest'|trans({'%time%': min(waiting)|relative_time}) }}</span>
-            {% endif %}
-            {% if blocking %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
-            <twig:ux:icon name="lucide:arrow-right" class="lp-account-inbox-card__go" />
-        </twig:Ds:Panel>
+    <div class="lp-account-inbox__list">
+        {% for row in inbox.rows %}
+        <a class="lp-account-inbox-row" href="{{ path('app_project_inbox', {id: row.project.id}) }}" data-account-inbox-project="{{ row.project.id }}">
+            <twig:Ds:Avatar :name="row.project.name" size="xs" shape="square" tone="tint" class="lp-account-inbox-row__avatar" aria-hidden="true" />
+            <span class="lp-account-inbox-row__name">{{ row.project.name }}</span>
+            <twig:ux:icon name="lucide:arrow-right" class="lp-account-inbox-row__go" />
+            <span class="lp-account-inbox-row__meta">
+                <span data-account-inbox-open-count>{{ 'inbox.account.project.open_asks'|trans({'%count%': row.openAskCount}) }}</span>
+                {% if row.oldestWait %}
+                <span class="lp-account-inbox-row__wait">{{ 'inbox.account.project.oldest'|trans({'%time%': row.oldestWait|relative_time}) }}</span>
+                {% endif %}
+                {% if row.blocking %}
+                <span class="lp-account-inbox-row__blocking">{{ 'inbox.item.blocking'|trans }}</span>
+                {% endif %}
+            </span>
+        </a>
         {% endfor %}
     </div>
     {% endif %}

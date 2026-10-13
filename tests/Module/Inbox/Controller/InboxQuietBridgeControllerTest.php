@@ -146,9 +146,8 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         $interactive = $this->openAsk(null);
         $bridged = $this->openAsk(Uuid::v4());
 
-        $page = $this->page();
-
-        self::assertCount(1, $this->block($page, $bridged)->filter('[data-inbox-bridge]'));
+        self::assertCount(1, $this->block($this->pageOf($bridged), $bridged)->filter('[data-inbox-bridge]'));
+        $page = $this->pageOf($interactive);
         self::assertCount(1, $this->block($page, $interactive));
         self::assertCount(0, $this->block($page, $interactive)->filter('[data-inbox-bridge]'));
     }
@@ -160,29 +159,28 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         $open = $this->openAsk($bridgeId);
         $closed = $this->ask($bridgeId, new \DateTimeImmutable(self::NOW.' -1 minute'));
 
-        $page = $this->page();
-
-        self::assertSame('quiet', $this->bridgeStatusOf($page, $open)->attr('data-inbox-bridge'));
-        // A closed ask keeps to the completed queue, and says nothing about its bridge.
-        $completed = $this->page('?queue=completed');
+        self::assertSame('quiet', $this->bridgeStatusOf($this->pageOf($open), $open)->attr('data-inbox-bridge'));
+        // A closed ask keeps to the closed side, and says nothing about its bridge.
+        $completed = $this->page('?side=closed');
         self::assertCount(1, $this->block($completed, $closed));
         self::assertCount(0, $this->block($completed, $closed)->filter('[data-inbox-bridge]'));
     }
 
-    public function test_one_query_reads_every_bridge_on_the_page(): void
+    public function test_one_query_reads_the_bridge_of_the_selected_ask(): void
     {
         $first = Uuid::v4();
         $second = Uuid::v4();
         $this->bridgeSeenSecondsAgo($this->owner, $first, 30);
         $this->bridgeSeenSecondsAgo($this->owner, $second, 600);
         $this->openAsk($first);
-        $this->openAsk($second);
+        $selected = $this->openAsk($second);
         $this->openAsk($second);
 
         $this->client->enableProfiler();
-        $page = $this->page();
+        $page = $this->pageOf($selected);
 
-        self::assertCount(3, $page->filter('[data-inbox-bridge]'));
+        // Only the pane shows a bridge, so the page reads the one bridge it shows.
+        self::assertCount(1, $page->filter('[data-inbox-bridge]'));
         self::assertSame(1, $this->bridgeReads());
     }
 
@@ -194,7 +192,7 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         $this->ask($bridgeId, new \DateTimeImmutable(self::NOW.' -1 minute'));
 
         $this->client->enableProfiler();
-        $page = $this->page();
+        $page = $this->pageOf($interactive);
 
         self::assertCount(1, $this->block($page, $interactive));
         self::assertSame(0, $this->bridgeReads());
@@ -251,6 +249,11 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         return $crawler;
+    }
+
+    private function pageOf(InboxAsk $ask): Crawler
+    {
+        return $this->page('?ask='.$ask->id);
     }
 
     private function block(Crawler $page, InboxAsk $ask): Crawler

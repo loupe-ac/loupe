@@ -29,7 +29,7 @@
         <twig:Ds:Panel as="article" class="lp-project-tile" data-project-id="{{ project.id }}">
             <a href="{{ path('app_project_workshop', {id: project.id}) }}"
                class="lp-project-row__link" aria-label="{{ project.name }}"></a>
-            <span class="lp-project-row__avatar">{{ project.name|slice(0, 1)|upper }}</span>
+            <twig:Ds:Avatar :name="project.name" shape="square" tone="ink" />
             <div class="lp-project-row__main">
                 <div class="lp-project-row__head">
                     <span class="lp-project-row__name">{{ project.name }}</span>

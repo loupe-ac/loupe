@@ -1,5 +1,5 @@
 <article class="lp-conversation-entry" data-site-feedback="{{ link.comment.id }}">
-    <span class="lp-source-avatar"><twig:ux:icon name="lucide:globe-2" class="w-4 h-4" /></span>
+    <twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" />
     <div>
         <div class="lp-card-feedback-list__head"><span>{{ 'site_review.source.widget'|trans }}</span><twig:Ds:StatusChip :modifier="link.comment.status.value" :dot="false">{{ ('site_review.comment.status.' ~ link.comment.status.value)|trans }}</twig:Ds:StatusChip></div>
         <p class="lp-inbox-item__answer-text">{{ link.comment.body }}</p>

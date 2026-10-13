@@ -12,10 +12,13 @@
 @import './components/dialog.css';
 @import './components/pagination.css';
 @import './components/tabs.css';
+@import './components/decision.css';
 @import './components/tooltip.css';
 @import './components/panel.css';
 @import './components/section-heading.css';
 @import './components/form-actions.css';
+@import './components/avatar.css';
+@import './components/menu.css';
 
 @source "../../templates/components/Ds";
 

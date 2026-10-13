@@ -1,0 +1,14 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the Menu for the styleguide, so it is intentionally untranslated. #}
+<twig:Ds:Menu id="styleguide-menu-{{ variant }}" :tone="variant" align="start" size="sm" open>
+    <twig:block name="trigger">
+        <twig:Ds:Button type="button" variant="ghost" aria-expanded="true" aria-controls="styleguide-menu-{{ variant }}" data-popover-target="trigger" data-action="click->popover#toggle">Menu</twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuHeading>Open in</twig:Ds:MenuHeading>
+        <twig:Ds:MenuItem href="#components">A link</twig:Ds:MenuItem>
+        <twig:Ds:MenuItem :current="true">The current one</twig:Ds:MenuItem>
+        <twig:Ds:MenuDivider />
+        <twig:Ds:MenuItem disabled>Not available</twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:Menu>
