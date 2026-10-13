@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+
+{# Each page names its section, because a forwarded 422 render carries no _route. #}
+{% block settings_section '' %}
+
+{# A non-empty value gives the content its own column width. #}
+{% block settings_columns '' %}
+
+{% block body %}
+{% set section = block('settings_section') %}
+{% set settingsContent %}{% block settings_content %}{% endblock %}{% endset %}
+{% set items = [
+    {label: 'project.edit.nav.general'|trans, url: path('app_project_edit', {id: project.id}), icon: 'lucide:settings', active: 'general' == section},
+    {label: 'project.edit.nav.columns'|trans, url: path('app_board_settings', {id: project.id}), icon: 'lucide:square-kanban', active: 'columns' == section},
+    {label: 'project.edit.nav.automation'|trans, url: path('app_board_automation_settings', {id: project.id}), icon: 'lucide:bot', active: 'automation' == section},
+    is_feature_enabled('inbox.enabled') ? {label: 'project.edit.nav.inbox'|trans, url: path('app_inbox_settings', {id: project.id}), icon: 'lucide:inbox', active: 'inbox' == section},
+    {label: 'project.edit.nav.readiness'|trans, url: path('app_readiness_settings', {id: project.id}), icon: 'lucide:list-checks', active: 'readiness' == section},
+    {label: 'project.edit.nav.connections'|trans, url: path('app_project_connect', {id: project.id}), icon: 'lucide:link', active: 'connections' == section},
+]|filter(item => item) %}
+<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
+    <twig:Ds:SettingsLayout
+        :title="'project.edit.page.title'|trans"
+        :description="'project.edit.page.description'|trans"
+        :items="items"
+        :navLabel="'project.edit.nav.label'|trans"
+        :columns="'' != block('settings_columns')"
+    >
+        {{ settingsContent }}
+    </twig:Ds:SettingsLayout>
+</div>
+{% endblock %}

@@ -313,6 +313,18 @@ readonly class Catalog
                 element: 'div',
                 export: 'MarketingShell',
             ),
+            new ComponentEntry(
+                name: 'SettingsLayout',
+                rootClass: 'lp-settings',
+                template: 'components/Ds/SettingsLayout.html.twig',
+                variants: [],
+                states: ['active'],
+                enforced: true,
+                group: 'layout',
+                summary: 'A settings page: the page header, a section navigation beside the content, and the content column.',
+                element: 'div',
+                export: 'SettingsLayout',
+            ),
         ];
     }
 }

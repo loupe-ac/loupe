@@ -1,0 +1,74 @@
+/* A settings page: the page header, a section navigation and the content column. `templates/components/Ds/SettingsLayout.html.twig` renders it. */
+@layer components {
+    .lp-settings-layout {
+        @apply grid grid-cols-1 gap-8;
+    }
+    .lp-settings-nav {
+        @apply flex lg:flex-col gap-1 overflow-x-auto;
+        scrollbar-width: none;
+    }
+    .lp-settings-nav::-webkit-scrollbar {
+        display: none;
+    }
+    .lp-settings-nav__item {
+        @apply inline-flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-normal text-fg-mute no-underline whitespace-nowrap transition-colors;
+    }
+    .lp-settings-nav__item:hover {
+        @apply bg-tint-strong text-ink;
+    }
+    .lp-settings-nav__item--active {
+        @apply bg-accent-soft text-accent-ink;
+    }
+    .lp-settings-nav__item svg {
+        @apply w-4 h-4 shrink-0;
+    }
+    .lp-settings-content {
+        @apply max-w-none;
+    }
+    .lp-settings-panel-card {
+        @apply rounded-xl border border-line bg-white p-6;
+    }
+    @media (width >= 64rem) {
+        .lp-settings-layout {
+            grid-template-columns:
+                calc(var(--spacing) * 45)
+                minmax(0, calc(var(--spacing) * 185));
+            column-gap: calc(var(--spacing) * 8.5);
+        }
+        .lp-settings-content {
+            grid-column: 2;
+        }
+    }
+    .lp-settings--columns {
+        @apply @container;
+    }
+    .lp-settings-layout--columns {
+        @apply grid-cols-1;
+    }
+    .lp-settings-layout--columns .lp-settings-nav {
+        @apply flex-row;
+    }
+    .lp-settings-layout--columns .lp-settings-content {
+        @apply col-start-1 col-span-1;
+    }
+    .lp-settings-layout--columns .lp-settings-panel-card {
+        @apply p-4;
+    }
+    .lp-settings-layout--columns .lp-btn svg {
+        @apply shrink-0;
+    }
+    @container (min-width: 48rem) {
+        .lp-settings-layout--columns {
+            grid-template-columns: calc(var(--spacing) * 44) minmax(0, 1fr);
+        }
+        .lp-settings-layout--columns .lp-settings-nav {
+            @apply flex-col;
+        }
+        .lp-settings-layout--columns .lp-settings-content {
+            @apply col-start-2;
+        }
+        .lp-settings-layout--columns .lp-settings-panel-card {
+            @apply p-6;
+        }
+    }
+}

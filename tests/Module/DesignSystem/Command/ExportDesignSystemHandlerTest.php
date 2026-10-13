@@ -319,7 +319,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }
@@ -353,7 +353,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
@@ -361,6 +361,27 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString('className?: string;', $types);
         self::assertStringContainsString('[attribute: string]: unknown;', $types);
+    }
+
+    public function test_the_settings_layout_export_draws_the_header_the_navigation_and_the_content(): void
+    {
+        foreach (['SettingsLayout.jsx', 'SettingsLayout.d.ts', 'SettingsLayout.prompt.md'] as $file) {
+            self::assertContains('components/layout/'.$file, $this->written);
+        }
+
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout.jsx');
+        self::assertStringContainsString('<nav className="lp-settings-nav" aria-label={navLabel}>', $jsx);
+        self::assertStringContainsString("'lp-settings-nav__item' + (item.active ? ' lp-settings-nav__item--active' : '')", $jsx);
+        self::assertStringContainsString("aria-current={item.active ? 'page' : undefined}", $jsx);
+        self::assertStringContainsString('<div className="lp-settings-content">{children}</div>', $jsx);
+        self::assertStringContainsString("classes.push('lp-settings--columns')", $jsx);
+
+        $types = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout.d.ts');
+        self::assertStringContainsString('items?: SettingsLayoutItem[];', $types);
+        self::assertStringContainsString('@startingPoint section="Layout"', $types);
+
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        self::assertStringContainsString('<SettingsLayout title="Project settings"', $card);
     }
 
     public function test_the_app_shell_wrapper_forwards_attributes_and_merges_a_caller_class(): void
@@ -628,7 +649,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString("| 'workshop'", $types);
         self::assertStringContainsString('<PageHeader title=', $prompt);
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'AuthShell', 'MarketingShell', 'SettingsLayout')", $card);
         self::assertStringContainsString('<PageHeader variant="workshop"', $card);
         self::assertStringNotContainsString('<Button', $card);
     }

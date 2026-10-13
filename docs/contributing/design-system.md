@@ -65,6 +65,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
 | ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
+| SettingsLayout | A settings page: the page header, a section navigation and the content column | none. The state active marks the open section |
 
 The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
 
@@ -95,6 +96,10 @@ The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and 
     <twig:block name="meta"><span>Loupe</span></twig:block>
 </twig:Ds:ListRow>
 ```
+
+The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a `lp-settings-panel-card` section inside the block.
+
+`@Account/_settings_layout.html.twig` and `@Project/_settings_layout.html.twig` build the items of the account and the project settings and render the component. A settings page extends one of them and fills the `settings_section` and `settings_content` blocks. The icon names of the items are plain strings, so `bin/console ux:icons:lock` cannot read them. Import a new one with `bin/console ux:icons:import`.
 
 Write a button like this:
 

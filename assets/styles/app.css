@@ -22,6 +22,7 @@
 @import './components/list-row.css';
 @import './components/brand-mark.css';
 @import './components/auth-shell.css';
+@import './components/settings-layout.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -1314,15 +1315,6 @@
     }
 
     /* Settings pages keep section navigation beside narrow paper panels. */
-    .lp-redesign-settings .lp-settings-layout {
-        @apply grid grid-cols-1 gap-8;
-    }
-    .lp-redesign-settings .lp-settings-content {
-        @apply max-w-none;
-    }
-    .lp-settings-panel-card {
-        @apply rounded-xl border border-line bg-white p-6;
-    }
     .lp-danger-zone.lp-settings-panel-card {
         @apply border-line pt-6;
     }
@@ -1354,43 +1346,6 @@
     /* Holds an absent row action's place, so each action keeps its column. */
     .lp-settings-column__slot {
         @apply w-9 h-9 shrink-0;
-    }
-    @media (width >= 64rem) {
-        .lp-redesign-settings .lp-settings-layout {
-            grid-template-columns: 11.25rem minmax(0, 46.25rem);
-            column-gap: 2.125rem;
-        }
-        .lp-redesign-settings .lp-settings-content {
-            grid-column: 2;
-        }
-    }
-    .lp-redesign-settings:has(.lp-settings-layout--columns) {
-        @apply @container;
-    }
-    .lp-redesign-settings .lp-settings-layout--columns {
-        @apply grid-cols-1;
-    }
-    .lp-settings-layout--columns .lp-settings-nav {
-        @apply flex-row;
-    }
-    .lp-redesign-settings .lp-settings-layout--columns .lp-settings-content {
-        @apply col-start-1 col-span-1 p-4;
-    }
-    .lp-settings-layout--columns .lp-btn svg {
-        @apply shrink-0;
-    }
-    @container (min-width: 48rem) {
-        .lp-redesign-settings .lp-settings-layout--columns {
-            grid-template-columns: calc(var(--spacing) * 44) minmax(0, 1fr);
-        }
-        .lp-settings-layout--columns .lp-settings-nav {
-            @apply flex-col;
-        }
-        .lp-redesign-settings
-            .lp-settings-layout--columns
-            .lp-settings-content {
-            @apply col-start-2 p-6;
-        }
     }
 }
 
@@ -8790,32 +8745,6 @@
         @apply cursor-pointer;
     }
 
-    /* Responsive section navigation for project and account settings. */
-    .lp-settings-layout {
-        @apply grid grid-cols-1 lg:grid-cols-4 gap-8;
-    }
-    .lp-settings-nav {
-        @apply flex lg:flex-col gap-1 overflow-x-auto;
-        scrollbar-width: none;
-    }
-    .lp-settings-nav::-webkit-scrollbar {
-        display: none;
-    }
-    .lp-settings-nav__item {
-        @apply inline-flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-normal text-fg-mute no-underline whitespace-nowrap transition-colors;
-    }
-    .lp-settings-nav__item:hover {
-        @apply bg-tint-strong text-ink;
-    }
-    .lp-settings-nav__item--active {
-        @apply bg-accent-soft text-accent-ink;
-    }
-    .lp-settings-nav__item svg {
-        @apply w-4 h-4 shrink-0;
-    }
-    .lp-settings-content {
-        @apply lg:col-span-3 max-w-2xl;
-    }
     .lp-settings-section {
         @apply rounded-xl border border-line bg-surface-1 p-6;
     }

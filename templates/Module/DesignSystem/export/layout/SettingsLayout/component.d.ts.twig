@@ -1,0 +1,36 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+export interface {{ entry.name }}Item {
+    label: string;
+    href: string;
+    /** The icon before the label, such as a 16 px stroke icon. */
+    icon?: ReactNode;
+    /** True for the section that is open. It gets the highlight. */
+    active?: boolean;
+}
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A settings page with its section navigation" viewport="900x520"
+ */
+export interface {{ entry.name }}Props {
+    /** The page heading, drawn as the h1. */
+    title: ReactNode;
+    /** A sentence under the heading. Left out when empty. */
+    description?: ReactNode;
+    /** The sections of the navigation, in order. */
+    items?: {{ entry.name }}Item[];
+    /** The accessible name of the navigation. */
+    navLabel?: string;
+    /** Gives the content its own column width. */
+    columns?: boolean;
+    className?: string;
+    /** The content of the open section: one or more `lp-settings-panel-card` sections. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

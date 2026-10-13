@@ -159,6 +159,7 @@ return (new GamacheConfig())->registerChecks([
             new DesignSystemComponent('SplitView', 'lp-split-page', 'templates/components/Ds/SplitView.html.twig', enforced: true),
             new DesignSystemComponent('ListRow', 'lp-list-row', 'templates/components/Ds/ListRow.html.twig', enforced: true),
             new DesignSystemComponent('BrandMark', 'lp-brand', 'templates/components/Ds/BrandMark.html.twig', enforced: true),
+            new DesignSystemComponent('SettingsLayout', 'lp-settings', 'templates/components/Ds/SettingsLayout.html.twig', enforced: true),
         ],
     ),
     new FormTypeTranslationKeysCheck(),
