@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Condition;
 
 use App\Module\Board\Workflow\Condition\CardDocument;
+use App\Module\Board\Workflow\Condition\CardFollowsFinished;
 use App\Module\Workflow\Condition\Conditions;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Translation\TranslatorBagInterface;
@@ -28,6 +29,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.document.changes_requested' => 'workflow.source.board',
         'card.document.linked' => 'workflow.source.board',
         'card.fix_run.uncommented' => 'workflow.source.board',
+        'card.follows.finished' => 'workflow.source.board',
         'card.in_slot' => 'workflow.source.board',
         'card.parent.document.approved' => 'workflow.source.board',
         'card.parent.exists' => 'workflow.source.board',
@@ -65,6 +67,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.children.finished' => 'card_children_finished',
         'card.children.merged_into_epic_branch' => 'card_child_merged_into_epic_branch',
         'card.discovery.requested' => 'card_discovery_requested',
+        'card.follows.finished' => 'card_follows_finished',
         'card.document.approved' => 'card_document_approved',
         'card.document.changes_requested' => 'card_document_changes_requested',
         'card.document.linked' => 'card_document',
@@ -128,6 +131,15 @@ final class ConditionCatalogueTest extends KernelTestCase
 
         self::assertSame('Waiting: the card has no design document with the status "In review".', new CardDocument()->waitingFor($params)->trans($translator));
         self::assertSame('Waiting: the card has a design document with the status "In review".', new CardDocument()->waitingFor($params, negated: true)->trans($translator));
+    }
+
+    public function test_the_follow_up_waiting_sentences_name_the_cases_in_which_each_side_waits(): void
+    {
+        $translator = static::getContainer()->get('translator');
+        self::assertInstanceOf(TranslatorInterface::class, $translator);
+
+        self::assertSame('Waiting: the card follows no card, or a card it follows is still open.', new CardFollowsFinished()->waitingFor([])->trans($translator));
+        self::assertSame('Waiting: every card that this card follows is finished.', new CardFollowsFinished()->waitingFor([], negated: true)->trans($translator));
     }
 
     /** @return list<string> the keys of the shipped conditions, without the ones the test container adds */
