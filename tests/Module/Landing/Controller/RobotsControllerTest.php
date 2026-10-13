@@ -18,8 +18,21 @@ final class RobotsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertStringStartsWith('text/plain', (string) $client->getResponse()->headers->get('Content-Type'));
         $lines = explode("\n", (string) $client->getResponse()->getContent());
-        foreach (['User-agent: *', 'Allow: /$', 'Allow: /privacy', 'Allow: /terms', 'Allow: /ai-policy', 'Allow: /waitlist', 'Allow: /login', 'Allow: /register', 'Allow: /assets/', 'Disallow: /'] as $line) {
+        foreach (['User-agent: *', 'Allow: /$', 'Allow: /privacy$', 'Allow: /terms$', 'Allow: /ai-policy$', 'Allow: /waitlist$', 'Allow: /login$', 'Allow: /register$', 'Allow: /assets/', 'Disallow: /'] as $line) {
             self::assertContains($line, $lines);
+        }
+    }
+
+    public function test_each_page_rule_ends_with_an_anchor_so_no_subpath_matches(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/robots.txt');
+
+        foreach (explode("\n", (string) $client->getResponse()->getContent()) as $line) {
+            if (str_starts_with($line, 'Allow: ') && 'Allow: /assets/' !== $line) {
+                self::assertStringEndsWith('$', $line);
+            }
         }
     }
 

@@ -18,7 +18,7 @@ final readonly class ShowRobotsHandler
     {
         $lines = ['User-agent: *'];
         foreach ($this->publicPages->paths() as $path) {
-            $lines[] = '/' === $path ? 'Allow: /$' : 'Allow: '.$path;
+            $lines[] = 'Allow: '.$path.'$';
         }
         $lines[] = 'Allow: /assets/';
         $lines[] = 'Disallow: /';
