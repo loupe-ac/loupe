@@ -14,6 +14,8 @@ final readonly class ComponentEntry
      * @param list<string> $variants
      * @param list<string> $states
      * @param list<string> $sizes
+     * @param list<string> $legacyClasses  old class names this component replaces
+     * @param bool         $legacyEnforced true once no template uses an old class: the adoption check then errors instead of warning
      */
     public function __construct(
         public string $name,
@@ -28,6 +30,8 @@ final readonly class ComponentEntry
         public string $element = 'div',
         public string $dotClass = '',
         public string $contentClass = '',
+        public array $legacyClasses = [],
+        public bool $legacyEnforced = false,
     ) {
     }
 }
