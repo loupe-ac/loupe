@@ -106,7 +106,8 @@ artifact holds the compiled page.
 
 The artifact library holds plain files only. Loupe refuses a push that holds a
 `.dc.html` file, so a CLI older than 1.17.0, which sends a canvas as it is,
-cannot store one. Update the CLI with `loupe update` and push again.
+cannot store one. Update the CLI with `loupe update`, or with `brew upgrade`
+for a Homebrew install, and push again.
 
 A canvas with a script keeps its clicks and its typed input. The compiled page
 first shows the page that the build drew, so a reader that runs no script sees a
