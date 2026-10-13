@@ -6,6 +6,7 @@ namespace App\Module\Landing\Twig;
 
 use App\Module\Landing\Service\PublicPages;
 use Symfony\Component\Asset\Packages;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
@@ -23,6 +24,7 @@ final class LandingExtension extends AbstractExtension
         private readonly PublicPages $publicPages,
         private readonly FeatureFlagService $featureFlags,
         private readonly Packages $packages,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -32,7 +34,16 @@ final class LandingExtension extends AbstractExtension
         return [
             new TwigFunction('public_url', $this->publicPages->absoluteUrl(...)),
             new TwigFunction('og_image_path', $this->openGraphImagePath(...)),
+            new TwigFunction('is_public_page', $this->isPublicPage(...)),
+            new TwigFunction('public_page_paths', $this->publicPages->paths(...)),
         ];
+    }
+
+    public function isPublicPage(): bool
+    {
+        $route = $this->requestStack->getMainRequest()?->attributes->get('_route');
+
+        return $this->publicPages->isPublic(\is_string($route) ? $route : null);
     }
 
     /** A missing row or an unknown value falls back to the default image. */
