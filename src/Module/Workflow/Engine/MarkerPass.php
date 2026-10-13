@@ -63,8 +63,10 @@ final readonly class MarkerPass
             if (!self::applies($marker, $run->facts->slot) || null !== $marker->when->unreadable($run->facts)) {
                 continue;
             }
+            foreach ($this->ruleSubject->subjects($marker->when, $run->facts) as $subject) {
+                $dueAt = self::earlier($dueAt, $this->changesAt($marker, $subject));
+            }
             $bound = $this->ruleSubject->bindWhen($marker->when, $run->facts);
-            $dueAt = self::earlier($dueAt, $this->changesAt($marker, $bound->facts));
             if (!$bound->truth) {
                 continue;
             }
@@ -111,7 +113,7 @@ final readonly class MarkerPass
         return new StoredMarker($marker->key, $marker->kind, $marker->label, $marker->remedy, $params, $since ?? $stored->since ?? $now);
     }
 
-    /** The time of a leaf counts whether the leaf is true or false now, so a marker that turns true later is checked again. */
+    /** The time of a leaf counts whether the leaf is true or false now, and on every open pull request, so a marker that turns true later is checked again. */
     private function changesAt(TemplateMarker $marker, Facts $facts): ?\DateTimeImmutable
     {
         $dueAt = null;

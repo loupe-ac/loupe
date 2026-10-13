@@ -27,13 +27,9 @@ final readonly class RuleSubject
     public function bindWhen(Expression $when, Facts $facts): BoundRule
     {
         $readable = null === $when->unreadable($facts);
-        if (!\in_array(EngineFact::PullRequest, $when->reads(), true)) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), false);
-        }
-
-        $candidates = array_values(array_filter($facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => PullRequestState::Open === $pullRequest->state));
+        $candidates = $this->candidates($when, $facts);
         if ([] === $candidates) {
-            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), true);
+            return new BoundRule($facts, $facts->pullRequest?->id, $readable && $when->evaluate($facts), \in_array(EngineFact::PullRequest, $when->reads(), true));
         }
         foreach ($candidates as $candidate) {
             $bound = $facts->withPullRequest($candidate);
@@ -43,6 +39,29 @@ final readonly class RuleSubject
         }
 
         return new BoundRule($facts->withPullRequest($candidates[0]), $candidates[0]->id, false, true);
+    }
+
+    /**
+     * The facts of each pull request a condition can bind, in the order of the facts.
+     * A condition that reads no pull request, or a card with no open one, answers the facts as given.
+     *
+     * @return non-empty-list<Facts>
+     */
+    public function subjects(Expression $when, Facts $facts): array
+    {
+        $candidates = $this->candidates($when, $facts);
+
+        return [] === $candidates ? [$facts] : array_map($facts->withPullRequest(...), $candidates);
+    }
+
+    /** @return list<PullRequestFacts> */
+    private function candidates(Expression $when, Facts $facts): array
+    {
+        if (!\in_array(EngineFact::PullRequest, $when->reads(), true)) {
+            return [];
+        }
+
+        return array_values(array_filter($facts->pullRequests(), static fn (PullRequestFacts $pullRequest): bool => PullRequestState::Open === $pullRequest->state));
     }
 
     /** The facts a rule pause reads its until on: the pull request it paused, while the card still links it, else the bound one. */

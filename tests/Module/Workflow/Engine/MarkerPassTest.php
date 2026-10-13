@@ -201,6 +201,19 @@ final class MarkerPassTest extends KernelTestCase
         self::assertNull($this->writtenDueAt);
     }
 
+    public function test_the_due_time_counts_every_open_pull_request_and_not_only_the_bound_one(): void
+    {
+        self::bootKernel();
+        $template = $this->markerTemplate([self::marker('ready', 'stuck', ['pr.ready_for' => ['delay' => 30]])]);
+        $idle = FactsMother::pullRequest(number: 1);
+        $ready = FactsMother::pullRequest(number: 2, readyToMerge: true, readySince: new \DateTimeImmutable('2026-10-01 11:50:00'));
+
+        $keys = $this->passKeys($template, FactsMother::facts(pullRequest: $idle, pullRequests: [$idle, $ready]));
+
+        self::assertSame([], $keys);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:20:00'), $this->writtenDueAt);
+    }
+
     private static function noon(): \DateTimeImmutable
     {
         return new \DateTimeImmutable('2026-10-01 12:00:00');
