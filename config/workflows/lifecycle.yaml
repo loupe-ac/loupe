@@ -516,7 +516,7 @@ rules:
               - any: [{ not: { card.type: { type: epic } } }, { not: { card.run.worker_active: {} } }]
       then: { move: { to: '@terminal' } }
 
-    # Last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
+    # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
     # The truth outlives a move: a child that a person moves back to the Backlog makes no edge and stays parked.
     - id: child-to-next
       when: { card.parent.exists: {} }
