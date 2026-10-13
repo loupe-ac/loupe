@@ -2,7 +2,7 @@
     <div class="lp-home-container lp-home-footer__inner">
         <div class="lp-home-footer__columns">
             <div class="lp-home-footer__about">
-                <a href="#top" class="lp-home-brand lp-home-brand--small">
+                <a href="#top" data-turbo="false" class="lp-home-brand lp-home-brand--small">
                     <span class="lp-home-brand__mark" aria-hidden="true"></span>
                     {{ 'nav.brand'|trans }}
                 </a>
@@ -17,9 +17,9 @@
             <nav class="lp-home-footer__column" aria-label="{{ 'landing.footer.product'|trans }}">
                 <span class="lp-home-footer__heading">{{ 'landing.footer.product'|trans }}</span>
                 <ul class="lp-home-footer__list">
-                    <li><a href="#workflow" class="lp-home-footer__link">{{ 'landing.nav.workflow'|trans }}</a></li>
-                    <li><a href="#features" class="lp-home-footer__link">{{ 'landing.nav.features'|trans }}</a></li>
-                    <li><a href="#integrations" class="lp-home-footer__link">{{ 'landing.nav.works_with'|trans }}</a></li>
+                    <li><a href="#workflow" data-turbo="false" class="lp-home-footer__link">{{ 'landing.nav.workflow'|trans }}</a></li>
+                    <li><a href="#features" data-turbo="false" class="lp-home-footer__link">{{ 'landing.nav.features'|trans }}</a></li>
+                    <li><a href="#integrations" data-turbo="false" class="lp-home-footer__link">{{ 'landing.nav.works_with'|trans }}</a></li>
                     <li><a href="{{ path('app_waitlist_join') }}" class="lp-home-footer__link" data-action="click->modal#open">{{ 'landing.cta.join'|trans }}</a></li>
                 </ul>
             </nav>
