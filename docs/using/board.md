@@ -1199,6 +1199,18 @@ a finding has a severity from the `agentReviewFailingSeverities` value of the
 workflow template. The Lifecycle template asks for the review. See
 [Agent review](workflows.md#agent-review).
 
+When the check of a review with findings lands, Loupe also posts one comment on
+the pull request, as the GitHub App. The comment shows the verdict with the
+short commit id, the summary of the agent, and up to 20 findings, each with its
+severity, its file and lines, and its title. A `spec` finding with no file shows
+`Spec` in place of the file. When the review has more findings, the last line
+says how many more the check holds. The comment links to the check and to the
+card. It never holds the text of a finding, and it mentions nobody. A review with
+no findings, a review that Loupe carries to a later head, and a check that an
+override posts again get no comment. When GitHub refuses the comment for a
+missing permission, Loupe does not try again, and the check still shows every
+finding.
+
 An approval of the pull request that comes after a failed review overrides it.
 Loupe then sets the same check to neutral, with a first line in its summary that
 names the approver, and keeps the findings in the check. A required check counts

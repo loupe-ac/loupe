@@ -6,6 +6,10 @@ namespace App\Tests\Module\Workflow\Engine;
 
 use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
+use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewSeverity;
+use App\Module\AgentReview\Service\AgentReviewNoticeBody;
+use App\Module\AgentReview\Service\UncommentedAgentReviews;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Command\ReleaseCardPauseHandler;
 use App\Module\Board\Command\SaveBoardAutomationSettingsCommand;
@@ -3781,6 +3785,23 @@ final class EngineTest extends KernelTestCase
 
         $keys = array_map(static fn (PullRequestNotice $notice): string => $notice->noticeKey, $this->service(PullRequestNoticeRepository::class)->findBy(['forgePullRequestId' => $pullRequest->id], ['noticeKey' => 'ASC']));
         self::assertSame([StaleApprovalNoticeBody::key('head1'), StaleApprovalNoticeBody::key('head2')], $keys);
+    }
+
+    public function test_an_agent_review_with_findings_and_a_new_check_gets_one_summary_notice(): void
+    {
+        $card = $this->boundCard([['id' => 'agent-review-summary', 'when' => ['agent_review.uncommented' => []], 'then' => ['forge-write' => ['write' => 'comment', 'comment' => 'agent-review']]]]);
+        $pullRequest = $this->pullRequest($card, headSha: 'head1');
+        $review = new AgentReview($card->project, $card, $pullRequest, 'head1', 'Review.', AgentReviewConclusion::Failure, [new AgentReviewFinding('src/A.php', 1, 2, AgentReviewSeverity::Important, 'Null read', 'Body.')]);
+        $review->postedAt = new \DateTimeImmutable();
+        $this->em()->persist($review);
+        $this->em()->flush();
+
+        $this->evaluate($card);
+        $this->evaluate($card, '2026-10-02 12:01:00');
+
+        $keys = array_map(static fn (PullRequestNotice $notice): string => $notice->noticeKey, $this->service(PullRequestNoticeRepository::class)->findBy(['forgePullRequestId' => $pullRequest->id]));
+        self::assertSame([AgentReviewNoticeBody::key($review->id ?? throw new \LogicException('A flushed review has an id.'))], $keys);
+        self::assertSame([], $this->service(UncommentedAgentReviews::class)->among([$review]));
     }
 
     public function test_a_second_fix_run_queued_before_the_next_evaluation_gets_its_own_comment(): void
