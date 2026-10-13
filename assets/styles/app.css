@@ -2050,11 +2050,7 @@
 /* Preflight gives a button the default arrow, so every control the reader can
    press says so. */
 .lp-review
-    :is(
-        .lp-comment-action,
-        .lp-review-verdict-choice,
-        .lp-history__action
-    ) {
+    :is(.lp-comment-action, .lp-review-verdict-choice, .lp-history__action) {
     @apply cursor-pointer;
 }
 /* A highlight is no element, so the controller marks the pane while the
