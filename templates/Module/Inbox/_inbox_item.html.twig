@@ -12,7 +12,7 @@
         <h3 class="lp-inbox-item__title">{{ item.title }}</h3>
         <span class="lp-inbox-item__kind">{{ ('inbox.item.kind.' ~ item.kind.value)|trans }}</span>
         {% if item.blocking %}<span class="lp-inbox-item__blocking">{{ 'inbox.item.blocking'|trans }}</span>{% endif %}
-        {% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state} only %}
+        {% if not open %}{% include '@Inbox/_inbox_state_chip.html.twig' with {state: item.state} only %}{% endif %}
     </div>
     {% endif %}
     {# The waits below say what the body of a wait item says, with links. #}
@@ -143,7 +143,6 @@
                             {% include '@Inbox/_decline_button.html.twig' with {formId: declineForm.vars.id, label: declineLabel} only %}
                         {% endif %}
                         <twig:Ds:Button variant="primary" size="sm" type="submit">
-                            <twig:ux:icon name="lucide:send" class="w-4 h-4" />
                             {{ (open ? 'inbox.answer.submit' : 'inbox.answer.change')|trans }}
                         </twig:Ds:Button>
                     </div>
@@ -176,7 +175,6 @@
                     <div class="lp-inbox-item__buttons">
                         {% include '@Inbox/_decline_button.html.twig' with {formId: declineForm.vars.id, label: declineLabel} only %}
                         <twig:Ds:Button variant="primary" size="sm" type="submit">
-                            <twig:ux:icon name="lucide:check" class="w-4 h-4" />
                             {{ 'inbox.done.submit'|trans }}
                         </twig:Ds:Button>
                     </div>

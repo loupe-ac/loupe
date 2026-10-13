@@ -195,7 +195,7 @@ test('the list head keeps the switch, the search and the type filter in reach', 
     }
 });
 
-test('inbox search keeps Clear reachable before and after filtering', async ({
+test('inbox search shows Clear only while a search is active', async ({
     page,
 }) => {
     const search = page.locator('#inbox-search');
@@ -224,7 +224,7 @@ test('inbox search keeps Clear reachable before and after filtering', async ({
             }
         }
     }
-    await verifyLayout();
+    await expect(clear).toHaveCount(0);
     await search.fill('unmatched-inbox-query');
     await expect(page.locator('[data-inbox-search-empty]')).toBeVisible();
     await expect(page.locator('.lp-filter-count')).toHaveText('No ask matches');

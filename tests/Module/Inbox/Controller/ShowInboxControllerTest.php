@@ -92,7 +92,7 @@ final class ShowInboxControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.lp-empty-state', 'Nothing needs you');
-        self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"] a[href="/projects/'.$project->id.'/inbox?side=closed"]', 'See the closed asks');
+        self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"] a[href="/projects/'.$project->id.'/inbox?side=closed"]', 'See what you already answered');
         self::assertSelectorNotExists('[data-inbox-open-count]');
         // The frame stays, so a live reload has somewhere to put a count.
         self::assertSelectorExists('a[data-controller="inbox-pill"] turbo-frame#inbox-open-count-'.$project->id);
@@ -630,6 +630,8 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->loginUser($owner);
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?type=question');
         self::assertSame('/projects/'.$project->id.'/inbox?side=closed&type=question', $crawler->filter('[data-inbox-side="closed"]')->attr('href'));
+        // With no search, nothing needs clearing.
+        self::assertCount(0, $crawler->filter('.lp-filter-clear'));
 
         $search = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?side=closed&q=export');
         self::assertCount(0, $search->filter('.lp-tabs__tab[aria-current]'));
