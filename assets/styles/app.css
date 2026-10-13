@@ -256,6 +256,16 @@
         @apply bg-surface-1;
     }
 
+    /* Each pane scrolls on its own, so the page's top and bottom padding moves
+       inside the panes, and the content scrolls up to the top bar and down to the window edge. */
+    .lp-core-inbox.lp-workspace {
+        @apply py-0 md:py-0 xl:py-0;
+    }
+
+    .lp-core-inbox .lp-split-pane {
+        @apply pt-5 pb-10 md:pt-6 md:pb-14 xl:pt-8;
+    }
+
     .lp-core-inbox .lp-inbox-section--queue {
         display: flex;
         flex-direction: column;
