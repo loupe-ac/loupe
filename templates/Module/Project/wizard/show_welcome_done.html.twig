@@ -13,10 +13,9 @@
             {{ 'project.wizard.done.widget_hint'|trans }}
             <a href="{{ path('app_project_connect', {id: wizardProject.id}) }}" class="text-accent hover:underline">{{ wizardProject.name }}</a>
         </p>
-        <form method="POST" action="{{ path('app_welcome_finish') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token('wizard-finish') }}">
+        <twig:Ds:ActionForm :action="path('app_welcome_finish')" token="wizard-finish">
             <twig:Ds:Button variant="primary" type="submit">{{ 'project.wizard.done.finish'|trans }}</twig:Ds:Button>
-        </form>
+        </twig:Ds:ActionForm>
     </div>
 </div>
 {% endblock %}

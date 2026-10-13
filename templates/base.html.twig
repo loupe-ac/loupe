@@ -192,13 +192,12 @@
                     <span class="lp-sidebar__account-text">
                         <span class="lp-sidebar__account-name">{{ app.user.userIdentifier }}</span>
                     </span>
-                    <form method="post" action="{{ path('app_logout') }}" class="lp-sidebar__account-logout-form">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <twig:Ds:ActionForm :action="path('app_logout')" token="logout" class="lp-sidebar__account-logout-form">
                         <button type="submit" class="lp-sidebar__account-logout"
                                 aria-label="{{ 'nav.link.logout'|trans }}">
                             <twig:ux:icon name="lucide:log-out" />
                         </button>
-                    </form>
+                    </twig:Ds:ActionForm>
                 </div>
             </aside>
             {% endwith %}

@@ -30,18 +30,16 @@
     </div>
     {% endfor %}
 
-    <form method="post" action="{{ path('app_account_export_request') }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('request-data-export') }}">
+    <twig:Ds:ActionForm :action="path('app_account_export_request')" token="request-data-export">
         <twig:Ds:Button variant="primary" type="submit">{{ 'account.settings.export.request_button'|trans }}</twig:Ds:Button>
-    </form>
+    </twig:Ds:ActionForm>
 </twig:Ds:Panel>
 
 <twig:Ds:Panel as="section" class="lp-danger-zone" data-testid="delete-account-section">
     <h2 class="lp-danger-zone-title">{{ 'account.delete.danger.heading'|trans }}</h2>
     <p class="lp-danger-zone-desc">{{ 'account.delete.danger.body'|trans }}</p>
-    <form method="post" action="{{ path('app_account_delete_request') }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('request-account-deletion') }}">
+    <twig:Ds:ActionForm :action="path('app_account_delete_request')" token="request-account-deletion">
         <twig:Ds:Button variant="danger" type="submit">{{ 'account.delete.danger.cta'|trans }}</twig:Ds:Button>
-    </form>
+    </twig:Ds:ActionForm>
 </twig:Ds:Panel>
 {% endblock %}

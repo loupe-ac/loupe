@@ -1,0 +1,13 @@
+{#
+  Props:  @comment-budget-ignore
+    action  string  The URL the form posts to.
+    token   string  The CSRF token id, as registered for the action. It is rendered through csrf_token(), never as a literal.
+    frame   string  Id of a Turbo frame that the response updates. Optional; "_top" for a page-level redirect from inside a frame.
+  Content: the button. A form with a second field, or a second button, is a plain form.
+  Any other attribute, class included, is passed to the form.
+#}
+{%- props action, token, frame = null -%}
+<form{{ attributes.defaults({class: 'lp-action-form', method: 'post', action: action}) }}{% if frame %} data-turbo-frame="{{ frame }}"{% endif %}>
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token(token) }}">
+    {%- block content %}{% endblock -%}
+</form>

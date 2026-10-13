@@ -24,10 +24,9 @@
     </div>
 
     <twig:Ds:FormActions>
-        <form method="POST" action="{{ path('app_welcome_skip') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token('wizard-skip') }}">
+        <twig:Ds:ActionForm :action="path('app_welcome_skip')" token="wizard-skip">
             <twig:Ds:Button variant="ghost" type="submit">{{ 'project.wizard.skip'|trans }}</twig:Ds:Button>
-        </form>
+        </twig:Ds:ActionForm>
         <twig:Ds:Button variant="primary" href="{{ path('app_welcome_widget') }}">{{ 'project.wizard.connect.continue'|trans }}</twig:Ds:Button>
     </twig:Ds:FormActions>
 </div>

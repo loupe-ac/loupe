@@ -196,6 +196,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 18. CodeBlock: `<twig:Ds:CodeBlock label="..." :text="..." :copyLabel="..." :copiedLabel="..." testid="..." />`. The header holds the label and a copy button of the same text. `:copy="false"` draws no button. Write no `lp-code-dark` class in a template. The CSS is `assets/styles/components/code-block.css`.
 19. CopyButton: `<twig:Ds:CopyButton :text="..." :label="..." :copiedLabel="..." />`. It owns the `clipboard` controller, so write no `data-controller="clipboard"` in a page template. `variant="icon"` draws a link icon that turns into a check, and takes a button class through `class`. The text variant takes `buttonVariant` and `buttonSize`. The admin pages keep their own copy buttons. The CSS is `assets/styles/components/copy-button.css`.
 
+14. ActionForm: `<twig:Ds:ActionForm action="{{ path('app_x') }}" token="x-action" frame="_top">` with the button as content. It renders the form, the hidden `_csrf_token` from `csrf_token(token)` and the passthrough attributes. Use it for a form that holds only a token and one button. A form with a second field or button stays a plain form. The CSS is `assets/styles/components/action-form.css`.
+
 A child card that adds a component adds it to this list in the same branch.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".
