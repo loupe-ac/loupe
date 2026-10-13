@@ -6,14 +6,15 @@ The project values come from the optional `Visual check` section of the profile.
 
 ## When the check applies
 
-1. The card, its parent or its designs link a stored artifact that holds HTML pages. Read the `artifacts` of the card and of its parent with `card_get`, and the prototype links of each linked design.
-2. The diff of the branch changes a path that the profile `Visual check` section names under `Paths`.
+Test the items in this order.
 
-When one of the two is false, the check does not run. The plan says so in one line: `Visual check: not needed, <reason>`.
+1. The card, its parent or its designs link a stored artifact that holds HTML pages. Read the `artifacts` of the card and of its parent with `card_get`, and the prototype links of each linked design. When this is false, the check does not run. The plan says so in one line: `Visual check: not needed, <reason>`.
+2. The profile has a `Visual check` section. When it has none, the check is skipped, as "Skip, never block" says. Test this before item 3, because item 3 reads its paths from that section.
+3. The diff of the branch changes a path that the profile `Visual check` section names under `Paths`. When this is false, the check does not run, and the plan says `Visual check: not needed, <reason>`.
 
 ## Skip, never block
 
-A missing `Visual check` section, a missing browser and a browser that does not start never block a stage. Write `Visual check: skipped, <reason>` in the plan, and go on. The implementation stage adds the same line to the pull request body. The review stage reads the line and writes no visual finding.
+A missing `Visual check` section, a missing browser and a browser that does not start never block a stage. Write `Visual check: skipped, <reason>` in the plan, and go on. The implementation stage and the fix round add the same line to the pull request body. The review stage reads the line and writes no visual finding.
 
 ## The page map
 
