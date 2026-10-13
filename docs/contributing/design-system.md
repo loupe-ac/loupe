@@ -134,6 +134,27 @@ A plain field uses `Input`, `Select` or `Textarea`. A Symfony widget in a custom
 
 `just gamache` blocks a template that writes `lp-input`, `lp-select`, `lp-textarea`, `lp-label`, `lp-form-field`, `lp-field-errors` or `lp-form-hint` by hand.
 
+## The email layout
+
+Every email extends `templates/email/_layout.html.twig`. The layout holds the stylesheet inlining, the doctype, the brand, the card and the footer. An email fills three blocks: `title`, `content` and `footer`.
+
+```twig
+{% extends 'email/_layout.html.twig' %}
+
+{% block title %}{{ 'x.email.title'|trans }}{% endblock %}
+
+{% block content %}
+    <h1>{{ 'x.email.heading'|trans }}</h1>
+    <a href="{{ url }}" class="btn">{{ 'x.email.cta'|trans }}</a>
+{% endblock %}
+
+{% block footer %}
+    {{ 'x.email.footer'|trans }}
+{% endblock %}
+```
+
+An email has no catalog entry or styleguide specimen. It gets its styles from `email.css` and holds its own copy of the brand mark, because no app stylesheet reaches an email client.
+
 ## The Claude Design copy
 
 A Claude Design project holds a copy of the design system. The app repository is the source of the copy.

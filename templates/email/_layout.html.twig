@@ -1,0 +1,21 @@
+{% apply inline_css(source('@EmailStyles/email.css')) %}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale ?? 'en' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+</head>
+<body>
+    <div class="brand">
+        <span class="brand-mark"></span><span class="brand-name">{{ 'nav.brand'|trans }}</span>
+    </div>
+    <div class="card">
+        {% block content %}{% endblock %}
+        <p class="footer">
+            {% block footer %}{% endblock %}
+        </p>
+    </div>
+</body>
+</html>
+{% endapply %}
