@@ -111,12 +111,12 @@ final class ShowDocumentControllerTest extends WebTestCase
         );
 
         self::assertResponseIsSuccessful();
-        $row = $crawler->filter('#review-page-menu [data-page-menu-group="card"] .lp-page-menu__row');
+        $row = $crawler->filter('#review-page-menu [data-page-menu-group="card"] .lp-menu__item');
         self::assertCount(1, $row);
-        self::assertSame('#1 Implement the document', trim($row->filter('.lp-page-menu__label')->text()));
-        self::assertSame('Linked card · Feature · Ready', trim($row->filter('.lp-page-menu__line')->text()));
+        self::assertSame('#1 Implement the document', trim($row->filter('.lp-menu__label')->text()));
+        self::assertSame('Linked card · Feature · Ready', trim($row->filter('.lp-menu__line')->text()));
         self::assertStringEndsWith('/cards/'.$card->id, (string) $row->attr('href'));
-        self::assertCount(0, $crawler->filter('#review-page-menu .lp-page-menu__heading'), 'one link needs no heading');
+        self::assertCount(0, $crawler->filter('#review-page-menu .lp-menu__heading'), 'one link needs no heading');
     }
 
     public function test_the_page_menu_heads_a_kind_with_several_links_and_holds_back_all_but_three(): void
@@ -145,11 +145,11 @@ final class ShowDocumentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $group = $crawler->filter('#review-page-menu [data-page-menu-group="outgoing"]');
-        self::assertSame('Links to (5)', trim($group->filter('.lp-page-menu__heading')->text()));
-        self::assertCount(3, $group->children('.lp-page-menu__row'));
+        self::assertSame('Links to (5)', trim($group->filter('.lp-menu__heading')->text()));
+        self::assertCount(3, $group->children('.lp-menu__item'));
         self::assertSame('Show 2 more', trim($group->filter('.lp-page-menu__more-toggle')->text()));
-        self::assertCount(2, $group->filter('.lp-page-menu__more .lp-page-menu__row'));
-        self::assertSame('Links to · In review', trim($group->filter('.lp-page-menu__line')->first()->text()));
+        self::assertCount(2, $group->filter('.lp-page-menu__more .lp-menu__item'));
+        self::assertSame('Links to · In review', trim($group->filter('.lp-menu__line')->first()->text()));
     }
 
     public function test_the_linked_card_shows_its_title_and_not_its_body(): void
@@ -178,7 +178,7 @@ final class ShowDocumentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $menu = $crawler->filter('#review-page-menu');
-        self::assertStringContainsString('Implement the document', $menu->filter('.lp-page-menu__label')->text());
+        self::assertStringContainsString('Implement the document', $menu->filter('.lp-menu__label')->text());
         self::assertStringNotContainsString('Linked body marker text', $menu->text());
     }
 
@@ -627,7 +627,7 @@ final class ShowDocumentControllerTest extends WebTestCase
         $trigger = $crawler->filter('.lp-verdict-chip__trigger');
         self::assertSame('false', $trigger->attr('aria-expanded'));
         self::assertStringContainsString('Changes requested', $trigger->text());
-        $panel = $crawler->filter('.lp-verdict-chip__panel[hidden]');
+        $panel = $crawler->filter('.lp-verdict-chip .lp-menu__panel[hidden]');
         self::assertCount(1, $panel);
         self::assertStringContainsString('Chipowner', $panel->text());
         self::assertStringContainsString('Split the second step.', $panel->text());
@@ -1034,7 +1034,7 @@ final class ShowDocumentControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#review-page-menu a[href="/projects/'.$projectId.'/documents/'.$id.'/review/history"]'));
-        self::assertSame('2 versions', trim($crawler->filter('#review-page-menu [href$="/review/history"] .lp-page-menu__line')->text()));
+        self::assertSame('2 versions', trim($crawler->filter('#review-page-menu [href$="/review/history"] .lp-menu__line')->text()));
         self::assertCount(1, $crawler->filter('#review-page-menu a[href="/projects/'.$projectId.'/documents/'.$id.'/review/diff/1/2"]'));
     }
 
@@ -1196,17 +1196,17 @@ final class ShowDocumentControllerTest extends WebTestCase
 
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$sourceId.'/review');
         self::assertResponseIsSuccessful();
-        $row = $crawler->filter('#review-page-menu [data-page-menu-group="outgoing"] .lp-page-menu__row');
-        self::assertSame('The Retired Spec', trim($row->filter('.lp-page-menu__label')->text()));
-        self::assertSame('Links to · Archived', trim($row->filter('.lp-page-menu__line')->text()));
+        $row = $crawler->filter('#review-page-menu [data-page-menu-group="outgoing"] .lp-menu__item');
+        self::assertSame('The Retired Spec', trim($row->filter('.lp-menu__label')->text()));
+        self::assertSame('Links to · Archived', trim($row->filter('.lp-menu__line')->text()));
         self::assertSame('/projects/'.$projectId.'/documents/'.$targetId.'/review', $row->attr('href'));
 
         // The same row, read from the other end.
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$targetId.'/review');
         self::assertResponseIsSuccessful();
-        $row = $crawler->filter('#review-page-menu [data-page-menu-group="incoming"] .lp-page-menu__row');
-        self::assertSame('The Companion Thread', trim($row->filter('.lp-page-menu__label')->text()));
-        self::assertSame('Links to this document · In review', trim($row->filter('.lp-page-menu__line')->text()));
+        $row = $crawler->filter('#review-page-menu [data-page-menu-group="incoming"] .lp-menu__item');
+        self::assertSame('The Companion Thread', trim($row->filter('.lp-menu__label')->text()));
+        self::assertSame('Links to this document · In review', trim($row->filter('.lp-menu__line')->text()));
     }
 
     /**

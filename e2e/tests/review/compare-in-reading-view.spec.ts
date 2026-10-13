@@ -61,14 +61,14 @@ test('the comparison chrome is one toolbar row', async ({ page }) => {
     // Both controls sit on the one row, which is what lets the document start
     // near the top of the pane.
     const bar = page.locator('.lp-diff-bar');
-    await expect(bar.locator('.lp-diff-views')).toHaveCount(1);
+    await expect(bar.locator('.lp-diff-bar__views')).toHaveCount(1);
     await expect(bar.locator('.lp-diff-nav')).toHaveCount(1);
 
     // The menu marks the current view with a check and weight, not by colour
     // alone, and aria-current is what carries that to a screen reader.
-    await expect(page.locator('.lp-diff-views__link[aria-current]')).toHaveText(
-        'Rendered',
-    );
+    await expect(
+        page.locator('.lp-diff-bar__views .lp-menu__item[aria-current]'),
+    ).toHaveText('Rendered');
 
     const counter = page.locator('.lp-diff-nav__count');
     await expect(counter).toHaveText('2 changes');
@@ -102,9 +102,9 @@ test('the comparison chrome is one toolbar row', async ({ page }) => {
     await bar.getByRole('button', { name: 'Diff view', exact: true }).click();
     await bar.getByRole('link', { name: 'Markdown' }).click();
     await expect(page).toHaveURL(`${reviewPath}/diff/1/3?view=source`);
-    await expect(page.locator('.lp-diff-views__link[aria-current]')).toHaveText(
-        'Markdown',
-    );
+    await expect(
+        page.locator('.lp-diff-bar__views .lp-menu__item[aria-current]'),
+    ).toHaveText('Markdown');
     await expect(page.locator('.lp-diff')).toBeVisible();
 
     // A change of version compares at once, with no button to press.

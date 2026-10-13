@@ -19,18 +19,20 @@
 {% elseif document.status.value in ['approved', 'changes-requested'] %}
 {% set verdictLabel = ('review.document.verdict.' ~ document.status.value)|trans %}
 <div class="lp-review-topbar-actions">
-    <div class="lp-verdict-chip lp-verdict-chip--{{ document.status.value }}" data-controller="popover">
-        <button type="button" class="lp-verdict-chip__trigger"
-                aria-label="{{ verdictLabel }}"
-                aria-expanded="false"
-                aria-controls="verdict-chip-panel"
-                data-popover-target="trigger"
-                data-action="click->popover#toggle">
-            <span class="lp-verdict-chip__dot" aria-hidden="true"></span>
-            <span class="lp-verdict-chip__title">{{ verdictLabel }}</span>
-            <twig:ux:icon name="lucide:chevron-down" class="lp-verdict-chip__caret" />
-        </button>
-        <div class="lp-verdict-chip__panel" id="verdict-chip-panel" data-popover-target="panel" hidden>
+    <twig:Ds:Menu id="verdict-chip-panel" class="lp-verdict-chip lp-verdict-chip--{{ document.status.value }}" size="md" density="flush">
+        <twig:block name="trigger">
+            <button type="button" class="lp-verdict-chip__trigger"
+                    aria-label="{{ verdictLabel }}"
+                    aria-expanded="false"
+                    aria-controls="verdict-chip-panel"
+                    data-popover-target="trigger"
+                    data-action="click->popover#toggle">
+                <span class="lp-verdict-chip__dot" aria-hidden="true"></span>
+                <span class="lp-verdict-chip__title">{{ verdictLabel }}</span>
+                <twig:ux:icon name="lucide:chevron-down" class="lp-verdict-chip__caret" />
+            </button>
+        </twig:block>
+        <twig:block name="content">
             <div class="lp-verdict-chip__head">
                 <twig:ux:icon name="{{ document.status.value == 'approved' ? 'lucide:circle-check' : 'lucide:circle-alert' }}" class="lp-verdict-chip__icon" />
                 <div class="lp-verdict-chip__heading">
@@ -55,8 +57,9 @@
                 {% endif %}
                 <twig:Ds:Button variant="ghost" size="sm" type="button" data-controller="review-finish" data-action="click->review-finish#open"><twig:ux:icon name="lucide:pencil" class="lp-verdict-chip__action-icon" />{{ 'review.document.verdict.change'|trans }}</twig:Ds:Button>
             </div>
-        </div>
-    </div>
+        </twig:block>
+    </twig:Ds:Menu>
+</div>
 </div>
 {% endif %}
 {% endif %}
@@ -193,37 +196,33 @@
                         idPrefix: 'diff',
                         autoSubmit: true,
                     } only %}
-                    <div class="lp-diff-views" data-controller="popover">
-                        <twig:Ds:Button variant="icon" type="button" class="lp-diff-views__trigger"
-                                aria-label="{{ 'review.document.diff.view.label'|trans }}"
-                                title="{{ 'review.document.diff.view.label'|trans }}"
-                                aria-expanded="false"
-                                aria-controls="diff-views-menu"
-                                data-popover-target="trigger"
-                                data-action="click->popover#toggle">
-                            <twig:ux:icon name="lucide:settings-2" />
-                        </twig:Ds:Button>
-                        <nav class="lp-diff-views__panel" id="diff-views-menu" aria-label="{{ 'review.document.diff.view.label'|trans }}" data-popover-target="panel" hidden>
-                            <p class="lp-diff-views__heading" aria-hidden="true">{{ 'review.document.diff.view.label'|trans }}</p>
-                            <a class="lp-diff-views__link"
-                               href="{{ path('app_document_review_diff', viewParams|merge({view: 'rendered'})) }}"
-                               {% if diffView.value == 'rendered' %}aria-current="page"{% endif %}>
-                                <twig:ux:icon name="lucide:check" class="lp-diff-views__check" />{{ 'review.document.diff.view.rendered'|trans }}</a>
+                    <twig:Ds:Menu id="diff-views-menu" class="lp-diff-bar__views" size="sm" as="nav" :panel="{'aria-label': 'review.document.diff.view.label'|trans}">
+                        <twig:block name="trigger">
+                            <twig:Ds:Button variant="icon" type="button" class="lp-diff-bar__views-trigger"
+                                    aria-label="{{ 'review.document.diff.view.label'|trans }}"
+                                    title="{{ 'review.document.diff.view.label'|trans }}"
+                                    aria-expanded="false"
+                                    aria-controls="diff-views-menu"
+                                    data-popover-target="trigger"
+                                    data-action="click->popover#toggle">
+                                <twig:ux:icon name="lucide:settings-2" />
+                            </twig:Ds:Button>
+                        </twig:block>
+                        <twig:block name="content">
+                            <twig:Ds:MenuHeading aria-hidden="true">{{ 'review.document.diff.view.label'|trans }}</twig:Ds:MenuHeading>
+                            <twig:Ds:MenuItem :href="path('app_document_review_diff', viewParams|merge({view: 'rendered'}))" :current="diffView.value == 'rendered' ? 'page' : false">
+                                <twig:ux:icon name="lucide:check" class="lp-menu__check" />{{ 'review.document.diff.view.rendered'|trans }}</twig:Ds:MenuItem>
                             {# describedby rather than a second link: the notice below says
                                why this view is worth opening, and this is the control that
                                opens it. #}
-                            <a class="lp-diff-views__link"
-                               href="{{ path('app_document_review_diff', viewParams|merge({view: 'source'})) }}"
-                               {% if diffView.value == 'source' %}aria-current="page"{% endif %}
-                               {% if diffUnmarked %}aria-describedby="diff-unmarked-notice"{% endif %}>
-                                <twig:ux:icon name="lucide:check" class="lp-diff-views__check" />{{ 'review.document.diff.view.source'|trans }}</a>
+                            <twig:Ds:MenuItem :href="path('app_document_review_diff', viewParams|merge({view: 'source'}))" :current="diffView.value == 'source' ? 'page' : false"
+                                    :aria-describedby="diffUnmarked ? 'diff-unmarked-notice' : false">
+                                <twig:ux:icon name="lucide:check" class="lp-menu__check" />{{ 'review.document.diff.view.source'|trans }}</twig:Ds:MenuItem>
                             {# The same rendered blocks in two columns. #}
-                            <a class="lp-diff-views__link"
-                               href="{{ path('app_document_review_diff', viewParams|merge({view: 'side-by-side'})) }}"
-                               {% if diffColumns %}aria-current="page"{% endif %}>
-                                <twig:ux:icon name="lucide:check" class="lp-diff-views__check" />{{ 'review.document.diff.view.side_by_side'|trans }}</a>
-                        </nav>
-                    </div>
+                            <twig:Ds:MenuItem :href="path('app_document_review_diff', viewParams|merge({view: 'side-by-side'}))" :current="diffColumns ? 'page' : false">
+                                <twig:ux:icon name="lucide:check" class="lp-menu__check" />{{ 'review.document.diff.view.side_by_side'|trans }}</twig:Ds:MenuItem>
+                        </twig:block>
+                    </twig:Ds:Menu>
                     </div>
                     {% if diffNavigation %}
                         {% include '@Review/_diff_navigation.html.twig' with {changeCount: diffChangeCount} only %}

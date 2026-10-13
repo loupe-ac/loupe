@@ -18,22 +18,24 @@
         line: 'review.document.page_menu.incoming_line'|trans({'%status%': reference.archivedAt ? 'review.document.references.archived'|trans : reference.status.translationKey|trans}),
     })},
 ]|filter(group => group.rows is not empty) %}
-<div class="lp-page-menu" data-controller="popover">
-    <twig:Ds:Button variant="ghost" size="sm" type="button" class="lp-page-menu__trigger"
-            aria-label="{{ 'review.document.page_menu.label'|trans }}"
-            title="{{ 'review.document.page_menu.label'|trans }}"
-            aria-expanded="false"
-            aria-controls="review-page-menu"
-            data-popover-target="trigger"
-            data-action="click->popover#toggle">
-        <twig:ux:icon name="lucide:ellipsis" />
-    </twig:Ds:Button>
-    <div class="lp-page-menu__panel" id="review-page-menu" data-popover-target="panel" hidden>
+<twig:Ds:Menu id="review-page-menu" size="md">
+    <twig:block name="trigger">
+        <twig:Ds:Button variant="ghost" size="sm" type="button" class="lp-page-menu__trigger"
+                aria-label="{{ 'review.document.page_menu.label'|trans }}"
+                title="{{ 'review.document.page_menu.label'|trans }}"
+                aria-expanded="false"
+                aria-controls="review-page-menu"
+                data-popover-target="trigger"
+                data-action="click->popover#toggle">
+            <twig:ux:icon name="lucide:ellipsis" />
+        </twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
         {% for group in groups %}
         {% set rows = group.rows %}
         <div class="lp-page-menu__group" data-page-menu-group="{{ group.kind }}">
             {% if rows|length > 1 %}
-            <p class="lp-page-menu__heading">{{ ('review.document.page_menu.heading.' ~ group.kind)|trans({'%count%': rows|length}) }}</p>
+            <twig:Ds:MenuHeading>{{ ('review.document.page_menu.heading.' ~ group.kind)|trans({'%count%': rows|length}) }}</twig:Ds:MenuHeading>
             {% endif %}
             {% for row in rows|slice(0, 3) %}
             {% include '@Review/_page_menu_row.html.twig' with {kind: group.kind, href: row.href, label: row.label, line: row.line} only %}
@@ -66,5 +68,5 @@
             } only %}
             {% endif %}
         </div>
-    </div>
-</div>
+    </twig:block>
+</twig:Ds:Menu>
