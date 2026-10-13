@@ -157,8 +157,9 @@ markers:
 The `delay` of `card.quiet_for` and of `pr.ready_for` is optional. With no
 `delay`, the condition uses the **Stuck delay in minutes** setting of the board.
 
-Markers also read conditions that rules already use: `pr.checks_failed`,
-`pr.conflicting`, `card.run.work_active` and `card.run.worker_active`.
+Markers also read conditions that rules already use: `pr.open`,
+`pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
+`card.run.worker_active`.
 
 ## Slots and columns
 

@@ -17,12 +17,17 @@ use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\ForgeRequest;
+use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\PullRequestFacts;
 use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Contract\StackParent;
+use App\Module\Workflow\Expression\AllOf;
+use App\Module\Workflow\Expression\AnyOf;
+use App\Module\Workflow\Expression\ConditionLeaf;
+use App\Module\Workflow\Expression\Expression;
 use App\Module\Workflow\Fact\BlockerHoldFacts;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
@@ -85,6 +90,34 @@ final class ShippedMarkersTest extends KernelTestCase
                 self::assertStringContainsString('#%number%', $catalogue->get($marker->label), $marker->key);
             }
         }
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_every_label_that_names_a_pull_request_has_a_condition_that_gives_its_number(string $key): void
+    {
+        $translator = static::getContainer()->get('translator');
+        self::assertInstanceOf(TranslatorBagInterface::class, $translator);
+        $catalogue = $translator->getCatalogue('en');
+
+        $checked = 0;
+        foreach ($this->template($key)->markers as $marker) {
+            if (!str_contains($catalogue->get($marker->label), '#%number%') || !\in_array(EngineFact::PullRequest, $marker->when->reads(), true)) {
+                continue;
+            }
+            ++$checked;
+            self::assertTrue(self::givesPullRequestEvidence($marker->when), \sprintf('"%s" names a pull request, and no condition outside a negation gives its number.', $marker->key));
+        }
+        self::assertGreaterThan(0, $checked);
+    }
+
+    /** Whether a leaf outside a negation reads the pull request and tells the marker what it saw. */
+    private static function givesPullRequestEvidence(Expression $expression): bool
+    {
+        return match (true) {
+            $expression instanceof ConditionLeaf => $expression->condition instanceof MarkerEvidence && \in_array(EngineFact::PullRequest, $expression->reads(), true),
+            $expression instanceof AllOf, $expression instanceof AnyOf => array_any($expression->children, self::givesPullRequestEvidence(...)),
+            default => false,
+        };
     }
 
     /** @return iterable<string, array{string}> */
@@ -165,6 +198,7 @@ final class ShippedMarkersTest extends KernelTestCase
         $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 9);
 
         self::assertSame(['pull-request-idle'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: $quiet)));
+        self::assertSame(['%number%' => 9], $this->written('pull-request-idle')->params);
         self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design'), provided: $quiet)));
         self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: $quiet)), 'the Next column stays silent');
         self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', childCount: 1, openChildCount: 1), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: $quiet)), 'an open child hides the pull request idle marker only');
