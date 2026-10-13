@@ -30,7 +30,7 @@ final class ShowLegalPagesControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         foreach (['/privacy', '/terms', '/ai-policy'] as $policy) {
-            self::assertSelectorExists(sprintf('footer a[href="%s"], .auth-page a[href="%s"]', $policy, $policy));
+            self::assertSelectorExists(sprintf('footer a[href="%s"], .lp-auth__footer a[href="%s"]', $policy, $policy));
         }
     }
 
