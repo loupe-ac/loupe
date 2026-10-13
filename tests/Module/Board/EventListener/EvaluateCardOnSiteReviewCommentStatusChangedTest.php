@@ -77,12 +77,18 @@ final class EvaluateCardOnSiteReviewCommentStatusChangedTest extends KernelTestC
     /** @return list<EvaluateCard> */
     private function evaluations(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.workflow');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
-        return array_values(array_filter(
-            array_map(static fn ($envelope): object => $envelope->getMessage(), $transport->getSent()),
-            static fn (object $message): bool => $message instanceof EvaluateCard,
-        ));
+        // Each card once: the status change and the card update it sends both queue one.
+        $evaluations = [];
+        foreach ($transport->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof EvaluateCard) {
+                $evaluations[$message->cardId] ??= $message;
+            }
+        }
+
+        return array_values($evaluations);
     }
 }

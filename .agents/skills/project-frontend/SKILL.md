@@ -181,8 +181,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 9. Pagination: `<twig:Ds:Pagination route="..." :page="page" :totalPages="totalPages" :pageList="pageList" />`. The CSS is `assets/styles/components/pagination.css`.
 10. Tooltip: `<twig:Ds:Tooltip id="...">text</twig:Ds:Tooltip>`. The anchor's own rule shows it on hover and focus. The CSS is `assets/styles/components/tooltip.css`.
 
-11. StatusBox: `<twig:Ds:StatusBox kind="stuck" :title="..." :chip="..." :lead="..." :fields="..." :others="...">`. Kinds are stuck, needs-you, working and waiting. The CSS is `assets/styles/components/status-box.css`.
-12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working and waiting. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
+11. StatusBox: `<twig:Ds:StatusBox kind="stuck" :title="..." :chip="..." :lead="..." :fields="..." :others="...">`. Kinds are stuck, needs-you, working, waiting and chip. The CSS is `assets/styles/components/status-box.css`.
+12. StateMark: `<twig:Ds:StateMark kind="stuck" :label="...">tooltip content</twig:Ds:StateMark>`. Kinds are stuck, needs-you, working, waiting and chip. Its tooltip is interactive, so it may hold a link, and the board drag ignores a press inside it. The CSS is `assets/styles/components/state-mark.css`.
 13. FilterBar: `<twig:Ds:FilterBar :action="..." :search="{id, name, value, label, placeholder}" :clearHref="..." :clearLabel="..." :count="...">` with the selects of the first row as the body and a `secondary` block for hidden fields and wrapping selects. Other props are `formAttributes`, `countAttributes`, `countFrame` and `switch`. Write no `lp-filter-*` class in a template. `Ds:Select` and `Ds:Input` take `compact` outside a bar. The CSS is `assets/styles/components/filter-bar.css`.
 
 13. Panel: `<twig:Ds:Panel as="section">`. It draws one bordered tinted card and has no variants. The CSS is `assets/styles/components/panel.css`.

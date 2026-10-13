@@ -138,6 +138,57 @@ final class WorkerRunRepositoryTest extends KernelTestCase
         self::assertSame([], $runs->findOpenWorkKindsOfCard(Uuid::v7()));
     }
 
+    public function test_find_open_work_since_of_card_answers_the_start_of_the_oldest_open_worker_run_of_each_kind(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'open-since-'.uniqid().'@example.com'), 'Open since');
+        $cardId = Uuid::v7();
+
+        $this->startedAt($em, $this->seedRun($em, $project, workKind: 'implement', cardId: $cardId, state: WorkerRunState::Running), '2026-01-01 10:20:00');
+        $this->startedAt($em, $this->seedRun($em, $project, workKind: 'implement', cardId: $cardId, state: WorkerRunState::Resumed), '2026-01-01 10:10:00');
+        $this->startedAt($em, $this->seedRun($em, $project, receivedAt: new \DateTimeImmutable('2026-01-01 10:30:00'), workKind: 'fix', cardId: $cardId, state: WorkerRunState::Queued), null);
+        $this->seedRun($em, $project, workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
+        $this->seedRun($em, $project, workKind: 'sync', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Command);
+        $this->seedRun($em, $project, workKind: null, cardId: $cardId, state: WorkerRunState::Running);
+        $this->seedRun($em, $project, workKind: 'plan', cardId: $cardId, state: WorkerRunState::Succeeded);
+
+        $runs = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $runs);
+
+        self::assertEquals(
+            ['fix' => new \DateTimeImmutable('2026-01-01 10:30:00'), 'implement' => new \DateTimeImmutable('2026-01-01 10:10:00')],
+            $runs->findOpenWorkSinceOfCard($cardId),
+        );
+        self::assertSame(['fix', 'implement'], array_keys($runs->findOpenWorkSinceOfCard($cardId)));
+        self::assertSame([], $runs->findOpenWorkSinceOfCard(Uuid::v7()));
+    }
+
+    public function test_find_oldest_open_interactive_row_of_card_answers_the_oldest_open_session(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'open-session-'.uniqid().'@example.com'), 'Open session');
+        $cardId = Uuid::v7();
+        $runs = self::getContainer()->get(WorkerRunRepository::class);
+        self::assertInstanceOf(WorkerRunRepository::class, $runs);
+
+        $quiet = Uuid::v7();
+        foreach ([$quiet, $cardId] as $card) {
+            $this->seedRun($em, $project, workKind: 'implement', cardId: $card, state: WorkerRunState::Running);
+            $this->seedRun($em, $project, workKind: 'review', cardId: $card, state: WorkerRunState::Succeeded, kind: WorkerRunKind::Interactive);
+        }
+        self::assertNull($runs->findOldestOpenInteractiveRowOfCard($quiet));
+
+        $this->startedAt($em, $this->seedRun($em, $project, workKind: 'later', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive), '2026-01-01 10:20:00');
+        $this->startedAt($em, $this->seedRun($em, $project, workKind: null, cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive), '2026-01-01 10:10:00');
+
+        $row = $runs->findOldestOpenInteractiveRowOfCard($cardId);
+        self::assertNotNull($row);
+        self::assertNull($row['work_kind']);
+        self::assertEquals(new \DateTimeImmutable('2026-01-01 10:10:00'), new \DateTimeImmutable($row['since']));
+    }
+
     public function test_a_newer_run_of_the_card_hides_its_warning_unless_it_was_set_aside(): void
     {
         self::bootKernel();
@@ -241,5 +292,11 @@ final class WorkerRunRepositoryTest extends KernelTestCase
         $em->flush();
 
         return $run;
+    }
+
+    private function startedAt(EntityManagerInterface $em, WorkerRun $run, ?string $at): void
+    {
+        $run->startedAt = null === $at ? null : new \DateTimeImmutable($at);
+        $em->flush();
     }
 }

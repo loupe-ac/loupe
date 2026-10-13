@@ -174,7 +174,8 @@ final class ShowSubscribeControllerTest extends WebTestCase
         // Submitting the rendered form as-is must pass CSRF validation — a
         // token minted for the wrong token id would 422 here.
         $client->submitForm('Join the waitlist');
-        self::assertResponseRedirects('/waitlist?joined=1');
+        self::assertResponseRedirects();
+        self::assertMatchesRegularExpression('#^/waitlist\?joined=1&t=[0-9a-f]{32}$#', (string) $client->getResponse()->headers->get('Location'));
     }
 
     public function test_a_disabled_user_is_told_the_waitlist_is_shut_when_registration_is_off(): void
