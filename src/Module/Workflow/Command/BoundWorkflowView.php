@@ -12,6 +12,7 @@ final readonly class BoundWorkflowView
      * @param list<WorkflowRuleView>       $rules                    the rules of the template
      * @param list<WorkflowRuleView>       $appRules                 the rules the app adds to every template
      * @param list<WorkflowManualMoveView> $manualMoves
+     * @param list<WorkflowMarkerView>     $markers                  the card markers of the template, in template order
      * @param list<int>                    $backoffMinutes
      * @param ?list<int>                   $workFailedBackoffMinutes null when the template has no onWorkFailed block
      */
@@ -26,6 +27,7 @@ final readonly class BoundWorkflowView
         public array $rules,
         public array $appRules,
         public array $manualMoves,
+        public array $markers,
         public array $backoffMinutes,
         public int $workTimeoutMinutes,
         public ?array $workFailedBackoffMinutes,

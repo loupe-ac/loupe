@@ -164,8 +164,19 @@ test('the view sits straight on a white page, with no frame or fill', async ({
         const element = page.locator(selector);
         await expect(element).toHaveCSS('background-color', clear);
         await expect(element).toHaveCSS('border-top-width', '0px');
-        await expect(element).toHaveCSS('padding-top', '0px');
     }
+    for (const selector of ['.lp-inbox-section--queue', '.lp-inbox-ask']) {
+        await expect(page.locator(selector)).toHaveCSS('padding-top', '0px');
+    }
+    // Each pane scrolls on its own, so the page's top padding sits inside the panes, the same on both.
+    await expect(page.locator('.lp-workspace')).toHaveCSS('padding-top', '0px');
+    const listPadding = await page
+        .locator('.lp-inbox-request-list')
+        .evaluate((element) => getComputedStyle(element).paddingTop);
+    await expect(page.locator('.lp-inbox-request-detail')).toHaveCSS(
+        'padding-top',
+        listPadding,
+    );
 
     const tint = 'rgb(247, 248, 243)';
     for (const selector of ['.lp-decision--inbox', '.lp-inbox-item__buttons']) {

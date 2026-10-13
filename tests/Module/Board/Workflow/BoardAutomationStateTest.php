@@ -39,4 +39,18 @@ final class BoardAutomationStateTest extends KernelTestCase
         self::assertTrue($settings->automationEnabled($on->id ?? throw new \LogicException()));
         self::assertFalse($settings->automationEnabled($off->id ?? throw new \LogicException()));
     }
+
+    public function test_the_stuck_delay_follows_the_stored_setting_or_the_default(): void
+    {
+        $stored = $this->makeProject('stuck-delay-stored');
+        $unset = $this->makeProject('stuck-delay-unset');
+        $this->em->persist(new BoardAutomationSettings($stored, stuckDelayMinutes: 45));
+        $this->em->flush();
+
+        $settings = self::getContainer()->get(BoardSettings::class);
+        self::assertInstanceOf(BoardSettings::class, $settings);
+
+        self::assertSame(45, $settings->stuckDelayMinutes($stored->id ?? throw new \LogicException()));
+        self::assertSame(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES, $settings->stuckDelayMinutes($unset->id ?? throw new \LogicException()));
+    }
 }

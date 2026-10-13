@@ -148,6 +148,9 @@ final class BoardLanesTest extends WebTestCase
         $epicCard = $crawler->filter('[data-board-drag-target="card"][data-card-id="'.$epicId.'"]');
         self::assertCount(1, $epicCard);
         self::assertSame('3/7 done', trim($epicCard->filter('[data-card-progress]')->text()));
+        self::assertNull($tag->attr('title'));
+        self::assertSame('Part of #'.$epicNumber.': Quiet epic', trim($crawler->filter('#'.$tag->attr('aria-describedby'))->text()));
+        self::assertSame('3 of 7 child cards are done', trim($crawler->filter('#'.$epicCard->filter('[data-card-progress]')->attr('aria-describedby'))->text()));
     }
 
     public function test_the_lane_toggle_on_the_board_answers_with_an_empty_stream_and_saves_the_lane(): void

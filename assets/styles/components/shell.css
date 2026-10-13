@@ -38,7 +38,7 @@
         /* The side-by-side diff takes the full width below the framed bar. */
         .lp-app
             > .lp-shell:not(:has(.lp-board))
-            > .lp-main:not(:has(.lp-review-doc--wide)) {
+            > .lp-main:not(:has(.lp-review-doc--wide, .lp-core-inbox)) {
             padding-right: var(--app-frame-inset);
         }
     }

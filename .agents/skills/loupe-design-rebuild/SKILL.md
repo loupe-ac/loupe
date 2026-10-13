@@ -28,4 +28,4 @@ The Claude Design project "Loupe Design System" (id `686f56bd-cc39-4a3d-bd61-99c
 
 ## When the rebuild cannot run
 
-A worker that cannot write leaves the project as it is. The gate in `working-with-prs` then records `Claude Design rebuild: pending` in the pull request body. It also raises a non-blocking to-do with `inbox_ask`, as the `loupe-inbox` skill describes. The owner runs this skill in an interactive session later.
+A worker that cannot write leaves the project as it is. The gate in `working-with-prs` then records `Claude Design rebuild: pending` in the pull request body. It also raises one non-blocking to-do with `inbox_ask`, unless an open to-do already asks for the rebuild. One rebuild covers every pending pull request. The owner runs this skill in an interactive session later.

@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
     # scheduler_default listed first deliberately — a deep async backlog must
     # not delay schedule ticks. async_low (the workflow sweep) comes last.
-    command: php bin/console messenger:consume scheduler_default async async_low --time-limit=3600 --memory-limit=128M
+    command: php bin/console messenger:consume scheduler_default workflow async async_low --time-limit=3600 --memory-limit=128M
     volumes:
       - .:/var/www/html
     environment:

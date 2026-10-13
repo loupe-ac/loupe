@@ -31,6 +31,9 @@ use Symfony\Component\Uid\Uuid;
 // Read by card_search, which asks a project which languages its cards hold
 // before it builds one constant tsquery per language.
 #[ORM\Index(name: 'idx_board_cards_project_search_language', columns: ['project_id', 'search_language'])]
+// The minute task reads these two to find the cards whose markers are due or not stored yet.
+#[ORM\Index(name: 'idx_board_cards_markers_due', columns: ['markers_due_at'], options: ['where' => '(markers_due_at IS NOT NULL)'])]
+#[ORM\Index(name: 'idx_board_cards_markers_missing', columns: ['project_id'], options: ['where' => '(markers IS NULL)'])]
 #[ORM\Table(name: 'board_cards')]
 #[ORM\UniqueConstraint(name: 'uniq_board_card_project_number', columns: ['project_id', 'number'])]
 class Card implements ProjectScopedSubject
@@ -54,6 +57,18 @@ class Card implements ProjectScopedSubject
 
     #[ORM\Column]
     public \DateTimeImmutable $updatedAt;
+
+    /**
+     * The markers the workflow engine found on the card, as stored by CardMarkerStore. Null until the first pass.
+     *
+     * @var list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string}>|null
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $markers = null;
+
+    /** The time the next timed marker may change, or null when only an event changes them. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $markersDueAt = null;
 
     /**
      * The epic this card belongs to. CardParentPolicy keeps it an epic of the

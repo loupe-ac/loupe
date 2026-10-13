@@ -548,7 +548,7 @@ final class ShowInboxControllerTest extends WebTestCase
         $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
 
         $meta = $crawler->filter('a.lp-list-row[data-inbox-request="'.$withCardsAsk->id.'"] .lp-list-row__meta');
-        self::assertStringContainsString('#4 Checkout 4 +2', $meta->filter('[data-inbox-card]')->text());
+        self::assertSame('#4 +2', $meta->filter('[data-inbox-card]')->text());
         // A short age, and Blocking inline after a dot: "#4 Checkout 4 +2 · 2h · Blocking".
         self::assertSame('2h', $meta->filter('time')->text());
         self::assertMatchesRegularExpression('/·\s*2h\s*·\s*Blocking$/u', $meta->text());

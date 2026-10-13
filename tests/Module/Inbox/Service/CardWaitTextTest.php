@@ -43,7 +43,7 @@ final class CardWaitTextTest extends KernelTestCase
 
     public function test_the_title_of_a_deleted_document_wait_names_its_version(): void
     {
-        self::assertSame('#4 Deleted document version 1 · Ship it', $this->text->title([$this->wait], 4, 'Ship it', 200));
+        self::assertSame('Deleted document version 1', $this->text->title([$this->wait], 'Ship it', 200));
     }
 
     public function test_the_body_of_a_deleted_document_wait_names_no_empty_title(): void

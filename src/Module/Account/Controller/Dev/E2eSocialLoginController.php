@@ -12,6 +12,7 @@ use App\Module\Account\Security\SocialAuthenticator;
 use App\Module\Account\Service\PendingSocialLink;
 use App\Module\Account\Service\SocialProfile;
 use App\Module\Account\Service\UnverifiedProviderEmail;
+use App\Module\Account\Service\WaitlistJoinTicket;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\When;
@@ -53,6 +54,7 @@ final class E2eSocialLoginController extends AppController
         private readonly ResolveSocialLoginHandler $resolveSocialLogin,
         private readonly PendingSocialLink $pendingSocialLink,
         private readonly Security $security,
+        private readonly WaitlistJoinTicket $joinTicket,
 
         #[Autowire('%kernel.environment%')]
         private readonly string $environment,
@@ -88,7 +90,7 @@ final class E2eSocialLoginController extends AppController
         // mirror SocialAuthenticator, no account was created and there is
         // nothing to log in.
         if ($outcome->waitlisted) {
-            return $this->redirectToRoute('app_waitlist_join', ['joined' => 1]);
+            return $this->redirectToRoute('app_waitlist_join', ['joined' => 1, WaitlistJoinTicket::QUERY_PARAMETER => $this->joinTicket->issue()]);
         }
 
         $user = $outcome->user ?? throw new \LogicException('A non-waitlisted outcome must carry a user.');

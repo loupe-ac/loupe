@@ -189,25 +189,47 @@ is in a state. The mark says what the card needs now:
 
 | State | Means |
 |---|---|
-| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result, a pull request has failed checks or a conflict and no fix is under way, a pull request has been ready to merge for longer than the stuck delay and no merge rule matches it, or an open pull request in Implementation or In review has had no card history for longer than the stuck delay and no other reason applies. A pull request that waits for its parent, or whose checks still run, never shows this. The remedy is to read the card history |
+| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card for longer than the stuck delay and no other reason applies. The remedy line on the card page says what to do |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
-| **Working** | Work waits for a bridge to take it, a worker runs on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
-| **Waiting** | A card that blocks this card is still open, or a pull request that is ready to merge is stacked on another pull request and waits for it to merge. The tile names that card, or the branch when no card owns it |
+| **Working** | Work waits for a bridge to take it, a worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
+| **Waiting** | A card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
 
 When several states apply, the tile shows the first in the order **Stuck**,
-**Needs you**, **Working**, **Waiting**. Hover the mark, or focus it, to read
-why the card has the state, since when, and a link to the card. The tooltip stays
-open while the pointer moves into it. The **Working** mark spins, and stays still
-when your system asks for less motion. A card in a terminal column shows no mark.
-A pull request that waits for your approval shows **Needs you** and never
-**Stuck**. A pull request that Loupe never read adds no state.
+**Needs you**, **Working**, **Waiting**. Inside one state, the marker that comes
+first in the workflow template wins. The **Working** mark spins, and stays still
+when your system asks for less motion.
 
-The tile also shows **Unmanaged** when a person or an agent made the card
-unmanaged. See [Managed and unmanaged cards](#managed-and-unmanaged-cards). The
-mark changes with no reload. The **List** view and the Backlog page keep the
-badges **Checks failed**, **Conflict**, **Automation blocked** and **Paused**,
-and the warning of the last worker run. See
+A pull request that waits for your approval shows **Needs you** and never
+**Stuck**. A pull request that waits for its parent, or whose checks still run,
+never shows **Stuck**. A pull request that Loupe never read adds no state.
+
+Hover the mark, or focus it, to read the tooltip. The tooltip gives these items:
+
+- The reason the card has the state.
+- The time the reason began.
+- Every other marker of the card, chips included.
+- On a board tile, an **Open card** link. A list row leaves the link out,
+  because the row itself opens the card.
+
+The card page shows the remedy line, which says what clears the state.
+
+The tooltip stays open while the pointer moves into it.
+
+A card that carries only a chip, such as **Unmanaged**, shows a neutral mark, a
+dotted circle. Its tooltip names the chip. A person or an agent makes a card
+unmanaged. See [Managed and unmanaged cards](#managed-and-unmanaged-cards).
+
+A card in a terminal column shows no mark. A card in Next with no blocker and no
+parent shows no mark, because no marker applies to it.
+
+The **List** view shows the same state mark as the tile, with the same
+tooltip less the **Open card** link. The list keeps the warning of the last worker run. See
 [A warning on the card](worker-runs.md#a-warning-on-the-card).
+
+The marks come from the markers that the workflow template defines. The engine
+stores them on each card after every evaluation, also for a held card and for a
+board with the automation off. A mark changes with no reload. After a release,
+the marks fill in within a minute or two. See [Markers](workflows.md#markers).
 
 Each card type and each column has a colour, and every page that names one uses
 the same colour. The workflow template sets the colour of a card type, and it
@@ -972,19 +994,26 @@ shows a pull request that Loupe never read as **Not reported**. `card_update`,
 commit. While a pull request has an approval, `readyToMerge` stays false until
 an approval covers the newest commit.
 
-Every card row carries `state`. It is null for a card in no state and for a card
-in a terminal column. Otherwise it holds `kind` (`stuck`, `needs-you`, `working`
-or `waiting`), `code`, and `since`. `code` names the reason, such as `paused`,
-`run-stopped`, `checks-failed`, `conflicting`, `ready-not-merged`,
-`pull-request-idle`, `document-in-review`, `waits-for-approval`, `open-question`, `run-open`,
-`work-requested`, `forge-request-pending`, `held-by-blocker`, `waits-for-parent-card` or
-`waits-for-parent-branch`. `since` is the
-time that reason began, or null when Loupe stores none. `card_get`,
-`card_list` with `full`, `card_create`, `card_update` and `card_run_open` also
-return `reason`, one sentence in English, and `others`, the other reasons that
-apply, each with `kind`, `code`, `reason` and `since`. The summary row of
-`card_list` and `card_search` carries `kind`, `code` and `since` alone. Filter
-the rows of one `card_list` page on `state.kind` to find the stuck cards.
+Every card row carries `state`. It is null for a card in no state, for a card
+in a terminal column, and for a card that carries only a chip such as
+**Unmanaged**. Chips are not in `state`. Otherwise it holds `kind` (`stuck`,
+`needs-you`, `working` or `waiting`), `code`, and `since`. `code` is the key of
+the marker that names the reason: `paused`, `run-stopped`, `checks-failed`,
+`conflicting`, `ready-not-merged`, `pull-request-idle`, `nothing-happened`,
+`document-in-review`, `waits-for-approval`, `open-question`, `session-open`,
+`run-open`, `work-requested`, `forge-request-pending`, `held-by-blocker`,
+`waits-for-parent-card`, `waits-for-parent-branch` or `waiting-on-checks`.
+`since` is the time that reason began, or null when Loupe stores none.
+`card_get`, `card_list` with `full`, `card_create`, `card_update` and
+`card_run_open` also return `reason`, one sentence in English, and `others`,
+the other reasons that apply, each with `kind`, `code`, `reason` and `since`.
+The summary row of `card_list` and `card_search` carries `kind`, `code` and
+`since` alone. Filter the rows of one `card_list` page on `state.kind` to find
+the stuck cards.
+
+The tools read the markers that the engine stored on the card. A change shows
+after the next evaluation of the card. After a release, the markers fill in
+within a minute or two.
 
 `card_get` also returns `relatedCards`, the cards linked to this one. Each entry
 carries `cardId`, `number`, `title`, `status` and `kind`, where `kind` is how
@@ -1083,16 +1112,18 @@ for. See [Workflows](workflows.md).
 ## Cards linked to a card
 
 A card links to other cards of the same project. From one card, each link reads
-as one of three kinds:
+as one of five kinds:
 
 | Kind | Label | Meaning |
 |---|---|---|
 | `relates-to` | Related to | The two cards concern each other. |
 | `blocks` | Blocks | This card must finish before the other card can. |
 | `blocked-by` | Blocked by | The other card must finish before this card can. |
+| `has-follow-up` | Has follow-up | The other card is a follow-up of this card. It has no parent, and it waits for this card. |
+| `follow-up-of` | Follow-up of | This card is a follow-up of the other card. It has no parent, and it waits for the other card. |
 
 Both cards show the link. A `relates-to` link reads the same from both ends. A
-`blocks` link from card A to card B reads `blocked-by` from card B. A pair of
+`blocks` link from card A to card B reads `blocked-by` from card B. In the same way, a `has-follow-up` link from card A to card B reads `follow-up-of` from card B. A pair of
 cards holds one link, so card A cannot both block and relate to card B.
 
 Pass `relatedCards` to `card_create` or `card_update`. Each entry takes a

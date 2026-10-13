@@ -104,7 +104,7 @@ module "app" {
   # site-review outbox never drains.
   #
   # Supervisord runs two consumers (docker/prod/worker-supervisord.conf):
-  # scheduler_default async, and async_low for the workflow sweep, so the sweep
+  # scheduler_default workflow async, and async_low for the workflow sweep, so the sweep
   # never delays a job that a person waits for. scheduler_default is first
   # deliberately — a deep async backlog must not delay schedule ticks.
   enable_worker  = true

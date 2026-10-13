@@ -24,6 +24,10 @@ final class RunOutputTextTest extends TestCase
     #[TestWith(['STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network.', 'cannot reach github.com: DNS lookup failed'])]
     #[TestWith(["First line\nSecond line", 'First line'])]
     #[TestWith(['', ''])]
+    #[TestWith(['Cannot push `feature/x` to **origin**. Fix the remote.', 'Cannot push feature/x to origin'])]
+    #[TestWith(['The [pull request](https://example.test/pull/1) is *stacked*. Retarget it.', 'The pull request is stacked'])]
+    #[TestWith(["- card 785 groundwork is missing\n- second point", 'card 785 groundwork is missing'])]
+    #[TestWith(['Run `just cs` on my_snake_case_file.php first. Then push.', 'Run just cs on my_snake_case_file.php first'])]
     public function test_the_headline_is_the_first_sentence(string $output, string $expected): void
     {
         self::assertSame($expected, RunOutputText::headline($output));

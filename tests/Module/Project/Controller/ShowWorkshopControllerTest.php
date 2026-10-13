@@ -15,6 +15,7 @@ use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
@@ -273,6 +274,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         foreach ([$question, $documentReview, $pullRequestReview] as $item) {
             $em->persist($item);
         }
+        $em->persist(new InboxItemCard($question, $card));
         $em->persist(new InboxReview($documentReview, $document));
         $em->persist(new InboxReview($pullRequestReview, $pullRequest));
         $em->flush();
@@ -283,6 +285,8 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         // Oldest first.
         self::assertSame(['agent', 'document', 'pull-request'], $crawler->filter('[data-workshop-attention] .lp-workshop-attention__icon')->extract(['data-subject']));
+        // Only the question links a card, and its row names it.
+        self::assertSame(['#'.$card->number], $crawler->filter('[data-workshop-attention] [data-workshop-attention-card]')->extract(['_text']));
 
         $inbox = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox');
         self::assertResponseIsSuccessful();
