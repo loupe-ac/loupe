@@ -193,6 +193,7 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 2. Form parts: `<twig:Ds:FormField :fieldView="form.title" />` draws the label, widget, hint and errors of a Symfony field, and `widgetKind="select"` or `widgetKind="textarea"` picks the widget classes. `Ds:Input`, `Ds:Select`, `Ds:Textarea`, `Ds:Label`, `Ds:Hint` and `Ds:FieldErrors` draw one part each. A Symfony widget in a custom layout takes `ds_input_class('select')` and `ds_label_class()`. The CSS is `assets/styles/components/form.css`.
 
 17. Avatar: `<twig:Ds:Avatar :name="project.name" size="sm" shape="square" tone="danger" />`, or `icon="lucide:bot"` for an icon. Sizes are xs, sm, md and lg. Tones are accent, tint, ink, danger and chrome. `presence="live"` draws the bridge dot. The `ds_initial` filter gives the letter. The CSS is `assets/styles/components/avatar.css`.
+18. DataTable: `<twig:Ds:DataTable modifier="runs" :label="..." :columns="[{label: ..., align: 'end'}]">` with `lp-data-table__row` rows (`role="row"`) and `lp-data-table__cell` cells (`role="cell"`) in the content. A modifier class sets `--lp-data-table-columns`. A `header` block replaces the header cells, and `srOnly: true` on a column hides its label from sight. The CSS is `assets/styles/components/data-table.css`.
 
 A child card that adds a component adds it to this list in the same branch.
 

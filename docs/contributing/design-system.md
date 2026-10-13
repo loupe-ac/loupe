@@ -65,6 +65,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | SectionHeading | The title of a section, with an optional sentence and optional actions | none. The content is the title. Takes `level`, `description`, `titleId` and an `actions` block, and no `title` prop |
 | FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
+| DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
 | Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
 
 Write a button like this:
