@@ -195,6 +195,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 23. DataTable: `<twig:Ds:DataTable modifier="runs" :label="..." :columns="[{label: ..., align: 'end'}]">` with `lp-data-table__row` rows (`role="row"`) and `lp-data-table__cell` cells (`role="cell"`) in the content. A modifier class sets `--lp-data-table-columns`. A `header` block replaces the header cells, and `srOnly: true` on a column hides its label from sight. The CSS is `assets/styles/components/data-table.css`.
 24. RelativeTime: `<twig:Ds:RelativeTime :datetime="card.updatedAt" />` draws "2h ago". `mode="date"` draws "5 Oct 2026" and `mode="datetime"` adds the hour. `:now` sets the moment that relative counts from. The `relative_time` filter stays for a sentence that holds the age. The CSS is `assets/styles/components/relative-time.css`.
 
+25. Icon size: `<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />`. It is a class scale and no component, so an icon pays no render cost. The sizes are xs (3), sm (3.5), md (4) and lg (5). Write no `w-N h-N` or `size-N` on an icon, and spell the tag `ux:icon`. The CSS is `assets/styles/components/icon.css`.
+
 A child card that adds a component adds it to this list in the same branch.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".
@@ -204,9 +206,9 @@ The Claude Design project "Loupe Design System" is a copy of these files. `bin/c
 Use the Symfony UX Icons bundle with Lucide for every icon, and never embed inline SVG. Prefer the Twig component form. `ux_icon()` is an acceptable alternative.
 
 ```twig
-<twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0 mt-px" />
+<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm mt-px" />
 {# or #}
-{{ ux_icon('lucide:x', {'class': 'w-3.5 h-3.5 shrink-0 mt-px'}) }}
+{{ ux_icon('lucide:x', {'class': 'lp-icon lp-icon--sm mt-px'}) }}
 ```
 
 `assets/icons/` is committed. A self-hosted instance must render its UI with no egress, so the SVGs ship in the repo and therefore in the production image. `iconify.on_demand` is off in prod, so a production instance never calls `api.iconify.design`. It stays on in dev and test, so a newly used icon renders immediately while you work, but that icon is then only in your local cache and the build would ship without it.

@@ -9,7 +9,7 @@
 
     {% for export in view.exports %}
     <div class="lp-identity-row">
-        <twig:ux:icon name="lucide:package" class="lp-identity-row__glyph w-4 h-4" />
+        <twig:ux:icon name="lucide:package" class="lp-icon lp-icon--md lp-identity-row__glyph" />
         <span class="lp-identity-row__text">
             <span class="lp-identity-row__name lp-identity-row__name--mono">{{ export.requestedAt|date('j M Y, H:i') }}</span>
             <span class="lp-identity-row__meta lp-identity-row__meta--plain">

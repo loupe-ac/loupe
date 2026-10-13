@@ -24,7 +24,7 @@
             {% if failedComment %}
                 {% set cause = failedComment.cause ?? '' %}
                 <div class="lp-connect-alert" data-fix-run-comment-failure>
-                    <twig:ux:icon name="lucide:triangle-alert" class="lp-connect-alert__icon w-4 h-4" />
+                    <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--md lp-connect-alert__icon" />
                     <p class="lp-connect-alert__text">
                         {{ 'board.automation.comment_failure.summary'|trans({'%pull_request%': failedComment.repository ~ '#' ~ failedComment.number}) -}}
                         {% if failedComment.failedAt %} (<twig:Ds:RelativeTime :datetime="failedComment.failedAt" />){% endif %}.

@@ -12,7 +12,7 @@
             {# An ask stores no title. Its first item names it, as the request list does. #}
             <h2 class="lp-inbox-ask__title">{{ row.title }}</h2>
             <p class="lp-inbox-ask__byline">
-                {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'w-4 h-4 shrink-0'} only %}
+                {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'lp-icon lp-icon--md'} only %}
                 <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
                 <span aria-hidden="true">·</span>
                 <twig:Ds:RelativeTime :datetime="row.createdAt" />

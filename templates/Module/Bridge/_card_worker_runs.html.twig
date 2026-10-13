@@ -19,7 +19,7 @@
     {% endif %}
     {% if canManage %}
     <twig:Ds:ActionForm :action="path(held ? 'app_project_card_agents_release' : 'app_project_card_agents_pause', {id: project.id, cardId: cardId})" token="card-agents" frame="card-worker-runs" :data-card-agents-release="held ? true : false" :data-card-agents-pause="held ? false : true">
-        <twig:Ds:Button variant="outline" size="sm" type="submit">{% if held %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% endif %}{{ (held ? 'board.card.runs.release' : 'board.card.runs.pause')|trans }}</twig:Ds:Button>
+        <twig:Ds:Button variant="outline" size="sm" type="submit">{% if held %}<twig:ux:icon name="lucide:circle-play" class="lp-icon lp-icon--md" />{% else %}<twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md" />{% endif %}{{ (held ? 'board.card.runs.release' : 'board.card.runs.pause')|trans }}</twig:Ds:Button>
     </twig:Ds:ActionForm>
     {% endif %}
     {% for item in runs %}
@@ -38,7 +38,7 @@
             {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: item.run, control: control, frame: 'card-worker-runs', compact: true} only %}
             {% elseif canManage and item.closable %}
             <twig:Ds:ActionForm :action="path('app_project_worker_run_close', {id: project.id, runId: item.run.id})" token="worker-run-close" frame="card-worker-runs" class="lp-card-run__action" data-card-run-close>
-                <twig:Ds:Button variant="icon compact" type="submit"  title="{{ 'bridge.worker_runs.close_session'|trans }}" aria-label="{{ 'bridge.worker_runs.close_session'|trans }}"><twig:ux:icon name="lucide:x" class="size-3.5" /></twig:Ds:Button>
+                <twig:Ds:Button variant="icon compact" type="submit"  title="{{ 'bridge.worker_runs.close_session'|trans }}" aria-label="{{ 'bridge.worker_runs.close_session'|trans }}"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" /></twig:Ds:Button>
             </twig:Ds:ActionForm>
             {% endif %}
         </div>

@@ -83,7 +83,7 @@
 <div class="lp-connect-block">
     <p class="lp-eyebrow">{{ 'project.connect.endpoint.eyebrow'|trans }}</p>
     <div class="lp-connect-field">
-        <twig:ux:icon name="lucide:code-xml" class="lp-connect-field__glyph w-4 h-4" />
+        <twig:ux:icon name="lucide:code-xml" class="lp-icon lp-icon--md lp-connect-field__glyph" />
         <code class="lp-connect-field__value">{{ mcpUrl }}</code>
         <twig:Ds:CopyButton :text="mcpUrl" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" />
     </div>
@@ -97,7 +97,7 @@
         {% for method in methods %}
         <details class="lp-install" data-testid="install-{{ method.id }}">
             <summary class="lp-install__summary">
-                <twig:ux:icon name="{{ method.icon }}" class="lp-install__glyph w-4 h-4" />
+                <twig:ux:icon name="{{ method.icon }}" class="lp-icon lp-icon--md lp-install__glyph" />
                 <span class="lp-install__text">
                     <span class="lp-install__title">{{ method.heading|trans }}</span>
                     <span class="lp-install__sub">{{ method.sub|trans }}</span>
@@ -124,7 +124,7 @@
     exist. -#}
 <div class="lp-skills-panel">
     <div class="lp-skills-panel__header">
-        <twig:ux:icon name="lucide:graduation-cap" class="lp-skills-panel__icon w-5 h-5" />
+        <twig:ux:icon name="lucide:graduation-cap" class="lp-icon lp-icon--lg lp-skills-panel__icon" />
         <h3 class="lp-skills-panel__title">{{ 'project.connect.skills.heading'|trans }}</h3>
     </div>
     <p class="lp-connect-hint">{{ 'project.connect.skills.hint'|trans }}</p>

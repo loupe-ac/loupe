@@ -7,11 +7,11 @@
     {{ form_widget(laneForm.returnTo) }}
     {% if compact|default(false) %}
         <button type="submit" class="lp-board-lane__tool" aria-label="{{ label }}" title="{{ label }}">
-            <twig:ux:icon name="{{ icon }}" class="w-4 h-4" />
+            <twig:ux:icon name="{{ icon }}" class="lp-icon lp-icon--md" />
         </button>
     {% else %}
         <twig:Ds:Button variant="ghost" type="submit">
-            <twig:ux:icon name="{{ icon }}" class="w-4 h-4" />{{ label }}
+            <twig:ux:icon name="{{ icon }}" class="lp-icon lp-icon--md" />{{ label }}
         </twig:Ds:Button>
     {% endif %}
 {{ form_end(laneForm) }}

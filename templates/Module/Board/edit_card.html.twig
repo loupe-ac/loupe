@@ -23,12 +23,12 @@
     {% endif %}
     <header class="lp-card-drawer__header">
         <div class="lp-card-drawer__identity">
-            <span class="lp-card-drawer__icon"><twig:ux:icon name="lucide:pencil" class="w-4 h-4" /></span>
+            <span class="lp-card-drawer__icon"><twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" /></span>
             <span class="lp-card-number">#{{ card.number }}</span>
             <span>{{ 'board.card.edit.page.title'|trans }}</span>
         </div>
         <div class="lp-card-drawer__header-actions">
-            <twig:Ds:Button variant="ghost icon" href="{{ path('app_project_board', {id: card.project.id}) }}" aria-label="{{ 'board.card.drawer.close'|trans }}" data-turbo-frame="_top" data-action="card-drawer#close"><twig:ux:icon name="lucide:x" class="w-4 h-4" /></twig:Ds:Button>
+            <twig:Ds:Button variant="ghost icon" href="{{ path('app_project_board', {id: card.project.id}) }}" aria-label="{{ 'board.card.drawer.close'|trans }}" data-turbo-frame="_top" data-action="card-drawer#close"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
         </div>
     </header>
 

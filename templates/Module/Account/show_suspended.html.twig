@@ -5,7 +5,7 @@
 {% block auth_body %}
 <div class="flex flex-col items-center gap-3 py-4 text-center">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:ban" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:ban" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <h1 class="text-xl font-semibold tracking-tight text-fg">{{ 'account.suspended.heading'|trans }}</h1>
@@ -14,7 +14,7 @@
 
     {% if reason %}
         <div class="auth-error w-full text-left">
-            <twig:UX:Icon name="lucide:message-square" class="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+            <twig:ux:icon name="lucide:message-square" class="lp-icon lp-icon--sm mt-px" aria-hidden="true" />
             <span><span class="font-medium">{{ 'account.suspended.reason_label'|trans }}</span> {{ reason }}</span>
         </div>
     {% endif %}

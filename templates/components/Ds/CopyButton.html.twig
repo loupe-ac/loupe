@@ -14,8 +14,8 @@
 <span class="lp-copy-button lp-copy-button--{{ variant }}" data-controller="clipboard" data-clipboard-text-value="{{ text }}"{% if copiedLabel is not null %} data-clipboard-copied-label-value="{{ copiedLabel }}"{% endif %}>
     {%- if variant == 'icon' -%}
         <button{{ attributes.defaults(trigger ? {type: 'button', class: trigger, title: label} : {type: 'button', title: label}) }} data-clipboard-target="button" data-action="click->clipboard#copy">
-            {{- ux_icon('lucide:link', {class: 'lp-copy-button__idle w-4 h-4'}) -}}
-            {{- ux_icon('lucide:check', {class: 'lp-copy-button__done w-4 h-4'}) -}}
+            {{- ux_icon('lucide:link', {class: 'lp-icon lp-icon--md lp-copy-button__idle'}) -}}
+            {{- ux_icon('lucide:check', {class: 'lp-icon lp-icon--md lp-copy-button__done'}) -}}
             <span class="sr-only" aria-live="polite" data-clipboard-target="label">{{ label }}</span>
         </button>
     {%- else -%}

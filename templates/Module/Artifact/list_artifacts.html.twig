@@ -43,7 +43,7 @@
             <a href="{{ path('app_project_artifact', {id: project.id, artifactId: artifact.id}) }}" class="lp-data-table__target lp-document-row__link" aria-label="{{ artifact.name }}"></a>
             <div class="lp-data-table__cell lp-document-row__main" role="cell">
                 <div class="lp-document-row__head">
-                    <twig:ux:icon name="lucide:app-window" class="lp-document-row__icon w-4 h-4 shrink-0" />
+                    <twig:ux:icon name="lucide:app-window" class="lp-icon lp-icon--md lp-document-row__icon" />
                     <span class="lp-document-row__title">{{ artifact.name }}</span>
                     <span class="lp-document-row__version" data-artifact-version>{{ 'artifact.viewer.version'|trans({'%number%': item.latest.number}) }}</span>
                 </div>
@@ -75,9 +75,9 @@
                     <button type="submit" class="lp-document-row__action" data-artifact-row-archive
                             aria-label="{{ (archived ? 'artifact.list.unarchive' : 'artifact.list.archive')|trans({'%name%': artifact.name}) }}">
                         {% if archived %}
-                        <twig:ux:icon name="lucide:archive-restore" class="w-4 h-4" />
+                        <twig:ux:icon name="lucide:archive-restore" class="lp-icon lp-icon--md" />
                         {% else %}
-                        <twig:ux:icon name="lucide:archive" class="w-4 h-4" />
+                        <twig:ux:icon name="lucide:archive" class="lp-icon lp-icon--md" />
                         {% endif %}
                     </button>
                 </form>

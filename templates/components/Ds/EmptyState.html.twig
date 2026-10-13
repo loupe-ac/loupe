@@ -11,7 +11,7 @@
 #}
 {%- props icon = null, iconClass = 'w-12 h-12', title = null, body = null, linkLabel = null, linkHref = null -%}
 <div{{ attributes.defaults({class: 'lp-empty-state'}) }}>
-    {% if icon %}<twig:UX:Icon :name="icon" class="lp-empty-state__icon {{ iconClass }}" />{% endif %}
+    {% if icon %}<twig:ux:icon :name="icon" class="lp-empty-state__icon {{ iconClass }}" />{% endif %}
     {% if title %}<h2 class="lp-empty-state__title">{{ title }}</h2>{% endif %}
     {% if body %}<p class="lp-empty-state__body">{{ body }}</p>{% endif %}
     {% block content %}{% endblock %}

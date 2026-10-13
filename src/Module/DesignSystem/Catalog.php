@@ -412,6 +412,18 @@ final readonly class Catalog
                 summary: 'A moment as a short age such as 2h ago, or as a date. The title holds the full timestamp.',
                 element: 'time',
             ),
+            new ComponentEntry(
+                name: 'Icon',
+                rootClass: 'lp-icon',
+                template: '',
+                variants: ['xs', 'sm', 'md', 'lg'],
+                states: [],
+                enforced: false,
+                group: 'core',
+                summary: 'A size scale for the icon tag: xs is 3, sm is 3.5, md is 4 and lg is 5. No component wraps it.',
+                element: 'span',
+                classOnly: true,
+            ),
         ];
     }
 }

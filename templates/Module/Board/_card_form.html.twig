@@ -49,16 +49,16 @@
             {%- for row in linkRows %}
                 <div class="lp-card-link-row" data-form-collection-row data-card-link-row>
                     {% include '@Board/_card_link_row_fields.html.twig' with {row: row} only %}
-                    <twig:Ds:Button variant="ghost icon" type="button" aria-label="{{ 'board.card.form.linked_cards.remove'|trans }}" data-action="form-collection#removeRow"><twig:ux:icon name="lucide:x" class="w-4 h-4" /></twig:Ds:Button>
+                    <twig:Ds:Button variant="ghost icon" type="button" aria-label="{{ 'board.card.form.linked_cards.remove'|trans }}" data-action="form-collection#removeRow"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
                 </div>
             {% endfor -%}
         </div>
         <twig:Ds:FieldErrors :fieldView="linkRows" />
         <div>
-            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="form-collection#addRow"><twig:ux:icon name="lucide:plus" class="w-4 h-4" />{{ 'board.card.form.linked_cards.add'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="ghost" size="sm" type="button" data-action="form-collection#addRow"><twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'board.card.form.linked_cards.add'|trans }}</twig:Ds:Button>
         </div>
         <template data-form-collection-target="removeButtonTemplate">
-            <twig:Ds:Button variant="ghost icon" type="button" aria-label="{{ 'board.card.form.linked_cards.remove'|trans }}"><twig:ux:icon name="lucide:x" class="w-4 h-4" /></twig:Ds:Button>
+            <twig:Ds:Button variant="ghost icon" type="button" aria-label="{{ 'board.card.form.linked_cards.remove'|trans }}"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
         </template>
     </twig:Ds:FormField>
     {% do linkRows.setRendered %}
