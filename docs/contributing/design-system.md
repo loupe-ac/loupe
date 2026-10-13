@@ -67,6 +67,9 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
 | ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
+| Drawer | A panel that slides in from the right edge. The `modal` controller opens it | none |
+
+The Drawer takes the named blocks `header`, `body` and `footer`, and draws a band only for a block that holds content. The block `content` replaces all three, for a drawer that fills the dialog itself, such as the card drawer. Pass the target attribute of the controller that opens it, such as `data-modal-target="dialog"`. A drawer that loads a Turbo frame on opening pairs the `modal` controller with `lazy-frame`, which shows the loading and error states around the frame. A controller with more states than that calls `LazyFrame` from `assets/lib/lazy_frame.js`. Its CSS is `assets/styles/components/drawer.css`.
 
 A `Ds:NavItem` icon is a prop, so `bin/console ux:icons:lock` cannot read it. Import a new sidebar icon by hand with `bin/console ux:icons:import lucide:<name>`.
 
@@ -302,4 +305,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-tooltip` or `lp-brand` by hand.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-tooltip`, `lp-brand` or `lp-drawer` by hand.

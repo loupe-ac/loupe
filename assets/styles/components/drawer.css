@@ -1,0 +1,38 @@
+/* The right-hand drawer: a header, a scrolling body and a footer. `templates/components/Ds/Drawer.html.twig` renders it. */
+@layer components {
+    /* The modal controller slides it; the dialog itself stays still.
+       z-50 carries the modeless case, which sits outside the top layer. */
+    .lp-drawer {
+        @apply fixed inset-y-0 right-0 left-auto z-50 m-0 p-0 w-full max-w-142.5 overflow-hidden rounded-none border-0 bg-surface-1 shadow-2xl;
+        height: 100dvh;
+        max-height: 100dvh;
+    }
+    .lp-drawer[open] {
+        @apply flex flex-col;
+    }
+    .lp-drawer::backdrop {
+        @apply bg-ink/40 backdrop-blur-xs;
+        animation: lp-dialog-backdrop-in 200ms ease;
+    }
+    .lp-drawer__header {
+        @apply flex shrink-0 items-center justify-between gap-4 min-h-15.5 border-b border-line px-6 py-4;
+    }
+    .lp-drawer__header > div {
+        @apply min-w-0;
+    }
+    .lp-drawer__title {
+        @apply m-0 flex items-center gap-2 font-sans text-xs font-bold tracking-normal text-fg-mute;
+    }
+    .lp-drawer__title svg {
+        @apply w-4 h-4 shrink-0;
+    }
+    .lp-drawer__body {
+        @apply min-h-0 flex-1 overflow-y-auto p-6;
+    }
+    .lp-drawer__footer {
+        @apply flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-line bg-field px-6 py-4;
+    }
+    .lp-drawer__footer p {
+        @apply m-0 mr-auto text-sm;
+    }
+}

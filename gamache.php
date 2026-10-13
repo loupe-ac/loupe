@@ -161,6 +161,7 @@ return (new GamacheConfig())->registerChecks([
             new DesignSystemComponent('BrandMark', 'lp-brand', 'templates/components/Ds/BrandMark.html.twig', enforced: true),
             new DesignSystemComponent('NavItem', 'lp-sidebar__link', 'templates/components/Ds/NavItem.html.twig', enforced: false),
             new DesignSystemComponent('Breadcrumbs', 'lp-crumbs', 'templates/components/Ds/Breadcrumbs.html.twig', enforced: false),
+            new DesignSystemComponent('Drawer', 'lp-drawer', 'templates/components/Ds/Drawer.html.twig', enforced: true),
         ],
     ),
     new FormTypeTranslationKeysCheck(),
