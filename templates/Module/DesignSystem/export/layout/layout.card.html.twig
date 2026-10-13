@@ -1,4 +1,5 @@
 {# twig-cs-fixer-disable #}{% extends '@DesignSystem/export/group.card.html.twig' %}
+{% block viewport %}900x{{ 520 + 120 * (entries|length - 1) }}{% endblock %}
 {% block styles %}
   body { padding: 0; }
   .part { border-bottom: 1px solid var(--border); }

@@ -229,6 +229,18 @@ readonly class Catalog
                 element: 'span',
             ),
             new ComponentEntry(
+                name: 'AppShell',
+                rootClass: 'lp-app',
+                template: null,
+                variants: [],
+                states: [],
+                enforced: false,
+                group: 'layout',
+                summary: 'The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column.',
+                element: 'div',
+                export: 'AppShell',
+            ),
+            new ComponentEntry(
                 name: 'PageHeader',
                 rootClass: 'lp-page-header',
                 template: 'components/Ds/PageHeader.html.twig',
