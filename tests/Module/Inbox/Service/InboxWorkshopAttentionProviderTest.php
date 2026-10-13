@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Install\InboxInstallFlags;
@@ -25,24 +26,31 @@ final class InboxWorkshopAttentionProviderTest extends KernelTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $project = $this->project($em, $this->owner($em, 'workshop-attention'), 'workshop-attention');
         $this->item($em, $project, 1, 'Closed')->state = InboxItemState::Done;
-        $em->persist(new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: '#4 Ship it', blocking: true));
+        $wait = new InboxItem(project: $project, number: 2, kind: InboxItemKind::Wait, title: 'Waits for your review', blocking: true);
+        $em->persist($wait);
+        $em->persist(new InboxItemCard($wait, $this->card($em, $project, 4)));
         foreach (range(3, 8) as $number) {
             $this->item($em, $project, $number, 'Item '.$number);
         }
         $em->flush();
         $this->switchFlag($em, InboxInstallFlags::FLAG_INBOX_ENABLED, true);
+        $em->clear();
         $provider = self::getContainer()->get(InboxWorkshopAttentionProvider::class);
         self::assertInstanceOf(InboxWorkshopAttentionProvider::class, $provider);
 
         $attention = $provider->forProject($project);
 
         self::assertSame(
-            ['#4 Ship it', 'Item 3', 'Item 4', 'Item 5', 'Item 6', 'Item 7'],
+            ['Waits for your review', 'Item 3', 'Item 4', 'Item 5', 'Item 6', 'Item 7'],
             array_map(static fn (WorkshopAttentionItem $item): string => $item->title, $attention),
         );
         self::assertSame(
             ['loupe', 'agent', 'agent', 'agent', 'agent', 'agent'],
             array_map(static fn (WorkshopAttentionItem $item): string => $item->subject, $attention),
+        );
+        self::assertSame(
+            [4, null, null, null, null, null],
+            array_map(static fn (WorkshopAttentionItem $item): ?int => $item->cardNumber, $attention),
         );
     }
 }

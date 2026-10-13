@@ -66,8 +66,9 @@ When it prints a path, try the rebuild with the `loupe-design-rebuild` skill. Do
 When the rebuild cannot write, hand it to the owner:
 
 1. Write the line `Claude Design rebuild: pending` in the pull request body. A rebuild cannot write when the write grant is missing or the Claude Design tools are missing.
-2. Call `inbox_ask` with one `todo` item, linked to the card with `cardIds`. Set `blocking` to `false`, so the ask closes at once and does not end your turn. The `loupe-inbox` skill gives the full parameters.
-3. Name the pull request in the item `title`, because an item has no pull request link.
+2. Call `inbox_search` with `Claude Design rebuild`. Stop here when a row with state `open` asks for the rebuild. One rebuild covers every pull request that is pending, so a second item only adds noise.
+3. Otherwise call `inbox_ask` with one `todo` item titled `Rebuild the Claude Design project`. Set `blocking` to `false`, so the ask closes at once and does not end your turn. The `loupe-inbox` skill gives the full parameters.
+4. Leave the card and the pull request out of the title. The `Claude Design rebuild: pending` line on each pull request names the work.
 
 ## A check is a fault until you have seen it fail
 

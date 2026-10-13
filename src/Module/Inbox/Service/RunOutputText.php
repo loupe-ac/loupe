@@ -21,9 +21,22 @@ final class RunOutputText
     {
         $text = self::clean($output);
         $parts = preg_split('/(?<=[.!?])\s|\R/u', $text, 2);
-        $first = false === $parts ? $text : $parts[0];
+        $first = self::plain(false === $parts ? $text : $parts[0]);
         $first = rtrim($first, '.');
 
         return mb_strlen($first) > $maxLength ? rtrim(mb_substr($first, 0, $maxLength - 1)).'…' : $first;
+    }
+
+    /** A worker writes Markdown, and a title and a body sentence show plain text, so the marks go and their text stays. */
+    private static function plain(string $text): string
+    {
+        $text = (string) preg_replace('/^\s*(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)/u', '', $text);
+        $text = (string) preg_replace('/!?\[([^\]]*)\]\([^)]*\)/u', '$1', $text);
+        $text = (string) preg_replace('/`+([^`]+)`+/u', '$1', $text);
+        $text = (string) preg_replace('/(\*\*|__)(\S(?:.*?\S)?)\1/u', '$2', $text);
+        $text = (string) preg_replace('/(?<![\w*])\*(\S(?:.*?\S)?)\*(?![\w*])/u', '$1', $text);
+        $text = (string) preg_replace('/(?<!\w)_(\S(?:.*?\S)?)_(?!\w)/u', '$1', $text);
+
+        return trim($text);
     }
 }
