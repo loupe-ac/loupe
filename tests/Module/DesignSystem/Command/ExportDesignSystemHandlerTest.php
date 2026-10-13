@@ -188,6 +188,16 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringNotContainsString('<Tabs variant="segmented">segmented</Tabs>', $card);
     }
 
+    public function test_the_tabs_prompt_shows_each_variant_with_its_tabs(): void
+    {
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Tabs.prompt.md');
+        $tabs = '<a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a>';
+
+        self::assertStringContainsString('<Tabs>'.$tabs, $prompt);
+        self::assertStringContainsString('<Tabs variant="segmented">'.$tabs, $prompt);
+        self::assertStringNotContainsString('<Tabs variant="segmented">Example</Tabs>', $prompt);
+    }
+
     public function test_a_non_button_component_is_not_a_button(): void
     {
         $jsx = (string) file_get_contents($this->directory.'/components/core/Flash.jsx');
