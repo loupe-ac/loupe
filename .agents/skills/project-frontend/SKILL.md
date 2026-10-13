@@ -195,7 +195,7 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 23. DataTable: `<twig:Ds:DataTable modifier="runs" :label="..." :columns="[{label: ..., align: 'end'}]">` with `lp-data-table__row` rows (`role="row"`) and `lp-data-table__cell` cells (`role="cell"`) in the content. A modifier class sets `--lp-data-table-columns`. A `header` block replaces the header cells, and `srOnly: true` on a column hides its label from sight. The CSS is `assets/styles/components/data-table.css`.
 24. RelativeTime: `<twig:Ds:RelativeTime :datetime="card.updatedAt" />` draws "2h ago". `mode="date"` draws "5 Oct 2026" and `mode="datetime"` adds the hour. `:now` sets the moment that relative counts from. The `relative_time` filter stays for a sentence that holds the age. The CSS is `assets/styles/components/relative-time.css`.
 
-25. Icon size: `<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />`. It is a class scale and no component, so an icon pays no render cost. The sizes are xs (3), sm (3.5), md (4) and lg (5). Write no `w-N h-N` or `size-N` on an icon, and spell the tag `ux:icon`. The CSS is `assets/styles/components/icon.css`.
+25. Icon size: `<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />`. It is a class scale and no component, so an icon pays no render cost. The sizes are xs (3), sm (3.5), md (4) and lg (5), plus xl (8) and 2xl (12) for the icon of an empty state, which `Ds:EmptyState` takes as `iconSize`. Write no `w-N h-N` or `size-N` on an icon, and spell the tag `ux:icon`. The CSS is `assets/styles/components/icon.css`.
 
 A child card that adds a component adds it to this list in the same branch.
 

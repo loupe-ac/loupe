@@ -15,4 +15,10 @@
     .lp-icon--lg {
         @apply size-5;
     }
+    .lp-icon--xl {
+        @apply size-8;
+    }
+    .lp-icon--2xl {
+        @apply size-12;
+    }
 }

@@ -238,7 +238,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<svg {...rest} className={className} viewBox="0 0 24 24"', $jsx);
         self::assertStringContainsString('{children || <path d=', $jsx);
         self::assertStringNotContainsString('<span', $jsx);
-        foreach (['xs', 'sm', 'md', 'lg'] as $size) {
+        foreach (['xs', 'sm', 'md', 'lg', 'xl', '2xl'] as $size) {
             self::assertStringContainsString('<Icon variant="'.$size.'" />', $card);
             self::assertStringContainsString('<Icon variant="'.$size.'" />', $prompt);
         }

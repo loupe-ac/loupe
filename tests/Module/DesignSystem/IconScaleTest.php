@@ -11,21 +11,21 @@ final class IconScaleTest extends TestCase
 {
     private const string PROJECT_DIR = __DIR__.'/../../..';
 
-    public function test_the_catalog_lists_the_icon_as_a_class_with_four_sizes(): void
+    public function test_the_catalog_lists_the_icon_as_a_class_with_six_sizes(): void
     {
         $entry = array_find(new Catalog()->entries(), static fn ($entry): bool => 'Icon' === $entry->name);
 
         self::assertNotNull($entry);
         self::assertSame('lp-icon', $entry->rootClass);
         self::assertTrue($entry->classOnly);
-        self::assertSame(['xs', 'sm', 'md', 'lg'], $entry->variants);
+        self::assertSame(['xs', 'sm', 'md', 'lg', 'xl', '2xl'], $entry->variants);
     }
 
     public function test_the_stylesheet_defines_each_size_of_the_scale(): void
     {
         $css = (string) file_get_contents(self::PROJECT_DIR.'/assets/styles/components/icon.css');
 
-        foreach (['xs' => 'size-3', 'sm' => 'size-3.5', 'md' => 'size-4', 'lg' => 'size-5'] as $name => $utility) {
+        foreach (['xs' => 'size-3', 'sm' => 'size-3.5', 'md' => 'size-4', 'lg' => 'size-5', 'xl' => 'size-8', '2xl' => 'size-12'] as $name => $utility) {
             self::assertMatchesRegularExpression('/\.lp-icon--'.$name.' \{\n\s*@apply '.preg_quote($utility, '/').';/', $css);
         }
     }
@@ -38,7 +38,7 @@ final class IconScaleTest extends TestCase
             if (!str_ends_with((string) $file, '.twig') || str_contains((string) $file, '/Landing/')) {
                 continue;
             }
-            if (1 === preg_match('/<twig:(?:ux:icon|UX:Icon)\b[^>]*class="[^"]*\b(?:w|h|size)-\d/', (string) file_get_contents((string) $file))) {
+            if (1 === preg_match('/<twig:(?:ux:icon|UX:Icon)\b[^>]*class="[^"]*\b(?:w|h|size)-\d|\biconClass="[^"]*\b(?:w|h|size)-\d/', (string) file_get_contents((string) $file))) {
                 $offenders[] = substr((string) $file, strlen(self::PROJECT_DIR) + 1);
             }
         }
