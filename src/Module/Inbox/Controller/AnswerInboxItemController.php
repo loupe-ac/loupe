@@ -12,8 +12,10 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Form\AnswerInboxItemFormType;
 use App\Module\Inbox\Form\AnswerInboxItemRequest;
 use App\Module\Inbox\Security\InboxItemVoter;
+use App\Module\Inbox\Service\InboxActionFeedback;
 use App\Module\Inbox\Service\InboxAvailability;
 use App\Module\Inbox\Service\InboxReturnTargetResolver;
+use App\Module\Inbox\View\InboxActionVerb;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,7 +23,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[IsGranted(InboxItemVoter::ANSWER, subject: 'item')]
 #[Route(
@@ -37,7 +38,7 @@ final class AnswerInboxItemController extends AppController
         private readonly FormFactoryInterface $formFactory,
         private readonly InboxAvailability $inbox,
         private readonly InboxReturnTargetResolver $returnTargets,
-        private readonly TranslatorInterface $translator,
+        private readonly InboxActionFeedback $feedback,
     ) {
     }
 
@@ -55,10 +56,9 @@ final class AnswerInboxItemController extends AppController
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 ($this->answerItem)(new AnswerInboxItemCommand($item, $data->selectedOptions ?? '', $data->answerText ?? ''));
-                $this->addFlash('success', $this->translator->trans('inbox.flash.answered', ['%number%' => $item->number]));
-
                 // Read again, because a saved response can move the item to the completed queue.
-                $saved = $this->returnTargets->resolve($request, $item);
+                $saved = $this->returnTargets->resolve($request, $item, $return);
+                $this->feedback->saved($saved, $item, InboxActionVerb::Answered);
 
                 return $this->redirectToRoute($saved->route, $saved->routeParameters);
             } catch (DomainErrors $e) {

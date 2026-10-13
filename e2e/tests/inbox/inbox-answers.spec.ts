@@ -80,120 +80,128 @@ test.afterAll(async ({ request }) => {
     await setInboxFlag(request, false);
 });
 
-for (const workspace of [
-    {
-        route: 'inbox',
-        action: 'View activity',
-        role: 'link',
-        destination: 'activity',
-    },
-    {
-        route: 'projects',
-        action: 'New project',
-        role: 'button',
-        destination: null,
-    },
-] as const) {
-    test(`${workspace.route} header keeps its action reachable with enlarged text`, async ({
-        page,
-        inbox,
-    }, testInfo) => {
-        const projectPath = inbox.inboxUrl.replace(/\/inbox$/, '');
-        await page.goto(
-            workspace.route === 'projects'
-                ? '/projects'
-                : `${projectPath}/${workspace.route}`,
-        );
-        const header = page.locator('.lp-page-header');
-        const action = header.getByRole(workspace.role, {
-            name: workspace.action,
-            exact: true,
-        });
-        await expect(action).toHaveCount(1);
-        for (const fontSize of ['100%', '200%']) {
-            await page.evaluate((size) => {
-                document.documentElement.style.fontSize = size;
-            }, fontSize);
-            for (const width of [1440, 1150, 950, 780, 390]) {
-                await page.setViewportSize({ width, height: 1000 });
-                await page.screenshot({
-                    path: testInfo.outputPath(
-                        `${workspace.route}-${width}-${fontSize}.png`,
-                    ),
-                    animations: 'disabled',
-                });
-                await expect(action).toBeInViewport({ ratio: 1 });
-                const copyBounds = await header
-                    .locator('.lp-page-header__copy')
-                    .boundingBox();
-                const descriptionBounds = await header
-                    .locator('.lp-workspace-desc')
-                    .boundingBox();
-                expect(copyBounds).not.toBeNull();
-                expect(descriptionBounds).not.toBeNull();
-                expect(
-                    copyBounds!.y +
-                        copyBounds!.height -
-                        descriptionBounds!.y -
-                        descriptionBounds!.height,
-                ).toBeLessThanOrEqual(1);
-                expect(
-                    await header.evaluate(
-                        (element) => element.scrollWidth - element.clientWidth,
-                    ),
-                ).toBeLessThanOrEqual(1);
-                expect(
-                    await action.evaluate((element) => {
-                        const bounds = element.getBoundingClientRect();
-                        const range = document.createRange();
-                        range.selectNodeContents(element);
-                        const content = range.getBoundingClientRect();
-                        return Math.max(
-                            bounds.left - content.left,
-                            content.right - bounds.right,
-                        );
-                    }),
-                ).toBeLessThanOrEqual(1);
-            }
-        }
-        await action.focus();
-        await expect(action).toBeFocused();
-        await action.press('Enter');
-        if (workspace.destination === null) {
-            await expect(page.locator('#new-project-panel')).toBeVisible();
-            await expect(action).toHaveAttribute('aria-expanded', 'true');
-            await expect(
-                page
-                    .locator('#new-project-panel')
-                    .getByLabel('Project name', { exact: true }),
-            ).toBeFocused();
-        } else {
-            await expect(page).toHaveURL(
-                `${projectPath}/${workspace.destination}`,
-            );
-        }
+test('the inbox links sit in the top bar and stay reachable at every width', async ({
+    page,
+    inbox,
+}) => {
+    const projectPath = inbox.inboxUrl.replace(/\/inbox$/, '');
+    // The page draws no header of its own, so its links live in the top bar.
+    await expect(page.locator('main .lp-page-header')).toHaveCount(0);
+    const topbar = page.locator('.lp-topbar');
+    const activity = topbar.getByRole('link', {
+        name: 'View activity',
+        exact: true,
     });
-}
+    const settings = topbar.getByRole('link', {
+        name: 'Settings',
+        exact: true,
+    });
+    for (const width of [1440, 950, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await expect(activity).toBeInViewport({ ratio: 1 });
+        await expect(settings).toBeInViewport({ ratio: 1 });
+        expect(
+            await topbar.evaluate(
+                (element) => element.scrollWidth - element.clientWidth,
+            ),
+        ).toBeLessThanOrEqual(1);
+    }
+    await activity.click();
+    await expect(page).toHaveURL(`${projectPath}/activity`);
+});
 
-test('the project inbox filter row keeps its unboxed layout', async ({
+test('projects header keeps its action reachable with enlarged text', async ({
+    page,
+}, testInfo) => {
+    await page.goto('/projects');
+    const header = page.locator('.lp-page-header');
+    const action = header.getByRole('button', {
+        name: 'New project',
+        exact: true,
+    });
+    await expect(action).toHaveCount(1);
+    for (const fontSize of ['100%', '200%']) {
+        await page.evaluate((size) => {
+            document.documentElement.style.fontSize = size;
+        }, fontSize);
+        for (const width of [1440, 1150, 950, 780, 390]) {
+            await page.setViewportSize({ width, height: 1000 });
+            await page.screenshot({
+                path: testInfo.outputPath(`projects-${width}-${fontSize}.png`),
+                animations: 'disabled',
+            });
+            await expect(action).toBeInViewport({ ratio: 1 });
+            const copyBounds = await header
+                .locator('.lp-page-header__copy')
+                .boundingBox();
+            const descriptionBounds = await header
+                .locator('.lp-workspace-desc')
+                .boundingBox();
+            expect(copyBounds).not.toBeNull();
+            expect(descriptionBounds).not.toBeNull();
+            expect(
+                copyBounds!.y +
+                    copyBounds!.height -
+                    descriptionBounds!.y -
+                    descriptionBounds!.height,
+            ).toBeLessThanOrEqual(1);
+            expect(
+                await header.evaluate(
+                    (element) => element.scrollWidth - element.clientWidth,
+                ),
+            ).toBeLessThanOrEqual(1);
+            expect(
+                await action.evaluate((element) => {
+                    const bounds = element.getBoundingClientRect();
+                    const range = document.createRange();
+                    range.selectNodeContents(element);
+                    const content = range.getBoundingClientRect();
+                    return Math.max(
+                        bounds.left - content.left,
+                        content.right - bounds.right,
+                    );
+                }),
+            ).toBeLessThanOrEqual(1);
+        }
+    }
+    await action.focus();
+    await expect(action).toBeFocused();
+    await action.press('Enter');
+    await expect(page.locator('#new-project-panel')).toBeVisible();
+    await expect(action).toHaveAttribute('aria-expanded', 'true');
+    await expect(
+        page
+            .locator('#new-project-panel')
+            .getByLabel('Project name', { exact: true }),
+    ).toBeFocused();
+});
+
+test('the list head keeps the switch, the search and the type filter in reach', async ({
     page,
 }) => {
-    const filters = page.locator('.lp-needs-you .lp-list-filters');
+    const head = page.locator('.lp-inbox-list-head');
     for (const width of [1440, 1150, 950, 780, 390]) {
         await page.setViewportSize({ width, height: 900 });
-        await expect(filters).toBeVisible();
-        await expect(filters).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-        await expect(filters).toHaveCSS('padding', '0px');
-        await expect(filters).toHaveCSS('margin-bottom', '20px');
+        await expect(head).toBeVisible();
+        await expect(head.locator('.lp-tabs__tab')).toHaveCount(2);
+        await expect(head.locator('#inbox-search')).toBeVisible();
+        await expect(head.locator('[data-inbox-type]')).toHaveCount(6);
+        expect(
+            await page.evaluate(
+                () =>
+                    document.documentElement.scrollWidth -
+                    document.documentElement.clientWidth,
+            ),
+        ).toBeLessThanOrEqual(1);
     }
 });
 
-test('inbox search keeps Clear reachable before and after filtering', async ({
+test('inbox search shows Clear only while a search is active', async ({
     page,
 }) => {
     const search = page.locator('#inbox-search');
     const clear = page.locator('.lp-filter-clear');
-    const filters = page.locator('.lp-list-filters');
+    const head = page.locator('.lp-inbox-list-head');
     async function verifyLayout(): Promise<void> {
         for (const width of [1440, 1150, 950, 780, 390]) {
             await page.setViewportSize({ width, height: 900 });
@@ -201,46 +209,26 @@ test('inbox search keeps Clear reachable before and after filtering', async ({
             await expect(clear).toBeVisible();
             const searchBox = await search.boundingBox();
             const clearBox = await clear.boundingBox();
-            const filtersBox = await filters.boundingBox();
+            const headBox = await head.boundingBox();
             expect(searchBox).not.toBeNull();
             expect(clearBox).not.toBeNull();
-            expect(filtersBox).not.toBeNull();
-            expect(searchBox!.width).toBe(270);
-            expect(clearBox!.x - searchBox!.x - searchBox!.width).toBe(8);
-            expect(clearBox!.y + clearBox!.height / 2).toBe(
-                searchBox!.y + searchBox!.height / 2,
-            );
+            expect(headBox).not.toBeNull();
             expect(clearBox!.x + clearBox!.width).toBeLessThanOrEqual(
-                filtersBox!.x + filtersBox!.width,
+                headBox!.x + headBox!.width,
             );
             for (const count of await page.locator('.lp-filter-count').all()) {
                 const countBox = await count.boundingBox();
                 expect(countBox).not.toBeNull();
                 expect(countBox!.x + countBox!.width).toBeLessThanOrEqual(
-                    filtersBox!.x + filtersBox!.width,
+                    headBox!.x + headBox!.width,
                 );
-                const overlapWidth =
-                    Math.min(
-                        countBox!.x + countBox!.width,
-                        clearBox!.x + clearBox!.width,
-                    ) - Math.max(countBox!.x, clearBox!.x);
-                const overlapHeight =
-                    Math.min(
-                        countBox!.y + countBox!.height,
-                        clearBox!.y + clearBox!.height,
-                    ) - Math.max(countBox!.y, clearBox!.y);
-                expect(
-                    Math.min(overlapWidth, overlapHeight),
-                ).toBeLessThanOrEqual(0);
             }
         }
     }
-    await verifyLayout();
+    await expect(clear).toHaveCount(0);
     await search.fill('unmatched-inbox-query');
     await expect(page.locator('[data-inbox-search-empty]')).toBeVisible();
-    await expect(page.locator('.lp-filter-count')).toHaveText(
-        'No item matches',
-    );
+    await expect(page.locator('.lp-filter-count')).toHaveText('No ask matches');
     await verifyLayout();
     await clear.click();
     await expect(search).toHaveValue('');
@@ -257,13 +245,15 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(sidebarPill).toHaveText('2');
 
     const question = page.locator(`#inbox-item-${inbox.questionNumber}`);
-    await expect(question).toContainText(`item ${inbox.questionNumber}`);
+    await expect(question).toContainText('Which format should the export use?');
     await question.getByText('CSV', { exact: true }).click();
-    await question.getByLabel('Your answer').fill('The importer reads CSV.');
+    await question
+        .getByLabel('Note for the agent')
+        .fill('The importer reads CSV.');
     await question.getByRole('button', { name: 'Send answer' }).click();
 
-    await expect(page.locator('.lp-flash')).toContainText(
-        `Item ${inbox.questionNumber} is answered.`,
+    await expect(page.locator('[data-inbox-status]')).toContainText(
+        'Answer sent. 1 item of this ask is still open.',
     );
     // The picked option only reaches the server through the answer controller.
     await expect(question.locator('[data-inbox-choices] li')).toHaveText([
@@ -276,8 +266,10 @@ test('the owner answers a question and declines a to-do', async ({
     await expect(sidebarPill).toHaveText('1');
 
     // The to-do still blocks the ask, so the answer can still change, here to text alone.
-    await question.getByRole('button', { name: 'Clear the option' }).click();
-    await question.getByLabel('Your answer').fill('Text alone this time.');
+    await question.getByRole('button', { name: 'Clear choice' }).click();
+    await question
+        .getByLabel('Note for the agent')
+        .fill('Text alone this time.');
     await question.getByRole('button', { name: 'Change the answer' }).click();
     await expect(question.locator('[data-inbox-choices]')).toHaveCount(0);
     await expect(question.locator('[data-inbox-response]')).toContainText(
@@ -285,15 +277,22 @@ test('the owner answers a question and declines a to-do', async ({
     );
 
     await question.getByText('CSV', { exact: true }).click();
-    await question.getByLabel('Your answer').fill('An unsent correction.');
+    await question
+        .getByLabel('Note for the agent')
+        .fill('An unsent correction.');
 
     // A to-do takes no prose, so closing it carries no note.
     const todo = page.locator(`#inbox-item-${inbox.todoNumber}`);
-    await todo.getByRole('button', { name: 'Close this item' }).click();
+    await todo.getByRole('button', { name: 'Decline' }).click();
 
-    await expect(page.locator('.lp-flash')).toContainText(
-        `Item ${inbox.todoNumber} is closed.`,
+    // No other ask is open, so the page names none and the status line links to the closed one.
+    await expect(page.locator('[data-inbox-status]')).toContainText(
+        'is closed.',
     );
+    await expect(
+        page.locator('[data-inbox-queue-empty="open-asks"]'),
+    ).toBeVisible();
+    await page.getByRole('link', { name: 'View it' }).click();
     await expect(todo).toContainText('Closed');
     await expect(sidebarPill).toHaveCount(0);
 
@@ -306,7 +305,7 @@ test('the owner answers a question and declines a to-do', async ({
     );
     await recovery.getByRole('button', { name: 'Discard draft' }).click();
     await expect(recovery).toBeHidden();
-    await expect(question.getByRole('heading')).toBeFocused();
+    await expect(question.getByRole('heading', { level: 3 })).toBeFocused();
 
     await page.reload();
     await expect(question.locator('[data-inbox-response]')).toContainText(

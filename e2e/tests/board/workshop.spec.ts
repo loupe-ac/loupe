@@ -60,10 +60,13 @@ test('workshop opens the matching request and keeps card details in its drawer',
     await page.goto(workshopUrl);
     // Needs you lists the oldest items, so an earlier run's items can fill it.
     const attention = page.locator('[data-workshop-attention]').first();
-    const fragment = (await attention.getAttribute('href'))?.split('#')[1];
-    expect(fragment).toMatch(/^inbox-item-\d+$/);
+    const itemNumber = new URL(
+        (await attention.getAttribute('href'))!,
+        page.url(),
+    ).searchParams.get('item');
+    expect(itemNumber).toMatch(/^\d+$/);
     await attention.click();
-    await expect(page.locator(`#${fragment}`)).toBeVisible();
+    await expect(page.locator(`#inbox-item-${itemNumber}`)).toBeVisible();
 
     await page.goto(workshopUrl);
     const card = page

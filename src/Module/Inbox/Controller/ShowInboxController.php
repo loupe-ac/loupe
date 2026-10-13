@@ -8,8 +8,10 @@ use App\Controller\AppController;
 use App\Module\Inbox\Command\ShowInboxCommand;
 use App\Module\Inbox\Command\ShowInboxHandler;
 use App\Module\Inbox\Service\InboxAvailability;
+use App\Module\Inbox\View\InboxView;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\ProjectVoter;
+use App\Session\ReadOnlyAwareSessionHandler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -19,6 +21,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route(
     '/projects/{id:project}/inbox',
     name: 'app_project_inbox',
+    defaults: [ReadOnlyAwareSessionHandler::READ_ONLY => 'inbox-view'],
     methods: ['GET'],
 )]
 final class ShowInboxController extends AppController
@@ -37,12 +40,7 @@ final class ShowInboxController extends AppController
         $this->inbox->requireEnabled();
 
         return $this->render('@Inbox/show_inbox.html.twig', [
-            'inbox' => ($this->showInbox)(new ShowInboxCommand(
-                $project,
-                $request->query->getInt('page', 1),
-                $request->query->getString('q'),
-                'completed' === $request->query->getString('queue'),
-            )),
+            'inbox' => ($this->showInbox)(new ShowInboxCommand($project, InboxView::fromQuery($request->query))),
             'refusedForm' => $this->getInjectedFormView($request, self::REFUSED_FORM),
         ]);
     }
