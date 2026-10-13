@@ -78,7 +78,7 @@ test.describe('home page', () => {
         await expect(board).toHaveAttribute('aria-pressed', 'true');
     });
 
-    test('embeds the Loupe Explainer and sizes the frame to it', async ({
+    test('embeds the Loupe Explainer paused, and centres it on play', async ({
         page,
     }) => {
         await page.goto('/');
@@ -86,24 +86,30 @@ test.describe('home page', () => {
         const frame = page.getByTitle(/Loupe Explainer/);
         await frame.scrollIntoViewIfNeeded();
         const explainer = page.frameLocator('iframe.landing-explainer');
-        await expect(
-            explainer.getByRole('button', { name: /Merge/ }).first(),
-        ).toBeVisible();
-        await expect(
-            explainer.getByRole('button', { name: /Agent review/ }),
-        ).toBeVisible();
-        await expect(
-            explainer.getByText(/Loupe merges it on its own/),
-        ).toBeAttached();
+        const play = explainer.locator('#bigplay');
+        await expect(play).toBeVisible();
+        await expect(explainer.getByText(/^0:00 \/ \d:\d\d$/)).toBeVisible();
+        await expect(explainer.locator('.chap')).toHaveCount(0);
+        await expect(explainer.locator('details')).toHaveCount(0);
 
-        const chapters = await explainer
-            .locator('.chap span')
-            .allTextContents();
-        expect(
-            chapters.filter((name) =>
-                ['Agent review', 'Site review', 'Merge'].includes(name),
-            ),
-        ).toEqual(['Agent review', 'Site review', 'Merge']);
+        await play.click();
+        await expect(play).toBeHidden();
+        await expect
+            .poll(async () =>
+                frame.evaluate((element) => {
+                    const box = element.getBoundingClientRect();
+                    const header = parseFloat(
+                        getComputedStyle(document.documentElement)
+                            .scrollPaddingTop,
+                    );
+                    return Math.abs(
+                        box.top +
+                            box.height / 2 -
+                            (header + (window.innerHeight - header) / 2),
+                    );
+                }),
+            )
+            .toBeLessThan(2);
 
         await expect
             .poll(async () =>

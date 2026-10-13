@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Loupe Explainer</title>
 <style>
-/* Layout: a 16:9 stage (1280×720, scaled to fit) with a scrubber and chapter list under it.
+/* Layout: a 16:9 stage (1280×720, scaled to fit) with the play button and scrubber laid over its foot.
    The page chrome follows the viewer's theme. The stage is Loupe's own world: its real stylesheet
    renders the app inside shadow roots, the site-review widget is its real markup, the example app is a made-up cabin-rental site, and the captions
    use Loupe's palette and type. */
@@ -292,42 +292,32 @@
   --bg:#111411; --fg:#e8ebe3; --mute:#9aa093; --line:#2a2f29; --card:#1a1e1a; --accent-ink:#d4e94c; --track:#2b302a; color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#111411; --fg:#e8ebe3; --mute:#9aa093; --line:#2a2f29; --card:#1a1e1a; --accent-ink:#d4e94c; --track:#2b302a; color-scheme:dark}
 body{background:var(--bg); color:var(--fg); font-family:var(--f-body); font-size:15px}
-.wrap{max-width:1152px; margin:0 auto; padding:24px 16px 56px; display:flex; flex-direction:column; gap:16px}
+.wrap{margin:0; padding:0}
 .pagehead{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
 .brand{display:flex; align-items:center; gap:11px; font-family:var(--f-display); font-weight:800; font-size:21px; letter-spacing:-.02em}
 .mark{position:relative; display:grid; place-items:center; width:26px; height:26px; border-radius:8px; background:#d4e94c; rotate:-6deg; flex:none}
 .mark::after{content:""; width:9px; height:9px; border-radius:50%; border:3px solid #181d18; box-sizing:border-box}
 .pagehead .meta{font-family:var(--f-mono); font-size:12px; color:var(--mute); letter-spacing:.02em}
-.player{position:relative; width:100%; aspect-ratio:16/9; background:#181d18; border-radius:14px; overflow:hidden; cursor:pointer; outline:none}
-.player:focus-visible{box-shadow:0 0 0 3px var(--accent)}
-.player:fullscreen{aspect-ratio:auto; border-radius:0; width:100vw; height:100vh}
+.player{position:relative; width:100%; aspect-ratio:16/9; background:#181d18; overflow:hidden; cursor:pointer; outline:none}
+.player:focus-visible{box-shadow:inset 0 0 0 3px var(--accent)}
 .bigplay{position:absolute; left:50%; top:50%; width:76px; height:76px; margin:-38px 0 0 -38px; border-radius:50%; border:0; background:#d4e94c; color:#181d18; display:grid; place-items:center; box-shadow:0 10px 40px rgba(0,0,0,.35); cursor:pointer; transition:transform .15s; z-index:5}
 .bigplay:hover{transform:scale(1.06)}
 .bigplay svg{width:30px; height:30px}
 .bigplay[hidden]{display:none!important}
-.controls{display:flex; align-items:center; gap:12px}
-.cbtn{flex:none; width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); display:grid; place-items:center; cursor:pointer}
-.cbtn:hover{border-color:var(--mute)}
-.cbtn:focus-visible{outline:2px solid var(--accent-ink); outline-offset:2px}
+.controls{position:absolute; left:0; right:0; bottom:0; z-index:6; display:flex; align-items:center; gap:12px; padding:8px 14px; background:rgba(24,29,24,.82); color:#fff; cursor:default; transition:opacity .2s}
+.player.is-playing:not(:hover):not(:focus-within) .controls{opacity:0}
+.cbtn{flex:none; width:36px; height:36px; border-radius:8px; border:0; background:transparent; color:#fff; display:grid; place-items:center; cursor:pointer}
+.cbtn:hover{background:rgba(255,255,255,.12)}
+.cbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .cbtn svg{width:18px; height:18px}
-.time{font-family:var(--f-mono); font-size:12.5px; color:var(--mute); font-variant-numeric:tabular-nums; flex:none; min-width:88px}
-.seek{position:relative; flex:1; min-width:0; height:40px; display:flex; align-items:center}
-.segs{position:absolute; left:0; right:0; top:50%; height:6px; margin-top:-3px; display:flex; gap:3px}
-.segs span{height:100%; background:var(--track); border-radius:3px; position:relative; overflow:hidden}
-.segs span i{position:absolute; inset:0; background:var(--accent-ink); transform-origin:0 50%; transform:scaleX(0)}
+.time{font-family:var(--f-mono); font-size:12.5px; color:#dfe4d8; font-variant-numeric:tabular-nums; flex:none; min-width:88px}
+.seek{position:relative; flex:1; min-width:0; height:32px; display:flex; align-items:center}
+.segs{position:absolute; left:0; right:0; top:50%; height:5px; margin-top:-2.5px; display:flex; gap:3px}
+.segs span{height:100%; background:rgba(255,255,255,.28); border-radius:3px; position:relative; overflow:hidden}
+.segs span i{position:absolute; inset:0; background:var(--accent); transform-origin:0 50%; transform:scaleX(0)}
 .seek input{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; margin:0}
-.seek:focus-within .segs{outline:2px solid var(--accent-ink); outline-offset:4px; border-radius:4px}
-.knob{position:absolute; top:50%; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%; background:var(--fg); pointer-events:none; box-shadow:0 0 0 3px var(--bg)}
-.chapters{display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin-top:4px}
-.chap{display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; text-align:left; font:inherit}
-.chap:hover{border-color:var(--mute)}
-.chap:focus-visible{outline:2px solid var(--accent-ink); outline-offset:2px}
-.chap b{font-family:var(--f-mono); font-weight:500; font-size:11.5px; color:var(--mute); font-variant-numeric:tabular-nums}
-.chap span{font-size:14px; font-weight:600}
-.chap.on{border-color:var(--accent-ink); box-shadow:inset 3px 0 0 var(--accent-ink)}
-details{border-top:1px solid var(--line); padding-top:12px; color:var(--mute); font-size:14px; line-height:1.6}
-details summary{cursor:pointer; color:var(--fg); font-weight:600}
-details p{max-width:70ch; margin:.6em 0}
+.seek:focus-within .segs{outline:2px solid var(--accent); outline-offset:4px; border-radius:4px}
+.knob{position:absolute; top:50%; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%; background:#fff; pointer-events:none}
 
 /* ─── stage: fixed Loupe palette ─── */
 .stage{
@@ -571,32 +561,12 @@ details p{max-width:70ch; margin:.6em 0}
       <svg id="cursor" viewBox="0 0 26 30"><path d="M3 2 L3 24 L9 18.5 L13 27.5 L17 25.8 L13 17 L21 17 Z" fill="#fff" stroke="#181d18" stroke-width="1.8" stroke-linejoin="round"/></svg>
     </div>
     <button class="bigplay" id="bigplay" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
+    <div class="controls">
+      <button class="cbtn" id="pp" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor" id="pp-ico"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
+      <span class="time" id="time">0:00 / 1:52</span>
+      <div class="seek"><div class="segs" id="segs"></div><div class="knob" id="knob"></div><input type="range" id="seek" min="0" max="112000" step="10" value="0" aria-label="Seek"></div>
+    </div>
   </div>
-
-  <div class="controls">
-    <button class="cbtn" id="pp" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="currentColor" id="pp-ico"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
-    <span class="time" id="time">0:00 / 1:52</span>
-    <div class="seek"><div class="segs" id="segs"></div><div class="knob" id="knob"></div><input type="range" id="seek" min="0" max="112000" step="10" value="0" aria-label="Seek"></div>
-    <button class="cbtn" id="fs" type="button" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-  </div>
-
-  <div class="chapters" id="chapters"></div>
-
-  <details>
-    <summary>Transcript</summary>
-    <p><strong>0:00 Intro.</strong> Terminal windows pile up faster and faster until the screen is buried, one per agent, each waiting on a person: an edit to approve, a plan to review, a conflict to resolve. It starts with one agent. Then five. Then a dozen. Every one of them is waiting on you. Keeping them all moving becomes your full-time job. Loupe lets you focus on the important stuff.</p>
-    <p>The example project is Driftwood, a made-up cabin-rental site.</p>
-    <p><strong>0:10 The board.</strong> On the Driftwood board, card #42 “Show the nightly price on search cards” sits in Backlog. It is dragged to Product design.</p>
-    <p><strong>0:14 Product design.</strong> The bridge opens a terminal with Claude Code running /loupe:product-design 42. Where the price sits on the card is a look-and-feel choice, so Claude offers a Claude Design session and builds two mockups: a price badge on the photo, and a price line under the name. In Claude Design the owner comments on option 1: show the total for the dates too. Claude reads the comment back, confirms the pick, writes the product document and links it to the card.</p>
-    <p><strong>0:35 You review.</strong> The document opens rendered. The reviewer selects the R2 sentence, comments that no scenario covers a search with no dates, and finishes the review with Request changes and a note.</p>
-    <p><strong>0:53 The agent revises.</strong> The loupe bridge runs a fix-round worker. Version 2 adds a scenario for a search with no dates and answers the comment. The reviewer approves it.</p>
-    <p><strong>1:05 The build.</strong> The approval moves the card to Tech design, where a worker writes the tech design. After its approval, an implementation worker builds the change, opens pull request 641 and moves the card to In review.</p>
-    <p><strong>1:14 Agent review.</strong> On GitHub, the Loupe agent review approves pull request 641.</p>
-    <p><strong>1:16 Site review.</strong> On the preview of pull request 641, the reviewer opens the Review widget, picks a price badge and notes that it covers the Guest favourite label. The note lands on card #42 as feedback, and a fix worker moves the badge to the bottom of the photo.</p>
-    <p><strong>1:29 Merge.</strong> The checks pass and the agent review approves the fix, so Loupe merges it on its own, and card #42 moves to Done by itself.</p>
-    <p><strong>1:34 Shipped.</strong> On driftwood.cabins, every search card shows its price, and the Guest favourite label stays visible.</p>
-    <p><strong>1:43</strong> Loupe, the control plane for your agent loop.</p>
-  </details>
 </div>
 
 <script type="text/plain" id="app-css">/*! tailwindcss v4.3.0 | MIT License | https://tailwindcss.com */
@@ -1171,20 +1141,18 @@ let t=0, playing=false, last=performance.now(), dirty=true, scrubbing=false;
 const seek=$('#seek'), segs=$('#segs'), knob=$('#knob');
 segs.innerHTML = CH.map((c,i)=>{ const e=i<CH.length-1?CH[i+1][0]:D; return `<span style="flex:${e-c[0]}"><i></i></span>`; }).join('');
 const segFills=[...segs.querySelectorAll('i')];
-const chapWrap=$('#chapters');
-chapWrap.innerHTML = CH.map(c=>`<button type="button" class="chap" data-t="${c[0]}"><b>${mmss(c[0])}</b><span>${c[1]}</span></button>`).join('');
-const chaps=[...chapWrap.querySelectorAll('.chap')];
-chaps.forEach(b=>b.addEventListener('click',()=>{ t=+b.dataset.t+.01; dirty=true; setPlaying(true); }));
 const PLAY='<path d="M8 5.5v13l10.5-6.5z"/>', PAUSE='<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>', REPLAY='<path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/>';
 function setPlaying(b){
   if(b && t>=D-.01) t=0;
-  playing=b; last=performance.now();
+  if(b && !playing){ try{ window.frameElement&&window.frameElement.scrollIntoView({block:'center',behavior:'smooth'}); }catch(_){} }
+  playing=b; last=performance.now(); tog(player,'is-playing',b);
   const end=t>=D-.01;
   $('#pp-ico').innerHTML = b?PAUSE:(end?REPLAY:PLAY);
   $('#pp').setAttribute('aria-label', b?'Pause':'Play');
   const bp=$('#bigplay'); hide(bp,b); bp.querySelector('svg').innerHTML = end?REPLAY:PLAY; bp.setAttribute('aria-label', end?'Replay':'Play');
   dirty=true;
 }
+$('.controls').addEventListener('click',e=>e.stopPropagation());
 $('#pp').addEventListener('click',()=>setPlaying(!playing));
 $('#bigplay').addEventListener('click',e=>{ e.stopPropagation(); setPlaying(true); });
 player.addEventListener('click',()=>setPlaying(!playing));
@@ -1196,7 +1164,6 @@ player.addEventListener('keydown',e=>{
 seek.addEventListener('pointerdown',()=>{ scrubbing=true; });
 window.addEventListener('pointerup',()=>{ scrubbing=false; });
 seek.addEventListener('input',()=>{ t=seek.value/1000; dirty=true; if(!playing) setPlaying(false); });
-$('#fs').addEventListener('click',()=>{ try{ if(document.fullscreenElement) document.exitFullscreen(); else { const r=player.requestFullscreen&&player.requestFullscreen(); if(r&&r.catch) r.catch(()=>{}); } }catch(_){} });
 function fit(){ const w=player.clientWidth, h=player.clientHeight; S=Math.min(w/1280,h/720);
   stage.style.transform=`translate(${((w-1280*S)/2).toFixed(1)}px,${((h-720*S)/2).toFixed(1)}px) scale(${S})`; dirty=true; }
 new ResizeObserver(fit).observe(player); fit();
@@ -1205,7 +1172,6 @@ function ui(){
   txt($('#time'), `${mmss(t)} / ${mmss(D)}`);
   knob.style.left=(t/D*100)+'%';
   CH.forEach((c,i)=>{ const e=i<CH.length-1?CH[i+1][0]:D; segFills[i].style.transform=`scaleX(${ramp(t,c[0],e)})`; });
-  let ci=0; CH.forEach((c,i)=>{ if(t>=c[0]) ci=i; }); chaps.forEach((b,i)=>tog(b,'on',i===ci));
 }
 function loop(now){
   if(playing){ t+=Math.min(.1,(now-last)/1000); if(t>=D){ t=D; setPlaying(false); } dirty=true; }
@@ -1213,9 +1179,8 @@ function loop(now){
   if(dirty){ render(t); ui(); dirty=false; }
   requestAnimationFrame(loop);
 }
-const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 window.__seek = v => { t=v; render(t); ui(); };
-const start = () => { render(t); ui(); setPlaying(!reduce && !window.__noAutoplay); requestAnimationFrame(loop); };
+const start = () => { render(t); ui(); setPlaying(false); requestAnimationFrame(loop); };
 (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(start, start);
 })();
 </script>

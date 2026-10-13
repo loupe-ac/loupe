@@ -6335,7 +6335,7 @@
         @apply relative z-10 mt-14;
     }
     .landing-explainer {
-        @apply block w-full max-w-5xl mx-auto aspect-video border-0 rounded-2xl;
+        @apply block w-full max-w-5xl mx-auto aspect-video border-0;
     }
 
     .lp-home-section {
