@@ -41,6 +41,17 @@ final class StatusBoxComponentTest extends KernelTestCase
         self::assertStringContainsString('lp-status-chip--neutral', $html);
     }
 
+    public function test_a_chip_status_box_is_neutral_with_the_dashed_circle_and_a_waiting_one_has_the_hourglass(): void
+    {
+        $chip = $this->render('<twig:Ds:StatusBox kind="chip" title="Status" chip="Note" lead="Unmanaged." />');
+        $waiting = $this->render('<twig:Ds:StatusBox kind="waiting" title="Status" chip="Waiting" lead="Blocked." />');
+
+        self::assertStringContainsString('lp-status-box--chip', $chip);
+        self::assertStringContainsString('lp-status-chip--neutral', $chip);
+        self::assertStringContainsString('M10.1 2.182a10 10 0 0 1 3.8 0', $chip);
+        self::assertStringContainsString('M5 22h14M5 2h14', $waiting);
+    }
+
     public function test_a_status_box_lists_the_other_states(): void
     {
         $html = $this->render('<twig:Ds:StatusBox kind="stuck" title="Status" chip="Stuck" lead="Paused." othersTitle="Also applies" :others="[{kind: \'working\', label: \'Working\', lead: \'A worker runs.\', since: \'Since now\'}, {kind: \'waiting\', label: \'Waiting\', lead: \'Blocked.\', since: null}]" />');
@@ -52,12 +63,12 @@ final class StatusBoxComponentTest extends KernelTestCase
         self::assertStringContainsString('A worker runs.', $html);
     }
 
-    public function test_the_catalog_lists_the_status_box_with_its_four_kinds(): void
+    public function test_the_catalog_lists_the_status_box_with_its_five_kinds(): void
     {
         $entry = array_find(new Catalog()->entries(), static fn ($entry): bool => 'StatusBox' === $entry->name);
 
         self::assertNotNull($entry);
-        self::assertSame(['stuck', 'needs-you', 'working', 'waiting'], $entry->variants);
+        self::assertSame(['stuck', 'needs-you', 'working', 'waiting', 'chip'], $entry->variants);
         self::assertTrue($entry->enforced);
     }
 }

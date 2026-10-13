@@ -6,8 +6,7 @@ namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\BoardColumn;
 use App\Module\Board\Entity\Card;
-use App\Module\Board\Service\CardBadge;
-use App\Module\Board\Service\CardState;
+use App\Module\Board\Service\StoredCardMarkers;
 
 /** Where one card sits on the board page, and the count of every column. */
 final readonly class CardPlacementView
@@ -37,11 +36,10 @@ final readonly class CardPlacementView
         public ?string $laneAfter,
         /** For a lane head, its Up next deck, or null when the epic has no Backlog child. */
         public ?LaneDeckView $deck = null,
-        /** @var list<CardBadge> */
-        public array $badges = [],
         /** For a Backlog card the board does not show, the lane epic whose Up next deck shows it. */
         public ?string $deckEpic = null,
-        public ?CardState $state = null,
+        /** Null for a card with no marker, and for a card in a terminal column. */
+        public ?StoredCardMarkers $markers = null,
     ) {
     }
 }

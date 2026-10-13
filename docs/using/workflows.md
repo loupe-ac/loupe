@@ -35,7 +35,7 @@ treated every condition that was true at that time as handled, so nothing moved
 at once.
 
 The **Workflow** page of the project shows the template of the board, its slots
-and the column each slot links to, and its rules. The page is read-only. A later
+and the column each slot links to, its rules and its markers. The page is read-only. A later
 release adds a way to change the template.
 
 The template also declares the card types of the board. Each type has a key, a
@@ -45,8 +45,121 @@ children and a lane. Feature is the default type. The **Workflow** page lists
 the types.
 
 The page lists the conditions of each rule. It groups them by the module whose
-data they read: Board, Forge or Bridge. A rule whose condition no longer exists
+data they read: Board, Forge, Bridge or Inbox. A rule whose condition no longer exists
 on this instance gets an amber tag that names the condition.
+
+## Markers
+
+A marker tells a reader what a card needs now. The template defines every marker.
+The board, the list, the card page and the MCP tools show the markers that the
+engine stores on the card.
+
+A marker has these parts:
+
+- A key, such as `checks-failed`. The MCP tools call it the `code`.
+- A kind. See below.
+- A label. This is the reason that a reader sees.
+- A remedy. This is one line that says what clears the marker.
+- Slots, optional. They name the slots where the marker applies.
+- A condition. The marker is on while the condition is true.
+
+The label and the remedy can name a value of the card, such as the number of the
+pull request or the title of a document.
+
+The kind is `stuck`, `needs-you`, `working`, `waiting` or `chip`. A `chip` is a
+note and not a state. **Unmanaged** is the only chip that the shipped templates
+declare.
+
+A card shows one state mark. The mark is the first marker of the first kind that
+matches, in the order `stuck`, `needs-you`, `working`, `waiting`. Inside one
+kind, the marker that comes first in the template wins. The tooltip of the mark
+lists every other marker, chips included. A card with only a chip shows a neutral
+mark.
+
+A marker with no slots applies in every column that is not terminal. A marker
+with slots applies only while the card sits in a column that links to one of
+them. A card in a terminal column has no markers. A card in Next with no blocker
+and no parent has no marker, because no marker names the Next slot.
+
+A fallback marker counts only when no other marker of a state kind matches.
+`nothing-happened` and `pull-request-idle` are fallbacks. They show **Stuck**
+when a card has had no history for longer than the **Stuck delay in minutes**
+setting of the board, and nothing else explains the quiet.
+
+The shipped markers are:
+
+| Key | Kind | Shows when |
+|---|---|---|
+| `paused` | Stuck | The card has an active pause |
+| `run-stopped` | Stuck | The last worker run gave up, was blocked, failed or had no result |
+| `checks-failed` | Stuck | A pull request has failed checks and no fix is under way |
+| `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
+| `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
+| `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
+| `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay |
+| `document-in-review` | Needs you | A document of the card waits for your review |
+| `waits-for-approval` | Needs you | A pull request waits for your approval |
+| `open-question` | Needs you | An inbox question names the card |
+| `session-open` | Working | A person has an interactive session open on the card |
+| `run-open` | Working | A worker runs on the card |
+| `work-requested` | Working | Work waits for a bridge to take it |
+| `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
+| `held-by-blocker` | Waiting | A card that blocks this card is still open |
+| `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
+| `waits-for-parent-branch` | Waiting | A pull request waits for a branch that no card owns |
+| `waiting-on-checks` | Waiting | The checks of a pull request run |
+| `unmanaged` | Chip | A person or an agent made the card unmanaged |
+
+The Simple template declares all of these markers except `pull-request-idle`,
+`nothing-happened` and `document-in-review`, because Simple has no slots.
+
+The engine checks the markers of a card on every evaluation. This includes a held
+card and a board with the automation off. It stores the result on the card, with
+the time each marker began. A marker that depends on the clock, such as the stuck
+delay, also stores the time it next changes. A task checks the card again at that
+time. An event that changes a card queues a new check on the `workflow` queue,
+which the worker reads before the shared `async` queue.
+
+After a release, the markers of existing cards fill in within a minute or two.
+Until then a card can show no mark.
+
+The **Workflow** page lists the markers in template order. Each row shows the
+label, the kind, the slots and the condition. The page is read-only.
+
+
+A marker reads the same conditions as a rule.
+markers:
+
+- `card.paused`: the card has an active pause.
+- `card.document.in_review` with a `tag`: a linked document with that tag is in
+  review.
+- `card.quiet_for`: nothing happened on the card for the `delay`, in minutes.
+- `card.rule.held_by_blocker`: an open blocker alone holds a move rule of the
+  card.
+- `card.run.stopped`: the latest run of the card ended with a warning, and the
+  card did not move after it ended.
+- `card.run.session_open`: a person has an interactive session open on the card.
+- `card.held`: a person held the agents of the card.
+- `card.inbox.open_question`: an open inbox question names the card.
+- `pr.checks_pending`: the pull request is open, and its checks run.
+- `pr.waits_for_approval`: the pull request is open, not a draft, green and
+  into the default branch, and no current approval covers its head.
+- `pr.forge_request_pending`: Loupe asked the forge to merge, sync or change
+  the base of the pull request, and the forge did not answer yet. A request
+  expires after 10 minutes with no answer.
+- `pr.stack_parent`: the pull request is ready to merge with nothing pending,
+  and waits for the branch it is stacked on. The optional `parent` is `known`
+  when a card links the open parent pull request, or `unknown` when only the
+  branch is known. With no `parent`, both match.
+- `pr.ready_for`: the pull request is not stacked, and stayed ready to merge
+  with nothing pending for the `delay`, in minutes.
+
+The `delay` of `card.quiet_for` and of `pr.ready_for` is optional. With no
+`delay`, the condition uses the **Stuck delay in minutes** setting of the board.
+
+Markers also read conditions that rules already use: `pr.open`,
+`pr.checks_failed`, `pr.conflicting`, `card.run.work_active` and
+`card.run.worker_active`.
 
 ## Slots and columns
 

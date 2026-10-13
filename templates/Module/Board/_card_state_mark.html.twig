@@ -1,0 +1,23 @@
+{# The one mark a card shows, with its tooltip. Props: card (Card), markers (StoredCardMarkers), link (bool): whether the tooltip ends
+   with a link that opens the card, which a list row, itself a link, leaves out. A card with only chips draws the neutral mark. #}
+{% set state = markers.state %}
+{% set title = (state is null ? 'board.card_state.chip' : state.kind.translationKey)|trans %}
+<twig:Ds:StateMark :kind="state is null ? 'chip' : state.kind.value" :label="title">
+    {% if state is null %}
+    <strong class="lp-tooltip__title">{{ title }}</strong>
+    {% else %}
+    <span data-marker-key="{{ state.key }}"><strong class="lp-tooltip__title">{{ title }}.</strong> {{ state.label|trans(state.params) }}</span>
+    <span class="lp-tooltip__line--quiet">{{ card_state_text(state.kind.sinceKey, state.since) }}</span>
+    {% endif %}
+    {% for other in markers.others %}
+    <span data-marker-key="{{ other.key }}">{% if other.kind.value != 'chip' %}<strong>{{ other.kind.translationKey|trans }}.</strong> {% endif %}{{ other.label|trans(other.params) }}</span>
+    <span class="lp-tooltip__line--quiet">{{ card_state_text(other.kind.sinceKey, other.since) }}</span>
+    {% endfor %}
+    {% if link %}
+    <a class="lp-tooltip__link"
+       draggable="false"
+       href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}"
+       data-turbo-frame="card-drawer-frame"
+       data-action="click->card-drawer#prepare">{{ 'board.card_state.open_card'|trans }}</a>
+    {% endif %}
+</twig:Ds:StateMark>

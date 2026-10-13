@@ -10,4 +10,7 @@ use Symfony\Component\Uid\Uuid;
 interface BoardSettings
 {
     public function automationEnabled(Uuid $projectId): bool;
+
+    /** The minutes after which a card that nothing moves counts as stuck. */
+    public function stuckDelayMinutes(Uuid $projectId): int;
 }

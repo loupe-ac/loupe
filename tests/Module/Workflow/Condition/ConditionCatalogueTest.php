@@ -7,6 +7,7 @@ namespace App\Tests\Module\Workflow\Condition;
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardFollowsFinished;
 use App\Module\Workflow\Condition\Conditions;
+use App\Module\Workflow\Contract\MarkerEvidence;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Translation\TranslatorBagInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -27,20 +28,28 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.discovery.requested' => 'workflow.source.readiness',
         'card.document.approved' => 'workflow.source.board',
         'card.document.changes_requested' => 'workflow.source.board',
+        'card.document.in_review' => 'workflow.source.board',
         'card.document.linked' => 'workflow.source.board',
         'card.fix_run.uncommented' => 'workflow.source.board',
         'card.follows.finished' => 'workflow.source.board',
+        'card.held' => 'workflow.source.bridge',
         'card.in_slot' => 'workflow.source.board',
+        'card.inbox.open_question' => 'workflow.source.inbox',
         'card.parent.document.approved' => 'workflow.source.board',
         'card.parent.exists' => 'workflow.source.board',
         'card.parent.in_slot' => 'workflow.source.board',
         'card.parent.run.active' => 'workflow.source.bridge',
+        'card.paused' => 'workflow.source.board',
         'card.pr.all_finished_one_merged' => 'workflow.source.forge',
         'card.pr.approval_stale' => 'workflow.source.board',
         'card.pr.linked' => 'workflow.source.forge',
+        'card.quiet_for' => 'workflow.source.board',
+        'card.rule.held_by_blocker' => 'workflow.source.board',
         'card.run.done_at_head' => 'workflow.source.board',
         'card.run.finished_with' => 'workflow.source.bridge',
         'card.run.last_refusal' => 'workflow.source.bridge',
+        'card.run.session_open' => 'workflow.source.bridge',
+        'card.run.stopped' => 'workflow.source.bridge',
         'card.run.work_active' => 'workflow.source.bridge',
         'card.run.worker_active' => 'workflow.source.bridge',
         'card.site_review.check_stale' => 'workflow.source.board',
@@ -53,11 +62,16 @@ final class ConditionCatalogueTest extends KernelTestCase
         'pr.changes_requested' => 'workflow.source.forge',
         'pr.checks_failed' => 'workflow.source.forge',
         'pr.checks_passed' => 'workflow.source.forge',
+        'pr.checks_pending' => 'workflow.source.forge',
         'pr.conflicting' => 'workflow.source.forge',
         'pr.draft' => 'workflow.source.forge',
+        'pr.forge_request_pending' => 'workflow.source.forge',
         'pr.open' => 'workflow.source.forge',
         'pr.parent_merged' => 'workflow.source.forge',
+        'pr.ready_for' => 'workflow.source.forge',
+        'pr.stack_parent' => 'workflow.source.forge',
         'pr.stacked' => 'workflow.source.forge',
+        'pr.waits_for_approval' => 'workflow.source.forge',
     ];
 
     /** The keys whose waiting sentence id is not the key with underscores. */
@@ -120,6 +134,18 @@ final class ConditionCatalogueTest extends KernelTestCase
             $source = $conditions->get($key)::source();
             self::assertSame(self::SOURCES[$key], $source, $key);
             self::assertTrue($catalogue->defines($source), \sprintf('"%s" has no English string.', $source));
+        }
+    }
+
+    public function test_the_workflows_guide_names_each_condition_that_a_marker_reads(): void
+    {
+        $conditions = static::getContainer()->get(Conditions::class);
+        $guide = (string) file_get_contents(\dirname(__DIR__, 4).'/docs/using/workflows.md');
+
+        foreach (self::catalogueKeys($conditions) as $key) {
+            if ($conditions->get($key) instanceof MarkerEvidence) {
+                self::assertStringContainsString('`'.$key.'`', $guide, \sprintf('docs/using/workflows.md does not name "%s".', $key));
+            }
         }
     }
 

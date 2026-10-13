@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\BoardColumn;
-use App\Module\Board\Service\CardBadge;
-use App\Module\Board\Service\CardState;
+use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Project\Entity\Project;
 
@@ -59,10 +58,8 @@ final readonly class BoardView
         public array $runWarnings = [],
         /** @var array<string, LaneDeckView> lane epic id => its Up next deck; an epic with no Backlog child has no key */
         public array $decks = [],
-        /** @var array<string, non-empty-list<CardBadge>> card id => its badges; a card with none has no key */
-        public array $badges = [],
-        /** @var array<string, CardState> card id => its state; a card in a terminal column, or with no state, has no key */
-        public array $states = [],
+        /** @var array<string, StoredCardMarkers> card id => its stored markers; a card in a terminal column, or with none, has no key */
+        public array $markers = [],
     ) {
     }
 }

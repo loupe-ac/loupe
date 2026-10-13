@@ -6,6 +6,7 @@ namespace App\Tests\Module\Workflow\Scheduler;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Workflow\Command\EvaluateDueWorkflowCardsHandler;
+use App\Module\Workflow\Contract\CardsDueForMarkers;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowRuleStateRepository;
@@ -40,6 +41,38 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
         self::assertNotContains((string) $later->id, $sent);
     }
 
+    public function test_the_task_queues_the_open_cards_of_bound_projects_whose_markers_are_missing_or_due(): void
+    {
+        self::bootKernel();
+        $bound = $this->workflowProject('due-markers');
+        $this->bindLifecycle($bound);
+        $missing = $this->card($bound, 'next');
+        $due = $this->card($bound, 'next');
+        $later = $this->card($bound, 'next');
+        $settled = $this->card($bound, 'next');
+        $finished = $this->card($bound, 'done');
+        $unbound = $this->card($this->workflowProject('due-markers-unbound'), 'next');
+        $due->markers = [];
+        $due->markersDueAt = new \DateTimeImmutable('2026-10-02 11:59:00');
+        $later->markers = [];
+        $later->markersDueAt = new \DateTimeImmutable('2026-10-02 12:01:00');
+        $settled->markers = [];
+        $this->em()->flush();
+        $this->transport()->reset();
+
+        $this->task()();
+
+        $sent = $this->sent();
+        sort($sent);
+        $expected = [(string) $missing->id, (string) $due->id];
+        sort($expected);
+        self::assertSame($expected, $sent);
+        self::assertNotContains((string) $later->id, $sent);
+        self::assertNotContains((string) $settled->id, $sent);
+        self::assertNotContains((string) $finished->id, $sent);
+        self::assertNotContains((string) $unbound->id, $sent);
+    }
+
     /** @return array{Card, Card} */
     private function scenario(): array
     {
@@ -47,6 +80,9 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
         $project = $this->workflowProject('due-cards');
         $due = $this->card($project, 'next');
         $later = $this->card($project, 'next');
+        // Cards with stored markers, so only the due retry decides.
+        $due->markers = [];
+        $later->markers = [];
         foreach ([[$due, '2026-10-02 11:59:00'], [$later, '2026-10-02 12:01:00']] as [$card, $dueAt]) {
             $state = new WorkflowRuleState($card->id ?? throw new \LogicException('The card is persisted.'), $project, 'rule');
             $state->dueAt = new \DateTimeImmutable($dueAt);
@@ -62,6 +98,7 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
     {
         return new EvaluateDueCardsTask(new EvaluateDueWorkflowCardsHandler(
             $this->service(WorkflowRuleStateRepository::class),
+            $this->service(CardsDueForMarkers::class),
             new EvaluationTrigger($this->service(MessageBusInterface::class)),
             new MockClock('2026-10-02 12:00:00'),
         ));
@@ -69,7 +106,7 @@ final class EvaluateDueCardsTaskTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.workflow');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

@@ -27,6 +27,7 @@ use App\Module\Workflow\Condition\CardInSlot;
 use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Action;
 use App\Module\Workflow\Contract\LabelTone;
+use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Expression\AllOf;
@@ -46,6 +47,7 @@ use App\Tests\Module\Workflow\Action\PluggedAction;
 use App\Tests\Module\Workflow\Fact\FactsMother;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Yaml\Yaml;
 
 final class TemplateParserTest extends TestCase
 {
@@ -1327,5 +1329,92 @@ final class TemplateParserTest extends TestCase
                 self::assertSame(['rules[0] (start) then.request: unknown parameter "prompt"'], $e->errors);
             }
         }
+    }
+
+    public const string MARKERS_FIXTURE = __DIR__.'/Fixtures/markers.yaml';
+
+    public function test_it_reads_the_markers_of_a_template_in_order(): void
+    {
+        $template = $this->parser->parse(Yaml::parseFile(self::MARKERS_FIXTURE));
+
+        self::assertSame(['has-pull-request', 'blocked', 'quiet', 'held'], array_map(static fn ($marker) => $marker->key, $template->markers));
+        self::assertSame([MarkerKind::Waiting, MarkerKind::NeedsYou, MarkerKind::Stuck, MarkerKind::Chip], array_map(static fn ($marker) => $marker->kind, $template->markers));
+        [$pullRequest, $blocked, $quiet] = $template->markers;
+        self::assertSame('marker.test.has_pull_request', $pullRequest->label);
+        self::assertSame('marker.test.has_pull_request.remedy', $pullRequest->remedy);
+        self::assertSame(['build', 'review'], $pullRequest->slots);
+        self::assertFalse($pullRequest->fallback);
+        self::assertInstanceOf(ConditionLeaf::class, $pullRequest->when);
+        self::assertNull($blocked->remedy);
+        self::assertSame([], $blocked->slots);
+        self::assertTrue($quiet->fallback);
+        self::assertInstanceOf(Not::class, $quiet->when);
+    }
+
+    public function test_a_template_without_markers_has_none_and_the_kinds_keep_their_precedence(): void
+    {
+        self::assertSame([], $this->parser->parse(self::valid())->markers);
+        self::assertSame(['stuck', 'needs-you', 'working', 'waiting', 'chip'], array_column(MarkerKind::cases(), 'value'));
+    }
+
+    /** @param array<string, mixed> $marker */
+    #[DataProvider('invalidMarkers')]
+    public function test_a_marker_that_breaks_a_rule_is_refused(array $marker, string $error): void
+    {
+        $base = ['key' => 'm', 'kind' => 'stuck', 'label' => 'marker.m', 'when' => ['pr.open' => []]];
+
+        try {
+            $this->parser->parse(self::valid() + ['markers' => [array_replace($base, $marker), ['key' => 'm', 'kind' => 'chip', 'label' => 'marker.n', 'when' => ['all' => []]]]]);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains($error, $e->errors);
+        }
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function invalidMarkers(): iterable
+    {
+        yield 'unknown kind' => [['kind' => 'loud'], 'markers[0] (m) kind: must be one of stuck, needs-you, working, waiting, chip'];
+        yield 'unknown condition' => [['when' => ['card.nope' => []]], 'markers[0] (m) when: unknown condition "card.nope"'];
+        yield 'unknown slot' => [['slots' => ['nowhere']], 'markers[0] (m) slots: unknown slot "nowhere"'];
+        yield 'a column flag is no slot' => [['slots' => ['@terminal']], 'markers[0] (m) slots: unknown slot "@terminal"'];
+        yield 'slots not a list' => [['slots' => 'build'], 'markers[0] (m) slots: must be a list of slot keys'];
+        yield 'blank label' => [['label' => ''], 'markers[0] (m) label: must be a non-empty string'];
+        yield 'blank remedy' => [['remedy' => ''], 'markers[0] (m) remedy: must be a non-empty string'];
+        yield 'fallback not a boolean' => [['fallback' => 'yes'], 'markers[0] (m) fallback: must be a boolean'];
+        yield 'unknown key' => [['colour' => 'red'], 'markers[0] (m): unknown key "colour"'];
+    }
+
+    public function test_a_duplicate_marker_key_is_refused(): void
+    {
+        $marker = ['key' => 'm', 'kind' => 'chip', 'label' => 'marker.m', 'when' => ['all' => []]];
+
+        try {
+            $this->parser->parse(self::valid() + ['markers' => [$marker, $marker]]);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['markers[1] (m): duplicate marker key "m"'], $e->errors);
+        }
+    }
+
+    public function test_markers_must_be_a_list_of_maps_with_a_condition(): void
+    {
+        foreach ([['markers' => 'all'], ['markers' => ['x']], ['markers' => [['key' => 'm', 'kind' => 'chip', 'label' => 'l']]]] as $extra) {
+            try {
+                $this->parser->parse(self::valid() + $extra);
+                self::fail('The template should be refused.');
+            } catch (InvalidTemplate $e) {
+                self::assertNotSame([], $e->errors);
+            }
+        }
+    }
+
+    public function test_a_stored_copy_keeps_a_marker_whose_condition_no_longer_exists(): void
+    {
+        $source = self::valid() + ['markers' => [['key' => 'm', 'kind' => 'chip', 'label' => 'marker.m', 'when' => ['card.gone' => []]]]];
+
+        $leaf = $this->parser->parseStored($source)->markers[0]->when;
+
+        self::assertInstanceOf(MissingConditionLeaf::class, $leaf);
     }
 }

@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Board\Service;
 
-use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
-use App\Module\Forge\Entity\PullRequestChecks;
-use App\Module\Forge\Entity\PullRequestMergeability;
-use App\Module\Forge\Entity\PullRequestState;
 
 /** The stored pull request states of a set of cards. */
 final readonly class PullRequestStates
@@ -24,29 +20,5 @@ final readonly class PullRequestStates
     public function of(CardPullRequest $link): ?PullRequestStateView
     {
         return $this->byPullRequest[(string) $link->id] ?? null;
-    }
-
-    /**
-     * An open pull request counts only once it was read, like the card page that shows it as not reported before.
-     *
-     * @return list<CardBadge>
-     */
-    public function badgesOf(Card $card): array
-    {
-        $found = [];
-        foreach ($card->pullRequests as $link) {
-            $state = $this->of($link);
-            if (null === $state || null === $state->refreshedAt || PullRequestState::Open !== $state->state) {
-                continue;
-            }
-            if (PullRequestChecks::Failed === $state->checks) {
-                $found[CardBadge::ChecksFailed->value] = true;
-            }
-            if (PullRequestMergeability::Conflicting === $state->mergeability) {
-                $found[CardBadge::Conflict->value] = true;
-            }
-        }
-
-        return array_values(array_filter(CardBadge::cases(), static fn (CardBadge $badge): bool => isset($found[$badge->value])));
     }
 }

@@ -23,8 +23,17 @@ final readonly class BoardAutomationState implements BoardSettings
     #[\Override]
     public function automationEnabled(Uuid $projectId): bool
     {
-        $project = $this->em->getReference(Project::class, $projectId) ?? throw new \LogicException('The project is stored.');
+        return $this->automation->settingsOf($this->project($projectId))->enabled;
+    }
 
-        return $this->automation->settingsOf($project)->enabled;
+    #[\Override]
+    public function stuckDelayMinutes(Uuid $projectId): int
+    {
+        return $this->automation->settingsOf($this->project($projectId))->stuckDelayMinutes;
+    }
+
+    private function project(Uuid $projectId): Project
+    {
+        return $this->em->getReference(Project::class, $projectId) ?? throw new \LogicException('The project is stored.');
     }
 }

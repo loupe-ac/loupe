@@ -20,6 +20,7 @@ const focusVisible = (element) => {
  */
 export default class extends Controller {
     static targets = ['tooltip'];
+    static values = { align: { type: String, default: 'end' } };
 
     connect() {
         this.closeTimer = null;
@@ -118,13 +119,14 @@ export default class extends Controller {
         tooltip.style.top = '0px';
         const origin = tooltip.getBoundingClientRect();
         const anchor = this.element.getBoundingClientRect();
-        // The tooltip hangs from the right edge of its mark, which ends the row of the tile.
+        // A mark that ends its row hangs the tooltip from its right edge, and a mark that starts it from its left edge.
+        const preferred =
+            this.alignValue === 'start'
+                ? anchor.left - OVERHANG
+                : anchor.right + OVERHANG - origin.width;
         const left = Math.max(
             MARGIN,
-            Math.min(
-                anchor.right + OVERHANG - origin.width,
-                window.innerWidth - origin.width - MARGIN,
-            ),
+            Math.min(preferred, window.innerWidth - origin.width - MARGIN),
         );
         let top = anchor.bottom + GAP;
         const above = anchor.top - GAP - origin.height;
