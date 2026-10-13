@@ -205,19 +205,7 @@ final class WaitItemPageTest extends WebTestCase
     public function test_a_run_wait_opens_its_card_in_the_drawer(): void
     {
         $this->document->status = DocumentStatus::Approved;
-        $run = new WorkerRun(
-            project: $this->project,
-            bridgeId: Uuid::v7(),
-            subjectType: WorkSubject::CARD,
-            subjectId: $this->card->id ?? throw new \LogicException('Card has no id.'),
-            cardNumber: 4,
-            workKind: 'implement',
-            state: WorkerRunState::Blocked,
-            output: 'Needs the API key. Add it to the bridge config.',
-        );
-        $this->em->persist($run);
-        $this->em->flush();
-        $this->reconcile();
+        $this->blockedRun();
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
@@ -231,6 +219,19 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSame('Open card 4', trim($link->text()));
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
         self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
+        self::assertSame('click->card-drawer#prepare', $link->attr('data-action'));
+    }
+
+    public function test_a_run_wait_on_its_own_card_page_offers_no_link_to_that_card(): void
+    {
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun();
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$this->project->id.'/board/cards/'.$this->card->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-wait-link]'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void
@@ -254,6 +255,22 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSelectorExists('[data-inbox-queue-empty="open-asks"]');
         self::assertSelectorTextContains('[data-inbox-status]', 'Closed.');
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
+    }
+
+    private function blockedRun(): void
+    {
+        $this->em->persist(new WorkerRun(
+            project: $this->project,
+            bridgeId: Uuid::v7(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $this->card->id ?? throw new \LogicException('Card has no id.'),
+            cardNumber: 4,
+            workKind: 'implement',
+            state: WorkerRunState::Blocked,
+            output: 'Needs the API key. Add it to the bridge config.',
+        ));
+        $this->em->flush();
+        $this->reconcile();
     }
 
     private function reconcile(): void

@@ -113,6 +113,17 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(1, $this->searchHits('document'));
     }
 
+    public function test_a_wait_item_is_found_by_the_title_of_its_card(): void
+    {
+        $this->card->title = 'Launcher overlaps the footer';
+        $this->linkedDocument('Tech design');
+
+        $this->reconcile();
+
+        self::assertStringNotContainsString('Launcher', $this->onlyWatch()->item->title);
+        self::assertSame(1, $this->searchHits('launcher'));
+    }
+
     public function test_a_card_in_next_with_no_parent_opens_no_wait_for_a_tech_design_in_review(): void
     {
         $this->linkedDocument('Tech design');

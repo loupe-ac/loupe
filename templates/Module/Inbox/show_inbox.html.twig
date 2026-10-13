@@ -170,7 +170,7 @@
                         </a>
                     {% endif %}
                     {% if inbox.selected %}
-                        {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm} only %}
+                        {% include '@Inbox/_inbox_detail.html.twig' with {row: inbox.selected, inbox: inbox, refusedForm: refusedForm, cardDrawer: true} only %}
                     {% elseif inbox.pickedNothing %}
                         <twig:Ds:EmptyState :title="'inbox.pane.missing'|trans" data-inbox-pane-missing />
                     {% elseif view.isSearch %}

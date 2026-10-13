@@ -29,6 +29,7 @@
             {% for wait in watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
                 <li{% if wait.endedAt %} class="lp-inbox-waits__wait--ended"{% endif %} data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
                     {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
+                    {%- set cardLink = wait.type.value in ['worker-run', 'card-pause'] -%}
                     <span class="lp-inbox-waits__reason">{{ line.pageKey|trans(line.params) }}</span>
                     {%- if line.detail %}
                         {# Worker Markdown, rendered and sanitized the way a card body is. #}
@@ -39,8 +40,8 @@
                     {%- endif %}
                     {%- if wait.endedAt %}
                         <span class="lp-inbox-waits__ended">{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</span>
-                    {%- elseif line.href and line.href not in waitLinks|map(link => link.href) %}
-                        {%- set waitLinks = waitLinks|merge([{href: line.href, label: line.actionKey|trans(line.params), external: wait.type.value == 'pull-request', drawer: home and wait.type.value in ['worker-run', 'card-pause']}]) %}
+                    {%- elseif line.href and line.href not in waitLinks|map(link => link.href) and not (cardLink and wait.watch.cardId.toRfc4122 == (hostCardId ?? null)) %}
+                        {%- set waitLinks = waitLinks|merge([{href: line.href, label: line.actionKey|trans(line.params), external: wait.type.value == 'pull-request', drawer: cardLink and (cardDrawer ?? false)}]) %}
                     {%- endif %}
                 </li>
             {% endfor %}

@@ -1,6 +1,6 @@
 {# The selected request: its title and byline, the message of its source, its items and the panel of what it links.
    The list row beside it carries Blocking, so an item head here leaves it out.
-   Params: row (InboxRow), inbox (InboxPageView), refusedForm. #}
+   Params: row (InboxRow), inbox (InboxPageView), refusedForm, cardDrawer (whether the page hosts the card drawer). #}
 {% set ask = row.ask %}
 {% set items = row.items %}
 {% set origin = row.origin %}
@@ -49,7 +49,7 @@
         {% endif %}
         <div class="lp-inbox-ask__items">
             {% for item in items %}
-                {% include '@Inbox/_inbox_item.html.twig' with {item: item, ask: ask, inbox: inbox, refusedForm: refusedForm, showHead: items|length > 1, showTitle: items|length > 1, showBlocking: false, position: loop.index} only %}
+                {% include '@Inbox/_inbox_item.html.twig' with {item: item, ask: ask, inbox: inbox, refusedForm: refusedForm, showHead: items|length > 1, showTitle: items|length > 1, showBlocking: false, position: loop.index, cardDrawer: cardDrawer ?? false} only %}
             {% endfor %}
         </div>
     </div>
