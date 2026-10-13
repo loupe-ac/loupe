@@ -259,17 +259,59 @@
     /* Each pane scrolls on its own, so the page's top and bottom padding moves
        inside the panes, and the content scrolls up to the top bar and down to the window edge. */
     .lp-core-inbox.lp-workspace {
-        @apply py-0 md:py-0 xl:py-0;
+        --inbox-gutter: calc(var(--spacing) * 4.5);
+        max-width: none;
+        @apply py-0 pr-0 md:py-0 md:pr-0 xl:py-0 xl:pr-0;
+    }
+
+    @media (width >= 48rem) {
+        .lp-core-inbox.lp-workspace {
+            --inbox-gutter: calc(var(--spacing) * 6);
+        }
+    }
+
+    @media (width >= 80rem) {
+        .lp-core-inbox.lp-workspace {
+            --inbox-gutter: calc(var(--spacing) * 8);
+        }
     }
 
     .lp-core-inbox .lp-split-pane {
         @apply pt-5 pb-10 md:pt-6 md:pb-14 xl:pt-8;
     }
 
+    /* The detail pane reaches the window edge, so its scrollbar sits there as on the
+       document review page. Its padding keeps the content inside the page frame. */
+    .lp-core-inbox .lp-inbox-request-detail {
+        padding-right: calc(var(--app-frame-inset, 0px) + var(--inbox-gutter));
+    }
+
+    /* Only the entries scroll. The tabs, the search and the filters stay above them. */
+    .lp-core-inbox .lp-inbox-request-list {
+        overflow: hidden;
+        padding-bottom: 0;
+    }
+
+    .lp-core-inbox .lp-inbox-rows {
+        flex: 1 1 0%;
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        @apply pb-10 md:pb-14;
+    }
+
+    @media (width <= 42.5rem) {
+        .lp-core-inbox .lp-inbox-request-list,
+        .lp-core-inbox .lp-inbox-rows {
+            overflow: visible;
+        }
+    }
+
     .lp-core-inbox .lp-inbox-section--queue {
         display: flex;
         flex-direction: column;
         gap: 0;
+        margin-bottom: 0;
         overflow: hidden;
     }
 
@@ -5442,7 +5484,7 @@
         /* The side-by-side diff takes the full width below the framed bar. */
         .lp-app
             > .lp-shell:not(:has(.lp-board))
-            > .lp-main:not(:has(.lp-review-doc--wide)) {
+            > .lp-main:not(:has(.lp-review-doc--wide, .lp-core-inbox)) {
             padding-right: var(--app-frame-inset);
         }
     }
