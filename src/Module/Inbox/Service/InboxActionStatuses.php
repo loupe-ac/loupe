@@ -25,7 +25,7 @@ use App\Module\Inbox\View\InboxActionStatus;
 final readonly class InboxActionStatuses
 {
     public function __construct(
-        private InboxActionRepository $actions,
+        private InboxActionRepository $inboxActions,
         private BridgeCommandRepository $bridgeCommands,
         private WorkerRunRepository $workerRuns,
         private BridgeLiveness $liveness,
@@ -39,7 +39,7 @@ final readonly class InboxActionStatuses
      */
     public function forItems(array $items): array
     {
-        $byItem = $this->actions->findByItems($items);
+        $byItem = $this->inboxActions->findByItems($items);
         $commandIds = [];
         foreach ($byItem as $actions) {
             foreach ($actions as $action) {
@@ -160,7 +160,7 @@ final readonly class InboxActionStatuses
 
         $byRun = [];
         foreach (array_reverse($this->workerRuns->findContinuationsOf(array_values($stopped))) as $run) {
-            $byRun[(string) ($run->continuesRun?->id ?? throw new \LogicException('A continuation has a stopped run.'))][] = $run;
+            $byRun[(string) ($run->continuesRun->id ?? throw new \LogicException('A continuation has a stopped run.'))][] = $run;
         }
 
         return $byRun;

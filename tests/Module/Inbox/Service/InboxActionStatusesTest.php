@@ -39,7 +39,6 @@ final class InboxActionStatusesTest extends KernelTestCase
     private Project $project;
     private InboxItem $item;
     private Bridge $bridge;
-    private int $number = 0;
 
     protected function setUp(): void
     {
