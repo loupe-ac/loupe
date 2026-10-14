@@ -13,6 +13,7 @@ enum InboxActionVerb: string
     case Reviewed = 'reviewed';
     case Resumed = 'resumed';
     case Retried = 'retried';
+    case SessionStarted = 'session-started';
     case Cancelled = 'cancelled';
 
     /** The flash that the card tab and the document page show instead of the status line. */
@@ -25,6 +26,7 @@ enum InboxActionVerb: string
             self::Reviewed => 'inbox.review.submitted',
             self::Resumed => 'inbox.flash.resumed',
             self::Retried => 'inbox.flash.retried',
+            self::SessionStarted => 'inbox.flash.session_started',
             self::Cancelled => 'inbox.flash.cancelled',
         };
     }

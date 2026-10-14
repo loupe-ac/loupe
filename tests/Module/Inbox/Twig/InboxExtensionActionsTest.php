@@ -70,7 +70,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
 
         self::assertSame(InboxActionKind::ResumeRun, $actions->main?->action->kind);
         self::assertNull($actions->main->href);
-        self::assertSame([InboxActionKind::Open], array_map(static fn ($row) => $row->action->kind, $actions->menu));
+        self::assertSame([InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $actions->menu[0]->href);
         self::assertTrue($actions->menu[0]->card);
         self::assertSame(InboxActionKind::Dismiss, $actions->dismiss?->action->kind);
@@ -82,7 +82,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
 
         $actions = $this->extension->actions($item, (string) $this->card->id);
 
-        self::assertSame([], $actions->menu);
+        self::assertSame([InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
         self::assertSame(InboxActionKind::ResumeRun, $actions->main?->action->kind);
     }
 
@@ -94,20 +94,36 @@ final class InboxExtensionActionsTest extends KernelTestCase
 
         self::assertSame(InboxActionKind::Open, $actions->main?->action->kind);
         self::assertTrue($actions->main->isLink());
-        self::assertSame([], $actions->menu);
+        self::assertSame([InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
         self::assertSame(InboxActionKind::Dismiss, $actions->dismiss?->action->kind);
     }
 
-    public function test_an_item_with_only_dismiss_left_has_no_main_part(): void
+    public function test_a_disabled_action_stays_in_the_menu_and_never_takes_the_main_part(): void
     {
         $item = $this->runItem(WorkerRunState::Running);
 
         $actions = $this->extension->actions($item, (string) $this->card->id);
 
         self::assertNull($actions->main);
-        self::assertSame([], $actions->menu);
+        self::assertSame([InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
+        self::assertSame('inbox.action.start-session.disabled', $actions->menu[0]->action->disabledReasonKey);
         self::assertSame(InboxActionKind::Dismiss, $actions->dismiss?->action->kind);
         self::assertFalse($actions->isEmpty());
+    }
+
+    public function test_start_session_takes_the_main_part_when_a_session_bridge_is_online_and_nothing_else_fits(): void
+    {
+        $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->em()->persist($session);
+        $this->em()->flush();
+        $item = $this->runItem(WorkerRunState::Running);
+
+        $actions = $this->extension->actions($item, (string) $this->card->id);
+
+        self::assertSame(InboxActionKind::StartSession, $actions->main?->action->kind);
+        self::assertNull($actions->main->action->disabledReasonKey);
+        self::assertSame([], $actions->menu);
     }
 
     public function test_the_statuses_are_the_lines_of_the_item_oldest_first(): void
@@ -138,7 +154,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
         $running = array_filter(InboxActionState::cases(), static fn (InboxActionState $state): bool => $state->inProgress());
 
         self::assertSame(
-            [InboxActionState::Queued, InboxActionState::Resumed, InboxActionState::Retried, InboxActionState::Running],
+            [InboxActionState::Queued, InboxActionState::Resumed, InboxActionState::Preparing, InboxActionState::Retried, InboxActionState::Running],
             array_values($running),
         );
     }

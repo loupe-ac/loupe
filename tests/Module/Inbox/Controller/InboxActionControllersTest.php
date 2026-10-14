@@ -282,7 +282,7 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->runItem();
 
-        $this->post($this->actionPath($item, 'start-session'), $item, []);
+        $this->post($this->actionPath($item, 'send-agent'), $item, []);
         self::assertResponseStatusCodeSame(404);
 
         $this->setInboxFlag(false);
@@ -320,6 +320,31 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseRedirects($this->cardUrl().'?tab=conversation');
         $crawler = $this->client->followRedirect();
+        self::assertCount(1, $crawler->filter('[data-inbox-linked="card"] [data-inbox-action-status="queued"]'));
+    }
+
+    public function test_the_card_page_starts_a_session_from_the_main_part(): void
+    {
+        $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->em()->persist($session);
+        $this->em()->flush();
+        $item = $this->runItem(state: WorkerRunState::Running, linkCard: true);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->cardUrl());
+
+        self::assertResponseIsSuccessful();
+        $main = $crawler->filter('[data-inbox-linked="card"] .inbox-split__main');
+        self::assertSame('start-session', $main->attr('data-inbox-action'));
+        self::assertSame($this->actionPath($item, 'start-session'), parse_url((string) $main->attr('formaction'), \PHP_URL_PATH));
+
+        $url = $this->actionPath($item, 'start-session').'?returnTo=card&returnId='.$this->card->id;
+        $this->client->request(Request::METHOD_POST, $url, ['inbox_action_'.$item->id => ['note' => 'Pair on it', '_token' => 'csrf-token']], [], ['HTTP_REFERER' => 'http://localhost'.$url]);
+
+        self::assertResponseRedirects($this->cardUrl().'?tab=conversation');
+        self::assertSame(InboxActionKind::StartSession, $this->onlyAction($item)->kind);
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('The session of item '.$item->number.' is queued.', $crawler->text());
         self::assertCount(1, $crawler->filter('[data-inbox-linked="card"] [data-inbox-action-status="queued"]'));
     }
 

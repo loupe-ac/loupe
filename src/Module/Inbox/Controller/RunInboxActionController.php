@@ -35,7 +35,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
     name: 'app_inbox_item_action',
     requirements: [
         'itemId' => Requirement::UUID,
-        'kind' => new EnumRequirement([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::Dismiss]),
+        'kind' => new EnumRequirement([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::StartSession, InboxActionKind::Dismiss]),
     ],
     methods: ['POST'],
 )]
@@ -72,6 +72,7 @@ final class RunInboxActionController extends AppController
                 $verb = match ($kind) {
                     InboxActionKind::ResumeRun => InboxActionVerb::Resumed,
                     InboxActionKind::RetryCard => InboxActionVerb::Retried,
+                    InboxActionKind::StartSession => InboxActionVerb::SessionStarted,
                     default => InboxActionVerb::Declined,
                 };
                 $this->feedback->saved($saved, $item, $verb);

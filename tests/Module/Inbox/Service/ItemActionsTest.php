@@ -386,7 +386,7 @@ final class ItemActionsTest extends KernelTestCase
         $actions = $this->actions()->forItem($this->waitItem([$this->runWait($run)]));
 
         self::assertSame(
-            [[InboxActionKind::ResumeRun, false, 'The key is in the vault now.'], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::Dismiss, false, null]],
+            [[InboxActionKind::ResumeRun, false, 'The key is in the vault now.'], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::StartSession, false, null], [InboxActionKind::Dismiss, false, null]],
             array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $actions),
         );
     }

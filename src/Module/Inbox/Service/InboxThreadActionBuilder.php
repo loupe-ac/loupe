@@ -46,12 +46,13 @@ final readonly class InboxThreadActionBuilder
             } else {
                 $rows[] = $row;
             }
-            if ($action->default && InboxActionKind::Dismiss !== $action->kind) {
+            if ($action->default && InboxActionKind::Dismiss !== $action->kind && null === $action->disabledReasonKey) {
                 $default = $row;
             }
         }
 
-        $main = $default ?? ($rows[0] ?? null);
+        $enabled = array_values(array_filter($rows, static fn (ThreadAction $row): bool => null === $row->action->disabledReasonKey));
+        $main = $default ?? ($enabled[0] ?? null);
 
         return new InboxThreadActions($main, array_values(array_filter($rows, static fn (ThreadAction $row): bool => $row !== $main)), $dismiss);
     }

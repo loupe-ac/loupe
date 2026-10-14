@@ -231,10 +231,10 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]'));
         self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-action="open"]'));
-        // Nothing else fits this card, so only Dismiss is left and the menu has no main part.
+        // Only a disabled Start session and Dismiss fit this card, so the split button has no main part.
         self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split__main'));
-        self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 button[data-inbox-action="dismiss"]'));
+        self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split__menu [data-inbox-action="start-session"]')->attr('aria-disabled'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split__menu button[data-inbox-action="dismiss"]'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void

@@ -7,7 +7,7 @@
 {% set lastStatus = statuses|last %}
 {# Another open wait, or an expired or cancelled action, brings the reply card back. #}
 {% set answering = lastStatus and lastStatus.answers(watch.waits) %}
-{% set chips = {queued: 'pending', resumed: 'active', running: 'active', retried: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
+{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
 <div class="lp-inbox-thread" data-inbox-thread>
     <ul class="lp-inbox-thread__messages" data-inbox-waits>
         {% for wait in shownWaits %}
