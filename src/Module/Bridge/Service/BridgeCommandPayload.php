@@ -53,6 +53,7 @@ final class BridgeCommandPayload
             'runModel' => $run->model,
             'inboxActionId' => $command->inboxActionId?->toRfc4122(),
             'inboxItemNumber' => $command->inboxItemNumber,
+            'inboxItemId' => $command->inboxItemId?->toRfc4122(),
         ];
     }
 }

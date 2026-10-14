@@ -318,7 +318,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 // gets the line that names the item, before the footer.
 func renderWork(w api.WorkRequest, template string, v map[string]string) string {
 	if w.InboxActionID != "" {
-		return directive.RenderInboxAction(template, v, w.InboxItemNumber)
+		return directive.RenderInboxAction(template, v, directive.InboxAction{ItemID: w.InboxItemID, ItemNumber: w.InboxItemNumber, ActionID: w.InboxActionID})
 	}
 
 	return directive.Render(template, v)

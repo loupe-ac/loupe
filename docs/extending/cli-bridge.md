@@ -1171,10 +1171,13 @@ also sends a resume on its own when an
 [inbox](../using/inbox.md) ask of the session closes. That resume names the
 cause `ask-closed`, and its prompt tells the agent to read the answers. A resume
 that the owner starts from an inbox item names the cause `inbox-action`. It uses
-the prompt of a person's resume, plus a line that names the inbox item. The
-command carries the keys `inboxActionId` and `inboxItemNumber`, and a work
-request that an inbox action sent carries the same two keys. They hold ids
-only. The agent reads the owner's note with `inbox_get`.
+the prompt of a person's resume, plus a line that names the inbox item and the
+action. The command carries the keys `inboxActionId`, `inboxItemId` and
+`inboxItemNumber`. A work request that an inbox action sent carries the same
+three keys. So does the first request of a rule after the owner retried its
+pause from the inbox. The keys hold ids only. The line tells the agent to call
+`inbox_get` with the item id and to read the note of that action. The bridge
+adds the line only when the item id and the action id are both set.
 
 A rerun runs the command of a [command run](#command-action) again, after the
 run ended as `failed`, `timed-out` or `lost`. The person selects **Run again**

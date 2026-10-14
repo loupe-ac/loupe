@@ -24,6 +24,7 @@ use Symfony\Component\Uid\Uuid;
 // The heartbeat reply reads the open requests of the projects a bridge follows.
 #[ORM\Index(name: 'idx_work_requests_project_state', columns: ['project_id', 'state'])]
 #[ORM\Index(name: 'idx_work_requests_state_lease', columns: ['state', 'lease_until'])]
+#[ORM\Index(name: 'idx_work_requests_inbox_action', columns: ['inbox_action_id'])]
 // The workflow engine reads the requests of one card in every state.
 #[ORM\Index(name: 'idx_work_requests_subject', columns: ['subject_type', 'subject_id'])]
 #[ORM\Table(name: 'work_requests')]
@@ -111,6 +112,10 @@ class WorkRequest
     /** The number of the inbox item that the request came from, a label a person reads. */
     #[ORM\Column(name: 'inbox_item_number', nullable: true)]
     public ?int $inboxItemNumber = null;
+
+    /** The inbox item that the action belongs to, so the worker can read it with inbox_get. */
+    #[ORM\Column(name: 'inbox_item_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $inboxItemId = null;
 
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {

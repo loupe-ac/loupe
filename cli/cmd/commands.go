@@ -511,7 +511,7 @@ func (r *router) resumeRun(c api.Command) (state, reason string) {
 	case c.Cause == api.CauseAskClosed:
 		prompt = directive.RenderResumeAskClosed()
 	case c.InboxActionID != "":
-		prompt = directive.RenderResumeByInboxAction(c.InboxItemNumber)
+		prompt = directive.RenderResumeByInboxAction(directive.InboxAction{ItemID: c.InboxItemID, ItemNumber: c.InboxItemNumber, ActionID: c.InboxActionID})
 	}
 	p := pending{
 		key: keyFor(e), event: e, set: current, runID: config.NewUUID(), continues: c.RunKey, startedOn: started, origin: commandWork(c),

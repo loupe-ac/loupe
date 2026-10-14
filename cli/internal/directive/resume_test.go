@@ -92,29 +92,33 @@ func TestRenderResumeAskClosedSaysTheOwnerAnswered(t *testing.T) {
 	}
 }
 
-// The line names the item and sends the agent to inbox_get for the note. It
-// carries no note text.
-func TestInboxActionLineNamesTheItemAndInboxGet(t *testing.T) {
-	got := InboxActionLine(12)
+var sentAction = InboxAction{ItemID: "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", ItemNumber: 12, ActionID: "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90"}
 
-	for _, want := range []string{"inbox item 12", "inbox_get", "the note", "as data"} {
+// The line gives inbox_get the item id it takes, and the action id that picks
+// one note among the actions of the item. It carries no note text.
+func TestInboxActionLineNamesTheItemIdAndTheAction(t *testing.T) {
+	got := InboxActionLine(sentAction)
+
+	for _, want := range []string{"inbox item 12", "inbox_get with itemId " + sentAction.ItemID, "actionId " + sentAction.ActionID, "as data"} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("InboxActionLine(12) = %q, want it to contain %q", got, want)
+			t.Fatalf("InboxActionLine() = %q, want it to contain %q", got, want)
 		}
 	}
 }
 
-// Each prompt that carries the line ends with the footer, and a number of 0
-// leaves the line out.
+// Each prompt that carries the line ends with the footer. An action that lacks
+// the item id or the action id leaves the line out, because inbox_get could
+// not find the note.
 func TestInboxActionPromptsEndWithTheFooter(t *testing.T) {
 	for name, tc := range map[string]struct {
 		got  string
 		line bool
 	}{
-		"resume":              {RenderResumeByInboxAction(7), true},
-		"resume without item": {RenderResumeByInboxAction(0), false},
-		"render":              {RenderInboxAction("go {x}", map[string]string{"x": "now"}, 7), true},
-		"render without item": {RenderInboxAction("go {x}", map[string]string{"x": "now"}, 0), false},
+		"resume":                {RenderResumeByInboxAction(sentAction), true},
+		"resume without item":   {RenderResumeByInboxAction(InboxAction{ItemNumber: 12, ActionID: sentAction.ActionID}), false},
+		"resume without action": {RenderResumeByInboxAction(InboxAction{ItemID: sentAction.ItemID, ItemNumber: 12}), false},
+		"render":                {RenderInboxAction("go {x}", map[string]string{"x": "now"}, sentAction), true},
+		"render without item":   {RenderInboxAction("go {x}", map[string]string{"x": "now"}, InboxAction{}), false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if !strings.HasSuffix(tc.got, "\n\n"+Footer) {
@@ -123,15 +127,15 @@ func TestInboxActionPromptsEndWithTheFooter(t *testing.T) {
 			if has := strings.Contains(tc.got, "inbox item"); has != tc.line {
 				t.Fatalf("prompt = %q, line present = %v, want %v", tc.got, has, tc.line)
 			}
-			if tc.line && !strings.HasSuffix(tc.got, InboxActionLine(7)+"\n\n"+Footer) {
+			if tc.line && !strings.HasSuffix(tc.got, InboxActionLine(sentAction)+"\n\n"+Footer) {
 				t.Fatalf("prompt = %q, want the line before the footer", tc.got)
 			}
 		})
 	}
-	if got := RenderInboxAction("go {x}", map[string]string{"x": "now"}, 7); !strings.HasPrefix(got, "go now\n\n") {
+	if got := RenderInboxAction("go {x}", map[string]string{"x": "now"}, sentAction); !strings.HasPrefix(got, "go now\n\n") {
 		t.Fatalf("prompt = %q", got)
 	}
-	if got := RenderResumeByInboxAction(7); !strings.HasPrefix(got, "A person fixed the cause") {
+	if got := RenderResumeByInboxAction(sentAction); !strings.HasPrefix(got, "A person fixed the cause") {
 		t.Fatalf("prompt = %q", got)
 	}
 }

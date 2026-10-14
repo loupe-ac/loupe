@@ -89,6 +89,7 @@ use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
+use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\MarkerPass;
@@ -4062,6 +4063,7 @@ final class EngineTest extends KernelTestCase
             new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([])),
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
+            $this->service(RetryNotes::class),
         );
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
 

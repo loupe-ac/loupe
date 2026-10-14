@@ -82,6 +82,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             'prompt' => null,
             'inboxActionId' => null,
             'inboxItemNumber' => null,
+            'inboxItemId' => null,
         ]], $this->outboxPayloads());
         self::assertNull($stored->prompt);
 

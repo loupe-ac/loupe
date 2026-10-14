@@ -14,6 +14,7 @@ use App\Module\Workflow\Contract\ActionContext;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\DocumentFacts;
 use App\Module\Workflow\Contract\ParameterNames;
+use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Contract\WorkOpener;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 
@@ -28,6 +29,7 @@ final readonly class WorkRequestOpener implements WorkOpener
         private OpenWorkRequestHandler $openWorkRequest,
         private CardRepository $cards,
         private WorkRequestContexts $contexts,
+        private RetryNotes $retryNotes,
     ) {
     }
 
@@ -50,6 +52,7 @@ final readonly class WorkRequestOpener implements WorkOpener
             $documentId = $documents[0]->id;
         }
 
+        $retry = $this->retryNotes->forRuleWork($card->id ?? throw new \LogicException('A stored card has an id.'), $context->ruleId);
         try {
             $request = ($this->openWorkRequest)(new OpenWorkRequestCommand(
                 project: $card->project,
@@ -60,6 +63,9 @@ final readonly class WorkRequestOpener implements WorkOpener
                 ruleId: $context->ruleId,
                 context: $this->contexts->forCard($card, $facts->pullRequest, $documentId, $reason),
                 prompt: $context->prompt,
+                inboxActionId: $retry?->actionId,
+                inboxItemNumber: $retry?->itemNumber,
+                inboxItemId: $retry?->itemId,
             ));
         } catch (WorkRequestAlreadyLive $e) {
             return ActionOutcome::alreadyLive($e->ruleId);

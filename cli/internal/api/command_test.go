@@ -184,10 +184,11 @@ func TestACommandDecodesItsInboxKeys(t *testing.T) {
 		extra  string
 		id     string
 		number int
+		itemID string
 	}{
-		"set":          {`,"inboxActionId":"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90","inboxItemNumber":12`, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12},
-		"null":         {`,"inboxActionId":null,"inboxItemNumber":null`, "", 0},
-		"older server": {``, "", 0},
+		"set":          {`,"inboxActionId":"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90","inboxItemNumber":12,"inboxItemId":"0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90"`, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12, "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90"},
+		"null":         {`,"inboxActionId":null,"inboxItemNumber":null,"inboxItemId":null`, "", 0, ""},
+		"older server": {``, "", 0, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			var c Command
@@ -195,7 +196,7 @@ func TestACommandDecodesItsInboxKeys(t *testing.T) {
 			if err := json.Unmarshal([]byte(body), &c); err != nil {
 				t.Fatal(err)
 			}
-			if c.InboxActionID != tc.id || c.InboxItemNumber != tc.number {
+			if c.InboxActionID != tc.id || c.InboxItemNumber != tc.number || c.InboxItemID != tc.itemID {
 				t.Fatalf("command = %+v", c)
 			}
 		})

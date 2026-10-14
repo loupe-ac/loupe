@@ -74,6 +74,10 @@ class BridgeCommand
     #[ORM\Column(name: 'inbox_item_number', nullable: true)]
     public ?int $inboxItemNumber = null;
 
+    /** The inbox item that the action belongs to, so the worker can read it with inbox_get. */
+    #[ORM\Column(name: 'inbox_item_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $inboxItemId = null;
+
     public function __construct(
         /** The owner of the bridge row, which is the owner of the project. */
         #[ORM\JoinColumn(nullable: false)]

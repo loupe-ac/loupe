@@ -13,6 +13,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Workflow\WorkRequestContexts;
+use App\Module\Board\Workflow\WorkRequestOpener;
 use App\Module\Bridge\Command\CancelBridgeCommandHandler;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
@@ -51,13 +52,19 @@ use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\ItemActions;
+use App\Module\Inbox\Workflow\InboxRetryNotes;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseHandler;
+use App\Module\Workflow\Contract\ActionContext;
+use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardPauses;
+use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\ColumnRef;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Service\TemplateStageWorks;
+use App\Tests\Module\Workflow\Fact\FactsMother;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\Persistence\ManagerRegistry;
@@ -157,6 +164,48 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame((string) $this->waitOf($item)->pauseId, (string) $action->pauseId);
         self::assertNull($action->bridgeCommandId);
         self::assertNull($this->service(CardPauses::class)->findActive($this->card->id ?? throw new \LogicException('Stored.')));
+    }
+
+    public function test_the_first_request_of_the_retried_rule_names_the_retry_and_its_item(): void
+    {
+        $item = $this->pauseItem(PauseKind::Retries);
+        $action = $this->runAction($item, InboxActionKind::RetryCard, 'Use the other fixture') ?? throw new \LogicException('A retry records a row.');
+
+        self::assertNull($this->openedRequest($this->openRuleWork('other-rule', 'review')->requestId)->inboxActionId);
+        $request = $this->openedRequest($this->openRuleWork('review-rule', 'fix')->requestId);
+
+        self::assertSame(
+            [(string) $action->id, (string) $item->id, $item->number],
+            [(string) $request->inboxActionId, (string) $request->inboxItemId, $request->inboxItemNumber],
+        );
+        $payload = json_decode((string) $this->em()->getConnection()->fetchOne("SELECT payload FROM outbox_events WHERE type = 'bridge.work_request' AND payload::jsonb->>'workRequestId' = ?", [(string) $request->id]), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame([(string) $action->id, (string) $item->id], [$payload['inboxActionId'], $payload['inboxItemId']]);
+        self::assertStringNotContainsString('other fixture', json_encode($payload, \JSON_THROW_ON_ERROR));
+        self::assertNull($action->workRequestId);
+        self::assertNull($this->retryNotes()->forRuleWork($this->card->id ?? throw new \LogicException('Stored.'), 'review-rule'));
+    }
+
+    public function test_a_retry_names_no_request_of_another_rule_and_a_cancelled_retry_names_none(): void
+    {
+        $item = $this->pauseItem(PauseKind::Retries);
+        $action = $this->runAction($item, InboxActionKind::RetryCard, 'Go') ?? throw new \LogicException('A retry records a row.');
+        $cardId = $this->card->id ?? throw new \LogicException('Stored.');
+
+        self::assertNull($this->retryNotes()->forRuleWork($cardId, 'other-rule'));
+        self::assertNotNull($this->retryNotes()->forRuleWork($cardId, 'review-rule'));
+
+        $action->cancelledAt = new \DateTimeImmutable();
+        $this->em()->flush();
+        self::assertNull($this->retryNotes()->forRuleWork($cardId, 'review-rule'));
+    }
+
+    public function test_a_newer_pause_ends_the_match_of_an_earlier_retry(): void
+    {
+        $item = $this->pauseItem(PauseKind::Retries);
+        $this->runAction($item, InboxActionKind::RetryCard, 'Go');
+        $this->service(PauseCardHandler::class)(new PauseCardCommand($this->card, 'on-hold', 'review-rule', PauseKind::Retries));
+
+        self::assertNull($this->retryNotes()->forRuleWork($this->card->id ?? throw new \LogicException('Stored.'), 'review-rule'));
     }
 
     public function test_a_retry_of_a_rule_pause_is_refused(): void
@@ -384,7 +433,8 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame((string) $action->id, (string) $request->inboxActionId);
         self::assertNull($action->bridgeCommandId);
         $payload = json_decode((string) $this->em()->getConnection()->fetchOne("SELECT payload FROM outbox_events WHERE type = 'bridge.work_request'"), true, flags: \JSON_THROW_ON_ERROR);
-        self::assertSame([(string) $action->id, $item->number], [$payload['inboxActionId'], $payload['inboxItemNumber']]);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [$payload['inboxActionId'], $payload['inboxItemNumber'], $payload['inboxItemId']]);
+        self::assertSame((string) $item->id, (string) $request->inboxItemId);
         self::assertSame(
             ['itemId' => (string) $item->id, 'projectId' => (string) $this->project->id, 'kind' => 'send-agent', 'hasNote' => true, 'actionId' => (string) $action->id],
             $this->audit->record('inbox.action_requested')->context,
@@ -466,7 +516,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $action = $this->runAction($item, InboxActionKind::ResumeRun) ?? throw new \LogicException('A resume records a row.');
 
         $command = $this->em()->find(BridgeCommand::class, $action->bridgeCommandId);
-        self::assertSame([(string) $action->id, $item->number], [(string) $command?->inboxActionId, $command?->inboxItemNumber]);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [(string) $command?->inboxActionId, $command?->inboxItemNumber, (string) $command?->inboxItemId]);
     }
 
     private function cardIn(string $slug): Card
@@ -487,6 +537,33 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $request->state = $state;
         $this->em()->persist($request);
         $this->em()->flush();
+
+        return $request;
+    }
+
+    private function retryNotes(): InboxRetryNotes
+    {
+        return new InboxRetryNotes($this->service(CardPauses::class), $this->service(InboxActionRepository::class));
+    }
+
+    /** Opens the work of a rule of the card as the engine does after a release. */
+    private function openRuleWork(string $ruleId, string $kind): ActionOutcome
+    {
+        $opener = new WorkRequestOpener(
+            $this->service(OpenWorkRequestHandler::class),
+            $this->service(CardRepository::class),
+            $this->service(WorkRequestContexts::class),
+            $this->retryNotes(),
+        );
+        $card = new CardSnapshot($this->card->id ?? throw new \LogicException('Stored.'), $this->project->id ?? throw new \LogicException('Stored.'), $this->card->number, 'feature', new ColumnRef(Uuid::v7(), false, false), null, null, null);
+
+        return $opener->open(new ActionContext($card, $ruleId, false, [], FactsMother::facts(), 0), $kind, null);
+    }
+
+    private function openedRequest(?Uuid $requestId): WorkRequest
+    {
+        $request = null === $requestId ? null : $this->em()->find(WorkRequest::class, $requestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
 
         return $request;
     }

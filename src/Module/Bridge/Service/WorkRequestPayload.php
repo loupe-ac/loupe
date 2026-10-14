@@ -43,6 +43,7 @@ final class WorkRequestPayload
             'prompt' => $request->prompt,
             'inboxActionId' => $request->inboxActionId?->toRfc4122(),
             'inboxItemNumber' => $request->inboxItemNumber,
+            'inboxItemId' => $request->inboxItemId?->toRfc4122(),
         ];
     }
 }

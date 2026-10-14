@@ -112,7 +112,7 @@ final readonly class RunInboxActionHandler
         $this->em->flush();
 
         try {
-            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction, $action->id, $command->item->number));
+            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction, $action->id, $command->item->number, $command->item->id));
         } catch (DomainErrors $e) {
             // The bridge closes the entity manager when a race trips its unique index, so delete through the connection.
             $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
@@ -131,12 +131,18 @@ final readonly class RunInboxActionHandler
         $card = $this->cardDirectory->findInProject($command->item->project->id ?? throw new \LogicException('A stored project has an id.'), $wait->watch->cardId)
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
-        ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), Actor::Human, $wait->pauseId));
-
+        // The row commits before the release, so the rule's next request finds it. A refused release removes it again.
         $action = new InboxAction($command->item, InboxActionKind::RetryCard, $command->user, $note);
         $action->pauseId = $wait->pauseId;
         $this->em->persist($action);
         $this->em->flush();
+
+        try {
+            ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), Actor::Human, $wait->pauseId));
+        } catch (DomainErrors $e) {
+            $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
+            throw $e;
+        }
 
         return $action;
     }
@@ -164,6 +170,7 @@ final readonly class RunInboxActionHandler
                 fresh: true,
                 inboxActionId: $action->id,
                 inboxItemNumber: $item->number,
+                inboxItemId: $item->id,
             ));
         } catch (WorkRequestAlreadyLive|DomainErrors) {
             // A race can trip the unique index of live requests, which closes the entity manager.

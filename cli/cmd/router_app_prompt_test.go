@@ -135,7 +135,7 @@ func TestAWorkOfferFromAnInboxActionNamesTheItemInItsPrompt(t *testing.T) {
 				h.worker.result = workerResult{hasResult: true, status: "finished"}
 				w := tc.offer()
 				if sent {
-					w.InboxActionID, w.InboxItemNumber = "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12
+					w.InboxActionID, w.InboxItemNumber, w.InboxItemID = "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12, "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90"
 				}
 
 				h.offer(f, w)
@@ -145,7 +145,7 @@ func TestAWorkOfferFromAnInboxActionNamesTheItemInItsPrompt(t *testing.T) {
 					t.Fatalf("workers = %+v", calls)
 				}
 				prompt := calls[0].prompt
-				line := directive.InboxActionLine(12)
+				line := directive.InboxActionLine(directive.InboxAction{ItemID: "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", ItemNumber: 12, ActionID: "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90"})
 				if got := strings.Contains(prompt, line); got != sent {
 					t.Fatalf("prompt = %q, line present = %v, want %v", prompt, got, sent)
 				}

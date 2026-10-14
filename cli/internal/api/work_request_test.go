@@ -276,17 +276,18 @@ func TestAWorkRequestDecodesItsInboxKeys(t *testing.T) {
 		body   string
 		id     string
 		number int
+		itemID string
 	}{
-		"set":          {base + `,"inboxActionId":"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90","inboxItemNumber":12}`, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12},
-		"null":         {base + `,"inboxActionId":null,"inboxItemNumber":null}`, "", 0},
-		"older server": {workRequestJSON(WorkRequestOpen), "", 0},
+		"set":          {base + `,"inboxActionId":"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90","inboxItemNumber":12,"inboxItemId":"0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90"}`, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12, "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90"},
+		"null":         {base + `,"inboxActionId":null,"inboxItemNumber":null,"inboxItemId":null}`, "", 0, ""},
+		"older server": {workRequestJSON(WorkRequestOpen), "", 0, ""},
 	} {
 		t.Run(name, func(t *testing.T) {
 			var w WorkRequest
 			if err := json.Unmarshal([]byte(tc.body), &w); err != nil {
 				t.Fatal(err)
 			}
-			if w.InboxActionID != tc.id || w.InboxItemNumber != tc.number {
+			if w.InboxActionID != tc.id || w.InboxItemNumber != tc.number || w.InboxItemID != tc.itemID {
 				t.Fatalf("work request = %+v", w)
 			}
 		})

@@ -21,6 +21,7 @@ final readonly class RequestBridgeCommandCommand
         public BridgeCommandCause $cause = BridgeCommandCause::Person,
         public ?Uuid $inboxActionId = null,
         public ?int $inboxItemNumber = null,
+        public ?Uuid $inboxItemId = null,
     ) {
     }
 }

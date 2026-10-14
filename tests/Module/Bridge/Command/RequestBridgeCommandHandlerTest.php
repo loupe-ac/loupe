@@ -91,6 +91,7 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
             'runModel' => null,
             'inboxActionId' => null,
             'inboxItemNumber' => null,
+            'inboxItemId' => null,
         ]], $this->outboxPayloads());
 
         $record = $audit->record('bridge.command_requested');

@@ -27,6 +27,7 @@ final readonly class OpenWorkRequestCommand
         public bool $fresh = false,
         public ?Uuid $inboxActionId = null,
         public ?int $inboxItemNumber = null,
+        public ?Uuid $inboxItemId = null,
     ) {
     }
 }
