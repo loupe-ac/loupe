@@ -295,14 +295,16 @@ The command prints each path it wrote, relative to the directory, one per line.
 |---|---|
 | `tokens/*.css` | The tokens, split by group from `tokens.css`, and the fonts and base resets |
 | `styles.css` | The Tailwind build of `assets/styles/design-system.css`, with the real `lp-` rules |
-| `components/<group>/` | A React wrapper, a type file and a prompt file for each catalog entry, and one card for the group |
+| `components/<group>/<Name>/` | A React wrapper, a type file, a prompt file and one preview card for each catalog entry, in a folder of its own |
 | `guidelines/` | One card for each token group |
 | `readme.md` and `SKILL.md` | This page, and the skill that points at it |
 | `assets/fonts/` | The font files and their licence |
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
-A part with an inner structure, such as a sidebar, sets `export` on its catalog entry and goes in the `layout` group. The value names a folder under `templates/Module/DesignSystem/export/layout/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates. `demo.jsx.twig` draws the part in the `layout` group card. An entry with no Twig component sets `template` to null.
+A part with an inner structure, such as a sidebar, sets `export` on its catalog entry and goes in the `layout` group. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates. `demo.jsx.twig` draws the part in its own preview card. An entry with no folder uses `default.demo.jsx.twig` for its card. An entry with no Twig component sets `template` to null.
+
+Each entry gets its own card, so Claude Design shows only that component as its preview. The `viewport` field of the entry sets the size of the card and of its starting point, `700x150` by default. Set a larger value for a component whose demo is taller.
 
 The command never writes `_ds_bundle.js`, `_ds_manifest.json`, `_adherence.oxlintrc.json`, `.thumbnail` or `ds-mount.js`. The platform makes those files.
 

@@ -9,8 +9,9 @@ namespace App\Module\DesignSystem;
  * adoption check counts its root class, and the Claude Design export lists it.
  *
  * A null `template` marks a part with documented classes and no Twig component.
- * `export` names a folder under `templates/Module/DesignSystem/export/layout/`
+ * `export` names a folder under `templates/Module/DesignSystem/export/<group>/`
  * that holds the hand-written wrapper of a part with an inner structure.
+ * `viewport` is the width and height of its preview card, `700x150` by default.
  */
 final readonly class ComponentEntry
 {
@@ -33,6 +34,7 @@ final readonly class ComponentEntry
         public string $dotClass = '',
         public string $contentClass = '',
         public ?string $export = null,
+        public string $viewport = '700x150',
     ) {
     }
 }

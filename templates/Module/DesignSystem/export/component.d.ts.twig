@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
  * {{ entry.summary }}{% if isButton %} Sentence-case labels. Combine modifiers with a space, such as `ghost icon`.{% endif %}
 
  *
- * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} variant{% if entry.sizes %} and size{% endif %}" viewport="700x150"
+ * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} variant{% if entry.sizes %} and size{% endif %}" viewport="{{ entry.viewport }}"
  */
 export interface {{ entry.name }}Props {
 {% if entry.variants %}
