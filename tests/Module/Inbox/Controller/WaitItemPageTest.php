@@ -9,9 +9,12 @@ use App\Module\Board\Entity\CardDocument;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAction;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
@@ -231,10 +234,27 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]'));
         self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-action="open"]'));
-        // Only a disabled Start session and Dismiss fit this card, so the split button has no main part.
-        self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split__main'));
+        // The run cannot resume and Open is the card itself, so the first enabled action, Send an agent, takes the main part.
+        self::assertSame('send-agent', $crawler->filter('#inbox-item-1 .inbox-split__main')->attr('data-inbox-action'));
         self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split__menu [data-inbox-action="start-session"]')->attr('aria-disabled'));
         self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split__menu button[data-inbox-action="dismiss"]'));
+    }
+
+    public function test_send_an_agent_from_the_card_page_queues_the_agent(): void
+    {
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun();
+        $cardUrl = '/projects/'.$this->project->id.'/board/cards/'.$this->card->id;
+        $crawler = $this->client->request(Request::METHOD_GET, $cardUrl);
+
+        $this->client->submit($crawler->filter('#inbox-item-1 .inbox-split__main')->form());
+
+        self::assertResponseRedirects($cardUrl.'?tab=conversation');
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('The agent of item 1 is queued.', $crawler->text());
+        $actions = static::getContainer()->get(InboxActionRepository::class);
+        self::assertInstanceOf(InboxActionRepository::class, $actions);
+        self::assertSame([InboxActionKind::SendAgent], array_map(static fn (InboxAction $action): InboxActionKind => $action->kind, $actions->findAll()));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void

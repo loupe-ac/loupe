@@ -282,7 +282,7 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->runItem();
 
-        $this->post($this->actionPath($item, 'send-agent'), $item, []);
+        $this->post($this->actionPath($item, 'review'), $item, []);
         self::assertResponseStatusCodeSame(404);
 
         $this->setInboxFlag(false);

@@ -70,9 +70,10 @@ final class InboxExtensionActionsTest extends KernelTestCase
 
         self::assertSame(InboxActionKind::ResumeRun, $actions->main?->action->kind);
         self::assertNull($actions->main->href);
-        self::assertSame([InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
-        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $actions->menu[0]->href);
-        self::assertTrue($actions->menu[0]->card);
+        self::assertSame([InboxActionKind::SendAgent, InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
+        self::assertNull($actions->menu[0]->href);
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $actions->menu[1]->href);
+        self::assertTrue($actions->menu[1]->card);
         self::assertSame(InboxActionKind::Dismiss, $actions->dismiss?->action->kind);
     }
 
@@ -82,7 +83,7 @@ final class InboxExtensionActionsTest extends KernelTestCase
 
         $actions = $this->extension->actions($item, (string) $this->card->id);
 
-        self::assertSame([InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
+        self::assertSame([InboxActionKind::SendAgent, InboxActionKind::StartSession], array_map(static fn ($row) => $row->action->kind, $actions->menu));
         self::assertSame(InboxActionKind::ResumeRun, $actions->main?->action->kind);
     }
 

@@ -5646,6 +5646,10 @@
                 <source>inbox.flash.retried</source>
                 <target>The card of item %number% is released.</target>
             </trans-unit>
+            <trans-unit id="inbox.flash.agent_sent">
+                <source>inbox.flash.agent_sent</source>
+                <target>The agent of item %number% is queued.</target>
+            </trans-unit>
             <trans-unit id="inbox.flash.session_started">
                 <source>inbox.flash.session_started</source>
                 <target>The session of item %number% is queued.</target>
@@ -7232,6 +7236,7 @@
             <trans-unit id="inbox.status.verb.reviewed"><source>inbox.status.verb.reviewed</source><target>Review recorded</target></trans-unit>
             <trans-unit id="inbox.status.verb.resumed"><source>inbox.status.verb.resumed</source><target>Resume queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.retried"><source>inbox.status.verb.retried</source><target>Card released</target></trans-unit>
+            <trans-unit id="inbox.status.verb.agent-sent"><source>inbox.status.verb.agent-sent</source><target>Agent queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.session-started"><source>inbox.status.verb.session-started</source><target>Session queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.cancelled"><source>inbox.status.verb.cancelled</source><target>Action cancelled</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%.</target></trans-unit>
