@@ -1,0 +1,13 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+      <div className="row">
+{% for modifier in entry.variants %}
+        <{{ name }} modifier="{{ modifier }}">{{ modifier }}</{{ name }}>
+{% endfor %}
+      </div>
+      <div className="row">
+        <{{ name }} modifier="ok" dot={false}>no dot</{{ name }}>
+        <{{ name }}>default</{{ name }}>
+        <{{ name }} modifier="failed" reason="A pull request waits for a merge.">with a reason</{{ name }}>
+      </div>
+{% endautoescape %}

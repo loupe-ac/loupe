@@ -1,0 +1,14 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's {{ name|lower }}. {{ entry.summary }}
+
+```jsx
+{% for variant in entry.variants %}
+<{{ name }} variant="{{ variant }}" />
+{% endfor %}
+```
+
+Variants: {{ entry.variants|map(v => '`' ~ v ~ '`')|join(', ') }}.
+
+Pass the shapes of a Lucide icon as children. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

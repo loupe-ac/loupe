@@ -1,0 +1,18 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }}, plain and interactive" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** Keeps the tooltip open while the pointer or the focus is inside it, so it may hold a link. */
+    interactive?: boolean;
+    className?: string;
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

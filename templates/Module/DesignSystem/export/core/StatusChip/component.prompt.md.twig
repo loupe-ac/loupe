@@ -1,0 +1,12 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's status chip. {{ entry.summary }}
+
+```jsx
+<{{ name }} modifier="ok">Approved</{{ name }}>
+<{{ name }} modifier="failed" label="Stuck for 2 h" reason="A pull request waits for a merge." />
+<{{ name }} modifier="neutral" dot={false}>Draft</{{ name }}>
+```
+
+Pick the colour with `modifier`: {{ entry.variants|join(', ') }}. Pass `reason` to add a help icon and a tooltip that opens on hover and focus. The text is sentence case and never ends in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

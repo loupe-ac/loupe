@@ -1,0 +1,6 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% for severity in entry.variants %}
+      <{{ entry.name }} severity="{{ severity }}">{{ severity|capitalize }} message</{{ entry.name }}>
+{% endfor %}
+      <{{ entry.name }} severity="error" dismissLabel="Dismiss">Upload failed</{{ entry.name }}>
+{% endautoescape %}

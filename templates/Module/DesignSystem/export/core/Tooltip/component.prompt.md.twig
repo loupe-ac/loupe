@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's tooltip. {{ entry.summary }}
+
+```jsx
+<{{ name }}>Save the document</{{ name }}>
+<{{ name }} interactive>Read the <a href="#">review rules</a></{{ name }}>
+```
+
+Pass `interactive` for a tooltip that holds a link. Text is sentence case and never ends in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

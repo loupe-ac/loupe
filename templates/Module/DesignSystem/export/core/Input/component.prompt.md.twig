@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's input. {{ entry.summary }}
+
+```jsx
+<{{ name }} placeholder="Example" />
+<{{ name }} mono placeholder="PR-1234" />
+```
+
+Pass `mono` for a value that reads as code, such as an identifier. Labels are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}
