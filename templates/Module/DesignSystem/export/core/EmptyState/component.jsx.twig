@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ icon, title, body, linkLabel, linkHref, className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return (
+        <div {...rest} className={className}>
+            {icon && <span className="{{ entry.rootClass }}__icon">{icon}</span>}
+            {title && <h2 className="{{ entry.rootClass }}__title">{title}</h2>}
+            {body && <p className="{{ entry.rootClass }}__body">{body}</p>}
+            {children}
+            {linkLabel && linkHref && <a className="{{ entry.rootClass }}__link" href={linkHref} target="_blank" rel="noopener noreferrer">{linkLabel}</a>}
+        </div>
+    );
+}
+{% endautoescape %}

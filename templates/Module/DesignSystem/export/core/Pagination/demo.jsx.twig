@@ -1,0 +1,5 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+      <{{ entry.name }} page={1} totalPages={7} pageList={[1, 2, 3, null, 7]} />
+      <{{ entry.name }} page={4} totalPages={7} pageList={[1, null, 3, 4, 5, null, 7]} />
+      <{{ entry.name }} page={7} totalPages={7} pageList={[1, null, 5, 6, 7]} />
+{% endautoescape %}

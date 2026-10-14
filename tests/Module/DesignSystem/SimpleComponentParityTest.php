@@ -45,6 +45,9 @@ final class SimpleComponentParityTest extends KernelTestCase
         yield 'FieldErrors' => ['FieldErrors', '<twig:Ds:FieldErrors>A</twig:Ds:FieldErrors>', '<twig:Ds:FieldErrors as="p">A</twig:Ds:FieldErrors>', "{ as: Element = 'div',", ''];
         yield 'Input' => ['Input', '<twig:Ds:Input />', '<twig:Ds:Input :mono="true" />', '{ mono = false,', "'lp-input--mono'"];
         yield 'Tooltip' => ['Tooltip', '<twig:Ds:Tooltip>A</twig:Ds:Tooltip>', '<twig:Ds:Tooltip :interactive="true">A</twig:Ds:Tooltip>', '{ interactive = false,', "'lp-tooltip--interactive'"];
+        yield 'Flash' => ['Flash', '<twig:Ds:Flash severity="info" dismissLabel="Dismiss">A</twig:Ds:Flash>', '<twig:Ds:Flash severity="error" dismissLabel="Dismiss">A</twig:Ds:Flash>', '{ severity = ', "'lp-flash--' + severity"];
+        yield 'EmptyState' => ['EmptyState', '<twig:Ds:EmptyState icon="lucide:inbox" title="T" body="B" linkLabel="L" linkHref="/x" />', '<twig:Ds:EmptyState icon="lucide:inbox" title="T" body="B" linkLabel="L" linkHref="/x" />', '{ icon, title, body, linkLabel, linkHref,', ''];
+        yield 'Pagination' => ['Pagination', '<twig:Ds:Pagination route="app_projects" :page="1" :totalPages="3" :pageList="[1, 2, null, 3]" />', '<twig:Ds:Pagination route="app_projects" :page="2" :totalPages="3" :pageList="[1, 2, null, 3]" />', '{ page, totalPages, pageList,', ''];
         yield 'Textarea' => ['Textarea', '<twig:Ds:Textarea>A</twig:Ds:Textarea>', '<twig:Ds:Textarea>A</twig:Ds:Textarea>', '{ defaultValue,', ''];
     }
 
@@ -91,6 +94,9 @@ final class SimpleComponentParityTest extends KernelTestCase
         self::assertStringContainsString('mono?: boolean;', (string) file_get_contents(self::$directory.'/components/core/Input/Input.d.ts'));
         self::assertStringContainsString('interactive?: boolean;', (string) file_get_contents(self::$directory.'/components/core/Tooltip/Tooltip.d.ts'));
         self::assertStringContainsString('defaultValue?: string;', (string) file_get_contents(self::$directory.'/components/core/Textarea/Textarea.d.ts'));
+        self::assertStringContainsString('severity?:', (string) file_get_contents(self::$directory.'/components/core/Flash/Flash.d.ts'));
+        self::assertStringNotContainsString('variant', (string) file_get_contents(self::$directory.'/components/core/Flash/Flash.d.ts'));
+        self::assertStringContainsString('hrefFor?: (page: number) => string;', (string) file_get_contents(self::$directory.'/components/core/Pagination/Pagination.d.ts'));
     }
 
     public function test_the_textarea_wrapper_passes_its_text_as_a_default_value(): void
@@ -99,6 +105,26 @@ final class SimpleComponentParityTest extends KernelTestCase
 
         self::assertStringContainsString('<textarea {...rest} className={className} defaultValue={defaultValue ?? children} />', $jsx);
         self::assertStringNotContainsString('</textarea>', $jsx);
+    }
+
+    public function test_the_pagination_wrapper_uses_the_labels_of_the_app(): void
+    {
+        $jsx = (string) file_get_contents(self::$directory.'/components/core/Pagination/Pagination.jsx');
+        $html = $this->render('<twig:Ds:Pagination route="app_projects" :page="2" :totalPages="7" :pageList="[1, 2, 3, null, 7]" />');
+
+        foreach (['Page 2 of 7' => 'Page {page} of {totalPages}', 'Previous page' => 'Previous page', 'Next page' => 'Next page', 'aria-label="Pagination"' => 'aria-label="Pagination"'] as $rendered => $wrapper) {
+            self::assertStringContainsString($rendered, $html);
+            self::assertStringContainsString($wrapper, $jsx);
+        }
+        self::assertStringContainsString('if (!(totalPages > 1))', $jsx);
+    }
+
+    public function test_the_flash_wrapper_draws_the_dismiss_button_only_with_a_label(): void
+    {
+        $jsx = (string) file_get_contents(self::$directory.'/components/core/Flash/Flash.jsx');
+
+        self::assertStringNotContainsString('<button', $this->render('<twig:Ds:Flash severity="info">A</twig:Ds:Flash>'));
+        self::assertStringContainsString('{dismissLabel && <button type="button" className="lp-flash__dismiss" data-action="click->flash#dismiss">{dismissLabel}</button>}', $jsx);
     }
 
     private function render(string $template): string

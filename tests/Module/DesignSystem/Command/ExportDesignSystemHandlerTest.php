@@ -150,7 +150,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_every_wrapper_forwards_attributes_and_merges_a_caller_class(): void
     {
-        foreach (['Button', 'Flash'] as $name) {
+        foreach (['Button', 'Badge', 'Flash', 'EmptyState'] as $name) {
             $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'/'.$name.'.jsx');
 
             self::assertStringContainsString('className: extra', $jsx);
@@ -280,28 +280,39 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_a_non_button_component_is_not_a_button(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.jsx');
         $types = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.d.ts');
-        $prompt = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/core/EmptyState/EmptyState.card.html');
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.card.html');
 
-        self::assertStringContainsString('<div {...rest} className={className}>', $jsx);
+        self::assertStringContainsString('<span {...rest} className={className}>', $jsx);
         self::assertStringNotContainsString('<button', $jsx);
         self::assertStringNotContainsString('disabled', $jsx);
         self::assertStringNotContainsString('href', $types);
         self::assertStringNotContainsString('disabled', $prompt);
-        self::assertStringContainsString('<Flash variant="success">Example</Flash>', $prompt);
-        self::assertStringContainsString('<EmptyState>Example</EmptyState>', $card);
+        self::assertStringContainsString('<Badge status="draft">draft</Badge>', $card);
+    }
+
+    public function test_the_flash_empty_state_and_pagination_have_their_own_wrappers_and_cards(): void
+    {
+        $flash = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.jsx');
+        $empty = (string) file_get_contents($this->directory.'/components/core/EmptyState/EmptyState.jsx');
+        $pagination = (string) file_get_contents($this->directory.'/components/core/Pagination/Pagination.jsx');
+
+        self::assertStringContainsString('{dot && <span className="lp-flash__dot"></span>}', $flash);
+        self::assertStringContainsString('<span className="lp-flash__message">{children}</span>', $flash);
+        self::assertStringContainsString('<h2 className="lp-empty-state__title">{title}</h2>', $empty);
+        self::assertStringContainsString('<nav {...rest} className={className} aria-label="Pagination">', $pagination);
+        self::assertStringContainsString('<Flash severity="error" dismissLabel="Dismiss">Upload failed</Flash>', (string) file_get_contents($this->directory.'/components/core/Flash/Flash.card.html'));
+        self::assertStringContainsString('linkLabel="Read the guide"', (string) file_get_contents($this->directory.'/components/core/EmptyState/EmptyState.card.html'));
+        self::assertStringContainsString('<Pagination page={4} totalPages={7}', (string) file_get_contents($this->directory.'/components/core/Pagination/Pagination.card.html'));
     }
 
     public function test_a_component_with_a_dot_renders_its_child_elements(): void
     {
-        $flash = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.jsx');
         $chip = (string) file_get_contents($this->directory.'/components/core/StatusChip/StatusChip.jsx');
         $badge = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.jsx');
 
-        self::assertStringContainsString('{dot && <span className="lp-flash__dot"></span>}', $flash);
-        self::assertStringContainsString('<span className="lp-flash__message">{children}</span>', $flash);
         self::assertStringContainsString('{dot && <span className="lp-status-chip__dot"></span>}', $chip);
         self::assertStringContainsString('dot = true', $chip);
         self::assertStringContainsString('dot?: boolean;', (string) file_get_contents($this->directory.'/components/core/StatusChip/StatusChip.d.ts'));
