@@ -158,6 +158,36 @@ class BridgeCommandRepository extends ServiceEntityRepository
     }
 
     /**
+     * The commands with these ids, with their runs loaded.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, BridgeCommand> keyed by the RFC 4122 command id
+     */
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<BridgeCommand> $commands */
+        $commands = $this->createQueryBuilder('c')
+            ->addSelect('r')
+            ->join('c.workerRun', 'r')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getResult();
+
+        $byId = [];
+        foreach ($commands as $command) {
+            $byId[(string) $command->id] = $command;
+        }
+
+        return $byId;
+    }
+
+    /**
      * The newest command of each run. On a tie of the request time, the higher id wins.
      *
      * @param list<WorkerRun> $runs
