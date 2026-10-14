@@ -37,6 +37,10 @@ class InboxAction
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $pauseId = null;
 
+    /** The wait the action answers. A wait that opens later brings the reply back, even in the same second. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $waitId = null;
+
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $cancelledAt = null;
 

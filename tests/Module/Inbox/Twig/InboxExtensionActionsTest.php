@@ -22,6 +22,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Twig\InboxExtension;
 use App\Module\Inbox\View\InboxActionState;
+use App\Module\Inbox\View\InboxActionStatus;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -140,6 +141,47 @@ final class InboxExtensionActionsTest extends KernelTestCase
             [InboxActionState::Queued, InboxActionState::Resumed, InboxActionState::Retried, InboxActionState::Running],
             array_values($running),
         );
+    }
+
+    public function test_a_wait_that_opens_in_the_second_of_the_click_brings_the_reply_back(): void
+    {
+        $item = $this->runItem(WorkerRunState::Blocked);
+        $watch = $this->watchOf($item);
+        $answered = $watch->waits->first() ?: throw new \LogicException('A run item has a wait.');
+        $second = new \DateTimeImmutable('2026-10-14 01:00:00');
+
+        $action = new InboxAction($item, InboxActionKind::RetryCard, $this->project->owner, '', $second);
+        $action->waitId = $answered->id;
+        $this->em()->persist($action);
+        $this->em()->flush();
+        $status = $this->extension->actionStatusLines($item)[0];
+
+        self::assertTrue($status->answers($watch->waits));
+
+        $answered->endedAt = $second;
+        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: Uuid::v7(), startedAt: $second));
+        $this->em()->flush();
+
+        self::assertFalse($status->answers($watch->waits));
+    }
+
+    public function test_an_action_answers_only_while_it_runs_and_a_wait_is_open(): void
+    {
+        $item = $this->runItem(WorkerRunState::Blocked);
+        $watch = $this->watchOf($item);
+        $answered = $watch->waits->first() ?: throw new \LogicException('A run item has a wait.');
+        $action = new InboxAction($item, InboxActionKind::RetryCard, $this->project->owner);
+        $action->waitId = $answered->id;
+
+        self::assertFalse(new InboxActionStatus($action, InboxActionState::Expired, 'inbox.action.status.expired')->answers($watch->waits));
+
+        $answered->endedAt = new \DateTimeImmutable();
+        self::assertFalse(new InboxActionStatus($action, InboxActionState::Retried, 'inbox.action.status.retried')->answers($watch->waits));
+    }
+
+    private function watchOf(InboxItem $item): InboxCardWatch
+    {
+        return $this->extension->cardWatch($item) ?? throw new \LogicException('A run item has a watch.');
     }
 
     private function runItem(WorkerRunState $state): InboxItem

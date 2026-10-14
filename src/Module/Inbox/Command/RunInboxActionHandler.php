@@ -97,6 +97,7 @@ final readonly class RunInboxActionHandler
 
         // The row commits first, so no queued command lacks a row. A refused request removes it again.
         $action = new InboxAction($command->item, InboxActionKind::ResumeRun, $command->user, $note);
+        $action->waitId = $wait->id;
         $this->em->persist($action);
         $this->em->flush();
 
@@ -124,6 +125,7 @@ final readonly class RunInboxActionHandler
 
         $action = new InboxAction($command->item, InboxActionKind::RetryCard, $command->user, $note);
         $action->pauseId = $wait->pauseId;
+        $action->waitId = $wait->id;
         $this->em->persist($action);
         $this->em->flush();
 
