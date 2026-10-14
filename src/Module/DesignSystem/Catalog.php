@@ -120,8 +120,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A short message about the result of an action.',
                 element: 'div',
-                dotClass: 'lp-flash__dot',
-                contentClass: 'lp-flash__message',
+                export: 'Flash',
                 viewport: '700x190',
             ),
             new ComponentEntry(
@@ -134,6 +133,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The block that tells a user a list or page has no content yet.',
                 element: 'div',
+                export: 'EmptyState',
                 viewport: '700x220',
             ),
             new ComponentEntry(
@@ -233,6 +233,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The previous, next and page-number links of a long list.',
                 element: 'nav',
+                export: 'Pagination',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'Tooltip',

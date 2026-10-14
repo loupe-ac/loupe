@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export const {{ entry.name|upper }}_SEVERITIES = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
+
+export function {{ entry.name }}({ severity = 'info', dismissLabel, dot = true, className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}', '{{ entry.rootClass }}--' + severity];
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return (
+        <div role="status" data-controller="flash" {...rest} className={className}>
+            {dot && <span className="{{ entry.rootClass }}__dot"></span>}
+            <span className="{{ entry.rootClass }}__message">{children}</span>
+            {dismissLabel && <button type="button" className="{{ entry.rootClass }}__dismiss" data-action="click->flash#dismiss">{dismissLabel}</button>}
+        </div>
+    );
+}
+{% endautoescape %}

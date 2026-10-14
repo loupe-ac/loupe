@@ -1,0 +1,23 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} severity, with and without a dismiss button" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The colour of the dot. */
+    severity?: 'success' | 'error' | 'warning' | 'info';
+    /** The text of the dismiss button. Leave it out for a message with no button. */
+    dismissLabel?: string;
+    /** Draws the coloured dot. True by default. */
+    dot?: boolean;
+    className?: string;
+    /** The message. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}
