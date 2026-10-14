@@ -136,6 +136,10 @@
                 <source>account.auth.footer.copyright</source>
                 <target>© Geoffrey Bachelet</target>
             </trans-unit>
+            <trans-unit id="account.auth.footer.blog">
+                <source>account.auth.footer.blog</source>
+                <target>Blog</target>
+            </trans-unit>
             <trans-unit id="account.auth.footer.docs">
                 <source>account.auth.footer.docs</source>
                 <target>Docs</target>

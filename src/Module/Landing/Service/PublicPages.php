@@ -29,7 +29,16 @@ final readonly class PublicPages
 
         #[Autowire(param: 'app.url')]
         private string $appUrl,
+
+        #[Autowire(env: 'BLOG_PROXY_HOST')]
+        private string $blogProxyHost,
     ) {
+    }
+
+    /** nginx serves /blog from the external host, so the app never routes it. */
+    public function hasBlog(): bool
+    {
+        return '' !== $this->blogProxyHost;
     }
 
     public function isPublic(?string $route): bool
@@ -51,6 +60,9 @@ final readonly class PublicPages
             if ($listed && $this->isRendered($route)) {
                 $urls[] = $this->absoluteUrl($this->urlGenerator->generate($route));
             }
+        }
+        if ($this->hasBlog()) {
+            $urls[] = $this->absoluteUrl('/blog');
         }
 
         return $urls;

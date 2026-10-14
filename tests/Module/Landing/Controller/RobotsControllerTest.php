@@ -9,6 +9,14 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class RobotsControllerTest extends WebTestCase
 {
+    #[\Override]
+    protected function tearDown(): void
+    {
+        $this->setBlogProxyHost('');
+
+        parent::tearDown();
+    }
+
     public function test_a_visitor_with_no_session_reads_the_rules_as_plain_text(): void
     {
         $client = static::createClient();
@@ -48,5 +56,55 @@ final class RobotsControllerTest extends WebTestCase
         $body = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('Sitemap: '.rtrim($appUrl, '/').'/sitemap.xml', $body);
         self::assertStringNotContainsString('evil.example', $body);
+    }
+
+    public function test_with_a_blog_it_allows_the_blog_before_the_catch_all_and_lists_its_sitemap(): void
+    {
+        $this->setBlogProxyHost('blog.example.com');
+        $client = static::createClient();
+        $base = $this->base();
+
+        $client->request(Request::METHOD_GET, '/robots.txt');
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        $lines = explode("\n", $body);
+        $disallow = array_search('Disallow: /', $lines, true);
+        self::assertIsInt($disallow);
+        foreach (['Allow: /blog$', 'Allow: /blog/'] as $rule) {
+            $position = array_search($rule, $lines, true);
+            self::assertIsInt($position, $rule);
+            self::assertLessThan($disallow, $position, $rule);
+        }
+        $sitemap = array_search('Sitemap: '.$base.'/sitemap.xml', $lines, true);
+        self::assertIsInt($sitemap);
+        self::assertSame('Sitemap: '.$base.'/blog/sitemap.xml', $lines[$sitemap + 1]);
+        self::assertStringNotContainsString('blog.example.com', $body);
+    }
+
+    public function test_without_a_blog_it_names_no_blog_path(): void
+    {
+        $this->setBlogProxyHost('');
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/robots.txt');
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Disallow: /', $body);
+        self::assertStringNotContainsString('/blog', $body);
+    }
+
+    private function base(): string
+    {
+        $appUrl = static::getContainer()->getParameter('app.url');
+        self::assertIsString($appUrl);
+
+        return rtrim($appUrl, '/');
+    }
+
+    private function setBlogProxyHost(string $host): void
+    {
+        $_ENV['BLOG_PROXY_HOST'] = $_SERVER['BLOG_PROXY_HOST'] = $host;
     }
 }
