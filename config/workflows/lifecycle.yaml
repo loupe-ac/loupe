@@ -24,6 +24,8 @@ manualMoves:
     - { from: '@backlog', to: tech-design }
     - { from: next, to: product-design }
     - { from: next, to: tech-design }
+    - { from: '@backlog', to: '@terminal' }
+    - { from: next, to: '@terminal' }
     - { from: implementation, to: tech-design }
 childChoices:
     inherit: [{ link-document: { from: parent, tag: tech-design } }]
