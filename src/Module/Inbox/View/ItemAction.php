@@ -15,11 +15,13 @@ final readonly class ItemAction
         public string $effectKey,
         public bool $default = false,
         public ?string $disabledReasonKey = null,
+        /** The one-line reason of the worker that suggested the action, as plain text. */
+        public ?string $reason = null,
     ) {
     }
 
-    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null): self
+    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null): self
     {
-        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey);
+        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason);
     }
 }

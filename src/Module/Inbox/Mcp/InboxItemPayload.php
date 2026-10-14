@@ -116,7 +116,8 @@ final readonly class InboxItemPayload
         $review = InboxItemKind::Review === $item->kind ? $this->inboxReviews->findOneBy(['item' => $item]) : null;
         $watch = InboxItemKind::Wait === $item->kind ? $this->inboxCardWatches->findOneForItem($item) : null;
         $waits = null === $watch ? [] : array_values($watch->waits->toArray());
-        usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => $a->startedAt <=> $b->startedAt);
+        // A start time holds whole seconds, so on a tie an ended wait comes before the open one that replaced it.
+        usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, null === $a->endedAt, $a->key()] <=> [$b->startedAt, null === $b->endedAt, $b->key()]);
 
         return [
             ...$this->forListItem($item),

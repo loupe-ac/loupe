@@ -5466,10 +5466,6 @@
                 <source>bridge.inbox_wait.waits_for_person.short</source>
                 <target>The %worker% waits for an answer from you.</target>
             </trans-unit>
-            <trans-unit id="inbox.wait.report">
-                <source>inbox.wait.report</source>
-                <target>What the %worker% reported</target>
-            </trans-unit>
             <trans-unit id="bridge.inbox_wait.folded.action">
                 <source>bridge.inbox_wait.folded.action</source>
                 <target>Open card %card%</target>
@@ -5493,14 +5489,6 @@
             <trans-unit id="inbox.wait.ended.dismissed">
                 <source>inbox.wait.ended.dismissed</source>
                 <target>Closed because you dismissed the item.</target>
-            </trans-unit>
-            <trans-unit id="inbox.wait.dismiss_help">
-                <source>inbox.wait.dismiss_help</source>
-                <target>Dismiss hides this item. The card still waits until you act on it.</target>
-            </trans-unit>
-            <trans-unit id="inbox.item.dismiss">
-                <source>inbox.item.dismiss</source>
-                <target>Dismiss</target>
             </trans-unit>
             <trans-unit id="inbox.item.blocking">
                 <source>inbox.item.blocking</source>
@@ -5650,6 +5638,38 @@
                 <source>inbox.flash.declined</source>
                 <target>Item %number% is closed.</target>
             </trans-unit>
+            <trans-unit id="inbox.flash.resumed">
+                <source>inbox.flash.resumed</source>
+                <target>The resume of item %number% is queued.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.retried">
+                <source>inbox.flash.retried</source>
+                <target>The card of item %number% is released.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.agent_sent">
+                <source>inbox.flash.agent_sent</source>
+                <target>The agent of item %number% is queued.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.session_started">
+                <source>inbox.flash.session_started</source>
+                <target>The session of item %number% is queued.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.cancelled">
+                <source>inbox.flash.cancelled</source>
+                <target>The action of item %number% is cancelled.</target>
+            </trans-unit>
+            <trans-unit id="inbox.thread.loupe"><source>inbox.thread.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.thread.stopped"><source>inbox.thread.stopped</source><target>stopped %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.waiting"><source>inbox.thread.waiting</source><target>noticed %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.note_placeholder"><source>inbox.thread.note_placeholder</source><target>Add a note (optional)</target></trans-unit>
+            <trans-unit id="inbox.thread.note_hint"><source>inbox.thread.note_hint</source><target>The note stays with this item in Loupe.</target></trans-unit>
+            <trans-unit id="inbox.thread.other_actions"><source>inbox.thread.other_actions</source><target>Other actions</target></trans-unit>
+            <trans-unit id="inbox.thread.you"><source>inbox.thread.you</source><target>You</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.resume-run"><source>inbox.thread.you_verb.resume-run</source><target>resumed the run at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.retry-card"><source>inbox.thread.you_verb.retry-card</source><target>retried the card at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.send-agent"><source>inbox.thread.you_verb.send-agent</source><target>sent an agent at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.start-session"><source>inbox.thread.you_verb.start-session</source><target>started a session at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.cancel"><source>inbox.thread.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="inbox.project_list.open_items">
                 <source>inbox.project_list.open_items</source>
                 <target>{0}0 open inbox items|{1}1 open inbox item|]1,Inf[%count% open inbox items</target>
@@ -7214,6 +7234,11 @@
             <trans-unit id="inbox.status.verb.done"><source>inbox.status.verb.done</source><target>Marked done</target></trans-unit>
             <trans-unit id="inbox.status.verb.declined"><source>inbox.status.verb.declined</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.status.verb.reviewed"><source>inbox.status.verb.reviewed</source><target>Review recorded</target></trans-unit>
+            <trans-unit id="inbox.status.verb.resumed"><source>inbox.status.verb.resumed</source><target>Resume queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.retried"><source>inbox.status.verb.retried</source><target>Card released</target></trans-unit>
+            <trans-unit id="inbox.status.verb.agent-sent"><source>inbox.status.verb.agent-sent</source><target>Agent queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.session-started"><source>inbox.status.verb.session-started</source><target>Session queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.cancelled"><source>inbox.status.verb.cancelled</source><target>Action cancelled</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%.</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed_detail"><source>inbox.status.ask_closed_detail</source><target>%title% is closed.</target></trans-unit>
             <trans-unit id="inbox.status.ask_left"><source>inbox.status.ask_left</source><target>{0}%verb%.|{1}%verb%. 1 item of this ask is still open.|]1,Inf[%verb%. %count% items of this ask are still open.</target></trans-unit>

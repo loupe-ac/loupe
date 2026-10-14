@@ -115,6 +115,7 @@ final readonly class RunInboxActionHandler
 
         // The row commits first, so no queued command lacks a row. A refused request removes it again.
         $action = new InboxAction($command->item, InboxActionKind::ResumeRun, $command->user, $note);
+        $action->waitId = $wait->id;
         $this->em->persist($action);
         $this->em->flush();
 
@@ -141,6 +142,7 @@ final readonly class RunInboxActionHandler
         // The row commits before the release, so the rule's next request finds it. A refused release removes it again.
         $action = new InboxAction($command->item, InboxActionKind::RetryCard, $command->user, $note);
         $action->pauseId = $wait->pauseId;
+        $action->waitId = $wait->id;
         $this->em->persist($action);
         $this->em->flush();
 
@@ -162,6 +164,7 @@ final readonly class RunInboxActionHandler
 
         // The row commits first, so the request names an action that exists. A refused request removes it again.
         $action = new InboxAction($item, InboxActionKind::SendAgent, $command->user, $note);
+        $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
 
@@ -200,6 +203,7 @@ final readonly class RunInboxActionHandler
 
         // The row commits first, because the request names it. A refused request removes it again.
         $action = new InboxAction($item, InboxActionKind::StartSession, $command->user, $note);
+        $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
 

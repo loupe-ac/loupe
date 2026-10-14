@@ -38,6 +38,10 @@ class InboxAction
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $pauseId = null;
 
+    /** The wait the action answers. Any other open wait brings the reply back. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $waitId = null;
+
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $cancelledAt = null;
 

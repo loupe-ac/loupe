@@ -120,6 +120,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame([BridgeCommandKind::ResumeRun, BridgeCommandState::Pending, BridgeCommandCause::InboxAction], [$command->kind, $command->state, $command->cause]);
         self::assertSame((string) $run?->id, (string) $command->workerRun->id);
         self::assertNull($command->reason);
+        self::assertSame((string) $this->waitOf($item)->id, (string) $action->waitId);
         self::assertSame($action, $this->service(InboxActionRepository::class)->findOneByIdAndItem($action->id ?? throw new \LogicException('Stored.'), $item));
     }
 
@@ -165,6 +166,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
         self::assertInstanceOf(InboxAction::class, $action);
         self::assertSame((string) $this->waitOf($item)->pauseId, (string) $action->pauseId);
+        self::assertSame((string) $this->waitOf($item)->id, (string) $action->waitId);
         self::assertNull($action->bridgeCommandId);
         self::assertNull($this->service(CardPauses::class)->findActive($this->card->id ?? throw new \LogicException('Stored.')));
     }

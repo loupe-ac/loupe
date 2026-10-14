@@ -15,4 +15,13 @@ enum InboxActionState: string
     case Preparing = 'preparing';
     case Retried = 'retried';
     case Running = 'running';
+
+    /** The action still answers the wait, so the thread shows no reply card beside it. */
+    public function inProgress(): bool
+    {
+        return match ($this) {
+            self::Queued, self::Resumed, self::Preparing, self::Retried, self::Running => true,
+            self::Expired, self::Refused, self::Cancelled => false,
+        };
+    }
 }

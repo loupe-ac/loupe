@@ -21,37 +21,8 @@
     {% endif %}
     {% set watch = item.kind.value == 'wait' ? inbox_card_watch(item) : null %}
     {% if watch %}
-        {# A deleted document drops its link row, so a wait of it shows as text. #}
-        {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
-        {# The next step of each current wait goes in the action row, beside Dismiss. #}
-        {% set waitLinks = [] %}
-        <ul class="lp-inbox-waits" data-inbox-waits>
-            {% for wait in watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
-                <li{% if wait.endedAt %} class="lp-inbox-waits__wait--ended"{% endif %} data-inbox-wait="{{ wait.endedAt ? 'ended' : 'current' }}">
-                    {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
-                    {%- set cardLink = wait.type.value in ['worker-run', 'card-pause'] -%}
-                    <span class="lp-inbox-waits__reason">{{ line.pageKey|trans(line.params) }}</span>
-                    {%- if line.detail %}
-                        {# Worker Markdown, rendered and sanitized the way a card body is. #}
-                        <div class="lp-inbox-waits__detail">
-                            <span class="lp-inbox-waits__detail-label">{{ 'inbox.wait.report'|trans(line.params) }}</span>
-                            <div class="prose lp-prose">{{ line.detail|inbox_markdown }}</div>
-                        </div>
-                    {%- endif %}
-                    {%- if wait.endedAt %}
-                        <span class="lp-inbox-waits__ended">{{ ('inbox.wait.ended.' ~ wait.endReason.value|replace({'-': '_'}))|trans }}</span>
-                    {%- elseif line.href and line.href not in waitLinks|map(link => link.href) and not (cardLink and wait.watch.cardId.toRfc4122 == (hostCardId ?? null)) %}
-                        {%- set waitLinks = waitLinks|merge([{href: line.href, label: line.actionKey|trans(line.params), external: wait.type.value == 'pull-request', drawer: cardLink and (cardDrawer ?? false)}]) %}
-                    {%- endif %}
-                </li>
-            {% endfor %}
-        </ul>
-        {% set dismissShown = home and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
-        {% if not dismissShown and waitLinks is not empty %}
-            <div class="lp-inbox-waits__actions">
-                {% include '@Inbox/_wait_links.html.twig' with {links: waitLinks} only %}
-            </div>
-        {% endif %}
+        {% set threadReply = home and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
+        {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: watch, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: threadReply} only %}
     {% endif %}
 
     {% if not open %}
@@ -110,7 +81,7 @@
        still takes a response. #}
     {% if not home %}
         <a class="lp-inbox-item__jump" href="{{ path('app_project_inbox', {id: item.project.id, item: item.number}) }}" data-turbo-frame="_top">{{ (inbox.acceptsResponse(item) ? 'inbox.item.respond_elsewhere' : 'inbox.item.thread_elsewhere')|trans({'%number%': item.number}) }}</a>
-    {% elseif inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
+    {% elseif item.kind.value != 'wait' and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
         <div class="lp-inbox-item__actions">
@@ -182,8 +153,6 @@
                         <div class="lp-inbox-item__refusal" role="alert">{% for message in reviewRefusals %}<p>{{ message }}</p>{% endfor %}</div>
                     {% endif %}
                 {% endif %}
-            {% elseif item.kind.value == 'wait' %}
-                {# Dismiss is the one response. Its button sits in the decline form below. #}
             {% elseif open or item.state.value != 'done' %}
                 {% set doneForm = inbox_done_form(item, refusedForm) %}
                 {{ form_start(doneForm, {action: path('app_inbox_item_done', actionParams), attr: {class: 'lp-inbox-done', 'data-turbo-frame': responseFrame}}) }}
@@ -202,15 +171,6 @@
             {{ form_start(declineForm, {action: path('app_inbox_item_decline', actionParams), attr: {id: declineForm.vars.id, class: 'lp-inbox-decline__form', 'data-turbo-frame': responseFrame}}) }}
                 {{ form_widget(declineForm.closeNote, {attr: {'data-inbox-decline-target': 'value'}}) }}
                 <twig:Ds:FieldErrors>{{ form_errors(declineForm) }}{{ form_errors(declineForm.closeNote) }}</twig:Ds:FieldErrors>
-                {% if item.kind.value == 'wait' %}
-                    <div class="lp-inbox-item__buttons lp-inbox-item__buttons--dismiss">
-                        <span class="lp-inbox-item__dismiss">
-                            <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" aria-describedby="inbox-dismiss-help-{{ item.id }}">{{ 'inbox.item.dismiss'|trans }}</twig:Ds:Button>
-                            <twig:Ds:Tooltip id="inbox-dismiss-help-{{ item.id }}">{{ 'inbox.wait.dismiss_help'|trans }}</twig:Ds:Tooltip>
-                        </span>
-                        {% include '@Inbox/_wait_links.html.twig' with {links: waitLinks ?? []} only %}
-                    </div>
-                {% endif %}
             {{ form_end(declineForm) }}
         </div>
     {% endif %}
