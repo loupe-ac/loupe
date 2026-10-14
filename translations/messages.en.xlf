@@ -2790,6 +2790,10 @@
                 <source>project.connect.tool.inbox_list</source>
                 <target>List the inbox items, newest first, filtered by state, ask, session, card or document. One page of summary rows at a time.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_actions">
+                <source>project.connect.tool.inbox_actions</source>
+                <target>List the built-in actions you can suggest on an inbox item, and which of them fit a card now.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.inbox_get">
                 <source>project.connect.tool.inbox_get</source>
                 <target>Read one inbox item, with its answer and the cards, documents and asks it is linked to.</target>

@@ -36,6 +36,19 @@ final readonly class ItemActions
     }
 
     /**
+     * The kinds that fit a card now, in menu order: those of its open wait item, and those that fit any card.
+     *
+     * @return list<InboxActionKind>
+     */
+    public function forCard(?InboxItem $waitItem): array
+    {
+        $fitting = null === $waitItem ? [] : array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->forItem($waitItem));
+        $fitting = [...$fitting, InboxActionKind::Open, InboxActionKind::StartSession];
+
+        return array_values(array_filter(InboxActionKind::cases(), static fn (InboxActionKind $kind): bool => \in_array($kind, $fitting, true)));
+    }
+
+    /**
      * The newest open wait that makes the kind fit the item now, or null. The run handler reads the run or the pause from it.
      */
     public function waitFor(InboxItem $item, InboxActionKind $kind): ?InboxCardWait
