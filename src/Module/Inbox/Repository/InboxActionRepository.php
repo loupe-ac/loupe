@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Repository;
 
 use App\Module\Account\Entity\User;
+use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxItem;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -65,6 +67,8 @@ class InboxActionRepository extends ServiceEntityRepository
     }
 
     /**
+     * With the item and its project loaded, so a caller reads the project with no further query.
+     *
      * @param list<Uuid> $bridgeCommandIds
      *
      * @return list<InboxAction>
@@ -76,8 +80,35 @@ class InboxActionRepository extends ServiceEntityRepository
         }
 
         return $this->createQueryBuilder('action')
+            ->addSelect('item', 'project')
+            ->join('action.item', 'item')
+            ->join('item.project', 'project')
             ->andWhere('action.bridgeCommandId IN (:ids)')
             ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $bridgeCommandIds))
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The actions whose bridge command is about one of these runs, or about a run that one of them continues.
+     * One query, with the item and its project loaded.
+     *
+     * @param list<string> $runIds RFC 4122 strings
+     *
+     * @return list<InboxAction>
+     */
+    public function findByRunIds(array $runIds): array
+    {
+        if ([] === $runIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('action')
+            ->addSelect('item', 'project')
+            ->join('action.item', 'item')
+            ->join('item.project', 'project')
+            ->andWhere('action.bridgeCommandId IN (SELECT c.id FROM '.BridgeCommand::class.' c WHERE IDENTITY(c.workerRun) IN (:runs) OR IDENTITY(c.workerRun) IN (SELECT IDENTITY(r.continuesRun) FROM '.WorkerRun::class.' r WHERE r.id IN (:runs)))')
+            ->setParameter('runs', $runIds)
             ->getQuery()
             ->getResult();
     }

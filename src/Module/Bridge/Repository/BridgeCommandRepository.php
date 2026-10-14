@@ -9,7 +9,6 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
-use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
@@ -216,13 +215,12 @@ class BridgeCommandRepository extends ServiceEntityRepository
         return $latest;
     }
 
-    /** @return list<Project> the projects that hold a pending command whose time ran out */
-    public function findProjectsWithDue(\DateTimeImmutable $now): array
+    /** @return list<BridgeCommand> the pending commands whose time ran out */
+    public function findDue(\DateTimeImmutable $now): array
     {
-        return array_values($this->getEntityManager()->createQueryBuilder()
-            ->select('p')
-            ->from(Project::class, 'p')
-            ->andWhere('p IN (SELECT IDENTITY(c.project) FROM '.BridgeCommand::class.' c WHERE c.state = :pending AND c.expiresAt <= :now)')
+        return array_values($this->createQueryBuilder('c')
+            ->andWhere('c.state = :pending')
+            ->andWhere('c.expiresAt <= :now')
             ->setParameter('pending', BridgeCommandState::Pending->value)
             ->setParameter('now', $now, Types::DATETIME_IMMUTABLE)
             ->getQuery()

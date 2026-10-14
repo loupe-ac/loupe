@@ -6,16 +6,19 @@ namespace App\Tests\Module\Bridge\Scheduler;
 
 use App\Module\Bridge\Command\ExpireBridgeCommandsHandler;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Scheduler\ExpireBridgeCommandsTask;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingLogger;
 use App\Tests\Support\ScheduledTasks;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Uid\Uuid;
 
 final class ExpireBridgeCommandsTaskTest extends KernelTestCase
@@ -49,6 +52,29 @@ final class ExpireBridgeCommandsTaskTest extends KernelTestCase
         self::assertSame(['expired' => 1], $logger->records[0]['context']);
     }
 
+    public function test_the_sweep_dispatches_one_settled_event_for_each_expired_command(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'command-sweep-event@example.com'), 'Event Sweep');
+        $runA = $this->seedRun($em, $project, bridgeId: Uuid::v4());
+        $runB = $this->seedRun($em, $project, bridgeId: Uuid::v4());
+        $dueA = $this->seedCommand($em, $runA, expiresAt: new \DateTimeImmutable('2026-09-29 11:59:00'));
+        $dueB = $this->seedCommand($em, $runB, expiresAt: new \DateTimeImmutable('2026-09-29 11:58:00'));
+        $this->seedCommand($em, $this->seedRun($em, $project, bridgeId: Uuid::v4()), expiresAt: new \DateTimeImmutable('2026-09-29 12:15:00'));
+        $settled = new RecordedEvents();
+        $dispatcher = new EventDispatcher();
+        $dispatcher->addListener(BridgeCommandSettled::class, $settled);
+
+        $this->task(new RecordingLogger(), $dispatcher)();
+
+        $found = array_map(static fn (BridgeCommandSettled $event): array => [(string) $event->projectId, (string) $event->commandId, (string) $event->workerRunId], $settled->of(BridgeCommandSettled::class));
+        sort($found);
+        $expected = [[(string) $project->id, (string) $dueA->id, (string) $runA->id], [(string) $project->id, (string) $dueB->id, (string) $runB->id]];
+        sort($expected);
+        self::assertSame($expected, $found);
+    }
+
     public function test_a_tick_that_expires_nothing_logs_nothing(): void
     {
         self::bootKernel();
@@ -72,7 +98,7 @@ final class ExpireBridgeCommandsTaskTest extends KernelTestCase
         $task();
     }
 
-    private function task(RecordingLogger $logger): ExpireBridgeCommandsTask
+    private function task(RecordingLogger $logger, ?EventDispatcher $events = null): ExpireBridgeCommandsTask
     {
         $registry = self::getContainer()->get('doctrine');
         self::assertInstanceOf(ManagerRegistry::class, $registry);
@@ -80,7 +106,7 @@ final class ExpireBridgeCommandsTaskTest extends KernelTestCase
         self::assertInstanceOf(WorkerRunChangedPublisher::class, $runsChanged);
 
         return new ExpireBridgeCommandsTask(
-            new ExpireBridgeCommandsHandler(new BridgeCommandRepository($registry), $runsChanged, new MockClock('2026-09-29 12:00:00')),
+            new ExpireBridgeCommandsHandler(new BridgeCommandRepository($registry), $runsChanged, $events ?? new EventDispatcher(), new MockClock('2026-09-29 12:00:00')),
             $logger,
         );
     }
