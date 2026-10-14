@@ -11,6 +11,9 @@ enum InboxActionVerb: string
     case Done = 'done';
     case Declined = 'declined';
     case Reviewed = 'reviewed';
+    case Resumed = 'resumed';
+    case Retried = 'retried';
+    case Cancelled = 'cancelled';
 
     /** The flash that the card tab and the document page show instead of the status line. */
     public function flashKey(): string
@@ -20,6 +23,9 @@ enum InboxActionVerb: string
             self::Done => 'inbox.flash.done',
             self::Declined => 'inbox.flash.declined',
             self::Reviewed => 'inbox.review.submitted',
+            self::Resumed => 'inbox.flash.resumed',
+            self::Retried => 'inbox.flash.retried',
+            self::Cancelled => 'inbox.flash.cancelled',
         };
     }
 }

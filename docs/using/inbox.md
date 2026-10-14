@@ -289,11 +289,11 @@ The item has the kind **Waiting**, and it is always blocking.
 A card has at most one open automatic item. Its title is the card number, the
 reason of the main wait, and the card title, such as "#686 Review worker
 blocked: cannot reach github.com · Let bridge workers read the prototypes". The
-item links the card and each document that it waits on. Its panel lists each
-current wait as one plain sentence. The sentence says why Loupe opened the
-item, such as "The document "Tech design", version 1, of card 635 waits for
-your review." A link beside it opens the page that closes the wait: the
-document review, the pull request, the worker run, or the card for a pause.
+item links the card and each document that it waits on. Its panel reads as a
+thread, described in the next section. Each current wait is one message. A
+message that has no worker report is one plain sentence. The sentence says why
+Loupe opened the item, such as "The document "Tech design", version 1, of card
+635 waits for your review."
 A run wait starts with the first sentence of the run output, such as "The
 review worker on card 686 is blocked: cannot reach github.com". When a
 workflow pause of the card comes from that run, the panel shows no second
@@ -303,8 +303,7 @@ the sentence, with the stage protocol text and the reason tag removed. The
 body of the item that `inbox_get` returns holds the same sentences. The waits
 that ended show below them, in grey, with a sentence that says how they
 closed, such as "Closed when you acted on it."
-**Dismiss** hides the item. The card still waits until you act on it, and the
-panel says so beside the button.
+**Dismiss** hides the item. The card still waits until you act on it.
 
 The row and the panel name **Loupe** as the sender, with a magnifier icon. They
 show no bridge dot and no session, because no agent session asked for the item.
@@ -315,6 +314,65 @@ a document or on a pull request therefore shows after a short delay.
 Loupe also checks the automatic items of every project every 15 minutes. A
 wait that Loupe did not see when it started or ended opens or closes its item
 on the next check.
+
+### The thread and the split button
+
+An automatic item reads as a thread. Each current wait is a message from its
+sender. A message from a worker names the worker and says when it stopped, such
+as "Implement worker stopped 12m ago". A message from Loupe says when Loupe
+noticed the wait. A run wait shows the whole worker report in the message, with
+file names and check names as code. The waits that ended show below the current
+ones, in grey.
+
+Under the messages, a reply card lets you act on the item without leaving the
+inbox. The heading of the card names the main action, such as "Resume the
+run". The note field is optional and holds up to 2000 characters. The note
+stays in Loupe, on the item. The split button at the bottom right of the card
+runs the main action. The chevron beside it opens a menu with the other
+actions that fit the item. Each row of the menu names the action and says in
+one line what it does. Escape, or a click outside the menu, closes it. The arrow
+keys move between the rows.
+
+The actions are:
+
+- "Resume the run" continues the session of a stopped worker. The wait ends
+  when the new run starts.
+- "Retry the card" releases a pause of the kinds that a person can release.
+  A pause from a workflow rule cannot be released here.
+- "Review" opens the review page of the document, or the pull request on
+  GitHub, for a review wait.
+- "Open" opens the card, or the document. A card page offers no link to
+  itself.
+- "Dismiss" closes the item as declined. It sits apart at the bottom of the
+  menu, in red. Dismiss ignores the note.
+
+Loupe shows only the actions that fit the item now. It picks the main action
+from the newest open wait: Resume the run for a stopped run, Retry the card for
+a pause that you can release, Review for a review, and Open for the rest. When
+only Dismiss fits, the card shows a Dismiss button and no menu.
+
+Neither action asks for a confirmation. Retry the card acts at once, and its
+status line reads "Retried at" and the time. Resume the run asks the bridge to
+resume the session. In both cases the reply card turns into a tinted card with
+your name, your note and a status line. The status line of a resume uses the
+run states of the Activity page:
+
+- "Queued" while the command waits for a bridge. When no bridge is online,
+  the card adds "No bridge is online."
+- "Cancel" shows beside Queued. It withdraws the command, and the reply card
+  comes back.
+- "Preparing" when the bridge took the command, then the state of the new run,
+  such as "Running".
+- "Expired", "Refused" or "Cancelled" when the command did not run. The
+  reply card comes back below the status.
+
+An action does not close the item. The item closes when its last wait ends,
+such as when the new run starts after you resumed the run. When the new run
+stops again, Loupe opens a new wait for the card.
+
+The card page shows the same thread in its **Inbox items** section, with the
+same buttons. After you act there, you return to the card page. The document
+page shows no thread.
 
 ### Notices
 
@@ -431,15 +489,15 @@ The Loupe ask that holds the item closes with it.
 
 ### Dismiss
 
-Select **Dismiss** to close an automatic item that you do not need. The item
-closes as declined. Dismiss takes no note. Loupe does not open the item again
+Open the menu of the split button and select **Dismiss** to close an automatic
+item that you do not need. The item closes as declined. Dismiss takes no note. Loupe does not open the item again
 for the same document version, the same run or the same pull request commit. A
 new version of the document opens a new item, and so does a new run that
 waits. A pull request wait holds the dismiss for one commit: a new commit that
 is ready opens a new item.
 
-Dismiss is the only response that an automatic item takes. You cannot answer it
-or mark it done. An agent cannot withdraw it, and the `inbox_withdraw` tool
+Dismiss and the actions of the split button are the only responses that an
+automatic item takes. You cannot answer it or mark it done. An agent cannot withdraw it, and the `inbox_withdraw` tool
 refuses it.
 
 ## When an ask closes

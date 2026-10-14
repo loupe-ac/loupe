@@ -153,7 +153,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-inbox-source="agent"]'));
     }
 
-    public function test_the_panel_lists_the_current_and_ended_waits_and_offers_only_dismiss(): void
+    public function test_the_thread_lists_the_current_and_ended_waits_and_makes_review_the_main_action(): void
     {
         $this->reconcile();
         $this->document->addVersion('# Two', '<h1>Two</h1>');
@@ -167,10 +167,10 @@ final class WaitItemPageTest extends WebTestCase
         $current = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
         self::assertCount(1, $current);
         self::assertStringContainsString('The document "Tech design", version 2, of card 4 waits for your review.', $current->text());
-        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
-        self::assertCount(1, $link);
-        self::assertStringContainsString('Review the document', $link->text());
-        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $link->attr('href'));
+        $main = $crawler->filter('#inbox-item-1 .inbox-split__main');
+        self::assertCount(1, $main);
+        self::assertSame('Review', trim($main->text()));
+        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $main->attr('href'));
         $ended = $crawler->filter('#inbox-item-1 [data-inbox-wait="ended"]');
         self::assertCount(1, $ended);
         self::assertStringContainsString('version 1', $ended->text());
@@ -178,11 +178,12 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertCount(0, $crawler->filter('form[name="inbox_done_'.$item->id.'"]'));
         self::assertCount(0, $crawler->filter('form[name="inbox_answer_'.$item->id.'"]'));
-        $dismiss = $crawler->filter('form[name="inbox_decline_'.$item->id.'"] button[type="submit"]');
+        $dismiss = $crawler->filter('form[name="inbox_decline_'.$item->id.'"]');
         self::assertCount(1, $dismiss);
-        self::assertSame('Dismiss', trim($dismiss->text()));
-        self::assertStringContainsString('Dismiss hides this item.', $crawler->filter('#inbox-item-1')->text());
-        self::assertCount(1, $crawler->filter('#inbox-item-1 button[type="submit"]'));
+        $row = $crawler->filter('#inbox-item-1 button[data-inbox-action="dismiss"]');
+        self::assertSame('inbox_decline_'.$item->id, $row->attr('form'));
+        self::assertStringContainsString('Dismiss', $row->text());
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $crawler->filter('#inbox-item-1 a[data-inbox-action="open"]')->attr('href'));
     }
 
     public function test_a_wait_of_a_deleted_document_shows_its_reason_with_no_link(): void
@@ -211,15 +212,13 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $wait = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
-        self::assertSame('The implement worker stopped because it is blocked.', $wait->filter('.lp-inbox-waits__reason')->text());
-        self::assertSame('What the implement worker reported', $wait->filter('.lp-inbox-waits__detail-label')->text());
-        self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-inbox-waits__detail .prose')->text()));
-        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
-        self::assertCount(1, $link);
-        self::assertSame('Open card 4', trim($link->text()));
-        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
-        self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
-        self::assertSame('click->card-drawer#prepare', $link->attr('data-action'));
+        self::assertSame('Implement worker', $wait->filter('.lp-comment-author')->text());
+        self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-review-doc__prose')->text()));
+        $open = $crawler->filter('#inbox-item-1 a[data-inbox-action="open"]');
+        self::assertCount(1, $open);
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $open->attr('href'));
+        self::assertSame('card-drawer-frame', $open->attr('data-turbo-frame'));
+        self::assertSame('click->card-drawer#prepare', $open->attr('data-action'));
     }
 
     public function test_a_run_wait_on_its_own_card_page_offers_no_link_to_that_card(): void
@@ -231,7 +230,11 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]'));
-        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-wait-link]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-action="open"]'));
+        // Nothing else fits this card, so only Dismiss is left and the menu has no main part.
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split__main'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 button[data-inbox-action="dismiss"]'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void
