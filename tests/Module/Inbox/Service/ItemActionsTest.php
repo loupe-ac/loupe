@@ -409,6 +409,23 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([InboxActionKind::ResumeRun], $this->defaults($this->waitItem([$this->runWait($run)])));
     }
 
+    public function test_a_newer_review_wait_overrides_the_suggestions_of_an_older_run_wait(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, ['suggestedActions' => [
+            ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true],
+            ['action' => 'resume-run', 'reason' => 'The key is in the vault now.'],
+        ]]);
+        $actions = $this->actions()->forItem($this->waitItem([
+            $this->runWait($run, new \DateTimeImmutable('2026-10-13 10:00:00')),
+            $this->documentWait(new \DateTimeImmutable('2026-10-13 10:00:05')),
+        ]));
+
+        self::assertSame(
+            [[InboxActionKind::ResumeRun, false, null], [InboxActionKind::Review, true, null], [InboxActionKind::Open, false, null], [InboxActionKind::StartSession, false, null], [InboxActionKind::Dismiss, false, null]],
+            array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $actions),
+        );
+    }
+
     /** @param list<InboxCardWait> $waits */
     private function waitItem(array $waits): InboxItem
     {

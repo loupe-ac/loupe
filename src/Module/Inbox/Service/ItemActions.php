@@ -223,7 +223,8 @@ final readonly class ItemActions
     }
 
     /**
-     * The suggestions of the worker whose run wait is the newest open one, keyed by action.
+     * The suggestions of the worker when its run wait is the newest open wait, keyed by action.
+     * A newer document, pull request or pause wait overrides an older worker recommendation.
      *
      * @param list<InboxCardWait>      $waits open waits, oldest first
      * @param array<string, WorkerRun> $runs
@@ -232,9 +233,8 @@ final readonly class ItemActions
      */
     private static function suggestions(array $waits, array $runs): array
     {
-        $runWaits = array_filter($waits, static fn (InboxCardWait $wait): bool => InboxCardWaitType::WorkerRun === $wait->type && null !== $wait->runId);
-        $newest = end($runWaits);
-        $run = false === $newest || null === $newest->runId ? null : ($runs[$newest->runId->toRfc4122()] ?? null);
+        $newest = end($waits);
+        $run = false === $newest || InboxCardWaitType::WorkerRun !== $newest->type || null === $newest->runId ? null : ($runs[$newest->runId->toRfc4122()] ?? null);
         if (null === $run) {
             return [];
         }
