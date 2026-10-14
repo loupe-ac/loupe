@@ -10,6 +10,14 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class ShowLegalPagesControllerTest extends WebTestCase
 {
+    #[\Override]
+    protected function tearDown(): void
+    {
+        $this->setBlogProxyHost('');
+
+        parent::tearDown();
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
@@ -56,5 +64,34 @@ final class ShowLegalPagesControllerTest extends WebTestCase
         self::assertSelectorCount(1, 'main#main-content');
         self::assertSelectorExists('div.lp-home > footer.lp-home-footer');
         self::assertSelectorExists('div.lp-home dialog');
+    }
+
+    public function test_the_marketing_footer_links_the_blog_when_a_blog_host_is_set(): void
+    {
+        $this->setBlogProxyHost('blog.example.com');
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/terms');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-landing-footer a[href="/blog"]', 'Blog');
+        self::assertStringNotContainsString('blog.example.com', (string) $client->getResponse()->getContent());
+    }
+
+    public function test_the_marketing_footer_has_no_blog_link_when_no_blog_host_is_set(): void
+    {
+        $this->setBlogProxyHost('');
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/terms');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-landing-footer a[href="/terms"]');
+        self::assertSelectorNotExists('a[href="/blog"]');
+    }
+
+    private function setBlogProxyHost(string $host): void
+    {
+        $_ENV['BLOG_PROXY_HOST'] = $_SERVER['BLOG_PROXY_HOST'] = $host;
     }
 }

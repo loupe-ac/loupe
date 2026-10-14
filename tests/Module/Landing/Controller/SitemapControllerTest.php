@@ -15,6 +15,14 @@ use Ubermuda\FeatureFlagsBundle\Enum\FeatureFlagType;
 
 final class SitemapControllerTest extends WebTestCase
 {
+    #[\Override]
+    protected function tearDown(): void
+    {
+        $this->setBlogProxyHost('');
+
+        parent::tearDown();
+    }
+
     /** @return list<string> */
     private function locations(KernelBrowser $client): array
     {
@@ -77,5 +85,32 @@ final class SitemapControllerTest extends WebTestCase
         $em->flush();
 
         self::assertContains($this->base().'/waitlist', $this->locations($client));
+    }
+
+    public function test_it_lists_the_blog_when_a_blog_host_is_set(): void
+    {
+        $this->setBlogProxyHost('blog.example.com');
+        $client = static::createClient();
+
+        $locations = $this->locations($client);
+
+        self::assertContains($this->base().'/blog', $locations);
+        self::assertStringNotContainsString('blog.example.com', (string) $client->getResponse()->getContent());
+    }
+
+    public function test_it_leaves_the_blog_out_when_no_blog_host_is_set(): void
+    {
+        $this->setBlogProxyHost('');
+        $client = static::createClient();
+
+        $locations = $this->locations($client);
+
+        self::assertContains($this->base().'/privacy', $locations);
+        self::assertNotContains($this->base().'/blog', $locations);
+    }
+
+    private function setBlogProxyHost(string $host): void
+    {
+        $_ENV['BLOG_PROXY_HOST'] = $_SERVER['BLOG_PROXY_HOST'] = $host;
     }
 }

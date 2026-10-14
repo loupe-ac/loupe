@@ -21,9 +21,16 @@ final readonly class ShowRobotsHandler
             $lines[] = 'Allow: '.$path.'$';
         }
         $lines[] = 'Allow: /assets/';
+        if ($this->publicPages->hasBlog()) {
+            $lines[] = 'Allow: /blog$';
+            $lines[] = 'Allow: /blog/';
+        }
         $lines[] = 'Disallow: /';
         $lines[] = '';
         $lines[] = 'Sitemap: '.$this->publicPages->absoluteUrl('/sitemap.xml');
+        if ($this->publicPages->hasBlog()) {
+            $lines[] = 'Sitemap: '.$this->publicPages->absoluteUrl('/blog/sitemap.xml');
+        }
 
         return implode("\n", $lines)."\n";
     }

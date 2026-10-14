@@ -14,6 +14,14 @@ use Symfony\Component\HttpFoundation\Request;
 
 final class LandingControllerTest extends WebTestCase
 {
+    #[\Override]
+    protected function tearDown(): void
+    {
+        $this->setBlogProxyHost('');
+
+        parent::tearDown();
+    }
+
     /** @param non-empty-string $email */
     private function createUser(EntityManagerInterface $em, string $username, string $email): User
     {
@@ -91,6 +99,30 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorExists('.lp-home-footer a[href="https://x.com/loupehq"]');
         self::assertSelectorNotExists('.lp-home-footer a[href*="x.com/ubermuda"]');
         self::assertSelectorNotExists('.lp-home-footer a[href*="bsky.app"]');
+    }
+
+    public function test_home_page_footer_links_the_blog_after_the_changelog_when_a_blog_host_is_set(): void
+    {
+        $this->setBlogProxyHost('blog.example.com');
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-home-footer__list li:has(a[href$="/changelog/"]) + li a[href="/blog"]', 'Blog');
+        self::assertStringNotContainsString('blog.example.com', (string) $client->getResponse()->getContent());
+    }
+
+    public function test_home_page_footer_has_no_blog_link_when_no_blog_host_is_set(): void
+    {
+        $this->setBlogProxyHost('');
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home-footer a[href$="/changelog/"]');
+        self::assertSelectorNotExists('a[href="/blog"]');
     }
 
     public function test_home_page_notify_form_posts_the_picks_to_the_waitlist(): void
@@ -233,5 +265,10 @@ final class LandingControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseRedirects('/projects');
+    }
+
+    private function setBlogProxyHost(string $host): void
+    {
+        $_ENV['BLOG_PROXY_HOST'] = $_SERVER['BLOG_PROXY_HOST'] = $host;
     }
 }

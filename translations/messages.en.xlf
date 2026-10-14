@@ -136,6 +136,10 @@
                 <source>account.auth.footer.copyright</source>
                 <target>© Geoffrey Bachelet</target>
             </trans-unit>
+            <trans-unit id="account.auth.footer.blog">
+                <source>account.auth.footer.blog</source>
+                <target>Blog</target>
+            </trans-unit>
             <trans-unit id="account.auth.footer.docs">
                 <source>account.auth.footer.docs</source>
                 <target>Docs</target>
@@ -5119,6 +5123,10 @@
             <trans-unit id="landing.footer.self_hosting">
                 <source>landing.footer.self_hosting</source>
                 <target>Self-hosting guide</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.blog">
+                <source>landing.footer.blog</source>
+                <target>Blog</target>
             </trans-unit>
             <trans-unit id="landing.footer.changelog">
                 <source>landing.footer.changelog</source>
