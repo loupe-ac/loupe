@@ -1,14 +1,7 @@
 {# The drawer updates live, and a frame response cannot add a topic to the page that hosts it. #}
 {% if project is defined and project %}{% do mercure_subscribe(worker_runs_topic(project)) %}{% do mercure_subscribe(board_topic(project)) %}{% endif %}
-{% embed '_drawer.html.twig' with {
-    class: 'lp-card-drawer-overlay',
-    attributes: {
-        'aria-label': 'board.card.drawer.label'|trans,
-        'data-card-drawer-target': 'dialog',
-        'data-action': 'cancel->card-drawer#close',
-    },
-} only %}
-    {% block content %}
+<twig:Ds:Drawer class="lp-card-drawer-overlay" aria-label="{{ 'board.card.drawer.label'|trans }}" data-card-drawer-target="dialog" data-action="cancel->card-drawer#close">
+    <twig:block name="content">
     {# Escape and the backdrop close a drawer that is still loading. The error
        state below keeps its buttons, where a reader needs a way out. #}
     <div class="lp-card-drawer-overlay__loading" data-card-drawer-target="loading" role="status" tabindex="-1">
@@ -31,5 +24,5 @@
     <turbo-frame id="card-drawer-frame"
                  data-card-drawer-target="frame"
                  data-action="turbo:frame-load->card-drawer#loaded turbo:before-fetch-response->card-drawer#received turbo:fetch-request-error->card-drawer#failed turbo:frame-missing->card-drawer#failed turbo:submit-end->card-drawer#submitted"></turbo-frame>
-    {% endblock %}
-{% endembed %}
+    </twig:block>
+</twig:Ds:Drawer>

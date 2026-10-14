@@ -3,13 +3,13 @@
 {% block title %}{{ 'bridge.agents.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_workshop', {id: project.id}) }}">{{ project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'bridge.agents.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'bridge.agents.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-orchestration-page lp-redesign-secondary lp-redesign-agents">
+<twig:Ds:Workspace class="lp-orchestration-page lp-redesign-secondary lp-redesign-agents">
     <header class="lp-orchestration-header">
         <div>
             <h1 class="lp-workspace-title">{{ 'bridge.agents.page_heading'|trans }}</h1>
@@ -166,5 +166,5 @@
     </turbo-frame>
     {% include '@Bridge/_bridge_hooks.html.twig' with {project: project} only %}
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

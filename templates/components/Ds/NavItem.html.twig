@@ -1,0 +1,14 @@
+{#
+  Props: url, icon (a UX icon name), label (already translated), active, and
+  count (a numeral at the end of the row, left out when null).
+  The content block adds anything after the label, such as a reloadable pill.
+#}
+{%- props url, icon, label, active = false, count = null -%}
+<a{{ attributes.defaults({href: url, class: 'lp-sidebar__link' ~ (active ? ' lp-sidebar__link--active' : '')}) }}{% if active %} aria-current="page"{% endif %}>
+    <twig:ux:icon :name="icon" />
+    <span class="lp-sidebar__link-label">{{ label }}</span>
+    {%- if count is not null %}
+    <span class="lp-sidebar__pill">{{ count }}</span>
+    {%- endif %}
+    {%- block content %}{% endblock %}
+</a>

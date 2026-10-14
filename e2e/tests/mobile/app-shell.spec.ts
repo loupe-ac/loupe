@@ -318,7 +318,7 @@ test('the review top bar does not print over its own actions', async ({
             'the top bar lead spills past its box',
         ).toBeLessThanOrEqual(0);
     }
-    for (const spill of await overflowOf(page, '.lp-topbar__trail')) {
+    for (const spill of await overflowOf(page, '.lp-crumbs')) {
         expect(
             spill,
             'the breadcrumb trail spills past its box',

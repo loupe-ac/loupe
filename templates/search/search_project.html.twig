@@ -1,10 +1,14 @@
 {% extends 'base.html.twig' %}
 
 {% block title %}{{ (project ? 'search.title' : 'search.all_title')|trans }} — {{ 'app.name'|trans }}{% endblock %}
-{% block topbar_crumbs %}<span class="lp-topbar__here">{{ (project ? 'search.title' : 'search.all_title')|trans }}</span>{% endblock %}
+{% block topbar_crumbs %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: (project ? 'search.title' : 'search.all_title')|trans},
+    ]" />
+{% endblock %}
 
 {% block body %}
-<div class="lp-workspace">
+<twig:Ds:Workspace>
     <twig:Ds:PageHeader :title="(project ? 'search.title' : 'search.all_title')|trans" :description="project ? 'search.scope'|trans({'%project%': project.name}) : 'search.all_scope'|trans" />
     {{ form_start(form, {action: (project ? path('app_project_search', {id: project.id}) : path('app_search_owned_projects')), attr: {class: 'lp-form'}}) }}
         <twig:Ds:FormField>
@@ -17,5 +21,5 @@
     {% if view %}
     {% include 'search/_search_results.html.twig' with {project: project, view: view} only %}
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

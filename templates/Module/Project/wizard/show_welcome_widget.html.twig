@@ -3,7 +3,7 @@
 {% block title %}{{ 'project.wizard.widget.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="lp-workspace">
+<twig:Ds:Workspace width="narrow">
     {% include '@Project/wizard/_wizard_progress.html.twig' with {step: 3} only %}
 
     <h1 class="lp-workspace-title">{{ 'project.wizard.widget.heading'|trans }}</h1>
@@ -44,5 +44,5 @@
         </twig:Ds:ActionForm>
         <twig:Ds:Button variant="primary" href="{{ path('app_welcome_done') }}">{{ 'project.wizard.connect.continue'|trans }}</twig:Ds:Button>
     </twig:Ds:FormActions>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

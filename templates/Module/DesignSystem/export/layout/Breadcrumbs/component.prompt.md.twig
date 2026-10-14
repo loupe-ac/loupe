@@ -1,0 +1,10 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's breadcrumbs. {{ entry.summary }}
+
+```jsx
+<{{ name }} items={[{ label: 'Documents', href: '#' }, { label: 'Tech design' }]} />
+```
+
+List the parent pages first and the current page last. The last item is the page you are on, so it takes no link. The trail never starts with the project name, because the sidebar already shows it. Below the large breakpoint the trail shows the current page alone. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

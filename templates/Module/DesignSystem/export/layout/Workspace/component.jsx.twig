@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export const {{ entry.name|upper }}_WIDTHS = ['default', {{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
+
+export function {{ entry.name }}({ width = 'default', children, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if ('default' !== width) {
+        classes.push('{{ entry.rootClass }}--' + width);
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <div {...rest} className={classes.join(' ')}>
+            {children}
+        </div>
+    );
+}
+{% endautoescape %}

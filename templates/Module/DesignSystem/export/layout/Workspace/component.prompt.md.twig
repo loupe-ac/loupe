@@ -1,0 +1,12 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's page container. {{ entry.summary }}
+
+```jsx
+<{{ name }}><PageHeader title="Documents" /></{{ name }}>
+<{{ name }} width="narrow"><PageHeader title="Rename document" /></{{ name }}>
+<{{ name }} width="full">{/* a board or a split view */}</{{ name }}>
+```
+
+Widths: `default`, {{ entry.variants|map(v => '`' ~ v ~ '`')|join(', ') }}. Put the container inside the main column of the AppShell, and the PageHeader first inside it. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

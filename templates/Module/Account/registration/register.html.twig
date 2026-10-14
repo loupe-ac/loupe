@@ -18,7 +18,7 @@
 {% include '@Account/security/_social_buttons.html.twig' with {} only %}
 
 {{ form_start(form, {'attr': {
-    'class': 'form-stack',
+    'class': 'lp-form',
     'novalidate': 'novalidate',
     'data-controller': 'display-name-suggestion',
     'data-display-name-suggestion-max-length-value': constant('App\\Module\\Account\\Entity\\User::MAX_FULL_NAME_LENGTH'),
@@ -33,44 +33,29 @@
         {% endfor %}
     {% endfor %}
 
-    <div class="form-field">
-        {{ form_label(form.email, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.email, {'attr': {
-            'class': 'auth-input',
+    <twig:Ds:FormField :fieldView="form.email" :widgetAttr="{
             'placeholder': 'account.form.registration_form.email.placeholder',
             'data-display-name-suggestion-target': 'email',
-            'data-action': 'input->display-name-suggestion#suggest',
-        }}) }}
-        <div class="field-errors">{{ form_errors(form.email) }}</div>
-    </div>
+            'data-action': 'input->display-name-suggestion#suggest'
+        }" />
 
-    <div class="form-field">
-        {{ form_label(form.fullName, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.fullName, {'attr': {
-            'class': 'auth-input',
+    <twig:Ds:FormField :fieldView="form.fullName" :widgetAttr="{
             'placeholder': 'account.form.registration_form.full_name.placeholder',
             'data-display-name-suggestion-target': 'displayName',
-            'data-action': 'input->display-name-suggestion#recordEdit change->display-name-suggestion#recordEdit',
-        }}) }}
-        <div class="field-errors">{{ form_errors(form.fullName) }}</div>
-    </div>
+            'data-action': 'input->display-name-suggestion#recordEdit change->display-name-suggestion#recordEdit'
+        }" />
 
-    <div class="form-field">
-        {{ form_label(form.plainPassword, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.plainPassword, {'attr': {
-            'class': 'auth-input',
-            'placeholder': 'account.form.registration_form.password.placeholder',
-        }}) }}
-        <div class="field-errors">{{ form_errors(form.plainPassword) }}</div>
-    </div>
+    <twig:Ds:FormField :fieldView="form.plainPassword" :widgetAttr="{
+            'placeholder': 'account.form.registration_form.password.placeholder'
+        }" />
 
     <label class="flex items-start gap-2 text-sm text-fg-mute cursor-pointer select-none mt-0.5">
         {{ form_widget(form.agreeTerms, {'attr': {'class': 'w-3.5 h-3.5 cursor-pointer accent-accent mt-0.5'}}) }}
         <span class="leading-normal">{{ 'account.form.registration_form.agree_terms.prefix'|trans }} <a href="{{ path('app_terms') }}" class="text-fg underline">{{ 'account.form.registration_form.agree_terms.terms'|trans }}</a> {{ 'account.form.registration_form.agree_terms.conjunction'|trans }} <a href="{{ path('app_privacy') }}" class="text-fg underline">{{ 'account.form.registration_form.agree_terms.privacy'|trans }}</a>.</span>
     </label>
-    <div class="field-errors">{{ form_errors(form.agreeTerms) }}</div>
+    <twig:Ds:FieldErrors :fieldView="form.agreeTerms" />
 
-    <button type="submit" class="auth-submit mt-1.5">{{ 'account.form.registration_form.submit'|trans }}</button>
+    <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.form.registration_form.submit'|trans }}</twig:Ds:Button>
 
 {{ form_end(form) }}
 

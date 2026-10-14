@@ -33,7 +33,7 @@
 
 {% include '@Account/security/_social_buttons.html.twig' with {} only %}
 
-<form method="post" action="{{ path('app_login') }}" class="form-stack" novalidate>
+<form method="post" action="{{ path('app_login') }}" class="lp-form" novalidate>
     <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
 
     {% if error %}
@@ -43,24 +43,24 @@
         </div>
     {% endif %}
 
-    <div class="form-field">
-        <label class="form-label" for="email">{{ 'account.login.form.email.label'|trans }}</label>
-        <input id="email" type="email" name="email" value="{{ last_username }}"
-               autocomplete="email" autofocus placeholder="{{ 'account.login.form.email.placeholder'|trans }}" class="auth-input">
-    </div>
+    <twig:Ds:FormField>
+        <twig:Ds:Label for="email">{{ 'account.login.form.email.label'|trans }}</twig:Ds:Label>
+        <twig:Ds:Input id="email" type="email" name="email" value="{{ last_username }}"
+               autocomplete="email" autofocus placeholder="{{ 'account.login.form.email.placeholder'|trans }}" />
+    </twig:Ds:FormField>
 
-    <div class="form-field">
-        <label class="form-label" for="password">{{ 'account.login.form.password.label'|trans }}</label>
-        <input id="password" type="password" name="password"
-               autocomplete="current-password" placeholder="{{ 'account.login.form.password.placeholder'|trans }}" class="auth-input">
-    </div>
+    <twig:Ds:FormField>
+        <twig:Ds:Label for="password">{{ 'account.login.form.password.label'|trans }}</twig:Ds:Label>
+        <twig:Ds:Input id="password" type="password" name="password"
+               autocomplete="current-password" placeholder="{{ 'account.login.form.password.placeholder'|trans }}" />
+    </twig:Ds:FormField>
 
     <label class="flex items-center gap-2 text-sm text-fg-mute cursor-pointer select-none mt-0.5">
         <input type="checkbox" name="_remember_me" class="w-3.5 h-3.5 cursor-pointer accent-accent">
         {{ 'account.login.form.remember_me'|trans }}
     </label>
 
-    <button type="submit" class="auth-submit mt-1.5">{{ 'account.login.form.submit'|trans }}</button>
+    <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.login.form.submit'|trans }}</twig:Ds:Button>
 
     {# Last in the form, so the four controls tab in the order they are read:
        email, password, stay signed in, sign in. #}

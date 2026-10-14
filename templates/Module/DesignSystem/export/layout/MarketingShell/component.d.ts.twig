@@ -1,0 +1,15 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="Header, page body and footer" viewport="900x500"
+ */
+export interface {{ entry.name }}Props {
+    /** The page body, drawn between the header and the footer. */
+    children?: React.ReactNode;
+    className?: string;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

@@ -17,17 +17,9 @@
     {% endfor %}
 {% endfor %}
 
-{{ form_start(form, {'attr': {'class': 'form-stack', 'novalidate': 'novalidate'}}) }}
-    <div class="form-field">
-        {{ form_label(form.plainPassword.first, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.plainPassword.first, {'attr': {'class': 'auth-input', 'placeholder': 'account.form.change_password_form.new_password.placeholder'}}) }}
-        <div class="field-errors">{{ form_errors(form.plainPassword.first) }}</div>
-    </div>
-    <div class="form-field">
-        {{ form_label(form.plainPassword.second, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.plainPassword.second, {'attr': {'class': 'auth-input', 'placeholder': 'account.form.change_password_form.repeat_new_password.placeholder'}}) }}
-        <div class="field-errors">{{ form_errors(form.plainPassword.second) }}</div>
-    </div>
-    <button type="submit" class="auth-submit mt-1.5">{{ 'account.reset_password.reset.form.submit'|trans }}</button>
+{{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
+    <twig:Ds:FormField :fieldView="form.plainPassword.first" :widgetAttr="{ 'placeholder': 'account.form.change_password_form.new_password.placeholder'}" />
+    <twig:Ds:FormField :fieldView="form.plainPassword.second" :widgetAttr="{ 'placeholder': 'account.form.change_password_form.repeat_new_password.placeholder'}" />
+    <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.reset_password.reset.form.submit'|trans }}</twig:Ds:Button>
 {{ form_end(form) }}
 {% endblock %}

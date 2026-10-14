@@ -3,7 +3,7 @@
 {% block title %}{{ 'project.wizard.welcome.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="lp-workspace">
+<twig:Ds:Workspace width="narrow">
     {% include '@Project/wizard/_wizard_progress.html.twig' with {step: 1} only %}
 
     <h1 class="lp-workspace-title">{{ 'project.wizard.welcome.heading'|trans }}</h1>
@@ -43,5 +43,5 @@
     <form id="wizard-skip-form" method="POST" action="{{ path('app_welcome_skip') }}" hidden>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('wizard-skip') }}">
     </form>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

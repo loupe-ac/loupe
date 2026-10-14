@@ -8,7 +8,7 @@
     <p class="text-fg-mute text-sm leading-normal">{{ 'billing.beta_invite.sign_up.description'|trans }}</p>
 
     <twig:Ds:ActionForm :action="path('app_billing_beta_invite_claim', {token: token})" token="billing-beta-invite-claim" data-beta-sign-up-form>
-        <button type="submit" class="auth-submit mt-1.5">{{ 'billing.beta_invite.sign_up.submit'|trans }}</button>
+        <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'billing.beta_invite.sign_up.submit'|trans }}</twig:Ds:Button>
     </twig:Ds:ActionForm>
 </div>
 {% endblock %}

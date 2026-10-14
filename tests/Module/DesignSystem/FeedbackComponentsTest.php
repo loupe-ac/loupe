@@ -101,7 +101,9 @@ final class FeedbackComponentsTest extends KernelTestCase
             if ($entry->enforced) {
                 $enforced[] = $entry->name;
             }
-            self::assertFileExists(self::getContainer()->getParameter('kernel.project_dir').'/templates/'.$entry->template);
+            if (null !== $entry->template) {
+                self::assertFileExists(self::getContainer()->getParameter('kernel.project_dir').'/templates/'.$entry->template);
+            }
         }
 
         foreach (['Flash', 'EmptyState', 'Badge', 'Tag', 'StatusChip'] as $name) {

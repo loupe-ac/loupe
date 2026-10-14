@@ -1,0 +1,19 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A trail of pages" viewport="700x120"
+ */
+export interface {{ entry.name }}Props {
+    /** The trail. A string is a crumb with no link. The last one is the page you are on. */
+    items: Array<string | { label: string; href?: string }>;
+    className?: string;
+    /** Anything drawn after the list, such as a version pill. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

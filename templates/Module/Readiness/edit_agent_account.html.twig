@@ -1,54 +1,50 @@
-{% extends 'base.html.twig' %}
+{% extends '@Project/_settings_layout.html.twig' %}
 
 {% block title %}{{ 'readiness.agent_account.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__crumb">{{ project.name }}</span>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.project_settings'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans},
+    ]" />
 {% endblock %}
 
-{% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
-    <twig:Ds:PageHeader :title="'project.edit.page.title'|trans" :description="'project.edit.page.description'|trans" />
-    <div class="lp-settings-layout">
-        {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'readiness'} only %}
-        <twig:Ds:Panel as="section" class="lp-settings-content" data-agent-account>
-            <twig:Ds:SectionHeading>{{ 'readiness.agent_account.title'|trans }}</twig:Ds:SectionHeading>
-            <p class="lp-connect-hint">{{ 'readiness.agent_account.description'|trans }}</p>
+{% block settings_section 'readiness' %}
 
-            <p class="lp-connect-hint" data-agent-account-state="{{ check.done ? 'done' : 'open' }}">
-                {% if check.done %}<twig:ux:icon name="lucide:circle-check" />{% else %}<twig:ux:icon name="lucide:circle" />{% endif %}
-                {{ check.status|trans(check.statusParameters) }}
-            </p>
+{% block settings_content %}
+<twig:Ds:Panel as="section" data-agent-account>
+    <twig:Ds:SectionHeading>{{ 'readiness.agent_account.title'|trans }}</twig:Ds:SectionHeading>
+    <p class="lp-connect-hint">{{ 'readiness.agent_account.description'|trans }}</p>
 
-            <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.steps.title'|trans }}</twig:Ds:SectionHeading>
-            <div class="prose lp-prose">
-                <ol>
-                    <li>{{ 'readiness.agent_account.steps.create'|trans }}</li>
-                    <li>{{ 'readiness.agent_account.steps.invite'|trans }}</li>
-                    <li>{{ 'readiness.agent_account.steps.token'|trans }}</li>
-                    <li>{{ 'readiness.agent_account.steps.bridge'|trans }} <code>{{ 'loupe agent-account set' }}</code></li>
-                    <li>{{ 'readiness.agent_account.steps.record'|trans }}</li>
-                </ol>
-                <p>{{ 'readiness.agent_account.steps.privacy'|trans }}</p>
-            </div>
+    <p class="lp-connect-hint" data-agent-account-state="{{ check.done ? 'done' : 'open' }}">
+        {% if check.done %}<twig:ux:icon name="lucide:circle-check" />{% else %}<twig:ux:icon name="lucide:circle" />{% endif %}
+        {{ check.status|trans(check.statusParameters) }}
+    </p>
 
-            <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.login.title'|trans }}</twig:Ds:SectionHeading>
-            {{ form_start(form, {attr: {class: 'lp-form'}}) }}
-                <twig:Ds:FormField>
-                    {{ form_label(form.login, null, {label_attr: {class: ds_label_class()}}) }}
-                    {{ form_widget(form.login, {attr: {class: ds_input_class(), autocomplete: 'off', spellcheck: 'false'}}) }}
-                    {% if form.login.vars.help is not empty %}
-                        <twig:Ds:Hint id="{{ form.login.vars.id }}_help">{{ form.login.vars.translation_domain is same as(false) ? form.login.vars.help : form.login.vars.help|trans(form.login.vars.help_translation_parameters, form.login.vars.translation_domain) }}</twig:Ds:Hint>
-                    {% endif %}
-                    <twig:Ds:FieldErrors :fieldView="form.login" />
-                </twig:Ds:FormField>
-                <twig:Ds:FormActions>
-                    <twig:Ds:Button variant="primary" type="submit">{{ 'readiness.agent_account.submit'|trans }}</twig:Ds:Button>
-                </twig:Ds:FormActions>
-            {{ form_end(form) }}
-        </twig:Ds:Panel>
+    <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.steps.title'|trans }}</twig:Ds:SectionHeading>
+    <div class="prose lp-prose">
+        <ol>
+            <li>{{ 'readiness.agent_account.steps.create'|trans }}</li>
+            <li>{{ 'readiness.agent_account.steps.invite'|trans }}</li>
+            <li>{{ 'readiness.agent_account.steps.token'|trans }}</li>
+            <li>{{ 'readiness.agent_account.steps.bridge'|trans }} <code>{{ 'loupe agent-account set' }}</code></li>
+            <li>{{ 'readiness.agent_account.steps.record'|trans }}</li>
+        </ol>
+        <p>{{ 'readiness.agent_account.steps.privacy'|trans }}</p>
     </div>
-</div>
+
+    <twig:Ds:SectionHeading :level="3">{{ 'readiness.agent_account.login.title'|trans }}</twig:Ds:SectionHeading>
+    {{ form_start(form, {attr: {class: 'lp-form'}}) }}
+        <twig:Ds:FormField>
+            {{ form_label(form.login, null, {label_attr: {class: ds_label_class()}}) }}
+            {{ form_widget(form.login, {attr: {class: ds_input_class(), autocomplete: 'off', spellcheck: 'false'}}) }}
+            {% if form.login.vars.help is not empty %}
+                <twig:Ds:Hint id="{{ form.login.vars.id }}_help">{{ form.login.vars.translation_domain is same as(false) ? form.login.vars.help : form.login.vars.help|trans(form.login.vars.help_translation_parameters, form.login.vars.translation_domain) }}</twig:Ds:Hint>
+            {% endif %}
+            <twig:Ds:FieldErrors :fieldView="form.login" />
+        </twig:Ds:FormField>
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="primary" type="submit">{{ 'readiness.agent_account.submit'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    {{ form_end(form) }}
+</twig:Ds:Panel>
 {% endblock %}

@@ -103,7 +103,7 @@ test('the catalog draws the app shell inside its frame', async ({ page }) => {
     for (const selector of [
         '.lp-sidebar',
         '.lp-sidebar__link--active',
-        '.lp-topbar__crumb',
+        '.lp-crumbs__link',
         '.lp-main',
     ]) {
         await expect(section.locator(selector).first()).toBeVisible();

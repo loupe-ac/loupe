@@ -3,11 +3,13 @@
 {% block title %}{{ 'inbox.account.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__here">{{ 'inbox.account.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'inbox.account.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-account-inbox">
+<twig:Ds:Workspace class="lp-account-inbox">
     <twig:Ds:PageHeader :title="'inbox.account.page.title'|trans" :description="'inbox.account.page.description'|trans" />
 
     {% if inbox.isEmpty %}
@@ -32,5 +34,5 @@
         {% endfor %}
     </div>
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

@@ -1,6 +1,7 @@
 import ModalController from './modal_controller.js';
 import { emit, on } from '../lib/live.js';
 import { prefersReducedMotion } from '../lib/smooth_scroll.js';
+import { LazyFrame } from '../lib/lazy_frame.js';
 
 const STREAM_TYPE = 'text/vnd.turbo-stream.html';
 
@@ -36,6 +37,14 @@ export default class extends ModalController {
         super.disconnect();
         document.removeEventListener('turbo:before-cache', this.onBeforeCache);
         this.stopLive?.();
+    }
+
+    get lazyFrame() {
+        return new LazyFrame({
+            frame: this.frameTarget,
+            loading: this.loadingTarget,
+            error: this.errorTarget,
+        });
     }
 
     /** Someone else changed or deleted the card the drawer shows. */
@@ -77,10 +86,8 @@ export default class extends ModalController {
         if (event.target !== this.frameTarget || !this.dialogTarget.open)
             return;
         const replacing = this.frameTarget.hidden === false;
-        this.loadingTarget.hidden = true;
-        this.errorTarget.hidden = true;
         this.deletedTarget.hidden = true;
-        this.frameTarget.hidden = false;
+        this.lazyFrame.showReady();
         if (replacing && !prefersReducedMotion()) {
             this.frameTarget.animate?.([{ opacity: 0 }, { opacity: 1 }], {
                 duration: 150,
@@ -120,16 +127,14 @@ export default class extends ModalController {
             }
             return;
         }
-        if (!response.succeeded || !response.isHTML) this.failed(event);
+        if (LazyFrame.refuses(event)) this.failed(event);
     }
 
     failed(event) {
         if (event.target !== this.frameTarget || !this.dialogTarget.open)
             return;
         event.preventDefault();
-        this.loadingTarget.hidden = true;
-        this.frameTarget.hidden = true;
-        this.errorTarget.hidden = false;
+        this.lazyFrame.showError();
         this.errorTarget.querySelector('button').focus();
     }
 
@@ -184,10 +189,8 @@ export default class extends ModalController {
 
     #startLoading() {
         this.focusFrameOnLoad = true;
-        this.loadingTarget.hidden = false;
-        this.errorTarget.hidden = true;
         this.deletedTarget.hidden = true;
-        this.frameTarget.hidden = true;
+        this.lazyFrame.showLoading();
     }
 
     #showDeleted() {
@@ -210,9 +213,8 @@ export default class extends ModalController {
 
     #onClosed = () => {
         this.focusFrameOnLoad = false;
-        this.loadingTarget.hidden = false;
-        this.errorTarget.hidden = true;
         this.deletedTarget.hidden = true;
+        this.lazyFrame.showLoading();
         this.frameTarget.removeAttribute('src');
         this.frameTarget.replaceChildren();
     };

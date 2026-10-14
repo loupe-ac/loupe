@@ -141,8 +141,7 @@ test('secondary text and active navigation counts remain legible on their render
     await page.goto(`/projects/${projectId}/documents`);
     for (const selector of [
         '.lp-workspace-desc',
-        '.lp-topbar__crumb',
-        '.lp-topbar__sep',
+        '.lp-crumbs__here',
         '.lp-filter-count',
         '.lp-sidebar__link--active .lp-sidebar__pill',
     ]) {

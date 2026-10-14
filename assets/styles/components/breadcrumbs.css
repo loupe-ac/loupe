@@ -1,0 +1,41 @@
+@layer components {
+    .lp-crumbs {
+        @apply flex items-baseline gap-2 min-w-0 max-w-full;
+    }
+    .lp-crumbs__list {
+        @apply flex items-baseline gap-2 min-w-0 m-0 p-0 list-none;
+    }
+    .lp-crumbs__item {
+        @apply flex items-baseline gap-2 min-w-0;
+    }
+    /* Below lg the bar holds the current page alone. A crumb, a separator and
+       a version pill beside it leave the title nothing to truncate into. */
+    .lp-crumbs__item:not(.lp-crumbs__item--current) {
+        @apply hidden lg:flex;
+    }
+    .lp-crumbs .lp-version-pill {
+        @apply hidden lg:inline-flex;
+    }
+    .lp-crumbs__link {
+        @apply text-sm text-fg-dim no-underline transition-colors;
+    }
+    a.lp-crumbs__link:hover {
+        @apply text-ink;
+    }
+    .lp-crumbs__sep {
+        @apply text-sm text-fg-dim;
+    }
+    .lp-crumbs__here {
+        @apply text-sm font-medium text-ink min-w-0 truncate;
+    }
+
+    /* The rail stays in flow between 780px and lg, so the full trail shows. */
+    @media (width > 48.75rem) and (width < 64rem) {
+        .lp-crumbs__item:not(.lp-crumbs__item--current) {
+            @apply flex;
+        }
+        .lp-crumbs .lp-version-pill {
+            @apply inline-flex;
+        }
+    }
+}

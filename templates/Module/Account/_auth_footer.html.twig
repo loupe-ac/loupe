@@ -1,0 +1,8 @@
+<div class="lp-auth__footer">
+    <span>{{ 'account.auth.footer.copyright'|trans }}</span>
+    <div class="lp-auth__footer-links">
+        {% include '_source_link.html.twig' with {class: 'lp-auth__footer-link gap-1.5'} only %}
+        <a href="{{ app_docs_url }}/" class="lp-auth__footer-link">{{ 'account.auth.footer.docs'|trans }}</a>
+        {% include '_legal_links.html.twig' with {class: 'lp-auth__footer-link'} only %}
+    </div>
+</div>

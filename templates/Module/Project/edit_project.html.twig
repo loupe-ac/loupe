@@ -1,95 +1,89 @@
-{% extends 'base.html.twig' %}
+{% extends '@Project/_settings_layout.html.twig' %}
 
 {% block title %}{{ 'project.edit.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: project.id}) }}">{{ project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.project_settings'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans},
+    ]" />
 {% endblock %}
 
-{% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
-    <twig:Ds:PageHeader :title="'project.edit.page.title'|trans" :description="'project.edit.page.description'|trans" />
+{% block settings_section 'general' %}
 
-    <div class="lp-settings-layout">
-        {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'general'} only %}
+{% block settings_content %}
+<div id="general">
+    <twig:Ds:Panel as="section">
+        <twig:Ds:SectionHeading>{{ 'project.edit.general.title'|trans }}</twig:Ds:SectionHeading>
+    {{ form_start(form, {'attr': {'class': 'lp-form'}}) }}
+        <twig:Ds:FormField>
+            {{ form_label(form.name, null, {label_attr: {class: ds_label_class()}}) }}
+            {{ form_widget(form.name, {attr: {class: ds_input_class()}}) }}
+            <twig:Ds:FieldErrors :fieldView="form.name" />
+        </twig:Ds:FormField>
+        {% if project.slug is not null %}
+        <twig:Ds:FormField>
+            <twig:Ds:Label for="project-slug">{{ 'project.edit.slug.label'|trans }}</twig:Ds:Label>
+            <div class="lp-input-with-action">
+                <twig:Ds:Input type="text" id="project-slug" value="{{ project.slug }}" disabled data-project-slug />
+                <twig:Ds:CopyButton :text="project.slug" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" buttonVariant="" buttonSize="" />
+            </div>
+            <twig:Ds:Hint>{{ 'project.edit.slug.hint'|trans }}</twig:Ds:Hint>
+        </twig:Ds:FormField>
+        {% endif %}
+        <twig:Ds:FormField>
+            {{ form_label(form.description, null, {label_attr: {class: ds_label_class()}}) }}
+            {{ form_widget(form.description, {attr: {class: ds_input_class('textarea')}}) }}
+            <twig:Ds:FieldErrors :fieldView="form.description" />
+        </twig:Ds:FormField>
+        <twig:Ds:FormField>
+            {{ form_label(form.domain, null, {label_attr: {class: ds_label_class()}}) }}
+            {{ form_widget(form.domain, {attr: {class: ds_input_class()}}) }}
+            <twig:Ds:FieldErrors :fieldView="form.domain" />
+            <twig:Ds:Hint>{{ 'project.edit.form.domain.hint'|trans }}</twig:Ds:Hint>
+        </twig:Ds:FormField>
+        <twig:Ds:FormField>
+            {{ form_label(form.searchLanguage, null, {label_attr: {class: ds_label_class()}}) }}
+            {{ form_widget(form.searchLanguage, {attr: {class: ds_input_class('select')}}) }}
+            <twig:Ds:FieldErrors :fieldView="form.searchLanguage" />
+            <twig:Ds:Hint>{{ 'project.form.create_project_form.search_language.hint'|trans }}</twig:Ds:Hint>
+        </twig:Ds:FormField>
+        <twig:Ds:FormActions>
+            <twig:Ds:Button href="{{ path('app_projects') }}">{{ 'project.edit.form.cancel'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" type="submit">{{ 'project.edit.form.submit'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    {{ form_end(form) }}
+    </twig:Ds:Panel>
 
-        <div class="lp-settings-content" id="general">
-        <twig:Ds:Panel as="section">
-            <twig:Ds:SectionHeading>{{ 'project.edit.general.title'|trans }}</twig:Ds:SectionHeading>
-        {{ form_start(form, {'attr': {'class': 'lp-form'}}) }}
-            <twig:Ds:FormField>
-                {{ form_label(form.name, null, {label_attr: {class: ds_label_class()}}) }}
-                {{ form_widget(form.name, {attr: {class: ds_input_class()}}) }}
-                <twig:Ds:FieldErrors :fieldView="form.name" />
-            </twig:Ds:FormField>
-            {% if project.slug is not null %}
-            <twig:Ds:FormField>
-                <twig:Ds:Label for="project-slug">{{ 'project.edit.slug.label'|trans }}</twig:Ds:Label>
-                <div class="lp-input-with-action">
-                    <twig:Ds:Input type="text" id="project-slug" value="{{ project.slug }}" disabled data-project-slug />
-                    <twig:Ds:CopyButton :text="project.slug" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" buttonVariant="" buttonSize="" />
-                </div>
-                <twig:Ds:Hint>{{ 'project.edit.slug.hint'|trans }}</twig:Ds:Hint>
-            </twig:Ds:FormField>
-            {% endif %}
-            <twig:Ds:FormField>
-                {{ form_label(form.description, null, {label_attr: {class: ds_label_class()}}) }}
-                {{ form_widget(form.description, {attr: {class: ds_input_class('textarea')}}) }}
-                <twig:Ds:FieldErrors :fieldView="form.description" />
-            </twig:Ds:FormField>
-            <twig:Ds:FormField>
-                {{ form_label(form.domain, null, {label_attr: {class: ds_label_class()}}) }}
-                {{ form_widget(form.domain, {attr: {class: ds_input_class()}}) }}
-                <twig:Ds:FieldErrors :fieldView="form.domain" />
-                <twig:Ds:Hint>{{ 'project.edit.form.domain.hint'|trans }}</twig:Ds:Hint>
-            </twig:Ds:FormField>
-            <twig:Ds:FormField>
-                {{ form_label(form.searchLanguage, null, {label_attr: {class: ds_label_class()}}) }}
-                {{ form_widget(form.searchLanguage, {attr: {class: ds_input_class('select')}}) }}
-                <twig:Ds:FieldErrors :fieldView="form.searchLanguage" />
-                <twig:Ds:Hint>{{ 'project.form.create_project_form.search_language.hint'|trans }}</twig:Ds:Hint>
-            </twig:Ds:FormField>
-            <twig:Ds:FormActions>
-                <twig:Ds:Button href="{{ path('app_projects') }}">{{ 'project.edit.form.cancel'|trans }}</twig:Ds:Button>
-                <twig:Ds:Button variant="primary" type="submit">{{ 'project.edit.form.submit'|trans }}</twig:Ds:Button>
-            </twig:Ds:FormActions>
-        {{ form_end(form) }}
-        </twig:Ds:Panel>
+    <twig:Ds:Panel as="section" class="lp-danger-zone" data-controller="modal" :data-modal-reopen-value="deleteForm.vars.submitted ? 'true' : false">
+        <h2 class="lp-danger-zone-title">{{ 'project.delete.title'|trans }}</h2>
+        <p class="lp-danger-zone-desc">{{ 'project.delete.warning'|trans }}</p>
+        <twig:Ds:Button variant="danger" type="button" data-action="click->modal#open">
+            {{ 'project.delete.button'|trans }}
+        </twig:Ds:Button>
 
-        <twig:Ds:Panel as="section" class="lp-danger-zone" data-controller="modal" :data-modal-reopen-value="deleteForm.vars.submitted ? 'true' : false">
-            <h2 class="lp-danger-zone-title">{{ 'project.delete.title'|trans }}</h2>
-            <p class="lp-danger-zone-desc">{{ 'project.delete.warning'|trans }}</p>
-            <twig:Ds:Button variant="danger" type="button" data-action="click->modal#open">
-                {{ 'project.delete.button'|trans }}
-            </twig:Ds:Button>
-
-            <twig:Ds:Dialog>
-                <div data-controller="confirm-input" data-confirm-input-expected-value="{{ project.name }}">
-                    {{ form_start(deleteForm, {'action': path('app_project_delete', {id: project.id}), 'attr': {'class': 'lp-form'}}) }}
-                        <h3 class="lp-dialog-title">{{ 'project.delete.modal.title'|trans({'%name%': project.name}) }}</h3>
-                        <p class="lp-dialog-desc">{{ 'project.delete.modal.warning'|trans }}</p>
-                        <twig:Ds:FormField>
-                            {{ form_label(deleteForm.confirmName, null, {'label_attr': {'class': ds_label_class()}}) }}
-                            {{ form_widget(deleteForm.confirmName, {'attr': {
-                                'class': ds_input_class(),
-                                'data-confirm-input-target': 'input',
-                                'data-action': 'input->confirm-input#check',
-                            }}) }}
-                            <twig:Ds:FieldErrors :fieldView="deleteForm.confirmName" />
-                        </twig:Ds:FormField>
-                        <twig:Ds:FormActions>
-                            <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'project.delete.modal.cancel'|trans }}</twig:Ds:Button>
-                            <twig:Ds:Button variant="danger" type="submit" data-confirm-input-target="submit" disabled>
-                                {{ 'project.delete.modal.confirm'|trans }}
-                            </twig:Ds:Button>
-                        </twig:Ds:FormActions>
-                    {{ form_end(deleteForm) }}
-                </div>
-            </twig:Ds:Dialog>
-        </twig:Ds:Panel>
-        </div>
-    </div>
+        <twig:Ds:Dialog>
+            <div data-controller="confirm-input" data-confirm-input-expected-value="{{ project.name }}">
+                {{ form_start(deleteForm, {'action': path('app_project_delete', {id: project.id}), 'attr': {'class': 'lp-form'}}) }}
+                    <h3 class="lp-dialog-title">{{ 'project.delete.modal.title'|trans({'%name%': project.name}) }}</h3>
+                    <p class="lp-dialog-desc">{{ 'project.delete.modal.warning'|trans }}</p>
+                    <twig:Ds:FormField>
+                        {{ form_label(deleteForm.confirmName, null, {'label_attr': {'class': ds_label_class()}}) }}
+                        {{ form_widget(deleteForm.confirmName, {'attr': {
+                            'class': ds_input_class(),
+                            'data-confirm-input-target': 'input',
+                            'data-action': 'input->confirm-input#check',
+                        }}) }}
+                        <twig:Ds:FieldErrors :fieldView="deleteForm.confirmName" />
+                    </twig:Ds:FormField>
+                    <twig:Ds:FormActions>
+                        <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'project.delete.modal.cancel'|trans }}</twig:Ds:Button>
+                        <twig:Ds:Button variant="danger" type="submit" data-confirm-input-target="submit" disabled>
+                            {{ 'project.delete.modal.confirm'|trans }}
+                        </twig:Ds:Button>
+                    </twig:Ds:FormActions>
+                {{ form_end(deleteForm) }}
+            </div>
+        </twig:Ds:Dialog>
+    </twig:Ds:Panel>
 </div>
 {% endblock %}

@@ -45,6 +45,10 @@ export interface {{ entry.name }}Props {
     features?: { inbox?: boolean; artifacts?: boolean; billing?: boolean };
     /** True when the user is an admin. It shows the Admin link. */
     admin?: boolean;
+    /** `full` drops the frame inset, for a page that reaches the window edge, such as the board. */
+    shellWidth?: 'default' | 'full';
+    /** The ground of the main column. `paper` is white, and `fill` is a column that clips its overflow. */
+    mainSurface?: 'app' | 'paper' | 'fill';
     className?: string;
     /** The page. It fills the main column. */
     children?: ReactNode;

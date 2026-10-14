@@ -165,6 +165,8 @@ return (new GamacheConfig())->registerChecks([
     ),
     new DesignSystemAdoptionCheck(
         components: designSystemComponents((new Catalog())->entries()),
+        // The split view draws the workspace frame itself when a page gives it a width.
+        ignoredPaths: ['templates/components/Ds/SplitView.html.twig'],
     ),
     new DesignSystemPatternCheck(
         patterns: [

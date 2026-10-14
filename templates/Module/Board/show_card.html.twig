@@ -7,9 +7,10 @@
 {% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_board', {id: card.project.id}) }}">{{ 'nav.link.board'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">#{{ card.number }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.board'|trans, url: path('app_project_board', {id: card.project.id})},
+        {label: '#' ~ card.number},
+    ]" />
 {% endblock %}
 
 {% block body %}

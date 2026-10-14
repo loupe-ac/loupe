@@ -3,16 +3,16 @@
 {% block title %}{{ 'review.dashboard.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: project.id}) }}">{{ project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.documents'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.documents'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
 {# Unfiltered and archive-free, so it can tell "this project has nothing" from
    "the filters matched nothing". Same number the shell's nav pill shows. #}
 {% set totalDocuments = project_document_count(project) %}
-<div class="lp-workspace lp-core-prototype-page lp-core-documents" data-controller="modal" data-modal-reopen-value="{{ createDocumentForm.vars.submitted ? 'true' : 'false' }}">
+<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="modal" data-modal-reopen-value="{{ createDocumentForm.vars.submitted ? 'true' : 'false' }}">
     {# The default line promises newest-first, which a ranked search and a series
        both make untrue. The series wins, because its order wins in the query. #}
     {% if listQuery.seriesName %}
@@ -206,5 +206,5 @@
         </p>
     </twig:Ds:EmptyState>
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

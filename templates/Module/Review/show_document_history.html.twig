@@ -2,12 +2,14 @@
 
 {% block title %}{{ 'review.document.history.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block main_surface 'paper' %}
+
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: document.project.id}) }}">{{ 'nav.link.documents'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <a class="lp-topbar__crumb" href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}">{{ document.title }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'review.document.history.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.documents'|trans, url: path('app_project_documents', {id: document.project.id})},
+        {label: document.title, url: path('app_document_review', {projectId: document.project.id, documentId: document.id})},
+        {label: 'review.document.history.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block topbar_meta %}

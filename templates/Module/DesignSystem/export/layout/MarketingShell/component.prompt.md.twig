@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+Loupe's marketing shell. {{ entry.summary }}
+
+```jsx
+<{{ entry.name }}>
+  <article>The page body.</article>
+</{{ entry.name }}>
+```
+
+The shell draws the header with the brand, the sign-in link and the sign-up button, and the footer with the brand, the copyright, the source and docs links, the privacy, terms and AI policy links, and the X and Bluesky links. The app draws the source and social links with icons, and the export names them in text. The children fill the page between them. The component emits the real `lp-landing` classes of the app.
+{% endautoescape %}

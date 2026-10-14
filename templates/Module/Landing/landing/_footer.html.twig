@@ -3,8 +3,7 @@
         <div class="lp-home-footer__columns">
             <div class="lp-home-footer__about">
                 <a href="#top" data-turbo="false" class="lp-home-brand lp-home-brand--small">
-                    <span class="lp-home-brand__mark" aria-hidden="true"></span>
-                    {{ 'nav.brand'|trans }}
+                    <twig:Ds:BrandMark size="sm" />
                 </a>
                 <p class="lp-home-footer__tagline">{{ 'landing.footer.tagline'|trans }}</p>
                 <div class="lp-home-footer__social">
@@ -38,9 +37,7 @@
             <nav class="lp-home-footer__column" aria-label="{{ 'landing.footer.legal'|trans }}">
                 <span class="lp-home-footer__heading">{{ 'landing.footer.legal'|trans }}</span>
                 <ul class="lp-home-footer__list">
-                    <li><a href="{{ path('app_privacy') }}" class="lp-home-footer__link">{{ 'account.auth.footer.privacy'|trans }}</a></li>
-                    <li><a href="{{ path('app_terms') }}" class="lp-home-footer__link">{{ 'account.auth.footer.terms'|trans }}</a></li>
-                    <li><a href="{{ path('app_ai_policy') }}" class="lp-home-footer__link">{{ 'account.auth.footer.ai_policy'|trans }}</a></li>
+                    {% include '_legal_links.html.twig' with {class: 'lp-home-footer__link', listItem: true} only %}
                 </ul>
             </nav>
         </div>

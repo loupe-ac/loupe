@@ -1,56 +1,52 @@
-{% extends 'base.html.twig' %}
+{% extends '@Project/_settings_layout.html.twig' %}
 
 {% block title %}{{ 'board.automation.heading'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__crumb">{{ project.name }}</span>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.project_settings'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.project_settings'|trans},
+    ]" />
 {% endblock %}
 
-{% block body %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
-    <twig:Ds:PageHeader :title="'project.edit.page.title'|trans" :description="'project.edit.page.description'|trans" />
-    <div class="lp-settings-layout">
-        {% include '@Project/_settings_nav.html.twig' with {project: project, active: 'automation'} only %}
-        <twig:Ds:Panel as="section" class="lp-settings-content" data-board-automation-settings>
-            <twig:Ds:SectionHeading>{{ 'board.automation.heading'|trans }}</twig:Ds:SectionHeading>
-            <p class="lp-connect-hint">{{ 'board.automation.description'|trans }}</p>
-            {% if failedComment %}
-                {% set cause = failedComment.cause ?? '' %}
-                <div class="lp-connect-alert" data-fix-run-comment-failure>
-                    <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--md lp-connect-alert__icon" />
-                    <p class="lp-connect-alert__text">
-                        {{ 'board.automation.comment_failure.summary'|trans({'%pull_request%': failedComment.repository ~ '#' ~ failedComment.number}) -}}
-                        {% if failedComment.failedAt %} (<twig:Ds:RelativeTime :datetime="failedComment.failedAt" />){% endif %}.
-                        {% if cause in ['permission', 'no_installation', 'installation_suspended', 'unknown_pull_request', 'no_commenter', 'lookup_incomplete'] %}
-                            {{ ('board.automation.comment_failure.cause.' ~ cause)|trans }}
-                        {% else %}
-                            {{ 'board.automation.comment_failure.cause.other'|trans({'%cause%': cause}) }}
-                        {% endif %}
-                    </p>
-                </div>
-            {% endif %}
-            {{ form_start(form, {attr: {class: 'lp-form'}}) }}
-                <twig:Ds:FormField>
-                    <label class="lp-choice">
-                        {{ form_widget(form.enabled) }}
-                        {{ form.enabled.vars.label|trans }}
-                    </label>
-                    <twig:Ds:Hint :id="form.enabled.vars.id ~ '_help'">{{ form.enabled.vars.help|trans }}</twig:Ds:Hint>
-                    <twig:Ds:FieldErrors :fieldView="form.enabled" data-field-errors="enabled" />
-                </twig:Ds:FormField>
-                <twig:Ds:FormField>
-                    {{ form_label(form.stuckDelayMinutes, null, {label_attr: {class: ds_label_class()}}) }}
-                    {{ form_widget(form.stuckDelayMinutes, {attr: {class: ds_input_class()}}) }}
-                    <twig:Ds:Hint :id="form.stuckDelayMinutes.vars.id ~ '_help'">{{ form.stuckDelayMinutes.vars.help|trans }}</twig:Ds:Hint>
-                    <twig:Ds:FieldErrors :fieldView="form.stuckDelayMinutes" data-field-errors="stuckDelayMinutes" />
-                </twig:Ds:FormField>
-                <twig:Ds:FormActions>
-                    <twig:Ds:Button variant="primary" type="submit">{{ 'board.automation.submit'|trans }}</twig:Ds:Button>
-                </twig:Ds:FormActions>
-            {{ form_end(form) }}
-        </twig:Ds:Panel>
-    </div>
-</div>
+{% block settings_section 'automation' %}
+
+{% block settings_content %}
+<twig:Ds:Panel as="section" data-board-automation-settings>
+    <twig:Ds:SectionHeading>{{ 'board.automation.heading'|trans }}</twig:Ds:SectionHeading>
+    <p class="lp-connect-hint">{{ 'board.automation.description'|trans }}</p>
+    {% if failedComment %}
+        {% set cause = failedComment.cause ?? '' %}
+        <div class="lp-connect-alert" data-fix-run-comment-failure>
+            <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--md lp-connect-alert__icon" />
+            <p class="lp-connect-alert__text">
+                {{ 'board.automation.comment_failure.summary'|trans({'%pull_request%': failedComment.repository ~ '#' ~ failedComment.number}) -}}
+                {% if failedComment.failedAt %} (<twig:Ds:RelativeTime :datetime="failedComment.failedAt" />){% endif %}.
+                {% if cause in ['permission', 'no_installation', 'installation_suspended', 'unknown_pull_request', 'no_commenter', 'lookup_incomplete'] %}
+                    {{ ('board.automation.comment_failure.cause.' ~ cause)|trans }}
+                {% else %}
+                    {{ 'board.automation.comment_failure.cause.other'|trans({'%cause%': cause}) }}
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+    {{ form_start(form, {attr: {class: 'lp-form'}}) }}
+        <twig:Ds:FormField>
+            <label class="lp-choice">
+                {{ form_widget(form.enabled) }}
+                {{ form.enabled.vars.label|trans }}
+            </label>
+            <twig:Ds:Hint :id="form.enabled.vars.id ~ '_help'">{{ form.enabled.vars.help|trans }}</twig:Ds:Hint>
+            <twig:Ds:FieldErrors :fieldView="form.enabled" data-field-errors="enabled" />
+        </twig:Ds:FormField>
+        <twig:Ds:FormField>
+            {{ form_label(form.stuckDelayMinutes, null, {label_attr: {class: ds_label_class()}}) }}
+            {{ form_widget(form.stuckDelayMinutes, {attr: {class: ds_input_class()}}) }}
+            <twig:Ds:Hint :id="form.stuckDelayMinutes.vars.id ~ '_help'">{{ form.stuckDelayMinutes.vars.help|trans }}</twig:Ds:Hint>
+            <twig:Ds:FieldErrors :fieldView="form.stuckDelayMinutes" data-field-errors="stuckDelayMinutes" />
+        </twig:Ds:FormField>
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="primary" type="submit">{{ 'board.automation.submit'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    {{ form_end(form) }}
+</twig:Ds:Panel>
 {% endblock %}

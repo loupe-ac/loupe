@@ -3,9 +3,10 @@
 {% block title %}{{ 'billing.subscribe.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_account_profile') }}">{{ 'nav.link.account'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.billing'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.account'|trans, url: path('app_account_profile')},
+        {label: 'nav.link.billing'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}

@@ -1,0 +1,19 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="Both sizes and the mark alone" viewport="700x150"
+ */
+export interface {{ entry.name }}Props {
+    /** The size step. md by default. */
+    size?: {% for size in entry.sizes %}'{{ size }}'{% if not loop.last %} | {% endif %}{% endfor %};
+    /** Draws the logo square alone, named by the brand name. */
+    markOnly?: boolean;
+    className?: string;
+    /** The mark draws the brand name itself, so it takes no children. */
+    children?: never;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}
