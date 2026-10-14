@@ -65,17 +65,13 @@ final class StatusComponentsParityTest extends KernelTestCase
         self::assertStringContainsString('<span class="lp-status-chip lp-status-chip--ok">', preg_replace('/\s+/', ' ', $this->render('<twig:Ds:StatusChip modifier="ok" :dot="false">A</twig:Ds:StatusChip>')) ?? '');
     }
 
-    public function test_the_state_mark_wrapper_sets_the_attributes_of_the_twig_root(): void
+    public function test_the_state_mark_wrapper_opens_its_tooltip_without_stimulus(): void
     {
         $jsx = $this->wrapper('StateMark');
-        $html = $this->render('<twig:Ds:StateMark kind="working" label="Working">Why</twig:Ds:StateMark>');
 
-        foreach (['data-controller', 'data-action'] as $attribute) {
-            if (1 !== preg_match('/'.$attribute.'="([^"]*)"/', $html, $found)) {
-                self::fail($attribute.' is missing from the Twig root');
-            }
-            self::assertStringContainsString($attribute.'="'.html_entity_decode($found[1]).'"', $jsx);
-        }
+        self::assertStringNotContainsString('data-controller', $jsx);
+        self::assertStringNotContainsString('data-action', $jsx);
+        self::assertStringContainsString('React.useEffect(() => attachTooltip(rootRef.current, tooltipRef.current), [])', $jsx);
         self::assertStringContainsString('{ kind, label, id,', $jsx);
         self::assertStringContainsString("'lp-state-mark--' + kind", $jsx);
         foreach (['stuck', 'needs-you', 'working', 'waiting', 'chip'] as $kind) {

@@ -308,7 +308,7 @@ The generic wrapper names its modifier prop after the Twig prop. The `modifierPr
 
 The Pagination wrapper takes data in place of a route name: `page`, `totalPages`, an optional `pageList` with `null` for a gap, and an optional `hrefFor(page)` that returns `#` by default. Its labels are the English texts of the app, so they do not follow a translation change. The EmptyState wrapper takes its `icon` as an inline SVG element.
 
-The StatusChip, StateMark and StatusBox wrappers draw the inner parts of their Twig components: the dot, the help icon and the tooltip of a chip, the icon and the tooltip of a mark, and the head, the facts and the list of other states of a box. Each draws its icons as inline SVG. `StatusComponentsParityTest` compares the classes of each wrapper with its Twig component.
+The StatusChip, StateMark and StatusBox wrappers draw the inner parts of their Twig components: the dot, the help icon and the tooltip of a chip, the icon and the tooltip of a mark, and the head, the facts and the list of other states of a box. Each draws its icons as inline SVG. Claude Design loads no Stimulus, so the StateMark wrapper opens and places its tooltip with its own listeners. `StatusComponentsParityTest` compares the classes of each wrapper with its Twig component.
 
 `demo.jsx.twig` draws the part in its own preview card. An entry with no folder uses `default.demo.jsx.twig` for its card. An entry with no Twig component sets `template` to null.
 
