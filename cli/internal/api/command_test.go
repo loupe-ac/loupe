@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -171,6 +172,31 @@ func TestAckCommandNamesEachFailure(t *testing.T) {
 			_, err := New(server.URL, "t", server.Client()).AckCommand(context.Background(), ackBridgeID, ackCommandID, CommandDone, "")
 			if err == nil || errors.Is(err, ErrCommandNotFound) != tc.notFound || !strings.Contains(err.Error(), tc.text) {
 				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+}
+
+// The inbox keys of a command decode when set. A null and an older server both
+// decode as empty.
+func TestACommandDecodesItsInboxKeys(t *testing.T) {
+	for name, tc := range map[string]struct {
+		extra  string
+		id     string
+		number int
+	}{
+		"set":          {`,"inboxActionId":"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90","inboxItemNumber":12`, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12},
+		"null":         {`,"inboxActionId":null,"inboxItemNumber":null`, "", 0},
+		"older server": {``, "", 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var c Command
+			body := `{"type":"bridge.command","commandId":"x","kind":"resume-run","cause":"inbox-action"` + tc.extra + `}`
+			if err := json.Unmarshal([]byte(body), &c); err != nil {
+				t.Fatal(err)
+			}
+			if c.InboxActionID != tc.id || c.InboxItemNumber != tc.number {
+				t.Fatalf("command = %+v", c)
 			}
 		})
 	}

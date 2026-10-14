@@ -267,3 +267,28 @@ func TestAWorkRequestDecodesItsContext(t *testing.T) {
 		})
 	}
 }
+
+// The inbox keys of a work request decode when set. A null and an older server
+// both decode as empty.
+func TestAWorkRequestDecodesItsInboxKeys(t *testing.T) {
+	base := strings.TrimSuffix(workRequestJSON(WorkRequestOpen), "}")
+	for name, tc := range map[string]struct {
+		body   string
+		id     string
+		number int
+	}{
+		"set":          {base + `,"inboxActionId":"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90","inboxItemNumber":12}`, "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12},
+		"null":         {base + `,"inboxActionId":null,"inboxItemNumber":null}`, "", 0},
+		"older server": {workRequestJSON(WorkRequestOpen), "", 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var w WorkRequest
+			if err := json.Unmarshal([]byte(tc.body), &w); err != nil {
+				t.Fatal(err)
+			}
+			if w.InboxActionID != tc.id || w.InboxItemNumber != tc.number {
+				t.Fatalf("work request = %+v", w)
+			}
+		})
+	}
+}

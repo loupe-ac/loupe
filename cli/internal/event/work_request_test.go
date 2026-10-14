@@ -149,6 +149,26 @@ func TestCheckWorkRequestFoldsTheIDs(t *testing.T) {
 	}
 }
 
+// An inbox work request names its rule with the prefix "inbox:".
+func TestCheckWorkRequestTakesAnInboxRuleID(t *testing.T) {
+	w := api.WorkRequest{
+		Type:          WorkRequestType,
+		Subject:       api.WorkRequestSubject{Type: "work-request", ID: "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90"},
+		ProjectID:     "0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7",
+		WorkRequestID: "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90",
+		Kind:          "implement",
+		State:         api.WorkRequestOpen,
+		SubjectType:   api.SubjectCard,
+		SubjectID:     "0192f3a1-9999-7d3e-8f10-a2b3c4d5e6f7",
+		CardNumber:    7,
+		RuleID:        "inbox:send-agent",
+		CreatedAt:     time.Date(2026, 10, 1, 12, 30, 0, 0, time.UTC),
+	}
+	if err := CheckWorkRequest(&w); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A subject that is no card carries no card number, as null or absent.
 func TestParseWorkRequestTakesASubjectThatIsNoCard(t *testing.T) {
 	for _, number := range []string{`"cardNumber":null,`, `"cardNumber":0,`, ``} {

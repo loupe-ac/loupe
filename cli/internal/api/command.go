@@ -77,6 +77,11 @@ type Command struct {
 	Harness  string `json:"harness,omitempty"`
 	Account  string `json:"account,omitempty"`
 	RunModel string `json:"runModel,omitempty"`
+	// InboxActionID and InboxItemNumber name the inbox action the owner
+	// clicked, and its item. They carry ids only, never the owner's note. A
+	// null decodes as "" or 0, and an older server sends none.
+	InboxActionID   string `json:"inboxActionId,omitempty"`
+	InboxItemNumber int    `json:"inboxItemNumber,omitempty"`
 }
 
 // CommandSubject names the command itself.

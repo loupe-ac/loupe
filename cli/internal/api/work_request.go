@@ -55,6 +55,12 @@ type WorkRequest struct {
 	// model of the work entry. A null decodes as "".
 	Model  string `json:"model,omitempty"`
 	Effort string `json:"effort,omitempty"`
+	// InboxActionID and InboxItemNumber name the inbox action the owner
+	// clicked to send an agent, and its item. They carry ids only, and never
+	// the owner's note. A null decodes as "" or 0, and an older server sends
+	// none.
+	InboxActionID   string `json:"inboxActionId,omitempty"`
+	InboxItemNumber int    `json:"inboxItemNumber,omitempty"`
 }
 
 // Efforts are the levels claude --effort takes.

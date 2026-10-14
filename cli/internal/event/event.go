@@ -66,7 +66,7 @@ var KindPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,39}$`)
 
 // ruleIDPattern is the shape of the id of the server rule that opened a work
 // request.
-var ruleIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,99}$`)
+var ruleIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,99}$`)
 
 // The shapes of the context values of a work request, as the server checks
 // them. A bridge fills prompts and commands with these values.

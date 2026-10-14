@@ -507,8 +507,11 @@ func (r *router) resumeRun(c api.Command) (state, reason string) {
 	}
 
 	prompt := directive.RenderResumeByPerson()
-	if c.Cause == api.CauseAskClosed {
+	switch {
+	case c.Cause == api.CauseAskClosed:
 		prompt = directive.RenderResumeAskClosed()
+	case c.InboxActionID != "":
+		prompt = directive.RenderResumeByInboxAction(c.InboxItemNumber)
 	}
 	p := pending{
 		key: keyFor(e), event: e, set: current, runID: config.NewUUID(), continues: c.RunKey, startedOn: started, origin: commandWork(c),

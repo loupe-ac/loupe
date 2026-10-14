@@ -275,7 +275,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 			Project: slug,
 			Dir:     s.dirs[slug],
 			Schema:  schema,
-			Prompt:  directive.Render(w.Prompt, v),
+			Prompt:  renderWork(w, w.Prompt, v),
 			Pool:    DefaultPool,
 		}.withRun(s.appRun)
 		m.Model, m.Effort = cmp.Or(w.Model, m.Model), w.Effort
@@ -296,7 +296,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	}
 	switch entry.Action {
 	case "":
-		m.Prompt = directive.Render(entry.Prompt, v)
+		m.Prompt = renderWork(w, entry.Prompt, v)
 		m.Pool = cmp.Or(entry.WorkerPool, DefaultPool)
 		// A model the request names is no draw, so the run joins no experiment.
 		if entry.experiment != nil && w.Model == "" {
@@ -312,6 +312,16 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	}
 
 	return m
+}
+
+// renderWork renders the prompt of a run. A request that an inbox action sent
+// gets the line that names the item, before the footer.
+func renderWork(w api.WorkRequest, template string, v map[string]string) string {
+	if w.InboxActionID != "" {
+		return directive.RenderInboxAction(template, v, w.InboxItemNumber)
+	}
+
+	return directive.Render(template, v)
 }
 
 // workValues are the values a work entry fills its placeholders with. A

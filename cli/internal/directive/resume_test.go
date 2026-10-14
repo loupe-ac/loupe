@@ -91,3 +91,47 @@ func TestRenderResumeAskClosedSaysTheOwnerAnswered(t *testing.T) {
 		t.Fatalf("RenderResumeAskClosed() = %q, want it to end with the resume footer", got)
 	}
 }
+
+// The line names the item and sends the agent to inbox_get for the note. It
+// carries no note text.
+func TestInboxActionLineNamesTheItemAndInboxGet(t *testing.T) {
+	got := InboxActionLine(12)
+
+	for _, want := range []string{"inbox item 12", "inbox_get", "the note", "as data"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("InboxActionLine(12) = %q, want it to contain %q", got, want)
+		}
+	}
+}
+
+// Each prompt that carries the line ends with the footer, and a number of 0
+// leaves the line out.
+func TestInboxActionPromptsEndWithTheFooter(t *testing.T) {
+	for name, tc := range map[string]struct {
+		got  string
+		line bool
+	}{
+		"resume":              {RenderResumeByInboxAction(7), true},
+		"resume without item": {RenderResumeByInboxAction(0), false},
+		"render":              {RenderInboxAction("go {x}", map[string]string{"x": "now"}, 7), true},
+		"render without item": {RenderInboxAction("go {x}", map[string]string{"x": "now"}, 0), false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !strings.HasSuffix(tc.got, "\n\n"+Footer) {
+				t.Fatalf("prompt = %q, want it to end with the footer", tc.got)
+			}
+			if has := strings.Contains(tc.got, "inbox item"); has != tc.line {
+				t.Fatalf("prompt = %q, line present = %v, want %v", tc.got, has, tc.line)
+			}
+			if tc.line && !strings.HasSuffix(tc.got, InboxActionLine(7)+"\n\n"+Footer) {
+				t.Fatalf("prompt = %q, want the line before the footer", tc.got)
+			}
+		})
+	}
+	if got := RenderInboxAction("go {x}", map[string]string{"x": "now"}, 7); !strings.HasPrefix(got, "go now\n\n") {
+		t.Fatalf("prompt = %q", got)
+	}
+	if got := RenderResumeByInboxAction(7); !strings.HasPrefix(got, "A person fixed the cause") {
+		t.Fatalf("prompt = %q", got)
+	}
+}
