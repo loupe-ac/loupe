@@ -8,6 +8,8 @@ use Gamache\Check\CommentBudgetCheck;
 use Gamache\Check\DeploymentConfigParityCheck;
 use Gamache\Check\DesignSystemAdoptionCheck;
 use Gamache\Check\DesignSystemComponent;
+use Gamache\Check\DesignSystemPattern;
+use Gamache\Check\DesignSystemPatternCheck;
 use Gamache\Check\FormTypeTranslationKeysCheck;
 use Gamache\Check\MessengerRoutingCheck;
 use Gamache\Check\NoArbitraryValuesCheck;
@@ -163,6 +165,28 @@ return (new GamacheConfig())->registerChecks([
     ),
     new DesignSystemAdoptionCheck(
         components: designSystemComponents((new Catalog())->entries()),
+    ),
+    new DesignSystemPatternCheck(
+        patterns: [
+            new DesignSystemPattern(
+                'Ds:RelativeTime',
+                '/\|\s*relative_time\b/',
+                'relative_time filter call',
+                'templates/components/Ds/RelativeTime.html.twig',
+                enforced: true,
+            ),
+            new DesignSystemPattern(
+                'Ds:ActionForm',
+                '~<form\b(?=(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*?\bmethod\s*=\s*["\']post["\'])(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is',
+                'one-button form',
+                'templates/components/Ds/ActionForm.html.twig',
+                enforced: true,
+            ),
+        ],
+        ignoredPaths: [
+            'templates/Module/Account/admin',
+            'templates/Module/Billing/admin',
+        ],
     ),
     new FormTypeTranslationKeysCheck(),
     new TurboStreamTargetsCheck(),

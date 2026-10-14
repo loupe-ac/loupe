@@ -20,7 +20,7 @@
                     {% if bridge.lastSeenAt is null %}
                         {{ 'inbox.ask.bridge.unheard'|trans }}
                     {% else %}
-                        <time datetime="{{ bridge.lastSeenAt|date('c') }}">{{ 'inbox.ask.bridge.last_heard'|trans({'%time%': bridge.lastSeenAt|relative_time(bridge.checkedAt)}) }}</time>
+                        <time datetime="{{ bridge.lastSeenAt|date('c') }}">{{ 'inbox.ask.bridge.last_heard'|trans({'%time%': bridge.lastSeenAt|relative_time(bridge.checkedAt)}) }}</time>{# @design-system-ignore #}
                     {% endif %}
                     {% if bridge.quiet %}{{ 'inbox.ask.bridge.quiet'|trans }}{% endif %}
                 </span>

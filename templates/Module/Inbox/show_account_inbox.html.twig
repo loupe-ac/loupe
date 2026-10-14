@@ -22,7 +22,7 @@
             <span class="lp-account-inbox-row__meta">
                 <span data-account-inbox-open-count>{{ 'inbox.account.project.open_asks'|trans({'%count%': row.openAskCount}) }}</span>
                 {% if row.oldestWait %}
-                <span class="lp-account-inbox-row__wait">{{ 'inbox.account.project.oldest'|trans({'%time%': row.oldestWait|relative_time}) }}</span>
+                <span class="lp-account-inbox-row__wait">{{ 'inbox.account.project.oldest'|trans({'%time%': row.oldestWait|relative_time}) }}</span>{# @design-system-ignore #}
                 {% endif %}
                 {% if row.blocking %}
                 <span class="lp-account-inbox-row__blocking">{{ 'inbox.item.blocking'|trans }}</span>

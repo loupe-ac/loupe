@@ -37,7 +37,7 @@
                     {% endif %}
                 </span>
                 {% if ask and ask.closedAt %}
-                    <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>
+                    <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>{# @design-system-ignore #}
                 {% endif %}
             </p>
         </header>
