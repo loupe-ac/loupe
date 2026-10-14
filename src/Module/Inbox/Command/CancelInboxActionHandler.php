@@ -20,8 +20,8 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * Withdraws the resume or the session request that an inbox action queued. Only one that still waits
- * on the bridge can be withdrawn. A retry is synchronous, so it never qualifies.
+ * Withdraws the resume, the agent or the session request that an inbox action queued. Only one that
+ * still waits on the bridge can be withdrawn. A retry is synchronous, so it never qualifies.
  */
 final readonly class CancelInboxActionHandler
 {
@@ -50,7 +50,7 @@ final readonly class CancelInboxActionHandler
 
         match ($action->kind) {
             InboxActionKind::ResumeRun => $this->cancelResume($action, $command),
-            InboxActionKind::StartSession => $this->cancelSession($action),
+            InboxActionKind::SendAgent, InboxActionKind::StartSession => $this->cancelWorkRequest($action),
             default => throw new DomainErrors(['action' => self::NOT_CANCELLABLE]),
         };
 
@@ -85,10 +85,12 @@ final readonly class CancelInboxActionHandler
         }
     }
 
-    /** Only while no bridge claimed the request. A claimed request is a session that opens, so it stays. */
-    private function cancelSession(InboxAction $action): void
+    /** The withdraw answers false when a bridge claimed the request since the read, and the claim stands. */
+    private function cancelWorkRequest(InboxAction $action): void
     {
-        if (null === $action->workRequestId || !($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($action->workRequestId, WorkRequestState::Cancelled, onlyIfOpen: true))) {
+        $withdrawn = null !== $action->workRequestId
+            && ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($action->workRequestId, WorkRequestState::Cancelled, onlyIfOpen: true));
+        if (!$withdrawn) {
             throw new DomainErrors(['action' => self::NOT_CANCELLABLE]);
         }
     }

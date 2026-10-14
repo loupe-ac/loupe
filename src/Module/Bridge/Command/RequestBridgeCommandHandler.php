@@ -117,6 +117,9 @@ final readonly class RequestBridgeCommandHandler
                     reason: $reason,
                     cause: $command->cause,
                 );
+                $bridgeCommand->inboxActionId = $command->inboxActionId;
+                $bridgeCommand->inboxItemNumber = $command->inboxItemNumber;
+                $bridgeCommand->inboxItemId = $command->inboxItemId;
                 $request = null === $run->workRequestId ? null : $this->workRequests->findOneOfSubject($run->workRequestId, $run->project, $run->subject());
                 if (null !== $request) {
                     $bridgeCommand->context = $request->context;

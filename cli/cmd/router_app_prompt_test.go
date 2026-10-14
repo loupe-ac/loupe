@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -112,5 +113,49 @@ func TestAPersonsResumeContinuesAnAppPromptRun(t *testing.T) {
 	if spec := calls[0]; !spec.resume || spec.sessionID != testSession || spec.prompt != directive.RenderResumeByPerson() ||
 		spec.rule != rules.WorkRulePrefix+"review" || spec.dir != h.dir {
 		t.Fatalf("spec = %+v", spec)
+	}
+}
+
+// A request that an inbox action sent gets the line that names the item, before
+// the footer, for an app prompt and for a work entry. A request with no action
+// gets neither.
+func TestAWorkOfferFromAnInboxActionNamesTheItemInItsPrompt(t *testing.T) {
+	for name, tc := range map[string]struct {
+		offer func() api.WorkRequest
+		body  string
+	}{
+		"app prompt": {func() api.WorkRequest { return appPromptOffer(1) }, appPromptRules},
+		"work entry": {func() api.WorkRequest { return workRequest(1, 87, "implement", api.WorkRequestOpen) }, workRules},
+	} {
+		for _, sent := range []bool{true, false} {
+			t.Run(name+fmt.Sprint(" sent=", sent), func(t *testing.T) {
+				h := newHarnessWith(t, tc.body, rules.Defaults{})
+				h.states()
+				f := h.withWork()
+				h.worker.result = workerResult{hasResult: true, status: "finished"}
+				w := tc.offer()
+				if sent {
+					w.InboxActionID, w.InboxItemNumber, w.InboxItemID = "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", 12, "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90"
+				}
+
+				h.offer(f, w)
+
+				calls := h.worker.recorded()
+				if len(calls) != 1 {
+					t.Fatalf("workers = %+v", calls)
+				}
+				prompt := calls[0].prompt
+				line := directive.InboxActionLine(directive.InboxAction{ItemID: "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", ItemNumber: 12, ActionID: "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90"})
+				if got := strings.Contains(prompt, line); got != sent {
+					t.Fatalf("prompt = %q, line present = %v, want %v", prompt, got, sent)
+				}
+				if !strings.HasSuffix(prompt, directive.Footer) {
+					t.Fatalf("prompt = %q, want it to end with the footer", prompt)
+				}
+				if sent && !strings.HasSuffix(prompt, line+" "+directive.InboxReportLine+"\n\n"+directive.Footer) {
+					t.Fatalf("prompt = %q, want the line before the footer", prompt)
+				}
+			})
+		}
 	}
 }

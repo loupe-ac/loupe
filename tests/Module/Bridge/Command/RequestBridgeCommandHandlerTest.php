@@ -89,6 +89,9 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
             'harness' => null,
             'account' => null,
             'runModel' => null,
+            'inboxActionId' => null,
+            'inboxItemNumber' => null,
+            'inboxItemId' => null,
         ]], $this->outboxPayloads());
 
         $record = $audit->record('bridge.command_requested');
@@ -96,6 +99,23 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         self::assertSame((string) $command->id, $record->subject?->id);
         self::assertSame('resume-run', $record->context['kind']);
         self::assertSame((string) $run->id, $record->context['runId']);
+    }
+
+    public function test_the_inbox_action_and_item_number_are_stored_and_written_to_the_outbox(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('command-inbox');
+        $actionId = Uuid::v7();
+        $handler = self::getContainer()->get(RequestBridgeCommandHandler::class);
+        self::assertInstanceOf(RequestBridgeCommandHandler::class, $handler);
+
+        $command = $handler(new RequestBridgeCommandCommand($run, BridgeCommandKind::StopRun, $owner, null, BridgeCommandCause::InboxAction, $actionId, 12));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(BridgeCommand::class, $command->id);
+        self::assertSame([(string) $actionId, 12], [(string) $stored?->inboxActionId, $stored?->inboxItemNumber]);
+        $payload = $this->outboxPayloads()[0];
+        self::assertSame([$actionId->toRfc4122(), 12], [$payload['inboxActionId'], $payload['inboxItemNumber']]);
     }
 
     public function test_the_payload_keeps_the_absent_run_fields_null(): void

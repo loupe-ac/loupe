@@ -5230,6 +5230,8 @@
             <trans-unit id="inbox.action.resume-run.effect"><source>inbox.action.resume-run.effect</source><target>Wakes the stopped worker so it carries on with its session.</target></trans-unit>
             <trans-unit id="inbox.action.retry-card.label"><source>inbox.action.retry-card.label</source><target>Retry the card</target></trans-unit>
             <trans-unit id="inbox.action.retry-card.effect"><source>inbox.action.retry-card.effect</source><target>Releases the pause so the workflow runs the rule again.</target></trans-unit>
+            <trans-unit id="inbox.action.send-agent.label"><source>inbox.action.send-agent.label</source><target>Send an agent</target></trans-unit>
+            <trans-unit id="inbox.action.send-agent.effect"><source>inbox.action.send-agent.effect</source><target>Starts a worker for the stage work of the card.</target></trans-unit>
             <trans-unit id="inbox.action.review.label"><source>inbox.action.review.label</source><target>Review</target></trans-unit>
             <trans-unit id="inbox.action.review.effect"><source>inbox.action.review.effect</source><target>Opens the page where you review the work.</target></trans-unit>
             <trans-unit id="inbox.action.open.label"><source>inbox.action.open.label</source><target>Open</target></trans-unit>
@@ -5249,8 +5251,8 @@
             <trans-unit id="inbox.action.status.refused"><source>inbox.action.status.refused</source><target>Refused: %reason%</target></trans-unit>
             <trans-unit id="inbox.action.status.refused_no_reason"><source>inbox.action.status.refused_no_reason</source><target>Refused</target></trans-unit>
             <trans-unit id="inbox.action.status.cancelled"><source>inbox.action.status.cancelled</source><target>Cancelled</target></trans-unit>
-            <trans-unit id="inbox.action.status.resumed"><source>inbox.action.status.resumed</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.preparing"><source>inbox.action.status.preparing</source><target>Preparing</target></trans-unit>
+            <trans-unit id="inbox.action.status.resumed"><source>inbox.action.status.resumed</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.retried"><source>inbox.action.status.retried</source><target>Retried at %time%</target></trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>

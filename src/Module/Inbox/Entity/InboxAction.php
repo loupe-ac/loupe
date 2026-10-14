@@ -17,6 +17,7 @@ use Symfony\Component\Uid\Uuid;
  */
 #[ORM\Entity(repositoryClass: InboxActionRepository::class)]
 #[ORM\Index(name: 'inbox_actions_bridge_command_idx', columns: ['bridge_command_id'])]
+#[ORM\Index(name: 'inbox_actions_work_request_idx', columns: ['work_request_id'])]
 #[ORM\Table(name: 'inbox_actions')]
 class InboxAction
 {

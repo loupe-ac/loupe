@@ -11,6 +11,7 @@ use App\Module\Bridge\Scheduler\ExpireSubjectWorkRequestsTask;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Workflow\Contract\WorkTimeouts;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
@@ -85,7 +86,7 @@ final class ExpireSubjectWorkRequestsTaskTest extends KernelTestCase
         );
 
         return new ExpireSubjectWorkRequestsTask(
-            new ExpireSubjectWorkRequestsHandler($this->service(WorkRequestRepository::class), $withdraw, $clock, 120),
+            new ExpireSubjectWorkRequestsHandler($this->service(WorkRequestRepository::class), $withdraw, $clock, $this->service(WorkTimeouts::class), 120),
             $logger,
         );
     }

@@ -10,7 +10,10 @@ use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
+use App\Module\Board\Workflow\WorkRequestContexts;
+use App\Module\Board\Workflow\WorkRequestOpener;
 use App\Module\Bridge\Command\CancelBridgeCommandHandler;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
@@ -52,14 +55,22 @@ use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\ItemActions;
 use App\Module\Inbox\Service\SessionBridges;
+use App\Module\Inbox\Workflow\InboxRetryNotes;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseHandler;
+use App\Module\Workflow\Contract\ActionContext;
+use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardPauses;
+use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\ColumnRef;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Service\TemplateStageWorks;
+use App\Tests\Module\Workflow\Fact\FactsMother;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\RecordingAuditor;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -158,6 +169,48 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertNull($this->service(CardPauses::class)->findActive($this->card->id ?? throw new \LogicException('Stored.')));
     }
 
+    public function test_the_first_request_of_the_retried_rule_names_the_retry_and_its_item(): void
+    {
+        $item = $this->pauseItem(PauseKind::Retries);
+        $action = $this->runAction($item, InboxActionKind::RetryCard, 'Use the other fixture') ?? throw new \LogicException('A retry records a row.');
+
+        self::assertNull($this->openedRequest($this->openRuleWork('other-rule', 'review')->requestId)->inboxActionId);
+        $request = $this->openedRequest($this->openRuleWork('review-rule', 'fix')->requestId);
+
+        self::assertSame(
+            [(string) $action->id, (string) $item->id, $item->number],
+            [(string) $request->inboxActionId, (string) $request->inboxItemId, $request->inboxItemNumber],
+        );
+        $payload = json_decode((string) $this->em()->getConnection()->fetchOne("SELECT payload FROM outbox_events WHERE type = 'bridge.work_request' AND payload::jsonb->>'workRequestId' = ?", [(string) $request->id]), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame([(string) $action->id, (string) $item->id], [$payload['inboxActionId'], $payload['inboxItemId']]);
+        self::assertStringNotContainsString('other fixture', json_encode($payload, \JSON_THROW_ON_ERROR));
+        self::assertNull($action->workRequestId);
+        self::assertNull($this->retryNotes()->forRuleWork($this->card->id ?? throw new \LogicException('Stored.'), 'review-rule'));
+    }
+
+    public function test_a_retry_names_no_request_of_another_rule_and_a_cancelled_retry_names_none(): void
+    {
+        $item = $this->pauseItem(PauseKind::Retries);
+        $action = $this->runAction($item, InboxActionKind::RetryCard, 'Go') ?? throw new \LogicException('A retry records a row.');
+        $cardId = $this->card->id ?? throw new \LogicException('Stored.');
+
+        self::assertNull($this->retryNotes()->forRuleWork($cardId, 'other-rule'));
+        self::assertNotNull($this->retryNotes()->forRuleWork($cardId, 'review-rule'));
+
+        $action->cancelledAt = new \DateTimeImmutable();
+        $this->em()->flush();
+        self::assertNull($this->retryNotes()->forRuleWork($cardId, 'review-rule'));
+    }
+
+    public function test_a_newer_pause_ends_the_match_of_an_earlier_retry(): void
+    {
+        $item = $this->pauseItem(PauseKind::Retries);
+        $this->runAction($item, InboxActionKind::RetryCard, 'Go');
+        $this->service(PauseCardHandler::class)(new PauseCardCommand($this->card, 'on-hold', 'review-rule', PauseKind::Retries));
+
+        self::assertNull($this->retryNotes()->forRuleWork($this->card->id ?? throw new \LogicException('Stored.'), 'review-rule'));
+    }
+
     public function test_a_retry_of_a_rule_pause_is_refused(): void
     {
         $item = $this->pauseItem(PauseKind::Rule);
@@ -193,7 +246,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     {
         $item = $this->runItem();
 
-        foreach ([InboxActionKind::Open, InboxActionKind::Review, InboxActionKind::SendAgent] as $kind) {
+        foreach ([InboxActionKind::Open, InboxActionKind::Review] as $kind) {
             $this->assertRefused($item, $kind, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
         }
     }
@@ -306,6 +359,228 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->assertCancelRefused($action, $item, CancelInboxActionHandler::NOT_CANCELLABLE);
         self::assertNull($action->cancelledAt);
         self::assertSame([], $this->audit->records('inbox.action_cancelled'));
+    }
+
+    public function test_send_agent_fits_a_wait_item_of_a_card_in_a_stage_that_names_work(): void
+    {
+        $item = $this->runItem();
+
+        self::assertSame(
+            [InboxActionKind::ResumeRun, InboxActionKind::SendAgent, InboxActionKind::Open, InboxActionKind::StartSession, InboxActionKind::Dismiss],
+            array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($item)),
+        );
+        $target = $this->itemActions()->sendAgentFor($item);
+        self::assertSame([(string) $this->card->id, 'tech-design'], [(string) $target?->cardId, $target?->kind]);
+    }
+
+    public function test_send_agent_fits_a_question_that_links_one_card_and_no_other(): void
+    {
+        $one = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false);
+        $two = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false);
+        $none = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which?', blocking: false);
+        $other = $this->cardIn('in-progress');
+        foreach ([$one, $two, $none] as $item) {
+            $this->em()->persist($item);
+        }
+        $one->cards->add(new InboxItemCard($one, $this->card));
+        $two->cards->add(new InboxItemCard($two, $this->card));
+        $two->cards->add(new InboxItemCard($two, $other));
+        $this->em()->flush();
+
+        self::assertSame([InboxActionKind::SendAgent, InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($one)));
+        self::assertNull($this->itemActions()->sendAgentFor($two));
+        self::assertNull($this->itemActions()->sendAgentFor($none));
+    }
+
+    public function test_a_card_with_no_wait_item_fits_send_agent_as_a_question_on_it_does(): void
+    {
+        $cardId = $this->card->id ?? throw new \LogicException('Stored.');
+        $other = $this->cardIn('product-design');
+
+        self::assertSame([InboxActionKind::Open, InboxActionKind::SendAgent], $this->itemActions()->forCard($this->project, $cardId, null));
+        self::assertSame([InboxActionKind::Open], $this->itemActions()->forCard($this->project, $other->id ?? throw new \LogicException('Stored.'), null));
+
+        $this->seedRequest('tech-design', WorkRequestState::Open);
+        self::assertSame([InboxActionKind::Open], $this->itemActions()->forCard($this->project, $cardId, null));
+    }
+
+    public function test_send_agent_does_not_fit_a_card_in_a_stage_that_names_no_work(): void
+    {
+        $item = $this->runItem(card: $this->cardIn('product-design'));
+
+        self::assertNotContains(InboxActionKind::SendAgent, array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($item)));
+    }
+
+    public function test_send_agent_does_not_fit_while_a_live_request_of_the_stage_work_exists(): void
+    {
+        $item = $this->runItem();
+        $live = $this->seedRequest('tech-design', WorkRequestState::Claimed);
+
+        self::assertNull($this->itemActions()->sendAgentFor($item));
+
+        $live->state = WorkRequestState::Done;
+        $this->seedRequest('fix', WorkRequestState::Open);
+        $this->em()->flush();
+        self::assertNotNull($this->itemActions()->sendAgentFor($item));
+    }
+
+    public function test_send_agent_does_not_fit_while_a_worker_runs_on_the_card(): void
+    {
+        $item = $this->runItem(WorkerRunState::Running);
+
+        self::assertNull($this->itemActions()->sendAgentFor($item));
+    }
+
+    public function test_send_agent_opens_a_fresh_request_for_the_stage_work_and_records_the_action(): void
+    {
+        $item = $this->runItem();
+
+        $action = $this->runAction($item, InboxActionKind::SendAgent, ' Start with the tests. ');
+
+        self::assertInstanceOf(InboxAction::class, $action);
+        self::assertSame('Start with the tests.', $action->note);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
+        self::assertSame(
+            ['tech-design', 'inbox:send-agent', WorkRequestState::Open, WorkSubject::CARD, (string) $this->card->id, $this->card->number, null, null, $item->number],
+            [$request->kind, $request->ruleId, $request->state, $request->subjectType, (string) $request->subjectId, $request->cardNumber, $request->capability, $request->resumeSessionId, $request->inboxItemNumber],
+        );
+        self::assertSame((string) $action->id, (string) $request->inboxActionId);
+        self::assertNull($action->bridgeCommandId);
+        $payload = json_decode((string) $this->em()->getConnection()->fetchOne("SELECT payload FROM outbox_events WHERE type = 'bridge.work_request'"), true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [$payload['inboxActionId'], $payload['inboxItemNumber'], $payload['inboxItemId']]);
+        self::assertSame((string) $item->id, (string) $request->inboxItemId);
+        self::assertSame(
+            ['itemId' => (string) $item->id, 'projectId' => (string) $this->project->id, 'kind' => 'send-agent', 'hasNote' => true, 'actionId' => (string) $action->id],
+            $this->audit->record('inbox.action_requested')->context,
+        );
+        self::assertStringNotContainsString('Start with the tests', json_encode($payload, \JSON_THROW_ON_ERROR));
+    }
+
+    public function test_a_second_send_agent_is_refused_while_the_request_is_live(): void
+    {
+        $item = $this->runItem();
+        $this->runAction($item, InboxActionKind::SendAgent);
+
+        $this->assertRefused($item, InboxActionKind::SendAgent, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+        self::assertCount(1, $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    /** Another request opens the work after the menu was computed, so the unique index refuses this one. */
+    public function test_a_request_that_loses_the_race_leaves_no_row(): void
+    {
+        $item = $this->runItem();
+        $this->seedRequest('tech-design', WorkRequestState::Open);
+        $doctrine = self::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
+
+        try {
+            ($this->runHandler(new BlindWorkRequestRepository($doctrine)))(new RunInboxActionCommand($item, InboxActionKind::SendAgent, '', $this->project->owner));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::NOT_AVAILABLE], $e->errors);
+        }
+
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_actions'));
+        self::assertSame([], $this->audit->records('inbox.action_requested'));
+    }
+
+    public function test_a_cancel_withdraws_the_open_request_of_a_send_agent(): void
+    {
+        $item = $this->runItem();
+        $action = $this->runAction($item, InboxActionKind::SendAgent) ?? throw new \LogicException('A send records a row.');
+
+        ($this->cancelHandler())(new CancelInboxActionCommand($action, $item, $this->project->owner));
+
+        self::assertNotNull($action->cancelledAt);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertSame(WorkRequestState::Cancelled, $request?->state);
+        $record = $this->audit->record('inbox.action_cancelled');
+        self::assertSame(['itemId' => (string) $item->id, 'projectId' => (string) $this->project->id, 'kind' => 'send-agent', 'actionId' => (string) $action->id], $record->context);
+        self::assertNotNull($this->itemActions()->sendAgentFor($item), 'The cancel frees the card for another send.');
+    }
+
+    public function test_a_cancel_of_a_send_agent_that_a_bridge_claimed_is_refused(): void
+    {
+        $item = $this->runItem();
+        $action = $this->runAction($item, InboxActionKind::SendAgent) ?? throw new \LogicException('A send records a row.');
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('Stored.');
+        $request->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+
+        $this->assertCancelRefused($action, $item, CancelInboxActionHandler::NOT_CANCELLABLE);
+
+        self::assertNull($action->cancelledAt);
+        self::assertSame(WorkRequestState::Claimed, $request->state);
+        self::assertSame([], $this->audit->records('inbox.action_cancelled'));
+    }
+
+    public function test_a_cancel_of_a_send_agent_twice_is_refused(): void
+    {
+        $item = $this->runItem();
+        $action = $this->runAction($item, InboxActionKind::SendAgent) ?? throw new \LogicException('A send records a row.');
+        ($this->cancelHandler())(new CancelInboxActionCommand($action, $item, $this->project->owner));
+
+        $this->assertCancelRefused($action, $item, CancelInboxActionHandler::NOT_CANCELLABLE);
+    }
+
+    public function test_a_resume_names_its_action_and_item_on_the_bridge_command(): void
+    {
+        $item = $this->runItem();
+
+        $action = $this->runAction($item, InboxActionKind::ResumeRun) ?? throw new \LogicException('A resume records a row.');
+
+        $command = $this->em()->find(BridgeCommand::class, $action->bridgeCommandId);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [(string) $command?->inboxActionId, $command?->inboxItemNumber, (string) $command?->inboxItemId]);
+    }
+
+    private function cardIn(string $slug): Card
+    {
+        return $this->service(CreateCardHandler::class)(new CreateCardCommand(
+            project: $this->project,
+            title: 'Other card',
+            body: 'Body',
+            type: 'feature',
+            column: $this->column($this->project, $slug),
+            reporter: Actor::Human,
+        ));
+    }
+
+    private function seedRequest(string $kind, WorkRequestState $state): WorkRequest
+    {
+        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, $kind, null, 'implement-on-entry', new \DateTimeImmutable());
+        $request->state = $state;
+        $this->em()->persist($request);
+        $this->em()->flush();
+
+        return $request;
+    }
+
+    private function retryNotes(): InboxRetryNotes
+    {
+        return new InboxRetryNotes($this->service(CardPauses::class), $this->service(InboxActionRepository::class));
+    }
+
+    /** Opens the work of a rule of the card as the engine does after a release. */
+    private function openRuleWork(string $ruleId, string $kind): ActionOutcome
+    {
+        $opener = new WorkRequestOpener(
+            $this->service(OpenWorkRequestHandler::class),
+            $this->service(CardRepository::class),
+            $this->service(WorkRequestContexts::class),
+            $this->retryNotes(),
+        );
+        $card = new CardSnapshot($this->card->id ?? throw new \LogicException('Stored.'), $this->project->id ?? throw new \LogicException('Stored.'), $this->card->number, 'feature', new ColumnRef(Uuid::v7(), false, false), null, null, null);
+
+        return $opener->open(new ActionContext($card, $ruleId, false, [], FactsMother::facts(), 0), $kind, null);
+    }
+
+    private function openedRequest(?Uuid $requestId): WorkRequest
+    {
+        $request = null === $requestId ? null : $this->em()->find(WorkRequest::class, $requestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
+
+        return $request;
     }
 
     public function test_a_session_opens_a_work_request_for_the_card_and_records_the_action(): void
@@ -469,25 +744,33 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     }
 
     /** Built by hand, because nothing injects the handlers yet and the compiler drops an unused private service. */
-    private function runHandler(): RunInboxActionHandler
+    private function runHandler(?WorkRequestRepository $workRequests = null): RunInboxActionHandler
     {
         return new RunInboxActionHandler(
-            new ItemActions(
-                $this->service(InboxCardWatchRepository::class),
-                $this->service(WorkerRunRepository::class),
-                $this->service(WorkerRunControls::class),
-                $this->service(CardPauses::class),
-                new SessionBridges($this->service(BridgeRepository::class), $this->service(BridgeLiveness::class)),
-                $this->service(WorkRequestRepository::class),
-            ),
+            $this->itemActions($workRequests),
             $this->service(RequestBridgeCommandHandler::class),
-            $this->service(ReleaseWorkflowPauseHandler::class),
             $this->service(OpenWorkRequestHandler::class),
+            $this->service(WorkRequestContexts::class),
+            $this->service(CardRepository::class),
+            $this->service(ReleaseWorkflowPauseHandler::class),
             $this->service(DeclineInboxItemHandler::class),
             $this->service(WorkerRunRepository::class),
             $this->service(CardDirectory::class),
             $this->em(),
             $this->audit->auditor,
+        );
+    }
+
+    private function itemActions(?WorkRequestRepository $workRequests = null): ItemActions
+    {
+        return new ItemActions(
+            $this->service(InboxCardWatchRepository::class),
+            $this->service(WorkerRunRepository::class),
+            $this->service(WorkerRunControls::class),
+            $this->service(CardPauses::class),
+            new SessionBridges($this->service(BridgeRepository::class), $this->service(BridgeLiveness::class)),
+            $workRequests ?? $this->service(WorkRequestRepository::class),
+            $this->service(TemplateStageWorks::class),
         );
     }
 
@@ -502,14 +785,15 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         );
     }
 
-    private function runItem(WorkerRunState $state = WorkerRunState::Blocked): InboxItem
+    private function runItem(WorkerRunState $state = WorkerRunState::Blocked, ?Card $card = null): InboxItem
     {
+        $card ??= $this->card;
         $run = new WorkerRun(
             project: $this->project,
             bridgeId: $this->bridge->id,
             subjectType: WorkSubject::CARD,
-            subjectId: $this->card->id ?? throw new \LogicException('Stored.'),
-            cardNumber: $this->card->number,
+            subjectId: $card->id ?? throw new \LogicException('Stored.'),
+            cardNumber: $card->number,
             workKind: 'implement',
             state: $state,
             runKey: Uuid::v7(),
@@ -518,7 +802,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->persist($run);
         $this->em()->flush();
 
-        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id));
+        return $this->itemWithWait(static fn (InboxCardWatch $watch): InboxCardWait => new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $run->id), $card);
     }
 
     private function pauseItem(PauseKind $kind): InboxItem
@@ -530,11 +814,12 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     }
 
     /** @param \Closure(InboxCardWatch): InboxCardWait $wait */
-    private function itemWithWait(\Closure $wait): InboxItem
+    private function itemWithWait(\Closure $wait, ?Card $card = null): InboxItem
     {
+        $card ??= $this->card;
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Wait, title: '#1 Ship it', blocking: true);
         $this->em()->persist($item);
-        $watch = new InboxCardWatch($item, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number);
+        $watch = new InboxCardWatch($item, $card->id ?? throw new \LogicException('Stored.'), $card->number);
         $this->em()->persist($watch);
         $watch->waits->add($wait($watch));
         $this->em()->flush();
