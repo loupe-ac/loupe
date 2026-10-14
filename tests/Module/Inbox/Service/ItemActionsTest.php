@@ -10,11 +10,14 @@ use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
@@ -295,6 +298,33 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
     }
 
+    /** @return iterable<string, array{string, WorkRequestState, bool}> */
+    public static function requestsOfTheCard(): iterable
+    {
+        yield 'an open session request' => [WorkRequest::SESSION_KIND, WorkRequestState::Open, false];
+        yield 'a claimed session request' => [WorkRequest::SESSION_KIND, WorkRequestState::Claimed, false];
+        yield 'a session request that ended' => [WorkRequest::SESSION_KIND, WorkRequestState::Done, true];
+        yield 'a live request of another kind' => ['implement', WorkRequestState::Open, true];
+    }
+
+    /** Every item of the card follows one live session request, because the card takes only one at a time. */
+    #[DataProvider('requestsOfTheCard')]
+    public function test_start_session_is_hidden_on_every_item_of_the_card_while_a_session_request_is_live(string $kind, WorkRequestState $state, bool $offered): void
+    {
+        $this->sessionBridge();
+        $wait = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+        $question = $this->item($this->em, $this->project, 98);
+        $question->cards->add(new InboxItemCard($question, $this->card));
+        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, $kind, null, 'inbox:start-session', new \DateTimeImmutable());
+        $request->state = $state;
+        $this->em->persist($request);
+        $this->em->flush();
+
+        foreach ($this->actions()->forItems([$wait, $question]) as $actions) {
+            self::assertSame($offered, array_any($actions, static fn (ItemAction $action): bool => InboxActionKind::StartSession === $action->kind));
+        }
+    }
+
     public function test_the_card_of_a_wait_item_is_the_card_of_its_watch(): void
     {
         $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
@@ -456,11 +486,13 @@ final class ItemActionsTest extends KernelTestCase
         self::assertInstanceOf(BridgeRepository::class, $bridges);
         self::assertInstanceOf(BridgeLiveness::class, $liveness);
         $sessionBridges = new SessionBridges($bridges, $liveness);
+        $workRequests = $container->get(WorkRequestRepository::class);
+        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
         self::assertInstanceOf(InboxCardWatchRepository::class, $watches);
         self::assertInstanceOf(WorkerRunRepository::class, $runs);
         self::assertInstanceOf(WorkerRunControls::class, $controls);
         self::assertInstanceOf(CardPauses::class, $pauses);
 
-        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges);
+        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges, $workRequests);
     }
 }

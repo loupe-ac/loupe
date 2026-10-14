@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\View\WorkerRunAction;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
@@ -29,6 +31,7 @@ final readonly class ItemActions
         private WorkerRunControls $runControls,
         private CardPauses $pauses,
         private SessionBridges $sessionBridges,
+        private WorkRequestRepository $workRequests,
     ) {
     }
 
@@ -80,7 +83,7 @@ final readonly class ItemActions
 
     /**
      * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
-     * One bridge read per project that has an item with a card.
+     * One bridge read per project that has an item with a card, and one read of the live requests of their cards.
      *
      * @param list<InboxItem> $items
      *
@@ -89,22 +92,36 @@ final readonly class ItemActions
     public function forItems(array $items): array
     {
         $openWaits = [];
-        $watched = [];
+        $cardIds = [];
         foreach ($this->inboxCardWatches->findForItems($items) as $watch) {
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
-            $watched[self::key($watch->item)] = true;
+            $cardIds[self::key($watch->item)] = $watch->cardId->toRfc4122();
+        }
+        foreach ($items as $item) {
+            $link = $item->cards->first();
+            $linkedId = false === $link ? null : $link->card->id;
+            if (!isset($cardIds[self::key($item)]) && null !== $linkedId) {
+                $cardIds[self::key($item)] = $linkedId->toRfc4122();
+            }
         }
 
         $resumableRuns = $this->resumableRuns(array_merge(...array_values($openWaits)));
         $releasablePauses = $this->releasablePauses(array_merge(...array_values($openWaits)));
 
-        $withCard = array_filter($items, static fn (InboxItem $item): bool => isset($watched[self::key($item)]) || !$item->cards->isEmpty());
+        $withCard = array_filter($items, static fn (InboxItem $item): bool => isset($cardIds[self::key($item)]));
         $sessionOnline = $this->sessionBridges->onlineFor(array_values(array_map(static fn (InboxItem $item): Project => $item->project, $withCard)));
+        $liveSessions = [];
+        foreach ($this->workRequests->findLiveRowsForCards(array_values(array_unique($cardIds))) as $row) {
+            if (WorkRequest::SESSION_KIND === $row['kind']) {
+                $liveSessions[$row['card_id']] = true;
+            }
+        }
 
         $actions = [];
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, \in_array($item, $withCard, true));
+            $cardId = $cardIds[self::key($item)] ?? null;
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, null !== $cardId && !isset($liveSessions[$cardId]));
             $default = self::defaultKind($item, $waits, $fitting);
             $actions[self::key($item)] = array_map(
                 static fn (InboxActionKind $kind): ItemAction => ItemAction::for(
@@ -123,17 +140,18 @@ final readonly class ItemActions
      * @param list<InboxCardWait> $waits            open waits, oldest first
      * @param array<string, true> $resumableRuns    run ids that offer Resume
      * @param array<string, true> $releasablePauses pause ids a person can release
+     * @param bool                $sessionFits      the item has a card, and no session request of that card is live
      *
      * @return list<InboxActionKind>
      */
-    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $hasCard): array
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sessionFits): array
     {
         $fits = [
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
             [InboxActionKind::Review, self::fitsReview($waits)],
             [InboxActionKind::Open, self::fitsOpen($item)],
-            [InboxActionKind::StartSession, $hasCard],
+            [InboxActionKind::StartSession, $sessionFits],
             [InboxActionKind::Dismiss, self::fitsDismiss($item)],
         ];
 
