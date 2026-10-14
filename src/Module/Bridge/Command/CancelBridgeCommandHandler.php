@@ -6,11 +6,13 @@ namespace App\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -27,6 +29,7 @@ final readonly class CancelBridgeCommandHandler
         private BridgeCommandRepository $bridgeCommands,
         private WorkerRunChangedPublisher $runsChanged,
         private EntityManagerInterface $em,
+        private EventDispatcherInterface $events,
         private ClockInterface $clock,
         private Auditor $auditor,
     ) {
@@ -36,10 +39,10 @@ final readonly class CancelBridgeCommandHandler
     {
         $run = $command->run;
 
-        $cancelled = $this->em->wrapInTransaction(function () use ($run): ?BridgeCommand {
+        $cancelled = $this->em->wrapInTransaction(function () use ($run, $command): ?BridgeCommand {
             // The row lock orders the cancel with an ack and the expiry sweep, so only one of them settles the command.
             $pending = $this->bridgeCommands->findPendingForRunLocked($run);
-            if (null === $pending || !$pending->settle(BridgeCommandState::Cancelled, null, $this->clock->now())) {
+            if (null === $pending || (null !== $command->commandId && !$command->commandId->equals($pending->id)) || !$pending->settle(BridgeCommandState::Cancelled, null, $this->clock->now())) {
                 return null;
             }
             $this->em->flush();
@@ -65,6 +68,7 @@ final readonly class CancelBridgeCommandHandler
             new AuditSubject('bridge_command', (string) $cancelled->id),
         );
         $this->runsChanged->runsChanged($run->project);
+        $this->events->dispatch(BridgeCommandSettled::of($cancelled));
 
         return $cancelled;
     }

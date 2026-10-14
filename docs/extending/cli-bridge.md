@@ -1169,7 +1169,9 @@ transcript of the session, or when the work map no longer runs workers of the
 kind of the run. [Resume](#resume) says which account a resume uses. Loupe
 also sends a resume on its own when an
 [inbox](../using/inbox.md) ask of the session closes. That resume names the
-cause `ask-closed`, and its prompt tells the agent to read the answers.
+cause `ask-closed`, and its prompt tells the agent to read the answers. A resume
+that the owner starts from an inbox item names the cause `inbox-action`. It uses
+the prompt of a person's resume.
 
 A rerun runs the command of a [command run](#command-action) again, after the
 run ended as `failed`, `timed-out` or `lost`. The person selects **Run again**

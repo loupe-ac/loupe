@@ -253,6 +253,29 @@ func TestTheResumeOfAClosedAskSaysTheOwnerAnswered(t *testing.T) {
 	}
 }
 
+// A click on an inbox action resumes like a person's resume, with the same
+// prompt, until the prompt names the inbox item.
+func TestTheResumeOfAnInboxActionUsesThePersonsPrompt(t *testing.T) {
+	h := newWorkHarness(t)
+	h.withWork()
+	h.states()
+	h.worker.result = finishedRun
+	c := workResumeOf(endedRunKey)
+	c.Cause = api.CauseInboxAction
+
+	if state, reason := h.resume(c); state != api.CommandDone {
+		t.Fatalf("resume = %s %q", state, reason)
+	}
+
+	calls := h.worker.recorded()
+	if len(calls) != 1 {
+		t.Fatalf("workers = %+v", calls)
+	}
+	if spec := calls[0]; !spec.resume || spec.prompt != directive.RenderResumeByPerson() {
+		t.Fatalf("spec = %+v", spec)
+	}
+}
+
 // A resume runs with the model and the effort the work request of the run
 // asked for, as the first run did.
 func TestAPersonsResumeKeepsTheModelAndTheEffortOfTheRun(t *testing.T) {

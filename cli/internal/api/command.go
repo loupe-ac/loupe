@@ -24,10 +24,12 @@ const (
 )
 
 // The causes of a command. A resume after an ask close says that the owner
-// answered, and a person's resume says that a person fixed the cause.
+// answered, a person's resume says that a person fixed the cause, and a click
+// on an inbox action resumes like a person's resume.
 const (
-	CausePerson    = "person"
-	CauseAskClosed = "ask-closed"
+	CausePerson      = "person"
+	CauseAskClosed   = "ask-closed"
+	CauseInboxAction = "inbox-action"
 )
 
 // The states a bridge answers a command with.

@@ -10,14 +10,17 @@ use App\Module\Bridge\Command\AcknowledgeBridgeCommandCommand;
 use App\Module\Bridge\Command\AcknowledgeBridgeCommandHandler;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
 use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
@@ -54,6 +57,55 @@ final class AcknowledgeBridgeCommandHandlerTest extends KernelTestCase
             'runId' => (string) $run->id,
             'bridgeId' => (string) $command->bridgeId,
         ], $record->context);
+    }
+
+    #[DataProvider('settledStates')]
+    public function test_a_settle_dispatches_the_event_once_with_ids_only(BridgeCommandState $state): void
+    {
+        self::bootKernel();
+        $settled = $this->recordSettled();
+        $em = $this->em();
+        $owner = $this->user($em, 'ack-event-'.$state->value.'@example.com');
+        $run = $this->seedRun($em, $this->project($em, $owner, 'Ack Event '.$state->value));
+        $command = $this->seedCommand($em, $run);
+
+        $this->handler()(new AcknowledgeBridgeCommandCommand($owner, $command->bridgeId, self::idOf($command), $state, null));
+
+        $events = $settled->of(BridgeCommandSettled::class);
+        self::assertCount(1, $events);
+        self::assertSame([(string) $run->project->id, (string) $command->id, (string) $run->id], [(string) $events[0]->projectId, (string) $events[0]->commandId, (string) $events[0]->workerRunId]);
+    }
+
+    /** @return iterable<string, array{BridgeCommandState}> */
+    public static function settledStates(): iterable
+    {
+        yield 'done' => [BridgeCommandState::Done];
+        yield 'refused' => [BridgeCommandState::Refused];
+    }
+
+    public function test_a_repeated_ack_dispatches_no_second_event(): void
+    {
+        self::bootKernel();
+        $settled = $this->recordSettled();
+        $em = $this->em();
+        $owner = $this->user($em, 'ack-event-repeat@example.com');
+        $command = $this->seedCommand($em, $this->seedRun($em, $this->project($em, $owner, 'Ack Event Repeat')));
+        $ack = new AcknowledgeBridgeCommandCommand($owner, $command->bridgeId, self::idOf($command), BridgeCommandState::Done, null);
+
+        $this->handler()($ack);
+        $this->handler()($ack);
+
+        self::assertCount(1, $settled->of(BridgeCommandSettled::class));
+    }
+
+    private function recordSettled(): RecordedEvents
+    {
+        $settled = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeCommandSettled::class, $settled);
+
+        return $settled;
     }
 
     public function test_a_repeated_ack_is_not_audited(): void

@@ -11,7 +11,8 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 /**
  * Bulk-deletes the asks, the items and the wait switches of a project, inside
  * ProjectDeleter's transaction. The foreign keys of the three link tables cascade from both
- * parents, so the database removes the links.
+ * parents, so the database removes the links. The foreign key of inbox_actions cascades from
+ * inbox_items, so deleting the items removes their actions.
  */
 #[AsEventListener]
 final readonly class DeleteInboxDataOnProjectDeleting
