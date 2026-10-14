@@ -12,6 +12,8 @@ namespace App\Module\DesignSystem;
  * `export` names a folder under `templates/Module/DesignSystem/export/<group>/`
  * that holds the hand-written wrapper of a part with an inner structure.
  * `viewport` is the width and height of its preview card, `700x150` by default.
+ * `modifierProp` names the wrapper prop that picks a modifier class, the same
+ * name as the Twig prop. `takesAs` marks a component whose Twig template takes `as`.
  */
 final readonly class ComponentEntry
 {
@@ -35,6 +37,8 @@ final readonly class ComponentEntry
         public string $contentClass = '',
         public ?string $export = null,
         public string $viewport = '700x150',
+        public string $modifierProp = 'variant',
+        public bool $takesAs = false,
     ) {
     }
 }

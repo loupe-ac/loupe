@@ -7,11 +7,6 @@ Loupe's {{ name|lower }}. {{ entry.summary }}
 <{{ name }} variant="{{ entry.variants|first }}">Save</{{ name }}>
 <{{ name }} variant="ghost" href="/back">Back</{{ name }}>
 <{{ name }} size="{{ entry.sizes|first }}" disabled>Disabled</{{ name }}>
-{% elseif 'input' == entry.element %}
-<{{ name }} placeholder="Example" />
-{% for variant in entry.variants %}
-<{{ name }} variant="{{ variant }}" placeholder="Example" />
-{% endfor %}
 {% elseif 'lp-tabs' == entry.rootClass %}
 {% for variant in [null]|merge(entry.variants) %}
 <{{ name }}{% if variant %} variant="{{ variant }}"{% endif %}><a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a><a className="lp-tabs__tab" href="#">All</a></{{ name }}>
@@ -20,7 +15,7 @@ Loupe's {{ name|lower }}. {{ entry.summary }}
 <{{ name }}><option>Example</option></{{ name }}>
 {% elseif entry.variants %}
 {% for variant in entry.variants %}
-<{{ name }} variant="{{ variant }}">Example</{{ name }}>
+<{{ name }} {{ entry.modifierProp }}="{{ variant }}">Example</{{ name }}>
 {% endfor %}
 {% else %}
 <{{ name }}>Example</{{ name }}>

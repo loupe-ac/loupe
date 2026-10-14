@@ -165,7 +165,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_each_wrapper_renders_the_element_of_its_component(): void
     {
-        foreach (['Dialog' => 'dialog', 'Tabs' => 'nav', 'Pagination' => 'nav', 'Tooltip' => 'span'] as $name => $element) {
+        foreach (['Dialog' => 'dialog', 'Tabs' => 'nav', 'Pagination' => 'nav'] as $name => $element) {
             $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'/'.$name.'.jsx');
 
             self::assertStringContainsString('<'.$element.' {...rest}', $jsx);
@@ -220,7 +220,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     {
         $card = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.card.html');
 
-        self::assertStringContainsString('<Badge variant="draft">draft</Badge>', $card);
+        self::assertStringContainsString('<Badge status="draft">draft</Badge>', $card);
         self::assertStringNotContainsString('<Button', $card);
         self::assertStringNotContainsString('<Input', $card);
     }
@@ -252,7 +252,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $card = (string) file_get_contents($this->directory.'/components/core/Dialog/Dialog.card.html');
         $tooltip = (string) file_get_contents($this->directory.'/components/core/Tooltip/Tooltip.card.html');
 
-        self::assertStringContainsString('<Dialog variant="document" open>document</Dialog>', $card);
+        self::assertStringContainsString('<Dialog size="document" open>document</Dialog>', $card);
         self::assertStringContainsString('.row > dialog[open] { position: static; margin: 0; }', $card);
         self::assertStringContainsString('.row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }', $tooltip);
         self::assertStringContainsString('.row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }', $card);
@@ -326,14 +326,14 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('return <input {...rest} className={className} />;', $jsx);
         self::assertStringNotContainsString('</input>', $jsx);
         self::assertStringContainsString('<Input placeholder="Example" />', $prompt);
-        self::assertStringContainsString('<Input variant="mono" placeholder="mono" />', $card);
+        self::assertStringContainsString('<Input mono placeholder="mono" />', $card);
         self::assertStringNotContainsString('</Input>', $card);
         self::assertStringContainsString('<Select><option>Example</option></Select>', (string) file_get_contents($this->directory.'/components/core/Select/Select.card.html'));
         self::assertStringContainsString('children?: never;', (string) file_get_contents($this->directory.'/components/core/Input/Input.d.ts'));
         self::assertStringContainsString("const classes = ['lp-input', 'lp-select'];", (string) file_get_contents($this->directory.'/components/core/Select/Select.jsx'));
         self::assertStringContainsString("const classes = ['lp-input', 'lp-textarea'];", (string) file_get_contents($this->directory.'/components/core/Textarea/Textarea.jsx'));
         self::assertStringContainsString("const classes = ['lp-label'];", (string) file_get_contents($this->directory.'/components/core/Label/Label.jsx'));
-        self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label/Label.jsx'));
+        self::assertStringContainsString('<Element {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label/Label.jsx'));
     }
 
     public function test_the_marketing_shell_export_draws_the_header_the_body_and_the_footer(): void

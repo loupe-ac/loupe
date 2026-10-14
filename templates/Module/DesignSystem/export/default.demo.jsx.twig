@@ -1,7 +1,6 @@
 {# twig-cs-fixer-disable #}{% autoescape false %}
 {% set name = entry.name %}
 {% set open = 'dialog' == entry.element ? ' open' : '' %}
-{% set void = 'input' == entry.element %}
 {% set select = 'select' == entry.element %}
 {% set button = 'button' == entry.element %}
 {% set closeGlyph %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>{% endset %}
@@ -29,16 +28,8 @@
       <div className="row">
 {% if entry.variants %}
 {% for variant in entry.variants %}
-{% if void %}
-        <{{ name }} variant="{{ variant }}" placeholder="{{ variant }}" />
-{% else %}
-        <{{ name }} variant="{{ variant }}"{{ open }}>{% if select %}<option>{{ variant }}</option>{% else %}{{ variant }}{% endif %}</{{ name }}>
-{% endif %}
+        <{{ name }} {{ entry.modifierProp }}="{{ variant }}"{{ open }}>{% if select %}<option>{{ variant }}</option>{% else %}{{ variant }}{% endif %}</{{ name }}>
 {% endfor %}
-{% elseif void %}
-        <{{ name }} placeholder="Example" />
-{% elseif 'textarea' == entry.element %}
-        <{{ name }} defaultValue="Example" />
 {% else %}
         <{{ name }}{{ open }}>{% if select %}<option>Example</option>{% else %}Example{% endif %}</{{ name }}>
 {% endif %}

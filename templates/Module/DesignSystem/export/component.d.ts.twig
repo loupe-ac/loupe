@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 export interface {{ entry.name }}Props {
 {% if entry.variants %}
     /** The visual weight and shape. */
-    variant?:
+    {{ entry.modifierProp }}?:
 {% for variant in entry.variants %}
         | '{{ variant }}'
 {% endfor %}
@@ -28,17 +28,16 @@ export interface {{ entry.name }}Props {
     href?: string;
     onClick?: () => void;
 {% endif %}
+{% if entry.takesAs %}
+    /** The element to render. */
+    as?: keyof JSX.IntrinsicElements;
+{% endif %}
 {% if entry.dotClass %}
     /** Draws the coloured dot. True by default. */
     dot?: boolean;
 {% endif %}
     className?: string;
-{% if 'input' == entry.element %}
-    /** An input is a void element, so it takes no children. */
-    children?: never;
-{% else %}
     children?: ReactNode;
-{% endif %}
     [attribute: string]: unknown;
 }
 
