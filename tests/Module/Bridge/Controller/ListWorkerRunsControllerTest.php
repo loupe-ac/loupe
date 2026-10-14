@@ -207,7 +207,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
         $noFactRow = $crawler->filter('[data-worker-run-id="'.$noFact.'"]');
         // The guard: the drawer renders, so the absent metrics are not an absent drawer.
-        self::assertCount(1, $noFactRow->filter('.lp-run-drawer__body'));
+        self::assertCount(1, $noFactRow->filter('.lp-drawer__body'));
         self::assertCount(0, $noFactRow->filter('[data-worker-run-metrics]'));
     }
 
@@ -236,7 +236,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $plainRow = $crawler->filter('[data-worker-run-id="'.$plain.'"]');
         // The guard: the row and its drawer render, so the absent pool is not an absent row.
         self::assertStringContainsString('review', $plainRow->text());
-        self::assertCount(1, $plainRow->filter('.lp-run-drawer__body'));
+        self::assertCount(1, $plainRow->filter('.lp-drawer__body'));
         self::assertCount(0, $plainRow->filter('[data-worker-pool]'));
         self::assertCount(0, $plainRow->filter('[data-worker-run-pool]'));
     }
@@ -431,7 +431,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
         $plainRow = $crawler->filter('[data-worker-run-id="'.$plain.'"]');
         // The guard: the drawer renders, so the absent line is not an absent drawer.
-        self::assertCount(1, $plainRow->filter('.lp-run-drawer__body'));
+        self::assertCount(1, $plainRow->filter('.lp-drawer__body'));
         self::assertCount(0, $plainRow->filter('[data-worker-run-experiment]'));
     }
 
@@ -666,7 +666,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
             $label = $translator->trans($state->translationKey());
             self::assertNotSame($state->translationKey(), $label);
-            foreach (['[data-worker-run-id] > .lp-worker-run-outcome > .lp-status-chip', '.lp-run-drawer__header .lp-status-chip'] as $chip) {
+            foreach (['[data-worker-run-id] > .lp-worker-run-outcome > .lp-status-chip', '.lp-drawer__header .lp-status-chip'] as $chip) {
                 self::assertSame($label, $crawler->filter($chip)->text(), $state->value.' '.$chip);
                 self::assertStringContainsString('lp-status-chip--'.$state->chipModifier(), (string) $crawler->filter($chip)->attr('class'));
             }
@@ -742,7 +742,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $row = $crawler->filter('[data-worker-run-id="'.$resumeId.'"]');
-        $drawer = $row->filter('.lp-run-drawer__body');
+        $drawer = $row->filter('.lp-drawer__body');
         self::assertSame('plan', $drawer->filter('[data-worker-run-work-kind]')->text());
 
         $continues = $drawer->filter('a[data-worker-run-continues]');
@@ -1167,14 +1167,14 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $row = $crawler->filter('[data-worker-run-id="'.$runId.'"]');
         // The table row leaves the actions to the drawer.
         self::assertCount(1, $row->filter('form[data-worker-run-control]'));
-        $form = $row->filter('dialog .lp-run-drawer__footer form[data-worker-run-control]');
+        $form = $row->filter('dialog .lp-drawer__footer form[data-worker-run-control]');
         self::assertCount(1, $form);
         self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/resume', $form->attr('action'));
         self::assertSame('_top', $form->attr('data-turbo-frame'));
         self::assertNotEmpty($form->filter('input[name="_csrf_token"]')->attr('value'));
         self::assertSame('Resume', $form->filter('button')->text());
         self::assertNull($form->filter('button')->attr('disabled'));
-        self::assertCount(1, $row->filter('.lp-run-drawer__footer [data-action="worker-run-output#copy"]'));
+        self::assertCount(1, $row->filter('.lp-drawer__footer [data-action="worker-run-output#copy"]'));
     }
 
     public function test_the_drawer_disables_an_action_the_bridge_cannot_take(): void
@@ -1195,7 +1195,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/worker-runs');
 
         self::assertResponseIsSuccessful();
-        $button = $crawler->filter('[data-worker-run-id="'.$runId.'"] .lp-run-drawer__footer form[data-worker-run-control] button');
+        $button = $crawler->filter('[data-worker-run-id="'.$runId.'"] .lp-drawer__footer form[data-worker-run-control] button');
         self::assertNotNull($button->attr('disabled'));
         self::assertSame('Update the bridge to 1.5.0 or later to control its runs.', $button->attr('title'));
         self::assertStringStartsWith('Stop', $button->text());
@@ -1222,7 +1222,7 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $row = $crawler->filter('[data-worker-run-id="'.$runId.'"]');
         self::assertSame(['Stop requested', 'Stop requested'], $row->filter('[data-worker-run-control-label]')->each(static fn (Crawler $label): string => $label->text()));
-        $form = $row->filter('.lp-run-drawer__footer form[data-worker-run-control]');
+        $form = $row->filter('.lp-drawer__footer form[data-worker-run-control]');
         self::assertSame('/projects/'.$projectId.'/worker-runs/'.$runId.'/cancel-command', $form->attr('action'));
         self::assertSame('Cancel request', $form->filter('button')->text());
     }

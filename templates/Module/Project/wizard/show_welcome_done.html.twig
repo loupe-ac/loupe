@@ -3,7 +3,7 @@
 {% block title %}{{ 'project.wizard.done.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<div class="lp-workspace">
+<twig:Ds:Workspace width="narrow">
     {% include '@Project/wizard/_wizard_progress.html.twig' with {step: 4, complete: true} only %}
 
     <div class="lp-wizard-done">
@@ -18,5 +18,5 @@
             <twig:Ds:Button variant="primary" type="submit">{{ 'project.wizard.done.finish'|trans }}</twig:Ds:Button>
         </form>
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

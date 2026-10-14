@@ -1,0 +1,6 @@
+{#
+  Props: width (default, narrow or full, optional). Other attributes, class included, go to the element.
+  The page body goes inside it.
+#}
+{%- props width = 'default' -%}
+<div{{ attributes.defaults({class: 'lp-workspace' ~ (width and 'default' != width ? ' lp-workspace--' ~ width : '')}) }}>{% block content %}{% endblock %}</div>

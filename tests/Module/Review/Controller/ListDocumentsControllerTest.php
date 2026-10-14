@@ -295,9 +295,9 @@ final class ListDocumentsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
 
-        // The trail lives in the shell's top bar: {project} / Documents.
-        self::assertSelectorTextContains('.lp-topbar__crumb', $project->name);
-        self::assertSelectorTextContains('.lp-topbar__here', 'Documents');
+        // The trail lives in the shell's top bar and holds the page alone.
+        self::assertSelectorNotExists('.lp-crumbs__link');
+        self::assertSelectorTextContains('.lp-crumbs__here', 'Documents');
 
         $rowSelector = '[data-document-id="'.$documentId.'"]';
 

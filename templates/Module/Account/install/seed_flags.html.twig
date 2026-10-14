@@ -8,15 +8,11 @@
     <p class="auth-subheading">{{ 'account.install.flags.intro'|trans }}</p>
 </div>
 
-{{ form_start(form, {'attr': {'class': 'form-stack', 'novalidate': 'novalidate'}}) }}
+{{ form_start(form, {'attr': {'class': 'lp-form', 'novalidate': 'novalidate'}}) }}
 
     {{ form_errors(form) }}
 
-    <div class="form-field">
-        {{ form_label(form.registrationCap, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.registrationCap, {'attr': {'class': 'auth-input'}}) }}
-        <div class="field-errors">{{ form_errors(form.registrationCap) }}</div>
-    </div>
+    <twig:Ds:FormField :fieldView="form.registrationCap" />
 
     <label class="flex items-center gap-2 text-sm text-fg cursor-pointer select-none">
         {{ form_widget(form.registrationEnabled, {'attr': {'class': 'w-3.5 h-3.5 cursor-pointer accent-accent'}}) }}
@@ -28,17 +24,9 @@
         <span>{{ 'account.form.install_flags_form.billing_enabled.label'|trans }}</span>
     </label>
 
-    <div class="form-field">
-        {{ form_label(form.billingTrialDays, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.billingTrialDays, {'attr': {'class': 'auth-input'}}) }}
-        <div class="field-errors">{{ form_errors(form.billingTrialDays) }}</div>
-    </div>
+    <twig:Ds:FormField :fieldView="form.billingTrialDays" />
 
-    <div class="form-field">
-        {{ form_label(form.billingStripePriceId, null, {'label_attr': {'class': 'form-label'}}) }}
-        {{ form_widget(form.billingStripePriceId, {'attr': {'class': 'auth-input'}}) }}
-        <div class="field-errors">{{ form_errors(form.billingStripePriceId) }}</div>
-    </div>
+    <twig:Ds:FormField :fieldView="form.billingStripePriceId" />
 
     <label class="flex items-center gap-2 text-sm text-fg cursor-pointer select-none">
         {{ form_widget(form.authGithubEnabled, {'attr': {'class': 'w-3.5 h-3.5 cursor-pointer accent-accent'}}) }}
@@ -50,7 +38,7 @@
         <span>{{ 'account.form.install_flags_form.auth_google_enabled.label'|trans }}</span>
     </label>
 
-    <button type="submit" class="auth-submit mt-1.5">{{ 'account.install.flags.submit'|trans }}</button>
+    <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'account.install.flags.submit'|trans }}</twig:Ds:Button>
 
 {{ form_end(form) }}
 {% endblock %}

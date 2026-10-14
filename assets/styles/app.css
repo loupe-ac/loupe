@@ -17,9 +17,16 @@
 @import './components/decision.css';
 @import './components/tooltip.css';
 @import './components/shell.css';
+@import './components/nav-item.css';
+@import './components/breadcrumbs.css';
 @import './components/page-header.css';
+@import './components/workspace.css';
 @import './components/split-view.css';
 @import './components/list-row.css';
+@import './components/brand-mark.css';
+@import './components/auth-shell.css';
+@import './components/settings-layout.css';
+@import './components/drawer.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -264,7 +271,6 @@
        inside the panes, and the content scrolls up to the top bar and down to the window edge. */
     .lp-core-inbox.lp-workspace {
         --inbox-gutter: calc(var(--spacing) * 4.5);
-        max-width: none;
         @apply py-0 pr-0 md:py-0 md:pr-0 xl:py-0 xl:pr-0;
     }
 
@@ -347,32 +353,6 @@
         flex-direction: column;
         gap: calc(var(--spacing) * 2);
         padding-bottom: calc(var(--spacing) * 2.5);
-    }
-
-    /* The Open and Closed switch is a segmented control: a grey track, and a white segment with olive text for the active side. */
-    .lp-core-inbox .lp-inbox-switch {
-        gap: calc(var(--spacing) * 0.5);
-        margin: 0 0 calc(var(--spacing) * 0.5);
-        padding: calc(var(--spacing) * 0.75);
-        border: 0;
-        border-radius: var(--radius-xl);
-        background: var(--surface-2);
-    }
-
-    .lp-core-inbox .lp-inbox-switch .lp-tabs__tab {
-        flex: 1 1 0%;
-        justify-content: center;
-        height: calc(var(--spacing) * 7.5);
-        padding: 0 calc(var(--spacing) * 2);
-        border: 0;
-        border-radius: var(--radius-lg);
-        color: var(--text-dim);
-    }
-
-    .lp-core-inbox .lp-inbox-switch .lp-tabs__tab[aria-current='page'] {
-        background: var(--surface-1);
-        color: var(--accent-ink);
-        @apply shadow-xs;
     }
 
     .lp-core-inbox .lp-inbox-list-head .lp-filter-search {
@@ -895,46 +875,6 @@
         --tw-prose-body: var(--text);
     }
 
-    /* An empty view reads as a heading and a sentence, with no icon and no box. */
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state {
-        align-items: flex-start;
-        gap: calc(var(--spacing) * 2);
-        @apply max-w-md;
-        padding: calc(var(--spacing) * 14) 0;
-        background: transparent;
-        text-align: left;
-    }
-
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__title {
-        font-size: var(--text-2xl);
-        font-weight: 800;
-        line-height: 1.25;
-    }
-
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__body {
-        max-width: none;
-        color: var(--text);
-        font-size: var(--text-lg);
-    }
-
-    .lp-core-inbox .lp-inbox-request-detail .lp-empty-state__link {
-        margin-top: calc(var(--spacing) * 1.5);
-        font-size: var(--text-sm);
-    }
-
-    /* A field label matches the prototype's sentence-case label, not an eyebrow. */
-    .lp-core-inbox .lp-inbox-item__actions .lp-label {
-        color: var(--text-dim);
-        font-size: var(--text-sm);
-        font-weight: 600;
-        letter-spacing: normal;
-        text-transform: none;
-    }
-
-    .lp-core-inbox .lp-inbox-item__actions .lp-input {
-        background: var(--surface-2);
-    }
-
     .lp-core-inbox .lp-inbox-item__buttons {
         gap: calc(var(--spacing) * 2);
     }
@@ -1253,15 +1193,6 @@
     }
 
     /* Settings pages keep section navigation beside narrow paper panels. */
-    .lp-redesign-settings .lp-settings-layout {
-        @apply grid grid-cols-1 gap-8;
-    }
-    .lp-redesign-settings .lp-settings-content {
-        @apply max-w-none;
-    }
-    .lp-settings-panel-card {
-        @apply rounded-xl border border-line bg-white p-6;
-    }
     .lp-danger-zone.lp-settings-panel-card {
         @apply border-line pt-6;
     }
@@ -1294,43 +1225,6 @@
     .lp-settings-column__slot {
         @apply w-9 h-9 shrink-0;
     }
-    @media (width >= 64rem) {
-        .lp-redesign-settings .lp-settings-layout {
-            grid-template-columns: 11.25rem minmax(0, 46.25rem);
-            column-gap: 2.125rem;
-        }
-        .lp-redesign-settings .lp-settings-content {
-            grid-column: 2;
-        }
-    }
-    .lp-redesign-settings:has(.lp-settings-layout--columns) {
-        @apply @container;
-    }
-    .lp-redesign-settings .lp-settings-layout--columns {
-        @apply grid-cols-1;
-    }
-    .lp-settings-layout--columns .lp-settings-nav {
-        @apply flex-row;
-    }
-    .lp-redesign-settings .lp-settings-layout--columns .lp-settings-content {
-        @apply col-start-1 col-span-1 p-4;
-    }
-    .lp-settings-layout--columns .lp-btn svg {
-        @apply shrink-0;
-    }
-    @container (min-width: 48rem) {
-        .lp-redesign-settings .lp-settings-layout--columns {
-            grid-template-columns: calc(var(--spacing) * 44) minmax(0, 1fr);
-        }
-        .lp-settings-layout--columns .lp-settings-nav {
-            @apply flex-col;
-        }
-        .lp-redesign-settings
-            .lp-settings-layout--columns
-            .lp-settings-content {
-            @apply col-start-2 p-6;
-        }
-    }
 }
 
 /* Document review, aligned with the approved redesign. Unlayered, because the
@@ -1347,10 +1241,6 @@
 }
 
 /* ── Header ─────────────────────────────────────────────────────── */
-/* The page is white, as the paper the document sits on. */
-.lp-main:has(.lp-review) {
-    @apply bg-surface-1;
-}
 .lp-review .lp-review-doc__head {
     @apply mb-12 gap-0;
 }
@@ -2352,73 +2242,9 @@
         @apply flex-1 h-px bg-line;
     }
 
-    /* Auth page shell — three-row layout: topbar / content / footer */
-    /* The explicit column stops a wide child's min-content width sizing the
-       grid, which is how the footer once pushed every auth page off-screen. */
-    .auth-page {
-        @apply grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr_auto] min-h-screen;
-        min-height: 100dvh;
-    }
-
-    /* Auth page background — radial accent glow */
-    .auth-bg-glow {
-        @apply fixed inset-0 z-0 overflow-hidden pointer-events-none;
-    }
-    .auth-bg-glow::before {
-        content: '';
-        @apply absolute w-180 h-180 left-1/2 -translate-x-1/2 -top-50 blur-xl opacity-55;
-        background: radial-gradient(
-            circle at center,
-            var(--accent-soft) 0%,
-            transparent 60%
-        );
-    }
-
-    /* Auth page background — masked grid */
-    .auth-grid-mask {
-        @apply fixed inset-0 z-0 pointer-events-none;
-        background-image:
-            linear-gradient(to right, var(--border) 1px, transparent 1px),
-            linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-        background-size: calc(var(--spacing) * 14) calc(var(--spacing) * 14);
-        mask-image: radial-gradient(
-            ellipse 60% 50% at 50% 35%,
-            #000 30%,
-            transparent 80%
-        );
-        -webkit-mask-image: radial-gradient(
-            ellipse 60% 50% at 50% 35%,
-            #000 30%,
-            transparent 80%
-        );
-        opacity: 0.6;
-    }
-
-    .auth-footer__link {
-        @apply inline-flex items-center text-fg-mute no-underline transition-colors hover:text-fg;
-    }
-
-    /* Auth form text input */
-    .auth-input {
-        @apply w-full font-sans text-base text-fg bg-surface-2 border border-line rounded-md px-3 py-2.5 outline-hidden transition-colors duration-75 placeholder:text-fg-dim focus:bg-surface-1 focus:border-accent focus:shadow-focus;
-    }
-
-    /* Auth form primary submit button */
-    .auth-submit {
-        @apply inline-flex items-center justify-center gap-2 w-full px-3.5 py-2.5 rounded-md border border-accent bg-accent text-ink font-sans text-base font-medium cursor-pointer transition-colors hover:bg-accent-hover hover:enabled:border-accent-hover disabled:opacity-60 disabled:cursor-not-allowed;
-    }
-
-    /* Auth page social sign-in button — secondary counterpart to .auth-submit */
+    /* Auth page social sign-in button — secondary counterpart to the primary button */
     .auth-social-button {
         @apply inline-flex items-center justify-center gap-2.5 w-full px-3.5 py-2.5 rounded-md border border-line bg-surface-2 text-fg font-sans text-base font-medium cursor-pointer transition-colors hover:bg-tint hover:border-line-strong;
-    }
-
-    /* Inline field-level form errors */
-    .field-errors ul {
-        @apply list-none p-0 m-0;
-    }
-    .field-errors li {
-        @apply text-xs mt-1 text-danger;
     }
 
     /* Auth form structure */
@@ -2428,19 +2254,8 @@
     .auth-subheading {
         @apply text-fg-mute text-base leading-normal m-0;
     }
-    .form-label {
-        @apply text-sm font-medium text-fg;
-    }
-    .form-field {
-        @apply flex flex-col gap-1.5;
-    }
     .auth-forgot {
         @apply self-center text-xs text-fg-mute;
-    }
-    /* The auth card, widened for a page whose content needs more than a form
-       column: max-w-lg less the 32px padding and the border leaves 446px. */
-    .auth-shell--wide {
-        @apply w-full max-w-lg bg-surface-1 border border-line rounded-xl shadow-md px-8 pt-8 pb-7 flex flex-col gap-5;
     }
     /* Accent links on the light authentication surfaces. */
     .auth-link {
@@ -2448,9 +2263,6 @@
     }
     .auth-forgot:hover {
         @apply text-fg underline;
-    }
-    .form-stack {
-        @apply flex flex-col gap-3.5;
     }
     .auth-icon-badge {
         @apply w-12 h-12 rounded-full bg-accent-soft text-accent inline-flex items-center justify-center;
@@ -3130,7 +2942,7 @@
     .lp-worker-run-outcome .lp-worker-run-control-label {
         @apply max-w-full;
     }
-    .lp-run-drawer__header .lp-worker-run-control-label {
+    .lp-run-drawer .lp-drawer__header .lp-worker-run-control-label {
         @apply mt-2 block whitespace-normal;
     }
     /* A refused stop or resume, inside the frame that the request reloads. */
@@ -3469,11 +3281,6 @@
 
     /* ── Workspace / projects index ─────────────────────────────────── */
 
-    /* The one page frame every workspace uses, so pages line up as you move between them. */
-    .lp-workspace {
-        @apply w-full px-4.5 pt-5 pb-10 md:px-6 md:pt-6 md:pb-14 xl:px-8 xl:pt-8;
-        max-width: 95.625rem;
-    }
     .lp-eyebrow {
         @apply uppercase text-fg-dim m-0 text-xs font-bold tracking-widest;
     }
@@ -3573,25 +3380,6 @@
     }
     .lp-project-new__panel.open {
         @apply block;
-    }
-
-    /* ── Breadcrumb (handoff §2) ────────────────────────────────────── */
-
-    /* Mono, 12px, dim. `{project} / Documents` above the page title. */
-    .lp-crumbs {
-        @apply flex items-center gap-2 font-mono text-fg-dim m-0 text-xs;
-    }
-    .lp-crumbs__link {
-        @apply text-fg-dim no-underline transition-colors;
-    }
-    .lp-crumbs__link:hover {
-        @apply text-fg;
-    }
-    .lp-crumbs__sep {
-        @apply text-fg-faint;
-    }
-    .lp-crumbs__here {
-        @apply text-fg-mute;
     }
 
     /* ── Documents list ─────────────────────────────────────────────── */
@@ -3842,35 +3630,11 @@
         @apply overflow-y-auto;
     }
 
-    /* The right-hand drawer shell for the card, run and activity drawers.
-       The modal controller slides it; the dialog itself stays still. */
-    /* z-50 carries the modeless case, which sits outside the top layer. */
-    .lp-drawer {
-        @apply fixed inset-y-0 right-0 left-auto z-50 m-0 p-0 w-full max-w-142.5 overflow-hidden rounded-none border-0 bg-surface-1 shadow-2xl;
-        height: 100dvh;
-        max-height: 100dvh;
-    }
-    .lp-drawer[open] {
-        @apply flex flex-col;
-    }
-    .lp-drawer::backdrop {
-        @apply bg-ink/40 backdrop-blur-xs;
-        animation: lp-dialog-backdrop-in 200ms ease;
-    }
-    .lp-run-drawer__header {
-        @apply flex items-start justify-between gap-3 p-6 border-b border-line shrink-0;
-    }
-    .lp-run-drawer__header > div {
-        @apply min-w-0;
-    }
     .lp-run-drawer .lp-btn {
         @apply max-w-full whitespace-normal shrink-0;
     }
     .lp-run-drawer__identifier {
         @apply block break-all text-xs text-fg-dim my-2;
-    }
-    .lp-run-drawer__body {
-        @apply min-h-0 flex-1 overflow-y-auto p-6;
     }
     .lp-run-drawer__metadata {
         @apply grid grid-cols-1 sm:grid-cols-2 gap-4 m-0;
@@ -3892,12 +3656,6 @@
     }
     .lp-run-drawer__timeline time {
         @apply block text-xs text-fg-dim;
-    }
-    .lp-run-drawer__footer {
-        @apply flex flex-wrap items-center justify-end gap-3 p-4 border-t border-line shrink-0;
-    }
-    .lp-run-drawer__footer p {
-        @apply m-0 mr-auto text-sm;
     }
     /** Project search dialog, results, and paging controls. */
     .lp-dialog--search {
@@ -3926,22 +3684,6 @@
     }
     .lp-search-pagination {
         @apply flex flex-wrap gap-3 py-4;
-    }
-    /** Recent project events in the topbar's right-hand drawer. */
-    .lp-activity-drawer__header {
-        @apply flex shrink-0 items-center justify-between gap-4 min-h-15.5 border-b border-line px-6;
-    }
-    .lp-activity-drawer__title {
-        @apply m-0 flex items-center gap-2 font-sans text-xs font-bold tracking-normal text-fg-mute;
-    }
-    .lp-activity-drawer__title svg {
-        @apply w-4 h-4 shrink-0;
-    }
-    .lp-activity-drawer__body {
-        @apply min-h-0 flex-1 overflow-y-auto px-6 py-4;
-    }
-    .lp-activity-drawer__footer {
-        @apply flex shrink-0 justify-end border-t border-line bg-field px-6 py-4;
     }
     /* A compact event list: icon, what happened, the work it touched, and when. */
     .lp-feed__item {
@@ -5972,10 +5714,7 @@
         @apply sticky top-0 z-40 flex items-center gap-2.5 px-7 py-4 border-b border-line bg-app/90 backdrop-blur-md;
     }
     .lp-landing-nav__brand {
-        @apply inline-flex items-center gap-2.5 mr-auto font-display font-extrabold text-2xl tracking-tight lowercase text-ink no-underline;
-    }
-    .lp-landing-nav__mark {
-        @apply w-7 h-7 rounded-lg bg-accent shrink-0;
+        @apply inline-flex items-center mr-auto text-ink no-underline;
     }
     .lp-landing-nav__links {
         @apply flex items-center gap-4 text-sm;
@@ -6010,17 +5749,10 @@
         @apply sticky top-0 z-40 flex flex-wrap items-center gap-4 px-4 py-3 sm:px-7 bg-chrome;
     }
     .lp-home-brand {
-        @apply inline-flex items-center gap-2.5 mr-auto font-display font-extrabold text-2xl tracking-tighter lowercase text-chrome-fg no-underline;
+        @apply inline-flex items-center mr-auto text-chrome-fg no-underline;
     }
     .lp-home-brand--small {
-        @apply text-xl mr-0;
-    }
-    .lp-home-brand__mark {
-        @apply grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-accent -rotate-6;
-    }
-    .lp-home-brand__mark::before {
-        content: '';
-        @apply block w-2.5 h-2.5 box-border rounded-full border-3 border-chrome;
+        @apply mr-0;
     }
     .lp-home-nav__links {
         @apply flex flex-wrap items-center gap-5 text-sm;
@@ -6733,10 +6465,7 @@
         @apply flex flex-wrap items-center gap-5 text-xs text-chrome-dim;
     }
     .lp-landing-nav__brand--sm {
-        @apply text-base mr-0 text-chrome-fg;
-    }
-    .lp-landing-nav__mark--sm {
-        @apply w-5 h-5 rounded-md;
+        @apply mr-0 text-chrome-fg;
     }
     .lp-landing-footer__copyright {
         @apply mr-auto;
@@ -6753,10 +6482,6 @@
        that wrapped below its neighbours would stop reading as a column. */
     .lp-board {
         @apply flex flex-col gap-2 min-h-0 h-full;
-    }
-    /* The board is a viewport-sized surface, so it drops the frame cap. */
-    .lp-core-board.lp-workspace {
-        max-width: none;
     }
     /* A board is a viewport-sized surface at every width: the columns keep the
        room the page leaves, rather than stacking as a split page does. */
@@ -7631,11 +7356,6 @@
     [data-copied] > .lp-copy-icon__done {
         @apply block text-status-ok;
     }
-    /* The viewer fills the page below the top bar, so the frame takes the
-       height the bar and the band leave. */
-    .lp-main:has(.lp-artifact-viewer) {
-        @apply flex flex-col overflow-hidden;
-    }
     .lp-artifact-viewer {
         @apply flex min-h-0 flex-1 flex-col;
     }
@@ -8499,7 +8219,7 @@
     .lp-flash__dismiss,
     .lp-anchor-toolbar__btn,
     .auth-forgot,
-    .auth-footer__link,
+    .lp-auth__footer-link,
     .lp-landing-footer__link,
     .lp-home-footer__link,
     .lp-home-footer__icon {
@@ -8804,32 +8524,6 @@
         @apply cursor-pointer;
     }
 
-    /* Responsive section navigation for project and account settings. */
-    .lp-settings-layout {
-        @apply grid grid-cols-1 lg:grid-cols-4 gap-8;
-    }
-    .lp-settings-nav {
-        @apply flex lg:flex-col gap-1 overflow-x-auto;
-        scrollbar-width: none;
-    }
-    .lp-settings-nav::-webkit-scrollbar {
-        display: none;
-    }
-    .lp-settings-nav__item {
-        @apply inline-flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-normal text-fg-mute no-underline whitespace-nowrap transition-colors;
-    }
-    .lp-settings-nav__item:hover {
-        @apply bg-tint-strong text-ink;
-    }
-    .lp-settings-nav__item--active {
-        @apply bg-accent-soft text-accent-ink;
-    }
-    .lp-settings-nav__item svg {
-        @apply w-4 h-4 shrink-0;
-    }
-    .lp-settings-content {
-        @apply lg:col-span-3 max-w-2xl;
-    }
     .lp-settings-section {
         @apply rounded-xl border border-line bg-surface-1 p-6;
     }
@@ -9059,6 +8753,17 @@
     }
     .lp-styleguide__specimen .lp-dialog {
         @apply static w-full;
+    }
+    .lp-styleguide__specimen .lp-drawer {
+        @apply static w-full max-w-none h-96 max-h-96 border border-line shadow-none;
+    }
+    /* The sign-in shell fills the viewport, so its specimen gets a bounded frame. */
+    .lp-styleguide__specimen .lp-auth {
+        @apply relative w-full min-h-0 h-144 overflow-hidden rounded-lg border border-line bg-app;
+    }
+    .lp-styleguide__specimen .lp-auth__grid,
+    .lp-styleguide__specimen .lp-auth__glow {
+        @apply absolute;
     }
     /* The shell fills the viewport, so the frame gives it a fixed height and
        contains it. */

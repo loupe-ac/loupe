@@ -537,7 +537,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         $moves = $this->template('lifecycle')->manualMoves;
 
-        self::assertCount(7, $moves);
+        self::assertCount(9, $moves);
         self::assertSame([], array_filter($moves, static fn ($move): bool => ManualMoveActor::ParentRun === $move->by));
     }
 

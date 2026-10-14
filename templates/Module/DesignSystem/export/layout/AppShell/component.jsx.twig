@@ -149,7 +149,7 @@ function NavLink({ link, active, counts }) {
     );
 }
 
-export function {{ entry.name }}({ projectName = 'Project', projectPage = true, active, crumbs = [], meta, actions, userName = 'user', counts = {}, projects, features = {}, admin = false, className: extra, children, ...rest }) {
+export function {{ entry.name }}({ projectName = 'Project', projectPage = true, active, crumbs = [], meta, actions, userName = 'user', counts = {}, projects, features = {}, admin = false, shellWidth = 'default', mainSurface = 'app', className: extra, children, ...rest }) {
     const [drawerOpen, setDrawerOpen] = React.useState(false);
     const [switcherOpen, setSwitcherOpen] = React.useState(false);
     const classes = ['lp-app'];
@@ -173,8 +173,10 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                     <Icon name="x" />
                 </button>
                 <a href="#" className="lp-sidebar__brand">
-                    <span className="lp-sidebar__brand-mark" aria-hidden="true"></span>
-                    <span>loupe</span>
+                    <span className="lp-brand lp-brand--md">
+                        <span className="lp-brand__mark" aria-hidden="true"></span>
+                        <span className="lp-brand__word">loupe</span>
+                    </span>
                 </a>
                 {hasProject && (
                     <>
@@ -249,20 +251,26 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                 </div>
             </aside>
             <div className="lp-scrim" hidden={!drawerOpen} onClick={() => setDrawerOpen(false)}></div>
-            <div className="lp-shell">
+            <div className={'lp-shell lp-shell--' + shellWidth}>
                 <header className="lp-topbar">
                     <button type="button" className="lp-topbar__menu" aria-controls="lp-sidebar" aria-expanded={drawerOpen} aria-label="Open navigation" onClick={() => setDrawerOpen(!drawerOpen)}>
                         <Icon name="menu" />
                     </button>
                     <div className="lp-topbar__lead">
-                        <nav className="lp-topbar__trail">
-                            {trail.map((crumb) => (
-                                <React.Fragment key={crumb.label}>
-                                    <a className="lp-topbar__crumb" href={crumb.href}>{crumb.label}</a>
-                                    <span className="lp-topbar__sep">/</span>
-                                </React.Fragment>
-                            ))}
-                            {here && <span className="lp-topbar__here">{here.label}</span>}
+                        <nav className="lp-crumbs" aria-label="Breadcrumb">
+                            <ol className="lp-crumbs__list">
+                                {trail.map((crumb) => (
+                                    <li key={crumb.label} className="lp-crumbs__item">
+                                        <a className="lp-crumbs__link" href={crumb.href}>{crumb.label}</a>
+                                        <span className="lp-crumbs__sep" aria-hidden="true">/</span>
+                                    </li>
+                                ))}
+                                {here && (
+                                    <li className="lp-crumbs__item lp-crumbs__item--current">
+                                        <span className="lp-crumbs__here" aria-current="page">{here.label}</span>
+                                    </li>
+                                )}
+                            </ol>
                         </nav>
                         {meta && <span className="lp-topbar__meta">{meta}</span>}
                     </div>
@@ -276,7 +284,7 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                         )}
                     </div>
                 </header>
-                <main id="main-content" className="lp-main" tabIndex={-1}>
+                <main id="main-content" className={'lp-main lp-main--' + mainSurface} tabIndex={-1}>
                     {children}
                 </main>
             </div>

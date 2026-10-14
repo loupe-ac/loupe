@@ -1396,10 +1396,12 @@
             <trans-unit id="review.document.decisions.note"><source>review.document.decisions.note</source><target>Note: %note%</target></trans-unit>
             <trans-unit id="review.document.page_menu.label"><source>review.document.page_menu.label</source><target>More about this document</target></trans-unit>
             <trans-unit id="review.document.page_menu.heading.card"><source>review.document.page_menu.heading.card</source><target>Linked cards (%count%)</target></trans-unit>
+            <trans-unit id="review.document.page_menu.heading.artifact"><source>review.document.page_menu.heading.artifact</source><target>Artifacts (%count%)</target></trans-unit>
             <trans-unit id="review.document.page_menu.heading.outgoing"><source>review.document.page_menu.heading.outgoing</source><target>Links to (%count%)</target></trans-unit>
             <trans-unit id="review.document.page_menu.heading.incoming"><source>review.document.page_menu.heading.incoming</source><target>Links to this document (%count%)</target></trans-unit>
             <trans-unit id="review.document.page_menu.show_more"><source>review.document.page_menu.show_more</source><target>Show %count% more</target></trans-unit>
             <trans-unit id="review.document.page_menu.card_line"><source>review.document.page_menu.card_line</source><target>Linked card · %type% · %column%</target></trans-unit>
+            <trans-unit id="review.document.page_menu.artifact_line"><source>review.document.page_menu.artifact_line</source><target>Artifact · %version% · from #%card%</target></trans-unit>
             <trans-unit id="review.document.page_menu.outgoing_line"><source>review.document.page_menu.outgoing_line</source><target>Links to · %status%</target></trans-unit>
             <trans-unit id="review.document.page_menu.incoming_line"><source>review.document.page_menu.incoming_line</source><target>Links to this document · %status%</target></trans-unit>
             <trans-unit id="review.document.page_menu.history"><source>review.document.page_menu.history</source><target>Version history</target></trans-unit>
@@ -2025,6 +2027,10 @@
             <trans-unit id="nav.link.account">
                 <source>nav.link.account</source>
                 <target>Account</target>
+            </trans-unit>
+            <trans-unit id="nav.breadcrumbs.label">
+                <source>nav.breadcrumbs.label</source>
+                <target>Breadcrumb</target>
             </trans-unit>
             <trans-unit id="nav.drawer.open">
                 <source>nav.drawer.open</source>

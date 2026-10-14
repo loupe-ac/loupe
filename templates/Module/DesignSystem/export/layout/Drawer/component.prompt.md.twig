@@ -1,0 +1,14 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+Loupe's drawer. {{ entry.summary }}
+
+```jsx
+<{{ entry.name }} open
+  header={<><h2 className="lp-drawer__title">Recent activity</h2><Button variant="icon" aria-label="Close">×</Button></>}
+  footer={<Button>Open the full list</Button>}
+>
+  <p>The body.</p>
+</{{ entry.name }}>
+```
+
+Pass `open` to show it. The app opens the real drawer with the `modal` controller, which slides it in from the right edge. Give the header and the footer only when the drawer needs them. The component draws the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

@@ -1,0 +1,24 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="The frame of a page" viewport="700x200"
+ */
+export interface {{ entry.name }}Props {
+    /** The width of the frame. `default` is the standard page, `narrow` suits a form, and `full` drops the cap for a viewport-sized page. */
+    width?:
+        | 'default'
+{% for variant in entry.variants %}
+        | '{{ variant }}'
+{% endfor %}
+        | (string & {});
+    /** The content of the page. */
+    children?: ReactNode;
+    className?: string;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

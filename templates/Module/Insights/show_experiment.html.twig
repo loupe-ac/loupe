@@ -1,48 +1,18 @@
 {% extends 'base.html.twig' %}
 
-{% macro amount(value, format) %}
-    {%- if format == 'percent' -%}
-        {{ value|format_percent_number }}
-    {%- elseif format == 'currency' -%}
-        {{ value|format_currency('USD') }}
-    {%- elseif format == 'integer' -%}
-        {{ value|number_format(0) }}
-    {%- elseif format == 'minutes' -%}
-        {{ (value / 60000)|number_format(1) }}
-    {%- else -%}
-        {{ value|number_format(1) }}
-    {%- endif -%}
-{% endmacro %}
-
-{% macro metric_row(metric, label, format, variants, part) %}
-    <tr {% if part %}class="lp-experiment-table__part" data-metric-part="{{ metric.key }}"{% else %}data-metric="{{ metric.key }}"{% endif %}>
-        <th scope="row">
-            {{ label }}
-            {% if not metric.clear %}<span data-metric-unclear><twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.too_few_cards'|trans" /></span>{% endif %}
-        </th>
-        {% for variant in variants %}
-            {% set interval = metric.for(variant.name) %}
-            {% if interval is null %}
-                <td class="lp-experiment-table__number">–</td>
-                <td class="lp-experiment-table__number">–</td>
-            {% else %}
-                <td class="lp-experiment-table__number">{{ _self.amount(interval.point, format) }}</td>
-                <td class="lp-experiment-table__number lp-experiment-table__range">{{ 'bridge.experiments.range'|trans({'%low%': _self.amount(interval.low, format), '%high%': _self.amount(interval.high, format)}) }}</td>
-            {% endif %}
-        {% endfor %}
-    </tr>
-{% endmacro %}
-
 {% block title %}{{ report.experiment }} — {{ 'bridge.experiments.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    {% include '@Insights/_crumbs.html.twig' with {project: project} only %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'analytics.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
 {% set knownReasons = ['conflict', 'checks-failed', 'changes-requested', 'agent-review'] %}
 {% set headline = report.headline %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-runs">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
+    {% import '@Insights/_experiment_macros.html.twig' as experimentRows %}
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
@@ -107,9 +77,9 @@
             <tbody>
                 {% for metric in report.metrics %}
                     {% set format = metric.format %}
-                    {{ _self.metric_row(metric, ('bridge.experiments.metric.' ~ metric.key)|trans, format, report.variants, false) }}
+                    {{ experimentRows.metric_row(metric, ('bridge.experiments.metric.' ~ metric.key)|trans, format, report.variants, false) }}
                     {% for part in metric.parts %}
-                        {{ _self.metric_row(part, part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key}), format, report.variants, true) }}
+                        {{ experimentRows.metric_row(part, part.key in knownReasons ? ('bridge.experiments.fix_reason.' ~ part.key)|trans : 'bridge.experiments.fix_reason.other'|trans({'%reason%': part.key}), format, report.variants, true) }}
                     {% endfor %}
                 {% endfor %}
             </tbody>
@@ -132,5 +102,5 @@
             <twig:Ds:Button variant="outline" size="sm" href="{{ path('app_project_analytics_reports', {id: project.id, topic: 'experiment', experiment: report.experiment}) }}" data-experiment-analyse>{{ 'bridge.experiments.analyse'|trans }}</twig:Ds:Button>
         </p>
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

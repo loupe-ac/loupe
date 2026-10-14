@@ -154,7 +154,7 @@ test('a collision with a password account requires the password before linking',
     await page
         .getByRole('button', { name: 'Link account and sign in' })
         .click();
-    await expect(page.locator('.field-errors')).toContainText('incorrect');
+    await expect(page.locator('.lp-field-errors')).toContainText('incorrect');
 
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page

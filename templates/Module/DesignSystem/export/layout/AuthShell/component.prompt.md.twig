@@ -1,0 +1,13 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+Loupe's sign-in page frame. {{ entry.summary }}
+
+```jsx
+<{{ entry.name }}>
+  <h1>Sign in</h1>
+  <Input placeholder="Email" />
+  <Button variant="primary" size="lg" className="{{ entry.rootClass }}__action">Sign in</Button>
+</{{ entry.name }}>
+```
+
+Put the form fields inside as `FormField`, `Input` and `Button`, and give the submit button the class `{{ entry.rootClass }}__action` so it fills the card. The frame draws the brand mark and the app footer itself. Pass `footer` to replace the footer. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

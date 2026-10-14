@@ -1,5 +1,7 @@
 {#
-  Props: none. Other attributes, class included, go to the element.
+  Props: width (default, narrow or full, optional). With a width the page also draws the Workspace frame.
+  Other attributes, class included, go to the element.
   The page writes the lp-split-region, lp-split-view and lp-split-pane markup inside it.
 #}
-<div{{ attributes.defaults({class: 'lp-split-page'}) }}>{% block content %}{% endblock %}</div>
+{%- props width = null -%}
+<div{{ attributes.defaults({class: 'lp-split-page' ~ (width ? ' lp-workspace' ~ ('default' != width ? ' lp-workspace--' ~ width : '') : '')}) }}>{% block content %}{% endblock %}</div>

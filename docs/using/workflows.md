@@ -91,7 +91,7 @@ The shipped markers are:
 | Key | Kind | Shows when |
 |---|---|---|
 | `paused` | Stuck | The card has an active pause |
-| `run-stopped` | Stuck | The last worker run gave up, was blocked, failed or had no result |
+| `run-stopped` | Stuck | The last worker run gave up, was blocked, failed or had no result, and no work is under way |
 | `checks-failed` | Stuck | A pull request has failed checks and no fix is under way |
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
@@ -316,8 +316,10 @@ App, and it has no fallback. See [Agent review](#agent-review).
 Lifecycle has the slots Next, Product design, Tech design, Implementation and In
 review. A person can move a card from the Backlog to Next, Product design or
 Tech design, and from Next back to the Backlog or on to a design slot. A person
-can also move a card from Implementation back to Tech design, for example when
-the card has no tech design yet. A card whose tech design is approved goes
+can also move a card from the Backlog or from Next straight to the terminal
+column, for example when the work is no longer needed. A person can move a card
+from Implementation back to Tech design, for example when the card has no tech
+design yet. A card whose tech design is approved goes
 back to Implementation at once when it has no open blocker.
 
 | Slot | The workflow |

@@ -39,7 +39,7 @@ final class AuthPageLayoutTest extends WebTestCase
         // error page, so the absence below proves nothing until the auth page is
         // known to have rendered.
         self::assertResponseIsSuccessful();
-        self::assertCount(1, $crawler->filter('.auth-page'));
+        self::assertCount(1, $crawler->filter('.lp-auth'));
 
         self::assertCount(0, $crawler->filter('.lp-sidebar'));
     }

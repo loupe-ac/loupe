@@ -1,0 +1,25 @@
+/* The brand mark: the logo square and the word. `templates/components/Ds/BrandMark.html.twig` renders it. */
+@layer components {
+    .lp-brand {
+        @apply inline-flex items-center gap-2.5 font-display font-extrabold tracking-tight lowercase;
+    }
+    .lp-brand--md {
+        @apply text-2xl;
+    }
+    .lp-brand--sm {
+        @apply gap-2 text-base;
+    }
+    .lp-brand__mark {
+        @apply grid place-items-center w-7 h-7 shrink-0 rounded-lg bg-accent -rotate-6;
+    }
+    .lp-brand__mark::before {
+        content: '';
+        @apply block w-2.5 h-2.5 box-border rounded-full border-3 border-chrome;
+    }
+    .lp-brand--sm .lp-brand__mark {
+        @apply w-5 h-5 rounded-md;
+    }
+    .lp-brand--sm .lp-brand__mark::before {
+        @apply w-1.5 h-1.5 border-2;
+    }
+}

@@ -2,14 +2,16 @@
 
 {% block title %}{{ 'board.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block shell_width 'full' %}
+
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ path('app_project_documents', {id: board.project.id}) }}">{{ board.project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'nav.link.board'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.board'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
-<twig:Ds:SplitView class="lp-workspace lp-core-prototype-page lp-core-board" data-controller="card-drawer">
+<twig:Ds:SplitView width="full" class="lp-core-prototype-page lp-core-board" data-controller="card-drawer">
     {# A column change updates the board skeleton in place, and a card change places that card. #}
     {% do mercure_subscribe(boardTopic) %}
     {% do mercure_subscribe(worker_runs_topic(board.project)) %}

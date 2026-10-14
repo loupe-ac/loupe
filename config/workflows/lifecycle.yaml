@@ -24,6 +24,8 @@ manualMoves:
     - { from: '@backlog', to: tech-design }
     - { from: next, to: product-design }
     - { from: next, to: tech-design }
+    - { from: '@backlog', to: '@terminal' }
+    - { from: next, to: '@terminal' }
     - { from: implementation, to: tech-design }
 childChoices:
     inherit: [{ link-document: { from: parent, tag: tech-design } }]
@@ -537,7 +539,13 @@ markers:
       kind: stuck
       label: marker.run_stopped
       remedy: marker.run_stopped.remedy
-      when: { card.run.stopped: {} }
+      when:
+          all:
+              - card.run.stopped: {}
+              - not:
+                    any:
+                        - card.run.work_active: {}
+                        - card.run.worker_active: {}
     - key: checks-failed
       kind: stuck
       label: marker.checks_failed

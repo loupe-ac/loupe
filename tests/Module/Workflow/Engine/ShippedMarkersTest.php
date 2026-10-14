@@ -6,7 +6,10 @@ namespace App\Tests\Module\Workflow\Engine;
 
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\PauseFacts;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Bridge\Workflow\HoldFacts;
+use App\Module\Bridge\Workflow\RunStoppedFacts;
 use App\Module\Bridge\Workflow\SessionFacts;
 use App\Module\Inbox\Workflow\OpenQuestion;
 use App\Module\Inbox\Workflow\OpenQuestionFacts;
@@ -140,6 +143,17 @@ final class ShippedMarkersTest extends KernelTestCase
 
         self::assertSame(['paused'], $this->writtenKeys());
         self::assertSame(['%reason%' => 'move-refused'], $this->written('paused')->params);
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_a_stopped_run_is_stuck_until_new_work_is_under_way(string $key): void
+    {
+        $template = $this->template($key);
+
+        self::assertSame(['run-stopped'], $this->passKeys($template, $this->stoppedFacts()));
+        self::assertSame(['work-requested'], $this->passKeys($template, $this->stoppedFacts(['implement'])), 'queued work waits for a bridge');
+        self::assertSame(['run-open'], $this->passKeys($template, $this->stoppedFacts([], ['implement'])));
+        self::assertSame(['run-stopped'], $this->passKeys($template, $this->stoppedFacts()), 'the work ended with the card still where the run stopped');
     }
 
     public function test_failing_checks_are_stuck_until_a_fix_is_under_way(): void
@@ -300,6 +314,19 @@ final class ShippedMarkersTest extends KernelTestCase
             pullRequest: $pullRequest,
             pullRequests: [$pullRequest],
             run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
+        );
+    }
+
+    /**
+     * @param list<string> $work    the kinds of the open work requests
+     * @param list<string> $workers the kinds of the open worker runs
+     */
+    private function stoppedFacts(array $work = [], array $workers = []): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
+            provided: [RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null)],
         );
     }
 

@@ -102,7 +102,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
             new WorkflowRuleView('comment-agent-review', 'workflow.settings.where.any', 'workflow.settings.action.forge_write', null, 'comment agent-review', [new WorkflowConditionGroupView('workflow.source.agent_review', [new WorkflowConditionView('agent_review.uncommented', false, '')])], [], [], []),
         ], $template->appRules);
         self::assertEquals(new WorkflowManualMoveView('workflow.settings.where.backlog', 'workflow.slot.next', 'workflow.settings.moves.by.anyone'), $template->manualMoves[0]);
-        self::assertCount(7, $template->manualMoves);
+        self::assertCount(9, $template->manualMoves);
         self::assertSame([10, 60, 360], $template->backoffMinutes);
         self::assertSame(120, $template->workTimeoutMinutes);
         self::assertSame([2, 3, 5], $template->workFailedBackoffMinutes);
