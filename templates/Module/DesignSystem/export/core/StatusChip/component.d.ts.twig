@@ -1,0 +1,28 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }} in each colour, with a reason" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The colour: {{ entry.variants|join(', ') }}. The default chip has none. */
+    modifier?: {{ entry.variants|map(v => "'" ~ v ~ "'")|join(' | ') }};
+    /** The state name. The content is the label when this is left out. */
+    label?: ReactNode;
+    /** Draws the coloured dot. True by default. */
+    dot?: boolean;
+    /** The element, span by default. Use button for a chip that toggles. */
+    as?: keyof JSX.IntrinsicElements;
+    /** Why the state holds. Shown in a tooltip on hover and focus. */
+    reason?: ReactNode;
+    /** The tooltip id. Generated when left out. */
+    id?: string;
+    className?: string;
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}
