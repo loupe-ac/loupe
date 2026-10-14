@@ -65,6 +65,12 @@ final class SimpleComponentParityTest extends KernelTestCase
             self::assertNotSame($this->classNames($this->render($plain)), $this->classNames($this->render($modified)));
         }
         self::assertStringNotContainsString('variant,', $jsx);
+
+        foreach ([$plain, $modified] as $template) {
+            foreach ($this->fixedAttributes($this->render($template)) as $attribute => $value) {
+                self::assertMatchesRegularExpression('/[\'"]?'.preg_quote($attribute, '/').'[\'"]?(=|: )[\'"]'.preg_quote($value, '/').'[\'"]/', $jsx, $attribute);
+            }
+        }
     }
 
     public function test_an_element_prop_renders_the_element_the_twig_component_renders(): void
@@ -100,6 +106,25 @@ final class SimpleComponentParityTest extends KernelTestCase
         self::bootKernel();
 
         return static::getContainer()->get(Environment::class)->createTemplate($template)->render();
+    }
+
+    /**
+     * The attributes of the rendered root other than its class, which the wrapper must set too.
+     *
+     * @return array<string, string>
+     */
+    private function fixedAttributes(string $html): array
+    {
+        preg_match('/^\s*<[a-z]+([^>]*)>/', $html, $root);
+        preg_match_all('/([a-z-]+)="([^"]*)"/', $root[1] ?? '', $matches, \PREG_SET_ORDER);
+        $attributes = [];
+        foreach ($matches as [, $name, $value]) {
+            if ('class' !== $name) {
+                $attributes[$name] = $value;
+            }
+        }
+
+        return $attributes;
     }
 
     /** @return list<string> */

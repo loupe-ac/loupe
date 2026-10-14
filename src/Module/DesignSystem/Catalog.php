@@ -209,6 +209,7 @@ readonly class Catalog
                 element: 'dialog',
                 viewport: '700x420',
                 modifierProp: 'size',
+                attributes: ['data-modal-target' => 'dialog'],
             ),
             new ComponentEntry(
                 name: 'Tabs',

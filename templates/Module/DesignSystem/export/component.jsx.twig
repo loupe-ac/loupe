@@ -43,7 +43,7 @@ export function {{ entry.name }}({ {{ modifiers|join(', ') }}{{ modifiers ? ', '
 {% set tag = entry.takesAs ? 'Element' : entry.element %}
 
     return (
-        <{{ tag }} {...rest} className={className}>
+        <{{ tag }}{% for name, value in entry.attributes %} {{ name }}="{{ value }}"{% endfor %} {...rest} className={className}>
 {% if entry.dotClass %}
             {dot && <span className="{{ entry.dotClass }}"></span>}
 {% endif %}

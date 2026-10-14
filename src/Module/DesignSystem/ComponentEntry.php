@@ -14,13 +14,15 @@ namespace App\Module\DesignSystem;
  * `viewport` is the width and height of its preview card, `700x150` by default.
  * `modifierProp` names the wrapper prop that picks a modifier class, the same
  * name as the Twig prop. `takesAs` marks a component whose Twig template takes `as`.
+ * `attributes` holds the fixed attributes that the Twig template sets on its root.
  */
 final readonly class ComponentEntry
 {
     /**
-     * @param list<string> $variants
-     * @param list<string> $states
-     * @param list<string> $sizes
+     * @param list<string>          $variants
+     * @param list<string>          $states
+     * @param list<string>          $sizes
+     * @param array<string, string> $attributes
      */
     public function __construct(
         public string $name,
@@ -39,6 +41,7 @@ final readonly class ComponentEntry
         public string $viewport = '700x150',
         public string $modifierProp = 'variant',
         public bool $takesAs = false,
+        public array $attributes = [],
     ) {
     }
 }

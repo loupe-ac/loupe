@@ -165,10 +165,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_each_wrapper_renders_the_element_of_its_component(): void
     {
-        foreach (['Dialog' => 'dialog', 'Tabs' => 'nav', 'Pagination' => 'nav'] as $name => $element) {
+        foreach (['Dialog' => '<dialog data-modal-target="dialog" {...rest}', 'Tabs' => '<nav {...rest}', 'Pagination' => '<nav {...rest}'] as $name => $tag) {
             $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'/'.$name.'.jsx');
 
-            self::assertStringContainsString('<'.$element.' {...rest}', $jsx);
+            self::assertStringContainsString($tag, $jsx);
         }
     }
 
