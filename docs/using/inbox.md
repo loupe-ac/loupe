@@ -343,8 +343,15 @@ The actions are:
   A pause from a workflow rule cannot be released here.
 - "Review" opens the review page of the document, or the pull request on
   GitHub, for a review wait.
+- "Send an agent" starts a new worker for the stage work of the card, such as
+  an implement worker for a card in Implementation. It never resumes an
+  earlier session. It fits only when the column of the card names stage work,
+  no request for that work is live, and no worker runs on the card. See
+  [Workflow templates](workflows.md).
 - "Open" opens the card, or the document. A card page offers no link to
   itself.
+- "Start an interactive session" opens a terminal on your machine. See
+  [Start an interactive session](#start-an-interactive-session).
 - "Dismiss" closes the item as declined. It sits apart at the bottom of the
   menu, in red. Dismiss ignores the note.
 
@@ -352,6 +359,24 @@ Loupe shows only the actions that fit the item now. It picks the main action
 from the newest open wait: Resume the run for a stopped run, Retry the card for
 a pause that you can release, Review for a review, and Open for the rest. When
 only Dismiss fits, the card shows a Dismiss button and no menu.
+
+### Titles and suggestions from the agent
+
+A worker that stops can name the stop and suggest what to do next. It adds a
+`title` and up to three `suggestedActions` to its structured result. See
+[the bridge guide](../extending/cli-bridge.md). The item
+uses the title as its heading, cut to 80 characters, with the full text in the
+tooltip. Without a title, the heading is the first sentence of the report.
+
+Each suggestion names one of the seven actions above and gives a reason. The
+reason shows as the heading of the reply card when that action is the main one.
+A suggestion that the worker marks `recommended` becomes the main action, but
+only while that action fits the item. A suggestion for an action that does not
+fit is dropped.
+
+An agent can also attach `suggestedActions` to an item of `inbox_ask`. Loupe
+stores them, and `inbox_get` returns them. The inbox page does not show them
+yet. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
