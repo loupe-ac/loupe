@@ -117,7 +117,7 @@
             </aside>
             {% endwith %}
             <div class="lp-scrim" data-drawer-target="scrim" data-action="click->drawer#close" hidden></div>
-            <div class="lp-shell" data-drawer-target="content">
+            <div class="lp-shell lp-shell--{% block shell_width 'default' %}" data-drawer-target="content">
                 <header class="lp-topbar">
                     {# Outside `block topbar`, so a page that replaces the block
                        cannot take the only way back to the nav with it. #}
@@ -155,7 +155,7 @@
                         </div>
                     {% endblock %}
                 </header>
-                <main id="main-content" class="lp-main" tabindex="-1">
+                <main id="main-content" class="lp-main lp-main--{% block main_surface 'app' %}" tabindex="-1">
                     {% block flash_messages %}
                         {# Read notification types only; other flash values can contain credentials. #}
                         {% include '_flash_messages.html.twig' with {flashes: app.flashes(['success', 'error', 'warning', 'info'])} only %}

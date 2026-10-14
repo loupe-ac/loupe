@@ -23,22 +23,32 @@
     .lp-main {
         @apply flex-1 min-h-0 bg-app overflow-x-auto overflow-y-auto;
     }
-    /* Every page but the board fits one left-aligned frame. The top bar keeps
-       its full-width ground, and its items end at the frame edge. */
+    /* A white ground, as the paper a document sits on. */
+    .lp-main--paper {
+        @apply bg-surface-1;
+    }
+    /* A column that clips its overflow, so a viewer takes the height the
+       top bar leaves. */
+    .lp-main--fill {
+        @apply flex flex-col overflow-hidden;
+    }
+    /* Every page fits one left-aligned frame, except a page that sets the
+       shell width to full. The top bar keeps its full-width ground, and its
+       items end at the frame edge. */
     @media (width >= 64rem) {
-        .lp-app > .lp-shell:not(:has(.lp-board)) {
+        .lp-app > .lp-shell:not(.lp-shell--full) {
             --app-frame-inset: max(
                 calc(var(--spacing) * 0),
                 100% - var(--container-7xl)
             );
         }
-        .lp-app > .lp-shell:not(:has(.lp-board)) > .lp-topbar {
+        .lp-app > .lp-shell:not(.lp-shell--full) > .lp-topbar {
             padding-right: calc(var(--app-frame-inset) + var(--spacing) * 7.5);
         }
-        /* The side-by-side diff takes the full width below the framed bar. */
+        /* The inbox takes the full width below the framed bar. */
         .lp-app
-            > .lp-shell:not(:has(.lp-board))
-            > .lp-main:not(:has(.lp-review-doc--wide, .lp-core-inbox)) {
+            > .lp-shell:not(.lp-shell--full)
+            > .lp-main:not(:has(.lp-core-inbox)) {
             padding-right: var(--app-frame-inset);
         }
     }

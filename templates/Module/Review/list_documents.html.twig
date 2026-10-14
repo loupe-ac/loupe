@@ -12,7 +12,7 @@
 {# Unfiltered and archive-free, so it can tell "this project has nothing" from
    "the filters matched nothing". Same number the shell's nav pill shows. #}
 {% set totalDocuments = project_document_count(project) %}
-<div class="lp-workspace lp-core-prototype-page lp-core-documents" data-controller="modal" data-modal-reopen-value="{{ createDocumentForm.vars.submitted ? 'true' : 'false' }}">
+<twig:Ds:Workspace class="lp-core-prototype-page lp-core-documents" data-controller="modal" data-modal-reopen-value="{{ createDocumentForm.vars.submitted ? 'true' : 'false' }}">
     {# The default line promises newest-first, which a ranked search and a series
        both make untrue. The series wins, because its order wins in the query. #}
     {% if listQuery.seriesName %}
@@ -249,5 +249,5 @@
         </p>
     </twig:Ds:EmptyState>
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

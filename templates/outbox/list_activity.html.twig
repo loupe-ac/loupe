@@ -12,7 +12,7 @@
 
 {% block body %}
 {% set filtered = entries|length > 0 or listQuery.isNarrowed %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-events">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-events">
     {% include 'activity/_header.html.twig' with {} only %}
 
     {% include 'activity/_tabs.html.twig' with {project: project, active: 'events'} only %}
@@ -111,5 +111,5 @@
     {% endif %}
     </turbo-frame>
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

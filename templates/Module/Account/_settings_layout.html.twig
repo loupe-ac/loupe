@@ -20,7 +20,7 @@
     {label: 'account.settings.nav.connected_apps'|trans, url: path('app_account_connected_apps'), icon: 'lucide:plug', active: 'connected-apps' == section},
     {label: 'account.settings.nav.data'|trans, url: path('app_account_data'), icon: 'lucide:archive', active: 'data' == section},
 ] %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">
     <twig:Ds:SettingsLayout
         :title="'account.settings.page.title'|trans"
         :description="'account.settings.page.description'|trans"
@@ -29,5 +29,5 @@
     >
         {{ settingsContent }}
     </twig:Ds:SettingsLayout>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

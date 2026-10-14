@@ -8,6 +8,7 @@
 
 {% block body %}
 {% set section = block('settings_section') %}
+{% set columns = '' != block('settings_columns') %}
 {% set settingsContent %}{% block settings_content %}{% endblock %}{% endset %}
 {% set items = [
     {label: 'project.edit.nav.general'|trans, url: path('app_project_edit', {id: project.id}), icon: 'lucide:settings', active: 'general' == section},
@@ -17,15 +18,15 @@
     {label: 'project.edit.nav.readiness'|trans, url: path('app_readiness_settings', {id: project.id}), icon: 'lucide:list-checks', active: 'readiness' == section},
     {label: 'project.edit.nav.connections'|trans, url: path('app_project_connect', {id: project.id}), icon: 'lucide:link', active: 'connections' == section},
 ]|filter(item => item) %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-settings">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">
     <twig:Ds:SettingsLayout
         :title="'project.edit.page.title'|trans"
         :description="'project.edit.page.description'|trans"
         :items="items"
         :navLabel="'project.edit.nav.label'|trans"
-        :columns="'' != block('settings_columns')"
+        :columns="columns"
     >
         {{ settingsContent }}
     </twig:Ds:SettingsLayout>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

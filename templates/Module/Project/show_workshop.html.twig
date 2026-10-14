@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-workshop" data-workshop data-controller="card-drawer">
+<twig:Ds:Workspace class="lp-workshop" data-workshop data-controller="card-drawer">
     {% set readiness = is_granted(constant('App\\Module\\Project\\Security\\ProjectVoter::MANAGE'), workshop.project) ? workshop.readiness : null %}
     {% if readiness is not null and workshop.quiet %}
     {% do mercure_subscribe(worker_runs_topic(workshop.project)) %}
@@ -145,5 +145,5 @@
     </div>
     {% endif %}
     {% include '@Board/_card_drawer.html.twig' with {project: workshop.project} only %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

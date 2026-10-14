@@ -65,6 +65,9 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             'components/layout/ListRow.jsx',
             'components/layout/ListRow.d.ts',
             'components/layout/ListRow.prompt.md',
+            'components/layout/Workspace.jsx',
+            'components/layout/Workspace.d.ts',
+            'components/layout/Workspace.prompt.md',
             'components/layout/layout.card.html',
             'guidelines/colour.html',
             'assets/fonts/Geist-Variable.woff2',
@@ -319,7 +322,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }
@@ -369,7 +372,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
 
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
@@ -435,6 +438,23 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
         foreach (['.lp-sidebar__link', '.lp-crumbs__link', '.lp-shell'] as $selector) {
             self::assertStringContainsString($selector, $css);
+        }
+    }
+
+    public function test_the_stylesheet_styles_every_app_shell_option(): void
+    {
+        $css = (string) file_get_contents($this->directory.'/styles.css');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
+
+        foreach (['shellWidth' => 'lp-shell--', 'mainSurface' => 'lp-main--'] as $prop => $prefix) {
+            if (1 !== preg_match('/'.$prop."\\?: ((?:'[a-z]+'(?: \\| )?)+);/", $types, $match)) {
+                self::fail(sprintf('AppShell.d.ts declares no %s union.', $prop));
+            }
+            preg_match_all("/'([a-z]+)'/", $match[1], $options);
+            $default = 'shellWidth' === $prop ? 'default' : 'app';
+            foreach (array_diff($options[1], [$default]) as $option) {
+                self::assertStringContainsString('.'.$prefix.$option, $css, sprintf('The export has no rule for %s="%s".', $prop, $option));
+            }
         }
     }
 
@@ -665,9 +685,23 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString("| 'workshop'", $types);
         self::assertStringContainsString('<PageHeader title=', $prompt);
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
         self::assertStringContainsString('<PageHeader variant="workshop"', $card);
         self::assertStringNotContainsString('<Button', $card);
+    }
+
+    public function test_the_workspace_wrapper_draws_the_frame_with_a_named_width(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/Workspace.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/Workspace.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/Workspace.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+
+        self::assertStringContainsString("classes.push('lp-workspace--' + width);", $jsx);
+        self::assertStringContainsString("| 'narrow'", $types);
+        self::assertStringContainsString("| 'full'", $types);
+        self::assertStringContainsString('<Workspace width="narrow">', $prompt);
+        self::assertStringContainsString('<Workspace width="narrow">', $card);
     }
 
     public function test_the_split_view_wrapper_draws_the_region_the_view_and_two_panes(): void

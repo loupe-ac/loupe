@@ -2,6 +2,10 @@
 
 {% block title %}{{ 'artifact.viewer.page.title'|trans({'%name%': artifact.name}) }} — {{ 'app.name'|trans }}{% endblock %}
 
+{% block shell_width 'full' %}
+
+{% block main_surface 'fill' %}
+
 {% block topbar_crumbs %}
     <twig:Ds:Breadcrumbs :items="[
         {label: 'nav.link.artifacts'|trans, url: path('app_project_artifacts', {id: project.id})},

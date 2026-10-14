@@ -10,7 +10,7 @@
 
 {% block body %}
 {% set routeParams = {id: project.id, experiment: report.experiment} %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-runs">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'experiments'} only %}
@@ -68,5 +68,5 @@
     {% else %}
     <twig:Ds:EmptyState icon="lucide:chart-column" :title="'bridge.experiments.cards.empty'|trans" data-experiment-cards-empty />
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}
