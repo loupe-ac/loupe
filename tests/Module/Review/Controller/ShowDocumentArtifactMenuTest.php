@@ -34,10 +34,10 @@ final class ShowDocumentArtifactMenuTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$documentId.'/review');
 
         self::assertResponseIsSuccessful();
-        $row = $crawler->filter('#review-page-menu [data-page-menu-group="artifact"] .lp-page-menu__row');
+        $row = $crawler->filter('#review-page-menu [data-page-menu-group="artifact"] .lp-menu__item');
         self::assertCount(1, $row);
-        self::assertSame('Inbox prototype', trim($row->filter('.lp-page-menu__label')->text()));
-        self::assertSame('Artifact · v2 · from #706', trim($row->filter('.lp-page-menu__line')->text()));
+        self::assertSame('Inbox prototype', trim($row->filter('.lp-menu__label')->text()));
+        self::assertSame('Artifact · v2 · from #706', trim($row->filter('.lp-menu__line')->text()));
         self::assertSame('/projects/'.$projectId.'/artifacts/'.$artifactId, $row->attr('href'));
     }
 
@@ -90,7 +90,7 @@ final class ShowDocumentArtifactMenuTest extends WebTestCase
         $client->loginUser($project->owner);
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$projectId.'/documents/'.$documentId.'/review');
 
-        self::assertSame('Artifact · Archived · from #1', trim($crawler->filter('#review-page-menu [data-page-menu-group="artifact"] .lp-page-menu__line')->text()));
+        self::assertSame('Artifact · Archived · from #1', trim($crawler->filter('#review-page-menu [data-page-menu-group="artifact"] .lp-menu__line')->text()));
     }
 
     public function test_the_page_menu_hides_artifacts_while_the_flag_is_off(): void
