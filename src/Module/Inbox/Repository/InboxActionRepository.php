@@ -7,7 +7,9 @@ namespace App\Module\Inbox\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Inbox\Entity\InboxAction;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -114,8 +116,7 @@ class InboxActionRepository extends ServiceEntityRepository
 
     /**
      * The actions whose bridge command is about one of these runs, or about a run that one of them continues,
-     * and the actions whose work request started one of them.
-     * One query, with the item and its project loaded.
+     * or whose work request started one of them. One query, with the item and its project loaded.
      *
      * @param list<string> $runIds RFC 4122 strings
      *
@@ -136,6 +137,24 @@ class InboxActionRepository extends ServiceEntityRepository
             ->setParameter('runs', $runIds)
             ->getQuery()
             ->getResult();
+    }
+
+    /** The newest retry of this pause that is not cancelled and that no work request carries yet. */
+    public function findUnsentRetry(Uuid $pauseId): ?InboxAction
+    {
+        return $this->createQueryBuilder('action')
+            ->addSelect('item')
+            ->join('action.item', 'item')
+            ->andWhere('action.kind = :kind')
+            ->andWhere('action.pauseId = :pause')
+            ->andWhere('action.cancelledAt IS NULL')
+            ->andWhere('NOT EXISTS (SELECT w.id FROM '.WorkRequest::class.' w WHERE w.inboxActionId = action.id)')
+            ->setParameter('kind', InboxActionKind::RetryCard)
+            ->setParameter('pause', $pauseId->toRfc4122())
+            ->orderBy('action.requestedAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     /** @return list<InboxAction> */

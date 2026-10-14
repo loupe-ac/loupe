@@ -253,26 +253,42 @@ func TestTheResumeOfAClosedAskSaysTheOwnerAnswered(t *testing.T) {
 	}
 }
 
-// A click on an inbox action resumes like a person's resume, with the same
-// prompt, until the prompt names the inbox item.
-func TestTheResumeOfAnInboxActionUsesThePersonsPrompt(t *testing.T) {
-	h := newWorkHarness(t)
-	h.withWork()
-	h.states()
-	h.worker.result = finishedRun
-	c := workResumeOf(endedRunKey)
-	c.Cause = api.CauseInboxAction
+// A click on an inbox action resumes with the person's resume and the line
+// that names the item. A command with no item id resumes as a person's.
+func TestTheResumeOfAnInboxActionNamesTheItem(t *testing.T) {
+	for name, tc := range map[string]struct {
+		id     string
+		itemID string
+		want   string
+	}{
+		"with the keys":  {"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", directive.RenderResumeByInboxAction(directive.InboxAction{ItemID: "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", ItemNumber: 12, ActionID: "0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90"})},
+		"no item id":     {"0199a0e2-1111-7c5e-9f2a-3b1c6d7e8f90", "", directive.RenderResumeByPerson()},
+		"no keys at all": {"", "", directive.RenderResumeByPerson()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newWorkHarness(t)
+			h.withWork()
+			h.states()
+			h.worker.result = finishedRun
+			c := workResumeOf(endedRunKey)
+			c.Cause = api.CauseInboxAction
+			c.InboxActionID, c.InboxItemNumber, c.InboxItemID = tc.id, 12, tc.itemID
 
-	if state, reason := h.resume(c); state != api.CommandDone {
-		t.Fatalf("resume = %s %q", state, reason)
-	}
+			if state, reason := h.resume(c); state != api.CommandDone {
+				t.Fatalf("resume = %s %q", state, reason)
+			}
 
-	calls := h.worker.recorded()
-	if len(calls) != 1 {
-		t.Fatalf("workers = %+v", calls)
-	}
-	if spec := calls[0]; !spec.resume || spec.prompt != directive.RenderResumeByPerson() {
-		t.Fatalf("spec = %+v", spec)
+			calls := h.worker.recorded()
+			if len(calls) != 1 {
+				t.Fatalf("workers = %+v", calls)
+			}
+			if spec := calls[0]; !spec.resume || spec.prompt != tc.want {
+				t.Fatalf("spec = %+v", spec)
+			}
+			if got := strings.Contains(calls[0].prompt, "inbox item 12"); got != (tc.itemID != "") {
+				t.Fatalf("prompt = %q", calls[0].prompt)
+			}
+		})
 	}
 }
 

@@ -233,6 +233,12 @@ final readonly class TemplateParser
             }
         }
 
+        foreach ($slots as $slot) {
+            if (null !== $slot->stageWork && !array_any($rules, fn (Rule $rule): bool => $rule->slot === $slot->key && $this->actions->get($rule->then->key)->workKind($rule->then->params) === $slot->stageWork)) {
+                $errors[] = \sprintf('slots: stageWork "%s" of slot "%s" is the kind of no rule of that slot', $slot->stageWork, $slot->key);
+            }
+        }
+
         if ([] !== $errors) {
             throw new InvalidTemplate($errors);
         }
@@ -389,8 +395,13 @@ final readonly class TemplateParser
                 $errors[] = \sprintf('%s: duplicate slot key "%s"', $where, $key);
                 continue;
             }
+            $stageWork = $entry['stageWork'] ?? null;
+            if (\array_key_exists('stageWork', $entry) && (!\is_string($stageWork) || 1 !== preg_match(WorkKind::PATTERN, $stageWork))) {
+                $errors[] = $where.' stageWork: must be a work request kind';
+                $stageWork = null;
+            }
             $seen[$key] = true;
-            $slots[] = new Slot($key, $label);
+            $slots[] = new Slot($key, $label, $stageWork);
         }
 
         return $slots;

@@ -207,6 +207,98 @@ final class InboxActionStatusesTest extends KernelTestCase
         self::assertSame([$third], array_map(static fn (InboxActionStatus $s): InboxAction => $s->action, $all[(string) $other->id]));
     }
 
+    public function test_an_open_request_reads_queued_and_cancellable_while_a_bridge_follows_the_project(): void
+    {
+        $this->followingBridge();
+        $this->sendAgent(WorkRequestState::Open);
+
+        $status = $this->onlyStatus();
+
+        self::assertSame([InboxActionState::Queued, 'inbox.action.status.queued', true, false], [$status->state, $status->labelKey, $status->cancellable, $status->offline]);
+        self::assertSame(self::CLICK, $status->at?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_an_open_request_reads_offline_when_the_following_bridge_is_quiet(): void
+    {
+        $this->followingBridge()->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->sendAgent(WorkRequestState::Open);
+
+        self::assertTrue($this->onlyStatus()->offline);
+    }
+
+    public function test_an_open_request_reads_offline_when_the_following_bridge_takes_no_work_requests(): void
+    {
+        $this->followingBridge(capabilities: []);
+        $this->sendAgent(WorkRequestState::Open);
+
+        self::assertTrue($this->onlyStatus()->offline);
+    }
+
+    public function test_a_claimed_request_with_no_run_yet_reads_preparing(): void
+    {
+        $this->followingBridge();
+        $this->sendAgent(WorkRequestState::Claimed);
+
+        $status = $this->onlyStatus();
+
+        self::assertSame([InboxActionState::Preparing, 'inbox.action.status.preparing', false], [$status->state, $status->labelKey, $status->cancellable]);
+    }
+
+    public function test_a_done_request_with_no_run_yet_reads_preparing(): void
+    {
+        $this->sendAgent(WorkRequestState::Done);
+
+        self::assertSame(InboxActionState::Preparing, $this->onlyStatus()->state);
+    }
+
+    public function test_a_done_request_reads_the_state_of_the_newest_run_it_started(): void
+    {
+        $request = $this->sendAgent(WorkRequestState::Done);
+        $this->seedRun(WorkerRunState::Running, receivedAt: '2026-10-13 12:01:00', workRequestId: $request->id);
+        $this->seedRun(WorkerRunState::Succeeded, receivedAt: '2026-10-13 12:05:00', workRequestId: $request->id);
+        $this->seedRun(WorkerRunState::Failed, receivedAt: '2026-10-13 12:09:00');
+
+        $status = $this->onlyStatus();
+
+        self::assertSame(InboxActionState::Running, $status->state);
+        self::assertSame('bridge.worker_runs.state.succeeded', $status->labelKey);
+        self::assertSame('2026-10-13 12:05:00', $status->at?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_an_expired_refused_or_cancelled_request_reads_as_such(): void
+    {
+        $this->sendAgent(WorkRequestState::Expired, settledAt: '2026-10-13 14:00:00');
+        $this->sendAgent(WorkRequestState::Refused, reason: 'no-repository');
+        $this->sendAgent(WorkRequestState::Refused);
+        $this->sendAgent(WorkRequestState::Cancelled);
+
+        $statuses = $this->statuses();
+
+        self::assertSame(
+            [InboxActionState::Expired, InboxActionState::Refused, InboxActionState::Refused, InboxActionState::Cancelled],
+            array_map(static fn (InboxActionStatus $s): InboxActionState => $s->state, $statuses),
+        );
+        self::assertSame('2026-10-13 14:00:00', $statuses[0]->at?->format('Y-m-d H:i:s'));
+        self::assertSame(['inbox.action.status.refused', ['%reason%' => 'no-repository']], [$statuses[1]->labelKey, $statuses[1]->labelParameters]);
+        self::assertSame('inbox.action.status.refused_no_reason', $statuses[2]->labelKey);
+        self::assertSame([false, false, false, false], array_map(static fn (InboxActionStatus $s): bool => $s->cancellable, $statuses));
+    }
+
+    public function test_a_marked_action_reads_cancelled_even_when_a_bridge_claimed_the_request_first(): void
+    {
+        $this->sendAgent(WorkRequestState::Claimed, cancelledAt: '2026-10-13 12:05:00');
+
+        self::assertSame(InboxActionState::Cancelled, $this->onlyStatus()->state);
+    }
+
+    public function test_a_send_agent_that_never_got_its_request_has_no_line(): void
+    {
+        $this->em->persist(new InboxAction($this->item, InboxActionKind::SendAgent, $this->owner));
+        $this->em->flush();
+
+        self::assertSame([], $this->statuses());
+    }
+
     public function test_an_open_session_request_reads_queued_and_can_be_cancelled(): void
     {
         $this->session(WorkRequestState::Open);
@@ -335,6 +427,36 @@ final class InboxActionStatusesTest extends KernelTestCase
         return $action;
     }
 
+    /** @param list<string> $capabilities */
+    private function followingBridge(array $capabilities = [Bridge::CAPABILITY_WORK_REQUESTS]): Bridge
+    {
+        $bridge = new Bridge($this->owner, Uuid::v4(), [(string) $this->project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = $capabilities;
+        $this->em->persist($bridge);
+        $this->em->flush();
+
+        return $bridge;
+    }
+
+    private function sendAgent(WorkRequestState $state, ?string $reason = null, ?string $settledAt = null, ?string $cancelledAt = null): WorkRequest
+    {
+        $requestedAt = new \DateTimeImmutable(self::CLICK);
+        $request = new WorkRequest($this->project, WorkSubject::CARD, Uuid::v4(), 7, 'tech-design', null, 'inbox:send-agent', $requestedAt);
+        $request->state = $state;
+        $request->reason = $reason;
+        $request->settledAt = null === $settledAt ? null : new \DateTimeImmutable($settledAt);
+        $this->em->persist($request);
+        $this->em->flush();
+
+        $action = new InboxAction($this->item, InboxActionKind::SendAgent, $this->owner, '', $requestedAt);
+        $action->workRequestId = $request->id;
+        $action->cancelledAt = null === $cancelledAt ? null : new \DateTimeImmutable($cancelledAt);
+        $this->em->persist($action);
+        $this->em->flush();
+
+        return $request;
+    }
+
     private function session(WorkRequestState $state, ?string $reason = null): InboxAction
     {
         $clickedAt = new \DateTimeImmutable(self::CLICK)->modify(\sprintf('+%d minutes', ++$this->sessions));
@@ -381,8 +503,9 @@ final class InboxActionStatusesTest extends KernelTestCase
             $this->get(InboxActionRepository::class),
             $this->get(BridgeCommandRepository::class),
             $this->get(WorkerRunRepository::class),
-            $this->get(BridgeLiveness::class),
             $this->get(WorkRequestRepository::class),
+            $this->get(BridgeRepository::class),
+            $this->get(BridgeLiveness::class),
             new SessionBridges($this->get(BridgeRepository::class), $this->get(BridgeLiveness::class)),
         );
     }

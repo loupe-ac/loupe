@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandCommand;
@@ -34,7 +36,8 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Runs one action that the owner chose on an inbox item. A resume asks the bridge, a retry releases
- * the pause, a session opens a work request, and a dismiss closes the item. The note stays in Loupe: no command carries its text.
+ * the pause, send an agent and a session each open a work request, and a dismiss closes the item.
+ * The note stays in Loupe: no command carries its text.
  * A dismiss records no row, because the closed item holds the note as its close note.
  */
 final readonly class RunInboxActionHandler
@@ -47,11 +50,13 @@ final readonly class RunInboxActionHandler
     public function __construct(
         private ItemActions $itemActions,
         private RequestBridgeCommandHandler $requestBridgeCommand,
-        private ReleaseWorkflowPauseHandler $releasePause,
         private OpenWorkRequestHandler $openWorkRequest,
+        private WorkRequestContexts $contexts,
+        private CardRepository $cards,
+        private ReleaseWorkflowPauseHandler $releasePause,
         private DeclineInboxItemHandler $declineItem,
         private WorkerRunRepository $workerRuns,
-        private CardDirectory $cards,
+        private CardDirectory $cardDirectory,
         private EntityManagerInterface $em,
         private Auditor $auditor,
     ) {
@@ -73,6 +78,7 @@ final readonly class RunInboxActionHandler
             $action = match ($kind) {
                 InboxActionKind::ResumeRun => $this->resume($command, $note),
                 InboxActionKind::RetryCard => $this->retry($command, $note),
+                InboxActionKind::SendAgent => $this->sendAgent($command, $note),
                 InboxActionKind::StartSession => $this->startSession($command, $note),
                 default => $this->dismiss($command, $note),
             };
@@ -95,10 +101,10 @@ final readonly class RunInboxActionHandler
         return $action;
     }
 
-    /** The kinds this handler runs. Open and review are links, and send an agent belongs to a later card. */
+    /** The kinds this handler runs. Open and review are links. */
     private static function runsHere(InboxActionKind $kind): bool
     {
-        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::StartSession, InboxActionKind::Dismiss], true);
+        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::Dismiss], true);
     }
 
     private function resume(RunInboxActionCommand $command, string $note): InboxAction
@@ -114,7 +120,7 @@ final readonly class RunInboxActionHandler
         $this->em->flush();
 
         try {
-            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction));
+            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction, $action->id, $command->item->number, $command->item->id));
         } catch (DomainErrors $e) {
             // The bridge closes the entity manager when a race trips its unique index, so delete through the connection.
             $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
@@ -130,15 +136,58 @@ final readonly class RunInboxActionHandler
     private function retry(RunInboxActionCommand $command, string $note): InboxAction
     {
         $wait = $this->waitOf($command, InboxActionKind::RetryCard);
-        $card = $this->cards->findInProject($command->item->project->id ?? throw new \LogicException('A stored project has an id.'), $wait->watch->cardId)
+        $card = $this->cardDirectory->findInProject($command->item->project->id ?? throw new \LogicException('A stored project has an id.'), $wait->watch->cardId)
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
-        ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), Actor::Human, $wait->pauseId));
-
+        // The row commits before the release, so the rule's next request finds it. A refused release removes it again.
         $action = new InboxAction($command->item, InboxActionKind::RetryCard, $command->user, $note);
         $action->pauseId = $wait->pauseId;
         $action->waitId = $wait->id;
         $this->em->persist($action);
+        $this->em->flush();
+
+        try {
+            ($this->releasePause)(new ReleaseWorkflowPauseCommand($card, $command->user->id ?? throw new \LogicException('A stored user has an id.'), Actor::Human, $wait->pauseId));
+        } catch (DomainErrors $e) {
+            $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
+            throw $e;
+        }
+
+        return $action;
+    }
+
+    private function sendAgent(RunInboxActionCommand $command, string $note): InboxAction
+    {
+        $item = $command->item;
+        $target = $this->itemActions->sendAgentFor($item) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+        $card = $this->cards->find($target->cardId) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+
+        // The row commits first, so the request names an action that exists. A refused request removes it again.
+        $action = new InboxAction($item, InboxActionKind::SendAgent, $command->user, $note);
+        $this->em->persist($action);
+        $this->em->flush();
+
+        try {
+            $request = ($this->openWorkRequest)(new OpenWorkRequestCommand(
+                project: $item->project,
+                subject: WorkSubject::card($target->cardId),
+                cardNumber: $card->number,
+                kind: $target->kind,
+                capability: null,
+                ruleId: PersonWork::RULE_PREFIX.'send-agent',
+                context: $this->contexts->forCard($card, null),
+                fresh: true,
+                inboxActionId: $action->id,
+                inboxItemNumber: $item->number,
+                inboxItemId: $item->id,
+            ));
+        } catch (WorkRequestAlreadyLive|DomainErrors) {
+            // A race can trip the unique index of live requests, which closes the entity manager.
+            $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
+            throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+        }
+
+        $action->workRequestId = $request->id;
         $this->em->flush();
 
         return $action;
@@ -148,7 +197,7 @@ final readonly class RunInboxActionHandler
     {
         $item = $command->item;
         $projectId = $item->project->id ?? throw new \LogicException('A stored project has an id.');
-        $card = $this->cards->findInProject($projectId, $this->itemActions->cardIdOf($item) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
+        $card = $this->cardDirectory->findInProject($projectId, $this->itemActions->cardIdOf($item) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
         // The row commits first, because the request names it. A refused request removes it again.

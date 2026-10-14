@@ -36,6 +36,8 @@ use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\StageWorks;
+use App\Module\Workflow\Service\TemplateStageWorks;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -532,18 +534,20 @@ final class ItemActionsTest extends KernelTestCase
         $runs = $container->get(WorkerRunRepository::class);
         $controls = $container->get(WorkerRunControls::class);
         $pauses = $container->get(CardPauses::class);
+        $stageWorks = $container->get(TemplateStageWorks::class);
         $bridges = $container->get(BridgeRepository::class);
         $liveness = $container->get(BridgeLiveness::class);
         self::assertInstanceOf(BridgeRepository::class, $bridges);
         self::assertInstanceOf(BridgeLiveness::class, $liveness);
         $sessionBridges = new SessionBridges($bridges, $liveness);
         $workRequests = $container->get(WorkRequestRepository::class);
-        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
         self::assertInstanceOf(InboxCardWatchRepository::class, $watches);
         self::assertInstanceOf(WorkerRunRepository::class, $runs);
         self::assertInstanceOf(WorkerRunControls::class, $controls);
         self::assertInstanceOf(CardPauses::class, $pauses);
+        self::assertInstanceOf(StageWorks::class, $stageWorks);
+        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
 
-        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges, $workRequests);
+        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges, $workRequests, $stageWorks);
     }
 }

@@ -17,10 +17,12 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
+use App\Module\Inbox\View\SendAgentTarget;
 use App\Module\Inbox\View\SuggestedAction;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Contract\CardPauses;
+use App\Module\Workflow\Contract\StageWorks;
 use Symfony\Component\Uid\Uuid;
 
 /** Computes the actions that fit an inbox item now, in menu order, and marks the default. */
@@ -33,6 +35,7 @@ final readonly class ItemActions
         private CardPauses $pauses,
         private SessionBridges $sessionBridges,
         private WorkRequestRepository $workRequests,
+        private StageWorks $stageWorks,
     ) {
     }
 
@@ -43,7 +46,8 @@ final readonly class ItemActions
     }
 
     /**
-     * The kinds that the owner can run on a card now, in menu order: the enabled actions of its open wait item, or else Open and an available Start session.
+     * The kinds that the owner can run on a card now, in menu order: the enabled actions of its open wait item,
+     * or else an available Send an agent, Open and an available Start session.
      *
      * @return list<InboxActionKind>
      */
@@ -58,7 +62,15 @@ final readonly class ItemActions
         $sessionFits = ($this->sessionBridges->onlineFor([$project])[(string) $project->id] ?? false)
             && !array_any($this->workRequests->findLiveRowsForCards([$cardId->toRfc4122()]), static fn (array $row): bool => WorkRequest::SESSION_KIND === $row['kind']);
 
-        return $sessionFits ? [InboxActionKind::Open, InboxActionKind::StartSession] : [InboxActionKind::Open];
+        $fitting = [InboxActionKind::Open];
+        if ([] !== $this->freeTargets(['card' => [$project, $cardId]])) {
+            $fitting[] = InboxActionKind::SendAgent;
+        }
+        if ($sessionFits) {
+            $fitting[] = InboxActionKind::StartSession;
+        }
+
+        return array_values(array_filter(InboxActionKind::cases(), static fn (InboxActionKind $kind): bool => \in_array($kind, $fitting, true)));
     }
 
     /**
@@ -82,6 +94,14 @@ final readonly class ItemActions
         }
 
         return null;
+    }
+
+    /** The card and the stage work that Send an agent starts for the item now, or null when the action does not fit. */
+    public function sendAgentFor(InboxItem $item): ?SendAgentTarget
+    {
+        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+
+        return $this->sendAgentTargets([$item], null === $watch ? [] : [self::key($item) => $watch->cardId])[self::key($item)] ?? null;
     }
 
     private static function typeOf(InboxActionKind $kind): InboxCardWaitType
@@ -113,9 +133,11 @@ final readonly class ItemActions
     {
         $openWaits = [];
         $cardIds = [];
+        $watchedCards = [];
         foreach ($this->inboxCardWatches->findForItems($items) as $watch) {
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
             $cardIds[self::key($watch->item)] = $watch->cardId->toRfc4122();
+            $watchedCards[self::key($watch->item)] = $watch->cardId;
         }
         foreach ($items as $item) {
             $link = $item->cards->first();
@@ -126,6 +148,7 @@ final readonly class ItemActions
         }
 
         $runs = $this->runsOf(array_merge(...array_values($openWaits)));
+        $sendAgent = $this->sendAgentTargets($items, $watchedCards);
         $resumableRuns = $this->resumableRuns($runs);
         $releasablePauses = $this->releasablePauses(array_merge(...array_values($openWaits)));
 
@@ -142,7 +165,7 @@ final readonly class ItemActions
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
             $cardId = $cardIds[self::key($item)] ?? null;
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, null !== $cardId && !isset($liveSessions[$cardId]));
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]));
             $suggestions = self::suggestions($waits, $runs);
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             $actions[self::key($item)] = array_map(
@@ -163,16 +186,18 @@ final readonly class ItemActions
      * @param list<InboxCardWait> $waits            open waits, oldest first
      * @param array<string, true> $resumableRuns    run ids that offer Resume
      * @param array<string, true> $releasablePauses pause ids a person can release
+     * @param bool                $sendAgent        Send an agent has a card and a stage work that are free now
      * @param bool                $sessionFits      the item has a card, and no session request of that card is live
      *
      * @return list<InboxActionKind>
      */
-    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sessionFits): array
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits): array
     {
         $fits = [
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
             [InboxActionKind::Review, self::fitsReview($waits)],
+            [InboxActionKind::SendAgent, $sendAgent],
             [InboxActionKind::Open, self::fitsOpen($item)],
             [InboxActionKind::StartSession, $sessionFits],
             [InboxActionKind::Dismiss, self::fitsDismiss($item)],
@@ -186,6 +211,78 @@ final readonly class ItemActions
         }
 
         return $fitting;
+    }
+
+    /**
+     * The card of each item that Send an agent works on now: the watched card of a wait item, or the only card of another item.
+     *
+     * @param list<InboxItem>     $items
+     * @param array<string, Uuid> $watchedCards the card of each wait item, by the RFC 4122 item id
+     *
+     * @return array<string, SendAgentTarget> keyed by the RFC 4122 item id
+     */
+    private function sendAgentTargets(array $items, array $watchedCards): array
+    {
+        $cards = [];
+        foreach ($items as $item) {
+            $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item);
+            if (null !== $cardId) {
+                $cards[self::key($item)] = [$item->project, $cardId];
+            }
+        }
+
+        return $this->freeTargets($cards);
+    }
+
+    /**
+     * The cards that sit in a stage that names work, with no live request of that work and no open run.
+     * One read of live requests, and one read of open runs per project.
+     *
+     * @param array<string, array{Project, Uuid}> $cards the project and the card, by any key
+     *
+     * @return array<string, SendAgentTarget> by the same key
+     */
+    private function freeTargets(array $cards): array
+    {
+        $candidates = [];
+        foreach ($cards as $key => [$project, $cardId]) {
+            $kind = $this->stageWorks->of($project->id ?? throw new \LogicException('A stored project has an id.'), $cardId);
+            if (null !== $kind) {
+                $candidates[$key] = [$project, new SendAgentTarget($cardId, $kind)];
+            }
+        }
+        if ([] === $candidates) {
+            return [];
+        }
+
+        $live = [];
+        foreach ($this->workRequests->findLiveRowsForCards(array_values(array_map(static fn (array $candidate): string => $candidate[1]->cardId->toRfc4122(), $candidates))) as $row) {
+            $live[$row['card_id'].':'.$row['kind']] = true;
+        }
+        $cardsByProject = [];
+        foreach ($candidates as [$project, $target]) {
+            $cardsByProject[(string) $project->id][1][] = $target->cardId;
+            $cardsByProject[(string) $project->id][0] = $project;
+        }
+        $busy = [];
+        foreach ($cardsByProject as [$project, $cardIds]) {
+            foreach ($this->workerRuns->findCardIdsWithOpenRun($project, $cardIds) as $cardId) {
+                $busy[$cardId] = true;
+            }
+        }
+
+        return array_filter(
+            array_map(static fn (array $candidate): SendAgentTarget => $candidate[1], $candidates),
+            static fn (SendAgentTarget $target): bool => !isset($live[$target->cardId->toRfc4122().':'.$target->kind]) && !isset($busy[$target->cardId->toRfc4122()]),
+        );
+    }
+
+    /** The card of a non-wait item that links exactly one card. */
+    private static function onlyCardOf(InboxItem $item): ?Uuid
+    {
+        $link = $item->cards->first();
+
+        return 1 === $item->cards->count() && false !== $link ? $link->card->id : null;
     }
 
     /**

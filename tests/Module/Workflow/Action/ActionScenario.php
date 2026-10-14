@@ -12,6 +12,7 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
+use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Board\Workflow\WorkRequestOpener;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -29,6 +30,7 @@ use App\Module\Workflow\Contract\ActionOutcomeKind;
 use App\Module\Workflow\Contract\BoardColumns;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Expression\AllOf;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
@@ -95,8 +97,8 @@ trait ActionScenario
         return new WorkRequestOpener(
             $this->openWorkRequestHandler(),
             $this->service(CardRepository::class),
-            $this->service(CardPullRequests::class),
-            $this->service(CardPullRequestRepository::class),
+            new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
+            $this->service(RetryNotes::class),
         );
     }
 

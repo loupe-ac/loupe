@@ -14,6 +14,8 @@ use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Workflow\Contract\PersonWork;
+use App\Module\Workflow\Contract\WorkTimeouts;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Module\Bridge\WorkSubject\RecordingWorkSubjectHandler;
@@ -48,6 +50,28 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
         }
         self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $subjects->expired));
         self::assertSame([(string) $lapsed->id], array_column($this->outboxPayloads(), 'workRequestId'));
+    }
+
+    public function test_an_open_request_of_a_person_expires_after_the_template_timeout(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-person@example.com'), 'Expire Person');
+        $ruleId = PersonWork::RULE_PREFIX.'send-agent';
+        $lapsed = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00'), ruleId: $ruleId);
+        $restarted = $this->seedWorkRequest($em, $project, kind: 'tech-design', createdAt: new \DateTimeImmutable('2026-10-01 08:00:00'), ruleId: $ruleId, reopenedAt: new \DateTimeImmutable('2026-10-01 10:00:01'));
+        $recent = $this->seedWorkRequest($em, $project, kind: 'fix', createdAt: new \DateTimeImmutable('2026-10-01 10:00:01'), ruleId: $ruleId);
+        $claimed = $this->seedWorkRequest($em, $project, kind: 'review', state: WorkRequestState::Claimed, createdAt: new \DateTimeImmutable('2026-10-01 08:00:00'), ruleId: $ruleId);
+        $workflow = $this->seedWorkRequest($em, $project, kind: 'merge', createdAt: new \DateTimeImmutable('2026-10-01 08:00:00'));
+        $subjects = new RecordingWorkSubjectHandler();
+
+        self::assertSame(1, $this->handler($subjects)(new ExpireSubjectWorkRequestsCommand()));
+
+        $em->clear();
+        self::assertSame(WorkRequestState::Expired, $em->find(WorkRequest::class, $lapsed->id)?->state);
+        foreach ([[$restarted, WorkRequestState::Open], [$recent, WorkRequestState::Open], [$claimed, WorkRequestState::Claimed], [$workflow, WorkRequestState::Open]] as [$request, $state]) {
+            self::assertSame($state, $em->find(WorkRequest::class, $request->id)?->state);
+        }
     }
 
     public function test_an_open_session_request_of_a_person_expires_after_two_minutes(): void
@@ -104,6 +128,7 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
             $this->service(WorkRequestRepository::class),
             $this->withdraw($subjects),
             new MockClock(self::NOW),
+            $this->service(WorkTimeouts::class),
             120,
         );
     }

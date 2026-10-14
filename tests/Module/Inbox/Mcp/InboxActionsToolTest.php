@@ -105,7 +105,7 @@ final class InboxActionsToolTest extends KernelTestCase
         $this->reconcileWaits($project, $card);
         $this->actAsMcpTokenBoundTo($project);
 
-        self::assertSame(['review', 'open', 'dismiss'], $this->fitting((string) $card->id));
+        self::assertSame(['review', 'open', 'send-agent', 'dismiss'], $this->fitting((string) $card->id));
     }
 
     public function test_a_card_waiting_for_a_review_fits_start_session_with_a_session_bridge(): void
@@ -118,7 +118,7 @@ final class InboxActionsToolTest extends KernelTestCase
         $this->sessionBridge($project);
         $this->actAsMcpTokenBoundTo($project);
 
-        self::assertSame(['review', 'open', 'start-session', 'dismiss'], $this->fitting((string) $card->id));
+        self::assertSame(['review', 'open', 'send-agent', 'start-session', 'dismiss'], $this->fitting((string) $card->id));
     }
 
     public function test_a_card_waiting_for_a_review_does_not_fit_start_session_while_a_session_request_is_live(): void
@@ -132,7 +132,7 @@ final class InboxActionsToolTest extends KernelTestCase
         $this->liveSession($project, $card);
         $this->actAsMcpTokenBoundTo($project);
 
-        self::assertSame(['review', 'open', 'dismiss'], $this->fitting((string) $card->id));
+        self::assertSame(['review', 'open', 'send-agent', 'dismiss'], $this->fitting((string) $card->id));
     }
 
     public function test_a_card_of_another_project_is_refused(): void
