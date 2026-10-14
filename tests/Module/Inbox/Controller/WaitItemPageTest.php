@@ -236,8 +236,8 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-action="open"]'));
         // The run cannot resume and Open is the card itself, so the first enabled action, Send an agent, takes the main part.
         self::assertSame('send-agent', $crawler->filter('#inbox-item-1 .inbox-split__main')->attr('data-inbox-action'));
-        self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split__menu [data-inbox-action="start-session"]')->attr('aria-disabled'));
-        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split__menu button[data-inbox-action="dismiss"]'));
+        self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel [data-inbox-action="start-session"]')->attr('aria-disabled'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel button[data-inbox-action="dismiss"]'));
     }
 
     public function test_send_an_agent_from_the_card_page_queues_the_agent(): void

@@ -93,18 +93,22 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('Resume the run', trim($main->text()));
         self::assertSame($this->actionPath($item, 'resume-run'), parse_url((string) $main->attr('formaction'), \PHP_URL_PATH));
         self::assertSame('Add a note (optional)', $crawler->filter('textarea')->attr('placeholder'));
-        $menu = $crawler->filter('.inbox-split__menu');
+        $menu = $crawler->filter('.inbox-split .lp-menu__panel');
         self::assertNotNull($menu->attr('hidden'));
         self::assertSame('menu', $menu->attr('role'));
         self::assertSame('false', $crawler->filter('.inbox-split__toggle')->attr('aria-expanded'));
+        self::assertSame('panel', $menu->attr('data-split-button-target'));
+        self::assertSame($menu->attr('id'), $crawler->filter('.inbox-split__toggle')->attr('aria-controls'));
+        self::assertStringContainsString('split-button', (string) $crawler->filter('.inbox-split')->attr('data-controller'));
         // The menu holds the other actions, never the default, and Dismiss apart.
         self::assertCount(0, $menu->filter('[data-inbox-action="resume-run"]'));
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $menu->filter('a[data-inbox-action="open"]')->attr('href'));
-        self::assertCount(2, $menu->filter('.lp-page-menu__group'));
-        $dismiss = $menu->filter('.lp-page-menu__group:last-child [data-inbox-action="dismiss"]');
+        // Dismiss sits apart, after a divider.
+        self::assertCount(1, $menu->filter('.lp-menu__divider'));
+        $dismiss = $menu->filter('.lp-menu__divider ~ [data-inbox-action="dismiss"]');
         self::assertSame('inbox_decline_'.$item->id, $dismiss->attr('form'));
-        self::assertSame('Dismiss', trim($dismiss->filter('.lp-page-menu__label')->text()));
-        self::assertSame('Closes this item without an action.', $dismiss->filter('.lp-page-menu__line')->text());
+        self::assertSame('Dismiss', trim($dismiss->filter('.lp-menu__label')->text()));
+        self::assertSame('Closes this item without an action.', $dismiss->filter('.lp-menu__line')->text());
     }
 
     public function test_a_resume_queues_the_command_and_the_thread_shows_the_you_card(): void

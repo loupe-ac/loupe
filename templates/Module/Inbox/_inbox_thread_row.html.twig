@@ -3,19 +3,23 @@
 {% set kind = row.action.kind.value %}
 {% set label %}
     {% include '@Inbox/_inbox_action_icon.html.twig' with {kind: kind} only %}
-    <span class="lp-page-menu__text">
-        <span class="lp-page-menu__label{{ kind == 'dismiss' ? ' inbox-split__danger' }}">{{ row.action.labelKey|trans }}</span>
-        <span class="lp-page-menu__line">{{ (row.action.disabledReasonKey ?? row.action.effectKey)|trans }}</span>
+    <span class="lp-menu__text">
+        <span class="lp-menu__label{{ kind == 'dismiss' ? ' inbox-split__danger' }}">{{ row.action.labelKey|trans }}</span>
+        <span class="lp-menu__line">{{ (row.action.disabledReasonKey ?? row.action.effectKey)|trans }}</span>
     </span>
 {% endset %}
 {% if row.action.disabledReasonKey %}
-    <div class="lp-page-menu__row inbox-split__disabled" role="menuitem" aria-disabled="true" data-inbox-action="{{ kind }}">{{ label }}</div>
+    <twig:Ds:MenuItem class="inbox-split__disabled" role="menuitem" aria-disabled="true" data-inbox-action="{{ kind }}">{{ label }}</twig:Ds:MenuItem>
 {% elseif row.isLink %}
-    <a class="lp-page-menu__row" role="menuitem" href="{{ row.href }}" data-inbox-action="{{ kind }}"
-        {%- if row.external %} target="_blank" rel="noopener noreferrer"
-        {%- else %} data-turbo-frame="{{ row.card and cardDrawer ? 'card-drawer-frame' : '_top' }}"{% if row.card and cardDrawer %} data-action="click->card-drawer#prepare"{% endif %}{% endif %}>{{ label }}</a>
+    {% if row.external %}
+        <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" target="_blank" rel="noopener noreferrer">{{ label }}</twig:Ds:MenuItem>
+    {% elseif row.card and cardDrawer %}
+        <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare">{{ label }}</twig:Ds:MenuItem>
+    {% else %}
+        <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" data-turbo-frame="_top">{{ label }}</twig:Ds:MenuItem>
+    {% endif %}
 {% elseif kind == 'dismiss' %}
-    <button type="submit" class="lp-page-menu__row" role="menuitem" form="{{ declineFormId }}" data-inbox-action="dismiss">{{ label }}</button>
+    <twig:Ds:MenuItem type="submit" role="menuitem" form="{{ declineFormId }}" data-inbox-action="dismiss">{{ label }}</twig:Ds:MenuItem>
 {% else %}
-    <button type="submit" class="lp-page-menu__row" role="menuitem" formaction="{{ path('app_inbox_item_action', actionParams|merge({kind: kind})) }}" data-inbox-action="{{ kind }}">{{ label }}</button>
+    <twig:Ds:MenuItem type="submit" role="menuitem" :formaction="path('app_inbox_item_action', actionParams|merge({kind: kind}))" data-inbox-action="{{ kind }}">{{ label }}</twig:Ds:MenuItem>
 {% endif %}

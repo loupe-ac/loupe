@@ -8367,18 +8367,12 @@
 .lp-inbox-thread__head {
     @apply items-center;
 }
-.lp-inbox-thread__icon {
-    @apply size-3.5;
-}
 .lp-inbox-thread__you {
     @apply items-stretch gap-2.5 px-4.5 py-4;
 }
 .lp-inbox-thread__you .lp-comment-author,
 .lp-inbox-thread__you .lp-form-hint {
     @apply text-accent-ink;
-}
-.lp-inbox-thread__you .lp-comment-avatar {
-    @apply bg-accent-soft text-accent-ink;
 }
 .lp-inbox-thread__chip {
     @apply ml-auto;
@@ -8402,7 +8396,7 @@
     @apply mr-auto;
 }
 .inbox-split {
-    @apply relative inline-flex items-stretch;
+    @apply inline-flex items-stretch;
 }
 .inbox-split__main {
     @apply rounded-r-none;
@@ -8414,35 +8408,13 @@
 .inbox-split__toggle svg {
     @apply size-4;
 }
-.inbox-split__menu.lp-page-menu__panel {
-    @apply absolute top-full right-0 z-30 mt-1 flex w-100 flex-col gap-1 rounded-xl border border-line bg-elev p-1.5 text-left shadow-card;
-    max-width: calc(100vw - var(--spacing) * 10);
+.inbox-split .lp-menu__panel {
+    @apply z-30 w-100 gap-1;
 }
-.inbox-split__menu.lp-page-menu__panel[hidden] {
-    @apply hidden;
-}
-.inbox-split__menu .lp-page-menu__group + .lp-page-menu__group {
-    @apply border-t border-line-faint pt-1;
-}
-.inbox-split__menu .lp-page-menu__row {
-    @apply flex w-full cursor-pointer items-start gap-2.5 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left text-ink no-underline transition-colors hover:bg-tint focus-visible:bg-tint;
-}
-.inbox-split__menu .lp-page-menu__row svg {
-    @apply mt-0.5 size-4 shrink-0 text-fg-mute;
-}
-.inbox-split__menu .lp-page-menu__text {
-    @apply flex min-w-0 flex-1 flex-col;
-}
-.inbox-split__menu .lp-page-menu__label {
-    @apply truncate text-sm font-medium;
-}
-.inbox-split__menu .lp-page-menu__line {
-    @apply truncate text-xs text-fg-dim;
-}
-.inbox-split__menu .lp-page-menu__row:has(.inbox-split__danger) svg,
-.inbox-split__menu .inbox-split__danger {
+.inbox-split .inbox-split__danger,
+.inbox-split .lp-menu__item:has(.inbox-split__danger) > svg {
     @apply text-danger;
 }
-.inbox-split__menu .inbox-split__disabled {
+.inbox-split .inbox-split__disabled {
     @apply cursor-not-allowed opacity-50 hover:bg-transparent;
 }
