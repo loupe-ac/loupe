@@ -16,7 +16,7 @@ final class RunSuggestions
 
     public const int MAX_SUGGESTIONS = 3;
 
-    private const int MAX_REASON_LENGTH = 200;
+    public const int MAX_REASON_LENGTH = 200;
 
     /** The title as one line of plain text, or null when the worker sent none. */
     public static function title(WorkerRun $run): ?string
@@ -45,7 +45,8 @@ final class RunSuggestions
             if (!\is_string($key) || !\in_array($key, self::ACTIONS, true) || isset($actions[$key]) || !\is_string($reason)) {
                 continue;
             }
-            $actions[$key] = new SuggestedAction($key, mb_substr(self::oneLine($reason), 0, self::MAX_REASON_LENGTH), true === ($entry['recommended'] ?? null));
+            $recommended = true === ($entry['recommended'] ?? null) && !array_any($actions, static fn (SuggestedAction $earlier): bool => $earlier->recommended);
+            $actions[$key] = new SuggestedAction($key, mb_substr(self::oneLine($reason), 0, self::MAX_REASON_LENGTH), $recommended);
             if (self::MAX_SUGGESTIONS === \count($actions)) {
                 break;
             }

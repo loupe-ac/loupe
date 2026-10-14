@@ -10,9 +10,10 @@ use App\Module\Inbox\Entity\InboxItemKind;
 final readonly class AskInboxItem
 {
     /**
-     * @param list<string> $options
-     * @param list<string> $cardIds
-     * @param list<string> $documentIds
+     * @param list<string>             $options
+     * @param list<string>             $cardIds
+     * @param list<string>             $documentIds
+     * @param list<AskInboxSuggestion> $suggestedActions
      */
     public function __construct(
         public InboxItemKind $kind,
@@ -27,6 +28,7 @@ final readonly class AskInboxItem
         public array $documentIds = [],
         public ?string $reviewDocumentId = null,
         public ?string $reviewPullRequestId = null,
+        public array $suggestedActions = [],
     ) {
     }
 }
