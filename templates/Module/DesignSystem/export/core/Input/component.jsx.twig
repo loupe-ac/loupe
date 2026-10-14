@@ -1,0 +1,16 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ mono = false, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (mono) {
+        classes.push('{{ entry.rootClass }}--mono');
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return <input {...rest} className={className} />;
+}
+{% endautoescape %}

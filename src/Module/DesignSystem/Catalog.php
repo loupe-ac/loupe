@@ -37,6 +37,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A one-line text field.',
                 element: 'input',
+                export: 'Input',
             ),
             new ComponentEntry(
                 name: 'Select',
@@ -59,6 +60,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A text field of several lines.',
                 element: 'textarea',
+                export: 'Textarea',
                 viewport: '700x170',
             ),
             new ComponentEntry(
@@ -71,6 +73,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The name of a form control.',
                 element: 'label',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'FormField',
@@ -93,6 +96,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The list of errors of a form field.',
                 element: 'div',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'Hint',
@@ -104,6 +108,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A line of help under a form control.',
                 element: 'p',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'Flash',
@@ -141,6 +146,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A small label for the review status of a document.',
                 element: 'span',
+                modifierProp: 'status',
             ),
             new ComponentEntry(
                 name: 'Tag',
@@ -153,6 +159,8 @@ readonly class Catalog
                 summary: 'A small coloured label for a category or a tone.',
                 element: 'span',
                 viewport: '700x150',
+                modifierProp: 'tone',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'StatusChip',
@@ -200,6 +208,8 @@ readonly class Catalog
                 summary: 'A modal window over the page, opened by the modal controller.',
                 element: 'dialog',
                 viewport: '700x420',
+                modifierProp: 'size',
+                attributes: ['data-modal-target' => 'dialog'],
             ),
             new ComponentEntry(
                 name: 'Tabs',
@@ -234,6 +244,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
+                export: 'Tooltip',
             ),
             new ComponentEntry(
                 name: 'AppShell',

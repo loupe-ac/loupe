@@ -1,21 +1,24 @@
 {# twig-cs-fixer-disable #}{% autoescape false %}
 {% set isButton = 'button' == entry.element %}
+{% set modifiers = [entry.variants ? entry.modifierProp : null, entry.sizes ? 'size' : null]|filter(v => v) %}
 import React from 'react';
 
 export const {{ entry.name|upper }}_VARIANTS = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
 export const {{ entry.name|upper }}_SIZES = [{{ entry.sizes|map(v => "'" ~ v ~ "'")|join(', ') }}];
 
 {% if isButton %}
-export function {{ entry.name }}({ variant, size, disabled = false, type = 'button', href, onClick, className: extra, children, ...rest }) {
+export function {{ entry.name }}({ {{ modifiers|join(', ') }}, disabled = false, type = 'button', href, onClick, className: extra, children, ...rest }) {
 {% else %}
-export function {{ entry.name }}({ variant, size, {% if entry.dotClass %}dot = true, {% endif %}className: extra, children, ...rest }) {
+export function {{ entry.name }}({ {{ modifiers|join(', ') }}{{ modifiers ? ', ' : '' }}{% if entry.takesAs %}as: Element = '{{ entry.element }}', {% endif %}{% if entry.dotClass %}dot = true, {% endif %}className: extra, children, ...rest }) {
 {% endif %}
     const classes = [{% if entry.element in ['select', 'textarea'] %}'lp-input', {% endif %}'{{ entry.rootClass }}'];
-    for (const modifiers of [variant, size]) {
-        for (const modifier of (modifiers || '').split(/\s+/).filter(Boolean)) {
+{% if modifiers %}
+    for (const names of [{{ modifiers|join(', ') }}]) {
+        for (const modifier of (names || '').split(/\s+/).filter(Boolean)) {
             classes.push('{{ entry.rootClass }}--' + modifier);
         }
     }
+{% endif %}
     if (extra) {
         classes.push(extra);
     }
@@ -35,13 +38,12 @@ export function {{ entry.name }}({ variant, size, {% if entry.dotClass %}dot = t
             {children}
         </button>
     );
-{% elseif 'input' == entry.element %}
-
-    return <input {...rest} className={className} />;
 {% else %}
 
+{% set tag = entry.takesAs ? 'Element' : entry.element %}
+
     return (
-        <{{ entry.element }} {...rest} className={className}>
+        <{{ tag }}{% for name, value in entry.attributes %} {{ name }}="{{ value }}"{% endfor %} {...rest} className={className}>
 {% if entry.dotClass %}
             {dot && <span className="{{ entry.dotClass }}"></span>}
 {% endif %}
@@ -50,7 +52,7 @@ export function {{ entry.name }}({ variant, size, {% if entry.dotClass %}dot = t
 {% else %}
             {children}
 {% endif %}
-        </{{ entry.element }}>
+        </{{ tag }}>
     );
 {% endif %}
 }

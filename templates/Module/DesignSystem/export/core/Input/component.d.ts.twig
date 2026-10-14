@@ -1,0 +1,17 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="An {{ entry.name }}, plain and mono" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** Draws the value in the mono font. */
+    mono?: boolean;
+    className?: string;
+    /** An input is a void element, so it takes no children. */
+    children?: never;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

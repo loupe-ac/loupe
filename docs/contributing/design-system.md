@@ -302,7 +302,11 @@ The command prints each path it wrote, relative to the directory, one per line.
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
-A part with an inner structure, such as a sidebar, sets `export` on its catalog entry and goes in the `layout` group. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates. `demo.jsx.twig` draws the part in its own preview card. An entry with no folder uses `default.demo.jsx.twig` for its card. An entry with no Twig component sets `template` to null.
+A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tooltip and Textarea are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
+
+The generic wrapper names its modifier prop after the Twig prop. The `modifierProp` field of the entry holds that name, `variant` by default: Badge uses `status`, Tag uses `tone` and Dialog uses `size`. The old `variant` name does not work on those components. An entry with `takesAs` set also takes an `as` prop, as the Twig component does. `SimpleComponentParityTest` compares each of these wrappers with its Twig component.
+
+`demo.jsx.twig` draws the part in its own preview card. An entry with no folder uses `default.demo.jsx.twig` for its card. An entry with no Twig component sets `template` to null.
 
 Each entry gets its own card, so Claude Design shows only that component as its preview. The `viewport` field of the entry sets the size of the card and of its starting point, `700x150` by default. Set a larger value for a component whose demo is taller.
 
