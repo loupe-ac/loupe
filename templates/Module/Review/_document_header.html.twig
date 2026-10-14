@@ -9,7 +9,7 @@
             <twig:block name="trigger">
                 <button type="button" class="lp-revision-notes__trigger" aria-expanded="false" aria-controls="revision-notes-panel"
                         data-popover-target="trigger" data-action="click->popover#toggle">
-                    {{ 'review.document.byline_updated'|trans({'%updated%': version.createdAt|relative_time}) }}
+                    {{ 'review.document.byline_updated'|trans({'%updated%': version.createdAt|relative_time}) }}{# @design-system-ignore #}
                     <twig:ux:icon name="lucide:chevron-down" class="lp-revision-notes__caret" />
                 </button>
             </twig:block>
@@ -36,7 +36,7 @@
             </twig:block>
         </twig:Ds:Menu>
         {% else %}
-        <span>{{ 'review.document.byline_updated'|trans({'%updated%': version.createdAt|relative_time}) }}</span>
+        <span>{{ 'review.document.byline_updated'|trans({'%updated%': version.createdAt|relative_time}) }}</span>{# @design-system-ignore #}
         {% endif %}
         {# The document page names its version in the breadcrumb, which the
            history page holds no pill in. #}

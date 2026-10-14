@@ -200,6 +200,8 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 27. SplitView: `<twig:Ds:SplitView class="lp-workspace" data-controller="...">` draws `lp-split-page`. Write `lp-split-region`, `lp-split-view` and `lp-split-pane` by hand inside it. The CSS is `assets/styles/components/split-view.css`.
 28. ListRow: `<twig:Ds:ListRow :title="..." :current="..." href="..." icon:data-kind="...">` with `<twig:block name="icon">` and `<twig:block name="meta">`. Use `lp-list-row__flag` for a highlighted item in the meta line. The CSS is `assets/styles/components/list-row.css`.
 
+A pattern check also covers two blocks that have no class of their own. `DesignSystemPatternCheck` in `gamache.php` fails on a hand-written `relative_time` filter call, which belongs in `<twig:Ds:RelativeTime>`. It also fails on a one-button form with a `_csrf_token` input and `method="post"`, which belongs in `<twig:Ds:ActionForm>`. It skips the admin template folders and the component's own template. Where a component cannot go, such as inside a `trans()` placeholder or a component prop, add `{# @design-system-ignore #}` on the same line, or on one of the lines of the form.
+
 A child card that adds a component adds it to this list in the same branch.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".

@@ -84,7 +84,7 @@
                         {% endif %}
                     </span>
                     <span class="lp-preview-token-row__meta">
-                        {{- token.projectName }} · {{ 'oauth.connected_apps.preview_tokens.expires'|trans({'%count%': token.expiresAt|preview_token_days_left}) }} · {{ token.lastUsedAt ? 'oauth.connected_apps.preview_tokens.last_used'|trans({'%when%': token.lastUsedAt|relative_time}) : 'oauth.connected_apps.preview_tokens.not_used'|trans -}}
+                        {{- token.projectName }} · {{ 'oauth.connected_apps.preview_tokens.expires'|trans({'%count%': token.expiresAt|preview_token_days_left}) }} · {{ token.lastUsedAt ? 'oauth.connected_apps.preview_tokens.last_used'|trans({'%when%': token.lastUsedAt|relative_time}) : 'oauth.connected_apps.preview_tokens.not_used'|trans -}}{# @design-system-ignore #}
                     </span>
                 </span>
                 <div data-controller="modal">
