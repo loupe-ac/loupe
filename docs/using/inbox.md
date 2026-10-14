@@ -325,8 +325,10 @@ file names and check names as code. The waits that ended show below the current
 ones, in grey.
 
 Under the messages, a reply card lets you act on the item without leaving the
-inbox. The heading of the card names the main action, such as "Resume the
-run". The note field is optional and holds up to 2000 characters. The note
+inbox. The main action is the one that the stopped worker recommends, when it
+fits the item. Otherwise it follows the newest wait. The heading of the card
+shows the reason that the worker gave for the main action. With no reason, it
+names the action, such as "Resume the run". The note field is optional and holds up to 2000 characters. The note
 stays in Loupe, on the item. The split button at the bottom right of the card
 runs the main action. The chevron beside it opens a menu with the other
 actions that fit the item. Each row of the menu names the action and says in

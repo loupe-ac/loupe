@@ -15,6 +15,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
+use App\Module\Inbox\View\SuggestedAction;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Contract\CardPauses;
 
@@ -44,7 +45,7 @@ final readonly class ItemActions
         $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
 
         $match = match ($kind) {
-            InboxActionKind::ResumeRun => $this->resumableRuns($waits),
+            InboxActionKind::ResumeRun => $this->resumableRuns($this->runsOf($waits)),
             InboxActionKind::RetryCard => $this->releasablePauses($waits),
             default => [],
         };
@@ -77,16 +78,18 @@ final readonly class ItemActions
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
         }
 
-        $resumableRuns = $this->resumableRuns(array_merge(...array_values($openWaits)));
+        $runs = $this->runsOf(array_merge(...array_values($openWaits)));
+        $resumableRuns = $this->resumableRuns($runs);
         $releasablePauses = $this->releasablePauses(array_merge(...array_values($openWaits)));
 
         $actions = [];
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses);
-            $default = self::defaultKind($item, $waits, $fitting);
+            $suggestions = self::suggestions($waits, $runs);
+            $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             $actions[self::key($item)] = array_map(
-                static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $default),
+                static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $default, $suggestions[$kind->value]->reason ?? null),
                 $fitting,
             );
         }
@@ -156,15 +159,48 @@ final readonly class ItemActions
     }
 
     /**
-     * The kind of the newest open wait when it fits, otherwise Open, so a wait item always has a default that fits.
+     * The suggestions of the worker whose run wait is the newest open one, keyed by action.
      *
-     * @param list<InboxCardWait>   $waits   open waits, oldest first
-     * @param list<InboxActionKind> $fitting
+     * @param list<InboxCardWait>      $waits open waits, oldest first
+     * @param array<string, WorkerRun> $runs
+     *
+     * @return array<string, SuggestedAction>
      */
-    private static function defaultKind(InboxItem $item, array $waits, array $fitting): ?InboxActionKind
+    private static function suggestions(array $waits, array $runs): array
+    {
+        $runWaits = array_filter($waits, static fn (InboxCardWait $wait): bool => InboxCardWaitType::WorkerRun === $wait->type && null !== $wait->runId);
+        $newest = end($runWaits);
+        $run = false === $newest || null === $newest->runId ? null : ($runs[$newest->runId->toRfc4122()] ?? null);
+        if (null === $run) {
+            return [];
+        }
+
+        $suggestions = [];
+        foreach (RunSuggestions::actions($run) as $suggestion) {
+            $suggestions[$suggestion->action] = $suggestion;
+        }
+
+        return $suggestions;
+    }
+
+    /**
+     * The recommended suggestion when it fits. Otherwise the kind of the newest open wait when it fits,
+     * otherwise Open, so a wait item always has a default that fits.
+     *
+     * @param list<InboxCardWait>            $waits       open waits, oldest first
+     * @param list<InboxActionKind>          $fitting
+     * @param array<string, SuggestedAction> $suggestions
+     */
+    private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
         if (InboxItemKind::Wait !== $item->kind) {
             return null;
+        }
+
+        foreach ($fitting as $kind) {
+            if (InboxActionKind::Dismiss !== $kind && true === ($suggestions[$kind->value]->recommended ?? false)) {
+                return $kind;
+            }
         }
 
         $newest = end($waits);
@@ -195,9 +231,9 @@ final readonly class ItemActions
     /**
      * @param list<InboxCardWait> $waits
      *
-     * @return array<string, true> the ids of the runs whose control offers Resume with no reason against it
+     * @return array<string, WorkerRun> the runs of the run waits, keyed by the RFC 4122 run id
      */
-    private function resumableRuns(array $waits): array
+    private function runsOf(array $waits): array
     {
         $runIds = [];
         foreach ($waits as $wait) {
@@ -206,9 +242,26 @@ final readonly class ItemActions
             }
         }
 
+        $runs = [];
+        foreach ($this->workerRuns->findByIds(array_values($runIds)) as $run) {
+            if (null !== $run->id) {
+                $runs[$run->id->toRfc4122()] = $run;
+            }
+        }
+
+        return $runs;
+    }
+
+    /**
+     * @param array<string, WorkerRun> $runs
+     *
+     * @return array<string, true> the ids of the runs whose control offers Resume with no reason against it
+     */
+    private function resumableRuns(array $runs): array
+    {
         /** @var array<string, list<WorkerRun>> $byProject */
         $byProject = [];
-        foreach ($this->workerRuns->findByIds(array_values($runIds)) as $run) {
+        foreach ($runs as $run) {
             $byProject[(string) $run->project->id][] = $run;
         }
 

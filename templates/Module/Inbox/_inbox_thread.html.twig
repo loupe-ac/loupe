@@ -70,7 +70,7 @@
         <div class="lp-inbox-item__actions">
             {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}}) }}
                 {% if actions.main %}
-                    <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.labelKey|trans }}</h3>
+                    <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans }}</h3>
                 {% endif %}
                 {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
                 <twig:Ds:FieldErrors :fieldView="actionForm.note" />

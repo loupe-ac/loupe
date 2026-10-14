@@ -269,6 +269,38 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([], $this->actions()->forItems([]));
     }
 
+    public function test_a_recommended_suggestion_that_fits_is_the_default_and_carries_its_reason(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, ['suggestedActions' => [
+            ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true],
+            ['action' => 'resume-run', 'reason' => 'The key is in the vault now.'],
+        ]]);
+        $actions = $this->actions()->forItem($this->waitItem([$this->runWait($run)]));
+
+        self::assertSame(
+            [[InboxActionKind::ResumeRun, false, 'The key is in the vault now.'], [InboxActionKind::Open, true, 'Read the card first.'], [InboxActionKind::Dismiss, false, null]],
+            array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $actions),
+        );
+    }
+
+    public function test_a_recommended_suggestion_that_does_not_fit_leaves_the_default_of_the_wait(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, ['suggestedActions' => [
+            ['action' => 'retry-card', 'reason' => 'Retry it.', 'recommended' => true],
+        ]]);
+
+        self::assertSame([InboxActionKind::ResumeRun], $this->defaults($this->waitItem([$this->runWait($run)])));
+    }
+
+    public function test_a_recommended_dismiss_never_becomes_the_default(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, ['suggestedActions' => [
+            ['action' => 'dismiss', 'reason' => 'Nothing to do.', 'recommended' => true],
+        ]]);
+
+        self::assertSame([InboxActionKind::ResumeRun], $this->defaults($this->waitItem([$this->runWait($run)])));
+    }
+
     /** @param list<InboxCardWait> $waits */
     private function waitItem(array $waits): InboxItem
     {
@@ -295,7 +327,8 @@ final class ItemActionsTest extends KernelTestCase
         return $this->watch;
     }
 
-    private function workerRun(WorkerRunState $state): WorkerRun
+    /** @param array<string, mixed>|null $resultFields */
+    private function workerRun(WorkerRunState $state, ?array $resultFields = null): WorkerRun
     {
         $run = new WorkerRun(
             project: $this->project,
@@ -308,6 +341,7 @@ final class ItemActionsTest extends KernelTestCase
             runKey: Uuid::v7(),
             sessionId: Uuid::v4(),
         );
+        $run->resultFields = $resultFields;
         $this->em->persist($run);
         $this->em->flush();
 

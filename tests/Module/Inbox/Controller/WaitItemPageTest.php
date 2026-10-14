@@ -260,9 +260,35 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
     }
 
-    private function blockedRun(): void
+    public function test_the_reply_heading_shows_the_reason_of_the_suggested_default(): void
     {
-        $this->em->persist(new WorkerRun(
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun(['suggestedActions' => [
+            ['action' => 'retry-card', 'reason' => 'The card is not paused.', 'recommended' => true],
+            ['action' => 'open', 'reason' => 'Add the key, then read the card.'],
+        ]]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Add the key, then read the card.', trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
+    }
+
+    public function test_the_reply_heading_falls_back_to_the_label_with_no_suggestion(): void
+    {
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(trim($crawler->filter('#inbox-item-1 .inbox-split__main')->text()), trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
+    }
+
+    /** @param array<string, mixed>|null $resultFields */
+    private function blockedRun(?array $resultFields = null): void
+    {
+        $run = new WorkerRun(
             project: $this->project,
             bridgeId: Uuid::v7(),
             subjectType: WorkSubject::CARD,
@@ -271,7 +297,9 @@ final class WaitItemPageTest extends WebTestCase
             workKind: 'implement',
             state: WorkerRunState::Blocked,
             output: 'Needs the API key. Add it to the bridge config.',
-        ));
+        );
+        $run->resultFields = $resultFields;
+        $this->em->persist($run);
         $this->em->flush();
         $this->reconcile();
     }
