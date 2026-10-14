@@ -13,9 +13,10 @@ use App\Module\Review\Entity\Document;
 final readonly class AskInboxDraft
 {
     /**
-     * @param list<string>   $options
-     * @param list<Card>     $cards
-     * @param list<Document> $documents
+     * @param list<string>                                                                    $options
+     * @param list<Card>                                                                      $cards
+     * @param list<Document>                                                                  $documents
+     * @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}> $suggestedActions
      */
     public function __construct(
         public InboxItemKind $kind,
@@ -28,6 +29,7 @@ final readonly class AskInboxDraft
         public array $cards,
         public array $documents,
         public Document|CardPullRequest|null $reviewTarget,
+        public array $suggestedActions = [],
     ) {
     }
 }

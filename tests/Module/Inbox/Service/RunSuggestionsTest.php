@@ -60,6 +60,17 @@ final class RunSuggestionsTest extends TestCase
         ], $actions);
     }
 
+    public function test_only_the_first_recommended_suggestion_stays_recommended(): void
+    {
+        $actions = RunSuggestions::actions($this->runWith(['suggestedActions' => [
+            ['action' => 'open', 'reason' => 'See the card.'],
+            ['action' => 'resume-run', 'reason' => 'The key is in the vault.', 'recommended' => true],
+            ['action' => 'retry-card', 'reason' => 'Try again.', 'recommended' => true],
+        ]]));
+
+        self::assertSame([false, true, false], array_map(static fn (SuggestedAction $action): bool => $action->recommended, $actions));
+    }
+
     public function test_it_keeps_three_suggestions_at_most(): void
     {
         $actions = RunSuggestions::actions($this->runWith(['suggestedActions' => array_map(
