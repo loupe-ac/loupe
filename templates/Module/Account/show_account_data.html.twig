@@ -3,15 +3,15 @@
 {% block settings_section 'data' %}
 
 {% block settings_content %}
-<section class="lp-connect-block lp-settings-section lp-settings-panel-card" data-testid="export-section">
-    <h2 class="lp-section-title">{{ 'account.settings.export.heading'|trans }}</h2>
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="export-section">
+    <twig:Ds:SectionHeading>{{ 'account.settings.export.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'account.settings.export.intro'|trans }}</p>
 
     {% for export in view.exports %}
     <div class="lp-identity-row">
-        <twig:ux:icon name="lucide:package" class="lp-identity-row__glyph w-4 h-4" />
+        <twig:ux:icon name="lucide:package" class="lp-icon lp-icon--md lp-identity-row__glyph" />
         <span class="lp-identity-row__text">
-            <span class="lp-identity-row__name lp-identity-row__name--mono">{{ export.requestedAt|date('Y-m-d H:i') }}</span>
+            <span class="lp-identity-row__name lp-identity-row__name--mono">{{ export.requestedAt|date('j M Y, H:i') }}</span>
             <span class="lp-identity-row__meta lp-identity-row__meta--plain">
                 {% if export.isExpired %}
                     {{ 'account.settings.export.status.expired'|trans }}
@@ -30,18 +30,16 @@
     </div>
     {% endfor %}
 
-    <form method="post" action="{{ path('app_account_export_request') }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('request-data-export') }}">
+    <twig:Ds:ActionForm :action="path('app_account_export_request')" token="request-data-export">
         <twig:Ds:Button variant="primary" type="submit">{{ 'account.settings.export.request_button'|trans }}</twig:Ds:Button>
-    </form>
-</section>
+    </twig:Ds:ActionForm>
+</twig:Ds:Panel>
 
-<section class="lp-danger-zone lp-settings-panel-card" data-testid="delete-account-section">
+<twig:Ds:Panel as="section" class="lp-danger-zone" data-testid="delete-account-section">
     <h2 class="lp-danger-zone-title">{{ 'account.delete.danger.heading'|trans }}</h2>
     <p class="lp-danger-zone-desc">{{ 'account.delete.danger.body'|trans }}</p>
-    <form method="post" action="{{ path('app_account_delete_request') }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('request-account-deletion') }}">
+    <twig:Ds:ActionForm :action="path('app_account_delete_request')" token="request-account-deletion">
         <twig:Ds:Button variant="danger" type="submit">{{ 'account.delete.danger.cta'|trans }}</twig:Ds:Button>
-    </form>
-</section>
+    </twig:Ds:ActionForm>
+</twig:Ds:Panel>
 {% endblock %}

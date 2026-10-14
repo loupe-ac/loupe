@@ -35,11 +35,12 @@ final class FeedbackComponentsTest extends KernelTestCase
 
     public function test_an_empty_state_renders_its_parts_and_attributes(): void
     {
-        $html = $this->render('<twig:Ds:EmptyState icon="lucide:inbox" iconClass="w-8 h-8" title="None" body="Add one" linkHref="/docs" linkLabel="Docs" data-empty><p>Extra</p></twig:Ds:EmptyState>');
+        $html = $this->render('<twig:Ds:EmptyState icon="lucide:inbox" iconSize="xl" iconClass="text-accent" title="None" body="Add one" linkHref="/docs" linkLabel="Docs" data-empty><p>Extra</p></twig:Ds:EmptyState>');
 
         self::assertStringContainsString('class="lp-empty-state"', $html);
         self::assertStringContainsString('data-empty', $html);
-        self::assertStringContainsString('lp-empty-state__icon w-8 h-8', $html);
+        self::assertStringContainsString('lp-empty-state__icon lp-icon lp-icon--xl text-accent', $html);
+        self::assertStringContainsString('lp-empty-state__icon lp-icon lp-icon--2xl"', $this->render('<twig:Ds:EmptyState icon="lucide:inbox" />'));
         self::assertStringContainsString('<h2 class="lp-empty-state__title">None</h2>', $html);
         self::assertStringContainsString('<p class="lp-empty-state__body">Add one</p>', $html);
         self::assertStringContainsString('<p>Extra</p>', $html);

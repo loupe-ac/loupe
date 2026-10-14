@@ -7,9 +7,8 @@
     <h1 class="text-xl font-semibold tracking-tight text-fg">{{ 'billing.beta_invite.sign_up.heading'|trans }}</h1>
     <p class="text-fg-mute text-sm leading-normal">{{ 'billing.beta_invite.sign_up.description'|trans }}</p>
 
-    <form method="post" action="{{ path('app_billing_beta_invite_claim', {token: token}) }}" data-beta-sign-up-form>
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('billing-beta-invite-claim') }}">
+    <twig:Ds:ActionForm :action="path('app_billing_beta_invite_claim', {token: token})" token="billing-beta-invite-claim" data-beta-sign-up-form>
         <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'billing.beta_invite.sign_up.submit'|trans }}</twig:Ds:Button>
-    </form>
+    </twig:Ds:ActionForm>
 </div>
 {% endblock %}

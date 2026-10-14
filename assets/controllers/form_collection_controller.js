@@ -7,7 +7,7 @@ import { Controller } from '@hotwired/stimulus';
  *
  *   <template data-form-collection-target="removeButtonTemplate">
  *       <button type="button" class="..." aria-label="{{ 'app.form.collection.remove'|trans }}">
- *           <twig:UX:Icon name="lucide:x" class="w-4 h-4" />
+ *           <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" />
  *       </button>
  *   </template>
  */

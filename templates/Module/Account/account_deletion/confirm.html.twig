@@ -5,7 +5,7 @@
 {% block auth_body %}
 <div class="flex flex-col items-center gap-3 py-4 text-center">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:triangle-alert" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <h1 class="text-xl font-semibold tracking-tight text-fg">{{ 'account.delete.confirm.heading'|trans }}</h1>
@@ -24,9 +24,9 @@
         {% for message in messages %}
             <div class="{{ label == 'error' ? 'auth-error' : 'auth-notice' }} w-full text-left">
                 {% if label == 'error' %}
-                    <twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" aria-hidden="true" />
                 {% else %}
-                    <twig:UX:Icon name="lucide:check" class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                    <twig:ux:icon name="lucide:check" class="lp-icon lp-icon--sm" aria-hidden="true" />
                 {% endif %}
                 {{ message }}
             </div>

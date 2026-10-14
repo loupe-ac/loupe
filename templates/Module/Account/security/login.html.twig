@@ -20,7 +20,7 @@
 {% set social_error = app.request.query.get('social_error') %}
 {% if social_error %}
     <div class="auth-error" role="alert">
-        <twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+        <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm mt-px" aria-hidden="true" />
         {% if social_error == 'unverified' %}
             {{ 'account.social.error.unverified_email'|trans }}
         {% elseif social_error == 'closed' %}
@@ -38,7 +38,7 @@
 
     {% if error %}
         <div class="auth-error">
-            <twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
+            <twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm mt-px" aria-hidden="true" />
             {{ error.messageKey|trans(error.messageData, 'security') }}
         </div>
     {% endif %}

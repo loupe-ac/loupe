@@ -1,0 +1,23 @@
+{#
+  Props:  @comment-budget-ignore
+    columns    list<{label: string, align?: 'start'|'end', srOnly?: bool}>   Translated header labels, in column order. Optional with a header block. srOnly hides a label from sight and keeps it for assistive technology.
+    modifier   string   Adds lp-data-table--{modifier}, whose rule sets --lp-data-table-columns. Optional.
+    label      string   Translated name of the table, for assistive technology.
+
+  The frame and header of a list table. The caller renders each .lp-data-table__row in the content block.
+  A header block replaces the generated header cells, for a header that holds a checkbox or sort links.
+  Give each row role="row" and each cell role="cell". Any other attribute is passed to the table.
+#}
+{% props columns = [], modifier = null, label = null %}
+{%- set tableDefaults = {class: 'lp-data-table' ~ (modifier ? ' lp-data-table--' ~ modifier), role: 'table'} -%}
+{%- if label %}{% set tableDefaults = tableDefaults|merge({'aria-label': label}) %}{% endif -%}
+<div{{ attributes.defaults(tableDefaults) }}>
+    <div class="lp-data-table__header" role="row">
+        {%- block header %}
+            {% for column in columns %}
+                <span class="lp-data-table__cell{{ (column.align ?? 'start') == 'end' ? ' lp-data-table__cell--end' }}{{ column.srOnly ?? false ? ' sr-only' }}" role="columnheader">{{ column.label }}</span>
+            {% endfor %}
+        {% endblock -%}
+    </div>
+    {% block content %}{% endblock %}
+</div>

@@ -25,9 +25,6 @@
     .lp-settings-content {
         @apply max-w-none;
     }
-    .lp-settings-panel-card {
-        @apply rounded-xl border border-line bg-white p-6;
-    }
     @media (width >= 64rem) {
         .lp-settings-layout {
             grid-template-columns:
@@ -51,7 +48,7 @@
     .lp-settings-layout--columns .lp-settings-content {
         @apply col-start-1 col-span-1;
     }
-    .lp-settings-layout--columns .lp-settings-panel-card {
+    .lp-settings-layout--columns .lp-panel {
         @apply p-4;
     }
     .lp-settings-layout--columns .lp-btn svg {
@@ -67,7 +64,7 @@
         .lp-settings-layout--columns .lp-settings-content {
             @apply col-start-2;
         }
-        .lp-settings-layout--columns .lp-settings-panel-card {
+        .lp-settings-layout--columns .lp-panel {
             @apply p-6;
         }
     }

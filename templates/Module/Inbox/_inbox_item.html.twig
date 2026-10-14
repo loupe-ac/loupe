@@ -31,10 +31,10 @@
             <p class="lp-inbox-item__note">{{ review.targetLabel }}</p>
             <p data-inbox-review-verdict>{{ ('inbox.review.verdict.' ~ review.verdict.value)|trans }}</p>
             {% if review.note %}<p class="lp-inbox-item__answer-text">{{ review.note }}</p>{% endif %}
-            <p class="lp-inbox-item__note">{{ review.reviewer.fullName }} · {{ review.submittedAt|date('Y-m-d H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
+            <p class="lp-inbox-item__note">{{ review.reviewer.fullName }} · {{ review.submittedAt|date('j M Y, H:i') }}{% if review.reviewedVersionNumber %} · {{ 'inbox.review.version'|trans({'%version%': review.reviewedVersionNumber}) }}{% endif %}</p>
             {% set withdrawal = inbox_review_withdrawal(review) %}
             {% if withdrawal %}
-                <p class="lp-inbox-item__note" data-inbox-review-withdrawal>{{ 'inbox.review.withdrawn'|trans({'%name%': withdrawal.reviewer.fullName, '%time%': withdrawal.submittedAt|date('Y-m-d H:i')}) }}</p>
+                <p class="lp-inbox-item__note" data-inbox-review-withdrawal>{{ 'inbox.review.withdrawn'|trans({'%name%': withdrawal.reviewer.fullName, '%time%': withdrawal.submittedAt|date('j M Y, H:i')}) }}</p>
                 {% if review.document %}<a class="lp-inbox-item__jump" href="{{ path('app_document_review', {projectId: item.project.id, documentId: review.document.id}) }}" data-turbo-frame="_top">{{ 'inbox.review.open_document'|trans }}</a>{% endif %}
             {% endif %}
         {% endif %}

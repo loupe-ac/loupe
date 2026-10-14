@@ -22,7 +22,7 @@
                 {% if pick.vars.value in values %}
                 <label class="lp-home-chip" for="{{ pick.vars.id }}">
                     {{ form_widget(pick, {attr: {class: 'lp-home-chip__input'}}) }}
-                    <twig:UX:Icon :name="icons[pick.vars.value]" class="w-4.5 h-4.5" aria-hidden="true" />
+                    <twig:ux:icon :name="icons[pick.vars.value]" class="lp-icon lp-icon--lg" aria-hidden="true" />
                     {{ pick.vars.label|trans }}
                 </label>
                 {% endif %}

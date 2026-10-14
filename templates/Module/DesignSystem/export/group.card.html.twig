@@ -34,6 +34,7 @@ function Demo() {
 {% set open = 'dialog' == entry.element ? ' open' : '' %}
 {% set void = 'input' == entry.element %}
 {% set select = 'select' == entry.element %}
+{% set svg = 'svg' == entry.element %}
 {% if 'lp-tabs' == entry.rootClass %}
 {% for variant in [null]|merge(entry.variants) %}
       <div className="row">
@@ -46,6 +47,8 @@ function Demo() {
 {% for variant in entry.variants %}
 {% if void %}
         <{{ entry.name }} variant="{{ variant }}" placeholder="{{ variant }}" />
+{% elseif svg %}
+        <{{ entry.name }} variant="{{ variant }}" />
 {% else %}
         <{{ entry.name }} variant="{{ variant }}"{{ open }}>{% if select %}<option>{{ variant }}</option>{% else %}{{ variant }}{% endif %}</{{ entry.name }}>
 {% endif %}

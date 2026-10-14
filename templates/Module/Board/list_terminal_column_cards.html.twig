@@ -26,12 +26,12 @@
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
             {% if card.pullRequests|length > 0 %}
             <span class="lp-board-card__pulls">
-                <twig:ux:icon name="lucide:git-pull-request" class="w-3.5 h-3.5 shrink-0" />
+                <twig:ux:icon name="lucide:git-pull-request" class="lp-icon lp-icon--sm" />
                 {{ card.pullRequests|length }}
             </span>
             {% endif %}
             <span class="lp-done-row__when">
-                {% if card.completedAt %}{{ card.completedAt|relative_time }}{% else %}{{ 'board.terminal.no_completion'|trans }}{% endif %}
+                {% if card.completedAt %}<twig:Ds:RelativeTime :datetime="card.completedAt" />{% else %}{{ 'board.terminal.no_completion'|trans }}{% endif %}
             </span>
         </div>
         {% endfor %}

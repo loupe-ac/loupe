@@ -23,9 +23,9 @@ final class FormComponentsTest extends KernelTestCase
 
     public function test_an_input_carries_its_class_and_attributes(): void
     {
-        $html = $this->render('<twig:Ds:Input name="q" class="lp-filter-input" mono />');
+        $html = $this->render('<twig:Ds:Input name="q" class="extra" mono />');
 
-        self::assertStringContainsString('<input class="lp-input lp-input--mono lp-filter-input"', $html);
+        self::assertStringContainsString('<input class="lp-input lp-input--mono extra"', $html);
         self::assertStringContainsString('name="q"', $html);
     }
 
@@ -35,6 +35,12 @@ final class FormComponentsTest extends KernelTestCase
 
         self::assertStringNotContainsString('placeholder', $html);
         self::assertStringNotContainsString('disabled', $html);
+    }
+
+    public function test_compact_draws_the_short_control(): void
+    {
+        self::assertStringContainsString('<input class="lp-input lp-input--compact"', $this->render('<twig:Ds:Input compact />'));
+        self::assertStringContainsString('<select class="lp-input lp-select lp-select--compact"', $this->render('<twig:Ds:Select compact><option>A</option></twig:Ds:Select>'));
     }
 
     public function test_a_select_wraps_its_options(): void

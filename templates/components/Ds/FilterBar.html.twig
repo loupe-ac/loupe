@@ -1,0 +1,85 @@
+{#
+  Props:  @comment-budget-ignore
+    action            string|null   Form target. When set, the bar holds a GET form with the autosearch controller.
+    formAttributes    hash          Extra attributes of that form, such as {'data-metrics-form': true}. Optional.
+    search            hash|null     {id, name, value, label, placeholder} of the search field. Optional.
+    clearHref         string|null   Link of the Clear control. Shown with clearLabel.
+    clearLabel        string|null   Text of the Clear control.
+    clearAttributes   hash          Extra attributes of the Clear link, such as {'data-turbo-frame': 'x'}. Optional.
+    count             string|null   Right-aligned count text. Optional.
+    countAttributes   hash          Extra attributes of the count, such as {id: 'x'}. Optional.
+    countFrame        string|null   Id of a turbo-frame that wraps the count. Optional.
+    switch            hash|null     {name, label, checked, attributes} of an on/off filter. Optional.
+
+  The body holds extra controls of the primary row, after the search. The `secondary` block holds
+  what follows that row inside the form, such as selects that wrap and hidden fields.
+  Any other attribute, class included, is passed to the root.
+#}
+{%- props action = null, formAttributes = {}, search = null, clearHref = null, clearLabel = null, clearAttributes = {}, count = null, countAttributes = {}, countFrame = null, switch = null -%}
+{%- macro attrs(map) -%}
+    {%- for key, value in map %} {{ key }}{% if value is not same as(true) %}="{{ value }}"{% endif %}{% endfor -%}
+{%- endmacro -%}
+{%- import _self as bar -%}
+{%- set primary -%}{% block content %}{% endblock %}{%- endset -%}
+{%- set hasPrimary = primary|trim is not empty -%}
+{%- set searchField -%}
+    {%- if search is not null -%}
+    <div class="lp-filter-search">
+        <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
+        <label class="sr-only" for="{{ search.id }}">{{ search.label }}</label>
+        <twig:Ds:Input type="search"
+               id="{{ search.id }}"
+               name="{{ search.name }}"
+               class="lp-filter-input"
+               value="{{ search.value }}"
+               placeholder="{{ search.placeholder }}"
+               data-autosearch-target="field"
+               data-action="input->autosearch#search" />
+    </div>
+    {%- endif -%}
+{%- endset -%}
+{%- set secondary -%}{% block secondary %}{% endblock %}{%- endset -%}
+{%- set controls -%}
+    {%- if search is not null and hasPrimary -%}
+    <div class="lp-filter-primary" data-action="focusin->autosearch#revealField">
+        {{ searchField }}
+        {{ primary }}
+    </div>
+    {%- else -%}
+        {{ searchField }}
+        {{ primary }}
+    {%- endif -%}
+    {{ secondary }}
+    {%- if switch is not null -%}
+    <label class="lp-filter-switch">
+        <input type="checkbox"
+               class="lp-switch"
+               role="switch"
+               name="{{ switch.name }}"
+               value="1"
+               {{ switch.checked|default(false) ? 'checked' }}{{ bar.attrs(switch.attributes|default({})) }}
+               data-action="change->autosearch#search">
+        {{ switch.label }}
+    </label>
+    {%- endif -%}
+    {%- if clearHref is not null -%}
+    <a href="{{ clearHref }}" data-autosearch-target="clearButton" class="lp-filter-clear"{{ bar.attrs(clearAttributes) }}>{{ clearLabel }}</a>
+    {%- endif -%}
+{%- endset -%}
+<div{{ attributes.defaults({class: 'lp-list-filters'}) }}>
+    {%- if action is not null %}
+    <form method="get" action="{{ action }}" data-controller="autosearch" class="lp-filter-form"{{ bar.attrs(formAttributes) }}>
+        {{ controls }}
+    </form>
+    {%- else %}
+    {{ controls }}
+    {%- endif %}
+    {%- if count is not null %}
+        {%- set countText -%}<span class="lp-filter-count"{{ bar.attrs(countAttributes) }}>{{ count }}</span>{%- endset %}
+        {%- if countFrame is not null %}
+    <turbo-frame id="{{ countFrame }}" class="lp-live-frame">{{ countText }}</turbo-frame>
+        {%- else %}
+    {{ countText }}
+        {%- endif %}
+    {%- endif %}
+</div>

@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the DataTable for the styleguide, so it is intentionally untranslated. #}
+<twig:Ds:DataTable label="Specimen runs" :columns="[{label: 'Work'}, {label: 'Outcome'}, {label: 'Duration', align: 'end'}]">
+    {% for name, duration in {'Build the table': '4m', 'Review the table': '12m'} %}
+        <div class="lp-data-table__row" role="row">
+            <div class="lp-data-table__cell lp-data-table__primary" role="cell"><span class="lp-data-table__title">{{ name }}</span></div>
+            <span class="lp-data-table__cell" role="cell">Succeeded</span>
+            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ duration }}</span>
+        </div>
+    {% endfor %}
+</twig:Ds:DataTable>

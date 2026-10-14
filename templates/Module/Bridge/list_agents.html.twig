@@ -48,41 +48,42 @@
                         <h2 class="lp-agent-card__name"><span title="{{ bridge.id }}" data-bridge-label>{{ bridge.label }}</span></h2>
                     </div>
                     {% if canManage %}
-                    <div class="lp-agent-card__menu" data-agent-menu data-controller="popover">
-                        <twig:Ds:Button type="button" variant="icon"
-                                aria-label="{{ 'bridge.agents.menu'|trans }}"
-                                aria-expanded="false"
-                                aria-controls="agent-menu-{{ bridge.id }}"
-                                data-popover-target="trigger"
-                                data-action="click->popover#toggle">
-                            <twig:ux:icon name="lucide:ellipsis" class="size-4" />
-                        </twig:Ds:Button>
-                        <div id="agent-menu-{{ bridge.id }}" class="lp-backlog-menu" data-popover-target="panel" hidden>
+                    <twig:Ds:Menu id="agent-menu-{{ bridge.id }}" class="lp-agent-card__menu" data-agent-menu>
+                        <twig:block name="trigger">
+                            <twig:Ds:Button type="button" variant="icon"
+                                    aria-label="{{ 'bridge.agents.menu'|trans }}"
+                                    aria-expanded="false"
+                                    aria-controls="agent-menu-{{ bridge.id }}"
+                                    data-popover-target="trigger"
+                                    data-action="click->popover#toggle">
+                                <twig:ux:icon name="lucide:ellipsis" class="lp-icon lp-icon--md" />
+                            </twig:Ds:Button>
+                        </twig:block>
+                        <twig:block name="content">
                             {% if bridge.pauseRequested or bridge.takesCommands() %}
-                            {% set action = bridge.pauseRequested ? 'unpause' : 'pause' %}
-                            <form method="post" action="{{ path(action == 'pause' ? 'app_project_bridge_pause' : 'app_project_bridge_unpause', {id: project.id, bridgeId: bridge.id}) }}" data-turbo-frame="_top" data-agent-pause-control="{{ action }}">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('bridge-pause') }}">
-                                <button type="submit" class="lp-backlog-menu__item">
-                                    {% if action == 'pause' %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% endif %}
-                                    {{ (action == 'pause' ? 'bridge.agents.pause' : 'bridge.agents.unpause')|trans }}
-                                </button>
-                            </form>
+                            {% set pauseAction = bridge.pauseRequested ? 'unpause' : 'pause' %}
+                            <twig:Ds:ActionForm :action="path(pauseAction == 'pause' ? 'app_project_bridge_pause' : 'app_project_bridge_unpause', {id: project.id, bridgeId: bridge.id})" token="bridge-pause" frame="_top" data-agent-pause-control="{{ pauseAction }}">
+                                <twig:Ds:MenuItem type="submit">
+                                    {% if pauseAction == 'pause' %}<twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md" />{% else %}<twig:ux:icon name="lucide:circle-play" class="lp-icon lp-icon--md" />{% endif %}
+                                    {{ (pauseAction == 'pause' ? 'bridge.agents.pause' : 'bridge.agents.unpause')|trans }}
+                                </twig:Ds:MenuItem>
+                            </twig:Ds:ActionForm>
                             {% else %}
                             {% set reason = 'bridge.agents.pause_outdated'|trans({'%version%': constant('App\\Module\\Bridge\\View\\WorkerRunControls::COMMANDS_SINCE_VERSION')}) %}
-                            <button type="button" class="lp-backlog-menu__item" title="{{ reason }}" data-agent-pause-control="pause" disabled>
-                                <twig:ux:icon name="lucide:circle-pause" class="size-4" />
+                            <twig:Ds:MenuItem title="{{ reason }}" data-agent-pause-control="pause" disabled>
+                                <twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md" />
                                 {{ 'bridge.agents.pause'|trans }}
                                 <span class="sr-only">{{ reason }}</span>
-                            </button>
+                            </twig:Ds:MenuItem>
                             {% endif %}
-                        </div>
-                    </div>
+                        </twig:block>
+                    </twig:Ds:Menu>
                     {% endif %}
                 </div>
                 <p class="lp-agent-card__purpose">{{ 'bridge.agents.project_connection'|trans({'%project%': project.name}) }}</p>
                 <div class="lp-agent-card__current">
                     <span>{{ 'bridge.agents.last_seen'|trans }}</span>
-                    <strong>{{ connection.status.lastSeenAt ? connection.status.lastSeenAt|date('M j, H:i') : 'bridge.agents.never'|trans }}</strong>
+                    <strong>{{ connection.status.lastSeenAt ? connection.status.lastSeenAt|date('j M Y, H:i') : 'bridge.agents.never'|trans }}</strong>
                 </div>
                 {% if bridge.nameClashes() %}
                 <div class="lp-agent-card__current lp-agent-card__name-clash" data-agent-name-clash>
@@ -95,14 +96,14 @@
                 <div class="lp-agent-card__current lp-agent-card__paused" data-agent-paused>
                     <span>{{ (bridge.pausedReported ? 'bridge.agents.paused' : 'bridge.agents.pause_requested')|trans }}</span>
                     {% if bridge.pauseRequestedAt %}
-                    {% set pausedAt = bridge.pauseRequestedAt|date('M j, H:i') %}
+                    {% set pausedAt = bridge.pauseRequestedAt|date('j M Y, H:i') %}
                     <strong>{{ bridge.pauseRequestedBy ? 'bridge.agents.paused_by'|trans({'%time%': pausedAt, '%person%': bridge.pauseRequestedBy.fullName ?: bridge.pauseRequestedBy.email}) : pausedAt }}</strong>
                     {% endif %}
                 </div>
                 {% endif %}
                 {% if connection.bridge.workerPools is not empty %}
                 <div class="lp-agent-card__current lp-agent-card__pools" data-agent-worker-pools>
-                    <span>{{ 'bridge.agents.worker_pools.heading'|trans }}{% if connection.bridge.workerPoolsReportedAt %} · {{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('M j, H:i')}) }}{% endif %}</span>
+                    <span>{{ 'bridge.agents.worker_pools.heading'|trans }}{% if connection.bridge.workerPoolsReportedAt %} · {{ 'bridge.agents.worker_pools.as_of'|trans({'%time%': connection.bridge.workerPoolsReportedAt|date('j M Y, H:i')}) }}{% endif %}</span>
                     {% for pool in connection.bridge.workerPools %}
                     <p class="lp-agent-card__pool" data-agent-worker-pool>
                         <strong>{{ pool.name }}</strong>
@@ -113,7 +114,7 @@
                 {% endif %}
                 {% if connection.bridge.accounts is not empty %}
                 <div class="lp-agent-card__current lp-agent-card__accounts" data-agent-accounts>
-                    <span>{{ 'bridge.agents.accounts.heading'|trans }}{% if connection.bridge.accountsReportedAt %} · {{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('M j, H:i')}) }}{% endif %}</span>
+                    <span>{{ 'bridge.agents.accounts.heading'|trans }}{% if connection.bridge.accountsReportedAt %} · {{ 'bridge.agents.accounts.as_of'|trans({'%time%': connection.bridge.accountsReportedAt|date('j M Y, H:i')}) }}{% endif %}</span>
                     {% for account in connection.bridge.accounts %}
                     <div class="lp-agent-card__account{% if account.state == 'failing' %} lp-agent-card__account--failing{% endif %}" data-agent-account="{{ account.name }}" data-agent-account-state="{{ account.state }}" data-agent-account-used="{{ (account.used ?? true) ? 'true' : 'false' }}">
                         <p class="lp-agent-card__account-line">
@@ -146,11 +147,10 @@
                     <span>{{ 'bridge.agents.runtime'|trans }}</span>
                 </footer>
                 {% if connection.updateChip and connection.updateChip.command %}
-                <div id="agent-update-{{ connection.bridge.id }}" class="lp-connect-field lp-agent-update-command" data-disclosure-target="content" data-controller="clipboard" data-clipboard-text-value="{{ connection.updateChip.command }}"
-                     data-clipboard-copied-label-value="{{ 'project.connect.copied'|trans }}">
-                    <twig:ux:icon name="lucide:terminal" class="lp-connect-field__glyph w-4 h-4" />
+                <div id="agent-update-{{ connection.bridge.id }}" class="lp-connect-field lp-agent-update-command" data-disclosure-target="content">
+                    <twig:ux:icon name="lucide:terminal" class="lp-icon lp-icon--md lp-connect-field__glyph" />
                     <code class="lp-connect-field__value" data-agent-update-command>{{ connection.updateChip.command }}</code>
-                    <twig:Ds:Button variant="ghost" size="sm" type="button"  data-clipboard-target="button" data-action="clipboard#copy">{{ 'project.connect.copy'|trans }}</twig:Ds:Button>
+                    <twig:Ds:CopyButton :text="connection.updateChip.command" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" />
                 </div>
                 {% endif %}
             </div>

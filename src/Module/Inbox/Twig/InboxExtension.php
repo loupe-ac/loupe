@@ -107,7 +107,7 @@ final class InboxExtension extends AbstractExtension
         ];
     }
 
-    /** The short age of a list row, such as "2h" or "3w". The app ships English only, as `relative_time` does. */
+    /** The short age of a list row, such as "2h" or "3w". The app ships English only. */
     public static function age(\DateTimeImmutable $when, ?\DateTimeImmutable $now = null): string
     {
         $seconds = max(0, ($now ?? new \DateTimeImmutable())->getTimestamp() - $when->getTimestamp());

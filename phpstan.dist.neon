@@ -8,6 +8,9 @@ parameters:
         - src/
         - tests/
 
+    scanFiles:
+        - gamache.php
+
     excludePaths:
         - config/reference.php (?)
 

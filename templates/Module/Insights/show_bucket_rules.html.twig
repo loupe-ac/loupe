@@ -15,7 +15,7 @@
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'time-buckets'} only %}
 
     <section class="lp-reports-panel" data-bucket-rule-form>
-        <h2 class="lp-section-title">{{ 'insights.bucket_rules.add.title'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'insights.bucket_rules.add.title'|trans }}</twig:Ds:SectionHeading>
         <twig:Ds:Hint>{{ 'insights.bucket_rules.intro'|trans }}</twig:Ds:Hint>
         {{ form_start(ruleForm, {action: path('app_project_analytics_bucket_rule_create', {id: project.id}), attr: {class: 'lp-form'}}) }}
             <twig:Ds:FieldErrors :fieldView="ruleForm" />
@@ -29,9 +29,9 @@
                 </twig:Ds:FormField>
                 {% endfor %}
             </div>
-            <div class="lp-settings-form-actions">
+            <twig:Ds:FormActions>
                 <twig:Ds:Button variant="primary" type="submit" :disabled="atLimit">{{ 'insights.bucket_rules.add.submit'|trans }}</twig:Ds:Button>
-            </div>
+            </twig:Ds:FormActions>
             {% if atLimit %}
             <twig:Ds:Hint data-bucket-rule-limit>{{ 'insights.bucket_rules.limit'|trans({'%max%': constant('App\\Module\\Insights\\Entity\\InsightsBucketRule::MAX_PER_PROJECT')}) }}</twig:Ds:Hint>
             {% endif %}
@@ -51,15 +51,14 @@
             </div>
             <div class="lp-reports-proposal__actions">
                 {% for direction in ['up', 'down'] %}
-                <form method="post" action="{{ path('app_project_analytics_bucket_rule_move', {id: project.id, ruleId: rule.id, direction: direction}) }}">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-bucket-rule-move') }}">
-                    <twig:Ds:Button variant="outline" size="sm" type="submit" :disabled="(direction == 'up' and loop.parent.loop.first) or (direction == 'down' and loop.parent.loop.last)" data-bucket-rule-move="{{ direction }}">{{ ('insights.bucket_rules.move.' ~ direction)|trans }}</twig:Ds:Button>
-                </form>
+                {% set moveDisabled = (direction == 'up' and loop.parent.loop.first) or (direction == 'down' and loop.parent.loop.last) %}
+                <twig:Ds:ActionForm :action="path('app_project_analytics_bucket_rule_move', {id: project.id, ruleId: rule.id, direction: direction})" token="insights-bucket-rule-move">
+                    <twig:Ds:Button variant="outline" size="sm" type="submit" :disabled="moveDisabled" data-bucket-rule-move="{{ direction }}">{{ ('insights.bucket_rules.move.' ~ direction)|trans }}</twig:Ds:Button>
+                </twig:Ds:ActionForm>
                 {% endfor %}
-                <form method="post" action="{{ path('app_project_analytics_bucket_rule_delete', {id: project.id, ruleId: rule.id}) }}">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('insights-bucket-rule-delete') }}">
+                <twig:Ds:ActionForm :action="path('app_project_analytics_bucket_rule_delete', {id: project.id, ruleId: rule.id})" token="insights-bucket-rule-delete">
                     <twig:Ds:Button variant="outline" size="sm" type="submit" data-bucket-rule-delete>{{ 'insights.bucket_rules.delete'|trans }}</twig:Ds:Button>
-                </form>
+                </twig:Ds:ActionForm>
             </div>
         </li>
         {% endfor %}
@@ -69,17 +68,19 @@
     {% endif %}
 
     <section class="lp-reports-panel" data-bucket-summary>
-        <h2 class="lp-section-title">{{ 'insights.bucket_rules.summary.title'|trans }}</h2>
+        <twig:Ds:SectionHeading>{{ 'insights.bucket_rules.summary.title'|trans }}</twig:Ds:SectionHeading>
         <twig:Ds:Hint>{{ 'insights.bucket_rules.summary.intro'|trans }}</twig:Ds:Hint>
-        <form method="get" action="{{ path('app_project_analytics_time_buckets', {id: project.id}) }}" data-controller="autosearch" class="lp-list-filters lp-filter-form">
-            <label class="sr-only" for="bucket-summary-range">{{ 'insights.bucket_rules.summary.range'|trans }}</label>
-            <twig:Ds:Select id="bucket-summary-range" name="range" class="lp-filter-select" data-action="change->autosearch#search">
-                {% for option in ranges %}
-                    <option value="{{ option.value }}"{{ option == summary.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
-                {% endfor %}
-            </twig:Ds:Select>
-            <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
-        </form>
+        <twig:Ds:FilterBar :action="path('app_project_analytics_time_buckets', {id: project.id})">
+            <twig:block name="secondary">
+                <label class="sr-only" for="bucket-summary-range">{{ 'insights.bucket_rules.summary.range'|trans }}</label>
+                <twig:Ds:Select id="bucket-summary-range" name="range" data-action="change->autosearch#search">
+                    {% for option in ranges %}
+                        <option value="{{ option.value }}"{{ option == summary.range ? ' selected' : '' }}>{{ ('analytics.metrics.range.' ~ option.value)|trans }}</option>
+                    {% endfor %}
+                </twig:Ds:Select>
+                <noscript><twig:Ds:Button type="submit">{{ 'analytics.metrics.form.apply'|trans }}</twig:Ds:Button></noscript>
+            </twig:block>
+        </twig:Ds:FilterBar>
         <div class="lp-metric-table">
             <table class="lp-metric-table__table">
                 <thead>

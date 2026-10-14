@@ -1,0 +1,24 @@
+/* The icon size scale. Put `lp-icon lp-icon--sm` on a `ux:icon` tag. No component wraps it, so a page pays no render cost. */
+@layer components {
+    .lp-icon {
+        @apply shrink-0;
+    }
+    .lp-icon--xs {
+        @apply size-3;
+    }
+    .lp-icon--sm {
+        @apply size-3.5;
+    }
+    .lp-icon--md {
+        @apply size-4;
+    }
+    .lp-icon--lg {
+        @apply size-5;
+    }
+    .lp-icon--xl {
+        @apply size-8;
+    }
+    .lp-icon--2xl {
+        @apply size-12;
+    }
+}

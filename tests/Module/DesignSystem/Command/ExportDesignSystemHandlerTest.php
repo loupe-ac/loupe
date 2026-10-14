@@ -266,6 +266,22 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
     }
 
+    public function test_the_icon_wrapper_draws_an_svg_at_each_size(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/core/Icon.jsx');
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Icon.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+
+        self::assertStringContainsString('<svg {...rest} className={className} viewBox="0 0 24 24"', $jsx);
+        self::assertStringContainsString('{children || <path d=', $jsx);
+        self::assertStringNotContainsString('<span', $jsx);
+        foreach (['xs', 'sm', 'md', 'lg', 'xl', '2xl'] as $size) {
+            self::assertStringContainsString('<Icon variant="'.$size.'" />', $card);
+            self::assertStringContainsString('<Icon variant="'.$size.'" />', $prompt);
+        }
+        self::assertStringNotContainsString('</Icon>', $card);
+    }
+
     public function test_the_marketing_shell_export_draws_the_header_the_body_and_the_footer(): void
     {
         foreach (['MarketingShell.jsx', 'MarketingShell.d.ts', 'MarketingShell.prompt.md'] as $file) {
@@ -420,7 +436,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
 
         self::assertStringContainsString('{% for switcherProject in switcherProjects %}', $base);
-        self::assertStringContainsString('{% if currentProject %} aria-current="true"{% endif %}', $base);
+        self::assertStringContainsString(':current="currentProject"', $base);
         self::assertStringContainsString('{% if currentProject %}<twig:ux:icon name="lucide:check"', $base);
 
         self::assertStringContainsString('switcherProjects.map((project) => {', $jsx);
@@ -441,6 +457,26 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
     }
 
+    public function test_no_layout_wrapper_draws_a_class_that_a_component_replaced(): void
+    {
+        $legacy = [];
+        foreach (new Catalog()->entries() as $entry) {
+            $legacy = [...$legacy, ...$entry->legacyClasses];
+        }
+        self::assertNotEmpty($legacy);
+
+        $files = array_values(array_filter($this->written, static fn (string $file): bool => str_starts_with($file, 'components/layout/') && 1 === preg_match('/\.(jsx|md|html)$/', $file)));
+        self::assertContains('components/layout/SettingsLayout.prompt.md', $files);
+        self::assertContains('components/layout/layout.card.html', $files);
+
+        foreach ($files as $file) {
+            $text = (string) file_get_contents($this->directory.'/'.$file);
+            foreach ($legacy as $class) {
+                self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $text, sprintf('%s draws %s, which a component replaced.', $file, $class));
+            }
+        }
+    }
+
     public function test_the_stylesheet_styles_every_app_shell_option(): void
     {
         $css = (string) file_get_contents($this->directory.'/styles.css');
@@ -456,6 +492,17 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
                 self::assertStringContainsString('.'.$prefix.$option, $css, sprintf('The export has no rule for %s="%s".', $prop, $option));
             }
         }
+    }
+
+    public function test_the_app_shell_wrapper_draws_the_menu_and_avatar_classes_of_the_base_template(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+
+        self::assertStringContainsString('<div className="lp-menu lp-menu--chrome lp-menu--stretch">', $jsx);
+        self::assertStringContainsString('className="lp-menu__item"', $jsx);
+        self::assertStringContainsString('lp-avatar lp-avatar--sm lp-avatar--square lp-avatar--danger', $jsx);
+        self::assertStringContainsString('lp-avatar lp-avatar--xs lp-avatar--round lp-avatar--chrome', $jsx);
+        self::assertStringContainsString('<Icon name="plus" className="lp-icon lp-icon--md" />', $jsx);
     }
 
     public function test_the_app_shell_wrapper_draws_every_shell_class_of_the_base_template(): void
@@ -536,7 +583,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $sidebarOnly = $projectOnly($sidebarGated);
         $topbarOnly = $projectOnly($topbarGated);
 
-        self::assertContains('lp-switcher', $sidebarOnly);
+        self::assertContains('lp-sidebar__switcher', $sidebarOnly);
         self::assertSame(['lp-topbar__new-work'], array_values($topbarOnly));
         foreach (['hasProject' => [$sidebarOnly, $sidebarGuarded], 'onProjectPage' => [$topbarOnly, $topbarGuarded]] as $guard => [$classes, $guarded]) {
             foreach ($classes as $class) {
