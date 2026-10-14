@@ -620,6 +620,12 @@ current wait. `endReason` is `resolved`, `card-finished`, `card-deleted`,
 `switched-off` or `dismissed`. For any other kind,
 `cardId` is null and `waits` is empty.
 
+`inbox_get` also returns `actions`, the actions the owner ran on the item,
+oldest first. Each entry holds `actionId`, `kind`, `note`, `requestedBy`,
+`requestedAt`, `bridgeCommandId`, `workRequestId`, `pauseId` and `cancelledAt`.
+`note` is the text the owner wrote with the action, and it is empty when the
+owner wrote none. A dismiss records no action, and its note is the `closeNote`.
+
 Each entry of `asks` in `inbox_get` carries `origin` too. The `sessionId` of a
 Loupe ask is null.
 
