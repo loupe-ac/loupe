@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\ExperimentPin;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunFact;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -1000,6 +1001,34 @@ class WorkerRunRepository extends ServiceEntityRepository
         }
 
         return $byRequest;
+    }
+
+    /**
+     * The runs that these requests started, newest report first. The subject filter leads with the indexed columns.
+     *
+     * @param list<WorkRequest> $requests card requests
+     *
+     * @return list<WorkerRun>
+     */
+    public function findOfCardWorkRequests(array $requests): array
+    {
+        if ([] === $requests) {
+            return [];
+        }
+
+        return array_values($this->createQueryBuilder('r')
+            ->andWhere('r.project IN (:projects)')
+            ->andWhere('r.subjectType = :card')
+            ->andWhere('r.subjectId IN (:cards)')
+            ->andWhere('r.workRequestId IN (:requests)')
+            ->setParameter('projects', array_values(array_unique(array_map(static fn (WorkRequest $request): string => (string) $request->project->id, $requests))))
+            ->setParameter('card', WorkSubject::CARD)
+            ->setParameter('cards', array_values(array_unique(array_map(static fn (WorkRequest $request): string => $request->subjectId->toRfc4122(), $requests))))
+            ->setParameter('requests', array_map(static fn (WorkRequest $request): string => (string) $request->id, $requests))
+            ->orderBy('r.receivedAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->getQuery()
+            ->getResult());
     }
 
     /**

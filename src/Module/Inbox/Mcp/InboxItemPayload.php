@@ -29,9 +29,9 @@ use App\Module\Review\Repository\ReviewRepository;
  * @phpstan-type InboxItemDocumentSummary array{documentId: string, title: string}
  * @phpstan-type InboxItemAskSummary array{askId: string, origin: string, sessionId: ?string, closedAt: ?string}
  * @phpstan-type InboxCardWaitSummary array{trigger: string, type: string, reason: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
- * @phpstan-type InboxActionSummary array{actionId: string, kind: string, note: string, requestedAt: string, cancelledAt: ?string}
+ * @phpstan-type InboxActionSummary array{actionId: string, kind: string, note: string, requestedBy: ?string, requestedAt: string, bridgeCommandId: ?string, workRequestId: ?string, pauseId: ?string, cancelledAt: ?string}
  * @phpstan-type InboxSuggestedActionSummary array{action: string, reason: string, recommended: bool, cardId: ?string}
- * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>, actions: list<InboxActionSummary>, suggestedActions: list<InboxSuggestedActionSummary>}
+ * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>, suggestedActions: list<InboxSuggestedActionSummary>, actions: list<InboxActionSummary>}
  * @phpstan-type InboxAskSummary array{askId: string, extended: bool, closed: bool, items: list<InboxItemListSummary>}
  */
 final readonly class InboxItemPayload
@@ -170,17 +170,21 @@ final readonly class InboxItemPayload
                 ],
                 $waits,
             ),
+            'suggestedActions' => $item->suggestedActions ?? [],
             'actions' => array_map(
                 static fn (InboxAction $action): array => [
                     'actionId' => (string) $action->id,
                     'kind' => $action->kind->value,
                     'note' => $action->note,
+                    'requestedBy' => $action->requestedBy?->fullName,
                     'requestedAt' => $action->requestedAt->format(\DATE_ATOM),
+                    'bridgeCommandId' => $action->bridgeCommandId?->toRfc4122(),
+                    'workRequestId' => $action->workRequestId?->toRfc4122(),
+                    'pauseId' => $action->pauseId?->toRfc4122(),
                     'cancelledAt' => $action->cancelledAt?->format(\DATE_ATOM),
                 ],
                 $this->inboxActions->findByItem($item),
             ),
-            'suggestedActions' => $item->suggestedActions ?? [],
         ];
     }
 

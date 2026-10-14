@@ -9,7 +9,7 @@ use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Service\InboxActionRefresher;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-/** The work request of an action opened, was claimed, settled or withdrew, so the status line of the action changed. */
+/** The work request of an action opened, was claimed, settled or was withdrawn, so the status line of the action changed. */
 #[AsEventListener]
 final readonly class RefreshInboxOnWorkRequestChanged
 {

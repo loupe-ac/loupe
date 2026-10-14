@@ -20,7 +20,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * Withdraws the resume or the agent that an inbox action queued. Only a command or a work request that
+ * Withdraws the resume, the agent or the session request that an inbox action queued. Only one that
  * still waits on the bridge can be withdrawn. A retry is synchronous, so it never qualifies.
  */
 final readonly class CancelInboxActionHandler
@@ -50,7 +50,7 @@ final readonly class CancelInboxActionHandler
 
         match ($action->kind) {
             InboxActionKind::ResumeRun => $this->cancelResume($action, $command),
-            InboxActionKind::SendAgent => $this->cancelSendAgent($action),
+            InboxActionKind::SendAgent, InboxActionKind::StartSession => $this->cancelWorkRequest($action),
             default => throw new DomainErrors(['action' => self::NOT_CANCELLABLE]),
         };
 
@@ -86,7 +86,7 @@ final readonly class CancelInboxActionHandler
     }
 
     /** The withdraw answers false when a bridge claimed the request since the read, and the claim stands. */
-    private function cancelSendAgent(InboxAction $action): void
+    private function cancelWorkRequest(InboxAction $action): void
     {
         $withdrawn = null !== $action->workRequestId
             && ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($action->workRequestId, WorkRequestState::Cancelled, onlyIfOpen: true));

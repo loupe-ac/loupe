@@ -12,9 +12,12 @@ use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\RequestBridgeCommandCommand;
 use App\Module\Bridge\Command\RequestBridgeCommandHandler;
 use App\Module\Bridge\Command\WorkRequestAlreadyLive;
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
@@ -33,13 +36,16 @@ use Ubermuda\AuditBundle\AuditSubject;
 
 /**
  * Runs one action that the owner chose on an inbox item. A resume asks the bridge, a retry releases
- * the pause, send an agent opens a fresh work request, and a dismiss closes the item. The note stays in Loupe: no command carries its text.
+ * the pause, send an agent and a session each open a work request, and a dismiss closes the item.
+ * The note stays in Loupe: no command carries its text.
  * A dismiss records no row, because the closed item holds the note as its close note.
  */
 final readonly class RunInboxActionHandler
 {
     public const string NOTE_TOO_LONG = 'inbox.action.error.note_too_long';
     public const string NOT_AVAILABLE = 'inbox.action.error.not_available';
+
+    public const string SESSION_RULE_ID = PersonWork::RULE_PREFIX.'start-session';
 
     public function __construct(
         private ItemActions $itemActions,
@@ -64,7 +70,7 @@ final readonly class RunInboxActionHandler
         if (mb_strlen($note) > InboxAction::MAX_NOTE_LENGTH) {
             throw new DomainErrors(['note' => self::NOTE_TOO_LONG]);
         }
-        if (InboxItemState::Open !== $item->state || !self::runsHere($kind) || !array_any($this->itemActions->forItem($item), static fn ($action): bool => $action->kind === $kind)) {
+        if (InboxItemState::Open !== $item->state || !self::runsHere($kind) || !array_any($this->itemActions->forItem($item), static fn ($action): bool => $action->kind === $kind && null === $action->disabledReasonKey)) {
             throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
         }
 
@@ -73,6 +79,7 @@ final readonly class RunInboxActionHandler
                 InboxActionKind::ResumeRun => $this->resume($command, $note),
                 InboxActionKind::RetryCard => $this->retry($command, $note),
                 InboxActionKind::SendAgent => $this->sendAgent($command, $note),
+                InboxActionKind::StartSession => $this->startSession($command, $note),
                 default => $this->dismiss($command, $note),
             };
         } catch (DomainErrors $e) {
@@ -94,10 +101,10 @@ final readonly class RunInboxActionHandler
         return $action;
     }
 
-    /** The kinds this handler runs. Open and review are links, and a new session belongs to a later card. */
+    /** The kinds this handler runs. Open and review are links. */
     private static function runsHere(InboxActionKind $kind): bool
     {
-        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::Dismiss], true);
+        return \in_array($kind, [InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::Dismiss], true);
     }
 
     private function resume(RunInboxActionCommand $command, string $note): InboxAction
@@ -176,6 +183,41 @@ final readonly class RunInboxActionHandler
             // A race can trip the unique index of live requests, which closes the entity manager.
             $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
             throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+        }
+
+        $action->workRequestId = $request->id;
+        $this->em->flush();
+
+        return $action;
+    }
+
+    private function startSession(RunInboxActionCommand $command, string $note): InboxAction
+    {
+        $item = $command->item;
+        $projectId = $item->project->id ?? throw new \LogicException('A stored project has an id.');
+        $card = $this->cardDirectory->findInProject($projectId, $this->itemActions->cardIdOf($item) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
+            ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
+
+        // The row commits first, because the request names it. A refused request removes it again.
+        $action = new InboxAction($item, InboxActionKind::StartSession, $command->user, $note);
+        $this->em->persist($action);
+        $this->em->flush();
+
+        try {
+            $request = ($this->openWorkRequest)(new OpenWorkRequestCommand(
+                project: $item->project,
+                subject: WorkSubject::card($card->id),
+                cardNumber: $card->number,
+                kind: WorkRequest::SESSION_KIND,
+                capability: Bridge::CAPABILITY_SESSION,
+                ruleId: self::SESSION_RULE_ID,
+                context: new WorkRequestContext(inboxActionId: $action->id?->toRfc4122(), inboxItemNumber: $item->number, inboxItemId: $item->id?->toRfc4122()),
+                fresh: true,
+            ));
+        } catch (WorkRequestAlreadyLive|DomainErrors $e) {
+            // The bridge closes the entity manager when a race trips its unique index, so delete through the connection.
+            $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
+            throw $e instanceof DomainErrors ? $e : new DomainErrors(['action' => self::NOT_AVAILABLE]);
         }
 
         $action->workRequestId = $request->id;

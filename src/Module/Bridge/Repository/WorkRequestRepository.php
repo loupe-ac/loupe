@@ -272,6 +272,29 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
+     * since the deadline or longer, oldest first. A reopen restarts the wait.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenOfRulePrefixAndKindBefore(string $rulePrefix, string $kind, \DateTimeImmutable $deadline): array
+    {
+        return array_values($this->createQueryBuilder('w')
+            ->andWhere('w.state = :open')
+            ->andWhere('w.kind = :kind')
+            ->andWhere('w.ruleId LIKE :prefix')
+            ->andWhere('COALESCE(w.reopenedAt, w.createdAt) <= :deadline')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('kind', $kind)
+            ->setParameter('prefix', addcslashes($rulePrefix, '%_\\').'%')
+            ->setParameter('deadline', $deadline, Types::DATETIME_IMMUTABLE)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
      * Restarts the timeout of each open request of the cards, in one statement, so it joins a caller's transaction.
      * A managed request is stale after it.
      *

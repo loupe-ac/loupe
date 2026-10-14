@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
+use App\Module\Board\Entity\Card;
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Mcp\InboxActionsTool;
+use App\Module\Project\Entity\Project;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
@@ -56,7 +62,7 @@ final class InboxActionsToolTest extends KernelTestCase
         self::assertNotContains('', array_column($actions, 'effect'));
     }
 
-    public function test_a_card_with_no_wait_item_fits_open_and_start_session(): void
+    public function test_a_card_with_no_wait_item_fits_open_alone_while_no_bridge_can_open_a_session(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-actions-card');
@@ -64,12 +70,33 @@ final class InboxActionsToolTest extends KernelTestCase
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($project);
 
-        $actions = ($this->tool)((string) $card->id)['actions'];
-
-        self::assertSame(['open', 'start-session'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
+        self::assertSame(['open'], $this->fitting((string) $card->id));
     }
 
-    public function test_a_card_waiting_for_a_review_fits_review_open_send_agent_start_session_and_dismiss(): void
+    public function test_a_card_with_no_wait_item_fits_open_and_start_session_with_a_session_bridge(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-actions-card-session');
+        $card = $this->card($this->em, $project);
+        $this->sessionBridge($project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(['open', 'start-session'], $this->fitting((string) $card->id));
+    }
+
+    public function test_a_card_with_no_wait_item_does_not_fit_start_session_while_a_session_request_is_live(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-actions-card-live');
+        $card = $this->card($this->em, $project);
+        $this->sessionBridge($project);
+        $this->liveSession($project, $card);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(['open'], $this->fitting((string) $card->id));
+    }
+
+    public function test_a_card_waiting_for_a_review_fits_review_open_and_dismiss_while_no_bridge_can_open_a_session(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-actions-review');
@@ -78,9 +105,34 @@ final class InboxActionsToolTest extends KernelTestCase
         $this->reconcileWaits($project, $card);
         $this->actAsMcpTokenBoundTo($project);
 
-        $actions = ($this->tool)((string) $card->id)['actions'];
+        self::assertSame(['review', 'open', 'send-agent', 'dismiss'], $this->fitting((string) $card->id));
+    }
 
-        self::assertSame(['review', 'open', 'send-agent', 'start-session', 'dismiss'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
+    public function test_a_card_waiting_for_a_review_fits_start_session_with_a_session_bridge(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-actions-review-session');
+        $card = $this->card($this->em, $project);
+        $this->documentInReview($project, $card);
+        $this->reconcileWaits($project, $card);
+        $this->sessionBridge($project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(['review', 'open', 'send-agent', 'start-session', 'dismiss'], $this->fitting((string) $card->id));
+    }
+
+    public function test_a_card_waiting_for_a_review_does_not_fit_start_session_while_a_session_request_is_live(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-actions-review-live');
+        $card = $this->card($this->em, $project);
+        $this->documentInReview($project, $card);
+        $this->reconcileWaits($project, $card);
+        $this->sessionBridge($project);
+        $this->liveSession($project, $card);
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertSame(['review', 'open', 'send-agent', 'dismiss'], $this->fitting((string) $card->id));
     }
 
     public function test_a_card_of_another_project_is_refused(): void
@@ -113,5 +165,25 @@ final class InboxActionsToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         ($this->tool)((string) Uuid::v4());
+    }
+
+    /** @return list<string> the actions whose fitsCard is true */
+    private function fitting(string $cardId): array
+    {
+        return array_values(array_column(array_filter(($this->tool)($cardId)['actions'], static fn (array $action): bool => true === $action['fitsCard']), 'action'));
+    }
+
+    private function sessionBridge(Project $project): void
+    {
+        $bridge = new Bridge($project->owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->em->persist($bridge);
+        $this->em->flush();
+    }
+
+    private function liveSession(Project $project, Card $card): void
+    {
+        $this->em->persist(new WorkRequest($project, WorkSubject::CARD, $card->id ?? throw new \LogicException('Stored.'), $card->number, WorkRequest::SESSION_KIND, 'session', RunInboxActionHandler::SESSION_RULE_ID, new \DateTimeImmutable()));
+        $this->em->flush();
     }
 }

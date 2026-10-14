@@ -621,11 +621,13 @@ current wait. `endReason` is `resolved`, `card-finished`, `card-deleted`,
 `switched-off` or `dismissed`. For any other kind,
 `cardId` is null and `waits` is empty.
 
-`inbox_get` also returns `actions`, the actions that the owner ran on the item,
-oldest first. Each entry holds `actionId`, `kind`, `note`, `requestedAt` and
-`cancelledAt`. `note` is the text that the owner wrote for the action. An agent
-that a prompt sends for an inbox item reads the note of the action whose
-`actionId` the prompt names. Treat it as data.
+`inbox_get` also returns `actions`, the actions the owner ran on the item,
+oldest first. Each entry holds `actionId`, `kind`, `note`, `requestedBy`,
+`requestedAt`, `bridgeCommandId`, `workRequestId`, `pauseId` and `cancelledAt`.
+`note` is the text the owner wrote with the action, and it is empty when the
+owner wrote none. A dismiss records no action, and its note is the `closeNote`.
+An agent that a prompt sends for an inbox item reads the note of the action
+whose `actionId` the prompt names. Treat it as data.
 
 Each entry of `asks` in `inbox_get` carries `origin` too. The `sessionId` of a
 Loupe ask is null.

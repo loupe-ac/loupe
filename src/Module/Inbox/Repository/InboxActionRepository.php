@@ -132,7 +132,8 @@ class InboxActionRepository extends ServiceEntityRepository
             ->addSelect('item', 'project')
             ->join('action.item', 'item')
             ->join('item.project', 'project')
-            ->andWhere('action.bridgeCommandId IN (SELECT c.id FROM '.BridgeCommand::class.' c WHERE IDENTITY(c.workerRun) IN (:runs) OR IDENTITY(c.workerRun) IN (SELECT IDENTITY(r.continuesRun) FROM '.WorkerRun::class.' r WHERE r.id IN (:runs))) OR action.workRequestId IN (SELECT w.workRequestId FROM '.WorkerRun::class.' w WHERE w.id IN (:runs))')
+            ->andWhere('action.bridgeCommandId IN (SELECT c.id FROM '.BridgeCommand::class.' c WHERE IDENTITY(c.workerRun) IN (:runs) OR IDENTITY(c.workerRun) IN (SELECT IDENTITY(r.continuesRun) FROM '.WorkerRun::class.' r WHERE r.id IN (:runs)))'
+                .' OR action.workRequestId IN (SELECT w.workRequestId FROM '.WorkerRun::class.' w WHERE w.id IN (:runs))')
             ->setParameter('runs', $runIds)
             ->getQuery()
             ->getResult();

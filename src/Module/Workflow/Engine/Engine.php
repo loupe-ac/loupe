@@ -436,10 +436,10 @@ final readonly class Engine
         $withdrawn = false;
         $expired = [];
         foreach ($this->ledger->live($cardId) as $request) {
-            if (PersonWork::isPersonRule($request->ruleId)) {
+            $requestId = $request->id;
+            if (PersonWork::owns($request->ruleId)) {
                 continue;
             }
-            $requestId = $request->id;
             $rule = $run->rule($request->ruleId);
             if (null === $rule || !$run->applies($rule)) {
                 $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled) || $withdrawn;

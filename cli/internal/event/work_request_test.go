@@ -89,6 +89,14 @@ func TestParseWorkRequestRejectsEachMalformedField(t *testing.T) {
 	}
 }
 
+func TestParseWorkRequestAcceptsAPersonWorkRuleID(t *testing.T) {
+	payload := strings.Replace(workRequestPayload, `"ruleId":"impl.rule-1"`, `"ruleId":"inbox:start-session"`, 1)
+	w, err := ParseWorkRequest([]byte(payload))
+	if err != nil || w.RuleID != "inbox:start-session" {
+		t.Fatalf("work request = %+v, err = %v", w, err)
+	}
+}
+
 func TestParseWorkRequestReadsTheModelAndTheEffort(t *testing.T) {
 	for _, tc := range []struct{ extra, model, effort string }{
 		{`,"model":null,"effort":null`, "", ""},
@@ -211,6 +219,23 @@ func TestParseWorkRequestReadsTheContext(t *testing.T) {
 	}
 }
 
+// A request from an inbox action names the action and the item. A null reads
+// as unset.
+func TestParseWorkRequestReadsTheInboxAction(t *testing.T) {
+	payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":{`+
+		`"inboxActionId":"01A10BEB-BA65-736B-8626-A6E3FA59DFC5","inboxItemNumber":12,"inboxItemId":"01A137DA-4DE8-70AE-991F-2EF19584F2A6"}`, 1)
+	w, err := ParseWorkRequest([]byte(payload))
+	if err != nil || w.Context.InboxActionID != "01a10beb-ba65-736b-8626-a6e3fa59dfc5" || w.Context.InboxItemNumber != 12 || w.Context.InboxItemID != "01a137da-4de8-70ae-991f-2ef19584f2a6" {
+		t.Fatalf("work request = %+v, err = %v", w.Context, err)
+	}
+
+	payload = strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":{"inboxActionId":null,"inboxItemNumber":null,"inboxItemId":null}`, 1)
+	w, err = ParseWorkRequest([]byte(payload))
+	if err != nil || w.Context != (api.WorkRequestContext{}) {
+		t.Fatalf("work request = %+v, err = %v", w.Context, err)
+	}
+}
+
 // The server takes a link as a person gave it, within its pattern, so the
 // bridge takes any URL that pattern takes, a bad percent escape included.
 func TestParseWorkRequestTakesAnyURLTheServerTakes(t *testing.T) {
@@ -239,6 +264,9 @@ func TestParseWorkRequestRejectsEachMalformedContextValue(t *testing.T) {
 		"a reason with a brace":      `{"reason":"fix{x}"}`,
 		"a document id not a uuid":   `{"documentId":"design"}`,
 		"a number that is a string":  `{"pullRequestNumber":"42"}`,
+		"an inbox action not a uuid": `{"inboxActionId":"start"}`,
+		"a negative inbox number":    `{"inboxItemNumber":-3}`,
+		"an inbox item not a uuid":   `{"inboxItemId":"41"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":`+context, 1)

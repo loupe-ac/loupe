@@ -150,6 +150,15 @@ func RenderPlain(template string, values map[string]string) string {
 	return fill(template, values)
 }
 
+// InboxNote ends the prompt of a session the owner started from an inbox item.
+// The owner's note and the earlier report stay in the app, so the agent reads
+// them there. inbox_get takes the item id, never the number.
+func InboxNote(itemNumber int, itemID string) string {
+	return "The owner started this session from inbox item " + strconv.Itoa(itemNumber) + " (itemId " + itemID + "). " +
+		"First call inbox_get with that itemId, and read the owner's note in its actions. " +
+		"Read the earlier report with worker_run_get, for the runId of its waits."
+}
+
 // RenderResume fills each placeholder and appends ResumeFooter.
 func RenderResume(template string, values map[string]string) string {
 	return fill(template, values) + "\n\n" + ResumeFooter

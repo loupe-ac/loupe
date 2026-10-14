@@ -129,36 +129,26 @@ final class RefreshInboxOnActionChangedTest extends KernelTestCase
 
     public function test_a_changed_work_request_refreshes_the_page_of_its_action(): void
     {
-        $request = Uuid::v4();
-        $this->sendAgentAction($request);
+        $requestId = $this->sessionAction($this->project);
 
         $this->dispatch(new WorkRequestChanged($this->projectId($this->project), WorkSubject::CARD, Uuid::v4(), Uuid::v4(), WorkRequestState::Claimed));
         self::assertSame(0, $this->publishedPages());
 
-        $this->dispatch(new WorkRequestChanged($this->projectId($this->project), WorkSubject::CARD, Uuid::v4(), $request, WorkRequestState::Claimed));
+        $this->dispatch(new WorkRequestChanged($this->projectId($this->project), WorkSubject::CARD, Uuid::v4(), $requestId, WorkRequestState::Claimed));
         self::assertSame(1, $this->publishedPages());
     }
 
-    public function test_a_changed_run_that_a_work_request_started_refreshes_the_page_of_its_action(): void
+    public function test_a_run_that_a_session_request_started_refreshes_the_page_of_its_action(): void
     {
-        $request = Uuid::v4();
-        $this->sendAgentAction($request);
-        $started = $this->stoppedRun($this->project, workRequestId: $request);
+        $requestId = $this->sessionAction($this->project);
+        $run = $this->stoppedRun($this->project, workRequestId: $requestId);
         $unrelated = $this->stoppedRun($this->project, workRequestId: Uuid::v4());
 
         $this->dispatchRunChanged($this->project, $unrelated);
         self::assertSame(0, $this->publishedPages());
 
-        $this->dispatchRunChanged($this->project, $started);
+        $this->dispatchRunChanged($this->project, $run);
         self::assertSame(1, $this->publishedPages());
-    }
-
-    private function sendAgentAction(Uuid $requestId): void
-    {
-        $action = new InboxAction($this->item($this->em, $this->project, random_int(1, 1_000_000)), InboxActionKind::SendAgent, $this->project->owner);
-        $action->workRequestId = $requestId;
-        $this->em->persist($action);
-        $this->em->flush();
     }
 
     private function stoppedRun(Project $project, ?WorkerRun $continues = null, ?Uuid $workRequestId = null): WorkerRun
@@ -199,6 +189,18 @@ final class RefreshInboxOnActionChangedTest extends KernelTestCase
         $this->em->flush();
 
         return $command->id ?? throw new \LogicException('Stored.');
+    }
+
+    /** Records a session action with a work request id, and answers that id. */
+    private function sessionAction(Project $project): Uuid
+    {
+        $requestId = Uuid::v4();
+        $action = new InboxAction($this->item($this->em, $project, random_int(1, 1_000_000)), InboxActionKind::StartSession, $project->owner);
+        $action->workRequestId = $requestId;
+        $this->em->persist($action);
+        $this->em->flush();
+
+        return $requestId;
     }
 
     private function dispatchRunChanged(Project $project, WorkerRun ...$runs): void
