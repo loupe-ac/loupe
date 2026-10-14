@@ -84,7 +84,7 @@ final readonly class ItemActions
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses);
-            $default = [] === $waits ? null : self::defaultKind(end($waits), $releasablePauses);
+            $default = self::defaultKind($item, $waits, $fitting);
             $actions[self::key($item)] = array_map(
                 static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $default),
                 $fitting,
@@ -155,14 +155,26 @@ final readonly class ItemActions
         return InboxItemKind::Wait === $item->kind;
     }
 
-    /** @param array<string, true> $releasablePauses */
-    private static function defaultKind(InboxCardWait $newest, array $releasablePauses): InboxActionKind
+    /**
+     * The kind of the newest open wait when it fits, otherwise Open, so a wait item always has a default that fits.
+     *
+     * @param list<InboxCardWait>   $waits   open waits, oldest first
+     * @param list<InboxActionKind> $fitting
+     */
+    private static function defaultKind(InboxItem $item, array $waits, array $fitting): ?InboxActionKind
     {
-        return match ($newest->type) {
+        if (InboxItemKind::Wait !== $item->kind) {
+            return null;
+        }
+
+        $newest = end($waits);
+        $preferred = false === $newest ? InboxActionKind::Open : match ($newest->type) {
             InboxCardWaitType::WorkerRun => InboxActionKind::ResumeRun,
-            InboxCardWaitType::CardPause => null !== $newest->pauseId && isset($releasablePauses[$newest->pauseId->toRfc4122()]) ? InboxActionKind::RetryCard : InboxActionKind::Open,
+            InboxCardWaitType::CardPause => InboxActionKind::RetryCard,
             InboxCardWaitType::Document, InboxCardWaitType::PullRequest => InboxActionKind::Review,
         };
+
+        return \in_array($preferred, $fitting, true) ? $preferred : InboxActionKind::Open;
     }
 
     /**

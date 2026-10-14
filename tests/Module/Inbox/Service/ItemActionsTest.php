@@ -84,7 +84,7 @@ final class ItemActionsTest extends KernelTestCase
     {
         $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Running))]);
 
-        self::assertSame([[InboxActionKind::Open, false], [InboxActionKind::Dismiss, false]], $this->summary($item));
+        self::assertSame([[InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]], $this->summary($item));
     }
 
     public function test_a_run_with_a_pending_command_does_not_offer_resume(): void
@@ -102,7 +102,7 @@ final class ItemActionsTest extends KernelTestCase
         ));
         $this->em->flush();
 
-        self::assertSame([[InboxActionKind::Open, false], [InboxActionKind::Dismiss, false]], $this->summary($this->waitItem([$this->runWait($run)])));
+        self::assertSame([[InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]], $this->summary($this->waitItem([$this->runWait($run)])));
     }
 
     public function test_a_bridge_that_takes_no_commands_does_not_offer_resume(): void
@@ -110,15 +110,15 @@ final class ItemActionsTest extends KernelTestCase
         $this->bridge->capabilities = [];
         $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
 
-        self::assertSame([[InboxActionKind::Open, false], [InboxActionKind::Dismiss, false]], $this->summary($item));
+        self::assertSame([[InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]], $this->summary($item));
     }
 
-    public function test_an_ended_wait_fits_nothing(): void
+    public function test_an_ended_wait_leaves_open_as_the_default(): void
     {
         $wait = $this->runWait($this->workerRun(WorkerRunState::Blocked));
         $wait->endedAt = new \DateTimeImmutable();
 
-        self::assertSame([[InboxActionKind::Open, false], [InboxActionKind::Dismiss, false]], $this->summary($this->waitItem([$wait])));
+        self::assertSame([[InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]], $this->summary($this->waitItem([$wait])));
     }
 
     #[DataProvider('releasableKinds')]
@@ -209,7 +209,7 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([InboxActionKind::ResumeRun], $this->defaults($item));
     }
 
-    public function test_no_action_is_the_default_when_the_default_kind_does_not_fit(): void
+    public function test_open_is_the_default_when_the_kind_of_the_newest_wait_does_not_fit(): void
     {
         $item = $this->waitItem([
             $this->documentWait(new \DateTimeImmutable('2026-10-13 10:00:00')),
@@ -217,7 +217,7 @@ final class ItemActionsTest extends KernelTestCase
         ]);
 
         self::assertSame(
-            [[InboxActionKind::Review, false], [InboxActionKind::Open, false], [InboxActionKind::Dismiss, false]],
+            [[InboxActionKind::Review, false], [InboxActionKind::Open, true], [InboxActionKind::Dismiss, false]],
             $this->summary($item),
         );
     }
