@@ -1,0 +1,64 @@
+/* The avatar: a letter or an icon in a disc or a rounded square. `templates/components/Ds/Avatar.html.twig` renders it. */
+@layer components {
+    .lp-avatar {
+        @apply relative inline-flex shrink-0 items-center justify-center font-bold;
+    }
+    .lp-avatar--xs {
+        @apply size-6 text-xs;
+    }
+    .lp-avatar--sm {
+        @apply size-8 text-xs;
+    }
+    .lp-avatar--md {
+        @apply size-10 text-base;
+    }
+    .lp-avatar--lg {
+        @apply size-14 text-xl;
+    }
+    .lp-avatar--xs svg {
+        @apply size-3.5;
+    }
+    .lp-avatar--sm svg {
+        @apply size-4;
+    }
+    .lp-avatar--md svg {
+        @apply size-5;
+    }
+    .lp-avatar--lg svg {
+        @apply size-7;
+    }
+    .lp-avatar--round {
+        @apply rounded-full;
+    }
+    .lp-avatar--square {
+        @apply rounded-lg;
+    }
+    .lp-avatar--lg.lp-avatar--square {
+        @apply rounded-2xl;
+    }
+    .lp-avatar--accent {
+        @apply bg-accent-soft text-accent-ink;
+    }
+    .lp-avatar--tint {
+        @apply bg-tint text-accent-ink;
+    }
+    .lp-avatar--ink {
+        @apply bg-ink text-accent;
+    }
+    .lp-avatar--danger {
+        @apply bg-status-danger text-white;
+    }
+    .lp-avatar--chrome {
+        @apply bg-chrome-control text-accent;
+    }
+    /* A dot for a connection: green live, amber quiet, grey with none. */
+    .lp-avatar__dot {
+        @apply absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-surface-2 bg-fg-faint;
+    }
+    .lp-avatar__dot--live {
+        @apply bg-status-ok;
+    }
+    .lp-avatar__dot--quiet {
+        @apply bg-status-pending;
+    }
+}

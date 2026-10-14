@@ -6,10 +6,10 @@
         <p class="lp-dialog-desc">{{ 'oauth.connected_apps.preview_tokens.revoke.description'|trans }}</p>
         <form method="post" action="{{ path('app_account_preview_token_revoke_to_card', {accessTokenId: token.accessTokenId}) }}" data-turbo-frame="_top">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke-preview-token') }}">
-            <div class="lp-dialog-actions">
+            <twig:Ds:FormActions>
                 <twig:Ds:Button variant="ghost" type="button" data-action="click->modal#close">{{ 'oauth.connected_apps.revoke.cancel'|trans }}</twig:Ds:Button>
                 <twig:Ds:Button variant="danger" type="submit">{{ 'oauth.connected_apps.revoke.confirm'|trans }}</twig:Ds:Button>
-            </div>
+            </twig:Ds:FormActions>
         </form>
     </twig:Ds:Dialog>
 </div>

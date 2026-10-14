@@ -1,0 +1,10 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the Avatar for the styleguide, so it is intentionally untranslated. #}
+{% for size in ['xs', 'sm', 'md', 'lg'] %}
+    <twig:Ds:Avatar name="Loupe" :tone="variant" :size="size" />
+    <twig:Ds:Avatar name="Loupe" :tone="variant" :size="size" shape="square" />
+    <twig:Ds:Avatar icon="lucide:bot" :tone="variant" :size="size" />
+{% endfor %}
+<twig:Ds:Avatar name="Loupe" :tone="variant" presence="live" />
+<twig:Ds:Avatar name="Loupe" :tone="variant" presence="quiet" />
+<twig:Ds:Avatar name="Loupe" :tone="variant" presence="none" />

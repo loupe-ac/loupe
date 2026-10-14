@@ -254,7 +254,7 @@ test('project settings fit narrow screens and enlarged text', async ({
     seeded,
 }) => {
     await page.goto(`/projects/${seeded.projectId}/edit`);
-    const panels = page.locator('.lp-settings-panel-card');
+    const panels = page.locator('.lp-panel');
     await expect(panels).toHaveCount(2);
     for (const width of [1440, 1150, 950, 780, 390]) {
         await page.setViewportSize({ width, height: 1000 });
@@ -454,7 +454,7 @@ test('search and status stay aligned across workspace widths', async ({
     for (const path of ['documents', 'worker-runs?search=missing']) {
         await page.goto(`/projects/${seeded.projectId}/${path}`);
         const search = page.locator('.lp-filter-input');
-        const status = page.locator('.lp-filter-select').first();
+        const status = page.locator('.lp-list-filters select').first();
         for (const width of [1440, 1150, 950, 780, 390]) {
             await page.setViewportSize({ width, height: 900 });
             await expect(search).toBeVisible();
@@ -505,7 +505,7 @@ test('enlarged workspace filters remain reachable', async ({
             document.documentElement.style.fontSize = '200%';
         });
         const search = page.locator('.lp-filter-input');
-        const status = page.locator('.lp-filter-select').first();
+        const status = page.locator('.lp-list-filters select').first();
         const filters = page.locator('.lp-filter-primary');
         for (const width of [1440, 1150, 950, 780, 390]) {
             await page.setViewportSize({ width, height: 1000 });
@@ -539,7 +539,7 @@ test('no touch control renders below the 16px iOS zoom threshold', async ({
 }) => {
     await page.goto(`/projects/${seeded.projectId}/documents`);
 
-    for (const selector of ['.lp-filter-input', '.lp-filter-select']) {
+    for (const selector of ['.lp-filter-input', '.lp-list-filters select']) {
         const control = page.locator(selector).first();
         await expect(control).toBeVisible();
         await expect(control).toHaveCSS('height', '44px');

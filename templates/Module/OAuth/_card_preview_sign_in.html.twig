@@ -1,24 +1,23 @@
 {# The preview sign-in panel of a card page. Props: tokens (list of PreviewTokenRow of the viewer for this card). #}
 {% set single = tokens|length == 1 %}
 <section class="lp-card-overview__section" data-preview-sign-in>
-    <div class="lp-section-heading">
-        <h2 class="lp-card-panel__title">{{ 'oauth.preview_sign_in.title'|trans }}</h2>
-        {% if single %}
+    <twig:Ds:SectionHeading>{{ 'oauth.preview_sign_in.title'|trans }}
+        <twig:block name="actions">{% if single %}
             {% include '@OAuth/_card_preview_sign_in_revoke.html.twig' with {token: tokens|first, index: 1} only %}
-        {% endif %}
-    </div>
+        {% endif %}</twig:block>
+    </twig:Ds:SectionHeading>
     {% for token in tokens %}
     <div class="lp-preview-sign-in__token" data-preview-sign-in-token="{{ token.accessTokenId }}">
         {% if not single %}
-        <div class="lp-section-heading">
-            <h3 class="lp-preview-sign-in__label">{{ token.label }}</h3>
-            {% include '@OAuth/_card_preview_sign_in_revoke.html.twig' with {token: token, index: loop.index} only %}
-        </div>
+        {% set tokenIndex = loop.index %}
+        <twig:Ds:SectionHeading :level="3">{{ token.label }}
+            <twig:block name="actions">{% include '@OAuth/_card_preview_sign_in_revoke.html.twig' with {token: token, index: tokenIndex} only %}</twig:block>
+        </twig:Ds:SectionHeading>
         {% endif %}
         <dl class="lp-card-fields">
             <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.status'|trans }}</dt><dd><twig:Ds:StatusChip modifier="ok" :label="'oauth.preview_sign_in.active'|trans" /></dd></div>
             <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.expires'|trans }}</dt><dd>{{ 'oauth.preview_sign_in.expires_in'|trans({'%count%': token.expiresAt|preview_token_days_left}) }}</dd></div>
-            <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.last_used'|trans }}</dt><dd>{{ token.lastUsedAt ? token.lastUsedAt|relative_time : 'oauth.connected_apps.preview_tokens.not_used'|trans }}</dd></div>
+            <div class="lp-card-field"><dt>{{ 'oauth.preview_sign_in.last_used'|trans }}</dt><dd>{% if token.lastUsedAt %}<twig:Ds:RelativeTime :datetime="token.lastUsedAt" />{% else %}{{ 'oauth.connected_apps.preview_tokens.not_used'|trans }}{% endif %}</dd></div>
         </dl>
     </div>
     {% else %}

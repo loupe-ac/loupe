@@ -705,14 +705,15 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         $timeline = $crawler->filter('[data-worker-run-id="'.$runId.'"] .lp-run-drawer__timeline li');
         self::assertSame(
             [
-                'Queued 2026-01-01 09:59:00 UTC',
-                'Running 2026-01-01 10:00:00 UTC',
-                'Succeeded 2026-01-01 10:05:00 UTC',
-                'Report received 2026-01-01 11:00:00 UTC',
+                'Queued 1 Jan 2026, 09:59',
+                'Running 1 Jan 2026, 10:00',
+                'Succeeded 1 Jan 2026, 10:05',
+                'Report received 1 Jan 2026, 11:00',
             ],
             $timeline->each(static fn (Crawler $entry): string => $entry->text()),
         );
         self::assertSame('2026-01-01T09:59:00+00:00', $timeline->first()->filter('time')->attr('datetime'));
+        self::assertSame('2026-01-01 09:59:00 UTC', $timeline->first()->filter('time')->attr('title'));
     }
 
     public function test_a_resumed_run_shows_the_run_it_continues_and_its_result(): void
@@ -812,9 +813,9 @@ final class ListWorkerRunsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(
             [
-                'Running 2026-01-01 10:00:00 UTC',
-                'Failed 2026-01-01 10:05:00 UTC',
-                'Report received 2026-01-01 11:00:00 UTC',
+                'Running 1 Jan 2026, 10:00',
+                'Failed 1 Jan 2026, 10:05',
+                'Report received 1 Jan 2026, 11:00',
             ],
             $crawler->filter('[data-worker-run-id="'.$runId.'"] .lp-run-drawer__timeline li')->each(static fn (Crawler $entry): string => $entry->text()),
         );

@@ -6,7 +6,7 @@
 <form class="lp-version-compare" method="GET"{% if autoSubmit %} data-controller="submit-on-change"{% endif %}
       action="{{ path('app_document_review_compare', {projectId: document.project.id, documentId: document.id}) }}">
     <label class="lp-version-compare__label" for="{{ idPrefix }}-from">{{ 'review.document.diff.picker.from'|trans }}</label>
-    <twig:Ds:Select id="{{ idPrefix }}-from" name="from" class="lp-filter-select" aria-label="{{ 'review.document.diff.picker.from_label'|trans }}" data-action="{{ autoSubmit ? 'change->submit-on-change#submit' }}">
+    <twig:Ds:Select id="{{ idPrefix }}-from" name="from" compact aria-label="{{ 'review.document.diff.picker.from_label'|trans }}" data-action="{{ autoSubmit ? 'change->submit-on-change#submit' }}">
         {% for meta in versions|reverse %}
         <option value="{{ meta.versionNumber }}"{{ meta.versionNumber == fromVersionNumber ? ' selected' : '' }}>{{ 'v' ~ meta.versionNumber }}</option>
         {% endfor %}
@@ -15,7 +15,7 @@
     <twig:ux:icon name="lucide:arrow-right" class="lp-version-compare__arrow" aria-hidden="true" />
 
     <label class="lp-version-compare__label" for="{{ idPrefix }}-to">{{ 'review.document.diff.picker.to'|trans }}</label>
-    <twig:Ds:Select id="{{ idPrefix }}-to" name="to" class="lp-filter-select" aria-label="{{ 'review.document.diff.picker.to_label'|trans }}" data-action="{{ autoSubmit ? 'change->submit-on-change#submit' }}">
+    <twig:Ds:Select id="{{ idPrefix }}-to" name="to" compact aria-label="{{ 'review.document.diff.picker.to_label'|trans }}" data-action="{{ autoSubmit ? 'change->submit-on-change#submit' }}">
         {% for meta in versions|reverse %}
         <option value="{{ meta.versionNumber }}"{{ meta.versionNumber == toVersionNumber ? ' selected' : '' }}>{{ 'v' ~ meta.versionNumber }}</option>
         {% endfor %}

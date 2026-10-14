@@ -27,7 +27,7 @@
     {% for label, messages in app.flashes %}
         {% for message in messages %}
             <div class="auth-error">
-                {{ ux_icon('lucide:x', {'class': 'w-3.5 h-3.5 shrink-0 mt-px'}) }}
+                {{ ux_icon('lucide:x', {'class': 'lp-icon lp-icon--sm mt-px'}) }}
                 {{ message }}
             </div>
         {% endfor %}

@@ -5,7 +5,7 @@
     <input type="hidden" name="_csrf_token" value="{{ csrf_token('worker-run-command') }}">
     {% if compact %}
     <twig:Ds:Button type="submit" variant="icon compact" title="{{ reason ?? actionLabel }}" aria-label="{{ actionLabel }}" :aria-describedby="reason ? 'worker-run-control-reason-' ~ run.id : null" :disabled="reason ? true : false">
-        {% if control.action.value == 'resume' %}<twig:ux:icon name="lucide:rotate-ccw" class="size-3.5" />{% elseif control.action.value == 'rerun' %}<twig:ux:icon name="lucide:rotate-cw" class="size-3.5" />{% elseif control.action.value == 'stop' %}<twig:ux:icon name="lucide:square" class="size-3.5" />{% else %}<twig:ux:icon name="lucide:x" class="size-3.5" />{% endif %}
+        {% if control.action.value == 'resume' %}<twig:ux:icon name="lucide:rotate-ccw" class="lp-icon lp-icon--sm" />{% elseif control.action.value == 'rerun' %}<twig:ux:icon name="lucide:rotate-cw" class="lp-icon lp-icon--sm" />{% elseif control.action.value == 'stop' %}<twig:ux:icon name="lucide:square" class="lp-icon lp-icon--sm" />{% else %}<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" />{% endif %}
         {% if reason %}<span class="sr-only" id="worker-run-control-reason-{{ run.id }}">{{ reason }}</span>{% endif %}
     </twig:Ds:Button>
     {% else %}

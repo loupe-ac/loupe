@@ -2,7 +2,7 @@
 <div class="lp-inbox-linked__entry" data-inbox-linked-entry>
     {% if ask and ask.context|trim is not empty %}
     <div class="lp-inbox-linked__context" data-inbox-linked-context>
-        <span class="lp-inbox-linked__asked">{{ 'inbox.linked.asked'|trans({'%time%': ask.createdAt|relative_time}) }}</span>
+        <span class="lp-inbox-linked__asked">{{ 'inbox.linked.asked'|trans({'%time%': ask.createdAt|relative_time}) }}</span>{# @design-system-ignore #}
         {# Agent Markdown, sanitized as on the inbox page, and cut to two lines here. #}
         <div class="prose lp-prose lp-inbox-linked__context-text">{{ ask.context|inbox_markdown }}</div>
     </div>

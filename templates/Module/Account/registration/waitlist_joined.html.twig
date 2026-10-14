@@ -11,7 +11,7 @@
 <turbo-frame id="waitlist-notify">
 <div class="flex flex-col items-center gap-3 py-4 text-center"{% if joinForm %} data-controller="analytics-join" data-analytics-join-form-value="{{ joinForm }}"{% endif %}>
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:mail" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:mail" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <div class="text-xl font-semibold tracking-tight text-fg">{{ 'account.waitlist.joined.title'|trans }}</div>

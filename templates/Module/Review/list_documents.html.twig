@@ -24,7 +24,7 @@
     {% endif %}
     <twig:Ds:PageHeader :title="'review.dashboard.page.title'|trans" :description="descriptionKey|trans" titleClass="lp-workspace-title--doc">
         <twig:block name="actions">
-            <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open"><twig:ux:icon name="lucide:plus" class="w-4 h-4 shrink-0" />{{ 'review.create.title'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open"><twig:ux:icon name="lucide:plus" class="lp-icon lp-icon--md" />{{ 'review.create.title'|trans }}</twig:Ds:Button>
         </twig:block>
     </twig:Ds:PageHeader>
     {% include '@Review/_create_document.html.twig' with {form: createDocumentForm, projectId: project.id} only %}
@@ -34,49 +34,31 @@
        filter or the archived view is on, whatever the counts say: a filter that
        disappears the moment it matches nothing is a dead end. #}
     {% if totalDocuments > 0 or listQuery.isNarrowed or listQuery.includeArchived %}
-    <div class="lp-list-filters">
-        {# A GET form, so every control lands in the URL and the whole view stays
-           shareable and back-button-able. `page` is deliberately not a field: a
-           changed filter starts again at page one. #}
-        <form method="get"
-              action="{{ path('app_project_documents', {id: project.id}) }}"
-              data-controller="autosearch"
-              class="lp-filter-form">
-            <div class="lp-filter-primary" data-action="focusin->autosearch#revealField">
-                <div class="lp-filter-search">
-                    <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                    <label class="sr-only" for="document-search">{{ 'review.dashboard.filter.search_label'|trans }}</label>
-                    {# The field target lets the controller restore focus and caret
-                       after a debounced submit: this is a full Turbo visit, so the
-                       field being typed into is replaced mid-word. A full visit rather
-                       than a frame, so the query lands in the address bar. #}
-                    <twig:Ds:Input type="search"
-                           id="document-search"
-                           name="search"
-                           class="lp-filter-input"
-                           value="{{ listQuery.search }}"
-                           placeholder="{{ 'review.dashboard.filter.search_placeholder'|trans }}"
-                           data-autosearch-target="field"
-                           data-action="input->autosearch#search" />
-                </div>
+    {# A GET form, so every control lands in the URL and the view stays shareable. `page` is not a field: a changed filter starts at page one. #}
+    {# The field target restores focus and caret after a debounced submit, because the full Turbo visit replaces the field mid-word. #}
+    {# The count covers live documents only, so it is left out while archived ones show. #}
+    <twig:Ds:FilterBar
+        :action="path('app_project_documents', {id: project.id})"
+        :search="{id: 'document-search', name: 'search', value: listQuery.search, label: 'review.dashboard.filter.search_label'|trans, placeholder: 'review.dashboard.filter.search_placeholder'|trans}"
+        :switch="{name: 'archived', label: 'review.dashboard.filter.show_archived'|trans, checked: listQuery.includeArchived}"
+        :clearHref="path('app_project_documents', {id: project.id})"
+        :clearLabel="'review.dashboard.filter.clear'|trans"
+        :count="totalDocuments > 0 and not listQuery.includeArchived ? 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) : null">
+        <label class="sr-only" for="document-status">{{ 'review.dashboard.filter.status_label'|trans }}</label>
+        <twig:Ds:Select id="document-status"
+                name="status"
+                data-action="change->autosearch#search">
+            <option value="">{{ 'review.dashboard.filter.all_statuses'|trans }}</option>
+            {% for status in statuses %}
+                <option value="{{ status.value }}"{{ listQuery.status == status ? ' selected' : '' }}>{{ status.translationKey()|trans }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
 
-                <label class="sr-only" for="document-status">{{ 'review.dashboard.filter.status_label'|trans }}</label>
-                <twig:Ds:Select id="document-status"
-                        name="status"
-                        class="lp-filter-select"
-                        data-action="change->autosearch#search">
-                    <option value="">{{ 'review.dashboard.filter.all_statuses'|trans }}</option>
-                    {% for status in statuses %}
-                        <option value="{{ status.value }}"{{ listQuery.status == status ? ' selected' : '' }}>{{ status.translationKey()|trans }}</option>
-                    {% endfor %}
-                </twig:Ds:Select>
-            </div>
-
+        <twig:block name="secondary">
             {% if projectTags|length > 0 %}
                 <label class="sr-only" for="document-tag">{{ 'review.dashboard.filter.tag_label'|trans }}</label>
                 <twig:Ds:Select id="document-tag"
                         name="tag"
-                        class="lp-filter-select"
                         data-action="change->autosearch#search">
                     <option value="">{{ 'review.dashboard.filter.all_tags'|trans }}</option>
                     {% for tag in projectTags %}
@@ -91,7 +73,6 @@
                 <label class="sr-only" for="document-series">{{ 'review.dashboard.filter.series_label'|trans }}</label>
                 <twig:Ds:Select id="document-series"
                         name="series"
-                        class="lp-filter-select"
                         data-action="change->autosearch#search">
                     <option value="">{{ 'review.dashboard.filter.all_series'|trans }}</option>
                     {# The option carries the spelling and the comparison uses the
@@ -101,53 +82,30 @@
                     {% endfor %}
                 </twig:Ds:Select>
             {% endif %}
-
-            <label class="lp-filter-switch">
-                <input type="checkbox"
-                       class="lp-switch"
-                       role="switch"
-                       name="archived"
-                       value="1"
-                       {{ listQuery.includeArchived ? 'checked' }}
-                       data-action="change->autosearch#search">
-                {{ 'review.dashboard.filter.show_archived'|trans }}
-            </label>
-
-            <a href="{{ path('app_project_documents', {id: project.id}) }}"
-               data-autosearch-target="clearButton"
-               class="lp-filter-clear">{{ 'review.dashboard.filter.clear'|trans }}</a>
-        </form>
-
-        {# The total counts live documents only, so it is omitted while archived
-           ones are on screen rather than reporting more rows than documents. #}
-        {% if totalDocuments > 0 and not listQuery.includeArchived %}
-        <span class="lp-filter-count">{{ 'review.dashboard.filter.count'|trans({'%matching%': filteredTotal, '%total%': totalDocuments}) }}</span>
-        {% endif %}
-    </div>
+        </twig:block>
+    </twig:Ds:FilterBar>
     {% endif %}
 
     {% if items|length > 0 %}
     {% set cardLinkMap = document_card_link_map(items) %}
-    <div class="lp-document-table" role="table" aria-label="{{ 'review.dashboard.table.label'|trans }}">
-        <div class="lp-document-table__head" role="row">
-            <span role="columnheader">{{ 'review.dashboard.table.document'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.status'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.author'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.linked_card'|trans }}</span>
-            <span role="columnheader">{{ 'review.dashboard.table.updated'|trans }}</span>
-            <span class="sr-only" role="columnheader">{{ 'review.dashboard.table.actions'|trans }}</span>
-        </div>
-        <div class="lp-document-list" role="rowgroup">
+    <twig:Ds:DataTable modifier="documents" :label="'review.dashboard.table.label'|trans" :columns="[
+        {label: 'review.dashboard.table.document'|trans},
+        {label: 'review.dashboard.table.status'|trans},
+        {label: 'review.dashboard.table.author'|trans},
+        {label: 'review.dashboard.table.linked_card'|trans},
+        {label: 'review.dashboard.table.updated'|trans},
+        {label: 'review.dashboard.table.actions'|trans, srOnly: true},
+    ]">
         {% for item in items %}
         {% set document = item.document %}
         {% set archived = document.archivedAt is not null %}
         {% set cardLinks = cardLinkMap[document.id ~ '']|default([]) %}
-        <div class="lp-document-row{% if archived %} lp-document-row--archived{% endif %}" data-document-id="{{ document.id }}" role="row">
+        <div class="lp-data-table__row{% if archived %} lp-document-row--archived{% endif %}" data-document-id="{{ document.id }}" role="row">
             <a href="{{ path('app_document_review', {projectId: project.id, documentId: document.id}) }}"
-               class="lp-document-row__link" aria-label="{{ document.title }}"></a>
-            <div class="lp-document-row__main" role="cell">
+               class="lp-data-table__target lp-document-row__link" aria-label="{{ document.title }}"></a>
+            <div class="lp-data-table__cell lp-document-row__main" role="cell">
                 <div class="lp-document-row__head">
-                    <twig:ux:icon name="lucide:file-text" class="lp-document-row__icon w-4 h-4 shrink-0" />
+                    <twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--md lp-document-row__icon" />
                     <span class="lp-document-row__title">{{ document.title }}</span>
                     <span class="lp-document-row__version">{{ 'v' ~ item.versionNumber }}</span>
                 </div>
@@ -181,25 +139,25 @@
                 {% endif %}
                 </div>
             </div>
-            <div class="lp-document-row__status" role="cell">
+            <div class="lp-data-table__cell lp-document-row__status" role="cell">
                 <twig:Ds:Badge :status="document.status.value">
                     {{ document.status.translationKey()|trans }}
                 </twig:Ds:Badge>
             </div>
-            <span class="lp-document-row__author" role="cell">{{ document.owner.fullName }}</span>
-            <span class="lp-document-row__linked-card" role="cell">
+            <span class="lp-data-table__cell lp-document-row__author" role="cell">{{ document.owner.fullName }}</span>
+            <span class="lp-data-table__cell lp-document-row__linked-card" role="cell">
                 {% if cardLinks|length > 0 %}
                     #{{ cardLinks|first.card.number }}{% if cardLinks|length > 1 %} +{{ cardLinks|length - 1 }}{% endif %}
                 {% else %}
                     <span aria-label="{{ 'review.dashboard.table.no_linked_card'|trans }}">—</span>
                 {% endif %}
             </span>
-            <time class="lp-document-row__updated" datetime="{{ item.updatedAt|date('c') }}" role="cell">{{ item.updatedAt|relative_time }}</time>
-            <div class="lp-document-row__actions" role="cell">
+            <twig:Ds:RelativeTime :datetime="item.updatedAt" class="lp-data-table__cell lp-document-row__updated" role="cell" />
+            <div class="lp-data-table__cell lp-document-row__actions" role="cell">
                 <a href="{{ path('app_document_rename', {projectId: project.id, documentId: document.id}|merge(listQuery.routeParams)) }}"
                    class="lp-document-row__action"
                    aria-label="{{ 'review.dashboard.rename'|trans({'%title%': document.title}) }}">
-                    <twig:ux:icon name="lucide:pencil" class="w-4 h-4" />
+                    <twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />
                 </a>
                 {# Both states are written out rather than interpolated: the icon
                    importer sees only names it can read as literals, and an icon it
@@ -210,9 +168,9 @@
                             class="lp-document-row__action"
                             aria-label="{{ (archived ? 'review.dashboard.unarchive' : 'review.dashboard.archive')|trans({'%title%': document.title}) }}">
                         {% if archived %}
-                        <twig:ux:icon name="lucide:archive-restore" class="w-4 h-4" />
+                        <twig:ux:icon name="lucide:archive-restore" class="lp-icon lp-icon--md" />
                         {% else %}
-                        <twig:ux:icon name="lucide:archive" class="w-4 h-4" />
+                        <twig:ux:icon name="lucide:archive" class="lp-icon lp-icon--md" />
                         {% endif %}
                     </button>
                 {{ form_end(archiveForm) }}
@@ -222,18 +180,17 @@
                rendered then: a label with an empty value beside it, or a
                dash, reads as a document whose reason went missing. #}
             {% if archived and document.archiveReason %}
-            <p class="lp-document-row__archive-reason">{{ 'review.dashboard.archive_reason'|trans({'%reason%': document.archiveReason}) }}</p>
+            <p class="lp-document-row__archive-reason" role="cell">{{ 'review.dashboard.archive_reason'|trans({'%reason%': document.archiveReason}) }}</p>
             {% endif %}
         </div>
         {% endfor %}
-        </div>
-    </div>
+    </twig:Ds:DataTable>
 
     <twig:Ds:Pagination route="app_project_documents" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
     {% elseif listQuery.isNarrowed %}
     {# "No documents yet" is wrong once a filter is on — the project may be full
        of documents that simply did not match. #}
-    <twig:Ds:EmptyState icon="lucide:search-x" iconClass="w-8 h-8" :title="'review.dashboard.empty_filtered.title'|trans">
+    <twig:Ds:EmptyState icon="lucide:search-x" iconSize="xl" :title="'review.dashboard.empty_filtered.title'|trans">
         <twig:Ds:Button href="{{ path('app_project_documents', {id: project.id}) }}">{{ 'review.dashboard.filter.clear_filters'|trans }}</twig:Ds:Button>
     </twig:Ds:EmptyState>
     {% else %}

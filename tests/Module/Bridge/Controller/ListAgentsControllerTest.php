@@ -220,7 +220,7 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $pools = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-worker-pools]');
         self::assertStringContainsString('Worker pools', $pools->text());
-        self::assertStringContainsString('As of Sep 14, 16:05', $pools->text());
+        self::assertStringContainsString('As of 14 Sep 2026, 16:05', $pools->text());
         self::assertStringNotContainsString('16:09', $pools->text());
         self::assertSame(
             ['default 2 in use of 3 · 0 queued', 'quick 1 in use of 1 · 4 queued'],
@@ -267,7 +267,7 @@ final class ListAgentsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $accounts = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-accounts]');
         self::assertStringContainsString('Accounts', $accounts->text());
-        self::assertStringContainsString('As of Sep 14, 16:05', $accounts->text());
+        self::assertStringContainsString('As of 14 Sep 2026, 16:05', $accounts->text());
         self::assertStringNotContainsString('16:09', $accounts->text());
         $ready = $accounts->filter('[data-agent-account="work"]');
         self::assertSame('ready', $ready->attr('data-agent-account-state'));
@@ -374,7 +374,7 @@ final class ListAgentsControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $block = $crawler->filter('[data-agent-connection-id="'.$bridge->id.'"] [data-agent-paused]');
-        self::assertSame('Paused Sep 14, 16:05 by Riley Chen', preg_replace('/\s+/', ' ', trim($block->text())));
+        self::assertSame('Paused 14 Sep 2026, 16:05 by Riley Chen', preg_replace('/\s+/', ' ', trim($block->text())));
         // The guard: the other card renders, so the absent block is not an absent card.
         self::assertCount(1, $crawler->filter('[data-agent-connection-id="'.$other->id.'"] [data-agent-health]'));
         self::assertCount(0, $crawler->filter('[data-agent-connection-id="'.$other->id.'"] [data-agent-paused]'));
@@ -434,7 +434,7 @@ final class ListAgentsControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/agents');
 
         self::assertResponseIsSuccessful();
-        self::assertSame('Pause requested Sep 14, 16:05', preg_replace('/\s+/', ' ', trim($crawler->filter('[data-agent-paused]')->text())));
+        self::assertSame('Pause requested 14 Sep 2026, 16:05', preg_replace('/\s+/', ' ', trim($crawler->filter('[data-agent-paused]')->text())));
     }
 
     #[TestWith([false, 'pause', 'Pause new work'])]

@@ -1,0 +1,6 @@
+/* The relative time: a moment as "2h ago" or a date. `templates/components/Ds/RelativeTime.html.twig` renders it. */
+@layer components {
+    .lp-relative-time {
+        @apply whitespace-nowrap;
+    }
+}

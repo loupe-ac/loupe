@@ -365,7 +365,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertSelectorTextContains('.lp-readiness-discovery__status', 'Discovery waits for a running bridge');
         self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="none"]');
         self::assertSelectorNotExists('[data-readiness-guide] button:not([data-readiness-hide])');
-        self::assertSelectorTextContains('.lp-readiness-checklist__count', '0 of 6');
+        self::assertSelectorTextContains('.lp-section-heading__description', '0 of 6');
         self::assertSame(['agent', 'workflow', 'bridge', 'github', 'agent_account', 'repository'], $crawler->filter('[data-readiness-row]')->extract(['data-readiness-row']));
         self::assertSame(array_fill(0, 6, '0'), $crawler->filter('[data-readiness-row]')->extract(['data-readiness-done']));
         self::assertSame('/projects/'.$project->id.'/connect', $crawler->filter('[data-readiness-row="agent"] a')->attr('href'));

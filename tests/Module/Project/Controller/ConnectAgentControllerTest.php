@@ -166,7 +166,7 @@ final class ConnectAgentControllerTest extends WebTestCase
         $prompt = $crawler->filter('[data-testid="setup-prompt"]');
         self::assertCount(1, $prompt);
         self::assertStringContainsString('curl -fsSL "http://localhost/setup.md?project='.$project->id.'"', $prompt->text());
-        self::assertStringContainsString('/setup.md?project='.$project->id, (string) $prompt->closest('[data-controller="clipboard"]')?->attr('data-clipboard-text-value'));
+        self::assertStringContainsString('/setup.md?project='.$project->id, (string) $prompt->closest('.lp-code-dark')?->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
 
         // One way in carries the recommended tag, and it is the prompt.
         self::assertCount(1, $crawler->filter('.lp-connect-tag'));

@@ -9,6 +9,10 @@ import type { ReactNode } from 'react';
 export interface {{ entry.name }}Props {
     /** An icon, drawn as inline SVG. Optional. */
     icon?: ReactNode;
+    /** A step of the icon scale, such as `xl`. `2xl` by default. */
+    iconSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+    /** Colour classes of the icon. Optional. */
+    iconClass?: string;
     /** The heading. Optional. */
     title?: string;
     /** The sentence under the heading. Optional. */

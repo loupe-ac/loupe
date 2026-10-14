@@ -59,7 +59,19 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Dialog | A modal that the `modal` Stimulus controller opens | document, search |
 | Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
+| FilterBar | The search, selects, switch, clear link and count above a filtered list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| Panel | A bordered tinted card that holds one block of a page | none. Takes `as` for the element |
+| SectionHeading | The title of a section, with an optional sentence and optional actions | none. The content is the title. Takes `level`, `description`, `titleId` and an `actions` block, and no `title` prop |
+| FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
+| CodeBlock | A dark block of code or a command, with a header label and a copy button | none |
+| CopyButton | A button that copies a text and shows that it did. It owns the `clipboard` controller | text, icon. Tones light, chrome |
+| Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
+| RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |
+| Icon | The size of a `ux:icon` tag. A class scale, with no component to render | xs (3), sm (3.5), md (4), lg (5), and xl (8) and 2xl (12) for an empty-state icon. Write `class="lp-icon lp-icon--sm"` |
+| DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
+| Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
+| ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |
 | BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
 | NavItem | One link of the sidebar. Props `url`, `icon`, `label`, `active` and `count`. Its content adds anything after the label | none |
 | Breadcrumbs | The trail in the top bar. Prop `items`, a list of `{label, url}`. The last item is the current page and takes no link. Its content adds anything after the list, such as a version pill. A page fills the `topbar_crumbs` block with it and never starts the trail with the project name | none |
@@ -115,7 +127,7 @@ The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and 
 </twig:Ds:ListRow>
 ```
 
-The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a `lp-settings-panel-card` section inside the block.
+The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a Panel inside the block.
 
 `@Account/_settings_layout.html.twig` and `@Project/_settings_layout.html.twig` build the items of the account and the project settings and render the component. A settings page extends one of them and fills the `settings_section` and `settings_content` blocks. The icon names of the items are plain strings, so `bin/console ux:icons:lock` cannot read them. Import a new one with `bin/console ux:icons:import`.
 
@@ -157,10 +169,33 @@ Write a dialog, tabs, pagination and a tooltip like this:
 
 <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
 
+<twig:Ds:FilterBar :action="path('app_projects')" :search="{id: 'q', name: 'q', value: query, label: 'Search', placeholder: 'Search'}" clearHref="{{ path('app_projects') }}" clearLabel="Clear" count="3 projects" />
+
+<twig:Ds:CodeBlock label="Terminal" text="npm install" copyLabel="Copy" copiedLabel="Copied!" />
+
 <twig:Ds:Tooltip id="why-1">The reason.</twig:Ds:Tooltip>
 ```
 
-The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+The dialog sets `data-modal-target="dialog"` itself. The tabs take `tag="div"` for a tab list that is not a navigation, and `variant="segmented"` for a pill group. A segmented switch that changes a setting uses buttons with `aria-pressed`. The pagination draws nothing when there is one page. The filter bar draws a GET form with the `autosearch` controller when you pass `action`. Its body holds the selects of the first row, and a `secondary` block holds hidden fields and selects that wrap. A select inside the bar takes the compact look from the bar. Outside a bar, `Ds:Select` and `Ds:Input` take `compact`. The code block draws a header label, the text, and a copy button of the same text. Pass `:copy="false"` for a block with no button. A copy button outside a block takes `variant="icon"` for an icon-only button. The admin pages keep their own copy buttons. The feature that owns the anchor decides when a tooltip shows. A tooltip that holds a link takes `:interactive="true"`, and its anchor needs the `interactive-tooltip` controller, so use a StateMark for it.
+
+Write a menu like this:
+
+```twig
+<twig:Ds:Menu id="row-menu" align="start" size="md">
+    <twig:block name="trigger">
+        <twig:Ds:Button type="button" variant="ghost" aria-expanded="false" aria-controls="row-menu"
+                data-popover-target="trigger" data-action="click->popover#toggle">More</twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuHeading>Open in</twig:Ds:MenuHeading>
+        <twig:Ds:MenuItem :href="path('app_home')" :current="true">Home</twig:Ds:MenuItem>
+        <twig:Ds:MenuDivider />
+        <twig:Ds:MenuItem type="submit" form="row-form">Delete</twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:Menu>
+```
+
+The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
 
 Write the state of a card like this:
 
@@ -331,4 +366,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-tooltip`, `lp-brand` or `lp-drawer` by hand.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-list-filters`, `lp-code-dark`, `lp-copy-button`, `lp-tooltip`, `lp-menu`, `lp-brand` or `lp-drawer` by hand. It also blocks the `lp-filter-*` classes the filter bar replaced.

@@ -29,15 +29,15 @@
     {% endif %}
     <header class="lp-card-drawer__header">
         <div class="lp-card-drawer__identity">
-            <span class="lp-card-drawer__icon"><twig:ux:icon name="lucide:layout-list" class="w-4 h-4" /></span>
+            <span class="lp-card-drawer__icon"><twig:ux:icon name="lucide:layout-list" class="lp-icon lp-icon--md" /></span>
             <span class="lp-card-number">#{{ card.number }}</span>
             {% include '@Board/_card_type_tag.html.twig' with {card: card} only %}
             {% include '@Board/_card_source_tag.html.twig' with {card: card} only %}
             {% include '@Board/_column_tag.html.twig' with {column: card.column} only %}
         </div>
         <div class="lp-card-drawer__header-actions">
-            <twig:Ds:Button variant="ghost" href="{{ path('app_board_card_edit', {projectId: card.project.id, cardId: card.id}) }}"><twig:ux:icon name="lucide:pencil" class="w-4 h-4" />{{ 'board.card.edit.action'|trans }}</twig:Ds:Button>
-            <twig:Ds:Button variant="ghost icon" href="{{ path('app_project_board', {id: card.project.id}) }}" aria-label="{{ 'board.card.drawer.close'|trans }}" data-action="card-drawer#close"><twig:ux:icon name="lucide:x" class="w-4 h-4" /></twig:Ds:Button>
+            <twig:Ds:Button variant="ghost" href="{{ path('app_board_card_edit', {projectId: card.project.id, cardId: card.id}) }}"><twig:ux:icon name="lucide:pencil" class="lp-icon lp-icon--md" />{{ 'board.card.edit.action'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="ghost icon" href="{{ path('app_project_board', {id: card.project.id}) }}" aria-label="{{ 'board.card.drawer.close'|trans }}" data-action="card-drawer#close"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--md" /></twig:Ds:Button>
         </div>
     </header>
 
@@ -71,7 +71,7 @@
                 />
                 {% endif %}
                 <section class="lp-card-overview__section">
-                    <h2 class="lp-card-panel__title">{{ 'board.card.overview.description'|trans }}</h2>
+                    <twig:Ds:SectionHeading>{{ 'board.card.overview.description'|trans }}</twig:Ds:SectionHeading>
                     {% if card.body|trim is not empty %}<div class="prose lp-prose lp-card-detail__body">{{ card.body|card_body }}</div>{% else %}<p class="lp-card-detail__empty">{{ 'board.card.body.empty'|trans }}</p>{% endif %}
                 </section>
                 <section class="lp-card-docs lp-card-pulls lp-card-overview__section">
@@ -83,9 +83,9 @@
                             <tbody>
                                 {% for link in card.documents %}
                                 <tr>
-                                    <td><span class="lp-inbox-linked-table__type"><twig:ux:icon name="lucide:file-text" class="w-4 h-4" />{{ 'inbox.linked_items.document'|trans }}</span><strong>{{ link.document.title }}</strong></td>
+                                    <td><span class="lp-inbox-linked-table__type"><twig:ux:icon name="lucide:file-text" class="lp-icon lp-icon--md" />{{ 'inbox.linked_items.document'|trans }}</span><strong>{{ link.document.title }}</strong></td>
                                     <td><twig:Ds:Tag>{{ link.document.status.translationKey()|trans }}</twig:Ds:Tag></td>
-                                    <td><twig:Ds:Button variant="ghost open" href="{{ path('app_document_review', {projectId: card.project.id, documentId: link.document.id}) }}" data-turbo-frame="_top" aria-label="{{ 'inbox.linked_items.open_document'|trans({'%title%': link.document.title}) }}"><twig:ux:icon name="lucide:arrow-up-right" class="w-4 h-4" /><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span></twig:Ds:Button></td>
+                                    <td><twig:Ds:Button variant="ghost open" href="{{ path('app_document_review', {projectId: card.project.id, documentId: link.document.id}) }}" data-turbo-frame="_top" aria-label="{{ 'inbox.linked_items.open_document'|trans({'%title%': link.document.title}) }}"><twig:ux:icon name="lucide:arrow-up-right" class="lp-icon lp-icon--md" /><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span></twig:Ds:Button></td>
                                 </tr>
                                 {% endfor %}
                                 {% for link in card.pullRequests %}
@@ -94,7 +94,7 @@
                             </tbody>
                         </table>
                     </div>
-                    {% else %}<h2 class="lp-card-panel__title">{{ 'board.card.linked_work.title'|trans }}</h2><p class="lp-card-detail__empty">{{ 'board.card.linked_work.empty'|trans }}</p>{% endif %}
+                    {% else %}<twig:Ds:SectionHeading>{{ 'board.card.linked_work.title'|trans }}</twig:Ds:SectionHeading><p class="lp-card-detail__empty">{{ 'board.card.linked_work.empty'|trans }}</p>{% endif %}
                 </section>
                 {% if artifacts is not empty and is_feature_enabled('artifacts.enabled') %}
                 <section class="lp-card-overview__section" data-card-artifacts>
@@ -106,9 +106,9 @@
                                 {% for entry in artifacts %}
                                 {% set artifact = entry.link.artifact %}
                                 <tr data-card-artifact="{{ artifact.id }}">
-                                    <td><span class="lp-inbox-linked-table__type"><twig:ux:icon name="lucide:app-window" class="w-4 h-4" />{{ 'board.card.artifacts.type'|trans }}</span><strong>{{ artifact.name }}</strong></td>
+                                    <td><span class="lp-inbox-linked-table__type"><twig:ux:icon name="lucide:app-window" class="lp-icon lp-icon--md" />{{ 'board.card.artifacts.type'|trans }}</span><strong>{{ artifact.name }}</strong></td>
                                     <td><twig:Ds:Tag>{{ 'board.card.artifacts.latest_version'|trans({'%number%': entry.versionNumber}) }}</twig:Ds:Tag></td>
-                                    <td><twig:Ds:Button variant="ghost open" href="{{ path('app_project_artifact', {id: card.project.id, artifactId: artifact.id}) }}" data-turbo-frame="_top" aria-label="{{ 'board.card.artifacts.open'|trans({'%name%': artifact.name}) }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span><twig:ux:icon name="lucide:chevron-right" class="w-4 h-4" /></twig:Ds:Button></td>
+                                    <td><twig:Ds:Button variant="ghost open" href="{{ path('app_project_artifact', {id: card.project.id, artifactId: artifact.id}) }}" data-turbo-frame="_top" aria-label="{{ 'board.card.artifacts.open'|trans({'%name%': artifact.name}) }}"><span class="lp-btn__label">{{ 'inbox.linked_items.open'|trans }}</span><twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--md" /></twig:Ds:Button></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -132,7 +132,7 @@
                 {% if progress %}
                 <section class="lp-card-overview__section" data-epic-children>
                     <div class="lp-card-epic__head">
-                        <h2 class="lp-card-panel__title">{{ 'board.card.children.title'|trans }}</h2>
+                        <twig:Ds:SectionHeading>{{ 'board.card.children.title'|trans }}</twig:Ds:SectionHeading>
                         <span class="lp-card-epic__progress" data-epic-progress>{{ 'board.card.children.progress'|trans({'%done%': progress.done, '%total%': progress.total}) }}</span>
                         {% include '@Board/_card_lane_form.html.twig' with {card: card, returnTo: 'card'} only %}
                     </div>
@@ -189,19 +189,19 @@
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.type'|trans }}</dt><dd>{% include '@Board/_card_type_tag.html.twig' with {card: card} only %}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.reporter'|trans }}</dt><dd>{{ ('board.card.reporter.' ~ card.reporter.value)|trans }}</dd></div>
                 <div class="lp-card-field"><dt>{{ 'board.card.overview.source'|trans }}</dt><dd>{{ ('board.card.source.' ~ card.source.kind.value)|trans }}</dd></div>
-                <div class="lp-card-field"><dt>{{ 'board.card.overview.created'|trans }}</dt><dd><time datetime="{{ card.createdAt|date('c') }}">{{ card.createdAt|date('M j, Y') }}</time></dd></div>
-                <div class="lp-card-field"><dt>{{ 'board.card.overview.updated'|trans }}</dt><dd><time datetime="{{ card.updatedAt|date('c') }}">{{ card.updatedAt|relative_time }}</time></dd></div>
-                {% if card.completedAt %}<div class="lp-card-field"><dt>{{ 'board.card.overview.completed'|trans }}</dt><dd><time datetime="{{ card.completedAt|date('c') }}">{{ card.completedAt|date('M j, Y') }}</time></dd></div>{% endif %}
+                <div class="lp-card-field"><dt>{{ 'board.card.overview.created'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.createdAt" mode="date" /></dd></div>
+                <div class="lp-card-field"><dt>{{ 'board.card.overview.updated'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.updatedAt" /></dd></div>
+                {% if card.completedAt %}<div class="lp-card-field"><dt>{{ 'board.card.overview.completed'|trans }}</dt><dd><twig:Ds:RelativeTime :datetime="card.completedAt" mode="date" /></dd></div>{% endif %}
             </dl>
         </section>
 
         <section class="lp-card-panel" id="card-panel-conversation" role="tabpanel" aria-labelledby="card-tab-conversation" data-panel-tabs-target="panel" data-panel-panel="conversation"{% if activeTab != 'conversation' %} hidden{% endif %}>
-            <div class="lp-card-conversation-intro"><span class="lp-source-avatar"><twig:ux:icon name="lucide:messages-square" class="w-4 h-4" /></span><div><h2 class="lp-card-panel__title">{{ 'board.card.conversation.title'|trans }}</h2><p>{{ 'board.card.conversation.description'|trans }}</p></div></div>
+            <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:messages-square" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.conversation.description'|trans">{{ 'board.card.conversation.title'|trans }}</twig:Ds:SectionHeading></div>
             {{ inbox_card_section(card) }}
         </section>
 
         <section class="lp-card-panel" id="card-panel-feedback" role="tabpanel" aria-labelledby="card-tab-feedback" data-panel-tabs-target="panel" data-panel-panel="feedback"{% if activeTab != 'feedback' %} hidden{% endif %}>
-            <div class="lp-card-conversation-intro"><span class="lp-source-avatar"><twig:ux:icon name="lucide:globe-2" class="w-4 h-4" /></span><div><h2 class="lp-card-panel__title">{{ 'board.card.site_review.title'|trans }}</h2><p>{{ 'board.card.feedback.description'|trans }}</p></div></div>
+            <div class="lp-card-conversation-intro"><twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" /><twig:Ds:SectionHeading :description="'board.card.feedback.description'|trans">{{ 'board.card.site_review.title'|trans }}</twig:Ds:SectionHeading></div>
             {% if siteReviewLinks|length > 0 %}
             <ul class="lp-card-feedback-list">
                 {% for link in siteReviewLinks %}

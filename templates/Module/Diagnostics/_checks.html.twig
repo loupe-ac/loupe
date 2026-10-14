@@ -17,13 +17,13 @@
         <li class="status-check" data-system-check="{{ check.key }}" data-system-check-state="{{ check.state.value }}">
             <span class="status-check-badge status-check-badge-{{ check.state.value }}">
                 {% if check.state.value == 'ok' %}
-                    <twig:UX:Icon name="lucide:circle-check" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:circle-check" class="lp-icon lp-icon--sm" />
                 {% elseif check.state.value == 'warning' %}
-                    <twig:UX:Icon name="lucide:triangle-alert" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--sm" />
                 {% elseif check.state.value == 'failed' %}
-                    <twig:UX:Icon name="lucide:circle-x" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:circle-x" class="lp-icon lp-icon--sm" />
                 {% else %}
-                    <twig:UX:Icon name="lucide:circle-help" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:circle-help" class="lp-icon lp-icon--sm" />
                 {% endif %}
                 {{ check.state.translationKey|trans({}, check.state.translationDomain) }}
             </span>

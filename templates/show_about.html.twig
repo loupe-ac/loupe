@@ -17,36 +17,36 @@
             <p class="lp-about-hero__eyebrow">{{ 'app.name'|trans }}</p>
             <p class="lp-about-hero__lead" id="about-lead">{{ 'about.lead'|trans }}</p>
             <ul class="lp-about-hero__facts">
-                <twig:Ds:Tag tone="lime" as="li"><twig:ux:icon name="lucide:scale" class="w-3.5 h-3.5" />{{ 'about.hero.licence'|trans }}</twig:Ds:Tag>            </ul>
+                <twig:Ds:Tag tone="lime" as="li"><twig:ux:icon name="lucide:scale" class="lp-icon lp-icon--sm" />{{ 'about.hero.licence'|trans }}</twig:Ds:Tag>            </ul>
         </div>
         <img class="lp-about-hero__mascot" src="{{ asset('images/mascots/planner.png') }}" alt="">
     </section>
 
     <div class="lp-about-cards">
-        <section class="lp-about-card" aria-labelledby="about-licence">
-            <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:scale" class="w-4.5 h-4.5" /></span>
+        <twig:Ds:Panel as="section" class="lp-about-item" aria-labelledby="about-licence">
+            <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:scale" class="lp-icon lp-icon--lg" /></span>
             <div class="lp-about-card__main">
                 <h2 class="lp-about-card__title" id="about-licence">{{ 'about.licence.heading'|trans }}</h2>
                 <p class="lp-about-card__text">{{ 'about.licence.body'|trans }}</p>
                 {% include '_source_link.html.twig' with {class: ds_button_class('primary') ~ ' lp-about-card__action'} only %}
             </div>
-        </section>
+        </twig:Ds:Panel>
 
-        <section class="lp-about-card" aria-labelledby="about-docs">
-            <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:book-open" class="w-4.5 h-4.5" /></span>
+        <twig:Ds:Panel as="section" class="lp-about-item" aria-labelledby="about-docs">
+            <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:book-open" class="lp-icon lp-icon--lg" /></span>
             <div class="lp-about-card__main">
                 <h2 class="lp-about-card__title" id="about-docs">{{ 'about.docs.heading'|trans }}</h2>
                 <p class="lp-about-card__text">{{ 'about.docs.body'|trans }}</p>
                 <twig:Ds:Button href="{{ app_docs_url }}/" class="lp-about-card__action" target="_blank" rel="noopener noreferrer">
-                    <twig:ux:icon name="lucide:book-open" class="w-3.5 h-3.5 shrink-0" />
+                    <twig:ux:icon name="lucide:book-open" class="lp-icon lp-icon--sm" />
                     <span>{{ 'about.docs.action'|trans }}</span>
                 </twig:Ds:Button>
             </div>
-        </section>
+        </twig:Ds:Panel>
 
         {% if app.user %}
-        <section class="lp-about-card" aria-labelledby="about-version">
-            <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:tag" class="w-4.5 h-4.5" /></span>
+        <twig:Ds:Panel as="section" class="lp-about-item" aria-labelledby="about-version">
+            <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:tag" class="lp-icon lp-icon--lg" /></span>
             <div class="lp-about-card__main">
                 <h2 class="lp-about-card__title" id="about-version">{{ 'about.version.heading'|trans }}</h2>
                 <p class="lp-about-card__value" data-testid="app-version">{{ version ?? 'about.version.source'|trans }}</p>
@@ -61,7 +61,7 @@
                 {% endif %}
                 <p class="lp-about-card__text">{{ 'about.version.hint'|trans }}</p>
             </div>
-        </section>
+        </twig:Ds:Panel>
         {% endif %}
     </div>
 </twig:Ds:Workspace>

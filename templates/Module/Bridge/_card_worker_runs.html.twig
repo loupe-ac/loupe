@@ -6,10 +6,9 @@
 {# A manager always sees the section, because the pause control shows on a card with no runs. #}
 {% if canManage or runs is not empty or usage.known or held or commandErrors|default([]) is not empty %}
 <section class="lp-card-overview__section" data-card-runs>
-    <div class="lp-section-heading">
-        <h2 class="lp-card-panel__title">{{ (runs is not empty ? 'board.card.runs.open_title' : 'board.card.runs.title')|trans }}</h2>
-        <a class="lp-workshop-text-link" href="{{ path('app_project_worker_runs', {id: project.id}) }}" data-turbo-frame="_top" data-card-runs-all>{{ 'board.card.runs.all'|trans }}</a>
-    </div>
+    <twig:Ds:SectionHeading>{{ (runs is not empty ? 'board.card.runs.open_title' : 'board.card.runs.title')|trans }}
+        <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_worker_runs', {id: project.id}) }}" data-turbo-frame="_top" data-card-runs-all>{{ 'board.card.runs.all'|trans }}</a></twig:block>
+    </twig:Ds:SectionHeading>
     {% if commandErrors|default([]) is not empty %}
     <div class="lp-worker-run-flashes" data-worker-run-command-flash>
         {% include '_flash_messages.html.twig' with {flashes: {error: commandErrors}} only %}
@@ -19,10 +18,9 @@
     <p class="lp-card-held" data-card-held><twig:ux:icon name="lucide:circle-pause" class="lp-card-held__icon" />{{ 'board.card.runs.held'|trans }}</p>
     {% endif %}
     {% if canManage %}
-    <form method="post" action="{{ path(held ? 'app_project_card_agents_release' : 'app_project_card_agents_pause', {id: project.id, cardId: cardId}) }}" data-turbo-frame="card-worker-runs" {{ held ? 'data-card-agents-release' : 'data-card-agents-pause' }}>
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('card-agents') }}">
-        <twig:Ds:Button variant="outline" size="sm" type="submit">{% if held %}<twig:ux:icon name="lucide:circle-play" class="size-4" />{% else %}<twig:ux:icon name="lucide:circle-pause" class="size-4" />{% endif %}{{ (held ? 'board.card.runs.release' : 'board.card.runs.pause')|trans }}</twig:Ds:Button>
-    </form>
+    <twig:Ds:ActionForm :action="path(held ? 'app_project_card_agents_release' : 'app_project_card_agents_pause', {id: project.id, cardId: cardId})" token="card-agents" frame="card-worker-runs" :data-card-agents-release="held ? true : false" :data-card-agents-pause="held ? false : true">
+        <twig:Ds:Button variant="outline" size="sm" type="submit">{% if held %}<twig:ux:icon name="lucide:circle-play" class="lp-icon lp-icon--md" />{% else %}<twig:ux:icon name="lucide:circle-pause" class="lp-icon lp-icon--md" />{% endif %}{{ (held ? 'board.card.runs.release' : 'board.card.runs.pause')|trans }}</twig:Ds:Button>
+    </twig:Ds:ActionForm>
     {% endif %}
     {% for item in runs %}
     {% set control = item.control %}
@@ -33,16 +31,15 @@
                 {% if item.interactive %}<twig:Ds:Tag tone="neutral" class="lp-card-run__kind">{{ 'bridge.worker_runs.interactive'|trans }}</twig:Ds:Tag>{% endif %}
                 {% if item.command %}<twig:Ds:Tag tone="neutral" class="lp-card-run__kind" data-worker-run-command>{{ 'bridge.worker_runs.command'|trans }}</twig:Ds:Tag>{% endif %}
                 {% set shownAt = item.run.startedAt ?? item.run.receivedAt %}
-                <span class="lp-card-run__meta"><time datetime="{{ shownAt|date('c') }}">{{ shownAt|relative_time }}</time>{% if item.duration() is not null %} · {% if item.interactive and item.state.isOpen() %}{{ 'bridge.worker_runs.running_for'|trans({'%duration%': item.duration()}) }}{% else %}{{ item.duration() }}{% endif %}{% endif %}</span>
+                <span class="lp-card-run__meta"><twig:Ds:RelativeTime :datetime="shownAt" />{% if item.duration() is not null %} · {% if item.interactive and item.state.isOpen() %}{{ 'bridge.worker_runs.running_for'|trans({'%duration%': item.duration()}) }}{% else %}{{ item.duration() }}{% endif %}{% endif %}</span>
                 {% if control and control.label %}{% set controlLabel = control.label|trans(control.labelParameters) %}<span class="lp-worker-run-control-label{{ control.labelWarns ? ' lp-worker-run-control-label--warns' : '' }}" title="{{ controlLabel }}" data-worker-run-control-label>{{ controlLabel }}</span>{% endif %}
             </a>
             {% if canManage and control and control.action %}
             {% include '@Bridge/_worker_run_control_form.html.twig' with {project: project, run: item.run, control: control, frame: 'card-worker-runs', compact: true} only %}
             {% elseif canManage and item.closable %}
-            <form method="post" action="{{ path('app_project_worker_run_close', {id: project.id, runId: item.run.id}) }}" class="lp-card-run__action" data-turbo-frame="card-worker-runs" data-card-run-close>
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token('worker-run-close') }}">
-                <twig:Ds:Button variant="icon compact" type="submit"  title="{{ 'bridge.worker_runs.close_session'|trans }}" aria-label="{{ 'bridge.worker_runs.close_session'|trans }}"><twig:ux:icon name="lucide:x" class="size-3.5" /></twig:Ds:Button>
-            </form>
+            <twig:Ds:ActionForm :action="path('app_project_worker_run_close', {id: project.id, runId: item.run.id})" token="worker-run-close" frame="card-worker-runs" class="lp-card-run__action" data-card-run-close>
+                <twig:Ds:Button variant="icon compact" type="submit"  title="{{ 'bridge.worker_runs.close_session'|trans }}" aria-label="{{ 'bridge.worker_runs.close_session'|trans }}"><twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm" /></twig:Ds:Button>
+            </twig:Ds:ActionForm>
             {% endif %}
         </div>
         <twig:Ds:StatusChip :modifier="item.state.chipModifier()" :dot="false">{{ item.state.translationKey()|trans }}</twig:Ds:StatusChip>

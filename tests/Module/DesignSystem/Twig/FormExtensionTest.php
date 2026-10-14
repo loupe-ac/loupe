@@ -25,6 +25,12 @@ final class FormExtensionTest extends TestCase
         self::assertSame('lp-input lp-input--mono', new FormExtension()->inputClasses(null, true));
     }
 
+    public function test_compact_adds_the_modifier_of_the_kind(): void
+    {
+        self::assertSame('lp-input lp-input--compact', new FormExtension()->inputClasses(null, false, true));
+        self::assertSame('lp-input lp-select lp-select--compact', new FormExtension()->inputClasses('select', false, true));
+    }
+
     public function test_an_unknown_kind_is_a_plain_input(): void
     {
         self::assertSame('lp-input', new FormExtension()->inputClasses('range'));

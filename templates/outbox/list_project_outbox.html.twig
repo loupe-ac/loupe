@@ -23,7 +23,7 @@
                 <span class="lp-site-review-index lp-site-review-index--pending">{{ '%02d'|format(loop.index) }}</span>
                 <div class="lp-site-review-main">
                     <div class="lp-site-review-title-row">
-                        <p class="lp-site-review-quote">{{ 'outbox.event_label'|trans({'%date%': event.createdAt|date('Y-m-d H:i')}) }}</p>
+                        <p class="lp-site-review-quote">{{ 'outbox.event_label'|trans({'%date%': event.createdAt|date('j M Y, H:i')}) }}</p>
                         <twig:Ds:StatusChip modifier="pending" class="shrink-0">{{ 'outbox.status.unsent'|trans }}</twig:Ds:StatusChip>
                     </div>
 
@@ -34,7 +34,7 @@
                             {%- if event.nextAttemptAt is null -%}
                                 {{ 'outbox.next_attempt.due_now'|trans }}
                             {%- else -%}
-                                {{ 'outbox.next_attempt.scheduled'|trans({'%date%': event.nextAttemptAt|date('Y-m-d H:i')}) }}
+                                {{ 'outbox.next_attempt.scheduled'|trans({'%date%': event.nextAttemptAt|date('j M Y, H:i')}) }}
                             {%- endif -%}
                         </span>
                     </div>
@@ -49,7 +49,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <twig:Ds:EmptyState icon="lucide:circle-check" iconClass="text-accent w-12 h-12" :title="'outbox.empty'|trans" />
+    <twig:Ds:EmptyState icon="lucide:circle-check" iconClass="text-accent" :title="'outbox.empty'|trans" />
     {% endif %}
 </div>
 {% endblock %}

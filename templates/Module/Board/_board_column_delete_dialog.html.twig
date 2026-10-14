@@ -16,9 +16,9 @@
         </twig:Ds:FormField>
         {% endif %}
         {{ form_widget(deleteForm._token) }}
-        <div class="flex items-center justify-end gap-3 pt-2">
+        <twig:Ds:FormActions>
             <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'board.column.delete.cancel'|trans }}</twig:Ds:Button>
             <twig:Ds:Button variant="danger" type="submit">{{ (cardCount > 0 ? 'board.column.delete.submit' : 'board.column.delete.submit_empty')|trans }}</twig:Ds:Button>
-        </div>
+        </twig:Ds:FormActions>
     {{ form_end(deleteForm, {render_rest: false}) }}
 </twig:Ds:Dialog>

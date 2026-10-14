@@ -34,6 +34,15 @@
         background-position: right calc(var(--spacing) * 3.5) center;
         background-size: calc(var(--spacing) * 4);
     }
+    /* The short white control of a filter row, 36px tall. Defined after .lp-input
+       and .lp-select so it wins at equal specificity. */
+    .lp-input--compact,
+    .lp-select--compact {
+        @apply min-h-9 h-9 py-0 bg-surface-1 border-line text-sm leading-5;
+    }
+    .lp-select--compact {
+        @apply w-auto shrink-0 pl-2.5 text-fg-mute;
+    }
     .lp-field-errors {
         @apply empty:hidden;
     }

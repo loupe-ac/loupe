@@ -18,45 +18,24 @@
     {% include 'activity/_tabs.html.twig' with {project: project, active: 'events'} only %}
 
     {% if filtered %}
-    <div class="lp-list-filters">
-        {# A GET form, so every control lands in the URL. `page` is not a field: a changed filter starts at page one. #}
-        <form method="get"
-              action="{{ path('app_project_activity', {id: project.id}) }}"
-              data-controller="autosearch"
-              class="lp-filter-form">
-            <div class="lp-filter-primary" data-action="focusin->autosearch#revealField">
-                <div class="lp-filter-search">
-                    <twig:ux:icon name="lucide:search" class="lp-filter-search__icon" />
-                    <label class="sr-only" for="activity-search">{{ 'activity.filter.search_label'|trans }}</label>
-                    <twig:Ds:Input type="search"
-                           id="activity-search"
-                           name="search"
-                           class="lp-filter-input"
-                           value="{{ listQuery.search }}"
-                           placeholder="{{ 'activity.filter.search_placeholder'|trans }}"
-                           data-autosearch-target="field"
-                           data-action="input->autosearch#search" />
-                </div>
-
-                <label class="sr-only" for="activity-family">{{ 'activity.filter.family_label'|trans }}</label>
-                <twig:Ds:Select id="activity-family"
-                        name="family"
-                        class="lp-filter-select"
-                        data-action="change->autosearch#search">
-                    <option value="">{{ 'activity.filter.all_families'|trans }}</option>
-                    {% for family in families %}
-                        <option value="{{ family.value }}"{{ listQuery.family == family ? ' selected' : '' }}>{{ family.translationKey()|trans }}</option>
-                    {% endfor %}
-                </twig:Ds:Select>
-            </div>
-
-            <a href="{{ path('app_project_activity', {id: project.id}) }}"
-               data-autosearch-target="clearButton"
-               class="lp-filter-clear">{{ 'activity.filter.clear'|trans }}</a>
-        </form>
-
-        <turbo-frame id="activity-count" class="lp-live-frame"><span class="lp-filter-count">{{ 'activity.count'|trans({'%count%': filteredTotal}) }}</span></turbo-frame>
-    </div>
+    {# A GET form, so every control lands in the URL. `page` is not a field: a changed filter starts at page one. #}
+    <twig:Ds:FilterBar
+        :action="path('app_project_activity', {id: project.id})"
+        :search="{id: 'activity-search', name: 'search', value: listQuery.search, label: 'activity.filter.search_label'|trans, placeholder: 'activity.filter.search_placeholder'|trans}"
+        :clearHref="path('app_project_activity', {id: project.id})"
+        :clearLabel="'activity.filter.clear'|trans"
+        :count="'activity.count'|trans({'%count%': filteredTotal})"
+        countFrame="activity-count">
+        <label class="sr-only" for="activity-family">{{ 'activity.filter.family_label'|trans }}</label>
+        <twig:Ds:Select id="activity-family"
+                name="family"
+                data-action="change->autosearch#search">
+            <option value="">{{ 'activity.filter.all_families'|trans }}</option>
+            {% for family in families %}
+                <option value="{{ family.value }}"{{ listQuery.family == family ? ' selected' : '' }}>{{ family.translationKey()|trans }}</option>
+            {% endfor %}
+        </twig:Ds:Select>
+    </twig:Ds:FilterBar>
     {% endif %}
 
     {# A reload on page two would move the rows under the reader, so only page one follows live changes. #}
@@ -68,7 +47,7 @@
          data-worker-run-refresh-whole-value="{{ filtered ? 'false' : 'true' }}"{% endif %}>
     <turbo-frame id="activity-frame" class="lp-live-frame" target="_top" data-worker-run-refresh-target="frame">
     {% if entries|length > 0 %}
-    <twig:DataTable modifier="events" :columns="[
+    <twig:Ds:DataTable modifier="events" :label="'activity.table.label'|trans" :columns="[
         {label: 'activity.column.event'|trans},
         {label: 'activity.column.delivery'|trans},
         {label: 'activity.column.family'|trans},
@@ -81,25 +60,27 @@
         {% set prefix = event.type|split('.')|first %}
         {% set delivery = event.publishedAt ? 'delivered' : (event.lastPublishError ? 'failed' : 'pending') %}
         {% set event_content %}<span class="lp-data-table__title">{% include 'outbox/_event_type_label.html.twig' with {type: event.type} only %}</span>{% if entry.link %}<span class="lp-data-table__subject">{{ entry.link.subject }}</span>{% endif %}{% endset %}
-        <div class="lp-data-table__row" data-activity-event-id="{{ event.id }}" data-event-family="{{ family ? family.value : prefix }}">
-            <div class="lp-data-table__cell lp-data-table__primary">
+        <div class="lp-data-table__row" role="row" data-activity-event-id="{{ event.id }}" data-event-family="{{ family ? family.value : prefix }}">
+            <div class="lp-data-table__cell lp-data-table__primary" role="cell">
                 {% if entry.link %}
                 <a class="lp-data-table__target" href="{{ entry.link.url }}" data-activity-work-link>{{ event_content }}</a>
                 {% else %}
                 {{ event_content }}
                 {% endif %}
             </div>
-            <twig:Ds:StatusChip
-                :modifier="{delivered: 'ok', failed: 'failed', pending: 'pending'}[delivery]"
-                :label="('activity.delivery.' ~ delivery)|trans"
-                :reason="event.lastPublishError ? 'activity.delivery.reason'|trans({'%count%': event.publishAttempts, '%error%': event.lastPublishError}) : null"
-                :id="'activity-reason-' ~ event.id" />
-            <span class="lp-data-table__cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
-            <span class="lp-data-table__cell lp-data-table__cell--end">{{ event.sequence ?? '—' }}</span>
-            <span class="lp-data-table__cell"><time datetime="{{ event.createdAt|date('c') }}" title="{{ event.createdAt|date('Y-m-d H:i:s T') }}">{{ event.createdAt|relative_time }}</time></span>
+            <span class="lp-data-table__cell" role="cell">
+                <twig:Ds:StatusChip
+                    :modifier="{delivered: 'ok', failed: 'failed', pending: 'pending'}[delivery]"
+                    :label="('activity.delivery.' ~ delivery)|trans"
+                    :reason="event.lastPublishError ? 'activity.delivery.reason'|trans({'%count%': event.publishAttempts, '%error%': event.lastPublishError}) : null"
+                    :id="'activity-reason-' ~ event.id" />
+            </span>
+            <span class="lp-data-table__cell" role="cell"><twig:Ds:Tag tone="neutral">{{ family ? family.translationKey()|trans : prefix }}</twig:Ds:Tag></span>
+            <span class="lp-data-table__cell lp-data-table__cell--end" role="cell">{{ event.sequence ?? '—' }}</span>
+            <span class="lp-data-table__cell" role="cell"><twig:Ds:RelativeTime :datetime="event.createdAt" /></span>
         </div>
         {% endfor %}
-    </twig:DataTable>
+    </twig:Ds:DataTable>
 
     <twig:Ds:Pagination route="app_project_activity" :page="page" :totalPages="totalPages" :pageList="pageList" :routeParams="{id: project.id}|merge(listQuery.routeParams)" />
     {% elseif listQuery.isNarrowed %}

@@ -23,6 +23,9 @@ final readonly class ComponentEntry
      * @param list<string>          $states
      * @param list<string>          $sizes
      * @param array<string, string> $attributes
+     * @param list<string>          $legacyClasses  old class names this component replaces
+     * @param bool                  $legacyEnforced true once no template uses an old class: the adoption check then errors instead of warning
+     * @param bool                  $classOnly      true for a block that is a class on an existing tag, with no component template: the adoption check leaves it out
      */
     public function __construct(
         public string $name,
@@ -42,6 +45,9 @@ final readonly class ComponentEntry
         public string $modifierProp = 'variant',
         public bool $takesAs = false,
         public array $attributes = [],
+        public array $legacyClasses = [],
+        public bool $legacyEnforced = false,
+        public bool $classOnly = false,
     ) {
     }
 }

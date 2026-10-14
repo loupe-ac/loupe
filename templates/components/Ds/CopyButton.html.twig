@@ -1,0 +1,24 @@
+{#
+  Props:  @comment-budget-ignore
+    text          string   The text that the button puts on the clipboard.
+    label         string   The words on a text button, or the name of an icon button for a screen reader.
+    copiedLabel   string   The words shown for two seconds after the copy. Optional.
+    variant       string   text or icon. text by default.
+    tone          string   light or chrome. chrome is the pill on a dark code block. light by default.
+    buttonVariant string   The Ds:Button variant of a light text button. ghost by default.
+    buttonSize    string   The Ds:Button size of a light text button. sm by default.
+  Any other attribute, class included, is passed to the button. The wrapper carries the clipboard controller.
+#}
+{%- props text, label, copiedLabel = null, variant = 'text', tone = 'light', buttonVariant = 'ghost', buttonSize = 'sm' -%}
+{%- set trigger = variant == 'icon' ? '' : (tone == 'chrome' ? 'lp-copy-button__chip' : ds_button_class(buttonVariant, buttonSize)) -%}
+<span class="lp-copy-button lp-copy-button--{{ variant }}" data-controller="clipboard" data-clipboard-text-value="{{ text }}"{% if copiedLabel is not null %} data-clipboard-copied-label-value="{{ copiedLabel }}"{% endif %}>
+    {%- if variant == 'icon' -%}
+        <button{{ attributes.defaults(trigger ? {type: 'button', class: trigger, title: label} : {type: 'button', title: label}) }} data-clipboard-target="button" data-action="click->clipboard#copy">
+            {{- ux_icon('lucide:link', {class: 'lp-icon lp-icon--md lp-copy-button__idle'}) -}}
+            {{- ux_icon('lucide:check', {class: 'lp-icon lp-icon--md lp-copy-button__done'}) -}}
+            <span class="sr-only" aria-live="polite" data-clipboard-target="label">{{ label }}</span>
+        </button>
+    {%- else -%}
+        <button{{ attributes.defaults({type: 'button', class: trigger}) }} data-clipboard-target="button" data-action="click->clipboard#copy">{{ label }}</button>
+    {%- endif -%}
+</span>

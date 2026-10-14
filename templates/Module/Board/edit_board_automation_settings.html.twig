@@ -11,16 +11,16 @@
 {% block settings_section 'automation' %}
 
 {% block settings_content %}
-<section class="lp-settings-panel-card" data-board-automation-settings>
-    <h2 class="lp-section-title">{{ 'board.automation.heading'|trans }}</h2>
+<twig:Ds:Panel as="section" data-board-automation-settings>
+    <twig:Ds:SectionHeading>{{ 'board.automation.heading'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'board.automation.description'|trans }}</p>
     {% if failedComment %}
         {% set cause = failedComment.cause ?? '' %}
         <div class="lp-connect-alert" data-fix-run-comment-failure>
-            <twig:ux:icon name="lucide:triangle-alert" class="lp-connect-alert__icon w-4 h-4" />
+            <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--md lp-connect-alert__icon" />
             <p class="lp-connect-alert__text">
                 {{ 'board.automation.comment_failure.summary'|trans({'%pull_request%': failedComment.repository ~ '#' ~ failedComment.number}) -}}
-                {% if failedComment.failedAt %} (<time datetime="{{ failedComment.failedAt|date('c') }}" title="{{ failedComment.failedAt|date('Y-m-d H:i:s T') }}">{{ failedComment.failedAt|relative_time }}</time>){% endif %}.
+                {% if failedComment.failedAt %} (<twig:Ds:RelativeTime :datetime="failedComment.failedAt" />){% endif %}.
                 {% if cause in ['permission', 'no_installation', 'installation_suspended', 'unknown_pull_request', 'no_commenter', 'lookup_incomplete'] %}
                     {{ ('board.automation.comment_failure.cause.' ~ cause)|trans }}
                 {% else %}
@@ -44,9 +44,9 @@
             <twig:Ds:Hint :id="form.stuckDelayMinutes.vars.id ~ '_help'">{{ form.stuckDelayMinutes.vars.help|trans }}</twig:Ds:Hint>
             <twig:Ds:FieldErrors :fieldView="form.stuckDelayMinutes" data-field-errors="stuckDelayMinutes" />
         </twig:Ds:FormField>
-        <div class="lp-settings-form-actions">
+        <twig:Ds:FormActions>
             <twig:Ds:Button variant="primary" type="submit">{{ 'board.automation.submit'|trans }}</twig:Ds:Button>
-        </div>
+        </twig:Ds:FormActions>
     {{ form_end(form) }}
-</section>
+</twig:Ds:Panel>
 {% endblock %}

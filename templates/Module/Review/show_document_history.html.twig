@@ -48,14 +48,14 @@
         <section class="lp-history-compare">
             <form class="lp-version-compare" method="GET" action="{{ path('app_document_review_compare', routeParameters) }}">
                 <label class="lp-version-compare__label" for="history-compare-from">{{ 'review.document.diff.picker.from'|trans }}</label>
-                <twig:Ds:Select id="history-compare-from" name="from" class="lp-filter-select" aria-label="{{ 'review.document.diff.picker.from_label'|trans }}">
+                <twig:Ds:Select id="history-compare-from" name="from" compact aria-label="{{ 'review.document.diff.picker.from_label'|trans }}">
                     {% for meta in versions %}
                     <option value="{{ meta.versionNumber }}"{{ meta.versionNumber == latestVersion - 1 ? ' selected' : '' }}>{{ 'v' ~ meta.versionNumber }}</option>
                     {% endfor %}
                 </twig:Ds:Select>
                 <twig:ux:icon name="lucide:arrow-right" class="lp-version-compare__arrow" aria-hidden="true" />
                 <label class="lp-version-compare__label" for="history-compare-to">{{ 'review.document.diff.picker.to'|trans }}</label>
-                <twig:Ds:Select id="history-compare-to" name="to" class="lp-filter-select" aria-label="{{ 'review.document.diff.picker.to_label'|trans }}">
+                <twig:Ds:Select id="history-compare-to" name="to" compact aria-label="{{ 'review.document.diff.picker.to_label'|trans }}">
                     {% for meta in versions %}
                     <option value="{{ meta.versionNumber }}"{{ meta.versionNumber == latestVersion ? ' selected' : '' }}>{{ 'v' ~ meta.versionNumber }}</option>
                     {% endfor %}
@@ -91,7 +91,7 @@
                 {% else %}
                 <strong class="lp-history__note lp-history__note--empty">{{ (isLatest ? 'review.document.history.current' : 'review.document.history.no_note')|trans }}</strong>
                 {% endif %}
-                <span class="lp-history__date">{{ meta.createdAt|relative_time }}</span>
+                <twig:Ds:RelativeTime :datetime="meta.createdAt" class="lp-history__date" />
             </td>
             <td>{{ 'review.document.history.threads'|trans({'%count%': meta.threadCount}) }}</td>
             <td>
@@ -125,7 +125,7 @@
             <span class="lp-history__verdict lp-history__verdict--{{ entry.review.verdict.value }}">{{ ('review.document.verdict.' ~ entry.review.verdict.value)|trans }}</span>
             <span>{{ entry.review.reviewer.fullName }}</span>
             <span class="lp-history__version">{{ 'v' ~ entry.versionNumber }}</span>
-            <time class="lp-history__date" datetime="{{ entry.review.submittedAt|date('c') }}" title="{{ entry.review.submittedAt|date('Y-m-d H:i:s T') }}">{{ entry.review.submittedAt|relative_time }}</time>
+            <twig:Ds:RelativeTime :datetime="entry.review.submittedAt" class="lp-history__date" />
             {% if entry.review.note %}<p class="lp-history__review-note">{{ entry.review.note }}</p>{% endif %}
         </div>
         {% else %}
