@@ -187,6 +187,14 @@ when the field is absent. The worker run drawer shows the code. The reason
 table in `plugins/loupe/skills/loupe-stage-product-design/references/stage-contract.md`
 lists each code.
 
+The core schema also takes an optional `title` and an optional list
+`suggestedActions`. The `title` is one line that names the stop. The inbox uses it as the title
+of the wait item, and falls back to the first sentence of the report when it is absent. Each
+suggested action has an `action` key, a one-line `reason` and an optional `recommended` flag.
+The bridge sends both fields in `resultFields`. The app keeps the built-in action keys it
+knows, drops the other keys, and keeps three suggestions at most. A suggestion changes no
+behavior until the inbox offers actions.
+
 A worker reports `waiting` when its work waits on the forge, such as checks on
 a pushed pull request. The bridge reports that run as `waiting-on-forge`. The
 bridge resumes no run on its own. A run that ends `unfinished` posts `refused`

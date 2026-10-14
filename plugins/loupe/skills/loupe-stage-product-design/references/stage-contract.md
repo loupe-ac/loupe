@@ -74,6 +74,12 @@ When the harness asks for a structured result, put the same sentence in `summary
 
 Write that summary in Markdown, because the inbox renders it. Put the cause in a first short paragraph. Write the next steps of the owner as a numbered list. Put a branch, a file, a command or an identifier in backticks. Use no headings, because the inbox gives the report its own label. Set `reason` to the code of the first line, or to `work-remains` when no form applies yet. Set `status` from the `STAGE RESULT:` form:
 
+A `blocked`, `unfinished` or `waiting` result can also carry two optional fields, `title` and `suggestedActions`. The inbox reads them.
+
+1. `title` is one plain line of 80 characters or fewer. It names the stop for the owner, such as "Add the API key to the vault". Leave it out when the first sentence of the summary already says it.
+2. `suggestedActions` lists at most three actions that the owner can run from the inbox. Each entry has `action`, a one-line `reason`, and `recommended` set on at most one entry. Leave the list out when you have no clear suggestion.
+3. The `action` is one of these keys: `resume-run`, `retry-card`, `review`, `open`, `send-agent`, `start-session`, `dismiss`. The app drops any other key. Loupe shows only the actions that fit the item, so a suggestion is advice and never a command.
+
 | `STAGE RESULT:` form | `status` |
 |---|---|
 | `merged`, `preview refreshed`, `breakdown`, `nothing to build`, `delivered without code`, `created`, `revised`, `comments answered`, `unchanged`, `nothing to fix`, `no open pull request`, `already approved`, `card left`, `repaired`, `reviewed` | `finished` |

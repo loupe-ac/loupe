@@ -48,10 +48,25 @@ final readonly class CardWaitText
     public function title(array $open, string $cardTitle, int $maxLength): string
     {
         $main = self::mainWait($open);
+        $runTitle = null === $main ? null : $this->runTitle($main);
+        if (null !== $runTitle) {
+            return mb_substr($runTitle, 0, $maxLength);
+        }
         $line = null === $main ? null : $this->line($main, false);
         $reason = null === $line ? '' : $this->translator->trans($line->titleKey(), $line->params, null, $this->locale);
 
         return mb_substr('' === $reason ? $cardTitle : $reason, 0, $maxLength);
+    }
+
+    /** The title that the worker of a run wait sent in its result, or null. */
+    private function runTitle(InboxCardWait $wait): ?string
+    {
+        if (InboxCardWaitType::WorkerRun !== $wait->type || null === $wait->runId) {
+            return null;
+        }
+        $run = $this->workerRuns->findOneByIdAndProjectId($wait->runId->toRfc4122(), (string) $wait->watch->project->id);
+
+        return null === $run ? null : RunSuggestions::title($run);
     }
 
     /**

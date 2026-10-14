@@ -57,3 +57,18 @@ func TestStrictSchemaKeepsATextThatIsNoObject(t *testing.T) {
 		}
 	}
 }
+
+func TestStrictSchemaMakesTheTitleAndTheSuggestedActionsNullable(t *testing.T) {
+	in := `{"type":"object","properties":{"status":{"type":"string"},"title":{"type":"string"},"suggestedActions":{"type":"array","items":{"type":"object","properties":{"action":{"type":"string"},"reason":{"type":"string"},"recommended":{"type":"boolean"}},"required":["action","reason"]}}},"required":["status"]}`
+	want := `{"type":"object","additionalProperties":false,"properties":{"status":{"type":"string"},"title":{"type":["string","null"]},"suggestedActions":{"type":["array","null"],"items":{"type":"object","additionalProperties":false,"properties":{"action":{"type":"string"},"reason":{"type":"string"},"recommended":{"type":["boolean","null"]}},"required":["action","reason","recommended"]}}},"required":["status","suggestedActions","title"]}`
+	var got, exp any
+	if err := json.Unmarshal([]byte(strictSchema(in)), &got); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(want), &exp); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, exp) {
+		t.Fatalf("strictSchema = %s\nwant %s", strictSchema(in), want)
+	}
+}

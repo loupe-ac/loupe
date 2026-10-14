@@ -63,6 +63,15 @@ final class InboxRowTest extends TestCase
         new InboxRow($this->ask(), []);
     }
 
+    public function test_a_long_title_is_cut_for_the_list_row_and_a_short_one_is_not(): void
+    {
+        $long = new InboxItem($this->project(), 1, InboxItemKind::Wait, str_repeat('word ', 30), false);
+
+        self::assertSame(80, mb_strlen(new InboxRow($this->ask(), [$long])->shortTitle()));
+        self::assertStringEndsWith('…', new InboxRow($this->ask(), [$long])->shortTitle());
+        self::assertSame('First', new InboxRow($this->ask(), [$this->item(1, InboxItemKind::Question)])->shortTitle());
+    }
+
     public function test_a_row_with_no_card_has_no_first_card(): void
     {
         $row = new InboxRow($this->ask(), [$this->item(1, InboxItemKind::Question)]);
