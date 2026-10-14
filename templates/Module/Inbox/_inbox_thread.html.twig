@@ -5,7 +5,7 @@
 {% set shownWaits = watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
 {% set statuses = reply ? inbox_action_statuses(item) : [] %}
 {% set lastStatus = statuses|last %}
-{# A newer wait, or an expired or cancelled action, brings the reply card back. #}
+{# Another open wait, or an expired or cancelled action, brings the reply card back. #}
 {% set answering = lastStatus and lastStatus.answers(watch.waits) %}
 {% set chips = {queued: 'pending', resumed: 'active', running: 'active', retried: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
 <div class="lp-inbox-thread" data-inbox-thread>

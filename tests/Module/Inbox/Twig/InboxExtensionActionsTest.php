@@ -165,6 +165,26 @@ final class InboxExtensionActionsTest extends KernelTestCase
         self::assertFalse($status->answers($watch->waits));
     }
 
+    public function test_an_older_open_wait_keeps_the_reply_after_the_answered_wait_ends(): void
+    {
+        $item = $this->runItem(WorkerRunState::Blocked);
+        $watch = $this->watchOf($item);
+        $answered = $watch->waits->first() ?: throw new \LogicException('A run item has a wait.');
+        $review = new InboxCardWait($watch, InboxCardWaitTrigger::DocumentInReview, InboxCardWaitType::Document, InboxCardWaitReason::WaitingForReview, documentId: Uuid::v7(), versionNumber: 1, startedAt: new \DateTimeImmutable('2026-10-13 09:00:00'));
+        $watch->waits->add($review);
+        $this->em()->persist($review);
+        $this->em()->flush();
+        $action = new InboxAction($item, InboxActionKind::ResumeRun, $this->project->owner, '', new \DateTimeImmutable('2026-10-14 01:00:00'));
+        $action->waitId = $answered->id;
+        $status = new InboxActionStatus($action, InboxActionState::Resumed, 'inbox.action.status.resumed');
+
+        self::assertFalse($status->answers($watch->waits));
+
+        $answered->endedAt = new \DateTimeImmutable('2026-10-14 01:00:05');
+
+        self::assertFalse($status->answers($watch->waits));
+    }
+
     public function test_an_action_answers_only_while_it_runs_and_a_wait_is_open(): void
     {
         $item = $this->runItem(WorkerRunState::Blocked);

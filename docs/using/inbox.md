@@ -370,7 +370,9 @@ run states of the Activity page:
 
 An action does not close the item. The item closes when its last wait ends,
 such as when the new run starts after you resumed the run. When the new run
-stops again, Loupe opens a new wait for the card.
+stops again, Loupe opens a new wait for the card. While another wait of the
+item stays open, such as a document in review, the reply card stays under the
+status line, so you can still act on that wait.
 
 The card page shows the same thread in its **Inbox items** section, with the
 same buttons. After you act there, you return to the card page. The document

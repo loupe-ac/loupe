@@ -26,18 +26,16 @@ final readonly class InboxActionStatus
 
     /**
      * Whether the action still answers the open waits, so the thread hides the reply card.
-     * Times hold whole seconds, so a wait that starts in the second of the click is new unless it is the answered one.
+     * Any open wait other than the answered one still needs the owner, whenever it started.
      *
      * @param iterable<InboxCardWait> $waits
      */
     public function answers(iterable $waits): bool
     {
         $open = array_filter([...$waits], static fn (InboxCardWait $wait): bool => null === $wait->endedAt);
-        if (!$this->state->inProgress() || [] === $open) {
-            return false;
-        }
-        $requestedAt = $this->action->requestedAt->getTimestamp();
 
-        return !array_any($open, fn (InboxCardWait $wait): bool => $wait->startedAt->getTimestamp() >= $requestedAt && true !== $wait->id?->equals($this->action->waitId));
+        return $this->state->inProgress()
+            && [] !== $open
+            && array_all($open, fn (InboxCardWait $wait): bool => true === $wait->id?->equals($this->action->waitId));
     }
 }
