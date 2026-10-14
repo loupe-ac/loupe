@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -20,6 +22,7 @@ use App\Module\Inbox\Service\InboxLinkResolver;
 use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
+use App\Module\Inbox\Service\RunSuggestions;
 use App\Module\Review\Entity\Document;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
@@ -51,6 +54,12 @@ final readonly class AskInboxHandler
     public const string REVIEW_TARGET_REQUIRED = 'inbox.review.error.target_required';
     public const string REVIEW_TARGET_WRONG_KIND = 'inbox.review.error.target_wrong_kind';
     public const string REVIEW_WITH_ANSWER = 'inbox.review.error.with_answer';
+    public const string SUGGESTION_UNKNOWN_ACTION = 'inbox.item.error.suggestion_unknown_action';
+    public const string SUGGESTION_DUPLICATE = 'inbox.item.error.suggestion_duplicate';
+    public const string SUGGESTION_REASON_BLANK = 'inbox.item.error.suggestion_reason_blank';
+    public const string SUGGESTION_REASON_TOO_LONG = 'inbox.item.error.suggestion_reason_too_long';
+    public const string SUGGESTION_CARD_NOT_LINKED = 'inbox.item.error.suggestion_card_not_linked';
+    public const string TOO_MANY_SUGGESTIONS = 'inbox.item.error.too_many_suggestions';
 
     public function __construct(
         private InboxItemRepository $inboxItems,
@@ -113,6 +122,7 @@ final readonly class AskInboxHandler
                         createdAt: $now,
                         searchLanguage: $command->project->searchLanguage,
                     );
+                    $item->suggestedActions = [] === $draft->suggestedActions ? null : $draft->suggestedActions;
                     foreach ($draft->cards as $card) {
                         $item->cards->add(new InboxItemCard($item, $card, $now));
                     }
@@ -265,6 +275,8 @@ final readonly class AskInboxHandler
             throw new DomainErrors([$field('kind') => self::TOO_MANY_LINKS]);
         }
 
+        $linkedCardIds = array_map(static fn (Card $card): string => (string) $card->id, $cards);
+
         return new AskInboxDraft(
             kind: $input->kind,
             title: $title,
@@ -276,6 +288,50 @@ final readonly class AskInboxHandler
             cards: $cards,
             documents: $documents,
             reviewTarget: $reviewTarget,
+            suggestedActions: $this->suggestions($input->suggestedActions, $linkedCardIds, $field('suggestedActions')),
         );
+    }
+
+    /**
+     * Checks what the agent suggests. It never checks the fit, because the fit changes while the item is open.
+     *
+     * @param list<AskInboxSuggestion> $suggestions
+     * @param list<string>             $linkedCardIds
+     *
+     * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string}>
+     */
+    private function suggestions(array $suggestions, array $linkedCardIds, string $field): array
+    {
+        if (\count($suggestions) > RunSuggestions::MAX_SUGGESTIONS) {
+            throw new DomainErrors([$field => self::TOO_MANY_SUGGESTIONS]);
+        }
+
+        $checked = [];
+        foreach ($suggestions as $suggestion) {
+            if (null === InboxActionKind::tryFrom($suggestion->action)) {
+                throw new DomainErrors([$field => self::SUGGESTION_UNKNOWN_ACTION]);
+            }
+            if (isset($checked[$suggestion->action])) {
+                throw new DomainErrors([$field => self::SUGGESTION_DUPLICATE]);
+            }
+            if (mb_strlen($suggestion->reason) > RunSuggestions::MAX_REASON_LENGTH) {
+                throw new DomainErrors([$field => self::SUGGESTION_REASON_TOO_LONG]);
+            }
+            $reason = trim((string) preg_replace('/\s+/u', ' ', $suggestion->reason));
+            if ('' === $reason) {
+                throw new DomainErrors([$field => self::SUGGESTION_REASON_BLANK]);
+            }
+            if (null !== $suggestion->cardId && !\in_array(strtolower($suggestion->cardId), $linkedCardIds, true)) {
+                throw new DomainErrors([$field => self::SUGGESTION_CARD_NOT_LINKED]);
+            }
+            $checked[$suggestion->action] = [
+                'action' => $suggestion->action,
+                'reason' => $reason,
+                'recommended' => $suggestion->recommended,
+                'cardId' => null === $suggestion->cardId ? null : strtolower($suggestion->cardId),
+            ];
+        }
+
+        return array_values($checked);
     }
 }

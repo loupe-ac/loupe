@@ -16,7 +16,7 @@ final class RunSuggestions
 
     public const int MAX_SUGGESTIONS = 3;
 
-    private const int MAX_REASON_LENGTH = 200;
+    public const int MAX_REASON_LENGTH = 200;
 
     /** The title as one line of plain text, or null when the worker sent none. */
     public static function title(WorkerRun $run): ?string
