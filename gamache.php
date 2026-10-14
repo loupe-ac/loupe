@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Module\DesignSystem\Catalog;
+use App\Module\DesignSystem\ComponentEntry;
 use Gamache\Check\CommentBudgetCheck;
 use Gamache\Check\DeploymentConfigParityCheck;
 use Gamache\Check\DesignSystemAdoptionCheck;
 use Gamache\Check\DesignSystemComponent;
+use Gamache\Check\DesignSystemPattern;
+use Gamache\Check\DesignSystemPatternCheck;
 use Gamache\Check\FormTypeTranslationKeysCheck;
 use Gamache\Check\MessengerRoutingCheck;
 use Gamache\Check\NoArbitraryValuesCheck;
@@ -25,6 +29,31 @@ use PhpCsFixer\FixerConfiguration\FixerOptionBuilder;
 use PhpCsFixer\FixerDefinition\FixerDefinition;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
+
+/**
+ * The adoption check reads the catalog, so a new component is one catalog entry.
+ * An old class an entry replaces is checked with the same own template.
+ *
+ * @param list<ComponentEntry> $entries
+ *
+ * @return list<DesignSystemComponent>
+ */
+function designSystemComponents(array $entries): array
+{
+    $components = [];
+    foreach ($entries as $entry) {
+        if ($entry->classOnly || null === $entry->template) {
+            continue;
+        }
+        $own = 'templates/'.$entry->template;
+        $components[] = new DesignSystemComponent($entry->name, $entry->rootClass, $own, $entry->enforced);
+        foreach ($entry->legacyClasses as $legacy) {
+            $components[] = new DesignSystemComponent($entry->name, $legacy, $own, $entry->legacyEnforced);
+        }
+    }
+
+    return $components;
+}
 
 return (new GamacheConfig())->registerChecks([
     new ServicesYamlCheck(),
@@ -135,38 +164,31 @@ return (new GamacheConfig())->registerChecks([
         severity: Severity::Error,
     ),
     new DesignSystemAdoptionCheck(
-        components: [
-            new DesignSystemComponent('Button', 'lp-btn', 'templates/components/Ds/Button.html.twig', enforced: true),
-            new DesignSystemComponent('Input', 'lp-input', 'templates/components/Ds/Input.html.twig', enforced: true),
-            new DesignSystemComponent('Select', 'lp-select', 'templates/components/Ds/Select.html.twig', enforced: true),
-            new DesignSystemComponent('Textarea', 'lp-textarea', 'templates/components/Ds/Textarea.html.twig', enforced: true),
-            new DesignSystemComponent('FormField', 'lp-form-field', 'templates/components/Ds/FormField.html.twig', enforced: true),
-            new DesignSystemComponent('Label', 'lp-label', 'templates/components/Ds/Label.html.twig', enforced: true),
-            new DesignSystemComponent('FieldErrors', 'lp-field-errors', 'templates/components/Ds/FieldErrors.html.twig', enforced: true),
-            new DesignSystemComponent('Hint', 'lp-form-hint', 'templates/components/Ds/Hint.html.twig', enforced: true),
-            new DesignSystemComponent('Tag', 'lp-tag', 'templates/components/Ds/Tag.html.twig', enforced: true),
-            new DesignSystemComponent('Badge', 'lp-badge', 'templates/components/Ds/Badge.html.twig', enforced: true),
-            new DesignSystemComponent('StatusChip', 'lp-status-chip', 'templates/components/Ds/StatusChip.html.twig', enforced: true),
-            new DesignSystemComponent('StatusBox', 'lp-status-box', 'templates/components/Ds/StatusBox.html.twig', enforced: true),
-            new DesignSystemComponent('EmptyState', 'lp-empty-state', 'templates/components/Ds/EmptyState.html.twig', enforced: true),
-            new DesignSystemComponent('Flash', 'lp-flash', 'templates/components/Ds/Flash.html.twig', enforced: true),
-            new DesignSystemComponent('Dialog', 'lp-dialog', 'templates/components/Ds/Dialog.html.twig', enforced: true),
-            new DesignSystemComponent('Tabs', 'lp-tabs', 'templates/components/Ds/Tabs.html.twig', enforced: true),
-            new DesignSystemComponent('Pagination', 'lp-pagination', 'templates/components/Ds/Pagination.html.twig', enforced: true),
-            new DesignSystemComponent('StateMark', 'lp-state-mark', 'templates/components/Ds/StateMark.html.twig', enforced: true),
-            new DesignSystemComponent('Tooltip', 'lp-tooltip', 'templates/components/Ds/Tooltip.html.twig', enforced: true),
-            new DesignSystemComponent('PageHeader', 'lp-page-header', 'templates/components/Ds/PageHeader.html.twig', enforced: true),
-            new DesignSystemComponent('SplitView', 'lp-split-page', 'templates/components/Ds/SplitView.html.twig', enforced: true),
-            new DesignSystemComponent('ListRow', 'lp-list-row', 'templates/components/Ds/ListRow.html.twig', enforced: true),
-            new DesignSystemComponent('Workspace', 'lp-workspace', 'templates/components/Ds/Workspace.html.twig', enforced: true),
-            new DesignSystemComponent('BrandMark', 'lp-brand', 'templates/components/Ds/BrandMark.html.twig', enforced: true),
-            new DesignSystemComponent('NavItem', 'lp-sidebar__link', 'templates/components/Ds/NavItem.html.twig', enforced: false),
-            new DesignSystemComponent('Breadcrumbs', 'lp-crumbs', 'templates/components/Ds/Breadcrumbs.html.twig', enforced: false),
-            new DesignSystemComponent('SettingsLayout', 'lp-settings', 'templates/components/Ds/SettingsLayout.html.twig', enforced: true),
-            new DesignSystemComponent('Drawer', 'lp-drawer', 'templates/components/Ds/Drawer.html.twig', enforced: true),
-        ],
+        components: designSystemComponents((new Catalog())->entries()),
         // The split view draws the workspace frame itself when a page gives it a width.
         ignoredPaths: ['templates/components/Ds/SplitView.html.twig'],
+    ),
+    new DesignSystemPatternCheck(
+        patterns: [
+            new DesignSystemPattern(
+                'Ds:RelativeTime',
+                '/\|\s*relative_time\b/',
+                'relative_time filter call',
+                'templates/components/Ds/RelativeTime.html.twig',
+                enforced: true,
+            ),
+            new DesignSystemPattern(
+                'Ds:ActionForm',
+                '~<form\b(?=(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*?\bmethod\s*=\s*["\']post["\'])(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>\s*<input\b[^>]*\bname\s*=\s*["\']_csrf_token["\'][^>]*>\s*<(button|twig:Ds:Button)\b(?:\{\{(?:[^}]|\}(?!\}))*+\}\}|[^>{]|\{(?!\{))*+>(?:(?!<(?:button|twig:Ds:Button)\b).)*?</\1>\s*</form>~is',
+                'one-button form',
+                'templates/components/Ds/ActionForm.html.twig',
+                enforced: true,
+            ),
+        ],
+        ignoredPaths: [
+            'templates/Module/Account/admin',
+            'templates/Module/Billing/admin',
+        ],
     ),
     new FormTypeTranslationKeysCheck(),
     new TurboStreamTargetsCheck(),

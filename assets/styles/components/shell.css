@@ -120,9 +120,6 @@
     .lp-sidebar__switcher:hover {
         @apply border-switcher-hover;
     }
-    .lp-sidebar__switcher-avatar {
-        @apply w-8 h-8 bg-status-danger shrink-0 inline-flex items-center justify-center text-white text-xs font-bold rounded-lg;
-    }
     .lp-sidebar__switcher-text {
         @apply flex flex-col leading-tight min-w-0 mr-auto;
     }
@@ -139,30 +136,9 @@
         @apply w-3.5 h-3.5 shrink-0 text-fg-mute;
     }
 
-    /* Panel that drops directly under the switcher. */
-    .lp-switcher {
-        @apply relative;
-    }
-    .lp-switcher__panel {
-        @apply absolute left-0 right-0 z-30 flex flex-col gap-1 p-1.5 rounded-xl bg-chrome-raised;
-        animation: lp-appear 120ms ease-out both;
-    }
-    .lp-switcher__panel[hidden] {
-        @apply hidden;
-    }
-    .lp-switcher__item {
-        @apply flex items-center gap-2.5 px-2 py-1.5 rounded-lg no-underline transition-colors;
-    }
-    .lp-switcher__item:hover,
-    .lp-switcher__item[aria-current='true'] {
-        @apply bg-chrome-control;
-    }
     /* Current-project indicator in the workspace picker. */
     .lp-switcher__item-check {
         @apply ml-auto w-4 h-4 shrink-0 text-accent;
-    }
-    .lp-switcher__item-avatar {
-        @apply w-6 h-6 bg-chrome shrink-0 inline-flex items-center justify-center text-accent text-xs font-bold rounded-lg;
     }
     .lp-switcher__item-text {
         @apply flex flex-col leading-tight min-w-0;
@@ -174,13 +150,10 @@
         @apply font-mono text-chrome-mute truncate text-xs;
     }
     .lp-switcher__all {
-        @apply flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-accent text-xs font-bold no-underline transition-colors;
+        @apply text-accent text-xs font-bold;
     }
-    .lp-switcher__all:hover {
-        @apply bg-chrome-control;
-    }
-    /* Boxed to the same 6×6 as .lp-switcher__item-avatar so the label column
-       lines up with the project rows above it. */
+    /* Boxed to the same 6×6 as the xs avatar so the label column lines up with
+       the project rows above it. */
     .lp-switcher__all-glyph {
         @apply inline-flex items-center justify-center shrink-0 w-6 h-6 rounded-lg border border-dashed border-chrome-control;
     }
@@ -202,9 +175,6 @@
     }
     .lp-sidebar__account {
         @apply flex items-center gap-2.5 px-2 mt-2.5 pt-3 border-t border-chrome-control;
-    }
-    .lp-sidebar__account-avatar {
-        @apply w-6.5 h-6.5 shrink-0 inline-flex items-center justify-center rounded-full bg-chrome-control text-accent text-xs font-bold;
     }
     .lp-sidebar__account-text {
         @apply flex flex-col leading-tight min-w-0 mr-auto;

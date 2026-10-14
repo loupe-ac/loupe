@@ -31,6 +31,8 @@ final class ListArtifactsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $rows = $crawler->filter('[data-artifact-id]');
         self::assertCount(2, $rows);
+        self::assertCount(2, $crawler->filter('.lp-data-table[role="table"] > .lp-data-table__row[data-artifact-id]'));
+        self::assertCount(0, $crawler->filter('.lp-document-table, .lp-artifact-table, .lp-document-row'));
         $row = $crawler->filter('[data-artifact-id="'.$newerId.'"]');
         self::assertSame('Newer prototype', trim($row->filter('.lp-document-row__title')->text()));
         self::assertSame('v2', trim($row->filter('[data-artifact-version]')->text()));

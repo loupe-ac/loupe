@@ -1,7 +1,7 @@
 {# twig-cs-fixer-disable #}{% autoescape false %}
         <{{ entry.name }} title="Project settings" description="Rename the project, or change how it works." navLabel="Project settings" items={[{ label: 'General', href: '#', active: true }, { label: 'Columns', href: '#' }, { label: 'Automation', href: '#' }]}>
-            <section className="lp-settings-panel-card">
-                <h2 className="lp-section-title">General</h2>
+            <section className="lp-panel">
+                <div className="lp-section-heading"><div className="lp-section-heading__copy"><h2 className="lp-section-heading__title">General</h2></div></div>
                 <p className="lp-connect-hint">The name shows in the sidebar and in the browser tab.</p>
             </section>
         </{{ entry.name }}>

@@ -63,13 +63,13 @@
         <h3 class="lp-run-drawer__heading">{{ 'bridge.worker_runs.details.timeline'|trans }}</h3>
         <ol class="lp-run-drawer__timeline">
             {% for change in item.history %}
-            <li>{{ change.state.translationKey()|trans }} <time datetime="{{ change.at|date('c') }}">{{ change.at|date('Y-m-d H:i:s T') }}</time></li>
+            <li>{{ change.state.translationKey()|trans }} <twig:Ds:RelativeTime :datetime="change.at" mode="datetime" /></li>
             {% else %}
             {# A run the previous image wrote during a deploy has no history rows. #}
-            {% if run.startedAt %}<li>{{ 'bridge.worker_runs.state.running'|trans }} <time datetime="{{ run.startedAt|date('c') }}">{{ run.startedAt|date('Y-m-d H:i:s T') }}</time></li>{% endif %}
-            {% if run.endedAt %}<li>{{ run.state.translationKey()|trans }} <time datetime="{{ run.endedAt|date('c') }}">{{ run.endedAt|date('Y-m-d H:i:s T') }}</time></li>{% endif %}
+            {% if run.startedAt %}<li>{{ 'bridge.worker_runs.state.running'|trans }} <twig:Ds:RelativeTime :datetime="run.startedAt" mode="datetime" /></li>{% endif %}
+            {% if run.endedAt %}<li>{{ run.state.translationKey()|trans }} <twig:Ds:RelativeTime :datetime="run.endedAt" mode="datetime" /></li>{% endif %}
             {% endfor %}
-            <li>{{ 'bridge.worker_runs.details.received'|trans }} <time datetime="{{ run.receivedAt|date('c') }}">{{ run.receivedAt|date('Y-m-d H:i:s T') }}</time></li>
+            <li>{{ 'bridge.worker_runs.details.received'|trans }} <twig:Ds:RelativeTime :datetime="run.receivedAt" mode="datetime" /></li>
         </ol>
         {% if run.failureReason %}<p class="lp-worker-run__failure">{{ run.failureReason }}</p>{% endif %}
         <h3 class="lp-run-drawer__heading">{{ 'bridge.worker_runs.output.toggle'|trans }}</h3>

@@ -363,7 +363,7 @@ Each `src/Check/` class takes constructor parameters, set in `gamache.php`. The 
 Use the Symfony UX Icons bundle with Lucide for every icon. Never embed inline SVG.
 
 ```twig
-<twig:UX:Icon name="lucide:x" class="w-3.5 h-3.5 shrink-0 mt-px" />
+<twig:ux:icon name="lucide:x" class="lp-icon lp-icon--sm mt-px" />
 ```
 
 `assets/icons/` is committed, because a self-hosted instance must render its UI with no egress. After you add a new icon, run `bin/console ux:icons:lock` and commit what appears under `assets/icons/`. Do not `git rm --cached` these files, because that breaks production rendering.

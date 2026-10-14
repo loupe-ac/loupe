@@ -1,0 +1,17 @@
+{#
+  Props:  @comment-budget-ignore
+    datetime  DateTimeInterface  The moment to show.
+    mode      string             relative (2h ago), date (5 Oct 2026) or datetime (5 Oct 2026, 14:30). relative by default.
+    now       DateTimeInterface  The moment that relative counts from. The current time by default.
+  The title holds the full timestamp. Any other attribute, class included, is passed to the element.
+#}
+{%- props datetime, mode = 'relative', now = null -%}
+<time{{ attributes.defaults({class: 'lp-relative-time', datetime: datetime|date('c'), title: datetime|date('Y-m-d H:i:s T')}) }}>
+    {%- if mode == 'date' -%}
+        {{ datetime|date('j M Y') }}
+    {%- elseif mode == 'datetime' -%}
+        {{ datetime|date('j M Y, H:i') }}
+    {%- else -%}
+        {{ datetime|relative_time(now) }}
+    {%- endif -%}
+</time>

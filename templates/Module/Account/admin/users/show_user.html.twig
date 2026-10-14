@@ -33,14 +33,14 @@
                 </div>
             </div>
             <a href="{{ backHref }}" class="admin-button-secondary admin-button-small shrink-0">
-                <twig:UX:Icon name="lucide:arrow-left" class="w-3.5 h-3.5 shrink-0" />
+                <twig:ux:icon name="lucide:arrow-left" class="lp-icon lp-icon--sm" />
                 {{ 'account.admin.users.detail.back'|trans }}
             </a>
         </div>
 
         {% if user.suspended %}
             <div class="admin-suspension-banner" data-testid="suspension-details">
-                <twig:UX:Icon name="lucide:triangle-alert" class="w-4.5 h-4.5 shrink-0 mt-px" />
+                <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--lg mt-px" />
                 <div>
                     <p class="m-0">{{ 'account.admin.users.detail.suspended_on'|trans({'%date%': user.suspendedAt|date('j M Y, H:i')}) }}</p>
                     {% if user.suspendedBy %}

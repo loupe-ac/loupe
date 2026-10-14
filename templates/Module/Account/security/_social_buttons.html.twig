@@ -6,7 +6,7 @@
     <div class="flex flex-col gap-2.5">
         {% for provider in providers %}
             <a href="{{ path('app_oauth_start_' ~ provider) }}" class="auth-social-button" data-turbo="false">
-                <twig:UX:Icon name="simple-icons:{{ provider }}" class="w-4 h-4 shrink-0" aria-hidden="true" />
+                <twig:ux:icon name="simple-icons:{{ provider }}" class="lp-icon lp-icon--md" aria-hidden="true" />
                 {{ 'account.social.continue_with'|trans({'%provider%': ('account.social.provider.' ~ provider)|trans}) }}
             </a>
         {% endfor %}

@@ -9,7 +9,7 @@
 {% if refusal is defined %}
 <div class="lp-consent" data-testid="oauth-widget-refused">
     <div class="auth-icon-badge">
-        <twig:UX:Icon name="lucide:triangle-alert" class="w-5 h-5" aria-hidden="true" />
+        <twig:ux:icon name="lucide:triangle-alert" class="lp-icon lp-icon--lg" aria-hidden="true" />
     </div>
     <div>
         <h1 class="lp-consent__title">{{ 'oauth.widget.refused.title'|trans }}</h1>
@@ -26,7 +26,7 @@
                 {% if view.clientIconUrl %}
                 <img src="{{ view.clientIconUrl }}" alt="" width="16" height="16" loading="lazy" decoding="async" class="lp-consent__icon">
                 {% else %}
-                <twig:UX:Icon name="lucide:app-window" class="lp-consent__row-icon" />
+                <twig:ux:icon name="lucide:app-window" class="lp-consent__row-icon" />
                 {% endif %}
             </span>
             <div class="lp-consent__row-body">
@@ -49,7 +49,7 @@
 
         {% if view.allProjects %}
         <div class="lp-consent__row">
-            <twig:UX:Icon name="lucide:folder" class="lp-consent__row-icon" aria-hidden="true" />
+            <twig:ux:icon name="lucide:folder" class="lp-consent__row-icon" aria-hidden="true" />
             <div class="lp-consent__row-body">
                 <p class="lp-consent__row-primary" data-testid="oauth-consent-all-projects">{{ 'oauth.consent.row.all_projects'|trans }}</p>
                 <p class="lp-consent__row-second">{{ 'oauth.consent.row.all_projects_hint'|trans }}</p>
@@ -59,7 +59,7 @@
 
         {% if widget is defined and widget %}
         <div class="lp-consent__row">
-            <twig:UX:Icon name="lucide:folder" class="lp-consent__row-icon" aria-hidden="true" />
+            <twig:ux:icon name="lucide:folder" class="lp-consent__row-icon" aria-hidden="true" />
             <div class="lp-consent__row-body">
                 <p class="lp-consent__row-primary">{{ 'oauth.consent.row.widget_project'|trans({'%project%': '<span class="lp-consent__row-strong" data-testid="oauth-consent-project">' ~ widget.project.name|e ~ '</span>'})|raw }}</p>
                 <p class="lp-consent__row-second">{{ 'oauth.consent.row.widget_project_hint'|trans }}</p>
@@ -67,7 +67,7 @@
         </div>
 
         <div class="lp-consent__row">
-            <twig:UX:Icon name="lucide:arrow-right" class="lp-consent__row-icon" aria-hidden="true" />
+            <twig:ux:icon name="lucide:arrow-right" class="lp-consent__row-icon" aria-hidden="true" />
             <div class="lp-consent__row-body">
                 <p class="lp-consent__row-primary">{{ 'oauth.consent.row.widget_site'|trans({'%origin%': '<span class="lp-consent__row-mono" data-testid="oauth-consent-site">' ~ widget.origin|e ~ '</span>'})|raw }}</p>
                 <p class="lp-consent__row-second">{{ 'oauth.consent.row.widget_site_hint'|trans }}</p>
@@ -75,7 +75,7 @@
         </div>
         {% else %}
         <div class="lp-consent__row">
-            <twig:UX:Icon name="lucide:arrow-right" class="lp-consent__row-icon" aria-hidden="true" />
+            <twig:ux:icon name="lucide:arrow-right" class="lp-consent__row-icon" aria-hidden="true" />
             <div class="lp-consent__row-body">
                 <p class="lp-consent__row-primary">{{ 'oauth.consent.row.return'|trans({'%origin%': '<span class="lp-consent__row-mono" data-testid="oauth-consent-redirect">' ~ view.redirectOrigin|e ~ '</span>'})|raw }}</p>
                 {% if view.loopbackOnly %}

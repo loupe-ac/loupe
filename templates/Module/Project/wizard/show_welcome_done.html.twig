@@ -7,16 +7,15 @@
     {% include '@Project/wizard/_wizard_progress.html.twig' with {step: 4, complete: true} only %}
 
     <div class="lp-wizard-done">
-        <span class="lp-wizard-done__check"><twig:ux:icon name="lucide:check" class="w-6 h-6" /></span>
+        <span class="lp-wizard-done__check"><twig:ux:icon name="lucide:check" class="lp-icon lp-icon--lg" /></span>
         <h1 class="lp-wizard-done__title">{{ 'project.wizard.done.heading'|trans }}</h1>
         <p class="lp-wizard-done__body">
             {{ 'project.wizard.done.widget_hint'|trans }}
             <a href="{{ path('app_project_connect', {id: wizardProject.id}) }}" class="text-accent hover:underline">{{ wizardProject.name }}</a>
         </p>
-        <form method="POST" action="{{ path('app_welcome_finish') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token('wizard-finish') }}">
+        <twig:Ds:ActionForm :action="path('app_welcome_finish')" token="wizard-finish">
             <twig:Ds:Button variant="primary" type="submit">{{ 'project.wizard.done.finish'|trans }}</twig:Ds:Button>
-        </form>
+        </twig:Ds:ActionForm>
     </div>
 </twig:Ds:Workspace>
 {% endblock %}

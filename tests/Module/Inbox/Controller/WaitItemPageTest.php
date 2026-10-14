@@ -73,7 +73,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertSelectorTextSame('.lp-inbox-ask__source', 'From Loupe');
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__head [data-inbox-source="loupe"]'));
         self::assertCount(0, $crawler->filter('[data-inbox-presence]'));
-        self::assertCount(0, $crawler->filter('.lp-presence__dot'));
+        self::assertCount(0, $crawler->filter('.lp-avatar__dot'));
     }
 
     public function test_the_byline_names_the_waiting_card_and_opens_it_in_the_drawer(): void

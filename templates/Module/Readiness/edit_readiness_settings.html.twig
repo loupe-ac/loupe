@@ -11,18 +11,18 @@
 {% block settings_section 'readiness' %}
 
 {% block settings_content %}
-<section class="lp-settings-panel-card" data-readiness-settings>
-    <h2 class="lp-section-title">{{ 'readiness.settings.title'|trans }}</h2>
+<twig:Ds:Panel as="section" data-readiness-settings>
+    <twig:Ds:SectionHeading>{{ 'readiness.settings.title'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'readiness.settings.description'|trans }}</p>
 
-    <h3 class="lp-workshop-section__title">{{ 'readiness.settings.discovery.title'|trans }}</h3>
+    <twig:Ds:SectionHeading :level="3">{{ 'readiness.settings.discovery.title'|trans }}</twig:Ds:SectionHeading>
     {% if discovery is not null %}<p class="lp-connect-hint" data-readiness-discovery-state="{{ discovery.discoveryState }}">{{ discovery.status|trans(discovery.statusParameters) }}</p>{% endif %}
 
-    <h3 class="lp-workshop-section__title">{{ 'readiness.settings.agent_account.title'|trans }}</h3>
+    <twig:Ds:SectionHeading :level="3">{{ 'readiness.settings.agent_account.title'|trans }}</twig:Ds:SectionHeading>
     <p class="lp-connect-hint">{{ 'readiness.settings.agent_account.description'|trans }}</p>
     <a class="lp-workshop-text-link" href="{{ path('app_project_readiness_agent_account', {id: project.id}) }}" data-agent-account-link>{{ 'readiness.settings.agent_account.link'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
 
-    <h3 class="lp-workshop-section__title">{{ 'readiness.settings.guide.title'|trans }}</h3>
+    <twig:Ds:SectionHeading :level="3">{{ 'readiness.settings.guide.title'|trans }}</twig:Ds:SectionHeading>
     {{ form_start(form, {attr: {class: 'lp-form'}}) }}
         <twig:Ds:FormField>
             <label class="lp-choice">
@@ -30,13 +30,13 @@
                 {{ form.showGuide.vars.label|trans }}
             </label>
             {% if project.readinessGuideHiddenAt is not null %}
-            <twig:Ds:Hint data-readiness-hidden-at>{{ 'readiness.settings.guide.hidden_at'|trans({'%date%': project.readinessGuideHiddenAt|date('Y-m-d')}) }}</twig:Ds:Hint>
+            <twig:Ds:Hint data-readiness-hidden-at>{{ 'readiness.settings.guide.hidden_at'|trans({'%date%': project.readinessGuideHiddenAt|date('j M Y')}) }}</twig:Ds:Hint>
             {% endif %}
             <twig:Ds:FieldErrors :fieldView="form.showGuide" />
         </twig:Ds:FormField>
-        <div class="lp-settings-form-actions">
+        <twig:Ds:FormActions>
             <twig:Ds:Button variant="primary" type="submit">{{ 'readiness.settings.submit'|trans }}</twig:Ds:Button>
-        </div>
+        </twig:Ds:FormActions>
     {{ form_end(form) }}
-</section>
+</twig:Ds:Panel>
 {% endblock %}

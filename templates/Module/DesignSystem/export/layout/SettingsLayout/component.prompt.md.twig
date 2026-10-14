@@ -12,13 +12,13 @@ Loupe's settings layout. {{ entry.summary }}
     { label: 'Columns', href: '#' },
   ]}
 >
-  <section className="lp-settings-panel-card">
-    <h2 className="lp-section-title">General</h2>
-  </section>
+  <Panel as="section">
+    <SectionHeading>General</SectionHeading>
+  </Panel>
 </{{ name }}>
 ```
 
-Pass one item for each section and mark the open one `active`. Put each panel of the open section in a `lp-settings-panel-card` section inside the content. Pass `columns` for a page whose content needs its own column width.
+Pass one item for each section and mark the open one `active`. Put each panel of the open section in a `Panel` inside the content. Pass `columns` for a page whose content needs its own column width.
 
 Titles are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
 {% endautoescape %}

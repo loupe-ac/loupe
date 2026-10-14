@@ -55,7 +55,7 @@ final class SharedTableComponentsTest extends KernelTestCase
     public function test_a_table_renders_its_header_and_its_rows(): void
     {
         $crawler = $this->render(<<<'TWIG'
-            {% component 'DataTable' with {columns: [{label: 'Work'}, {label: 'Duration', align: 'end'}], modifier: 'runs'} %}
+            {% component 'Ds:DataTable' with {columns: [{label: 'Work'}, {label: 'Duration', align: 'end'}], modifier: 'runs'} %}
                 {% block content %}<div class="lp-data-table__row" data-row>One</div>{% endblock %}
             {% endcomponent %}
             TWIG);
