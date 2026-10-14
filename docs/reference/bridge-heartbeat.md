@@ -68,7 +68,7 @@ The path holds no project, because one bridge follows several projects.
 | `workerPools` | optional. A list of at most 50 rows, one for each worker pool of the bridge. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `accounts` | optional. A list of at most 50 rows, one for each account the bridge checked. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
-| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
+| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
 | `hostSamples` | optional. A list of at most 720 [host samples](#host-samples), oldest first. A missing, `null` or empty value stores nothing |
 
@@ -317,7 +317,7 @@ holds, by `commandId`. Each command carries these fields:
 | `startedAt`, `endedAt` | the start and the end of the run, as RFC 3339 dates to the second, or `null` when the run has none |
 | `expiresAt` | the time the command expires, as an RFC 3339 date |
 | `cause` | `person` when a person asked, `ask-closed` when Loupe resumes a session whose ask the owner closed, or `inbox-action` when the owner clicked an action on an inbox item. The bridge words the resume prompt from it. An `inbox-action` resume uses the prompt of a person's resume |
-| `context` | the context of the work request of the run, taken when the command was stored, with the five keys of the [work request context](#work-requests). Each key is `null` for a run with no work request. A server from before the context sends no `context` key |
+| `context` | the context of the work request of the run, taken when the command was stored, with the seven keys of the [work request context](#work-requests). Each key is `null` for a run with no work request. A server from before the context sends no `context` key |
 | `model`, `effort` | the [model and the effort](#work-requests) of the work request of the run, taken when the command was stored, or `null`. A resume runs with them, as the first run did. A server from before these keys sends none |
 | `harness`, `account`, `runModel` | what the run started on, as its reports recorded them, or `null` when a report named none. A resume runs on that account, with that model. A server from before these keys sends none of them |
 
@@ -425,7 +425,8 @@ request can also name a capability that the bridge must report, such as
 
 The `loupe` CLI always reports `commands`, `rerun-command` and `session-usage`. It reports
 `work-requests` when the `work:` map of its rule file has an entry, and
-`interactive` when an entry has `action: interactive`. It reports
+`interactive` when an entry has `action: interactive`. An entry for the kind
+`session` adds `session`. It reports
 `app-prompts` when `appPrompts` is on. Each heartbeat sends
 `workClaims`, with a row for each claim the CLI holds. A CLI that holds no
 claim leaves the key out.
@@ -459,7 +460,7 @@ another bridge claimed. Each request carries these fields:
 | `effort` | the effort level the run passes to `claude --effort`: `low`, `medium`, `high`, `xhigh` or `max`, or `null` |
 | `prompt` | the text of the app prompt that the rule names, or `null`. Only a rule that Loupe ships can name one. A bridge with `appPrompts: true` runs it for a kind that its `work:` map does not hold |
 
-The `context` object always holds five keys. Each one is `null` when the card
+The `context` object always holds seven keys. Each one is `null` when the card
 held no such value. A server from before the context sends no `context` key.
 
 | Key | Meaning |
@@ -469,6 +470,9 @@ held no such value. A server from before the context sends no `context` key.
 | `headSha` | the head commit of that pull request, as 7 to 64 lower-case hex digits. A later push leaves it behind |
 | `reason` | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request. A request rule can set `agent-review` or another code with its `reason` parameter |
 | `documentId` | the id of the one linked document that carries the tag of the `document` parameter of the request rule |
+| `inboxActionId` | the id of the inbox action that asked for the request, or `null`. The agent reads the note of that action with `inbox_get`, so the note never travels in the request |
+| `inboxItemNumber` | the number of the inbox item of that action, or `null` |
+| `inboxItemId` | the id of that inbox item, or `null`. `inbox_get` takes this id, never the number |
 
 The event and the reply never carry the claim token.
 

@@ -154,7 +154,7 @@ final readonly class OpenWorkRequestHandler
      */
     private function sessionToResume(OpenWorkRequestCommand $command): ?Uuid
     {
-        if (!$command->subject->isCard()) {
+        if ($command->fresh || !$command->subject->isCard()) {
             return null;
         }
         $previous = $this->workRequests->findLatestOfCardKindRule($command->subject->id, $command->kind, $command->ruleId);

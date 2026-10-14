@@ -6,10 +6,13 @@ namespace App\Module\Inbox\Service;
 
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
@@ -18,8 +21,8 @@ use App\Module\Inbox\View\InboxActionState;
 use App\Module\Inbox\View\InboxActionStatus;
 
 /**
- * Reads the status line of each action of a list of items. The status comes from the bridge command
- * or the run that the action started, so the inbox keeps no second copy. A dismiss, and a resume that
+ * Reads the status line of each action of a list of items. The status comes from the bridge command,
+ * the work request or the run that the action started, so the inbox keeps no second copy. A dismiss, and a resume that
  * never got its command, have no line. Reads are batched: no query per action.
  */
 final readonly class InboxActionStatuses
@@ -29,6 +32,8 @@ final readonly class InboxActionStatuses
         private BridgeCommandRepository $bridgeCommands,
         private WorkerRunRepository $workerRuns,
         private BridgeLiveness $liveness,
+        private WorkRequestRepository $workRequests,
+        private SessionBridges $sessionBridges,
     ) {
     }
 
@@ -51,6 +56,7 @@ final readonly class InboxActionStatuses
         $commands = $this->bridgeCommands->findByIds($commandIds);
         $quiet = $this->quietBridges($commands);
         $continuations = $this->continuations($commands);
+        [$requests, $requestRuns, $sessionOnline] = $this->sessionReads($byItem);
 
         $statuses = [];
         foreach ($items as $item) {
@@ -59,6 +65,7 @@ final readonly class InboxActionStatuses
                 $line = match ($action->kind) {
                     InboxActionKind::RetryCard => new InboxActionStatus($action, InboxActionState::Retried, 'inbox.action.status.retried', at: $action->requestedAt),
                     InboxActionKind::ResumeRun => $this->resumeStatus($action, $commands, $quiet, $continuations),
+                    InboxActionKind::StartSession => $this->sessionStatus($action, $requests, $requestRuns, $sessionOnline),
                     default => null,
                 };
                 if (null !== $line) {
@@ -69,6 +76,71 @@ final readonly class InboxActionStatuses
         }
 
         return $statuses;
+    }
+
+    /**
+     * The work requests of the session actions, the runs they started, and whether a live bridge can open a session for each project.
+     *
+     * @param array<string, list<InboxAction>> $byItem
+     *
+     * @return array{array<string, WorkRequest>, array<string, WorkerRun>, array<string, bool>}
+     */
+    private function sessionReads(array $byItem): array
+    {
+        $ids = [];
+        foreach ($byItem as $actions) {
+            foreach ($actions as $action) {
+                if (InboxActionKind::StartSession === $action->kind && null !== $action->workRequestId) {
+                    $ids[] = $action->workRequestId;
+                }
+            }
+        }
+        $requests = $this->workRequests->findByIds($ids);
+
+        $runs = [];
+        foreach ($this->workerRuns->findOfCardWorkRequests(array_values($requests)) as $run) {
+            $runs[(string) $run->workRequestId] ??= $run;
+        }
+
+        $projects = [];
+        foreach ($requests as $request) {
+            if (WorkRequestState::Open === $request->state) {
+                $projects[(string) $request->project->id] = $request->project;
+            }
+        }
+
+        return [$requests, $runs, $this->sessionBridges->onlineFor(array_values($projects))];
+    }
+
+    /**
+     * @param array<string, WorkRequest> $requests      keyed by the RFC 4122 request id
+     * @param array<string, WorkerRun>   $requestRuns   the newest run of each request, keyed by the RFC 4122 request id
+     * @param array<string, bool>        $sessionOnline keyed by the project id
+     */
+    private function sessionStatus(InboxAction $action, array $requests, array $requestRuns, array $sessionOnline): ?InboxActionStatus
+    {
+        $request = null === $action->workRequestId ? null : ($requests[(string) $action->workRequestId] ?? null);
+        if (null === $request) {
+            return null;
+        }
+        $settledAt = $request->settledAt ?? $action->requestedAt;
+
+        if (null !== $action->cancelledAt || WorkRequestState::Cancelled === $request->state) {
+            return new InboxActionStatus($action, InboxActionState::Cancelled, 'inbox.action.status.cancelled', at: $action->cancelledAt ?? $settledAt);
+        }
+        $run = $requestRuns[(string) $request->id] ?? null;
+        if (null !== $run) {
+            return new InboxActionStatus($action, InboxActionState::Running, $run->state->translationKey(), at: $run->receivedAt);
+        }
+
+        return match ($request->state) {
+            WorkRequestState::Open => new InboxActionStatus($action, InboxActionState::Queued, 'inbox.action.status.queued', cancellable: true, offline: !($sessionOnline[(string) $request->project->id] ?? false), at: $action->requestedAt),
+            WorkRequestState::Expired => new InboxActionStatus($action, InboxActionState::Expired, 'inbox.action.status.expired', at: $settledAt),
+            WorkRequestState::Refused => null === $request->reason
+                ? new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused_no_reason', at: $settledAt)
+                : new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused', ['%reason%' => $request->reason], at: $settledAt),
+            default => new InboxActionStatus($action, InboxActionState::Preparing, 'inbox.action.status.preparing', at: $settledAt),
+        };
     }
 
     /**

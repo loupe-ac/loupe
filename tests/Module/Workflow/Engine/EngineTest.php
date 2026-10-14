@@ -87,6 +87,7 @@ use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\MarkerPass;
@@ -1953,6 +1954,22 @@ final class EngineTest extends KernelTestCase
         $this->evaluate($card);
 
         self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_a_live_request_of_person_work_is_left_alone_past_the_work_timeout(): void
+    {
+        $card = $this->boundCard([]);
+        $person = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'session', 'session', PersonWork::RULE_PREFIX.'start-session', new \DateTimeImmutable('2026-10-01 00:00:00'));
+        $stale = new WorkRequest($card->project, WorkSubject::CARD, $card->id, $card->number, 'implement', null, 'gone', new \DateTimeImmutable(self::NOON));
+        $this->em()->persist($person);
+        $this->em()->persist($stale);
+        $this->em()->flush();
+
+        $this->evaluate($card);
+
+        self::assertSame(WorkRequestState::Cancelled, $stale->state);
+        self::assertSame(WorkRequestState::Open, $person->state);
+        self::assertNull($this->activePause($card));
     }
 
     public function test_a_pause_whose_rule_left_the_template_is_released(): void

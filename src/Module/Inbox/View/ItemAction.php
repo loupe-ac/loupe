@@ -6,7 +6,7 @@ namespace App\Module\Inbox\View;
 
 use App\Module\Inbox\Entity\InboxActionKind;
 
-/** One action that fits an inbox item now. The keys are translation keys. */
+/** One action that fits an inbox item now. The keys are translation keys. A disabled reason shows the action greyed out. */
 final readonly class ItemAction
 {
     public function __construct(
@@ -20,8 +20,8 @@ final readonly class ItemAction
     ) {
     }
 
-    public static function for(InboxActionKind $kind, bool $default = false, ?string $reason = null): self
+    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null): self
     {
-        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, reason: $reason);
+        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason);
     }
 }

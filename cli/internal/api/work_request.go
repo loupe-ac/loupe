@@ -69,7 +69,7 @@ func (w WorkRequest) OnCard() bool {
 }
 
 // WorkRequestContext is the pull request a work request acts on and why, and
-// the document it revises, as the card held them when the request opened. An
+// the document it revises, the inbox action it starts from, as the card held them when the request opened. An
 // older server sends no context, and an unknown value is null. Both decode as
 // 0 or "".
 type WorkRequestContext struct {
@@ -78,6 +78,9 @@ type WorkRequestContext struct {
 	HeadSHA           string `json:"headSha"`
 	Reason            string `json:"reason"`
 	DocumentID        string `json:"documentId"`
+	InboxActionID     string `json:"inboxActionId"`
+	InboxItemNumber   int    `json:"inboxItemNumber"`
+	InboxItemID       string `json:"inboxItemId"`
 }
 
 // WorkRequestSubject names the work request itself.

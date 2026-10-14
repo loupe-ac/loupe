@@ -12,6 +12,7 @@ enum InboxActionState: string
     case Refused = 'refused';
     case Cancelled = 'cancelled';
     case Resumed = 'resumed';
+    case Preparing = 'preparing';
     case Retried = 'retried';
     case Running = 'running';
 
@@ -19,7 +20,7 @@ enum InboxActionState: string
     public function inProgress(): bool
     {
         return match ($this) {
-            self::Queued, self::Resumed, self::Retried, self::Running => true,
+            self::Queued, self::Resumed, self::Preparing, self::Retried, self::Running => true,
             self::Expired, self::Refused, self::Cancelled => false,
         };
     }

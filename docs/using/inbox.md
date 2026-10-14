@@ -504,6 +504,17 @@ Dismiss and the actions of the split button are the only responses that an
 automatic item takes. You cannot answer it or mark it done. An agent cannot withdraw it, and the `inbox_withdraw` tool
 refuses it.
 
+### Start an interactive session
+
+Select **Start an interactive session** on an item that has a card, to work
+with an agent in a terminal on your machine. The action needs an online bridge
+with a `session` entry in its rule file. Without one, the action stays grey and
+says that no bridge can open a session. The bridge opens a new session on the
+card. The prompt names the inbox item, and the agent reads your note with
+`inbox_get`. You can cancel the action until a bridge takes it. A request that
+no bridge takes within 2 minutes expires. See
+[Session entry](../extending/cli-bridge.md#session-entry).
+
 ## When an ask closes
 
 An ask closes when you close its last blocking item. An answer, a done and a
