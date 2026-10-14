@@ -29,6 +29,9 @@
                     <li><a href="{{ app_docs_url }}/getting-started/" class="lp-home-footer__link">{{ 'landing.footer.getting_started'|trans }}</a></li>
                     <li><a href="{{ app_docs_url }}/operating/install/docker-compose/" class="lp-home-footer__link">{{ 'landing.footer.self_hosting'|trans }}</a></li>
                     <li><a href="{{ app_docs_url }}/changelog/" class="lp-home-footer__link">{{ 'landing.footer.changelog'|trans }}</a></li>
+                    {% if has_blog() %}
+                        <li><a href="/blog" class="lp-home-footer__link">{{ 'landing.footer.blog'|trans }}</a></li>
+                    {% endif %}
                     {% if app_source_url %}
                         <li><a href="{{ app_source_url }}" class="lp-home-footer__link" target="_blank" rel="noopener noreferrer">{{ 'footer.source.label'|trans }}</a></li>
                     {% endif %}
