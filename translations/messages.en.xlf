@@ -4544,7 +4544,7 @@
             </trans-unit>
             <trans-unit id="landing.features.inbox.text">
                 <source>landing.features.inbox.text</source>
-                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list.</target>
+                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, or pick it up yourself.</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.caption">
                 <source>landing.features.inbox.caption</source>

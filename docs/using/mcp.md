@@ -665,16 +665,16 @@ is at most 10,000 characters, counting what earlier calls appended. A withdraw
 reason is at most 2,000 characters. A second call that names a different
 `bridgeId` from the one the open ask holds is refused.
 
-An item can carry `suggestedActions`, at most three, so the owner sees which
-built-in action you suggest next to the answer. Each entry has an `action`, a
+An item can carry `suggestedActions`, at most three, to record which built-in
+action you suggest. Each entry has an `action`, a
 one-line `reason` of at most 200 characters, an optional `recommended`, and an
 optional `cardId` that must be one of the `cardIds` of the same item. The seven
 actions are `resume-run`, `retry-card`, `review`, `open`, `send-agent`,
 `start-session` and `dismiss`. The call is refused for an unknown action, a
 repeated action, a second `recommended` action, or a `cardId` that the item
 does not link. It never checks that
-the action fits, because the fit changes while the item is open, and Loupe shows
-a suggestion only while its action fits. `inbox_get` returns the suggestions.
+the action fits, because the fit changes while the item is open. `inbox_get`
+returns the suggestions. The inbox page does not show them yet.
 Call `inbox_actions` for the list, with one line on each action. With a `cardId`
 it also says, for each action, whether it fits that card now.
 
