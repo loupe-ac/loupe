@@ -48,7 +48,7 @@ final class SplitViewParityTest extends KernelTestCase
 
         try {
             $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/SplitView.jsx');
+            $jsx = (string) file_get_contents($directory.'/components/layout/SplitView/SplitView.jsx');
         } finally {
             new Filesystem()->remove($directory);
         }

@@ -1,0 +1,7 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+      <div className="row">
+{% for variant in entry.variants %}
+        <{{ entry.name }} variant="{{ variant }}" />
+{% endfor %}
+      </div>
+{% endautoescape %}

@@ -1,0 +1,49 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+{% set open = 'dialog' == entry.element ? ' open' : '' %}
+{% set select = 'select' == entry.element %}
+{% set button = 'button' == entry.element %}
+{% set closeGlyph %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>{% endset %}
+{% if 'lp-tabs' == entry.rootClass %}
+{% for variant in [null]|merge(entry.variants) %}
+      <div className="row">
+        <{{ name }}{% if variant %} variant="{{ variant }}"{% endif %}><a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a><a className="lp-tabs__tab" href="#">All</a></{{ name }}>
+      </div>
+{% endfor %}
+{% elseif button %}
+      <div className="row">
+{% for variant in entry.variants|filter(v => v not in ['outline', 'icon', 'compact']) %}
+        <{{ name }} variant="{{ variant }}">{{ variant }}</{{ name }}>
+{% endfor %}
+      </div>
+      <div className="chrome">
+        <{{ name }} variant="outline">outline</{{ name }}>
+      </div>
+      <div className="row">
+        <{{ name }} variant="icon" aria-label="Close">{{ closeGlyph }}</{{ name }}>
+        <{{ name }} variant="ghost icon" aria-label="Close">{{ closeGlyph }}</{{ name }}>
+        <{{ name }} variant="ghost icon compact" aria-label="Close">{{ closeGlyph }}</{{ name }}>
+      </div>
+{% else %}
+      <div className="row">
+{% if entry.variants %}
+{% for variant in entry.variants %}
+        <{{ name }} {{ entry.modifierProp }}="{{ variant }}"{{ open }}>{% if select %}<option>{{ variant }}</option>{% else %}{{ variant }}{% endif %}</{{ name }}>
+{% endfor %}
+{% else %}
+        <{{ name }}{{ open }}>{% if select %}<option>Example</option>{% else %}Example{% endif %}</{{ name }}>
+{% endif %}
+      </div>
+{% endif %}
+{% if entry.sizes or button %}
+      <div className="row">
+{% for size in entry.sizes %}
+        <{{ name }} size="{{ size }}">{{ size }}</{{ name }}>
+{% endfor %}
+{% if button %}
+        <{{ name }} disabled>disabled</{{ name }}>
+        <{{ name }} href="#">link</{{ name }}>
+{% endif %}
+      </div>
+{% endif %}
+{% endautoescape %}

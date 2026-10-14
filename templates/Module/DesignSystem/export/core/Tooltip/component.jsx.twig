@@ -1,0 +1,21 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ interactive = false, className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    if (interactive) {
+        classes.push('{{ entry.rootClass }}--interactive');
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+    const target = interactive ? { 'data-interactive-tooltip-target': 'tooltip' } : {};
+
+    return (
+        <span role="tooltip" {...target} {...rest} className={className}>
+            {children}
+        </span>
+    );
+}
+{% endautoescape %}

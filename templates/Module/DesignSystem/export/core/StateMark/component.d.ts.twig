@@ -1,0 +1,23 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }} for each state" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The state. It picks the icon and the colour. */
+    kind: {{ entry.variants|map(v => "'" ~ v ~ "'")|join(' | ') }};
+    /** The state name. It is the accessible name of the mark. */
+    label: string;
+    /** The tooltip id. Generated when left out. */
+    id?: string;
+    className?: string;
+    /** The tooltip. It may hold a link. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

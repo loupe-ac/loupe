@@ -1,0 +1,13 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ defaultValue, className: extra, children, ...rest }) {
+    const classes = ['lp-input', '{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return <textarea {...rest} className={className} defaultValue={defaultValue ?? children} />;
+}
+{% endautoescape %}

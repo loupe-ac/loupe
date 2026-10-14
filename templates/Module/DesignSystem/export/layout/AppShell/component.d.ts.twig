@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 /**
  * {{ entry.summary }} It draws the markup of the signed-in pages: the project switcher, the nav, the account row and the top bar. The page goes in as the children.
  *
- * @startingPoint section="{{ section }}" subtitle="The page frame with sidebar and top bar" viewport="900x520"
+ * @startingPoint section="{{ section }}" subtitle="The page frame with sidebar and top bar" viewport="{{ entry.viewport }}"
  */
 export interface {{ entry.name }}Props {
     /** The project of the sidebar, shown in the project switcher. On a page outside a project, the app shows the last project you visited. Pass null when there is none: the switcher, the project nav, Project settings and New work then stay hidden. */

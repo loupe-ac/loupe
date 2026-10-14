@@ -6,12 +6,12 @@ import type { ReactNode } from 'react';
  * {{ entry.summary }}{% if isButton %} Sentence-case labels. Combine modifiers with a space, such as `ghost icon`.{% endif %}
 
  *
- * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} variant{% if entry.sizes %} and size{% endif %}" viewport="700x150"
+ * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} variant{% if entry.sizes %} and size{% endif %}" viewport="{{ entry.viewport }}"
  */
 export interface {{ entry.name }}Props {
 {% if entry.variants %}
     /** The visual weight and shape. */
-    variant?:
+    {{ entry.modifierProp }}?:
 {% for variant in entry.variants %}
         | '{{ variant }}'
 {% endfor %}
@@ -28,20 +28,16 @@ export interface {{ entry.name }}Props {
     href?: string;
     onClick?: () => void;
 {% endif %}
+{% if entry.takesAs %}
+    /** The element to render. */
+    as?: keyof JSX.IntrinsicElements;
+{% endif %}
 {% if entry.dotClass %}
     /** Draws the coloured dot. True by default. */
     dot?: boolean;
 {% endif %}
     className?: string;
-{% if 'input' == entry.element %}
-    /** An input is a void element, so it takes no children. */
-    children?: never;
-{% elseif 'svg' == entry.element %}
-    /** The SVG shapes of a 24 by 24 Lucide icon. A check mark draws when you leave it out. */
     children?: ReactNode;
-{% else %}
-    children?: ReactNode;
-{% endif %}
     [attribute: string]: unknown;
 }
 

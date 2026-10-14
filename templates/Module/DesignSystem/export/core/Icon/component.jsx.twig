@@ -1,0 +1,22 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export const {{ entry.name|upper }}_VARIANTS = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
+
+export function {{ entry.name }}({ variant, className: extra, children, ...rest }) {
+    const classes = ['{{ entry.rootClass }}'];
+    for (const modifier of (variant || '').split(/\s+/).filter(Boolean)) {
+        classes.push('{{ entry.rootClass }}--' + modifier);
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+
+    return (
+        <svg {...rest} className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {children || <path d="M20 6 9 17l-5-5" />}
+        </svg>
+    );
+}
+{% endautoescape %}
