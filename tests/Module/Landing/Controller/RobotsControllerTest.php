@@ -31,6 +31,20 @@ final class RobotsControllerTest extends WebTestCase
         }
     }
 
+    public function test_it_allows_the_sitemap_it_names_before_the_catch_all(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/robots.txt');
+
+        $lines = explode("\n", (string) $client->getResponse()->getContent());
+        $allow = array_search('Allow: /sitemap.xml$', $lines, true);
+        $disallow = array_search('Disallow: /', $lines, true);
+        self::assertIsInt($allow);
+        self::assertIsInt($disallow);
+        self::assertLessThan($disallow, $allow);
+    }
+
     public function test_each_page_rule_ends_with_an_anchor_so_no_subpath_matches(): void
     {
         $client = static::createClient();
