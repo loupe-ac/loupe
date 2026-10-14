@@ -76,6 +76,42 @@ final class CardDocumentRepositoryTest extends KernelTestCase
         }
     }
 
+    public function test_links_made_in_the_same_second_come_in_id_order(): void
+    {
+        $owner = new User(fullName: 'Riley', email: 'card-documents-tie-'.uniqid().'@example.com', password: 'hashed');
+        $this->em->persist($owner);
+        $project = new Project($owner, 'card-documents-tie-'.uniqid());
+        $this->em->persist($project);
+        $this->seedColumns($project);
+        $document = new Document($owner, $project, 'Tech design');
+        $document->addVersion('# One', '<h1>One</h1>');
+        $this->em->persist($document);
+        $linkedAt = new \DateTimeImmutable('2026-01-01 00:00:00');
+        foreach ([1, 2, 3, 4] as $number) {
+            $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Card '.$number, body: 'Body', number: $number);
+            $this->em->persist($card);
+            $this->em->persist(new CardDocument($card, $document, $linkedAt));
+        }
+        $this->em->flush();
+        $ids = [Uuid::v7(), Uuid::v7(), Uuid::v7(), Uuid::v7()];
+        foreach ([4, 3, 2, 1] as $index => $number) {
+            $this->em->getConnection()->executeStatement(
+                'UPDATE board_card_documents SET id = ? WHERE card_id = (SELECT id FROM board_cards WHERE number = ? AND project_id = ?)',
+                [(string) $ids[$index], $number, (string) $project->id],
+            );
+        }
+        $this->em->clear();
+        $document = $this->em->find(Document::class, $document->id) ?? self::fail('No document');
+
+        foreach ([$this->links->findForDocument($document), $this->links->findForDocuments([$document])] as $links) {
+            $order = array_map(static fn (CardDocument $link): string => (string) $link->id, $links);
+            $sorted = $order;
+            sort($sorted);
+            self::assertCount(4, $order);
+            self::assertSame($sorted, $order);
+        }
+    }
+
     private function id(Card $card): Uuid
     {
         return $card->id ?? throw new \LogicException('A stored card has an id.');

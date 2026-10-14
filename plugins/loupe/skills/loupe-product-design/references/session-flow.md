@@ -1,13 +1,13 @@
 # Session flow
 
-Each level and each phase has a stable ID, so a comment can cite it. The ID P3 is retired. Do not reuse it, so the other IDs keep their meaning. P11 runs between P7 and P8, so its place in the list shows when it runs.
+Each level and each phase has a stable ID, so a comment can cite it. The ID P3 is retired. Do not reuse it, so the other IDs keep their meaning. P12 and P11 run between P7 and P8, so their place in the list shows when they run.
 
 ## Levels
 
 A card does not always need a full session. "Add a Claude design capability to Loupe" needs one. "Cards need tags" needs a much shorter one.
 
-1. L1: Light. Use it for a small addition to an existing feature. Run P0, then P1, P2, P5, P6, P11, P8, P9 and P10. The document keeps the sections that the template lists for a Light document.
-2. L2: Full. Use it for a new capability. Run every phase from P0 to P11, with P11 after P7. The document uses every section of the template.
+1. L1: Light. Use it for a small addition to an existing feature. Run P0, then P1, P2, P5, P6, P12, P11, P8, P9 and P10. The document keeps the sections that the template lists for a Light document.
+2. L2: Full. Use it for a new capability. Run every phase from P0 to P12, with P12 and then P11 after P7. The document uses every section of the template.
 3. L3: You propose the level. After intake, recommend a level with a one-line reason, and let the owner confirm it. Do not decide from the card title alone, because a small title can hide decisions. "Cards need tags" hides these decisions, and more:
    - Are tags per project, or shared?
    - Who may create a tag?
@@ -45,7 +45,18 @@ A card that needs no product design does not use this skill. The owner moves it 
    - In a Full session, then name two or three trade-offs that this feature faces. Ask the owner to pick a side on each (Q7). The answers go in "Priorities".
 6. P6: Behaviour. Settle the main journeys, the empty and error states, and who may act. Work through the coverage checklist of `question-rules.md`. Ask about docs and the landing page here when the profile is missing.
 7. P7: Pre-mortem. Ask one question: "This shipped and failed. Why?" The answers go in "Risks".
-8. P11: Recap. Let the owner check every decision before you write the document. Skip the recap when the session logged no decision.
+8. P12: Prototype check. Compare the answers with the prototype before the recap. Skip it when the session made or linked no prototype. A prototype is a claude.ai artifact, a Claude Design canvas, or a library artifact. An ASCII sketch (C5) is not one.
+   - Read the current prototype as C9 of `claude-design.md` says. Compare only the option that the owner picked, by the label of the "Decisions log" entry.
+   - Compare each entry of the "Decisions log" with it. A conflict is a field, an order, a label or a state that an answer and a shown screen contradict, or a state that an answer adds to a screen the prototype shows. A screen that the prototype never draws is not a conflict.
+   - List the conflicts for yourself, in a numbered list. Ask one question per conflict, with the rules of `question-rules.md` (Q2, Q3).
+   - Ask with AskUserQuestion, with the options "Keep the answer, revise the prototype", "Keep the prototype, change the answer" and "Decide later". Put the answer and the part of the prototype side by side in the `preview` of each option, because the question box hides the chat text above it. Mark the recommended option "(Recommended)".
+   - "Keep the answer" revises the prototype in the source that the owner edits. Revise a canvas in the same Claude Design project (C3), and read back the owner's check (C4). Revise a claude.ai artifact in the chat, and confirm the change with one AskUserQuestion. When C8 stored the prototype, push the new files as a new library version, as C8 says.
+   - For a library artifact that the session linked with no canvas, read its files with `artifact_read` into a folder outside the checkout. Change the files there, and confirm the change with one AskUserQuestion. Then run `loupe artifact push <folder> --artifact <artifact id>`.
+   - "Keep the prototype" changes the "Decisions log" entry. When a later answer depends on it, ask that answer again.
+   - "Decide later" is the owner's word (Q8). The conflict goes in "Open questions".
+   - Log each conflict and its outcome in the "Decisions log". The recap of P11 then shows them.
+   - When no conflict is left, say so in one line, and go on.
+9. P11: Recap. Let the owner check every decision before you write the document. Skip the recap when the session logged no decision.
    - When the questions end, list each entry of the "Decisions log" in one line, with its number, in the order you asked it. Include the Q7 priority picks and the Claude Design picks, because the log holds them too. Mark a deferred decision "deferred".
    - Ask with AskUserQuestion, with the two options "Looks right" and "Correct something". Put the whole recap in the `preview` of each option, because the question box hides the chat text above it.
    - When AskUserQuestion is missing, post the recap as plain chat text, and end the turn. The owner's next message is the answer.
@@ -53,10 +64,10 @@ A card that needs no product design does not use this skill. The owner moves it 
    - A correction that opens a new choice, or changes an answer that a later answer depends on, needs a new question. Ask it with the rules of `question-rules.md`.
    - Then show only the changed lines in the same question form, and wait again.
    - Stop when the owner picks "Looks right", or when the reply holds no correction.
-9. P8: Acceptance. Draft Given/When/Then scenarios that cite `R` IDs. They go in "Scenarios". Do not ask the owner to confirm them in the terminal.
-10. P9: The document is the full readback. Ask the owner nothing in the terminal after P11. The owner reviews the `R` entries and the scenarios in the review UI of the document. A correction comes back as a review comment, and `loupe-stage-fix-round` answers it.
-11. P10: Write and link. Write the product document, link it to the card, with the library link of each prototype that C8 of `claude-design.md` stores, close the run with `card_run_close`, and stop, as `SKILL.md` says. Never move the card, because the owner's approval moves it.
+10. P8: Acceptance. Draft Given/When/Then scenarios that cite `R` IDs. They go in "Scenarios". Do not ask the owner to confirm them in the terminal.
+11. P9: The document is the full readback. Ask the owner nothing in the terminal after P11. The owner reviews the `R` entries and the scenarios in the review UI of the document. A correction comes back as a review comment, and `loupe-stage-fix-round` answers it.
+12. P10: Write and link. Write the product document, link it to the card, with the library link of each prototype that C8 of `claude-design.md` stores, close the run with `card_run_close`, and stop, as `SKILL.md` says. Never move the card, because the owner's approval moves it.
 
 ## When to stop asking
 
-Stop when no open decision is left, then run P11 and P8 to P10. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the rules of `question-rules.md`. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).
+Stop when no open decision is left, then run P12, P11 and P8 to P10. Use no fixed cap of questions. Ask about every open decision in the chat, including a low-impact one, with the rules of `question-rules.md`. Write a decision fence in "Open questions" only for a decision that the owner defers (Q8).
