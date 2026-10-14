@@ -465,10 +465,14 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         }
         self::assertNotEmpty($legacy);
 
-        foreach (['AppShell', 'PageHeader', 'SplitView', 'ListRow'] as $name) {
-            $jsx = (string) file_get_contents($this->directory.'/components/layout/'.$name.'.jsx');
+        $files = array_values(array_filter($this->written, static fn (string $file): bool => str_starts_with($file, 'components/layout/') && 1 === preg_match('/\.(jsx|md|html)$/', $file)));
+        self::assertContains('components/layout/SettingsLayout.prompt.md', $files);
+        self::assertContains('components/layout/layout.card.html', $files);
+
+        foreach ($files as $file) {
+            $text = (string) file_get_contents($this->directory.'/'.$file);
             foreach ($legacy as $class) {
-                self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $jsx, sprintf('The %s wrapper draws %s, which a component replaced.', $name, $class));
+                self::assertDoesNotMatchRegularExpression('/'.preg_quote($class, '/').'(?![a-z_-])/', $text, sprintf('%s draws %s, which a component replaced.', $file, $class));
             }
         }
     }
