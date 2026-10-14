@@ -50,7 +50,7 @@ final readonly class CancelInboxActionHandler
         }
 
         try {
-            ($this->cancelBridgeCommand)(new CancelBridgeCommandCommand($bridgeCommand->workerRun, $command->user));
+            ($this->cancelBridgeCommand)(new CancelBridgeCommandCommand($bridgeCommand->workerRun, $command->user, $bridgeCommand->id));
         } catch (DomainErrors $e) {
             throw new DomainErrors(['action' => array_first($e->errors)]);
         }

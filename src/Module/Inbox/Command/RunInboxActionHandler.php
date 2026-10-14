@@ -95,11 +95,20 @@ final readonly class RunInboxActionHandler
         $run = $this->workerRuns->find($wait->runId ?? throw new \LogicException('A run wait has a run.'))
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
-        $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction));
-
+        // The row commits first, so no queued command lacks a row. A refused request removes it again.
         $action = new InboxAction($command->item, InboxActionKind::ResumeRun, $command->user, $note);
-        $action->bridgeCommandId = $bridgeCommand->id;
         $this->em->persist($action);
+        $this->em->flush();
+
+        try {
+            $bridgeCommand = ($this->requestBridgeCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, $command->user, null, BridgeCommandCause::InboxAction));
+        } catch (DomainErrors $e) {
+            // The bridge closes the entity manager when a race trips its unique index, so delete through the connection.
+            $this->em->getConnection()->delete('inbox_actions', ['id' => $action->id?->toRfc4122()]);
+            throw $e;
+        }
+
+        $action->bridgeCommandId = $bridgeCommand->id;
         $this->em->flush();
 
         return $action;

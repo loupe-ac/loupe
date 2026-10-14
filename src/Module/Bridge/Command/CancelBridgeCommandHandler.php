@@ -36,10 +36,10 @@ final readonly class CancelBridgeCommandHandler
     {
         $run = $command->run;
 
-        $cancelled = $this->em->wrapInTransaction(function () use ($run): ?BridgeCommand {
+        $cancelled = $this->em->wrapInTransaction(function () use ($run, $command): ?BridgeCommand {
             // The row lock orders the cancel with an ack and the expiry sweep, so only one of them settles the command.
             $pending = $this->bridgeCommands->findPendingForRunLocked($run);
-            if (null === $pending || !$pending->settle(BridgeCommandState::Cancelled, null, $this->clock->now())) {
+            if (null === $pending || (null !== $command->commandId && !$command->commandId->equals($pending->id)) || !$pending->settle(BridgeCommandState::Cancelled, null, $this->clock->now())) {
                 return null;
             }
             $this->em->flush();

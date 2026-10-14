@@ -18,6 +18,7 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -109,6 +110,20 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
         $this->assertRefused($item, InboxActionKind::ResumeRun, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
         self::assertCount(1, $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    /** The card pauses after the menu fit, so the bridge refuses the resume the menu offered. */
+    public function test_a_refused_bridge_request_leaves_no_row_and_no_command(): void
+    {
+        $item = $this->runItem();
+        $this->service(CardHolds::class)->hold($this->project, $this->card->id ?? throw new \LogicException('Stored.'), $this->project->owner);
+
+        $this->assertRefused($item, InboxActionKind::ResumeRun, ['action' => RequestBridgeCommandHandler::CARD_HELD]);
+
+        $this->em()->clear();
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_commands'));
+        self::assertSame([], $this->audit->records('inbox.action_requested'));
     }
 
     public function test_a_refusal_of_the_release_keeps_its_key_under_the_action_field(): void

@@ -57,6 +57,40 @@ final class CancelBridgeCommandHandlerTest extends KernelTestCase
         ], $record->context);
     }
 
+    public function test_a_cancel_by_id_cancels_the_pending_command_with_that_id(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('cancel-by-id');
+        $pending = $this->seedCommand($this->em(), $run, kind: BridgeCommandKind::ResumeRun);
+
+        $cancelled = $this->service(CancelBridgeCommandHandler::class)(new CancelBridgeCommandCommand($run, $owner, $pending->id));
+
+        self::assertSame((string) $pending->id, (string) $cancelled->id);
+        self::assertSame(BridgeCommandState::Cancelled, $cancelled->state);
+    }
+
+    /** The command the person saw can settle, and a newer one can take its place before the cancel arrives. */
+    public function test_a_cancel_by_id_leaves_a_pending_command_with_another_id(): void
+    {
+        $this->boot();
+        $audit = RecordingAuditor::installedIn(self::getContainer());
+        [$owner, $run] = $this->scenario('cancel-by-other-id');
+        $pending = $this->seedCommand($this->em(), $run, kind: BridgeCommandKind::ResumeRun);
+
+        try {
+            $this->service(CancelBridgeCommandHandler::class)(new CancelBridgeCommandCommand($run, $owner, Uuid::v4()));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['run' => 'bridge.command.error.nothing_pending'], $e->errors);
+        }
+
+        $this->em()->clear();
+        $stored = $this->em()->find(BridgeCommand::class, $pending->id);
+        self::assertInstanceOf(BridgeCommand::class, $stored);
+        self::assertSame(BridgeCommandState::Pending, $stored->state);
+        self::assertSame([], $audit->records('bridge.command_cancelled'));
+    }
+
     public function test_a_run_with_no_pending_command_is_refused(): void
     {
         $this->boot();
