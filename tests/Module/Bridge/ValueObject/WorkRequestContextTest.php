@@ -12,7 +12,7 @@ final class WorkRequestContextTest extends TestCase
 {
     public function test_a_context_round_trips_through_its_array(): void
     {
-        $context = new WorkRequestContext(42, 'https://github.com/acme/widgets/pull/42', 'abc1234', 'checks-failed', '01a10beb-ba65-736b-8626-a6e3fa59dfc5', '01a13789-911f-7d8c-b2b8-e9b63c0ae283', 41);
+        $context = new WorkRequestContext(42, 'https://github.com/acme/widgets/pull/42', 'abc1234', 'checks-failed', '01a10beb-ba65-736b-8626-a6e3fa59dfc5', '01a13789-911f-7d8c-b2b8-e9b63c0ae283', 41, '01a137da-4de8-70ae-991f-2ef19584f2a6');
 
         self::assertSame([
             'pullRequestNumber' => 42,
@@ -22,6 +22,7 @@ final class WorkRequestContextTest extends TestCase
             'documentId' => '01a10beb-ba65-736b-8626-a6e3fa59dfc5',
             'inboxActionId' => '01a13789-911f-7d8c-b2b8-e9b63c0ae283',
             'inboxItemNumber' => 41,
+            'inboxItemId' => '01a137da-4de8-70ae-991f-2ef19584f2a6',
         ], $context->toArray());
         self::assertEquals($context, WorkRequestContext::fromArray($context->toArray()));
     }
@@ -29,7 +30,7 @@ final class WorkRequestContextTest extends TestCase
     public function test_an_empty_context_holds_a_null_for_each_key(): void
     {
         self::assertSame(
-            ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null],
+            ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null],
             new WorkRequestContext()->toArray(),
         );
     }
@@ -38,7 +39,7 @@ final class WorkRequestContextTest extends TestCase
     {
         $context = WorkRequestContext::fromArray(['pullRequestNumber' => 3, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null]);
 
-        self::assertSame([3, null, null], [$context->pullRequestNumber, $context->inboxActionId, $context->inboxItemNumber]);
+        self::assertSame([3, null, null, null], [$context->pullRequestNumber, $context->inboxActionId, $context->inboxItemNumber, $context->inboxItemId]);
     }
 
     public function test_a_null_column_is_an_empty_context(): void
@@ -60,6 +61,7 @@ final class WorkRequestContextTest extends TestCase
         yield 'a reason that is a bool' => [['reason' => true] + $valid];
         yield 'an inbox action id that is a number' => [['inboxActionId' => 7] + $valid];
         yield 'an inbox item number that is a string' => [['inboxItemNumber' => '7'] + $valid];
+        yield 'an inbox item id that is a number' => [['inboxItemId' => 7] + $valid];
     }
 
     /** @param array<mixed> $data */
@@ -71,32 +73,34 @@ final class WorkRequestContextTest extends TestCase
         WorkRequestContext::fromArray($data);
     }
 
-    /** @return iterable<string, array{?int, ?string, ?string, ?string, ?string, ?string, ?int}> */
+    /** @return iterable<string, array{?int, ?string, ?string, ?string, ?string, ?string, ?int, ?string}> */
     public static function invalidValues(): iterable
     {
-        yield 'a zero number' => [0, null, null, null, null, null, null];
-        yield 'a number past a 32-bit integer' => [2147483648, null, null, null, null, null, null];
-        yield 'a url that is not https' => [null, 'http://github.com/acme/widgets/pull/1', null, null, null, null, null];
-        yield 'a url with a space' => [null, 'https://github.com/acme/widgets/pull/1 now', null, null, null, null, null];
-        yield 'a url with no host' => [null, 'https:///pull/1', null, null, null, null, null];
-        yield 'a url past 2000 characters' => [null, 'https://github.com/'.str_repeat('a', 2000), null, null, null, null, null];
-        yield 'a short sha' => [null, null, 'abc12', null, null, null, null];
-        yield 'an upper-case sha' => [null, null, 'ABC1234', null, null, null, null];
-        yield 'a reason with a space' => [null, null, null, 'checks failed', null, null, null];
-        yield 'a document id that is not a uuid' => [null, null, null, null, 'design', null, null];
-        yield 'an upper-case document id' => [null, null, null, null, '01A10BEB-BA65-736B-8626-A6E3FA59DFC5', null, null];
-        yield 'an inbox action id that is not a uuid' => [null, null, null, null, null, 'action', null];
-        yield 'an upper-case inbox action id' => [null, null, null, null, null, '01A13789-911F-7D8C-B2B8-E9B63C0AE283', null];
-        yield 'a zero inbox item number' => [null, null, null, null, null, null, 0];
-        yield 'an inbox item number past a 32-bit integer' => [null, null, null, null, null, null, 2147483648];
+        yield 'a zero number' => [0, null, null, null, null, null, null, null];
+        yield 'a number past a 32-bit integer' => [2147483648, null, null, null, null, null, null, null];
+        yield 'a url that is not https' => [null, 'http://github.com/acme/widgets/pull/1', null, null, null, null, null, null];
+        yield 'a url with a space' => [null, 'https://github.com/acme/widgets/pull/1 now', null, null, null, null, null, null];
+        yield 'a url with no host' => [null, 'https:///pull/1', null, null, null, null, null, null];
+        yield 'a url past 2000 characters' => [null, 'https://github.com/'.str_repeat('a', 2000), null, null, null, null, null, null];
+        yield 'a short sha' => [null, null, 'abc12', null, null, null, null, null];
+        yield 'an upper-case sha' => [null, null, 'ABC1234', null, null, null, null, null];
+        yield 'a reason with a space' => [null, null, null, 'checks failed', null, null, null, null];
+        yield 'a document id that is not a uuid' => [null, null, null, null, 'design', null, null, null];
+        yield 'an upper-case document id' => [null, null, null, null, '01A10BEB-BA65-736B-8626-A6E3FA59DFC5', null, null, null];
+        yield 'an inbox action id that is not a uuid' => [null, null, null, null, null, 'action', null, null];
+        yield 'an upper-case inbox action id' => [null, null, null, null, null, '01A13789-911F-7D8C-B2B8-E9B63C0AE283', null, null];
+        yield 'a zero inbox item number' => [null, null, null, null, null, null, 0, null];
+        yield 'an inbox item number past a 32-bit integer' => [null, null, null, null, null, null, 2147483648, null];
+        yield 'an inbox item id that is not a uuid' => [null, null, null, null, null, null, null, 'item'];
+        yield 'an upper-case inbox item id' => [null, null, null, null, null, null, null, '01A137DA-4DE8-70AE-991F-2EF19584F2A6'];
     }
 
     #[DataProvider('invalidValues')]
-    public function test_an_invalid_value_is_refused(?int $number, ?string $url, ?string $sha, ?string $reason, ?string $documentId, ?string $inboxActionId, ?int $inboxItemNumber): void
+    public function test_an_invalid_value_is_refused(?int $number, ?string $url, ?string $sha, ?string $reason, ?string $documentId, ?string $inboxActionId, ?int $inboxItemNumber, ?string $inboxItemId): void
     {
         $this->expectException(\UnexpectedValueException::class);
 
-        new WorkRequestContext($number, $url, $sha, $reason, $documentId, $inboxActionId, $inboxItemNumber);
+        new WorkRequestContext($number, $url, $sha, $reason, $documentId, $inboxActionId, $inboxItemNumber, $inboxItemId);
     }
 
     public function test_the_accepts_checks_tell_a_valid_value_from_an_invalid_one(): void

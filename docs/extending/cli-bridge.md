@@ -1684,8 +1684,9 @@ one machine where you want the terminal, as for
 [Product design](#interactive-action).
 
 The session always starts new. It never resumes the session of an earlier run
-of the card. The prompt of the session names the inbox item and tells the agent
-to read your note with the `inbox_get` tool. The request holds no note text.
+of the card. The prompt of the session names the inbox item by its number and
+its id. It tells the agent to read your note with the `inbox_get` tool, and the
+earlier report of the run with `worker_run_get`. The request holds no note text.
 
 A `session` request that no bridge claims expires after 2 minutes, and the
 card does not pause. Loupe disables the action while no online bridge of the

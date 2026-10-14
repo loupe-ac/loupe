@@ -315,8 +315,8 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 		}
 	case ActionInteractive:
 		m.Prompt = directive.RenderPlain(entry.Prompt, v)
-		if w.Context.InboxActionID != "" {
-			m.Prompt += "\n\n" + directive.InboxNote(w.Context.InboxItemNumber)
+		if w.Context.InboxActionID != "" && w.Context.InboxItemID != "" {
+			m.Prompt += "\n\n" + directive.InboxNote(w.Context.InboxItemNumber, w.Context.InboxItemID)
 		}
 	case ActionCommand:
 		m.Command = &Command{Argv: renderArgv(entry.Run, v), Timeout: entry.commandTimeout}

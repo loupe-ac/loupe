@@ -391,9 +391,17 @@ func TestMatchWorkAppendsTheInboxNote(t *testing.T) {
 	plain := s.MatchWork(w)
 	w.Context.InboxActionID = "01a10beb-ba65-736b-8626-a6e3fa59dfc5"
 	w.Context.InboxItemNumber = 12
+	w.Context.InboxItemID = "01a137da-4de8-70ae-991f-2ef19584f2a6"
 	m := s.MatchWork(w)
-	if want := plain.Prompt + "\n\n" + directive.InboxNote(12); m.Skip != Run || m.Prompt != want {
+	if want := plain.Prompt + "\n\n" + directive.InboxNote(12, w.Context.InboxItemID); m.Skip != Run || m.Prompt != want {
 		t.Fatalf("prompt = %q, want %q", m.Prompt, want)
+	}
+
+	// A note with no item id sends the agent to a call that inbox_get refuses,
+	// so the bridge appends none.
+	w.Context.InboxItemID = ""
+	if m := s.MatchWork(w); m.Prompt != plain.Prompt {
+		t.Fatalf("prompt with no item id = %q, want %q", m.Prompt, plain.Prompt)
 	}
 }
 

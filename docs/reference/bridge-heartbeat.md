@@ -472,6 +472,7 @@ held no such value. A server from before the context sends no `context` key.
 | `documentId` | the id of the one linked document that carries the tag of the `document` parameter of the request rule |
 | `inboxActionId` | the id of the inbox action that asked for the request, or `null`. The agent reads the note of that action with `inbox_get`, so the note never travels in the request |
 | `inboxItemNumber` | the number of the inbox item of that action, or `null` |
+| `inboxItemId` | the id of that inbox item, or `null`. `inbox_get` takes this id, never the number |
 
 The event and the reply never carry the claim token.
 

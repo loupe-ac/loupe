@@ -203,13 +203,13 @@ func TestParseWorkRequestReadsTheContext(t *testing.T) {
 // as unset.
 func TestParseWorkRequestReadsTheInboxAction(t *testing.T) {
 	payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":{`+
-		`"inboxActionId":"01A10BEB-BA65-736B-8626-A6E3FA59DFC5","inboxItemNumber":12}`, 1)
+		`"inboxActionId":"01A10BEB-BA65-736B-8626-A6E3FA59DFC5","inboxItemNumber":12,"inboxItemId":"01A137DA-4DE8-70AE-991F-2EF19584F2A6"}`, 1)
 	w, err := ParseWorkRequest([]byte(payload))
-	if err != nil || w.Context.InboxActionID != "01a10beb-ba65-736b-8626-a6e3fa59dfc5" || w.Context.InboxItemNumber != 12 {
+	if err != nil || w.Context.InboxActionID != "01a10beb-ba65-736b-8626-a6e3fa59dfc5" || w.Context.InboxItemNumber != 12 || w.Context.InboxItemID != "01a137da-4de8-70ae-991f-2ef19584f2a6" {
 		t.Fatalf("work request = %+v, err = %v", w.Context, err)
 	}
 
-	payload = strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":{"inboxActionId":null,"inboxItemNumber":null}`, 1)
+	payload = strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":{"inboxActionId":null,"inboxItemNumber":null,"inboxItemId":null}`, 1)
 	w, err = ParseWorkRequest([]byte(payload))
 	if err != nil || w.Context != (api.WorkRequestContext{}) {
 		t.Fatalf("work request = %+v, err = %v", w.Context, err)
@@ -246,6 +246,7 @@ func TestParseWorkRequestRejectsEachMalformedContextValue(t *testing.T) {
 		"a number that is a string":  `{"pullRequestNumber":"42"}`,
 		"an inbox action not a uuid": `{"inboxActionId":"start"}`,
 		"a negative inbox number":    `{"inboxItemNumber":-3}`,
+		"an inbox item not a uuid":   `{"inboxItemId":"41"}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			payload := strings.Replace(workRequestPayload, `"resumeSessionId":null`, `"resumeSessionId":null,"context":`+context, 1)

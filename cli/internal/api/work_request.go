@@ -80,6 +80,7 @@ type WorkRequestContext struct {
 	DocumentID        string `json:"documentId"`
 	InboxActionID     string `json:"inboxActionId"`
 	InboxItemNumber   int    `json:"inboxItemNumber"`
+	InboxItemID       string `json:"inboxItemId"`
 }
 
 // WorkRequestSubject names the work request itself.

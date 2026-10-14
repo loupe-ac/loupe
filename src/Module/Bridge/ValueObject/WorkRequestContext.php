@@ -27,7 +27,7 @@ final readonly class WorkRequestContext
     private const array KEYS = ['pullRequestNumber', 'pullRequestUrl', 'headSha', 'reason', 'documentId'];
 
     /** A row stored before these keys existed lacks them, and they read as null. */
-    private const array OPTIONAL_KEYS = ['inboxActionId', 'inboxItemNumber'];
+    private const array OPTIONAL_KEYS = ['inboxActionId', 'inboxItemId', 'inboxItemNumber'];
 
     public function __construct(
         public ?int $pullRequestNumber = null,
@@ -37,6 +37,7 @@ final readonly class WorkRequestContext
         public ?string $documentId = null,
         public ?string $inboxActionId = null,
         public ?int $inboxItemNumber = null,
+        public ?string $inboxItemId = null,
     ) {
         if (null !== $pullRequestNumber && ($pullRequestNumber < 1 || $pullRequestNumber > self::MAX_PULL_REQUEST_NUMBER)) {
             throw new \UnexpectedValueException('A work request names a pull request by a positive 32-bit number.');
@@ -55,6 +56,9 @@ final readonly class WorkRequestContext
         }
         if (null !== $inboxActionId && (!Uuid::isValid($inboxActionId) || $inboxActionId !== Uuid::fromString($inboxActionId)->toRfc4122())) {
             throw new \UnexpectedValueException('A work request names an inbox action by its lower-case uuid.');
+        }
+        if (null !== $inboxItemId && (!Uuid::isValid($inboxItemId) || $inboxItemId !== Uuid::fromString($inboxItemId)->toRfc4122())) {
+            throw new \UnexpectedValueException('A work request names an inbox item by its lower-case uuid.');
         }
         if (null !== $inboxItemNumber && ($inboxItemNumber < 1 || $inboxItemNumber > self::MAX_PULL_REQUEST_NUMBER)) {
             throw new \UnexpectedValueException('A work request names an inbox item by a positive 32-bit number.');
@@ -99,10 +103,11 @@ final readonly class WorkRequestContext
             documentId: self::nullableString($data['documentId']),
             inboxActionId: self::nullableString($data['inboxActionId'] ?? null),
             inboxItemNumber: self::nullableInt($data['inboxItemNumber'] ?? null),
+            inboxItemId: self::nullableString($data['inboxItemId'] ?? null),
         );
     }
 
-    /** @return array{pullRequestNumber: ?int, pullRequestUrl: ?string, headSha: ?string, reason: ?string, documentId: ?string, inboxActionId: ?string, inboxItemNumber: ?int} */
+    /** @return array{pullRequestNumber: ?int, pullRequestUrl: ?string, headSha: ?string, reason: ?string, documentId: ?string, inboxActionId: ?string, inboxItemNumber: ?int, inboxItemId: ?string} */
     public function toArray(): array
     {
         return [
@@ -113,6 +118,7 @@ final readonly class WorkRequestContext
             'documentId' => $this->documentId,
             'inboxActionId' => $this->inboxActionId,
             'inboxItemNumber' => $this->inboxItemNumber,
+            'inboxItemId' => $this->inboxItemId,
         ];
     }
 

@@ -641,8 +641,10 @@ the terminal must open. When several bridges hold the entry, the first one to
 claim the request wins.
 
 The request names the inbox item. The bridge adds one paragraph to the prompt.
-It names the item and tells the agent to read the owner's note and the earlier
-report with `inbox_get`. The note text never goes in the prompt.
+It names the item by its number and its id. It tells the agent to read the
+owner's note with `inbox_get`, and the earlier report with `worker_run_get`.
+The note text never goes in the prompt. A request with no item id gets no
+paragraph, because `inbox_get` takes no number.
 
 #### Prompt footer
 

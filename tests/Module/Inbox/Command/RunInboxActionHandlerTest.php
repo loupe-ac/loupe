@@ -22,6 +22,7 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
@@ -320,7 +321,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             [WorkSubject::CARD, (string) $this->card->id, $this->card->number, 'session', 'session', 'inbox:start-session', WorkRequestState::Open, null],
             [$request->subjectType, (string) $request->subjectId, $request->cardNumber, $request->kind, $request->capability, $request->ruleId, $request->state, $request->bridgeId],
         );
-        self::assertSame([(string) $action->id, $item->number], [$request->context->inboxActionId, $request->context->inboxItemNumber]);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [$request->context->inboxActionId, $request->context->inboxItemNumber, $request->context->inboxItemId]);
         self::assertNull($request->prompt);
         self::assertNull($action->bridgeCommandId);
         self::assertSame('Pair with me', $action->note);
@@ -477,6 +478,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
                 $this->service(WorkerRunControls::class),
                 $this->service(CardPauses::class),
                 new SessionBridges($this->service(BridgeRepository::class), $this->service(BridgeLiveness::class)),
+                $this->service(WorkRequestRepository::class),
             ),
             $this->service(RequestBridgeCommandHandler::class),
             $this->service(ReleaseWorkflowPauseHandler::class),

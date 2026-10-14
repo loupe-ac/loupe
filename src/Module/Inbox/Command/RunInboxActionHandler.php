@@ -162,7 +162,7 @@ final readonly class RunInboxActionHandler
                 kind: WorkRequest::SESSION_KIND,
                 capability: Bridge::CAPABILITY_SESSION,
                 ruleId: self::SESSION_RULE_ID,
-                context: new WorkRequestContext(inboxActionId: $action->id?->toRfc4122(), inboxItemNumber: $item->number),
+                context: new WorkRequestContext(inboxActionId: $action->id?->toRfc4122(), inboxItemNumber: $item->number, inboxItemId: $item->id?->toRfc4122()),
                 fresh: true,
             ));
         } catch (WorkRequestAlreadyLive|DomainErrors $e) {
