@@ -5,19 +5,14 @@ declare(strict_types=1);
 namespace App\Module\Board\Workflow;
 
 use App\Exception\DomainErrors;
-use App\Module\Board\Entity\Card;
-use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
-use App\Module\Board\Service\CardPullRequests;
 use App\Module\Bridge\Command\OpenWorkRequestCommand;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WorkRequestAlreadyLive;
-use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\ActionContext;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\DocumentFacts;
-use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\WorkOpener;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
@@ -32,8 +27,7 @@ final readonly class WorkRequestOpener implements WorkOpener
     public function __construct(
         private OpenWorkRequestHandler $openWorkRequest,
         private CardRepository $cards,
-        private CardPullRequests $trackedPullRequests,
-        private CardPullRequestRepository $cardPullRequests,
+        private WorkRequestContexts $contexts,
     ) {
     }
 
@@ -64,7 +58,7 @@ final readonly class WorkRequestOpener implements WorkOpener
                 kind: $kind,
                 capability: $capability,
                 ruleId: $context->ruleId,
-                context: $this->context($card, $facts, $documentId, $reason),
+                context: $this->contexts->forCard($card, $facts->pullRequest, $documentId, $reason),
                 prompt: $context->prompt,
             ));
         } catch (WorkRequestAlreadyLive $e) {
@@ -74,26 +68,5 @@ final readonly class WorkRequestOpener implements WorkOpener
         }
 
         return ActionOutcome::done($request->id);
-    }
-
-    /** A link URL or a head of another shape stays out, because a bridge fills commands with these values. */
-    private function context(Card $card, Facts $facts, ?string $documentId, ?string $reason): WorkRequestContext
-    {
-        $reason ??= $facts->pullRequest?->fixReason();
-        $pullRequest = $this->trackedPullRequests->subjectOf($this->trackedPullRequests->forCard($card), $facts->pullRequest);
-        if (null === $pullRequest) {
-            return new WorkRequestContext(reason: $reason, documentId: $documentId);
-        }
-
-        $url = $this->cardPullRequests->findUrlOfPullRequest($card, $pullRequest->forge, $pullRequest->repository, $pullRequest->number);
-        $headSha = null === $pullRequest->headSha ? null : mb_strtolower($pullRequest->headSha);
-
-        return new WorkRequestContext(
-            pullRequestNumber: $pullRequest->number,
-            pullRequestUrl: null !== $url && WorkRequestContext::acceptsUrl($url) ? $url : null,
-            headSha: null !== $headSha && WorkRequestContext::acceptsHeadSha($headSha) ? $headSha : null,
-            reason: $reason,
-            documentId: $documentId,
-        );
     }
 }

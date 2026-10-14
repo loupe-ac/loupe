@@ -973,6 +973,36 @@ class WorkerRunRepository extends ServiceEntityRepository
     }
 
     /**
+     * The newest run that each work request started, in one query.
+     *
+     * @param list<Uuid> $workRequestIds
+     *
+     * @return array<string, WorkerRun> keyed by the RFC 4122 request id
+     */
+    public function findNewestOfWorkRequests(array $workRequestIds): array
+    {
+        if ([] === $workRequestIds) {
+            return [];
+        }
+
+        /** @var list<WorkerRun> $runs */
+        $runs = $this->createQueryBuilder('r')
+            ->andWhere('r.workRequestId IN (:requests)')
+            ->setParameter('requests', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $workRequestIds))
+            ->orderBy('r.receivedAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $byRequest = [];
+        foreach ($runs as $run) {
+            $byRequest[(string) $run->workRequestId] ??= $run;
+        }
+
+        return $byRequest;
+    }
+
+    /**
      * The newest worker run of the card that resumes or reruns an earlier run, and that a worker ran or runs. It leaves out a run a person stops.
      * A run that reported before the time does not count, and neither does a run that belongs to another rule.
      */

@@ -41,6 +41,8 @@ final class WorkRequestPayload
             'model' => $request->model,
             'effort' => $request->effort,
             'prompt' => $request->prompt,
+            'inboxActionId' => $request->inboxActionId?->toRfc4122(),
+            'inboxItemNumber' => $request->inboxItemNumber,
         ];
     }
 }

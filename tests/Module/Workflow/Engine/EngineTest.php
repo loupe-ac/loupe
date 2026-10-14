@@ -38,6 +38,7 @@ use App\Module\Board\Workflow\CardTypeFacts;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\RequestWork;
+use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Board\Workflow\WorkRequestOpener;
 use App\Module\Bridge\Command\OpenWorkRequestHandler;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
@@ -87,6 +88,7 @@ use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\PauseKind;
+use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\WorkflowRuleStates;
 use App\Module\Workflow\Engine\Engine;
 use App\Module\Workflow\Engine\MarkerPass;
@@ -1953,6 +1955,21 @@ final class EngineTest extends KernelTestCase
         $this->evaluate($card);
 
         self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_a_request_that_a_person_asked_for_is_left_alone_even_past_the_timeout(): void
+    {
+        $card = $this->boundCard([]);
+        $request = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'implement', null, PersonWork::RULE_PREFIX.'send-agent', new \DateTimeImmutable(self::NOON));
+        $this->em()->persist($request);
+        $this->em()->flush();
+
+        $this->evaluate($card);
+        $this->evaluate($card, '2026-10-02 14:00:00');
+
+        self::assertSame(WorkRequestState::Open, $request->state);
+        self::assertNull($this->activePause($card));
+        self::assertSame([], $this->paused);
     }
 
     public function test_a_pause_whose_rule_left_the_template_is_released(): void
@@ -4044,8 +4061,7 @@ final class EngineTest extends KernelTestCase
         $opener = new WorkRequestOpener(
             new OpenWorkRequestHandler($settling, $this->service(OutboxWriter::class), $this->em(), new MockClock('2026-10-02 12:00:00'), $this->service(Auditor::class), $this->service(WorkRequestAnnouncer::class), $this->service(WorkerRunRepository::class), new WorkSubjectHandlers([])),
             $this->service(CardRepository::class),
-            $this->service(CardPullRequests::class),
-            $this->service(CardPullRequestRepository::class),
+            new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
         );
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
 

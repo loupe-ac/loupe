@@ -51,6 +51,8 @@ final class BridgeCommandPayload
             'harness' => $run->harness,
             'account' => $run->account,
             'runModel' => $run->model,
+            'inboxActionId' => $command->inboxActionId?->toRfc4122(),
+            'inboxItemNumber' => $command->inboxItemNumber,
         ];
     }
 }

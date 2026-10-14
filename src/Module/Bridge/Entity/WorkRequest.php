@@ -38,8 +38,8 @@ class WorkRequest
 
     public const int MAX_RULE_ID_LENGTH = 100;
 
-    /** The id of the template rule that opened the request. */
-    public const string RULE_ID_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,99}$/D';
+    /** The id of the template rule that opened the request, or the prefixed id of work that a person asked for. */
+    public const string RULE_ID_PATTERN = '/^[a-z0-9][a-z0-9._:-]{0,99}$/D';
 
     public const int MAX_REASON_LENGTH = 64;
 
@@ -103,6 +103,14 @@ class WorkRequest
     /** The text of the app prompt the bridge gives the worker, or null when the rule names none. */
     #[ORM\Column(name: 'prompt', type: Types::TEXT, nullable: true)]
     public ?string $prompt = null;
+
+    /** The inbox action that asked for the request, or null for a request of the workflow. No foreign key: the inbox owns the row. */
+    #[ORM\Column(name: 'inbox_action_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $inboxActionId = null;
+
+    /** The number of the inbox item that the request came from, a label a person reads. */
+    #[ORM\Column(name: 'inbox_item_number', nullable: true)]
+    public ?int $inboxItemNumber = null;
 
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {

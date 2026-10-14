@@ -13,5 +13,6 @@ enum InboxActionState: string
     case Cancelled = 'cancelled';
     case Resumed = 'resumed';
     case Retried = 'retried';
+    case Preparing = 'preparing';
     case Running = 'running';
 }

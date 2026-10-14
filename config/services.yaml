@@ -194,6 +194,12 @@ when@test:
 
         # The audit facade and its Doctrine sink have one consumer each, so the
         # compiler inlines them and a test cannot reach the drained instance.
+        # No production class injects this port yet, so the compiler would drop it.
+        App\Module\Workflow\Service\TemplateStageWorks:
+            autowire: true
+            autoconfigure: true
+            public: true
+
         Ubermuda\AuditBundle\Auditor:
             autowire: true
             autoconfigure: true

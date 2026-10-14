@@ -22,6 +22,7 @@ use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
+use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
 use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\RuleAsks;
@@ -435,6 +436,9 @@ final readonly class Engine
         $withdrawn = false;
         $expired = [];
         foreach ($this->ledger->live($cardId) as $request) {
+            if (PersonWork::isPersonRule($request->ruleId)) {
+                continue;
+            }
             $requestId = $request->id;
             $rule = $run->rule($request->ruleId);
             if (null === $rule || !$run->applies($rule)) {

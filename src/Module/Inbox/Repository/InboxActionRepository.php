@@ -90,8 +90,31 @@ class InboxActionRepository extends ServiceEntityRepository
     }
 
     /**
-     * The actions whose bridge command is about one of these runs, or about a run that one of them continues.
-     * One query, with the item and its project loaded.
+     * With the item and its project loaded, so a caller reads the project with no further query.
+     *
+     * @param list<Uuid> $workRequestIds
+     *
+     * @return list<InboxAction>
+     */
+    public function findByWorkRequestIds(array $workRequestIds): array
+    {
+        if ([] === $workRequestIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('action')
+            ->addSelect('item', 'project')
+            ->join('action.item', 'item')
+            ->join('item.project', 'project')
+            ->andWhere('action.workRequestId IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $workRequestIds))
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * The actions whose bridge command is about one of these runs, or about a run that one of them continues,
+     * or whose work request started one of them. One query, with the item and its project loaded.
      *
      * @param list<string> $runIds RFC 4122 strings
      *
@@ -107,7 +130,7 @@ class InboxActionRepository extends ServiceEntityRepository
             ->addSelect('item', 'project')
             ->join('action.item', 'item')
             ->join('item.project', 'project')
-            ->andWhere('action.bridgeCommandId IN (SELECT c.id FROM '.BridgeCommand::class.' c WHERE IDENTITY(c.workerRun) IN (:runs) OR IDENTITY(c.workerRun) IN (SELECT IDENTITY(r.continuesRun) FROM '.WorkerRun::class.' r WHERE r.id IN (:runs)))')
+            ->andWhere('action.bridgeCommandId IN (SELECT c.id FROM '.BridgeCommand::class.' c WHERE IDENTITY(c.workerRun) IN (:runs) OR IDENTITY(c.workerRun) IN (SELECT IDENTITY(r.continuesRun) FROM '.WorkerRun::class.' r WHERE r.id IN (:runs))) OR action.workRequestId IN (SELECT w.workRequestId FROM '.WorkerRun::class.' w WHERE w.id IN (:runs))')
             ->setParameter('runs', $runIds)
             ->getQuery()
             ->getResult();

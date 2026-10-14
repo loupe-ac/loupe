@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\View\InboxActionState;
 use App\Module\Inbox\View\InboxActionStatus;
+use Symfony\Component\Uid\Uuid;
 
 /**
- * Reads the status line of each action of a list of items. The status comes from the bridge command
- * or the run that the action started, so the inbox keeps no second copy. A dismiss, and a resume that
+ * Reads the status line of each action of a list of items. The status comes from the bridge command,
+ * the work request or the run that the action started, so the inbox keeps no second copy. A dismiss, and a resume that
  * never got its command, have no line. Reads are batched: no query per action.
  */
 final readonly class InboxActionStatuses
@@ -28,6 +34,8 @@ final readonly class InboxActionStatuses
         private InboxActionRepository $inboxActions,
         private BridgeCommandRepository $bridgeCommands,
         private WorkerRunRepository $workerRuns,
+        private WorkRequestRepository $workRequests,
+        private BridgeRepository $bridges,
         private BridgeLiveness $liveness,
     ) {
     }
@@ -51,6 +59,17 @@ final readonly class InboxActionStatuses
         $commands = $this->bridgeCommands->findByIds($commandIds);
         $quiet = $this->quietBridges($commands);
         $continuations = $this->continuations($commands);
+        $requestIds = [];
+        foreach ($byItem as $actions) {
+            foreach ($actions as $action) {
+                if (InboxActionKind::SendAgent === $action->kind && null !== $action->workRequestId) {
+                    $requestIds[] = $action->workRequestId;
+                }
+            }
+        }
+        $requests = $this->workRequests->findByIds($requestIds);
+        $requestRuns = $this->workerRuns->findNewestOfWorkRequests($requestIds);
+        $offlineProjects = $this->offlineProjects($requests);
 
         $statuses = [];
         foreach ($items as $item) {
@@ -59,6 +78,7 @@ final readonly class InboxActionStatuses
                 $line = match ($action->kind) {
                     InboxActionKind::RetryCard => new InboxActionStatus($action, InboxActionState::Retried, 'inbox.action.status.retried', at: $action->requestedAt),
                     InboxActionKind::ResumeRun => $this->resumeStatus($action, $commands, $quiet, $continuations),
+                    InboxActionKind::SendAgent => $this->sendAgentStatus($action, $requests, $requestRuns, $offlineProjects),
                     default => null,
                 };
                 if (null !== $line) {
@@ -96,6 +116,65 @@ final readonly class InboxActionStatuses
                 : new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused', ['%reason%' => $command->reason], at: $settledAt),
             default => $this->settledStatus($action, $command, $continuations, $settledAt),
         };
+    }
+
+    /**
+     * @param array<string, WorkRequest> $requests        keyed by the RFC 4122 request id
+     * @param array<string, WorkerRun>   $runs            the newest run of each request, keyed by the RFC 4122 request id
+     * @param array<string, bool>        $offlineProjects keyed by the RFC 4122 project id
+     */
+    private function sendAgentStatus(InboxAction $action, array $requests, array $runs, array $offlineProjects): ?InboxActionStatus
+    {
+        $request = null === $action->workRequestId ? null : ($requests[(string) $action->workRequestId] ?? null);
+        if (null === $request) {
+            return null;
+        }
+        $settledAt = $request->settledAt ?? $action->requestedAt;
+
+        if (null !== $action->cancelledAt || WorkRequestState::Cancelled === $request->state) {
+            return new InboxActionStatus($action, InboxActionState::Cancelled, 'inbox.action.status.cancelled', at: $action->cancelledAt ?? $settledAt);
+        }
+        $run = $runs[(string) $request->id] ?? null;
+        if (null !== $run) {
+            return new InboxActionStatus($action, InboxActionState::Running, $run->state->translationKey(), at: $run->receivedAt);
+        }
+
+        return match ($request->state) {
+            WorkRequestState::Open => new InboxActionStatus($action, InboxActionState::Queued, 'inbox.action.status.queued', cancellable: true, offline: $offlineProjects[(string) $request->project->id] ?? true, at: $action->requestedAt),
+            WorkRequestState::Expired => new InboxActionStatus($action, InboxActionState::Expired, 'inbox.action.status.expired', at: $settledAt),
+            WorkRequestState::Refused => null === $request->reason
+                ? new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused_no_reason', at: $settledAt)
+                : new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused', ['%reason%' => $request->reason], at: $settledAt),
+            default => new InboxActionStatus($action, InboxActionState::Preparing, 'inbox.action.status.preparing', at: $request->settledAt ?? $action->requestedAt),
+        };
+    }
+
+    /**
+     * Whether no bridge that follows the project and takes work requests sends its heartbeat, for the projects of the open requests. One read of bridges and one liveness read per project.
+     *
+     * @param array<string, WorkRequest> $requests
+     *
+     * @return array<string, bool> keyed by the RFC 4122 project id
+     */
+    private function offlineProjects(array $requests): array
+    {
+        $projects = [];
+        foreach ($requests as $request) {
+            if (WorkRequestState::Open === $request->state) {
+                $projects[(string) $request->project->id] = $request->project;
+            }
+        }
+
+        $offline = [];
+        foreach ($projects as $key => $project) {
+            $ids = array_map(
+                static fn (Bridge $bridge): Uuid => $bridge->id,
+                array_values(array_filter($this->bridges->findFollowingProject($project), static fn (Bridge $bridge): bool => $bridge->takesWorkRequests())),
+            );
+            $offline[$key] = !array_any($this->liveness->forOwner($project->owner, $ids), static fn ($status): bool => !$status->quiet);
+        }
+
+        return $offline;
     }
 
     /** @param array<string, list<WorkerRun>> $continuations */

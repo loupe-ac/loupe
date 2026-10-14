@@ -101,11 +101,13 @@ final readonly class OpenWorkRequestHandler
                     ruleId: $command->ruleId,
                     createdAt: $this->clock->now(),
                 );
-                $request->resumeSessionId = $this->sessionToResume($command);
+                $request->resumeSessionId = $command->fresh ? null : $this->sessionToResume($command);
                 $request->context = $command->context;
                 $request->model = $command->model;
                 $request->effort = $command->effort;
                 $request->prompt = $command->prompt;
+                $request->inboxActionId = $command->inboxActionId;
+                $request->inboxItemNumber = $command->inboxItemNumber;
                 $this->em->persist($request);
                 // The payload names the request, so the row needs its id first.
                 $this->em->flush();
