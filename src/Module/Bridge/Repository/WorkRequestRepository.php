@@ -251,6 +251,52 @@ class WorkRequestRepository extends ServiceEntityRepository
     }
 
     /**
+     * The open requests of a kind whose rule id starts with the prefix and that waited for a bridge
+     * since the deadline or longer, oldest first. A reopen restarts the wait.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenOfRulePrefixAndKindBefore(string $rulePrefix, string $kind, \DateTimeImmutable $deadline): array
+    {
+        return array_values($this->createQueryBuilder('w')
+            ->andWhere('w.state = :open')
+            ->andWhere('w.kind = :kind')
+            ->andWhere('w.ruleId LIKE :prefix')
+            ->andWhere('COALESCE(w.reopenedAt, w.createdAt) <= :deadline')
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->setParameter('kind', $kind)
+            ->setParameter('prefix', addcslashes($rulePrefix, '%_\\').'%')
+            ->setParameter('deadline', $deadline, Types::DATETIME_IMMUTABLE)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /**
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, WorkRequest> keyed by the RFC 4122 id
+     */
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        $byId = [];
+        foreach ($this->createQueryBuilder('w')
+            ->andWhere('w.id IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getResult() as $request) {
+            $byId[(string) $request->id] = $request;
+        }
+
+        return $byId;
+    }
+
+    /**
      * Restarts the timeout of each open request of the cards, in one statement, so it joins a caller's transaction.
      * A managed request is stale after it.
      *

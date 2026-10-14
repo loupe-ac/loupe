@@ -50,6 +50,26 @@ final class ExpireSubjectWorkRequestsHandlerTest extends KernelTestCase
         self::assertSame([(string) $lapsed->id], array_column($this->outboxPayloads(), 'workRequestId'));
     }
 
+    public function test_an_open_session_request_of_a_person_expires_after_two_minutes(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'expire-session@example.com'), 'Expire Session');
+        $lapsed = $this->seedWorkRequest($em, $project, kind: 'session', capability: 'session', createdAt: new \DateTimeImmutable('2026-10-01 11:57:59'), ruleId: 'inbox:start-session');
+        $waiting = $this->seedWorkRequest($em, $project, cardId: Uuid::v7(), kind: 'session', capability: 'session', createdAt: new \DateTimeImmutable('2026-10-01 11:58:01'), ruleId: 'inbox:start-session');
+        $claimed = $this->seedWorkRequest($em, $project, cardId: Uuid::v7(), kind: 'session', capability: 'session', state: WorkRequestState::Claimed, createdAt: new \DateTimeImmutable('2026-10-01 11:00:00'), ruleId: 'inbox:start-session');
+        $otherRule = $this->seedWorkRequest($em, $project, cardId: Uuid::v7(), kind: 'session', capability: 'session', createdAt: new \DateTimeImmutable('2026-10-01 11:00:00'), ruleId: 'product-design-session');
+        $otherKind = $this->seedWorkRequest($em, $project, cardId: Uuid::v7(), kind: 'send-agent', createdAt: new \DateTimeImmutable('2026-10-01 11:00:00'), ruleId: 'inbox:send-agent');
+
+        self::assertSame(1, $this->handler(new RecordingWorkSubjectHandler())(new ExpireSubjectWorkRequestsCommand()));
+
+        $em->clear();
+        foreach ([[$lapsed, WorkRequestState::Expired], [$waiting, WorkRequestState::Open], [$claimed, WorkRequestState::Claimed], [$otherRule, WorkRequestState::Open], [$otherKind, WorkRequestState::Open]] as [$request, $state]) {
+            self::assertSame($state, $em->find(WorkRequest::class, $request->id)?->state);
+        }
+        self::assertSame([(string) $lapsed->id], array_column($this->outboxPayloads(), 'workRequestId'));
+    }
+
     public function test_a_tick_with_nothing_to_expire_answers_zero(): void
     {
         self::bootKernel();

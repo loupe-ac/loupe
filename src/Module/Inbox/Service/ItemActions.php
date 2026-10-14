@@ -15,8 +15,10 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
+use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Contract\CardPauses;
+use Symfony\Component\Uid\Uuid;
 
 /** Computes the actions that fit an inbox item now, in menu order, and marks the default. */
 final readonly class ItemActions
@@ -26,6 +28,7 @@ final readonly class ItemActions
         private WorkerRunRepository $workerRuns,
         private WorkerRunControls $runControls,
         private CardPauses $pauses,
+        private SessionBridges $sessionBridges,
     ) {
     }
 
@@ -63,8 +66,21 @@ final readonly class ItemActions
         return InboxActionKind::ResumeRun === $kind ? InboxCardWaitType::WorkerRun : InboxCardWaitType::CardPause;
     }
 
+    /** The card that an action on the item acts on: the card of its watch, or else its first linked card. */
+    public function cardIdOf(InboxItem $item): ?Uuid
+    {
+        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        if (null !== $watch) {
+            return $watch->cardId;
+        }
+        $link = $item->cards->first();
+
+        return false === $link ? null : $link->card->id;
+    }
+
     /**
      * One watch query, one run query and one control read per project. A pause is read once per card with an open pause wait.
+     * One bridge read per project that has an item with a card.
      *
      * @param list<InboxItem> $items
      *
@@ -73,20 +89,29 @@ final readonly class ItemActions
     public function forItems(array $items): array
     {
         $openWaits = [];
+        $watched = [];
         foreach ($this->inboxCardWatches->findForItems($items) as $watch) {
             $openWaits[self::key($watch->item)] = self::openWaits($watch->waits->toArray());
+            $watched[self::key($watch->item)] = true;
         }
 
         $resumableRuns = $this->resumableRuns(array_merge(...array_values($openWaits)));
         $releasablePauses = $this->releasablePauses(array_merge(...array_values($openWaits)));
 
+        $withCard = array_filter($items, static fn (InboxItem $item): bool => isset($watched[self::key($item)]) || !$item->cards->isEmpty());
+        $sessionOnline = $this->sessionBridges->onlineFor(array_values(array_map(static fn (InboxItem $item): Project => $item->project, $withCard)));
+
         $actions = [];
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses);
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, \in_array($item, $withCard, true));
             $default = self::defaultKind($item, $waits, $fitting);
             $actions[self::key($item)] = array_map(
-                static fn (InboxActionKind $kind): ItemAction => ItemAction::for($kind, $kind === $default),
+                static fn (InboxActionKind $kind): ItemAction => ItemAction::for(
+                    $kind,
+                    $kind === $default,
+                    InboxActionKind::StartSession === $kind && !($sessionOnline[(string) $item->project->id] ?? false) ? 'inbox.action.start-session.disabled' : null,
+                ),
                 $fitting,
             );
         }
@@ -101,13 +126,14 @@ final readonly class ItemActions
      *
      * @return list<InboxActionKind>
      */
-    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses): array
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $hasCard): array
     {
         $fits = [
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
             [InboxActionKind::RetryCard, self::fitsRetryCard($waits, $releasablePauses)],
             [InboxActionKind::Review, self::fitsReview($waits)],
             [InboxActionKind::Open, self::fitsOpen($item)],
+            [InboxActionKind::StartSession, $hasCard],
             [InboxActionKind::Dismiss, self::fitsDismiss($item)],
         ];
 

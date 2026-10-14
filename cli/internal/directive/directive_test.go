@@ -75,6 +75,17 @@ func TestRenderPlainAppendsNothing(t *testing.T) {
 	}
 }
 
+// The note names the item and sends the agent to inbox_get. It holds no note
+// text from the owner.
+func TestInboxNoteNamesTheItem(t *testing.T) {
+	got := InboxNote(12)
+	for _, want := range []string{"inbox item 12", "inbox_get", "owner's note", "earlier report"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("InboxNote = %q, want it to hold %q", got, want)
+		}
+	}
+}
+
 // Braces that are not a placeholder name stay as written, so a rule can show a
 // JSON example in its prompt.
 func TestRenderLeavesOtherBracesAlone(t *testing.T) {

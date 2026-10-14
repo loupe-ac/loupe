@@ -125,6 +125,8 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 		"cardId off card":              {entry("x", "subject: analysis\nprompt: 'Do {cardId}'"), "prompt uses {cardId}, which names a card, and this entry runs subject analysis"},
 		"cardNumber in run off card":   {entry("x", "subject: analysis\naction: command\nrun: [make, '{cardNumber}']"), "run uses {cardNumber}, which names a card"},
 		"cardId in before off card":    {entry("x", "subject: analysis\nprompt: x\nbefore:\n  run: [prep, '{cardId}']"), "before.run uses {cardId}, which names a card"},
+		"session not interactive":      {entry("session", "prompt: x"), "the session entry needs action interactive"},
+		"session as a command":         {entry("session", command), "the session entry needs action interactive"},
 		"interactive off card":         {entry("x", "subject: analysis\n"+interactive), "action interactive opens a session on a card, and this entry runs subject analysis"},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -381,6 +383,20 @@ func TestMatchWorkFillsTheSubjectOfACard(t *testing.T) {
 	}
 }
 
+// A request that starts from an inbox action appends the note to the prompt of
+// an interactive session. A request with no action appends nothing.
+func TestMatchWorkAppendsTheInboxNote(t *testing.T) {
+	s := checked(t, workFile)
+	w := workRequest("pair")
+	plain := s.MatchWork(w)
+	w.Context.InboxActionID = "01a10beb-ba65-736b-8626-a6e3fa59dfc5"
+	w.Context.InboxItemNumber = 12
+	m := s.MatchWork(w)
+	if want := plain.Prompt + "\n\n" + directive.InboxNote(12); m.Skip != Run || m.Prompt != want {
+		t.Fatalf("prompt = %q, want %q", m.Prompt, want)
+	}
+}
+
 func TestCapabilities(t *testing.T) {
 	for name, tc := range map[string]struct {
 		body string
@@ -388,6 +404,8 @@ func TestCapabilities(t *testing.T) {
 	}{
 		"workers only":     {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  x:\n    prompt: x\n", []string{"work-requests"}},
 		"with interactive": {workFile, []string{"work-requests", "interactive"}},
+		"with session":     {workFile + "  session:\n    action: interactive\n    prompt: x\n", []string{"work-requests", "interactive", "session"}},
+		"session only":     {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nlaunch:\n  command: ['{script}']\nwork:\n  session:\n    action: interactive\n    prompt: x\n", []string{"work-requests", "interactive", "session"}},
 		"app prompts only": {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nappPrompts: true\n", []string{"work-requests", "app-prompts"}},
 		"app prompts with subjects": {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nappPrompts: true\nwork:\n  y:\n    subject: analysis\n    prompt: x\n",
 			[]string{"work-requests", "subject-analysis", "app-prompts"}},

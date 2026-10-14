@@ -4,6 +4,7 @@ package directive
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -96,6 +97,14 @@ func Render(template string, values map[string]string) string {
 // a person drives takes it, because that person reads the board text too.
 func RenderPlain(template string, values map[string]string) string {
 	return fill(template, values)
+}
+
+// InboxNote ends the prompt of a session the owner started from an inbox item.
+// The owner's note and the earlier report stay in the app, so the agent reads
+// them there.
+func InboxNote(itemNumber int) string {
+	return "The owner started this session from inbox item " + strconv.Itoa(itemNumber) + ". " +
+		"First read the owner's note and the earlier report with inbox_get."
 }
 
 // RenderResume fills each placeholder and appends ResumeFooter.

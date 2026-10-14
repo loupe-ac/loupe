@@ -5230,6 +5230,9 @@
             <trans-unit id="inbox.action.review.effect"><source>inbox.action.review.effect</source><target>Opens the page where you review the work.</target></trans-unit>
             <trans-unit id="inbox.action.open.label"><source>inbox.action.open.label</source><target>Open</target></trans-unit>
             <trans-unit id="inbox.action.open.effect"><source>inbox.action.open.effect</source><target>Opens the card or the document.</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.label"><source>inbox.action.start-session.label</source><target>Start an interactive session</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.effect"><source>inbox.action.start-session.effect</source><target>Opens a terminal on your machine, in a new session on this card.</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.disabled"><source>inbox.action.start-session.disabled</source><target>No bridge can open a session.</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
             <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
@@ -5243,6 +5246,7 @@
             <trans-unit id="inbox.action.status.refused_no_reason"><source>inbox.action.status.refused_no_reason</source><target>Refused</target></trans-unit>
             <trans-unit id="inbox.action.status.cancelled"><source>inbox.action.status.cancelled</source><target>Cancelled</target></trans-unit>
             <trans-unit id="inbox.action.status.resumed"><source>inbox.action.status.resumed</source><target>Preparing</target></trans-unit>
+            <trans-unit id="inbox.action.status.preparing"><source>inbox.action.status.preparing</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.retried"><source>inbox.action.status.retried</source><target>Retried at %time%</target></trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>

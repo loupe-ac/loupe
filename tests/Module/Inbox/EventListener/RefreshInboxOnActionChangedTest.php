@@ -10,9 +10,11 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Event\BridgeCommandSettled;
 use App\Module\Bridge\Event\WorkerRunChanged;
+use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
@@ -125,7 +127,31 @@ final class RefreshInboxOnActionChangedTest extends KernelTestCase
         self::assertSame(1, $this->publishedPages());
     }
 
-    private function stoppedRun(Project $project, ?WorkerRun $continues = null): WorkerRun
+    public function test_a_changed_work_request_refreshes_the_page_of_its_action(): void
+    {
+        $requestId = $this->sessionAction($this->project);
+
+        $this->dispatch(new WorkRequestChanged($this->projectId($this->project), WorkSubject::CARD, Uuid::v4(), Uuid::v4(), WorkRequestState::Claimed));
+        self::assertSame(0, $this->publishedPages());
+
+        $this->dispatch(new WorkRequestChanged($this->projectId($this->project), WorkSubject::CARD, Uuid::v4(), $requestId, WorkRequestState::Claimed));
+        self::assertSame(1, $this->publishedPages());
+    }
+
+    public function test_a_run_that_a_session_request_started_refreshes_the_page_of_its_action(): void
+    {
+        $requestId = $this->sessionAction($this->project);
+        $run = $this->stoppedRun($this->project, workRequestId: $requestId);
+        $unrelated = $this->stoppedRun($this->project, workRequestId: Uuid::v4());
+
+        $this->dispatchRunChanged($this->project, $unrelated);
+        self::assertSame(0, $this->publishedPages());
+
+        $this->dispatchRunChanged($this->project, $run);
+        self::assertSame(1, $this->publishedPages());
+    }
+
+    private function stoppedRun(Project $project, ?WorkerRun $continues = null, ?Uuid $workRequestId = null): WorkerRun
     {
         $bridge = new Bridge($project->owner, Uuid::v4(), [], 'b4e39aa7', new \DateTimeImmutable());
         $this->em->persist($bridge);
@@ -140,6 +166,7 @@ final class RefreshInboxOnActionChangedTest extends KernelTestCase
             runKey: Uuid::v7(),
             sessionId: Uuid::v4(),
             continuesRun: $continues,
+            workRequestId: $workRequestId,
         );
         $this->em->persist($run);
         $this->em->flush();
@@ -162,6 +189,18 @@ final class RefreshInboxOnActionChangedTest extends KernelTestCase
         $this->em->flush();
 
         return $command->id ?? throw new \LogicException('Stored.');
+    }
+
+    /** Records a session action with a work request id, and answers that id. */
+    private function sessionAction(Project $project): Uuid
+    {
+        $requestId = Uuid::v4();
+        $action = new InboxAction($this->item($this->em, $project, random_int(1, 1_000_000)), InboxActionKind::StartSession, $project->owner);
+        $action->workRequestId = $requestId;
+        $this->em->persist($action);
+        $this->em->flush();
+
+        return $requestId;
     }
 
     private function dispatchRunChanged(Project $project, WorkerRun ...$runs): void

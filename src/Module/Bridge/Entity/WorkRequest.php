@@ -38,8 +38,11 @@ class WorkRequest
 
     public const int MAX_RULE_ID_LENGTH = 100;
 
-    /** The id of the template rule that opened the request. */
-    public const string RULE_ID_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,99}$/D';
+    /** The kind of a request that opens an interactive session for a person. */
+    public const string SESSION_KIND = 'session';
+
+    /** The id of the template rule that opened the request, or a person-work id such as inbox:start-session. */
+    public const string RULE_ID_PATTERN = '/^[a-z0-9][a-z0-9._:-]{0,99}$/D';
 
     public const int MAX_REASON_LENGTH = 64;
 

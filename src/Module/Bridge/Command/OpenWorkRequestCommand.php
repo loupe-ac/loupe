@@ -22,6 +22,8 @@ final readonly class OpenWorkRequestCommand
         public ?string $model = null,
         public ?string $effort = null,
         public ?string $prompt = null,
+        /** Starts a new session. The request never resumes the session of an earlier run. */
+        public bool $fresh = false,
     ) {
     }
 }

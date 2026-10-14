@@ -621,6 +621,29 @@ when it ends. A prompt that calls neither leaves the run open on the
 person closes it. [Interactive action](../docs/extending/cli-bridge.md#interactive-action)
 describes the launch script and how the bridge reports each launch.
 
+#### Starting a session from an inbox item
+
+The owner can start an interactive session from an inbox item. The app opens a
+work request of kind `session`. The `session` entry must have
+`action: interactive`, and the file needs the top-level `launch` block. A
+`session` entry with another action fails to load.
+
+```yaml
+work:
+  session:
+    action: interactive
+    prompt: /loupe:product-design {cardNumber}
+```
+
+The bridge reports the capability `session` for this entry, and the app offers
+the work only to a bridge that reports it. Put the entry on the machine where
+the terminal must open. When several bridges hold the entry, the first one to
+claim the request wins.
+
+The request names the inbox item. The bridge adds one paragraph to the prompt.
+It names the item and tells the agent to read the owner's note and the earlier
+report with `inbox_get`. The note text never goes in the prompt.
+
 #### Prompt footer
 
 The bridge adds this line to the end of every worker prompt, and an entry
@@ -809,6 +832,7 @@ such as `work:implement`.
 
 The bridge reports the capability `work-requests` when the map has an entry,
 and `interactive` when an entry has `action: interactive`. It reports
+`session` when the entry of kind `session` is on. It reports
 `subject-<type>` for each subject type other than `card` that an entry names,
 such as `subject-analysis`, so the server offers that work to this bridge. A
 `project.renamed` event, or a mapped project that is gone, marks the work of

@@ -66,7 +66,7 @@ var KindPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,39}$`)
 
 // ruleIDPattern is the shape of the id of the server rule that opened a work
 // request.
-var ruleIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,99}$`)
+var ruleIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,99}$`)
 
 // The shapes of the context values of a work request, as the server checks
 // them. A bridge fills prompts and commands with these values.
@@ -298,6 +298,7 @@ func CheckCommand(c api.Command) (api.Command, error) {
 	c.WorkRequestID = strings.ToLower(c.WorkRequestID)
 	c.RunID = strings.ToLower(c.RunID)
 	c.Context.DocumentID = strings.ToLower(c.Context.DocumentID)
+	c.Context.InboxActionID = strings.ToLower(c.Context.InboxActionID)
 
 	return c, nil
 }
@@ -369,6 +370,7 @@ func CheckWorkRequest(w *api.WorkRequest) error {
 	w.SubjectID = strings.ToLower(w.SubjectID)
 	w.ResumeSessionID = strings.ToLower(w.ResumeSessionID)
 	w.Context.DocumentID = strings.ToLower(w.Context.DocumentID)
+	w.Context.InboxActionID = strings.ToLower(w.Context.InboxActionID)
 
 	return nil
 }
@@ -427,6 +429,12 @@ func checkWorkContext(c api.WorkRequestContext) error {
 	}
 	if c.DocumentID != "" && !uuidPattern.MatchString(c.DocumentID) {
 		return errors.New("the context has a documentId that is not a uuid")
+	}
+	if c.InboxActionID != "" && !uuidPattern.MatchString(c.InboxActionID) {
+		return errors.New("the context has an inboxActionId that is not a uuid")
+	}
+	if c.InboxItemNumber < 0 || c.InboxItemNumber > math.MaxInt32 {
+		return fmt.Errorf("the context has an invalid inboxItemNumber %d", c.InboxItemNumber)
 	}
 
 	return nil
