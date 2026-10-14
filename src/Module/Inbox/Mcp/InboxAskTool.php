@@ -76,7 +76,7 @@ final readonly class InboxAskTool implements FlagGatedToolInterface
                     'properties' => [
                         'action' => ['type' => 'string', 'enum' => RunSuggestions::ACTIONS],
                         'reason' => ['type' => 'string', 'maxLength' => RunSuggestions::MAX_REASON_LENGTH, 'description' => 'one line the owner reads next to the action'],
-                        'recommended' => ['type' => 'boolean', 'description' => 'the action Loupe offers first, when it fits'],
+                        'recommended' => ['type' => 'boolean', 'description' => 'the action Loupe offers first, when it fits; mark at most one'],
                         'cardId' => ['type' => 'string', 'description' => 'the card the action is about; one of the cardIds of this item'],
                     ],
                     'required' => ['action', 'reason'],

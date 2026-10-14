@@ -8,7 +8,6 @@ use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\InboxLinkResolver;
 use App\Module\Inbox\Service\ItemActions;
-use App\Module\Inbox\View\ItemAction;
 
 /** Reads which built-in actions fit a card now, from the open wait item of the card. */
 final readonly class ListInboxActionsHandler
@@ -30,9 +29,7 @@ final readonly class ListInboxActionsHandler
         $card = $this->links->cards($command->project, [$command->cardId->toRfc4122()], 'cardId')[0]
             ?? throw new \LogicException('The resolver returns one card for one id.');
         $watch = $this->inboxCardWatches->findOpenForCards($command->project, [$card->id ?? throw new \LogicException('A stored card has an id.')])[0] ?? null;
-        $fitting = null === $watch ? [] : array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->itemActions->forItem($watch->item));
 
-        // A card always has a page, with or without a wait item.
-        return \in_array(InboxActionKind::Open, $fitting, true) ? $fitting : [...$fitting, InboxActionKind::Open];
+        return $this->itemActions->forCard($watch?->item);
     }
 }

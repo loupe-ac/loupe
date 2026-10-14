@@ -53,6 +53,7 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::MULTIPLE_WITHOUT_OPTIONS => 'multiple needs at least two options.',
             AskInboxHandler::SUGGESTION_UNKNOWN_ACTION => \sprintf('A suggested action must be one of: %s. inbox_actions lists them.', implode(', ', RunSuggestions::ACTIONS)),
             AskInboxHandler::SUGGESTION_DUPLICATE => 'Suggest each action once.',
+            AskInboxHandler::SUGGESTION_TWO_RECOMMENDED => 'Mark at most one suggested action as recommended.',
             AskInboxHandler::SUGGESTION_REASON_BLANK => 'A suggested action needs a reason the owner reads.',
             AskInboxHandler::SUGGESTION_REASON_TOO_LONG => \sprintf('A suggestion reason must be at most %d characters.', RunSuggestions::MAX_REASON_LENGTH),
             AskInboxHandler::SUGGESTION_CARD_NOT_LINKED => 'The cardId of a suggested action must be one of the cardIds of the same item.',

@@ -428,6 +428,7 @@ final class InboxAskToolTest extends KernelTestCase
     {
         yield 'an unknown action' => [['suggestedActions' => [['action' => 'explode', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, dismiss.'];
         yield 'a duplicate action' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a'], ['action' => 'open', 'reason' => 'b']]], 'items[0].suggestedActions: Suggest each action once.'];
+        yield 'two recommended actions' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'recommended' => true], ['action' => 'review', 'reason' => 'b', 'recommended' => true]]], 'items[0].suggestedActions: Mark at most one suggested action as recommended.'];
         yield 'a blank reason' => [['suggestedActions' => [['action' => 'open', 'reason' => '  ']]], 'items[0].suggestedActions: A suggested action needs a reason the owner reads.'];
         yield 'a long reason' => [['suggestedActions' => [['action' => 'open', 'reason' => str_repeat('a', 201)]]], 'items[0].suggestedActions: A suggestion reason must be at most 200 characters.'];
         yield 'a card the item does not link' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'cardId' => '0199a000-0000-7000-8000-000000000000']]], 'items[0].suggestedActions: The cardId of a suggested action must be one of the cardIds of the same item.'];

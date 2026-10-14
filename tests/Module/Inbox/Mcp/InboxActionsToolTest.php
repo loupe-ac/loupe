@@ -56,7 +56,7 @@ final class InboxActionsToolTest extends KernelTestCase
         self::assertNotContains('', array_column($actions, 'effect'));
     }
 
-    public function test_a_card_with_no_wait_item_fits_open_only(): void
+    public function test_a_card_with_no_wait_item_fits_open_and_start_session(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-actions-card');
@@ -66,10 +66,10 @@ final class InboxActionsToolTest extends KernelTestCase
 
         $actions = ($this->tool)((string) $card->id)['actions'];
 
-        self::assertSame(['open'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
+        self::assertSame(['open', 'start-session'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
     }
 
-    public function test_a_card_waiting_for_a_review_fits_review_open_and_dismiss(): void
+    public function test_a_card_waiting_for_a_review_fits_review_open_start_session_and_dismiss(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-actions-review');
@@ -80,7 +80,7 @@ final class InboxActionsToolTest extends KernelTestCase
 
         $actions = ($this->tool)((string) $card->id)['actions'];
 
-        self::assertEqualsCanonicalizing(['review', 'open', 'dismiss'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
+        self::assertSame(['review', 'open', 'start-session', 'dismiss'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
     }
 
     public function test_a_card_of_another_project_is_refused(): void

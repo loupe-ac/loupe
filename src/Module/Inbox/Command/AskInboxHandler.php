@@ -56,6 +56,7 @@ final readonly class AskInboxHandler
     public const string REVIEW_WITH_ANSWER = 'inbox.review.error.with_answer';
     public const string SUGGESTION_UNKNOWN_ACTION = 'inbox.item.error.suggestion_unknown_action';
     public const string SUGGESTION_DUPLICATE = 'inbox.item.error.suggestion_duplicate';
+    public const string SUGGESTION_TWO_RECOMMENDED = 'inbox.item.error.suggestion_two_recommended';
     public const string SUGGESTION_REASON_BLANK = 'inbox.item.error.suggestion_reason_blank';
     public const string SUGGESTION_REASON_TOO_LONG = 'inbox.item.error.suggestion_reason_too_long';
     public const string SUGGESTION_CARD_NOT_LINKED = 'inbox.item.error.suggestion_card_not_linked';
@@ -313,6 +314,9 @@ final readonly class AskInboxHandler
             }
             if (isset($checked[$suggestion->action])) {
                 throw new DomainErrors([$field => self::SUGGESTION_DUPLICATE]);
+            }
+            if ($suggestion->recommended && array_any($checked, static fn (array $earlier): bool => $earlier['recommended'])) {
+                throw new DomainErrors([$field => self::SUGGESTION_TWO_RECOMMENDED]);
             }
             if (mb_strlen($suggestion->reason) > RunSuggestions::MAX_REASON_LENGTH) {
                 throw new DomainErrors([$field => self::SUGGESTION_REASON_TOO_LONG]);

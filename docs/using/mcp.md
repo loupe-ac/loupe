@@ -663,7 +663,8 @@ one-line `reason` of at most 200 characters, an optional `recommended`, and an
 optional `cardId` that must be one of the `cardIds` of the same item. The seven
 actions are `resume-run`, `retry-card`, `review`, `open`, `send-agent`,
 `start-session` and `dismiss`. The call is refused for an unknown action, a
-repeated action or a `cardId` that the item does not link. It never checks that
+repeated action, a second `recommended` action, or a `cardId` that the item
+does not link. It never checks that
 the action fits, because the fit changes while the item is open, and Loupe shows
 a suggestion only while its action fits. `inbox_get` returns the suggestions.
 Call `inbox_actions` for the list, with one line on each action. With a `cardId`
