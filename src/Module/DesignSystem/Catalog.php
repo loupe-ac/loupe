@@ -173,6 +173,8 @@ readonly class Catalog
                 summary: 'A chip that names a state, with an optional reason in a tooltip.',
                 element: 'span',
                 dotClass: 'lp-status-chip__dot',
+                export: 'StatusChip',
+                modifierProp: 'modifier',
             ),
             new ComponentEntry(
                 name: 'StateMark',
@@ -184,6 +186,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'An icon that names what a card needs now, with its reason in an interactive tooltip.',
                 element: 'span',
+                export: 'StateMark',
+                modifierProp: 'kind',
             ),
             new ComponentEntry(
                 name: 'StatusBox',
@@ -195,7 +199,9 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The state of a card with its reason, its facts, what clears it, and the other states that apply.',
                 element: 'section',
+                export: 'StatusBox',
                 viewport: '700x420',
+                modifierProp: 'kind',
             ),
             new ComponentEntry(
                 name: 'Dialog',

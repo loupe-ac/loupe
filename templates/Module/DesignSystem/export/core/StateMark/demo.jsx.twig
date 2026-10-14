@@ -1,0 +1,8 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+      <div className="row">
+{% for kind in entry.variants %}
+        <{{ name }} kind="{{ kind }}" label="{{ kind }}">Why the card is {{ kind }}.</{{ name }}>
+{% endfor %}
+      </div>
+{% endautoescape %}

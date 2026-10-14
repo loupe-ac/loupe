@@ -1,0 +1,15 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+      <{{ name }}
+        kind="stuck"
+        title="Status"
+        chip="Stuck for 2 h"
+        lead="A pull request waits for a merge."
+        fields={% verbatim %}{[{ label: 'Since', value: '14:02, 2 hours ago' }, { label: 'To unstick it', value: 'Merge the pull request.', wide: true }]}{% endverbatim %}
+
+        othersTitle="Also true"
+        others={% verbatim %}{[{ kind: 'waiting', label: 'Waiting', lead: 'A review is open.', since: '1 h' }]}{% endverbatim %}
+
+      />
+      <{{ name }} kind="working" title="Status" chip="Working" lead="A worker runs on this card." />
+{% endautoescape %}

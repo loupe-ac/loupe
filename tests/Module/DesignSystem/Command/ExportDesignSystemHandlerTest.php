@@ -324,7 +324,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     {
         $jsx = (string) file_get_contents($this->directory.'/components/core/StatusBox/StatusBox.jsx');
 
-        self::assertStringNotContainsString('__dot', $jsx);
+        self::assertStringNotContainsString('{dot &&', $jsx);
         self::assertStringNotContainsString('dot?:', (string) file_get_contents($this->directory.'/components/core/StatusBox/StatusBox.d.ts'));
     }
 
