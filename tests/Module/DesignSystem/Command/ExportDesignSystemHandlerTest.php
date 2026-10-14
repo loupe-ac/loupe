@@ -17,26 +17,41 @@ use Twig\Environment;
 
 final class ExportDesignSystemHandlerTest extends KernelTestCase
 {
+    /** The export runs once for the class, because each run compiles the stylesheet. A test must not change it. */
     private string $directory;
 
     /** @var list<string> */
     private array $written;
 
+    private static string $exportDirectory;
+
+    /** @var list<string> */
+    private static array $exportWritten;
+
+    #[\Override]
+    public static function setUpBeforeClass(): void
+    {
+        self::bootKernel();
+        self::$exportDirectory = sys_get_temp_dir().'/ds-export-'.bin2hex(random_bytes(4));
+        $handler = static::getContainer()->get(ExportDesignSystemHandler::class);
+        self::assertInstanceOf(ExportDesignSystemHandler::class, $handler);
+        self::$exportWritten = $handler(new ExportDesignSystemCommand(self::$exportDirectory));
+        self::ensureKernelShutdown();
+    }
+
+    #[\Override]
+    public static function tearDownAfterClass(): void
+    {
+        new Filesystem()->remove(self::$exportDirectory);
+        parent::tearDownAfterClass();
+    }
+
     #[\Override]
     protected function setUp(): void
     {
         self::bootKernel();
-        $this->directory = sys_get_temp_dir().'/ds-export-'.bin2hex(random_bytes(4));
-        $handler = static::getContainer()->get(ExportDesignSystemHandler::class);
-        self::assertInstanceOf(ExportDesignSystemHandler::class, $handler);
-        $this->written = $handler(new ExportDesignSystemCommand($this->directory));
-    }
-
-    #[\Override]
-    protected function tearDown(): void
-    {
-        new Filesystem()->remove($this->directory);
-        parent::tearDown();
+        $this->directory = self::$exportDirectory;
+        $this->written = self::$exportWritten;
     }
 
     public function test_it_writes_the_project_layout(): void
@@ -52,23 +67,23 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             'tokens/motion.css',
             'tokens/fonts.css',
             'tokens/base.css',
-            'components/core/Button.jsx',
-            'components/core/Button.d.ts',
-            'components/core/Button.prompt.md',
-            'components/core/core.card.html',
-            'components/layout/PageHeader.jsx',
-            'components/layout/PageHeader.d.ts',
-            'components/layout/PageHeader.prompt.md',
-            'components/layout/SplitView.jsx',
-            'components/layout/SplitView.d.ts',
-            'components/layout/SplitView.prompt.md',
-            'components/layout/ListRow.jsx',
-            'components/layout/ListRow.d.ts',
-            'components/layout/ListRow.prompt.md',
-            'components/layout/Workspace.jsx',
-            'components/layout/Workspace.d.ts',
-            'components/layout/Workspace.prompt.md',
-            'components/layout/layout.card.html',
+            'components/core/Button/Button.jsx',
+            'components/core/Button/Button.d.ts',
+            'components/core/Button/Button.prompt.md',
+            'components/core/Button/Button.card.html',
+            'components/layout/PageHeader/PageHeader.jsx',
+            'components/layout/PageHeader/PageHeader.d.ts',
+            'components/layout/PageHeader/PageHeader.prompt.md',
+            'components/layout/SplitView/SplitView.jsx',
+            'components/layout/SplitView/SplitView.d.ts',
+            'components/layout/SplitView/SplitView.prompt.md',
+            'components/layout/ListRow/ListRow.jsx',
+            'components/layout/ListRow/ListRow.d.ts',
+            'components/layout/ListRow/ListRow.prompt.md',
+            'components/layout/Workspace/Workspace.jsx',
+            'components/layout/Workspace/Workspace.d.ts',
+            'components/layout/Workspace/Workspace.prompt.md',
+            'components/layout/PageHeader/PageHeader.card.html',
             'guidelines/colour.html',
             'assets/fonts/Geist-Variable.woff2',
             'assets/fonts/LICENSE.txt',
@@ -98,8 +113,8 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_button_lists_every_catalog_variant_and_the_real_classes(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/core/Button.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/core/Button.d.ts');
+        $jsx = (string) file_get_contents($this->directory.'/components/core/Button/Button.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/core/Button/Button.d.ts');
         $entry = new Catalog()->entries()[0];
 
         self::assertNotEmpty($entry->variants);
@@ -136,13 +151,13 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_every_wrapper_forwards_attributes_and_merges_a_caller_class(): void
     {
         foreach (['Button', 'Flash'] as $name) {
-            $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'.jsx');
+            $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'/'.$name.'.jsx');
 
             self::assertStringContainsString('className: extra', $jsx);
             self::assertStringContainsString('classes.push(extra)', $jsx);
             self::assertStringContainsString('{...rest}', $jsx);
 
-            $types = (string) file_get_contents($this->directory.'/components/core/'.$name.'.d.ts');
+            $types = (string) file_get_contents($this->directory.'/components/core/'.$name.'/'.$name.'.d.ts');
             self::assertStringContainsString('className?: string;', $types);
             self::assertStringContainsString('[attribute: string]: unknown;', $types);
         }
@@ -151,7 +166,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_each_wrapper_renders_the_element_of_its_component(): void
     {
         foreach (['Dialog' => 'dialog', 'Tabs' => 'nav', 'Pagination' => 'nav', 'Tooltip' => 'span'] as $name => $element) {
-            $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'.jsx');
+            $jsx = (string) file_get_contents($this->directory.'/components/core/'.$name.'/'.$name.'.jsx');
 
             self::assertStringContainsString('<'.$element.' {...rest}', $jsx);
         }
@@ -178,27 +193,74 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_the_card_uses_the_platform_mount(): void
     {
-        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+        $card = (string) file_get_contents($this->directory.'/components/core/Button/Button.card.html');
 
-        $count = \count(array_filter(new Catalog()->entries(), static fn ($entry) => 'core' === $entry->group));
+        self::assertStringStartsWith('<!-- @dsCard group="Components" viewport="700x330" subtitle="Any action or link that looks like a button." name="Button" -->', $card);
+        self::assertStringContainsString("dsFind('Button')", $card);
+        self::assertStringContainsString('<link rel="stylesheet" href="../../../styles.css">', $card);
+        self::assertStringContainsString('<script src="../../../ds-mount.js">', $card);
+    }
 
-        self::assertStringStartsWith('<!-- @dsCard group="Components" viewport="700x'.(80 + 70 * $count).'"', $card);
-        self::assertStringContainsString("dsFind('Button', 'Input'", $card);
-        self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
+    public function test_each_entry_has_a_card_of_its_own_that_names_only_its_component(): void
+    {
+        foreach (new Catalog()->entries() as $entry) {
+            $path = sprintf('components/%1$s/%2$s/%2$s.card.html', $entry->group, $entry->name);
+            self::assertContains($path, $this->written);
+
+            $card = (string) file_get_contents($this->directory.'/'.$path);
+            self::assertStringContainsString(sprintf('viewport="%s"', $entry->viewport), $card);
+            self::assertStringContainsString(sprintf('name="%s"', $entry->name), $card);
+            self::assertMatchesRegularExpression("~dsFind\\([^)]*'".$entry->name."'~", $card);
+        }
+        self::assertNotContains('components/core/core.card.html', $this->written);
+        self::assertNotContains('components/layout/layout.card.html', $this->written);
+    }
+
+    public function test_the_badge_card_holds_no_button(): void
+    {
+        $card = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.card.html');
+
+        self::assertStringContainsString('<Badge variant="draft">draft</Badge>', $card);
+        self::assertStringNotContainsString('<Button', $card);
+        self::assertStringNotContainsString('<Input', $card);
+    }
+
+    public function test_the_button_card_draws_outline_on_chrome_and_icons_with_a_glyph(): void
+    {
+        $card = (string) file_get_contents($this->directory.'/components/core/Button/Button.card.html');
+
+        self::assertStringContainsString('<div className="chrome">', $card);
+        self::assertMatchesRegularExpression('~<div className="chrome">\s*<Button variant="outline">outline</Button>~', $card);
+        self::assertStringNotContainsString('<Button variant="outline">outline</Button>'."\n".'        <Button variant="primary"', $card);
+        self::assertStringNotContainsString('>icon</Button>', $card);
+        self::assertStringNotContainsString('>compact</Button>', $card);
+        foreach (['icon', 'ghost icon', 'ghost icon compact'] as $variant) {
+            self::assertMatchesRegularExpression('~<Button variant="'.$variant.'" aria-label="Close"><svg ~', $card);
+        }
+    }
+
+    public function test_the_textarea_card_passes_its_text_as_a_default_value(): void
+    {
+        $card = (string) file_get_contents($this->directory.'/components/core/Textarea/Textarea.card.html');
+
+        self::assertStringContainsString('<Textarea defaultValue="Example" />', $card);
+        self::assertStringNotContainsString('</Textarea>', $card);
     }
 
     public function test_the_card_shows_each_dialog_and_tooltip_example(): void
     {
-        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+        $card = (string) file_get_contents($this->directory.'/components/core/Dialog/Dialog.card.html');
+        $tooltip = (string) file_get_contents($this->directory.'/components/core/Tooltip/Tooltip.card.html');
 
         self::assertStringContainsString('<Dialog variant="document" open>document</Dialog>', $card);
         self::assertStringContainsString('.row > dialog[open] { position: static; margin: 0; }', $card);
+        self::assertStringContainsString('.row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }', $tooltip);
         self::assertStringContainsString('.row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }', $card);
     }
 
     public function test_the_card_shows_each_tabs_variant_with_its_tabs(): void
     {
-        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+        $card = (string) file_get_contents($this->directory.'/components/core/Tabs/Tabs.card.html');
         $tabs = '<a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a>';
 
         self::assertStringContainsString('<Tabs>'.$tabs, $card);
@@ -208,7 +270,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_the_tabs_prompt_shows_each_variant_with_its_tabs(): void
     {
-        $prompt = (string) file_get_contents($this->directory.'/components/core/Tabs.prompt.md');
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Tabs/Tabs.prompt.md');
         $tabs = '<a className="lp-tabs__tab" href="#" aria-current="page">Open</a><a className="lp-tabs__tab" href="#">Completed</a>';
 
         self::assertStringContainsString('<Tabs>'.$tabs, $prompt);
@@ -218,10 +280,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_a_non_button_component_is_not_a_button(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/core/Flash.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/core/Badge.d.ts');
-        $prompt = (string) file_get_contents($this->directory.'/components/core/Flash.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/core/EmptyState/EmptyState.card.html');
 
         self::assertStringContainsString('<div {...rest} className={className}>', $jsx);
         self::assertStringNotContainsString('<button', $jsx);
@@ -234,54 +296,62 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_a_component_with_a_dot_renders_its_child_elements(): void
     {
-        $flash = (string) file_get_contents($this->directory.'/components/core/Flash.jsx');
-        $chip = (string) file_get_contents($this->directory.'/components/core/StatusChip.jsx');
-        $badge = (string) file_get_contents($this->directory.'/components/core/Badge.jsx');
+        $flash = (string) file_get_contents($this->directory.'/components/core/Flash/Flash.jsx');
+        $chip = (string) file_get_contents($this->directory.'/components/core/StatusChip/StatusChip.jsx');
+        $badge = (string) file_get_contents($this->directory.'/components/core/Badge/Badge.jsx');
 
         self::assertStringContainsString('{dot && <span className="lp-flash__dot"></span>}', $flash);
         self::assertStringContainsString('<span className="lp-flash__message">{children}</span>', $flash);
         self::assertStringContainsString('{dot && <span className="lp-status-chip__dot"></span>}', $chip);
         self::assertStringContainsString('dot = true', $chip);
-        self::assertStringContainsString('dot?: boolean;', (string) file_get_contents($this->directory.'/components/core/StatusChip.d.ts'));
+        self::assertStringContainsString('dot?: boolean;', (string) file_get_contents($this->directory.'/components/core/StatusChip/StatusChip.d.ts'));
         self::assertStringNotContainsString('__dot', $badge);
-        self::assertStringNotContainsString('dot', (string) file_get_contents($this->directory.'/components/core/Badge.d.ts'));
+        self::assertStringNotContainsString('dot', (string) file_get_contents($this->directory.'/components/core/Badge/Badge.d.ts'));
+    }
+
+    public function test_the_status_box_wrapper_draws_no_dot_at_its_root(): void
+    {
+        $jsx = (string) file_get_contents($this->directory.'/components/core/StatusBox/StatusBox.jsx');
+
+        self::assertStringNotContainsString('__dot', $jsx);
+        self::assertStringNotContainsString('dot?:', (string) file_get_contents($this->directory.'/components/core/StatusBox/StatusBox.d.ts'));
     }
 
     public function test_the_input_wrapper_is_a_void_element(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/core/Input.jsx');
-        $prompt = (string) file_get_contents($this->directory.'/components/core/Input.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/core/core.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/core/Input/Input.jsx');
+        $prompt = (string) file_get_contents($this->directory.'/components/core/Input/Input.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/core/Input/Input.card.html');
 
         self::assertStringContainsString('return <input {...rest} className={className} />;', $jsx);
         self::assertStringNotContainsString('</input>', $jsx);
         self::assertStringContainsString('<Input placeholder="Example" />', $prompt);
         self::assertStringContainsString('<Input variant="mono" placeholder="mono" />', $card);
         self::assertStringNotContainsString('</Input>', $card);
-        self::assertStringContainsString('<Select><option>Example</option></Select>', $card);
-        self::assertStringContainsString('children?: never;', (string) file_get_contents($this->directory.'/components/core/Input.d.ts'));
-        self::assertStringContainsString("const classes = ['lp-input', 'lp-select'];", (string) file_get_contents($this->directory.'/components/core/Select.jsx'));
-        self::assertStringContainsString("const classes = ['lp-input', 'lp-textarea'];", (string) file_get_contents($this->directory.'/components/core/Textarea.jsx'));
-        self::assertStringContainsString("const classes = ['lp-label'];", (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
-        self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label.jsx'));
+        self::assertStringContainsString('<Select><option>Example</option></Select>', (string) file_get_contents($this->directory.'/components/core/Select/Select.card.html'));
+        self::assertStringContainsString('children?: never;', (string) file_get_contents($this->directory.'/components/core/Input/Input.d.ts'));
+        self::assertStringContainsString("const classes = ['lp-input', 'lp-select'];", (string) file_get_contents($this->directory.'/components/core/Select/Select.jsx'));
+        self::assertStringContainsString("const classes = ['lp-input', 'lp-textarea'];", (string) file_get_contents($this->directory.'/components/core/Textarea/Textarea.jsx'));
+        self::assertStringContainsString("const classes = ['lp-label'];", (string) file_get_contents($this->directory.'/components/core/Label/Label.jsx'));
+        self::assertStringContainsString('<label {...rest} className={className}>', (string) file_get_contents($this->directory.'/components/core/Label/Label.jsx'));
     }
 
     public function test_the_marketing_shell_export_draws_the_header_the_body_and_the_footer(): void
     {
         foreach (['MarketingShell.jsx', 'MarketingShell.d.ts', 'MarketingShell.prompt.md'] as $file) {
-            self::assertContains('components/layout/'.$file, $this->written);
+            self::assertContains('components/layout/'.explode('.', $file)[0].'/'.$file, $this->written);
         }
 
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/MarketingShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/MarketingShell/MarketingShell.jsx');
         self::assertStringContainsString("const classes = ['lp-landing'];", $jsx);
         self::assertStringContainsString('<header className="lp-landing-nav">', $jsx);
         self::assertStringContainsString('<main>{children}</main>', $jsx);
         self::assertStringContainsString('<footer className="lp-landing-footer">', $jsx);
 
-        $types = (string) file_get_contents($this->directory.'/components/layout/MarketingShell.d.ts');
+        $types = (string) file_get_contents($this->directory.'/components/layout/MarketingShell/MarketingShell.d.ts');
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $card = (string) file_get_contents($this->directory.'/components/layout/MarketingShell/MarketingShell.card.html');
         self::assertStringContainsString('<MarketingShell>', $card);
     }
 
@@ -290,7 +360,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $twig = static::getContainer()->get('twig');
         self::assertInstanceOf(Environment::class, $twig);
         $footer = new Crawler($twig->render('_marketing_footer.html.twig'));
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/MarketingShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/MarketingShell/MarketingShell.jsx');
 
         $names = $footer->filter('footer a')->each(static fn (Crawler $link): string => $link->attr('aria-label') ?? trim($link->text()));
         self::assertCount(8, $names);
@@ -303,11 +373,11 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_the_brand_mark_export_draws_the_brand_name_and_each_option(): void
     {
-        foreach (['BrandMark.jsx', 'BrandMark.d.ts', 'BrandMark.prompt.md', 'layout.card.html'] as $file) {
-            self::assertContains('components/layout/'.$file, $this->written);
+        foreach (['BrandMark.jsx', 'BrandMark.d.ts', 'BrandMark.prompt.md', 'BrandMark.card.html'] as $file) {
+            self::assertContains('components/layout/'.explode('.', $file)[0].'/'.$file, $this->written);
         }
 
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/BrandMark.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/BrandMark/BrandMark.jsx');
         self::assertStringContainsString("export const BRANDMARK_SIZES = ['sm', 'md'];", $jsx);
         self::assertStringContainsString("'lp-brand--' + size", $jsx);
         self::assertStringContainsString("classes.push('lp-brand--mark-only')", $jsx);
@@ -316,13 +386,13 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<span className="lp-brand__word">loupe</span>', $jsx);
         self::assertStringContainsString('{...rest}', $jsx);
 
-        $types = (string) file_get_contents($this->directory.'/components/layout/BrandMark.d.ts');
+        $types = (string) file_get_contents($this->directory.'/components/layout/BrandMark/BrandMark.d.ts');
         self::assertStringContainsString("size?: 'sm' | 'md';", $types);
         self::assertStringContainsString('markOnly?: boolean;', $types);
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        $card = (string) file_get_contents($this->directory.'/components/layout/BrandMark/BrandMark.card.html');
+        self::assertStringContainsString("dsFind('BrandMark')", $card);
         foreach (['<BrandMark size="md" />', '<BrandMark size="sm" />', '<BrandMark markOnly />'] as $example) {
             self::assertStringContainsString($example, $card);
         }
@@ -332,26 +402,26 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_drawer_export_draws_the_three_bands_of_the_dialog(): void
     {
         foreach (['Drawer.jsx', 'Drawer.d.ts', 'Drawer.prompt.md'] as $file) {
-            self::assertContains('components/layout/'.$file, $this->written);
+            self::assertContains('components/layout/'.explode('.', $file)[0].'/'.$file, $this->written);
         }
 
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/Drawer.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/Drawer/Drawer.jsx');
         self::assertStringContainsString('<dialog {...rest} className={classes.join(\' \')}>', $jsx);
         foreach (['lp-drawer__header', 'lp-drawer__body', 'lp-drawer__footer'] as $class) {
             self::assertStringContainsString($class, $jsx);
         }
 
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $card = (string) file_get_contents($this->directory.'/components/layout/Drawer/Drawer.card.html');
         self::assertStringContainsString('<Drawer open', $card);
     }
 
     public function test_the_auth_shell_export_draws_the_page_frame_with_the_brand_name(): void
     {
         foreach (['AuthShell.jsx', 'AuthShell.d.ts', 'AuthShell.prompt.md'] as $file) {
-            self::assertContains('components/layout/'.$file, $this->written);
+            self::assertContains('components/layout/'.explode('.', $file)[0].'/'.$file, $this->written);
         }
 
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AuthShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AuthShell/AuthShell.jsx');
         self::assertStringContainsString('className="lp-auth"', $jsx);
         self::assertStringContainsString("'lp-auth__card--wide'", $jsx);
         self::assertStringContainsString('<span className="lp-brand__word">loupe</span>', $jsx);
@@ -361,22 +431,22 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             self::assertStringContainsString('className="lp-auth__footer-link">'.$label.'</a>', $jsx);
         }
 
-        $types = (string) file_get_contents($this->directory.'/components/layout/AuthShell.d.ts');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AuthShell/AuthShell.d.ts');
         self::assertStringContainsString('wide?: boolean;', $types);
     }
 
     public function test_the_export_writes_the_app_shell_wrapper_and_names_it_on_the_layout_card(): void
     {
-        foreach (['AppShell.jsx', 'AppShell.d.ts', 'AppShell.prompt.md', 'layout.card.html'] as $file) {
-            self::assertContains('components/layout/'.$file, $this->written);
+        foreach (['AppShell.jsx', 'AppShell.d.ts', 'AppShell.prompt.md', 'AppShell.card.html'] as $file) {
+            self::assertContains('components/layout/'.explode('.', $file)[0].'/'.$file, $this->written);
         }
 
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        $card = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.card.html');
+        self::assertStringContainsString("dsFind('AppShell')", $card);
         self::assertStringContainsString('<AppShell projectName="Acme"', $card);
         self::assertStringContainsString('counts={{ documents: 12, inbox: 2 }}', $card);
 
-        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.d.ts');
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString('className?: string;', $types);
         self::assertStringContainsString('[attribute: string]: unknown;', $types);
@@ -385,27 +455,27 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_settings_layout_export_draws_the_header_the_navigation_and_the_content(): void
     {
         foreach (['SettingsLayout.jsx', 'SettingsLayout.d.ts', 'SettingsLayout.prompt.md'] as $file) {
-            self::assertContains('components/layout/'.$file, $this->written);
+            self::assertContains('components/layout/'.explode('.', $file)[0].'/'.$file, $this->written);
         }
 
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout/SettingsLayout.jsx');
         self::assertStringContainsString('<nav className="lp-settings-nav" aria-label={navLabel}>', $jsx);
         self::assertStringContainsString("'lp-settings-nav__item' + (item.active ? ' lp-settings-nav__item--active' : '')", $jsx);
         self::assertStringContainsString("aria-current={item.active ? 'page' : undefined}", $jsx);
         self::assertStringContainsString('<div className="lp-settings-content">{children}</div>', $jsx);
         self::assertStringContainsString("classes.push('lp-settings--columns')", $jsx);
 
-        $types = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout.d.ts');
+        $types = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout/SettingsLayout.d.ts');
         self::assertStringContainsString('items?: SettingsLayoutItem[];', $types);
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
 
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $card = (string) file_get_contents($this->directory.'/components/layout/SettingsLayout/SettingsLayout.card.html');
         self::assertStringContainsString('<SettingsLayout title="Project settings"', $card);
     }
 
     public function test_the_app_shell_wrapper_forwards_attributes_and_merges_a_caller_class(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         self::assertStringContainsString('className: extra', $jsx);
         self::assertStringContainsString('classes.push(extra)', $jsx);
@@ -415,9 +485,9 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_app_shell_switcher_lists_every_project_and_marks_the_current_one(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.d.ts');
+        $card = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.card.html');
 
         self::assertStringContainsString('{% for switcherProject in switcherProjects %}', $base);
         self::assertStringContainsString('{% if currentProject %} aria-current="true"{% endif %}', $base);
@@ -444,7 +514,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_stylesheet_styles_every_app_shell_option(): void
     {
         $css = (string) file_get_contents($this->directory.'/styles.css');
-        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell.d.ts');
+        $types = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.d.ts');
 
         foreach (['shellWidth' => 'lp-shell--', 'mainSurface' => 'lp-main--'] as $prop => $prefix) {
             if (1 !== preg_match('/'.$prop."\\?: ((?:'[a-z]+'(?: \\| )?)+);/", $types, $match)) {
@@ -461,7 +531,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_app_shell_wrapper_draws_every_shell_class_of_the_base_template(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         preg_match_all('/lp-(?:app|shell|main|scrim|sidebar|switcher|topbar)[a-z_-]*/', $base, $matches);
         $classes = array_unique($matches[0]);
@@ -480,7 +550,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $twig = static::getContainer()->get('twig');
         self::assertInstanceOf(Environment::class, $twig);
         $mark = new Crawler($twig->createTemplate('<twig:Ds:BrandMark />')->render());
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         $classes = $mark->filter('[class]')->each(static fn (Crawler $node): string => (string) $node->attr('class'));
         self::assertNotEmpty($classes);
@@ -493,7 +563,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_app_shell_wrapper_has_a_link_for_every_nav_link_of_the_base_template(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         preg_match_all('/nav\.link\.([a-z_]+)/', $base, $matches);
         $names = array_unique($matches[1]);
@@ -507,7 +577,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_app_shell_wrapper_hides_what_the_base_template_hides_with_no_project(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         // Inside the with block, project is the sidebar project. After it, project is the route project again.
         if (1 !== preg_match('/\{%\s*with \{project: sidebar_project\(\)\}\s*%\}(.*?)\{%\s*endwith\s*%\}(.*)$/s', $base, $scopes)) {
@@ -571,7 +641,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_app_shell_wrapper_gates_each_link_the_base_template_gates_by_flag_or_role(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         // The All inboxes link is the one nav link whose label is not a nav.link.* string.
         $linkKey = static fn (string $block): ?string => 1 === preg_match('/\'(?:nav\.link\.([a-z_]+)|(inbox\.account\.nav))\'\|trans/', $block, $match)
@@ -610,7 +680,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
     public function test_the_app_shell_wrapper_always_shows_the_counts_the_base_template_always_shows(): void
     {
         $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell.jsx');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
 
         preg_match_all('/<twig:Ds:NavItem\b.*?\'nav\.link\.([a-z_]+)\'\|trans.*?(?:\/>|<\/twig:Ds:NavItem>)/s', $base, $anchors, \PREG_SET_ORDER);
         $expected = [];
@@ -674,10 +744,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_the_page_header_wrapper_draws_the_copy_block_and_the_actions(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/PageHeader.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/layout/PageHeader.d.ts');
-        $prompt = (string) file_get_contents($this->directory.'/components/layout/PageHeader.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/PageHeader/PageHeader.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/PageHeader/PageHeader.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/PageHeader/PageHeader.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/PageHeader/PageHeader.card.html');
 
         self::assertStringContainsString('export function PageHeader({ title, description, variant, titleClass, actions, className: extra, ...rest })', $jsx);
         self::assertStringContainsString('<div className="lp-page-header__copy">', $jsx);
@@ -685,17 +755,17 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
         self::assertStringContainsString("| 'workshop'", $types);
         self::assertStringContainsString('<PageHeader title=', $prompt);
-        self::assertStringContainsString("dsFind('AppShell', 'PageHeader', 'SplitView', 'ListRow', 'BrandMark', 'Workspace', 'NavItem', 'Breadcrumbs', 'AuthShell', 'MarketingShell', 'SettingsLayout', 'Drawer')", $card);
+        self::assertStringContainsString("dsFind('PageHeader')", $card);
         self::assertStringContainsString('<PageHeader variant="workshop"', $card);
         self::assertStringNotContainsString('<Button', $card);
     }
 
     public function test_the_workspace_wrapper_draws_the_frame_with_a_named_width(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/Workspace.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/layout/Workspace.d.ts');
-        $prompt = (string) file_get_contents($this->directory.'/components/layout/Workspace.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/Workspace/Workspace.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/Workspace/Workspace.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/Workspace/Workspace.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/Workspace/Workspace.card.html');
 
         self::assertStringContainsString("classes.push('lp-workspace--' + width);", $jsx);
         self::assertStringContainsString("| 'narrow'", $types);
@@ -706,10 +776,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_the_split_view_wrapper_draws_the_region_the_view_and_two_panes(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/SplitView.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/layout/SplitView.d.ts');
-        $prompt = (string) file_get_contents($this->directory.'/components/layout/SplitView.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/SplitView/SplitView.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/SplitView/SplitView.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/SplitView/SplitView.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/SplitView/SplitView.card.html');
 
         self::assertStringContainsString('export function SplitView({ header, list, detail, className: extra, ...rest })', $jsx);
         self::assertStringContainsString('<div className="lp-split-region">', $jsx);
@@ -724,10 +794,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
 
     public function test_the_list_row_wrapper_draws_the_icon_the_title_and_the_meta_line(): void
     {
-        $jsx = (string) file_get_contents($this->directory.'/components/layout/ListRow.jsx');
-        $types = (string) file_get_contents($this->directory.'/components/layout/ListRow.d.ts');
-        $prompt = (string) file_get_contents($this->directory.'/components/layout/ListRow.prompt.md');
-        $card = (string) file_get_contents($this->directory.'/components/layout/layout.card.html');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/ListRow/ListRow.jsx');
+        $types = (string) file_get_contents($this->directory.'/components/layout/ListRow/ListRow.d.ts');
+        $prompt = (string) file_get_contents($this->directory.'/components/layout/ListRow/ListRow.prompt.md');
+        $card = (string) file_get_contents($this->directory.'/components/layout/ListRow/ListRow.card.html');
 
         self::assertStringContainsString('export function ListRow({ title, icon, meta, current, href, className: extra, ...rest })', $jsx);
         self::assertStringContainsString("aria-current={current ? 'true' : undefined}", $jsx);
@@ -771,18 +841,18 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         try {
             $written = $handler(new ExportDesignSystemCommand($directory));
 
-            foreach (['SamplePart.jsx', 'SamplePart.d.ts', 'SamplePart.prompt.md', 'layout.card.html'] as $file) {
-                self::assertContains('components/layout/'.$file, $written);
+            foreach (['SamplePart.jsx', 'SamplePart.d.ts', 'SamplePart.prompt.md', 'SamplePart.card.html'] as $file) {
+                self::assertContains('components/layout/SamplePart/'.$file, $written);
             }
-            self::assertStringContainsString('<header className="lp-sample-part">', (string) file_get_contents($directory.'/components/layout/SamplePart.jsx'));
-            self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart.d.ts'));
+            self::assertStringContainsString('<header className="lp-sample-part">', (string) file_get_contents($directory.'/components/layout/SamplePart/SamplePart.jsx'));
+            self::assertStringContainsString('@startingPoint section="Layout"', (string) file_get_contents($directory.'/components/layout/SamplePart/SamplePart.d.ts'));
 
-            $card = (string) file_get_contents($directory.'/components/layout/layout.card.html');
+            $card = (string) file_get_contents($directory.'/components/layout/SamplePart/SamplePart.card.html');
             self::assertMatchesRegularExpression("~dsFind\([^)]*'SamplePart'\)~", $card);
             self::assertStringContainsString('<SamplePart title="Example" />', $card);
-            self::assertStringContainsString('<script src="../../ds-mount.js">', $card);
+            self::assertStringContainsString('<script src="../../../ds-mount.js">', $card);
             self::assertStringNotContainsString('<Button', $card);
-            self::assertFileExists($directory.'/components/core/Button.jsx');
+            self::assertFileExists($directory.'/components/core/Button/Button.jsx');
         } finally {
             new Filesystem()->remove($directory);
         }

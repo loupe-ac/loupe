@@ -25,6 +25,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'Any action or link that looks like a button.',
                 element: 'button',
+                viewport: '700x330',
             ),
             new ComponentEntry(
                 name: 'Input',
@@ -58,6 +59,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A text field of several lines.',
                 element: 'textarea',
+                viewport: '700x170',
             ),
             new ComponentEntry(
                 name: 'Label',
@@ -115,6 +117,7 @@ readonly class Catalog
                 element: 'div',
                 dotClass: 'lp-flash__dot',
                 contentClass: 'lp-flash__message',
+                viewport: '700x190',
             ),
             new ComponentEntry(
                 name: 'EmptyState',
@@ -126,6 +129,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The block that tells a user a list or page has no content yet.',
                 element: 'div',
+                viewport: '700x220',
             ),
             new ComponentEntry(
                 name: 'Badge',
@@ -148,6 +152,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A small coloured label for a category or a tone.',
                 element: 'span',
+                viewport: '700x150',
             ),
             new ComponentEntry(
                 name: 'StatusChip',
@@ -182,7 +187,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The state of a card with its reason, its facts, what clears it, and the other states that apply.',
                 element: 'section',
-                dotClass: 'lp-status-box__dot',
+                viewport: '700x420',
             ),
             new ComponentEntry(
                 name: 'Dialog',
@@ -194,6 +199,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A modal window over the page, opened by the modal controller.',
                 element: 'dialog',
+                viewport: '700x420',
             ),
             new ComponentEntry(
                 name: 'Tabs',
@@ -205,6 +211,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A row of tabs that switches between views of one page, or a pill group that switches a view or a setting.',
                 element: 'nav',
+                viewport: '700x170',
             ),
             new ComponentEntry(
                 name: 'Pagination',
@@ -239,6 +246,7 @@ readonly class Catalog
                 summary: 'The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column.',
                 element: 'div',
                 export: 'AppShell',
+                viewport: '900x520',
             ),
             new ComponentEntry(
                 name: 'PageHeader',
@@ -251,6 +259,7 @@ readonly class Catalog
                 summary: 'The heading row of a page: a title, an optional description and the actions beside them.',
                 element: 'header',
                 export: 'PageHeader',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'SplitView',
@@ -263,6 +272,7 @@ readonly class Catalog
                 summary: 'A master-detail page: a held header over a list pane beside a detail pane, each scrolling on its own.',
                 element: 'div',
                 export: 'SplitView',
+                viewport: '700x320',
             ),
             new ComponentEntry(
                 name: 'ListRow',
@@ -275,6 +285,7 @@ readonly class Catalog
                 summary: 'One row of a list: an icon, a title and a meta line. The current row is highlighted.',
                 element: 'a',
                 export: 'ListRow',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'BrandMark',
@@ -300,6 +311,7 @@ readonly class Catalog
                 summary: 'The page container: the frame that holds the content of a page, with a named width.',
                 element: 'div',
                 export: 'Workspace',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'NavItem',
@@ -312,6 +324,7 @@ readonly class Catalog
                 summary: 'One link of the sidebar: an icon, a label, an optional count and the current-page mark.',
                 element: 'a',
                 export: 'NavItem',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'Breadcrumbs',
@@ -324,6 +337,7 @@ readonly class Catalog
                 summary: 'The trail at the top of a page: links to the parent pages and the current page last.',
                 element: 'nav',
                 export: 'Breadcrumbs',
+                viewport: '700x120',
             ),
             new ComponentEntry(
                 name: 'AuthShell',
@@ -336,6 +350,7 @@ readonly class Catalog
                 summary: 'The frame of every sign-in, sign-up and install page: a topbar with the brand mark, one centred card and a footer of legal links.',
                 element: 'div',
                 export: 'AuthShell',
+                viewport: '900x640',
             ),
             new ComponentEntry(
                 name: 'MarketingShell',
@@ -348,6 +363,7 @@ readonly class Catalog
                 summary: 'The frame of a public page for a signed-out visitor: the marketing header, the page body and the footer with the legal links.',
                 element: 'div',
                 export: 'MarketingShell',
+                viewport: '900x500',
             ),
             new ComponentEntry(
                 name: 'SettingsLayout',
@@ -360,6 +376,7 @@ readonly class Catalog
                 summary: 'A settings page: the page header, a section navigation beside the content, and the content column.',
                 element: 'div',
                 export: 'SettingsLayout',
+                viewport: '900x520',
             ),
             new ComponentEntry(
                 name: 'Drawer',
@@ -372,6 +389,7 @@ readonly class Catalog
                 summary: 'A panel that slides in from the right edge, with a header, a body that scrolls and a footer.',
                 element: 'dialog',
                 export: 'Drawer',
+                viewport: '700x420',
             ),
         ];
     }
