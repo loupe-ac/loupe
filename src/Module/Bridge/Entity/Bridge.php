@@ -59,6 +59,9 @@ class Bridge
     /** The capability of a bridge that runs an interactive session. */
     public const string CAPABILITY_INTERACTIVE = 'interactive';
 
+    /** The capability of a bridge that opens an interactive session on a card for a person. */
+    public const string CAPABILITY_SESSION = 'session';
+
     /** Reported by a bridge that runs the prompts the app ships, for a request that carries one. */
     public const string CAPABILITY_APP_PROMPTS = 'app-prompts';
 
@@ -196,6 +199,11 @@ class Bridge
     public function takesWorkRequests(): bool
     {
         return \in_array(self::CAPABILITY_WORK_REQUESTS, $this->capabilities ?? [], true);
+    }
+
+    public function opensSessions(): bool
+    {
+        return $this->takesWorkRequests() && \in_array(self::CAPABILITY_SESSION, $this->capabilities ?? [], true);
     }
 
     /** Whether the bridge can claim the request: by its capability, or by app prompts for a subject request that carries a prompt. */

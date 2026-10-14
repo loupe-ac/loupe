@@ -10,9 +10,14 @@ use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
 use App\Module\Inbox\Entity\InboxActionKind;
@@ -26,6 +31,7 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\ItemActions;
+use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\CardPauses;
@@ -230,9 +236,9 @@ final class ItemActionsTest extends KernelTestCase
             $this->pauseWait(PauseKind::Retries, new \DateTimeImmutable('2026-10-13 10:00:02')),
         ]);
 
-        $kinds = array_map(static fn (array $row): InboxActionKind => $row[0], $this->summary($item));
+        $kinds = array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item));
 
-        self::assertSame([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::Review, InboxActionKind::Open, InboxActionKind::Dismiss], $kinds);
+        self::assertSame([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::Review, InboxActionKind::Open, InboxActionKind::StartSession, InboxActionKind::Dismiss], $kinds);
         self::assertSame([InboxActionKind::RetryCard], $this->defaults($item));
     }
 
@@ -243,6 +249,108 @@ final class ItemActionsTest extends KernelTestCase
         $this->em->flush();
 
         self::assertSame([[InboxActionKind::Open, false]], $this->summary($item));
+        self::assertSame([InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item)));
+    }
+
+    public function test_start_session_is_disabled_while_no_bridge_reports_the_session_capability(): void
+    {
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+
+        self::assertSame('inbox.action.start-session.disabled', $this->startSession($item)->disabledReasonKey);
+        self::assertSame('inbox.action.start-session.label', $this->startSession($item)->labelKey);
+        self::assertSame('inbox.action.start-session.effect', $this->startSession($item)->effectKey);
+        self::assertFalse($this->startSession($item)->default);
+    }
+
+    public function test_start_session_is_enabled_with_a_live_bridge_that_reports_the_capability(): void
+    {
+        $this->sessionBridge();
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+
+        self::assertNull($this->startSession($item)->disabledReasonKey);
+    }
+
+    public function test_a_quiet_bridge_does_not_enable_start_session(): void
+    {
+        $this->sessionBridge(new \DateTimeImmutable('-1 day'));
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+
+        self::assertSame('inbox.action.start-session.disabled', $this->startSession($item)->disabledReasonKey);
+    }
+
+    public function test_a_bridge_that_does_not_follow_the_project_or_claim_work_does_not_enable_start_session(): void
+    {
+        $this->sessionBridge(projects: [Uuid::v4()->toRfc4122()]);
+        $this->sessionBridge(capabilities: [Bridge::CAPABILITY_SESSION]);
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+
+        self::assertSame('inbox.action.start-session.disabled', $this->startSession($item)->disabledReasonKey);
+    }
+
+    public function test_a_question_that_links_a_card_offers_an_enabled_start_session_with_a_live_bridge(): void
+    {
+        $this->sessionBridge();
+        $item = $this->item($this->em, $this->project);
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em->flush();
+
+        self::assertNull($this->startSession($item)->disabledReasonKey);
+        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
+    }
+
+    /** @return iterable<string, array{string, WorkRequestState, bool}> */
+    public static function requestsOfTheCard(): iterable
+    {
+        yield 'an open session request' => [WorkRequest::SESSION_KIND, WorkRequestState::Open, false];
+        yield 'a claimed session request' => [WorkRequest::SESSION_KIND, WorkRequestState::Claimed, false];
+        yield 'a session request that ended' => [WorkRequest::SESSION_KIND, WorkRequestState::Done, true];
+        yield 'a live request of another kind' => ['implement', WorkRequestState::Open, true];
+    }
+
+    /** Every item of the card follows one live session request, because the card takes only one at a time. */
+    #[DataProvider('requestsOfTheCard')]
+    public function test_start_session_is_hidden_on_every_item_of_the_card_while_a_session_request_is_live(string $kind, WorkRequestState $state, bool $offered): void
+    {
+        $this->sessionBridge();
+        $wait = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+        $question = $this->item($this->em, $this->project, 98);
+        $question->cards->add(new InboxItemCard($question, $this->card));
+        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, $kind, null, 'inbox:start-session', new \DateTimeImmutable());
+        $request->state = $state;
+        $this->em->persist($request);
+        $this->em->flush();
+
+        foreach ($this->actions()->forItems([$wait, $question]) as $actions) {
+            self::assertSame($offered, array_any($actions, static fn (ItemAction $action): bool => InboxActionKind::StartSession === $action->kind));
+        }
+    }
+
+    public function test_the_card_of_a_wait_item_is_the_card_of_its_watch(): void
+    {
+        $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
+
+        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
+        self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98)));
+    }
+
+    private function startSession(InboxItem $item): ItemAction
+    {
+        return array_find($this->actions()->forItem($item), static fn (ItemAction $action): bool => InboxActionKind::StartSession === $action->kind)
+            ?? throw new \LogicException('Start a session fits an item with a card.');
+    }
+
+    /**
+     * @param list<string>|null $capabilities
+     * @param list<string>|null $projects
+     */
+    private function sessionBridge(?\DateTimeImmutable $lastSeenAt = null, ?array $capabilities = null, ?array $projects = null): Bridge
+    {
+        $bridge = new Bridge($this->project->owner, Uuid::v4(), $projects ?? [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', $lastSeenAt ?? new \DateTimeImmutable());
+        $bridge->capabilities = $capabilities ?? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->em->persist($bridge);
+        $this->em->flush();
+
+        return $bridge;
     }
 
     public function test_a_question_with_no_link_offers_nothing(): void
@@ -343,10 +451,17 @@ final class ItemActionsTest extends KernelTestCase
         return new InboxCardWait($this->watchOf(), InboxCardWaitTrigger::CardPaused, InboxCardWaitType::CardPause, InboxCardWaitReason::forPause($kind), startedAt: $startedAt, pauseId: $pause->id);
     }
 
-    /** @return list<array{InboxActionKind, bool}> */
+    /**
+     * The menu without Start a session, which the tests of its own cover.
+     *
+     * @return list<array{InboxActionKind, bool}>
+     */
     private function summary(InboxItem $item): array
     {
-        return array_map(static fn (ItemAction $action): array => [$action->kind, $action->default], $this->actions()->forItem($item));
+        return array_values(array_map(
+            static fn (ItemAction $action): array => [$action->kind, $action->default],
+            array_filter($this->actions()->forItem($item), static fn (ItemAction $action): bool => InboxActionKind::StartSession !== $action->kind),
+        ));
     }
 
     /** @return list<InboxActionKind> */
@@ -366,11 +481,18 @@ final class ItemActionsTest extends KernelTestCase
         $runs = $container->get(WorkerRunRepository::class);
         $controls = $container->get(WorkerRunControls::class);
         $pauses = $container->get(CardPauses::class);
+        $bridges = $container->get(BridgeRepository::class);
+        $liveness = $container->get(BridgeLiveness::class);
+        self::assertInstanceOf(BridgeRepository::class, $bridges);
+        self::assertInstanceOf(BridgeLiveness::class, $liveness);
+        $sessionBridges = new SessionBridges($bridges, $liveness);
+        $workRequests = $container->get(WorkRequestRepository::class);
+        self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
         self::assertInstanceOf(InboxCardWatchRepository::class, $watches);
         self::assertInstanceOf(WorkerRunRepository::class, $runs);
         self::assertInstanceOf(WorkerRunControls::class, $controls);
         self::assertInstanceOf(CardPauses::class, $pauses);
 
-        return new ItemActions($watches, $runs, $controls, $pauses);
+        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges, $workRequests);
     }
 }
