@@ -17,6 +17,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\SendAgentTarget;
+use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Command\ReleaseWorkflowPauseCommand;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\StageWorks;
@@ -42,13 +43,15 @@ final readonly class ItemActions
     }
 
     /**
-     * The kinds that fit a card now, in menu order: those of its open wait item, and those that fit any card.
+     * The kinds that fit a card now, in menu order: those of its open wait item, or Send an agent with no wait item, and those that fit any card.
      *
      * @return list<InboxActionKind>
      */
-    public function forCard(?InboxItem $waitItem): array
+    public function forCard(Project $project, Uuid $cardId, ?InboxItem $waitItem): array
     {
-        $fitting = null === $waitItem ? [] : array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->forItem($waitItem));
+        $fitting = null === $waitItem
+            ? ([] === $this->freeTargets(['card' => [$project, $cardId]]) ? [] : [InboxActionKind::SendAgent])
+            : array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->forItem($waitItem));
         $fitting = [...$fitting, InboxActionKind::Open, InboxActionKind::StartSession];
 
         return array_values(array_filter(InboxActionKind::cases(), static fn (InboxActionKind $kind): bool => \in_array($kind, $fitting, true)));
@@ -153,8 +156,7 @@ final readonly class ItemActions
     }
 
     /**
-     * The items whose card sits in a stage that names work, with no live request of that work and no open run.
-     * One read of live requests, and one read of open runs per project.
+     * The card of each item that Send an agent works on now: the watched card of a wait item, or the only card of another item.
      *
      * @param list<InboxItem>     $items
      * @param array<string, Uuid> $watchedCards the card of each wait item, by the RFC 4122 item id
@@ -163,12 +165,32 @@ final readonly class ItemActions
      */
     private function sendAgentTargets(array $items, array $watchedCards): array
     {
-        $candidates = [];
+        $cards = [];
         foreach ($items as $item) {
             $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item);
-            $kind = null === $cardId ? null : $this->stageWorks->of($item->project->id ?? throw new \LogicException('A stored project has an id.'), $cardId);
-            if (null !== $cardId && null !== $kind) {
-                $candidates[self::key($item)] = [$item, new SendAgentTarget($cardId, $kind)];
+            if (null !== $cardId) {
+                $cards[self::key($item)] = [$item->project, $cardId];
+            }
+        }
+
+        return $this->freeTargets($cards);
+    }
+
+    /**
+     * The cards that sit in a stage that names work, with no live request of that work and no open run.
+     * One read of live requests, and one read of open runs per project.
+     *
+     * @param array<string, array{Project, Uuid}> $cards the project and the card, by any key
+     *
+     * @return array<string, SendAgentTarget> by the same key
+     */
+    private function freeTargets(array $cards): array
+    {
+        $candidates = [];
+        foreach ($cards as $key => [$project, $cardId]) {
+            $kind = $this->stageWorks->of($project->id ?? throw new \LogicException('A stored project has an id.'), $cardId);
+            if (null !== $kind) {
+                $candidates[$key] = [$project, new SendAgentTarget($cardId, $kind)];
             }
         }
         if ([] === $candidates) {
@@ -180,9 +202,9 @@ final readonly class ItemActions
             $live[$row['card_id'].':'.$row['kind']] = true;
         }
         $cardsByProject = [];
-        foreach ($candidates as [$item, $target]) {
-            $cardsByProject[(string) $item->project->id][1][] = $target->cardId;
-            $cardsByProject[(string) $item->project->id][0] = $item->project;
+        foreach ($candidates as [$project, $target]) {
+            $cardsByProject[(string) $project->id][1][] = $target->cardId;
+            $cardsByProject[(string) $project->id][0] = $project;
         }
         $busy = [];
         foreach ($cardsByProject as [$project, $cardIds]) {

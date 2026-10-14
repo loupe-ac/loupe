@@ -69,7 +69,7 @@ final class InboxActionsToolTest extends KernelTestCase
         self::assertSame(['open', 'start-session'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
     }
 
-    public function test_a_card_waiting_for_a_review_fits_review_open_start_session_and_dismiss(): void
+    public function test_a_card_waiting_for_a_review_fits_review_open_send_agent_start_session_and_dismiss(): void
     {
         $this->enableInbox();
         $project = $this->makeProject('inbox-actions-review');
@@ -80,7 +80,7 @@ final class InboxActionsToolTest extends KernelTestCase
 
         $actions = ($this->tool)((string) $card->id)['actions'];
 
-        self::assertSame(['review', 'open', 'start-session', 'dismiss'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
+        self::assertSame(['review', 'open', 'send-agent', 'start-session', 'dismiss'], array_column(array_filter($actions, static fn (array $action): bool => true === $action['fitsCard']), 'action'));
     }
 
     public function test_a_card_of_another_project_is_refused(): void

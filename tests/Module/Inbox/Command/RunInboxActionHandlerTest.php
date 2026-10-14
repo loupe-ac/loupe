@@ -389,6 +389,18 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertNull($this->itemActions()->sendAgentFor($none));
     }
 
+    public function test_a_card_with_no_wait_item_fits_send_agent_as_a_question_on_it_does(): void
+    {
+        $cardId = $this->card->id ?? throw new \LogicException('Stored.');
+        $other = $this->cardIn('product-design');
+
+        self::assertSame([InboxActionKind::Open, InboxActionKind::SendAgent, InboxActionKind::StartSession], $this->itemActions()->forCard($this->project, $cardId, null));
+        self::assertSame([InboxActionKind::Open, InboxActionKind::StartSession], $this->itemActions()->forCard($this->project, $other->id ?? throw new \LogicException('Stored.'), null));
+
+        $this->seedRequest('tech-design', WorkRequestState::Open);
+        self::assertSame([InboxActionKind::Open, InboxActionKind::StartSession], $this->itemActions()->forCard($this->project, $cardId, null));
+    }
+
     public function test_send_agent_does_not_fit_a_card_in_a_stage_that_names_no_work(): void
     {
         $item = $this->runItem(card: $this->cardIn('product-design'));

@@ -28,8 +28,9 @@ final readonly class ListInboxActionsHandler
 
         $card = $this->links->cards($command->project, [$command->cardId->toRfc4122()], 'cardId')[0]
             ?? throw new \LogicException('The resolver returns one card for one id.');
-        $watch = $this->inboxCardWatches->findOpenForCards($command->project, [$card->id ?? throw new \LogicException('A stored card has an id.')])[0] ?? null;
+        $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
+        $watch = $this->inboxCardWatches->findOpenForCards($command->project, [$cardId])[0] ?? null;
 
-        return $this->itemActions->forCard($watch?->item);
+        return $this->itemActions->forCard($command->project, $cardId, $watch?->item);
     }
 }
