@@ -97,6 +97,7 @@ final class AdvertisedTools
         'card_pause_release',
         'bridge_command_cancel',
         'inbox_ask',
+        'inbox_actions',
         'inbox_search',
         'inbox_join',
         'inbox_list',

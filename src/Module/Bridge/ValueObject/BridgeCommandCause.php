@@ -11,4 +11,7 @@ enum BridgeCommandCause: string
 
     /** The owner closed an ask of the session, and Loupe asks for the resume. */
     case AskClosed = 'ask-closed';
+
+    /** A person clicked an action on an inbox item. */
+    case InboxAction = 'inbox-action';
 }

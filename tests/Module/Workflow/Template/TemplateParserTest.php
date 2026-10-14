@@ -138,6 +138,17 @@ final class TemplateParserTest extends TestCase
         ];
     }
 
+    public function test_a_slot_names_the_work_of_its_stage(): void
+    {
+        $source = self::valid();
+        $source['slots'][0]['stageWork'] = 'implement';
+
+        $template = $this->parser->parse($source);
+
+        self::assertSame('implement', $template->slot('build')?->stageWork);
+        self::assertNull($template->slot('review')?->stageWork);
+    }
+
     public function test_it_parses_a_valid_template(): void
     {
         $template = $this->parser->parse(self::valid());
@@ -750,6 +761,26 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[1] (to-review) then: an action must have exactly one key'];
+        yield 'stage work that is not a string' => [static function (array $t): array {
+            $t['slots'][0]['stageWork'] = 12;
+
+            return $t;
+        }, 'slots[0] stageWork: must be a work request kind'];
+        yield 'stage work that is not a kind' => [static function (array $t): array {
+            $t['slots'][0]['stageWork'] = 'Not A Kind';
+
+            return $t;
+        }, 'slots[0] stageWork: must be a work request kind'];
+        yield 'stage work that no rule of the slot requests' => [static function (array $t): array {
+            $t['slots'][0]['stageWork'] = 'deploy';
+
+            return $t;
+        }, 'slots: stageWork "deploy" of slot "build" is the kind of no rule of that slot'];
+        yield 'stage work that only a rule of another slot requests' => [static function (array $t): array {
+            $t['slots'][1]['stageWork'] = 'implement';
+
+            return $t;
+        }, 'slots: stageWork "implement" of slot "review" is the kind of no rule of that slot'];
         yield 'slot with no label' => [static function (array $t): array {
             $t['slots'][] = ['key' => 'ship'];
 

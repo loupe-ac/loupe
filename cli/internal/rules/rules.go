@@ -1151,20 +1151,38 @@ var ResultStatuses = []string{"finished", "blocked", "unfinished", "waiting"}
 // resultFieldPattern is the shape of a result field name.
 var resultFieldPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
 
+// resultCoreFields are the fields every result can carry. A rule cannot
+// redefine one in resultFields.
+var resultCoreFields = []string{"status", "summary", "reason", "title", "suggestedActions"}
+
 // resultSchema builds the JSON Schema of a worker's final reply. The core
-// reason and the extra fields are optional. claude checks each fragment, and
-// the bridge does not.
+// reason, title and suggested actions, and the extra fields, are optional.
+// claude checks each fragment, and the bridge does not. The action key is a
+// plain string, because the app owns the list of actions.
 func resultSchema(fields map[string]any) (string, error) {
 	props := map[string]any{
 		"status":  map[string]any{"type": "string", "enum": ResultStatuses},
 		"summary": map[string]any{"type": "string"},
 		"reason":  map[string]any{"type": "string"},
+		"title":   map[string]any{"type": "string"},
+		"suggestedActions": map[string]any{
+			"type": "array",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"action":      map[string]any{"type": "string"},
+					"reason":      map[string]any{"type": "string"},
+					"recommended": map[string]any{"type": "boolean"},
+				},
+				"required": []string{"action", "reason"},
+			},
+		},
 	}
 	var errs []error
 	for _, name := range slices.Sorted(maps.Keys(fields)) {
 		fragment, isMap := fields[name].(map[string]any)
 		switch {
-		case name == "status" || name == "summary" || name == "reason":
+		case slices.Contains(resultCoreFields, name):
 			errs = append(errs, fmt.Errorf("resultFields: %q is a core field, and every result has it", name))
 		case !resultFieldPattern.MatchString(name):
 			errs = append(errs, fmt.Errorf("resultFields: %q is not a field name, such as prUrl", name))

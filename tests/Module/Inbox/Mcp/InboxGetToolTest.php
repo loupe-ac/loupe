@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
+use App\Module\Inbox\Entity\InboxAction;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Mcp\InboxAskTool;
@@ -153,7 +155,31 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertSame('agent', $item['origin']);
         self::assertNull($item['cardId']);
         self::assertSame([], $item['waits']);
+        self::assertSame([], $item['actions']);
         self::assertSame([['askId' => $asked['askId'], 'origin' => 'agent', 'sessionId' => $sessionId, 'closedAt' => null]], $item['asks']);
+    }
+
+    public function test_the_actions_of_the_owner_come_back_oldest_first_with_their_notes(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-get-actions');
+        $this->actAsMcpTokenBoundTo($project);
+        $asked = $this->askQuestion('Which column?');
+        $item = $this->em->find(InboxItem::class, $asked['items'][0]['itemId']) ?? throw new \LogicException('Stored.');
+        $first = new InboxAction($item, InboxActionKind::SendAgent, $project->owner, 'Start with the tests.', new \DateTimeImmutable('2026-10-13 10:00:00'));
+        $first->cancelledAt = new \DateTimeImmutable('2026-10-13 10:05:00');
+        $second = new InboxAction($item, InboxActionKind::RetryCard, $project->owner, '', new \DateTimeImmutable('2026-10-13 11:00:00'));
+        $this->em->persist($second);
+        $this->em->persist($first);
+        $this->em->flush();
+        $this->em->clear();
+
+        $read = ($this->tool)($asked['items'][0]['itemId']);
+
+        self::assertSame([
+            ['actionId' => (string) $first->id, 'kind' => 'send-agent', 'note' => 'Start with the tests.', 'requestedBy' => $project->owner->fullName, 'requestedAt' => '2026-10-13T10:00:00+00:00', 'bridgeCommandId' => null, 'workRequestId' => null, 'pauseId' => null, 'cancelledAt' => '2026-10-13T10:05:00+00:00'],
+            ['actionId' => (string) $second->id, 'kind' => 'retry-card', 'note' => '', 'requestedBy' => $project->owner->fullName, 'requestedAt' => '2026-10-13T11:00:00+00:00', 'bridgeCommandId' => null, 'workRequestId' => null, 'pauseId' => null, 'cancelledAt' => null],
+        ], $read['actions']);
     }
 
     public function test_a_wait_item_reads_back_with_its_card_its_waits_and_the_loupe_ask(): void
@@ -192,6 +218,35 @@ final class InboxGetToolTest extends KernelTestCase
         self::assertCount(1, $item['asks']);
         self::assertSame('loupe', $item['asks'][0]['origin']);
         self::assertNull($item['asks'][0]['sessionId']);
+    }
+
+    public function test_a_wait_item_returns_the_actions_of_the_owner_with_their_notes(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-get-actions');
+        $card = $this->card($this->em, $project, 11);
+        $this->em->flush();
+        $this->documentInReview($project, $card);
+        $watch = $this->reconcileWaits($project, $card);
+        $action = new InboxAction($watch->item, InboxActionKind::StartSession, $project->owner, 'You may change board-filter.spec.ts', new \DateTimeImmutable('2026-10-13 09:00:00'));
+        $this->em->persist($action);
+        $this->em->flush();
+        $this->em->clear();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $item = ($this->tool)((string) $watch->item->id);
+
+        self::assertSame([[
+            'actionId' => (string) $action->id,
+            'kind' => 'start-session',
+            'note' => 'You may change board-filter.spec.ts',
+            'requestedBy' => $project->owner->fullName,
+            'requestedAt' => '2026-10-13T09:00:00+00:00',
+            'bridgeCommandId' => null,
+            'workRequestId' => null,
+            'pauseId' => null,
+            'cancelledAt' => null,
+        ]], $item['actions']);
     }
 
     public function test_an_item_in_another_project_is_not_reachable_and_the_refusal_is_audited(): void

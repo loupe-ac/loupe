@@ -621,6 +621,31 @@ when it ends. A prompt that calls neither leaves the run open on the
 person closes it. [Interactive action](../docs/extending/cli-bridge.md#interactive-action)
 describes the launch script and how the bridge reports each launch.
 
+#### Starting a session from an inbox item
+
+The owner can start an interactive session from an inbox item. The app opens a
+work request of kind `session`. The `session` entry must have
+`action: interactive`, and the file needs the top-level `launch` block. A
+`session` entry with another action fails to load.
+
+```yaml
+work:
+  session:
+    action: interactive
+    prompt: /loupe:product-design {cardNumber}
+```
+
+The bridge reports the capability `session` for this entry, and the app offers
+the work only to a bridge that reports it. Put the entry on the machine where
+the terminal must open. When several bridges hold the entry, the first one to
+claim the request wins.
+
+The request names the inbox item. The bridge adds one paragraph to the prompt.
+It names the item by its number and its id. It tells the agent to read the
+owner's note with `inbox_get`, and the earlier report with `worker_run_get`.
+The note text never goes in the prompt. A request with no item id gets no
+paragraph, because `inbox_get` takes no number.
+
 #### Prompt footer
 
 The bridge adds this line to the end of every worker prompt, and an entry
@@ -809,6 +834,7 @@ such as `work:implement`.
 
 The bridge reports the capability `work-requests` when the map has an entry,
 and `interactive` when an entry has `action: interactive`. It reports
+`session` when the entry of kind `session` is on. It reports
 `subject-<type>` for each subject type other than `card` that an entry names,
 such as `subject-analysis`, so the server offers that work to this bridge. A
 `project.renamed` event, or a mapped project that is gone, marks the work of
@@ -1232,7 +1258,7 @@ the hold.
 The resume runs `claude --resume` on the session with a fixed prompt, in a
 worker slot of the entry's pool. Its `queued` report carries `continues` with
 the run key, and the work kind of the run. A resume with the cause `ask-closed`
-gets the prompt of [Resuming a session](#resuming-a-session). The resume waits
+gets the prompt of [Resuming a session](#resuming-a-session). A resume with the cause `inbox-action` gets the prompt of a person's resume. The resume waits
 for any other worker of the card, and a paused bridge keeps it queued.
 
 A rerun, of the kind `rerun-command`, names a

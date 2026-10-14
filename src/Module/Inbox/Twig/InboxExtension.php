@@ -7,23 +7,32 @@ namespace App\Module\Inbox\Twig;
 use App\Mercure\ProjectTopicBuilder;
 use App\Mercure\UserTopicBuilder;
 use App\Module\Account\Entity\User;
+use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\Form\AnswerInboxItemFormType;
 use App\Module\Inbox\Form\AnswerInboxItemRequest;
+use App\Module\Inbox\Form\CancelInboxActionFormType;
 use App\Module\Inbox\Form\DeclineInboxItemFormType;
 use App\Module\Inbox\Form\DeclineInboxItemRequest;
 use App\Module\Inbox\Form\MarkInboxItemDoneFormType;
+use App\Module\Inbox\Form\RunInboxActionFormType;
+use App\Module\Inbox\Form\RunInboxActionRequest;
 use App\Module\Inbox\Form\SubmitInboxDocumentReviewFormType;
 use App\Module\Inbox\Form\SubmitInboxPullRequestReviewFormType;
 use App\Module\Inbox\Form\SubmitInboxPullRequestReviewRequest;
+use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Service\CardWaitText;
+use App\Module\Inbox\Service\InboxActionStatuses;
 use App\Module\Inbox\Service\InboxReviewLookup;
+use App\Module\Inbox\Service\InboxThreadActionBuilder;
 use App\Module\Inbox\View\CardWaitLine;
+use App\Module\Inbox\View\InboxActionStatus;
+use App\Module\Inbox\View\InboxThreadActions;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Form\SubmitReviewRequest;
@@ -55,6 +64,9 @@ final class InboxExtension extends AbstractExtension
         private readonly DocumentVersionRepository $documentVersions,
         private readonly InboxCardWatchRepository $inboxCardWatches,
         private readonly CardWaitText $cardWaitText,
+        private readonly InboxThreadActionBuilder $threadActions,
+        private readonly InboxActionStatuses $actionStatuses,
+        private readonly InboxActionRepository $inboxActions,
     ) {
     }
 
@@ -65,6 +77,10 @@ final class InboxExtension extends AbstractExtension
             new TwigFunction('inbox_answer_form', $this->answerForm(...)),
             new TwigFunction('inbox_done_form', $this->doneForm(...)),
             new TwigFunction('inbox_decline_form', $this->declineForm(...)),
+            new TwigFunction('inbox_action_form', $this->actionForm(...)),
+            new TwigFunction('inbox_action_cancel_form', $this->actionCancelForm(...)),
+            new TwigFunction('inbox_actions', $this->actions(...)),
+            new TwigFunction('inbox_action_statuses', $this->actionStatusLines(...)),
             new TwigFunction('inbox_review', $this->review(...)),
             new TwigFunction('inbox_card_watch', $this->cardWatch(...)),
             new TwigFunction('inbox_wait_line', $this->waitLine(...)),
@@ -221,6 +237,38 @@ final class InboxExtension extends AbstractExtension
             ->createView();
     }
 
+    public function actionForm(InboxItem $item, ?FormView $refused = null): FormView
+    {
+        $name = RunInboxActionFormType::nameFor($item);
+        if (null !== $refused && $refused->vars['name'] === $name) {
+            return $refused;
+        }
+
+        return $this->formFactory->createNamed($name, RunInboxActionFormType::class, new RunInboxActionRequest())->createView();
+    }
+
+    public function actionCancelForm(InboxAction $action, ?FormView $refused = null): FormView
+    {
+        $name = CancelInboxActionFormType::nameFor($action);
+        if (null !== $refused && $refused->vars['name'] === $name) {
+            return $refused;
+        }
+
+        return $this->formFactory->createNamed($name, CancelInboxActionFormType::class)->createView();
+    }
+
+    /** The split button of the item. The host card is the one whose page shows the item, so it gets no link back. */
+    public function actions(InboxItem $item, ?string $hostCardId = null): InboxThreadActions
+    {
+        return $this->threadActions->build($item, $hostCardId);
+    }
+
+    /** @return list<InboxActionStatus> */
+    public function actionStatusLines(InboxItem $item): array
+    {
+        return $this->actionStatuses->forItems([$item])[(string) $item->id] ?? [];
+    }
+
     /**
      * The messages of a refused form of this item, root and fields alike.
      *
@@ -231,7 +279,10 @@ final class InboxExtension extends AbstractExtension
      */
     public function refusals(InboxItem $item, ?FormView $refused = null): array
     {
-        $names = [AnswerInboxItemFormType::nameFor($item), MarkInboxItemDoneFormType::nameFor($item), DeclineInboxItemFormType::nameFor($item), SubmitInboxPullRequestReviewFormType::nameFor($item), SubmitInboxDocumentReviewFormType::nameFor($item)];
+        $names = [AnswerInboxItemFormType::nameFor($item), MarkInboxItemDoneFormType::nameFor($item), DeclineInboxItemFormType::nameFor($item), SubmitInboxPullRequestReviewFormType::nameFor($item), SubmitInboxDocumentReviewFormType::nameFor($item), RunInboxActionFormType::nameFor($item)];
+        if (null !== $refused && str_starts_with((string) $refused->vars['name'], 'inbox_action_cancel_')) {
+            $names = [...$names, ...array_map(CancelInboxActionFormType::nameFor(...), $this->inboxActions->findByItem($item))];
+        }
         if (null === $refused || !\in_array($refused->vars['name'], $names, true)) {
             return [];
         }

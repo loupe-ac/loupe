@@ -187,6 +187,14 @@ when the field is absent. The worker run drawer shows the code. The reason
 table in `plugins/loupe/skills/loupe-stage-product-design/references/stage-contract.md`
 lists each code.
 
+The core schema also takes an optional `title` and an optional list
+`suggestedActions`. The `title` is one line that names the stop. The inbox uses it as the title
+of the wait item, and falls back to the first sentence of the report when it is absent. Each
+suggested action has an `action` key, a one-line `reason` and an optional `recommended` flag.
+The bridge sends both fields in `resultFields`. The app keeps the built-in action keys it
+knows, drops the other keys, and keeps three suggestions at most. The [inbox](../using/inbox.md#titles-and-suggestions-from-the-agent)
+shows the title, and uses a recommended suggestion as the main action.
+
 A worker reports `waiting` when its work waits on the forge, such as checks on
 a pushed pull request. The bridge reports that run as `waiting-on-forge`. The
 bridge resumes no run on its own. A run that ends `unfinished` posts `refused`
@@ -1161,7 +1169,18 @@ transcript of the session, or when the work map no longer runs workers of the
 kind of the run. [Resume](#resume) says which account a resume uses. Loupe
 also sends a resume on its own when an
 [inbox](../using/inbox.md) ask of the session closes. That resume names the
-cause `ask-closed`, and its prompt tells the agent to read the answers.
+cause `ask-closed`, and its prompt tells the agent to read the answers. A resume
+that the owner starts from an inbox item names the cause `inbox-action`. It uses
+the prompt of a person's resume, plus a line that names the inbox item and the
+action. The command carries the keys `inboxActionId`, `inboxItemId` and
+`inboxItemNumber`. A work request that an inbox action sent carries the same
+three keys. So does the first request of a rule after the owner retried its
+pause from the inbox. The keys hold ids only. The line tells the agent to call
+`inbox_get` with the item id and to read the note of that action. The prompt
+of a work request also tells the agent to read the report of each stopped run
+of the item with `worker_run_get`, because a new agent has no transcript of
+that run. The bridge adds these lines only when the item id and the action id
+are both set.
 
 A rerun runs the command of a [command run](#command-action) again, after the
 run ended as `failed`, `timed-out` or `lost`. The person selects **Run again**
@@ -1307,7 +1326,8 @@ the `loupe-stage-fix-round` skill, which reads the findings from `card_get`.
 
 The file needs `work:`, or `appPrompts: true`. The bridge reports the
 `work-requests` capability when the map has an entry or `appPrompts` is on,
-and `interactive` too when an entry opens an interactive session. It also
+and `interactive` too when an entry opens an interactive session. An entry for
+the kind `session` makes it report `session` as well. It also
 reports `subject-<type>` for each subject type other than `card` that an entry
 names, such as `subject-analysis`. With `appPrompts: true`, it reports
 `app-prompts` too, unless the account of `defaults.account` is off. A request
@@ -1648,6 +1668,38 @@ An interactive run has no worker process, so the bridge sees none of its usage
 as it runs. When the server asks, the bridge reads the usage of the run's
 window from the local transcript and sends it as an estimate. See
 [Pause, stop and resume](#pause-stop-and-resume).
+
+### Session entry
+
+The action **Start an interactive session** on an inbox item opens a work
+request of the kind `session`. The request is about the card of the item. A
+`session` entry in `work:` tells the bridge what to open.
+
+```yaml
+launch:
+  command: ["open", "-a", "Terminal", "{script}"]
+
+work:
+  session:
+    action: interactive
+    prompt: Work with the owner on card {cardNumber} in project {project}.
+```
+
+The entry must use `action: interactive`, and the file needs the `launch`
+block. The bridge reports the capability `session` when the map has the entry.
+The request needs that capability, and it names no bridge. The first bridge
+that claims the request opens the terminal. So put the `session` entry on the
+one machine where you want the terminal, as for
+[Product design](#interactive-action).
+
+The session always starts new. It never resumes the session of an earlier run
+of the card. The prompt of the session names the inbox item by its number and
+its id. It tells the agent to read your note with the `inbox_get` tool, and the
+earlier report of the run with `worker_run_get`. The request holds no note text.
+
+A `session` request that no bridge claims expires after 2 minutes, and the
+card does not pause. Loupe disables the action while no online bridge of the
+project owner reports `session`.
 
 ## Columns endpoint
 

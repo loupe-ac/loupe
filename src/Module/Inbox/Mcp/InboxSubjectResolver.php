@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Mcp;
 
 use App\Mcp\ResolvesBoundProject;
 use App\Module\Inbox\Command\AskInboxItem;
+use App\Module\Inbox\Command\AskInboxSuggestion;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
@@ -112,10 +113,44 @@ final readonly class InboxSubjectResolver
                 documentIds: $this->strings($item, 'documentIds', $index),
                 reviewDocumentId: null === ($item['reviewDocumentId'] ?? null) ? null : $this->string($item, 'reviewDocumentId', $index),
                 reviewPullRequestId: null === ($item['reviewPullRequestId'] ?? null) ? null : $this->string($item, 'reviewPullRequestId', $index),
+                suggestedActions: $this->suggestions($item, $index),
             );
         }
 
         return $parsed;
+    }
+
+    /**
+     * @param array<mixed> $item
+     *
+     * @return list<AskInboxSuggestion>
+     */
+    private function suggestions(array $item, int $index): array
+    {
+        $value = $item['suggestedActions'] ?? [];
+        if (!\is_array($value) || !array_is_list($value)) {
+            throw new ToolCallException(\sprintf('items[%d].suggestedActions must be a list of objects.', $index));
+        }
+
+        $suggestions = [];
+        foreach ($value as $position => $entry) {
+            if (!\is_array($entry)) {
+                throw new ToolCallException(\sprintf('items[%d].suggestedActions[%d] must be an object.', $index, $position));
+            }
+            $action = $entry['action'] ?? null;
+            $reason = $entry['reason'] ?? null;
+            $recommended = $entry['recommended'] ?? false;
+            $cardId = $entry['cardId'] ?? null;
+            if (!\is_string($action) || !\is_string($reason)) {
+                throw new ToolCallException(\sprintf('items[%d].suggestedActions[%d] needs a string action and a string reason.', $index, $position));
+            }
+            if (!\is_bool($recommended) || (null !== $cardId && !\is_string($cardId))) {
+                throw new ToolCallException(\sprintf('items[%d].suggestedActions[%d]: recommended must be true or false, and cardId a string.', $index, $position));
+            }
+            $suggestions[] = new AskInboxSuggestion($action, $reason, $recommended, $cardId);
+        }
+
+        return $suggestions;
     }
 
     /** @param array<mixed> $item */

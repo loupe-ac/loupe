@@ -55,6 +55,13 @@ type WorkRequest struct {
 	// model of the work entry. A null decodes as "".
 	Model  string `json:"model,omitempty"`
 	Effort string `json:"effort,omitempty"`
+	// InboxActionID, InboxItemNumber and InboxItemID name the inbox action the owner
+	// clicked to send an agent or to retry the card, and its item. They carry ids only, and never
+	// the owner's note. A null decodes as "" or 0, and an older server sends
+	// none.
+	InboxActionID   string `json:"inboxActionId,omitempty"`
+	InboxItemNumber int    `json:"inboxItemNumber,omitempty"`
+	InboxItemID     string `json:"inboxItemId,omitempty"`
 }
 
 // Efforts are the levels claude --effort takes.
@@ -69,7 +76,7 @@ func (w WorkRequest) OnCard() bool {
 }
 
 // WorkRequestContext is the pull request a work request acts on and why, and
-// the document it revises, as the card held them when the request opened. An
+// the document it revises, the inbox action it starts from, as the card held them when the request opened. An
 // older server sends no context, and an unknown value is null. Both decode as
 // 0 or "".
 type WorkRequestContext struct {
@@ -78,6 +85,9 @@ type WorkRequestContext struct {
 	HeadSHA           string `json:"headSha"`
 	Reason            string `json:"reason"`
 	DocumentID        string `json:"documentId"`
+	InboxActionID     string `json:"inboxActionId"`
+	InboxItemNumber   int    `json:"inboxItemNumber"`
+	InboxItemID       string `json:"inboxItemId"`
 }
 
 // WorkRequestSubject names the work request itself.

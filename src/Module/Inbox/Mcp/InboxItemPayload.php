@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Mcp;
 
+use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxItem;
@@ -11,6 +12,7 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
+use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
@@ -27,7 +29,9 @@ use App\Module\Review\Repository\ReviewRepository;
  * @phpstan-type InboxItemDocumentSummary array{documentId: string, title: string}
  * @phpstan-type InboxItemAskSummary array{askId: string, origin: string, sessionId: ?string, closedAt: ?string}
  * @phpstan-type InboxCardWaitSummary array{trigger: string, type: string, reason: string, documentId: ?string, versionNumber: ?int, runId: ?string, pullRequestId: ?string, headSha: ?string, pauseId: ?string, startedAt: string, endedAt: ?string, endReason: ?string}
- * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>}
+ * @phpstan-type InboxActionSummary array{actionId: string, kind: string, note: string, requestedBy: ?string, requestedAt: string, bridgeCommandId: ?string, workRequestId: ?string, pauseId: ?string, cancelledAt: ?string}
+ * @phpstan-type InboxSuggestedActionSummary array{action: string, reason: string, recommended: bool, cardId: ?string}
+ * @phpstan-type InboxItemSummary array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string, cardNumbers: list<int>, body: ?string, options: list<string>, multiple: bool, freeText: bool, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, review: ?InboxReviewSummary, cards: list<InboxItemCardSummary>, documents: list<InboxItemDocumentSummary>, asks: list<InboxItemAskSummary>, cardId: ?string, waits: list<InboxCardWaitSummary>, suggestedActions: list<InboxSuggestedActionSummary>, actions: list<InboxActionSummary>}
  * @phpstan-type InboxAskSummary array{askId: string, extended: bool, closed: bool, items: list<InboxItemListSummary>}
  */
 final readonly class InboxItemPayload
@@ -37,6 +41,7 @@ final readonly class InboxItemPayload
         private InboxCardWatchRepository $inboxCardWatches,
         private ReviewRepository $reviews,
         private InboxItemRepository $inboxItems,
+        private InboxActionRepository $inboxActions,
     ) {
     }
 
@@ -111,7 +116,8 @@ final readonly class InboxItemPayload
         $review = InboxItemKind::Review === $item->kind ? $this->inboxReviews->findOneBy(['item' => $item]) : null;
         $watch = InboxItemKind::Wait === $item->kind ? $this->inboxCardWatches->findOneForItem($item) : null;
         $waits = null === $watch ? [] : array_values($watch->waits->toArray());
-        usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => $a->startedAt <=> $b->startedAt);
+        // A start time holds whole seconds, so on a tie an ended wait comes before the open one that replaced it.
+        usort($waits, static fn (InboxCardWait $a, InboxCardWait $b): int => [$a->startedAt, null === $a->endedAt, $a->key()] <=> [$b->startedAt, null === $b->endedAt, $b->key()]);
 
         return [
             ...$this->forListItem($item),
@@ -164,6 +170,21 @@ final readonly class InboxItemPayload
                     'endReason' => $wait->endReason?->value,
                 ],
                 $waits,
+            ),
+            'suggestedActions' => $item->suggestedActions ?? [],
+            'actions' => array_map(
+                static fn (InboxAction $action): array => [
+                    'actionId' => (string) $action->id,
+                    'kind' => $action->kind->value,
+                    'note' => $action->note,
+                    'requestedBy' => $action->requestedBy?->fullName,
+                    'requestedAt' => $action->requestedAt->format(\DATE_ATOM),
+                    'bridgeCommandId' => $action->bridgeCommandId?->toRfc4122(),
+                    'workRequestId' => $action->workRequestId?->toRfc4122(),
+                    'pauseId' => $action->pauseId?->toRfc4122(),
+                    'cancelledAt' => $action->cancelledAt?->format(\DATE_ATOM),
+                ],
+                $this->inboxActions->findByItem($item),
             ),
         ];
     }

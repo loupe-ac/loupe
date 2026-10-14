@@ -170,6 +170,11 @@ card that needs that slot pauses with "workflow slot missing".
 The Backlog and the terminal columns are not slots. A rule names them as
 `@backlog` and `@terminal`.
 
+A slot can name `stageWork`, the kind of work that does the stage of the slot.
+The kind must be the kind that a rule of the same slot requests. Lifecycle sets
+it for Tech design and for Implementation. The inbox action **Send an agent**
+reads it. A card in a column with no `stageWork` gets no such action.
+
 ## Managed cards
 
 A card is managed by default. A managed card follows the template, and a person

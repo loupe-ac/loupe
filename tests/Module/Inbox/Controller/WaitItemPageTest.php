@@ -9,9 +9,12 @@ use App\Module\Board\Entity\CardDocument;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Inbox\Entity\InboxAction;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxCardWaitEndReason;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItemState;
+use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\CardWaitReconciler;
 use App\Module\Project\Entity\Project;
@@ -153,7 +156,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-inbox-source="agent"]'));
     }
 
-    public function test_the_panel_lists_the_current_and_ended_waits_and_offers_only_dismiss(): void
+    public function test_the_thread_lists_the_current_and_ended_waits_and_makes_review_the_main_action(): void
     {
         $this->reconcile();
         $this->document->addVersion('# Two', '<h1>Two</h1>');
@@ -167,10 +170,10 @@ final class WaitItemPageTest extends WebTestCase
         $current = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
         self::assertCount(1, $current);
         self::assertStringContainsString('The document "Tech design", version 2, of card 4 waits for your review.', $current->text());
-        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
-        self::assertCount(1, $link);
-        self::assertStringContainsString('Review the document', $link->text());
-        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $link->attr('href'));
+        $main = $crawler->filter('#inbox-item-1 .inbox-split__main');
+        self::assertCount(1, $main);
+        self::assertSame('Review', trim($main->text()));
+        self::assertSame('/projects/'.$this->project->id.'/documents/'.$this->document->id.'/review', $main->attr('href'));
         $ended = $crawler->filter('#inbox-item-1 [data-inbox-wait="ended"]');
         self::assertCount(1, $ended);
         self::assertStringContainsString('version 1', $ended->text());
@@ -178,11 +181,12 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertCount(0, $crawler->filter('form[name="inbox_done_'.$item->id.'"]'));
         self::assertCount(0, $crawler->filter('form[name="inbox_answer_'.$item->id.'"]'));
-        $dismiss = $crawler->filter('form[name="inbox_decline_'.$item->id.'"] button[type="submit"]');
+        $dismiss = $crawler->filter('form[name="inbox_decline_'.$item->id.'"]');
         self::assertCount(1, $dismiss);
-        self::assertSame('Dismiss', trim($dismiss->text()));
-        self::assertStringContainsString('Dismiss hides this item.', $crawler->filter('#inbox-item-1')->text());
-        self::assertCount(1, $crawler->filter('#inbox-item-1 button[type="submit"]'));
+        $row = $crawler->filter('#inbox-item-1 button[data-inbox-action="dismiss"]');
+        self::assertSame('inbox_decline_'.$item->id, $row->attr('form'));
+        self::assertStringContainsString('Dismiss', $row->text());
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $crawler->filter('#inbox-item-1 a[data-inbox-action="open"]')->attr('href'));
     }
 
     public function test_a_wait_of_a_deleted_document_shows_its_reason_with_no_link(): void
@@ -211,15 +215,13 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $wait = $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]');
-        self::assertSame('The implement worker stopped because it is blocked.', $wait->filter('.lp-inbox-waits__reason')->text());
-        self::assertSame('What the implement worker reported', $wait->filter('.lp-inbox-waits__detail-label')->text());
-        self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-inbox-waits__detail .prose')->text()));
-        $link = $crawler->filter('#inbox-item-1 [data-inbox-wait-link]');
-        self::assertCount(1, $link);
-        self::assertSame('Open card 4', trim($link->text()));
-        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $link->attr('href'));
-        self::assertSame('card-drawer-frame', $link->attr('data-turbo-frame'));
-        self::assertSame('click->card-drawer#prepare', $link->attr('data-action'));
+        self::assertSame('Implement worker', $wait->filter('.lp-comment-author')->text());
+        self::assertSame('Needs the API key. Add it to the bridge config.', trim($wait->filter('.lp-review-doc__prose')->text()));
+        $open = $crawler->filter('#inbox-item-1 a[data-inbox-action="open"]');
+        self::assertCount(1, $open);
+        self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $open->attr('href'));
+        self::assertSame('card-drawer-frame', $open->attr('data-turbo-frame'));
+        self::assertSame('click->card-drawer#prepare', $open->attr('data-action'));
     }
 
     public function test_a_run_wait_on_its_own_card_page_offers_no_link_to_that_card(): void
@@ -231,7 +233,32 @@ final class WaitItemPageTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-wait="current"]'));
-        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-wait-link]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 [data-inbox-action="open"]'));
+        // The run cannot resume and Open is the card itself, so the first enabled action, Send an agent, takes the main part.
+        self::assertSame('send-agent', $crawler->filter('#inbox-item-1 .inbox-split__main')->attr('data-inbox-action'));
+        self::assertSame('true', $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel [data-inbox-action="start-session"]')->attr('aria-disabled'));
+        self::assertCount(1, $crawler->filter('#inbox-item-1 .inbox-split .lp-menu__panel button[data-inbox-action="dismiss"]'));
+    }
+
+    public function test_send_an_agent_from_the_card_page_queues_the_agent(): void
+    {
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun();
+        $cardUrl = '/projects/'.$this->project->id.'/board/cards/'.$this->card->id;
+        $crawler = $this->client->request(Request::METHOD_GET, $cardUrl);
+
+        $this->client->submit($crawler->filter('#inbox-item-1 .inbox-split__main')->form());
+
+        self::assertResponseRedirects($cardUrl.'?tab=conversation');
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('The agent of item 1 is queued.', $crawler->text());
+        $actions = static::getContainer()->get(InboxActionRepository::class);
+        self::assertInstanceOf(InboxActionRepository::class, $actions);
+        self::assertSame([InboxActionKind::SendAgent], array_map(static fn (InboxAction $action): InboxActionKind => $action->kind, $actions->findAll()));
+        // The agent answers the open wait, so the queued You card replaces the reply.
+        self::assertNotNull($actions->findAll()[0]->waitId);
+        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-action-status="queued"]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void
@@ -257,9 +284,35 @@ final class WaitItemPageTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-1 form'));
     }
 
-    private function blockedRun(): void
+    public function test_the_reply_heading_shows_the_reason_of_the_suggested_default(): void
     {
-        $this->em->persist(new WorkerRun(
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun(['suggestedActions' => [
+            ['action' => 'retry-card', 'reason' => 'The card is not paused.', 'recommended' => true],
+            ['action' => 'open', 'reason' => 'Add the key, then read the card.'],
+        ]]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Add the key, then read the card.', trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
+    }
+
+    public function test_the_reply_heading_falls_back_to_the_label_with_no_suggestion(): void
+    {
+        $this->document->status = DocumentStatus::Approved;
+        $this->blockedRun();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(trim($crawler->filter('#inbox-item-1 .inbox-split__main')->text()), trim($crawler->filter('#inbox-item-1 [data-inbox-reply-heading]')->text()));
+    }
+
+    /** @param array<string, mixed>|null $resultFields */
+    private function blockedRun(?array $resultFields = null): void
+    {
+        $run = new WorkerRun(
             project: $this->project,
             bridgeId: Uuid::v7(),
             subjectType: WorkSubject::CARD,
@@ -268,7 +321,9 @@ final class WaitItemPageTest extends WebTestCase
             workKind: 'implement',
             state: WorkerRunState::Blocked,
             output: 'Needs the API key. Add it to the bridge config.',
-        ));
+        );
+        $run->resultFields = $resultFields;
+        $this->em->persist($run);
         $this->em->flush();
         $this->reconcile();
     }

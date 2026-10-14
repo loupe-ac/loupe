@@ -14,8 +14,8 @@ types:
 slots:
     - { key: next, label: workflow.slot.next }
     - { key: product-design, label: workflow.slot.product_design }
-    - { key: tech-design, label: workflow.slot.tech_design }
-    - { key: implementation, label: workflow.slot.implementation }
+    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design }
+    - { key: implementation, label: workflow.slot.implementation, stageWork: implement }
     - { key: in-review, label: workflow.slot.in_review }
 manualMoves:
     - { from: '@backlog', to: next }

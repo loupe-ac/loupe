@@ -23,7 +23,12 @@ const (
 	CapabilityWorkRequests = "work-requests"
 	CapabilityInteractive  = "interactive"
 	CapabilityAppPrompts   = "app-prompts"
+	CapabilitySession      = "session"
 )
+
+// SessionKind is the work kind that starts an interactive session from an
+// inbox item. Its entry must be interactive.
+const SessionKind = "session"
 
 // workPlaceholders are the names a work entry can fill.
 var workPlaceholders = append([]string{"cardId", "cardNumber", "projectId", "project", "kind", "ruleId", "workRequestId", "subjectType", "subjectId"}, contextPlaceholders...)
@@ -127,6 +132,9 @@ func checkWork(kind string, w *WorkEntry) error {
 	}
 	if w.Action == ActionInteractive && goos == "windows" {
 		errs = append(errs, fmt.Errorf("action %s needs a POSIX shell on macOS or Linux", ActionInteractive))
+	}
+	if kind == SessionKind && w.Action != ActionInteractive {
+		errs = append(errs, fmt.Errorf("the %s entry needs action %s, because it opens a session from an inbox item", SessionKind, ActionInteractive))
 	}
 	if err := checkWord("model", w.Model); err != nil {
 		errs = append(errs, err)
@@ -275,7 +283,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 			Project: slug,
 			Dir:     s.dirs[slug],
 			Schema:  schema,
-			Prompt:  directive.Render(w.Prompt, v),
+			Prompt:  renderWork(w, w.Prompt, v),
 			Pool:    DefaultPool,
 		}.withRun(s.appRun)
 		m.Model, m.Effort = cmp.Or(w.Model, m.Model), w.Effort
@@ -296,7 +304,7 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	}
 	switch entry.Action {
 	case "":
-		m.Prompt = directive.Render(entry.Prompt, v)
+		m.Prompt = renderWork(w, entry.Prompt, v)
 		m.Pool = cmp.Or(entry.WorkerPool, DefaultPool)
 		// A model the request names is no draw, so the run joins no experiment.
 		if entry.experiment != nil && w.Model == "" {
@@ -307,11 +315,24 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 		}
 	case ActionInteractive:
 		m.Prompt = directive.RenderPlain(entry.Prompt, v)
+		if w.Context.InboxActionID != "" && w.Context.InboxItemID != "" {
+			m.Prompt += "\n\n" + directive.InboxNote(w.Context.InboxItemNumber, w.Context.InboxItemID)
+		}
 	case ActionCommand:
 		m.Command = &Command{Argv: renderArgv(entry.Run, v), Timeout: entry.commandTimeout}
 	}
 
 	return m
+}
+
+// renderWork renders the prompt of a run. A request that an inbox action sent
+// gets the line that names the item, before the footer.
+func renderWork(w api.WorkRequest, template string, v map[string]string) string {
+	if w.InboxActionID != "" {
+		return directive.RenderInboxAction(template, v, directive.InboxAction{ItemID: w.InboxItemID, ItemNumber: w.InboxItemNumber, ActionID: w.InboxActionID})
+	}
+
+	return directive.Render(template, v)
 }
 
 // workValues are the values a work entry fills its placeholders with. A
@@ -396,6 +417,7 @@ func (s *Set) WorkDead(slug string) string {
 
 // Capabilities lists what the work map lets the bridge claim: work-requests
 // for any entry or for app prompts, interactive too for an interactive entry,
+// session for the session entry,
 // subject- with the subject type for each entry whose subject is no card, and
 // app-prompts when the set runs app prompts. An entry whose agent or account
 // is off adds neither. It is nil for a set with no work.
@@ -404,21 +426,25 @@ func (s *Set) Capabilities() []string {
 		return nil
 	}
 	out := []string{CapabilityWorkRequests}
-	interactive := false
+	interactive, session := false, false
 	var subjects []string
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, entry := range s.work {
+	for kind, entry := range s.work {
 		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs()) {
 			continue
 		}
 		interactive = interactive || entry.Action == ActionInteractive
+		session = session || kind == SessionKind
 		if entry.Subject != api.SubjectCard && !slices.Contains(subjects, entry.Subject) {
 			subjects = append(subjects, entry.Subject)
 		}
 	}
 	if interactive {
 		out = append(out, CapabilityInteractive)
+	}
+	if session {
+		out = append(out, CapabilitySession)
 	}
 	slices.Sort(subjects)
 	for _, subject := range subjects {

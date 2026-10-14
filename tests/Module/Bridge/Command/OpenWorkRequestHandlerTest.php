@@ -76,10 +76,13 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             'ruleId' => 'implement-on-entry',
             'createdAt' => self::NOW,
             'resumeSessionId' => null,
-            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null],
+            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null],
             'model' => null,
             'effort' => null,
             'prompt' => null,
+            'inboxActionId' => null,
+            'inboxItemNumber' => null,
+            'inboxItemId' => null,
         ]], $this->outboxPayloads());
         self::assertNull($stored->prompt);
 
@@ -203,6 +206,36 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
 
         self::assertSame((string) $unfinished->sessionId, (string) $request->resumeSessionId);
         self::assertSame((string) $unfinished->sessionId, $this->outboxPayloads()[0]['resumeSessionId']);
+    }
+
+    public function test_a_fresh_request_ignores_the_unfinished_run_it_could_resume(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-fresh');
+        $cardId = Uuid::v7();
+        $this->seedRun($this->em(), $project, receivedAt: new \DateTimeImmutable('2026-10-01 09:00:00'), workKind: 'implement', cardId: $cardId, state: WorkerRunState::Failed);
+        $this->unfinishedRunOf($this->seedWorkRequest($this->em(), $project, cardId: $cardId, state: WorkRequestState::Done, createdAt: new \DateTimeImmutable('2026-10-01 10:00:00')));
+
+        $request = $this->open($project, $cardId, fresh: true);
+
+        self::assertNull($request->resumeSessionId);
+        self::assertNull($this->outboxPayloads()[0]['resumeSessionId']);
+    }
+
+    public function test_the_inbox_action_and_item_number_are_stored_and_written_to_the_outbox(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-inbox');
+        $actionId = Uuid::v7();
+
+        $request = $this->open($project, Uuid::v7(), ruleId: 'inbox:send-agent', inboxActionId: $actionId, inboxItemNumber: 12);
+
+        $this->em()->clear();
+        $stored = $this->em()->find(WorkRequest::class, $request->id);
+        self::assertInstanceOf(WorkRequest::class, $stored);
+        self::assertSame([(string) $actionId, 12], [(string) $stored->inboxActionId, $stored->inboxItemNumber]);
+        $payload = $this->outboxPayloads()[0];
+        self::assertSame([$actionId->toRfc4122(), 12, 'inbox:send-agent'], [$payload['inboxActionId'], $payload['inboxItemNumber'], $payload['ruleId']]);
     }
 
     public function test_a_run_that_ended_unfinished_more_than_a_day_ago_is_not_resumed(): void
@@ -507,10 +540,13 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         ?string $model = null,
         ?string $effort = null,
         ?string $prompt = null,
+        bool $fresh = false,
+        ?Uuid $inboxActionId = null,
+        ?int $inboxItemNumber = null,
     ): WorkRequest {
         $handler = $this->handler();
 
-        return $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, $kind, $capability, $ruleId, $context, $model, $effort, $prompt));
+        return $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, $kind, $capability, $ruleId, $context, $model, $effort, $prompt, $fresh, $inboxActionId, $inboxItemNumber));
     }
 
     private function unfinishedRunOf(

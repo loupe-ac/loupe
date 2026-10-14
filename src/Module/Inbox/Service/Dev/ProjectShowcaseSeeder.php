@@ -676,6 +676,7 @@ final readonly class ProjectShowcaseSeeder
             output: 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network of the worker, then resume the card.',
             receivedAt: $endedAt,
         );
+        $run->resultFields = ['title' => 'Restore the network of the review worker'];
         $this->em->persist($run);
         $this->em->persist(new WorkerRunStateChange($run, WorkerRunState::Blocked, $endedAt, $endedAt));
         $this->em->persist(new CardPause($card, $project, 'work-stopped', 'review', PauseKind::WorkStopped, $endedAt));

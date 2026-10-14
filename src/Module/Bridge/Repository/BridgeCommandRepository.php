@@ -9,7 +9,6 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
-use App\Module\Project\Entity\Project;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\Types\Types;
@@ -158,6 +157,36 @@ class BridgeCommandRepository extends ServiceEntityRepository
     }
 
     /**
+     * The commands with these ids, with their runs loaded.
+     *
+     * @param list<Uuid> $ids
+     *
+     * @return array<string, BridgeCommand> keyed by the RFC 4122 command id
+     */
+    public function findByIds(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        /** @var list<BridgeCommand> $commands */
+        $commands = $this->createQueryBuilder('c')
+            ->addSelect('r')
+            ->join('c.workerRun', 'r')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $ids))
+            ->getQuery()
+            ->getResult();
+
+        $byId = [];
+        foreach ($commands as $command) {
+            $byId[(string) $command->id] = $command;
+        }
+
+        return $byId;
+    }
+
+    /**
      * The newest command of each run. On a tie of the request time, the higher id wins.
      *
      * @param list<WorkerRun> $runs
@@ -186,13 +215,12 @@ class BridgeCommandRepository extends ServiceEntityRepository
         return $latest;
     }
 
-    /** @return list<Project> the projects that hold a pending command whose time ran out */
-    public function findProjectsWithDue(\DateTimeImmutable $now): array
+    /** @return list<BridgeCommand> the pending commands whose time ran out */
+    public function findDue(\DateTimeImmutable $now): array
     {
-        return array_values($this->getEntityManager()->createQueryBuilder()
-            ->select('p')
-            ->from(Project::class, 'p')
-            ->andWhere('p IN (SELECT IDENTITY(c.project) FROM '.BridgeCommand::class.' c WHERE c.state = :pending AND c.expiresAt <= :now)')
+        return array_values($this->createQueryBuilder('c')
+            ->andWhere('c.state = :pending')
+            ->andWhere('c.expiresAt <= :now')
             ->setParameter('pending', BridgeCommandState::Pending->value)
             ->setParameter('now', $now, Types::DATETIME_IMMUTABLE)
             ->getQuery()

@@ -106,6 +106,9 @@ final readonly class OpenWorkRequestHandler
                 $request->model = $command->model;
                 $request->effort = $command->effort;
                 $request->prompt = $command->prompt;
+                $request->inboxActionId = $command->inboxActionId;
+                $request->inboxItemNumber = $command->inboxItemNumber;
+                $request->inboxItemId = $command->inboxItemId;
                 $this->em->persist($request);
                 // The payload names the request, so the row needs its id first.
                 $this->em->flush();
@@ -154,7 +157,7 @@ final readonly class OpenWorkRequestHandler
      */
     private function sessionToResume(OpenWorkRequestCommand $command): ?Uuid
     {
-        if (!$command->subject->isCard()) {
+        if ($command->fresh || !$command->subject->isCard()) {
             return null;
         }
         $previous = $this->workRequests->findLatestOfCardKindRule($command->subject->id, $command->kind, $command->ruleId);

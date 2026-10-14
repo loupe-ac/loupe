@@ -11,6 +11,7 @@ use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Install\InboxInstallFlags;
+use App\Module\Inbox\Service\RunSuggestions;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
@@ -20,7 +21,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type InboxAskSummary from InboxItemPayload
  */
-#[McpTool(name: self::NAME, description: 'Hand questions, reviews and to-dos to the project owner, who answers them in the Loupe inbox. Call inbox_search first: when an open item already asks the same thing, add it to your ask with inbox_join instead. Pass your sessionId, the id of your agent session: the first set value of $LOUPE_SESSION_ID, $CLAUDE_CODE_SESSION_ID and $CODEX_THREAD_ID. Pass bridgeId when the bridge started you, so it can resume your session once the owner answers. Pass context, one or two sentences the owner reads above the items. Each item has a kind, question, todo or review, and a title. A review requires exactly one reviewDocumentId or reviewPullRequestId. Read pullRequestId from card_get. The owner approves or requests changes in Loupe; no code-host review is sent. A question takes options, freeText, or both; set multiple to let the owner pick several options. A todo, such as "publish the release notes", takes no options, and the owner marks it done or declines it. blocking says whether you wait for the item: a question blocks unless you pass false, and a todo or review does not block unless you pass true. cardIds and documentIds link the item to cards and documents of this project. The items go to your session\'s open ask, or to a new ask when you have none. A new ask with no blocking item closes at once, and its items stay in the inbox. The response carries the askId and each item with its itemId and its number, the short label that counts from 1 inside this project. After a blocking ask, end your turn.')]
+#[McpTool(name: self::NAME, description: 'Hand questions, reviews and to-dos to the project owner, who answers them in the Loupe inbox. Call inbox_search first: when an open item already asks the same thing, add it to your ask with inbox_join instead. Pass your sessionId, the id of your agent session: the first set value of $LOUPE_SESSION_ID, $CLAUDE_CODE_SESSION_ID and $CODEX_THREAD_ID. Pass bridgeId when the bridge started you, so it can resume your session once the owner answers. Pass context, one or two sentences the owner reads above the items. Each item has a kind, question, todo or review, and a title. A review requires exactly one reviewDocumentId or reviewPullRequestId. Read pullRequestId from card_get. The owner approves or requests changes in Loupe; no code-host review is sent. A question takes options, freeText, or both; set multiple to let the owner pick several options. A todo, such as "publish the release notes", takes no options, and the owner marks it done or declines it. blocking says whether you wait for the item: a question blocks unless you pass false, and a todo or review does not block unless you pass true. cardIds and documentIds link the item to cards and documents of this project. suggestedActions, at most three, tells the owner which built-in actions you suggest next to the answer; call inbox_actions for the list and for the actions that fit a card now. Loupe shows a suggestion only while the action fits the item. The items go to your session\'s open ask, or to a new ask when you have none. A new ask with no blocking item closes at once, and its items stay in the inbox. The response carries the askId and each item with its itemId and its number, the short label that counts from 1 inside this project. After a blocking ask, end your turn.')]
 final readonly class InboxAskTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_ask';
@@ -70,6 +71,16 @@ final readonly class InboxAskTool implements FlagGatedToolInterface
                 'documentIds' => ['type' => 'array', 'items' => ['type' => 'string'], 'maxItems' => InboxLimits::MAX_LINKS, 'description' => 'ids of documents of this project'],
                 'reviewDocumentId' => ['type' => 'string', 'description' => 'the document to review; a review requires exactly one reviewDocumentId or reviewPullRequestId'],
                 'reviewPullRequestId' => ['type' => 'string', 'description' => 'the pullRequestId from card_get to review; records a Loupe response without submitting a code-host review'],
+                'suggestedActions' => ['type' => 'array', 'maxItems' => RunSuggestions::MAX_SUGGESTIONS, 'description' => 'actions you suggest the owner takes with this item, each once; call inbox_actions for the list', 'items' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'action' => ['type' => 'string', 'enum' => RunSuggestions::ACTIONS],
+                        'reason' => ['type' => 'string', 'maxLength' => RunSuggestions::MAX_REASON_LENGTH, 'description' => 'one line the owner reads next to the action'],
+                        'recommended' => ['type' => 'boolean', 'description' => 'the action Loupe offers first, when it fits; mark at most one'],
+                        'cardId' => ['type' => 'string', 'description' => 'the card the action is about; one of the cardIds of this item'],
+                    ],
+                    'required' => ['action', 'reason'],
+                ]],
             ],
             'required' => ['kind', 'title'],
         ], minItems: 1, maxItems: InboxLimits::MAX_ITEMS_PER_CALL)]

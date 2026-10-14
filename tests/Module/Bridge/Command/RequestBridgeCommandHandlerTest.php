@@ -83,12 +83,15 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
             'endedAt' => '2026-01-01T10:05:00.000000+00:00',
             'expiresAt' => '2026-09-29T12:15:00+00:00',
             'cause' => 'person',
-            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null],
+            'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null],
             'model' => null,
             'effort' => null,
             'harness' => null,
             'account' => null,
             'runModel' => null,
+            'inboxActionId' => null,
+            'inboxItemNumber' => null,
+            'inboxItemId' => null,
         ]], $this->outboxPayloads());
 
         $record = $audit->record('bridge.command_requested');
@@ -96,6 +99,23 @@ final class RequestBridgeCommandHandlerTest extends KernelTestCase
         self::assertSame((string) $command->id, $record->subject?->id);
         self::assertSame('resume-run', $record->context['kind']);
         self::assertSame((string) $run->id, $record->context['runId']);
+    }
+
+    public function test_the_inbox_action_and_item_number_are_stored_and_written_to_the_outbox(): void
+    {
+        $this->boot();
+        [$owner, $run] = $this->scenario('command-inbox');
+        $actionId = Uuid::v7();
+        $handler = self::getContainer()->get(RequestBridgeCommandHandler::class);
+        self::assertInstanceOf(RequestBridgeCommandHandler::class, $handler);
+
+        $command = $handler(new RequestBridgeCommandCommand($run, BridgeCommandKind::StopRun, $owner, null, BridgeCommandCause::InboxAction, $actionId, 12));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(BridgeCommand::class, $command->id);
+        self::assertSame([(string) $actionId, 12], [(string) $stored?->inboxActionId, $stored?->inboxItemNumber]);
+        $payload = $this->outboxPayloads()[0];
+        self::assertSame([$actionId->toRfc4122(), 12], [$payload['inboxActionId'], $payload['inboxItemNumber']]);
     }
 
     public function test_the_payload_keeps_the_absent_run_fields_null(): void

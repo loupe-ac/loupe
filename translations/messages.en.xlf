@@ -2796,6 +2796,10 @@
                 <source>project.connect.tool.inbox_list</source>
                 <target>List the inbox items, newest first, filtered by state, ask, session, card or document. One page of summary rows at a time.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_actions">
+                <source>project.connect.tool.inbox_actions</source>
+                <target>List the built-in actions you can suggest on an inbox item, and which of them fit a card now.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.inbox_get">
                 <source>project.connect.tool.inbox_get</source>
                 <target>Read one inbox item, with its answer and the cards, documents and asks it is linked to.</target>
@@ -4546,7 +4550,7 @@
             </trans-unit>
             <trans-unit id="landing.features.inbox.text">
                 <source>landing.features.inbox.text</source>
-                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list.</target>
+                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, or pick it up yourself.</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.caption">
                 <source>landing.features.inbox.caption</source>
@@ -5228,6 +5232,34 @@
             <trans-unit id="inbox.presence.label.quiet"><source>inbox.presence.label.quiet</source><target>Agent bridge quiet</target></trans-unit>
             <trans-unit id="inbox.presence.label.none"><source>inbox.presence.label.none</source><target>Agent without a bridge</target></trans-unit>
             <trans-unit id="inbox.presence.label.closed"><source>inbox.presence.label.closed</source><target>Agent session</target></trans-unit>
+            <trans-unit id="inbox.action.resume-run.label"><source>inbox.action.resume-run.label</source><target>Resume the run</target></trans-unit>
+            <trans-unit id="inbox.action.resume-run.effect"><source>inbox.action.resume-run.effect</source><target>Wakes the stopped worker so it carries on with its session.</target></trans-unit>
+            <trans-unit id="inbox.action.retry-card.label"><source>inbox.action.retry-card.label</source><target>Retry the card</target></trans-unit>
+            <trans-unit id="inbox.action.retry-card.effect"><source>inbox.action.retry-card.effect</source><target>Releases the pause so the workflow runs the rule again.</target></trans-unit>
+            <trans-unit id="inbox.action.send-agent.label"><source>inbox.action.send-agent.label</source><target>Send an agent</target></trans-unit>
+            <trans-unit id="inbox.action.send-agent.effect"><source>inbox.action.send-agent.effect</source><target>Starts a worker for the stage work of the card.</target></trans-unit>
+            <trans-unit id="inbox.action.review.label"><source>inbox.action.review.label</source><target>Review</target></trans-unit>
+            <trans-unit id="inbox.action.review.effect"><source>inbox.action.review.effect</source><target>Opens the page where you review the work.</target></trans-unit>
+            <trans-unit id="inbox.action.open.label"><source>inbox.action.open.label</source><target>Open</target></trans-unit>
+            <trans-unit id="inbox.action.open.effect"><source>inbox.action.open.effect</source><target>Opens the card or the document.</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.label"><source>inbox.action.start-session.label</source><target>Start an interactive session</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.effect"><source>inbox.action.start-session.effect</source><target>Opens a terminal on your machine, in a new session on this card.</target></trans-unit>
+            <trans-unit id="inbox.action.start-session.disabled"><source>inbox.action.start-session.disabled</source><target>No bridge can open a session.</target></trans-unit>
+            <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
+            <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
+            <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
+            <trans-unit id="inbox.action.error.not_available"><source>inbox.action.error.not_available</source><target>This action no longer fits the item. Reload the page to see the actions that do.</target></trans-unit>
+            <trans-unit id="inbox.action.error.not_found"><source>inbox.action.error.not_found</source><target>This action does not belong to the item.</target></trans-unit>
+            <trans-unit id="inbox.action.error.not_cancellable"><source>inbox.action.error.not_cancellable</source><target>This action cannot be cancelled now.</target></trans-unit>
+            <trans-unit id="inbox.action.status.queued"><source>inbox.action.status.queued</source><target>Queued</target></trans-unit>
+            <trans-unit id="inbox.action.status.offline"><source>inbox.action.status.offline</source><target>No bridge is online.</target></trans-unit>
+            <trans-unit id="inbox.action.status.expired"><source>inbox.action.status.expired</source><target>Expired. No bridge took it.</target></trans-unit>
+            <trans-unit id="inbox.action.status.refused"><source>inbox.action.status.refused</source><target>Refused: %reason%</target></trans-unit>
+            <trans-unit id="inbox.action.status.refused_no_reason"><source>inbox.action.status.refused_no_reason</source><target>Refused</target></trans-unit>
+            <trans-unit id="inbox.action.status.cancelled"><source>inbox.action.status.cancelled</source><target>Cancelled</target></trans-unit>
+            <trans-unit id="inbox.action.status.preparing"><source>inbox.action.status.preparing</source><target>Preparing</target></trans-unit>
+            <trans-unit id="inbox.action.status.resumed"><source>inbox.action.status.resumed</source><target>Preparing</target></trans-unit>
+            <trans-unit id="inbox.action.status.retried"><source>inbox.action.status.retried</source><target>Retried at %time%</target></trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>
                 <target>Question</target>
@@ -5440,10 +5472,6 @@
                 <source>bridge.inbox_wait.waits_for_person.short</source>
                 <target>The %worker% waits for an answer from you.</target>
             </trans-unit>
-            <trans-unit id="inbox.wait.report">
-                <source>inbox.wait.report</source>
-                <target>What the %worker% reported</target>
-            </trans-unit>
             <trans-unit id="bridge.inbox_wait.folded.action">
                 <source>bridge.inbox_wait.folded.action</source>
                 <target>Open card %card%</target>
@@ -5467,14 +5495,6 @@
             <trans-unit id="inbox.wait.ended.dismissed">
                 <source>inbox.wait.ended.dismissed</source>
                 <target>Closed because you dismissed the item.</target>
-            </trans-unit>
-            <trans-unit id="inbox.wait.dismiss_help">
-                <source>inbox.wait.dismiss_help</source>
-                <target>Dismiss hides this item. The card still waits until you act on it.</target>
-            </trans-unit>
-            <trans-unit id="inbox.item.dismiss">
-                <source>inbox.item.dismiss</source>
-                <target>Dismiss</target>
             </trans-unit>
             <trans-unit id="inbox.item.blocking">
                 <source>inbox.item.blocking</source>
@@ -5624,6 +5644,38 @@
                 <source>inbox.flash.declined</source>
                 <target>Item %number% is closed.</target>
             </trans-unit>
+            <trans-unit id="inbox.flash.resumed">
+                <source>inbox.flash.resumed</source>
+                <target>The resume of item %number% is queued.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.retried">
+                <source>inbox.flash.retried</source>
+                <target>The card of item %number% is released.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.agent_sent">
+                <source>inbox.flash.agent_sent</source>
+                <target>The agent of item %number% is queued.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.session_started">
+                <source>inbox.flash.session_started</source>
+                <target>The session of item %number% is queued.</target>
+            </trans-unit>
+            <trans-unit id="inbox.flash.cancelled">
+                <source>inbox.flash.cancelled</source>
+                <target>The action of item %number% is cancelled.</target>
+            </trans-unit>
+            <trans-unit id="inbox.thread.loupe"><source>inbox.thread.loupe</source><target>Loupe</target></trans-unit>
+            <trans-unit id="inbox.thread.stopped"><source>inbox.thread.stopped</source><target>stopped %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.waiting"><source>inbox.thread.waiting</source><target>noticed %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.note_placeholder"><source>inbox.thread.note_placeholder</source><target>Add a note (optional)</target></trans-unit>
+            <trans-unit id="inbox.thread.note_hint"><source>inbox.thread.note_hint</source><target>The note stays with this item in Loupe.</target></trans-unit>
+            <trans-unit id="inbox.thread.other_actions"><source>inbox.thread.other_actions</source><target>Other actions</target></trans-unit>
+            <trans-unit id="inbox.thread.you"><source>inbox.thread.you</source><target>You</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.resume-run"><source>inbox.thread.you_verb.resume-run</source><target>resumed the run at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.retry-card"><source>inbox.thread.you_verb.retry-card</source><target>retried the card at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.send-agent"><source>inbox.thread.you_verb.send-agent</source><target>sent an agent at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.start-session"><source>inbox.thread.you_verb.start-session</source><target>started a session at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.cancel"><source>inbox.thread.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="inbox.project_list.open_items">
                 <source>inbox.project_list.open_items</source>
                 <target>{0}0 open inbox items|{1}1 open inbox item|]1,Inf[%count% open inbox items</target>
@@ -7192,6 +7244,11 @@
             <trans-unit id="inbox.status.verb.done"><source>inbox.status.verb.done</source><target>Marked done</target></trans-unit>
             <trans-unit id="inbox.status.verb.declined"><source>inbox.status.verb.declined</source><target>Closed</target></trans-unit>
             <trans-unit id="inbox.status.verb.reviewed"><source>inbox.status.verb.reviewed</source><target>Review recorded</target></trans-unit>
+            <trans-unit id="inbox.status.verb.resumed"><source>inbox.status.verb.resumed</source><target>Resume queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.retried"><source>inbox.status.verb.retried</source><target>Card released</target></trans-unit>
+            <trans-unit id="inbox.status.verb.agent-sent"><source>inbox.status.verb.agent-sent</source><target>Agent queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.session-started"><source>inbox.status.verb.session-started</source><target>Session queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.cancelled"><source>inbox.status.verb.cancelled</source><target>Action cancelled</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%.</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed_detail"><source>inbox.status.ask_closed_detail</source><target>%title% is closed.</target></trans-unit>
             <trans-unit id="inbox.status.ask_left"><source>inbox.status.ask_left</source><target>{0}%verb%.|{1}%verb%. 1 item of this ask is still open.|]1,Inf[%verb%. %count% items of this ask are still open.</target></trans-unit>

@@ -24,10 +24,12 @@ const (
 )
 
 // The causes of a command. A resume after an ask close says that the owner
-// answered, and a person's resume says that a person fixed the cause.
+// answered, a person's resume says that a person fixed the cause, and a click
+// on an inbox action resumes like a person's resume.
 const (
-	CausePerson    = "person"
-	CauseAskClosed = "ask-closed"
+	CausePerson      = "person"
+	CauseAskClosed   = "ask-closed"
+	CauseInboxAction = "inbox-action"
 )
 
 // The states a bridge answers a command with.
@@ -75,6 +77,12 @@ type Command struct {
 	Harness  string `json:"harness,omitempty"`
 	Account  string `json:"account,omitempty"`
 	RunModel string `json:"runModel,omitempty"`
+	// InboxActionID, InboxItemNumber and InboxItemID name the inbox action the owner
+	// clicked, and its item. They carry ids only, never the owner's note. A
+	// null decodes as "" or 0, and an older server sends none.
+	InboxActionID   string `json:"inboxActionId,omitempty"`
+	InboxItemNumber int    `json:"inboxItemNumber,omitempty"`
+	InboxItemID     string `json:"inboxItemId,omitempty"`
 }
 
 // CommandSubject names the command itself.

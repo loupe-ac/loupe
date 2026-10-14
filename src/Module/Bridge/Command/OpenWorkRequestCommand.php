@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use Symfony\Component\Uid\Uuid;
 
 final readonly class OpenWorkRequestCommand
 {
@@ -22,6 +23,11 @@ final readonly class OpenWorkRequestCommand
         public ?string $model = null,
         public ?string $effort = null,
         public ?string $prompt = null,
+        /** Starts a new session even when an unfinished run of the card could resume. */
+        public bool $fresh = false,
+        public ?Uuid $inboxActionId = null,
+        public ?int $inboxItemNumber = null,
+        public ?Uuid $inboxItemId = null,
     ) {
     }
 }

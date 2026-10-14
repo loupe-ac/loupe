@@ -49,6 +49,10 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $closeNote = null;
 
+    /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string}>|null what the asking agent suggests, in the order it sent */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    public ?array $suggestedActions = null;
+
     #[ORM\Column]
     public \DateTimeImmutable $updatedAt;
 

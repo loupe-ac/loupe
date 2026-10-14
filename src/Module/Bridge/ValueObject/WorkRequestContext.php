@@ -8,9 +8,9 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * What a work request knows about its card when it opens: the pull request it
- * acts on and why, and the document it revises. A snapshot, so a later push
- * leaves the head sha behind. A bridge fills prompts and commands with these
- * values, so each one has a strict shape.
+ * acts on and why, the document it revises, and the inbox action that asked
+ * for it. A snapshot, so a later push leaves the head sha behind. A bridge
+ * fills prompts and commands with these values, so each one has a strict shape.
  */
 final readonly class WorkRequestContext
 {
@@ -26,12 +26,18 @@ final readonly class WorkRequestContext
 
     private const array KEYS = ['pullRequestNumber', 'pullRequestUrl', 'headSha', 'reason', 'documentId'];
 
+    /** A row stored before these keys existed lacks them, and they read as null. */
+    private const array OPTIONAL_KEYS = ['inboxActionId', 'inboxItemId', 'inboxItemNumber'];
+
     public function __construct(
         public ?int $pullRequestNumber = null,
         public ?string $pullRequestUrl = null,
         public ?string $headSha = null,
         public ?string $reason = null,
         public ?string $documentId = null,
+        public ?string $inboxActionId = null,
+        public ?int $inboxItemNumber = null,
+        public ?string $inboxItemId = null,
     ) {
         if (null !== $pullRequestNumber && ($pullRequestNumber < 1 || $pullRequestNumber > self::MAX_PULL_REQUEST_NUMBER)) {
             throw new \UnexpectedValueException('A work request names a pull request by a positive 32-bit number.');
@@ -47,6 +53,15 @@ final readonly class WorkRequestContext
         }
         if (null !== $documentId && (!Uuid::isValid($documentId) || $documentId !== Uuid::fromString($documentId)->toRfc4122())) {
             throw new \UnexpectedValueException('A work request names a document by its lower-case uuid.');
+        }
+        if (null !== $inboxActionId && (!Uuid::isValid($inboxActionId) || $inboxActionId !== Uuid::fromString($inboxActionId)->toRfc4122())) {
+            throw new \UnexpectedValueException('A work request names an inbox action by its lower-case uuid.');
+        }
+        if (null !== $inboxItemId && (!Uuid::isValid($inboxItemId) || $inboxItemId !== Uuid::fromString($inboxItemId)->toRfc4122())) {
+            throw new \UnexpectedValueException('A work request names an inbox item by its lower-case uuid.');
+        }
+        if (null !== $inboxItemNumber && ($inboxItemNumber < 1 || $inboxItemNumber > self::MAX_PULL_REQUEST_NUMBER)) {
+            throw new \UnexpectedValueException('A work request names an inbox item by a positive 32-bit number.');
         }
     }
 
@@ -72,12 +87,12 @@ final readonly class WorkRequestContext
         if (null === $data) {
             return new self();
         }
-        $keys = array_keys($data);
+        $keys = array_values(array_diff(array_keys($data), self::OPTIONAL_KEYS));
         sort($keys);
         $expected = self::KEYS;
         sort($expected);
         if ($keys !== $expected) {
-            throw new \UnexpectedValueException('A work request context holds exactly the keys '.implode(', ', self::KEYS).'.');
+            throw new \UnexpectedValueException('A work request context holds the keys '.implode(', ', [...self::KEYS, ...self::OPTIONAL_KEYS]).'.');
         }
 
         return new self(
@@ -86,10 +101,13 @@ final readonly class WorkRequestContext
             headSha: self::nullableString($data['headSha']),
             reason: self::nullableString($data['reason']),
             documentId: self::nullableString($data['documentId']),
+            inboxActionId: self::nullableString($data['inboxActionId'] ?? null),
+            inboxItemNumber: self::nullableInt($data['inboxItemNumber'] ?? null),
+            inboxItemId: self::nullableString($data['inboxItemId'] ?? null),
         );
     }
 
-    /** @return array{pullRequestNumber: ?int, pullRequestUrl: ?string, headSha: ?string, reason: ?string, documentId: ?string} */
+    /** @return array{pullRequestNumber: ?int, pullRequestUrl: ?string, headSha: ?string, reason: ?string, documentId: ?string, inboxActionId: ?string, inboxItemNumber: ?int, inboxItemId: ?string} */
     public function toArray(): array
     {
         return [
@@ -98,6 +116,9 @@ final readonly class WorkRequestContext
             'headSha' => $this->headSha,
             'reason' => $this->reason,
             'documentId' => $this->documentId,
+            'inboxActionId' => $this->inboxActionId,
+            'inboxItemNumber' => $this->inboxItemNumber,
+            'inboxItemId' => $this->inboxItemId,
         ];
     }
 
