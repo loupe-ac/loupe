@@ -355,7 +355,8 @@ only Dismiss fits, the card shows a Dismiss button and no menu.
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
-resume the session. In both cases the reply card turns into a tinted card with
+resume the session. Send an agent and Start an interactive session each queue
+work for a bridge. In each case the reply card turns into a tinted card with
 your name, your note and a status line. The status line of a resume uses the
 run states of the Activity page:
 

@@ -346,6 +346,9 @@ final class InboxActionControllersTest extends WebTestCase
         $crawler = $this->client->followRedirect();
         self::assertStringContainsString('The session of item '.$item->number.' is queued.', $crawler->text());
         self::assertCount(1, $crawler->filter('[data-inbox-linked="card"] [data-inbox-action-status="queued"]'));
+        // The session answers the open wait, so the queued You card replaces the reply.
+        self::assertNotNull($this->onlyAction($item)->waitId);
+        self::assertCount(0, $crawler->filter('[data-inbox-linked="card"] .inbox-split'));
     }
 
     public function test_a_question_keeps_its_answer_form_with_the_heading_your_answer(): void

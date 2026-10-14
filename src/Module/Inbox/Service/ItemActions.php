@@ -96,6 +96,15 @@ final readonly class ItemActions
         return null;
     }
 
+    /** The newest open wait of the item, or null. An action that needs no run or pause answers this wait. */
+    public function newestOpenWait(InboxItem $item): ?InboxCardWait
+    {
+        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
+
+        return array_last($waits);
+    }
+
     /** The card and the stage work that Send an agent starts for the item now, or null when the action does not fit. */
     public function sendAgentFor(InboxItem $item): ?SendAgentTarget
     {

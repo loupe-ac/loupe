@@ -255,6 +255,10 @@ final class WaitItemPageTest extends WebTestCase
         $actions = static::getContainer()->get(InboxActionRepository::class);
         self::assertInstanceOf(InboxActionRepository::class, $actions);
         self::assertSame([InboxActionKind::SendAgent], array_map(static fn (InboxAction $action): InboxActionKind => $action->kind, $actions->findAll()));
+        // The agent answers the open wait, so the queued You card replaces the reply.
+        self::assertNotNull($actions->findAll()[0]->waitId);
+        self::assertCount(1, $crawler->filter('#inbox-item-1 [data-inbox-action-status="queued"]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-1 .inbox-split'));
     }
 
     public function test_dismiss_closes_the_item_declined_and_leaves_nothing_that_needs_you(): void

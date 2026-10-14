@@ -164,6 +164,7 @@ final readonly class RunInboxActionHandler
 
         // The row commits first, so the request names an action that exists. A refused request removes it again.
         $action = new InboxAction($item, InboxActionKind::SendAgent, $command->user, $note);
+        $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
 
@@ -202,6 +203,7 @@ final readonly class RunInboxActionHandler
 
         // The row commits first, because the request names it. A refused request removes it again.
         $action = new InboxAction($item, InboxActionKind::StartSession, $command->user, $note);
+        $action->waitId = $this->itemActions->newestOpenWait($item)?->id;
         $this->em->persist($action);
         $this->em->flush();
 
