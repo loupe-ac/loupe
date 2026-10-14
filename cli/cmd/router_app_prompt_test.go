@@ -152,7 +152,7 @@ func TestAWorkOfferFromAnInboxActionNamesTheItemInItsPrompt(t *testing.T) {
 				if !strings.HasSuffix(prompt, directive.Footer) {
 					t.Fatalf("prompt = %q, want it to end with the footer", prompt)
 				}
-				if sent && !strings.HasSuffix(prompt, line+"\n\n"+directive.Footer) {
+				if sent && !strings.HasSuffix(prompt, line+" "+directive.InboxReportLine+"\n\n"+directive.Footer) {
 					t.Fatalf("prompt = %q, want the line before the footer", prompt)
 				}
 			})

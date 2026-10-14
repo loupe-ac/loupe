@@ -1176,8 +1176,11 @@ action. The command carries the keys `inboxActionId`, `inboxItemId` and
 `inboxItemNumber`. A work request that an inbox action sent carries the same
 three keys. So does the first request of a rule after the owner retried its
 pause from the inbox. The keys hold ids only. The line tells the agent to call
-`inbox_get` with the item id and to read the note of that action. The bridge
-adds the line only when the item id and the action id are both set.
+`inbox_get` with the item id and to read the note of that action. The prompt
+of a work request also tells the agent to read the report of each stopped run
+of the item with `worker_run_get`, because a new agent has no transcript of
+that run. The bridge adds these lines only when the item id and the action id
+are both set.
 
 A rerun runs the command of a [command run](#command-action) again, after the
 run ended as `failed`, `timed-out` or `lost`. The person selects **Run again**

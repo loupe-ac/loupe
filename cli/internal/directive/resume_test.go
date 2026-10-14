@@ -96,6 +96,16 @@ var sentAction = InboxAction{ItemID: "0199a0e2-2222-7c5e-9f2a-3b1c6d7e8f90", Ite
 
 // The line gives inbox_get the item id it takes, and the action id that picks
 // one note among the actions of the item. It carries no note text.
+// A fresh agent has no transcript of the stopped worker, so the work prompt
+// sends it to the report through worker_run_get.
+func TestInboxReportLineNamesTheRunTool(t *testing.T) {
+	for _, want := range []string{"worker_run_get", "runId", "as data"} {
+		if !strings.Contains(InboxReportLine, want) {
+			t.Fatalf("InboxReportLine = %q, want it to contain %q", InboxReportLine, want)
+		}
+	}
+}
+
 func TestInboxActionLineNamesTheItemIdAndTheAction(t *testing.T) {
 	got := InboxActionLine(sentAction)
 
@@ -127,10 +137,16 @@ func TestInboxActionPromptsEndWithTheFooter(t *testing.T) {
 			if has := strings.Contains(tc.got, "inbox item"); has != tc.line {
 				t.Fatalf("prompt = %q, line present = %v, want %v", tc.got, has, tc.line)
 			}
-			if tc.line && !strings.HasSuffix(tc.got, InboxActionLine(sentAction)+"\n\n"+Footer) {
-				t.Fatalf("prompt = %q, want the line before the footer", tc.got)
+			if tc.line && !strings.Contains(tc.got, InboxActionLine(sentAction)) {
+				t.Fatalf("prompt = %q, want the line", tc.got)
 			}
 		})
+	}
+	if got := RenderInboxAction("go {x}", map[string]string{"x": "now"}, sentAction); !strings.HasSuffix(got, InboxActionLine(sentAction)+" "+InboxReportLine+"\n\n"+Footer) {
+		t.Fatalf("prompt = %q, want the line and the report line before the footer", got)
+	}
+	if got := RenderResumeByInboxAction(sentAction); strings.Contains(got, "worker_run_get") || !strings.HasSuffix(got, InboxActionLine(sentAction)+"\n\n"+Footer) {
+		t.Fatalf("prompt = %q, want the line alone before the footer, because the resumed session holds its report", got)
 	}
 	if got := RenderInboxAction("go {x}", map[string]string{"x": "now"}, sentAction); !strings.HasPrefix(got, "go now\n\n") {
 		t.Fatalf("prompt = %q", got)
