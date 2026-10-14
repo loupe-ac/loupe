@@ -13,6 +13,7 @@ use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Inbox\Service\InboxLinkResolver;
 use App\Module\Inbox\Service\InboxSessionAsks;
+use App\Module\Inbox\Service\RunSuggestions;
 use Mcp\Exception\ToolCallException;
 
 /**
@@ -50,6 +51,13 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::TO_DO_WITH_ANSWER => 'A todo is marked done or declined, so it takes no options, multiple or freeText.',
             AskInboxHandler::QUESTION_WITHOUT_ANSWER => 'A question needs options, freeText, or both, so the owner can answer it.',
             AskInboxHandler::MULTIPLE_WITHOUT_OPTIONS => 'multiple needs at least two options.',
+            AskInboxHandler::SUGGESTION_UNKNOWN_ACTION => \sprintf('A suggested action must be one of: %s. inbox_actions lists them.', implode(', ', RunSuggestions::ACTIONS)),
+            AskInboxHandler::SUGGESTION_DUPLICATE => 'Suggest each action once.',
+            AskInboxHandler::SUGGESTION_TWO_RECOMMENDED => 'Mark at most one suggested action as recommended.',
+            AskInboxHandler::SUGGESTION_REASON_BLANK => 'A suggested action needs a reason the owner reads.',
+            AskInboxHandler::SUGGESTION_REASON_TOO_LONG => \sprintf('A suggestion reason must be at most %d characters.', RunSuggestions::MAX_REASON_LENGTH),
+            AskInboxHandler::SUGGESTION_CARD_NOT_LINKED => 'The cardId of a suggested action must be one of the cardIds of the same item.',
+            AskInboxHandler::TOO_MANY_SUGGESTIONS => \sprintf('Suggest at most %d actions on one item.', RunSuggestions::MAX_SUGGESTIONS),
             InboxLinkResolver::CARD_UNKNOWN => 'Every card id must name a card of this project.',
             InboxLinkResolver::DOCUMENT_UNKNOWN => 'Every document id must name a document of this project.',
             InboxLinkResolver::PULL_REQUEST_UNKNOWN => 'The pull request id must name a pull request linked to a card in this project.',

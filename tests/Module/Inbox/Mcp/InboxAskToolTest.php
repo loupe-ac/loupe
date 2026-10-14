@@ -373,6 +373,70 @@ final class InboxAskToolTest extends KernelTestCase
         $this->askQuestion('Which column?', ['options' => ['next', ' next ']]);
     }
 
+    public function test_suggested_actions_are_stored_and_read_back(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-suggest');
+        $card = $this->card($this->em, $project);
+        $this->em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->askQuestion('Which column?', [
+            'cardIds' => [(string) $card->id],
+            'suggestedActions' => [
+                ['action' => 'start-session', 'reason' => "Talk it\n  through", 'recommended' => true, 'cardId' => strtoupper((string) $card->id)],
+                ['action' => 'open', 'reason' => 'See the card'],
+            ],
+        ]);
+
+        $this->em->clear();
+        $item = $this->em->find(InboxItem::class, Uuid::fromString($result['items'][0]['itemId']));
+        self::assertInstanceOf(InboxItem::class, $item);
+        self::assertSame([
+            ['action' => 'start-session', 'reason' => 'Talk it through', 'recommended' => true, 'cardId' => (string) $card->id],
+            ['action' => 'open', 'reason' => 'See the card', 'recommended' => false, 'cardId' => null],
+        ], $item->suggestedActions);
+    }
+
+    public function test_an_item_without_suggestions_stores_none(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-no-suggest'));
+
+        $result = $this->askQuestion('Which column?', ['suggestedActions' => []]);
+
+        $this->em->clear();
+        $item = $this->em->find(InboxItem::class, Uuid::fromString($result['items'][0]['itemId']));
+        self::assertInstanceOf(InboxItem::class, $item);
+        self::assertNull($item->suggestedActions);
+    }
+
+    /** @param array<string, mixed> $item */
+    #[DataProvider('refusedSuggestions')]
+    public function test_a_wrong_suggestion_is_refused(array $item, string $message): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-bad-suggest'));
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage($message);
+        $this->askQuestion('Which column?', $item);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function refusedSuggestions(): iterable
+    {
+        yield 'an unknown action' => [['suggestedActions' => [['action' => 'explode', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, dismiss.'];
+        yield 'a duplicate action' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a'], ['action' => 'open', 'reason' => 'b']]], 'items[0].suggestedActions: Suggest each action once.'];
+        yield 'two recommended actions' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'recommended' => true], ['action' => 'review', 'reason' => 'b', 'recommended' => true]]], 'items[0].suggestedActions: Mark at most one suggested action as recommended.'];
+        yield 'a blank reason' => [['suggestedActions' => [['action' => 'open', 'reason' => '  ']]], 'items[0].suggestedActions: A suggested action needs a reason the owner reads.'];
+        yield 'a long reason' => [['suggestedActions' => [['action' => 'open', 'reason' => str_repeat('a', 201)]]], 'items[0].suggestedActions: A suggestion reason must be at most 200 characters.'];
+        yield 'a card the item does not link' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'cardId' => '0199a000-0000-7000-8000-000000000000']]], 'items[0].suggestedActions: The cardId of a suggested action must be one of the cardIds of the same item.'];
+        yield 'four suggestions' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a'], ['action' => 'review', 'reason' => 'a'], ['action' => 'dismiss', 'reason' => 'a'], ['action' => 'retry-card', 'reason' => 'a']]], 'items[0].suggestedActions: Suggest at most 3 actions on one item.'];
+        yield 'an entry that is not an object' => [['suggestedActions' => ['open']], 'items[0].suggestedActions[0] must be an object.'];
+        yield 'a reason that is not a string' => [['suggestedActions' => [['action' => 'open', 'reason' => 5]]], 'items[0].suggestedActions[0] needs a string action and a string reason.'];
+    }
+
     /** @return iterable<string, array{array<string, mixed>, string}> */
     public static function oversizedItems(): iterable
     {
