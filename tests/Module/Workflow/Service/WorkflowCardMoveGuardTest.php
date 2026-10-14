@@ -203,7 +203,8 @@ final class WorkflowCardMoveGuardTest extends KernelTestCase
         self::assertFalse($guard->allows($this->card('tech-design')->snapshot(), $this->column($this->project, 'next')->ref(), Actor::Human, null));
         self::assertTrue($guard->allows($this->card('in-progress')->snapshot(), $this->column($this->project, 'tech-design')->ref(), Actor::Human, null));
         self::assertFalse($guard->allows($this->card('in-progress')->snapshot(), $this->column($this->project, 'product-design')->ref(), Actor::Human, null));
-        self::assertFalse($guard->allows($this->card('next')->snapshot(), $this->column($this->project, 'done')->ref(), Actor::Human, null));
+        self::assertTrue($guard->allows($this->card('next')->snapshot(), $this->column($this->project, 'done')->ref(), Actor::Human, null));
+        self::assertFalse($guard->allows($this->card('done')->snapshot(), $this->column($this->project, 'next')->ref(), Actor::Human, null));
     }
 
     public function test_a_wildcard_manual_move_matches_any_column(): void

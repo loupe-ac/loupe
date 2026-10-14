@@ -68,6 +68,17 @@ final class ManagedCardMoveTest extends KernelTestCase
         self::assertSame('tech-design', $card->column->slug);
     }
 
+    public function test_a_person_may_move_a_card_from_the_backlog_or_next_straight_to_the_terminal_column(): void
+    {
+        foreach (['backlog', 'next'] as $from) {
+            $card = $this->card($from);
+
+            $this->updateCard()(new UpdateCardCommand(card: $card, actor: Actor::Human, column: $this->column($this->project, 'done')));
+
+            self::assertSame('done', $card->column->slug);
+        }
+    }
+
     public function test_an_edit_that_keeps_the_column_is_not_a_move(): void
     {
         $card = $this->card('in-progress');
