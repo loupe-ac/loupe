@@ -5,15 +5,14 @@
 {% block title %}{{ 'review.rename.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <a class="lp-topbar__crumb" href="{{ backPath }}">{{ document.project.name }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <a class="lp-topbar__crumb" href="{{ backPath }}">{{ 'nav.link.documents'|trans }}</a>
-    <span class="lp-topbar__sep">/</span>
-    <span class="lp-topbar__here">{{ 'review.rename.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'nav.link.documents'|trans, url: backPath},
+        {label: 'review.rename.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace">
+<twig:Ds:Workspace>
     <h1 class="lp-workspace-title">{{ 'review.rename.page.title'|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'review.rename.description'|trans }}</p>
 
@@ -26,5 +25,5 @@
             </div>
         {{ form_end(form) }}
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

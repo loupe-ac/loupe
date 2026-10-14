@@ -1,14 +1,15 @@
-{% extends 'base.html.twig' %}
+{% extends 'marketing_base.html.twig' %}
 
 {% block title %}{{ 'landing.meta.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block description %}{{ 'landing.meta.description'|trans }}{% endblock %}
 
-{% block body_unauthenticated %}
-<div class="lp-home" data-controller="modal analytics">
-    {% include '@Landing/landing/_nav.html.twig' only %}
+{% set marketingClass = 'lp-home' %}
+{% set marketingAttributes = {'data-controller': 'modal analytics'} %}
 
-    <main id="main-content" tabindex="-1">
+{% block marketing_header %}{% include '@Landing/landing/_nav.html.twig' only %}{% endblock %}
+
+{% block marketing_main %}
         {% include '@Landing/landing/_hero.html.twig' only %}
         {% include '@Landing/landing/_workflow.html.twig' only %}
         {% include '@Landing/landing/_features.html.twig' only %}
@@ -16,9 +17,8 @@
         {% include '@Landing/landing/_requirements.html.twig' with {notifyForm: notifyForm} only %}
         {% include '@Landing/landing/_open_source.html.twig' only %}
         {% include '@Landing/landing/_closing.html.twig' only %}
-    </main>
-
-    {% include '@Landing/landing/_footer.html.twig' only %}
-    {% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm} only %}
-</div>
 {% endblock %}
+
+{% block marketing_footer %}{% include '@Landing/landing/_footer.html.twig' only %}{% endblock %}
+
+{% block marketing_after %}{% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm} only %}{% endblock %}

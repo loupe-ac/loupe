@@ -1,0 +1,21 @@
+{#
+  Props: title, description (optional), items (a list of label, url, icon and active), navLabel, columns (true gives the content its own column width).
+  The default block holds the content. Any other attribute, class included, goes to the root element.
+#}
+{%- props title, description = null, items = [], navLabel = '', columns = false -%}
+<div{{ attributes.defaults({class: 'lp-settings' ~ (columns ? ' lp-settings--columns' : '')}) }}>
+    <twig:Ds:PageHeader :title="title" :description="description" />
+    <div class="lp-settings-layout{{ columns ? ' lp-settings-layout--columns' }}">
+        <nav class="lp-settings-nav" aria-label="{{ navLabel }}">
+            {% for item in items %}
+            <a class="lp-settings-nav__item{{ item.active ? ' lp-settings-nav__item--active' }}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>
+                {{ ux_icon(item.icon) }}
+                {{ item.label }}
+            </a>
+            {% endfor %}
+        </nav>
+        <div class="lp-settings-content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>

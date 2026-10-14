@@ -47,8 +47,8 @@ final class AnalyticsPageShellTest extends WebTestCase
         );
         self::assertSame([$activeTab], $crawler->filter('nav.lp-analytics-tabs [aria-current="page"]')->each(static fn ($tab): string => trim($tab->text())));
 
-        self::assertSame($base.'/documents', $crawler->filter('.lp-topbar__crumb')->attr('href'));
-        self::assertSame('Analytics', trim($crawler->filter('.lp-topbar__here')->text()));
+        self::assertCount(0, $crawler->filter('.lp-crumbs__link'));
+        self::assertSame('Analytics', trim($crawler->filter('.lp-crumbs__here')->text()));
 
         $active = $crawler->filter('a.lp-sidebar__link--active[aria-current="page"]');
         self::assertCount(1, $active);

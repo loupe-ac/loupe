@@ -1,0 +1,29 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set brand = 'nav.brand'|trans %}
+import React from 'react';
+
+export const BRANDMARK_SIZES = [{{ entry.sizes|map(v => "'" ~ v ~ "'")|join(', ') }}];
+
+export function {{ entry.name }}({ size = 'md', markOnly = false, className: extra, ...rest }) {
+    const classes = ['{{ entry.rootClass }}', '{{ entry.rootClass }}--' + size];
+    if (markOnly) {
+        classes.push('{{ entry.rootClass }}--mark-only');
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <span {...rest} className={classes.join(' ')}>
+            {markOnly ? (
+                <span className="lp-brand__mark" role="img" aria-label="{{ brand }}"></span>
+            ) : (
+                <>
+                    <span className="lp-brand__mark" aria-hidden="true"></span>
+                    <span className="lp-brand__word">{{ brand }}</span>
+                </>
+            )}
+        </span>
+    );
+}
+{% endautoescape %}

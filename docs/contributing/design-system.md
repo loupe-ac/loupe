@@ -60,9 +60,20 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Tabs | A strip of links or tab buttons with an underline, or a pill group that switches a view or a setting | segmented |
 | Pagination | The previous, next and page-number control of a list | none |
 | Tooltip | A text bubble under its anchor | interactive, which stays open for a link |
+| BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
+| NavItem | One link of the sidebar. Props `url`, `icon`, `label`, `active` and `count`. Its content adds anything after the label | none |
+| Breadcrumbs | The trail in the top bar. Prop `items`, a list of `{label, url}`. The last item is the current page and takes no link. Its content adds anything after the list, such as a version pill. A page fills the `topbar_crumbs` block with it and never starts the trail with the project name | none |
+| AuthShell | The frame of the sign-in, sign-up and install pages. It has no Twig component: `@Account/auth_base.html.twig` draws it with the `lp-auth` classes, and a page fills the `auth_body` block. `lp-auth__action` makes a submit button fill the card | none |
 | PageHeader | The heading row of a page: the title, an optional description and a block of actions | workshop, which gives the title the workshop size |
 | SplitView | A master-detail page: a held header over a list pane beside a detail pane | none |
 | ListRow | One row of a list: an icon, a title and a meta line | none. The state current marks the open row |
+| Workspace | The page container: the frame that holds the content of a page | narrow, for a form page, and full, which drops the width cap |
+| SettingsLayout | A settings page: the page header, a section navigation and the content column | none. The state active marks the open section |
+| Drawer | A panel that slides in from the right edge. The `modal` controller opens it | none |
+
+The Drawer takes the named blocks `header`, `body` and `footer`, and draws a band only for a block that holds content. The block `content` replaces all three, for a drawer that fills the dialog itself, such as the card drawer. Pass the target attribute of the controller that opens it, such as `data-modal-target="dialog"`. A drawer that loads a Turbo frame on opening pairs the `modal` controller with `lazy-frame`, which shows the loading and error states around the frame. A controller with more states than that calls `LazyFrame` from `assets/lib/lazy_frame.js`. Its CSS is `assets/styles/components/drawer.css`.
+
+A `Ds:NavItem` icon is a prop, so `bin/console ux:icons:lock` cannot read it. Import a new sidebar icon by hand with `bin/console ux:icons:import lucide:<name>`.
 
 The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a named `actions` block that draws after the title block. Its CSS is `assets/styles/components/page-header.css`. It also holds the `lp-workspace-title`, `lp-workshop-title` and `lp-workspace-desc` rules.
 
@@ -75,7 +86,7 @@ The PageHeader takes `title`, `description`, `variant` and `titleClass`, and a n
 The SplitView draws the page root, `lp-split-page`, and takes any attribute, such as a Stimulus `data-controller`. The page writes the `lp-split-region`, `lp-split-view` and `lp-split-pane` classes inside it by hand, because each page puts its own controller on the region. A page with a header writes the header first, then the region. Its CSS is `assets/styles/components/split-view.css`.
 
 ```twig
-<twig:Ds:SplitView class="lp-workspace">
+<twig:Ds:SplitView width="full">
     <div class="lp-split-region">
         <div class="lp-split-view">
             <div class="lp-split-pane">{# the list #}</div>
@@ -85,6 +96,16 @@ The SplitView draws the page root, `lp-split-page`, and takes any attribute, suc
 </twig:Ds:SplitView>
 ```
 
+The Workspace takes `width`, which is `default`, `narrow` or `full`, and wraps the whole page body. Its CSS is `assets/styles/components/workspace.css`. A page keeps its own marker class beside it, such as `lp-redesign-settings`, for rules that style page-only parts. A page never restyles a design system part: write no rule such as `.lp-redesign-settings .lp-btn`. A split page passes `width` to the SplitView instead, which then draws the same frame.
+
+```twig
+<twig:Ds:Workspace width="narrow" class="lp-redesign-settings">
+    <twig:Ds:PageHeader :title="'rename.title'|trans" />
+</twig:Ds:Workspace>
+```
+
+The shell has one width option. A page whose frame must reach the window edge, such as the board, sets `{% block shell_width %}full{% endblock %}`, which adds `lp-shell--full`. A page that needs a different ground sets `{% block main_surface %}` to `paper` (white) or `fill` (a column that clips its overflow).
+
 The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and `meta`. Other attributes go to the row. An attribute with an `icon:` prefix goes to the icon span. The `lp-list-row__flag` class marks one item of the meta line, such as a blocking mark. Its CSS is `assets/styles/components/list-row.css`.
 
 ```twig
@@ -93,6 +114,10 @@ The ListRow takes `title`, `tag` and `current`, and the named blocks `icon` and 
     <twig:block name="meta"><span>Loupe</span></twig:block>
 </twig:Ds:ListRow>
 ```
+
+The SettingsLayout takes `title`, `description`, `items`, `navLabel` and `columns`, and its default block holds the content. Each item is a hash of `label`, `url`, `icon` and `active`. `columns` gives the content its own column width. The component renders the PageHeader, so a page never writes the heading again. Its CSS is `assets/styles/components/settings-layout.css`. Write each panel of the content as a `lp-settings-panel-card` section inside the block.
+
+`@Account/_settings_layout.html.twig` and `@Project/_settings_layout.html.twig` build the items of the account and the project settings and render the component. A settings page extends one of them and fills the `settings_section` and `settings_content` blocks. The icon names of the items are plain strings, so `bin/console ux:icons:lock` cannot read them. Import a new one with `bin/console ux:icons:import`.
 
 Write a button like this:
 
@@ -194,7 +219,7 @@ These are the documented shell classes.
 | `lp-app` | The root. A flex row that fills the window, with the dark chrome colour |
 | `lp-sidebar` | The left rail. `lp-sidebar--drawer` makes it a slide-in drawer below the `lg` breakpoint, and `lp-sidebar--open` opens it |
 | `lp-sidebar__close` | The button that closes the drawer |
-| `lp-sidebar__brand` and `lp-sidebar__brand-mark` | The logo lockup |
+| `lp-sidebar__brand` | The link around the `Ds:BrandMark` logo lockup |
 | `lp-sidebar__switcher` and its `__avatar`, `__text`, `__label`, `__name`, `__caret` parts | The button that shows the current project |
 | `lp-switcher` | The wrapper of the switcher button and its panel |
 | `lp-switcher__panel` | The list of projects that drops under the button |
@@ -207,13 +232,52 @@ These are the documented shell classes.
 | `lp-sidebar__spacer` | Pushes the bottom group down |
 | `lp-sidebar__account` and its `__avatar`, `__text`, `__name`, `__logout-form`, `__logout` parts | The signed-in user and the log out button |
 | `lp-scrim` | Dims the page behind an open drawer |
-| `lp-shell` | The column to the right of the sidebar. It holds the top bar and the main column |
+| `lp-shell` | The column to the right of the sidebar. It holds the top bar and the main column. `--full` drops the frame inset |
 | `lp-topbar` | The bar above the page |
 | `lp-topbar__menu` | The button that opens the drawer |
 | `lp-topbar__lead`, `__trail`, `__crumb`, `__sep`, `__here` and `__meta` | The breadcrumb and the short line after it |
 | `lp-topbar__global-actions` | The tools at the right end of the bar |
 | `lp-topbar__new-work` | The New work button. It is a `Ds:Button` with this class added |
-| `lp-main` | The main column. It is the only scroll container of the page |
+| `lp-main` | The main column. It is the only scroll container of the page. `--paper` gives it a white ground, and `--fill` makes it a column that clips its overflow |
+## The marketing shell
+
+A public page for a signed-out visitor extends `templates/marketing_base.html.twig`. The base draws the header, the page body and the footer. A page fills `block body`, or swaps `marketing_header`, `marketing_main` and `marketing_footer` when it draws its own, as the home page does. A signed-in visitor gets the app shell instead.
+
+The shell is a base template with page blocks, so it has no Twig component. Its catalog entry has no template, and the `lp-landing` classes are documented here.
+
+Every public footer takes the privacy, terms and AI policy links from `templates/_legal_links.html.twig`:
+
+```twig
+{% include '_legal_links.html.twig' with {class: 'lp-landing-footer__link'} only %}
+{% include '_legal_links.html.twig' with {class: 'lp-home-footer__link', listItem: true} only %}
+```
+
+## The sign-in shell
+
+Every sign-in, sign-up, password reset, install and consent page extends `@Account/auth_base.html.twig`. The base draws the topbar with the brand mark, one centred card and the footer, through the classes of `assets/styles/components/auth-shell.css`. The footer lives in `@Account/_auth_footer.html.twig`, which the styleguide specimen also draws. A page fills the blocks `title`, `topbar_nav` and `auth_body`. A page that needs a wider card sets `{% block auth_shell_class 'lp-auth__card lp-auth__card--wide' %}`.
+
+The forms in the card use the app form parts, `Ds:FormField`, `Ds:Input`, `Ds:Label` and `Ds:Button`, like any other form. Give the submit button `class="lp-auth__action"` so it fills the card.
+
+## The email layout
+
+Every email extends `templates/email/_layout.html.twig`. The layout holds the stylesheet inlining, the doctype, the brand, the card and the footer. An email fills three blocks: `title`, `content` and `footer`.
+
+```twig
+{% extends 'email/_layout.html.twig' %}
+
+{% block title %}{{ 'x.email.title'|trans }}{% endblock %}
+
+{% block content %}
+    <h1>{{ 'x.email.heading'|trans }}</h1>
+    <a href="{{ url }}" class="btn">{{ 'x.email.cta'|trans }}</a>
+{% endblock %}
+
+{% block footer %}
+    {{ 'x.email.footer'|trans }}
+{% endblock %}
+```
+
+An email has no catalog entry or styleguide specimen. It gets its styles from `email.css` and holds its own copy of the brand mark, because no app stylesheet reaches an email client.
 
 ## The Claude Design copy
 
@@ -257,4 +321,4 @@ Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 - [Development](development.md)
 - [Architectural priorities](architectural-priorities.md)
 
-`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination` or `lp-tooltip` by hand.
+`just gamache` blocks a template that writes `lp-btn`, `lp-flash`, `lp-empty-state`, `lp-badge`, `lp-tag`, `lp-status-chip`, `lp-dialog`, `lp-tabs`, `lp-pagination`, `lp-tooltip`, `lp-brand` or `lp-drawer` by hand.

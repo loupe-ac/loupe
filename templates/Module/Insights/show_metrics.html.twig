@@ -3,14 +3,16 @@
 {% block title %}{{ 'analytics.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    {% include '@Insights/_crumbs.html.twig' with {project: project} only %}
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'analytics.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
 {% set metric = query.metric %}
 {% set metricName = query.bucketName is null ? ('analytics.metrics.metric.' ~ metric.value)|trans : 'analytics.metrics.metric.bucket_time_named'|trans({'%bucket%': query.bucketName}) %}
 {% set rowsKey = 'analytics.metrics.rows.' ~ query.unit.value %}
-<div class="lp-workspace lp-redesign-secondary lp-redesign-runs">
+<twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-runs">
     {% include '@Insights/_header.html.twig' with {} only %}
 
     {% include '@Insights/_tabs.html.twig' with {project: project, active: 'metrics'} only %}
@@ -160,5 +162,5 @@
         {% endfor %}
     </div>
     {% endif %}
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

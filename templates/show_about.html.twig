@@ -3,11 +3,13 @@
 {% block title %}{{ 'about.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block topbar_crumbs %}
-    <span class="lp-topbar__here">{{ 'about.page.title'|trans }}</span>
+    <twig:Ds:Breadcrumbs :items="[
+        {label: 'about.page.title'|trans},
+    ]" />
 {% endblock %}
 
 {% block body %}
-<div class="lp-workspace lp-about">
+<twig:Ds:Workspace class="lp-about">
     <twig:Ds:PageHeader :title="'about.page.title'|trans" />
 
     <section class="lp-about-hero" aria-labelledby="about-lead">
@@ -62,5 +64,5 @@
         </section>
         {% endif %}
     </div>
-</div>
+</twig:Ds:Workspace>
 {% endblock %}

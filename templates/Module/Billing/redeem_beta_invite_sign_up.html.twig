@@ -9,7 +9,7 @@
 
     <form method="post" action="{{ path('app_billing_beta_invite_claim', {token: token}) }}" data-beta-sign-up-form>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token('billing-beta-invite-claim') }}">
-        <button type="submit" class="auth-submit mt-1.5">{{ 'billing.beta_invite.sign_up.submit'|trans }}</button>
+        <twig:Ds:Button variant="primary" size="lg" type="submit" class="lp-auth__action">{{ 'billing.beta_invite.sign_up.submit'|trans }}</twig:Ds:Button>
     </form>
 </div>
 {% endblock %}

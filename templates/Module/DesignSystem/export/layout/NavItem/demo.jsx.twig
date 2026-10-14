@@ -1,0 +1,8 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+        <div style={% verbatim %}{{ background: 'var(--chrome)', padding: 12, width: 260, display: 'flex', flexDirection: 'column', gap: 2 }}{% endverbatim %}>
+          <{{ name }} label="Board" active />
+          <{{ name }} label="Documents" count={12} />
+          <{{ name }} label="Agents" />
+        </div>
+{% endautoescape %}

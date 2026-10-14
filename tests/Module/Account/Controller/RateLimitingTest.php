@@ -51,7 +51,7 @@ final class RateLimitingTest extends WebTestCase
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        $this->assertAnySelectorTextContains('.field-errors', 'Too many registration attempts');
+        $this->assertAnySelectorTextContains('.lp-field-errors', 'Too many registration attempts');
     }
 
     public function test_password_reset_request_is_rate_limited_per_ip(): void
@@ -72,7 +72,7 @@ final class RateLimitingTest extends WebTestCase
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        $this->assertAnySelectorTextContains('.field-errors', 'Too many password reset requests');
+        $this->assertAnySelectorTextContains('.lp-field-errors', 'Too many password reset requests');
     }
 
     public function test_password_reset_request_is_rate_limited_per_address_across_rotating_ips(): void
@@ -219,6 +219,6 @@ final class RateLimitingTest extends WebTestCase
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        $this->assertAnySelectorTextContains('.field-errors', 'Too many attempts');
+        $this->assertAnySelectorTextContains('.lp-field-errors', 'Too many attempts');
     }
 }

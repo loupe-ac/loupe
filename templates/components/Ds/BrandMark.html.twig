@@ -1,0 +1,15 @@
+{#
+  Props:
+    size      string   md or sm. md by default.
+    markOnly  bool     The logo square alone, named by the brand name.
+#}
+{%- props size = 'md', markOnly = false -%}
+{%- set brand = 'nav.brand'|trans -%}
+<span{{ attributes.defaults({class: 'lp-brand lp-brand--' ~ size ~ (markOnly ? ' lp-brand--mark-only' : '')}) }}>
+    {%- if markOnly -%}
+        <span class="lp-brand__mark" role="img" aria-label="{{ brand }}"></span>
+    {%- else -%}
+        <span class="lp-brand__mark" aria-hidden="true"></span>
+        <span class="lp-brand__word">{{ brand }}</span>
+    {%- endif -%}
+</span>

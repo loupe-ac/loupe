@@ -1,0 +1,32 @@
+{% macro amount(value, format) %}
+    {%- if format == 'percent' -%}
+        {{ value|format_percent_number }}
+    {%- elseif format == 'currency' -%}
+        {{ value|format_currency('USD') }}
+    {%- elseif format == 'integer' -%}
+        {{ value|number_format(0) }}
+    {%- elseif format == 'minutes' -%}
+        {{ (value / 60000)|number_format(1) }}
+    {%- else -%}
+        {{ value|number_format(1) }}
+    {%- endif -%}
+{% endmacro %}
+
+{% macro metric_row(metric, label, format, variants, part) %}
+    <tr {% if part %}class="lp-experiment-table__part" data-metric-part="{{ metric.key }}"{% else %}data-metric="{{ metric.key }}"{% endif %}>
+        <th scope="row">
+            {{ label }}
+            {% if not metric.clear %}<span data-metric-unclear><twig:Ds:StatusChip modifier="neutral" :label="'bridge.experiments.too_few_cards'|trans" /></span>{% endif %}
+        </th>
+        {% for variant in variants %}
+            {% set interval = metric.for(variant.name) %}
+            {% if interval is null %}
+                <td class="lp-experiment-table__number">–</td>
+                <td class="lp-experiment-table__number">–</td>
+            {% else %}
+                <td class="lp-experiment-table__number">{{ _self.amount(interval.point, format) }}</td>
+                <td class="lp-experiment-table__number lp-experiment-table__range">{{ 'bridge.experiments.range'|trans({'%low%': _self.amount(interval.low, format), '%high%': _self.amount(interval.high, format)}) }}</td>
+            {% endif %}
+        {% endfor %}
+    </tr>
+{% endmacro %}

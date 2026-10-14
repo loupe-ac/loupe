@@ -1,0 +1,11 @@
+{# The default marketing header: the brand, the sign-in link and the sign-up button. #}
+<header class="lp-landing-nav">
+    <a href="{{ path('app_home') }}" class="lp-landing-nav__brand">
+        <twig:Ds:BrandMark />
+    </a>
+    <nav class="lp-landing-nav__links">
+        <a href="{{ path('app_home') }}" class="lp-landing-nav__link">{{ 'legal.nav.back_home'|trans }}</a>
+        <a href="{{ path('app_login') }}" class="lp-landing-nav__link lp-landing-nav__link--wide">{{ 'landing.nav.login'|trans }}</a>
+        <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_register') }}">{{ 'landing.cta.signup'|trans }}</twig:Ds:Button>
+    </nav>
+</header>

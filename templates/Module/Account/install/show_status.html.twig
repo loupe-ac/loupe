@@ -15,7 +15,7 @@
 {% include '@Diagnostics/_checks.html.twig' with {checks: status.checks} only %}
 
 <div class="flex flex-col gap-3">
-    <a href="{{ path('app_install_admin') }}" class="auth-submit">{{ 'account.install.status.continue'|trans }}</a>
+    <twig:Ds:Button variant="primary" size="lg" :href="path('app_install_admin')" class="lp-auth__action">{{ 'account.install.status.continue'|trans }}</twig:Ds:Button>
     {# Rendering this page opens an SMTP connection and calls the Mercure hub;
        Turbo 8 prefetches links on hover, so without this, pointing at "run the
        checks again" runs them. #}

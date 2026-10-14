@@ -1,0 +1,16 @@
+/* The page container: the frame that holds the content of a page. `templates/components/Ds/Workspace.html.twig` renders it. */
+@layer components {
+    /* The one page frame every workspace uses, so pages line up as you move between them. */
+    .lp-workspace {
+        @apply w-full px-4.5 pt-5 pb-10 md:px-6 md:pt-6 md:pb-14 xl:px-8 xl:pt-8;
+        max-width: 95.625rem;
+    }
+    /* A form page reads better in a short line than across the whole window. */
+    .lp-workspace--narrow {
+        @apply max-w-3xl;
+    }
+    /* A viewport-sized surface drops the frame cap. */
+    .lp-workspace--full {
+        max-width: none;
+    }
+}

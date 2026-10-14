@@ -1,0 +1,18 @@
+{# The public pages' frame for a signed-out visitor: a header, the page body
+   and a footer. A signed-in visitor gets the app shell from base.html.twig.
+   A page fills block body, and swaps the header or the footer when it draws
+   its own. It may set marketingClass and marketingAttributes outside any block. #}
+{% extends 'base.html.twig' %}
+
+{% block body_unauthenticated %}
+<div class="{{ marketingClass|default('lp-landing') }}"{% for name, value in marketingAttributes|default({}) %} {{ name }}="{{ value }}"{% endfor %}>
+    {% block marketing_header %}
+    {% include '_marketing_header.html.twig' only %}
+    {% endblock %}
+
+    <main id="main-content" tabindex="-1">{% block marketing_main %}{{ block('body') }}{% endblock %}</main>
+
+    {% block marketing_footer %}{% include '_marketing_footer.html.twig' only %}{% endblock %}
+    {% block marketing_after %}{% endblock %}
+</div>
+{% endblock %}

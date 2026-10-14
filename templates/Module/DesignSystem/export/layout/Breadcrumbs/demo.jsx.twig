@@ -1,0 +1,6 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+        <div style={% verbatim %}{{ padding: 12 }}{% endverbatim %}>
+          <{{ name }} items={% verbatim %}{[{ label: 'Documents', href: '#' }, { label: 'Tech design' }]}{% endverbatim %} />
+        </div>
+{% endautoescape %}

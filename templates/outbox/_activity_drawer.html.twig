@@ -1,29 +1,19 @@
-<div data-controller="modal activity-drawer" data-modal-drawer-value="true" data-activity-drawer-url-value="{{ path('app_project_recent_activity', {id: project.id}) }}">
-    <a class="lp-topbar__global-action" href="{{ path('app_project_activity', {id: project.id}) }}" title="{{ 'nav.activity.open'|trans }}" aria-label="{{ 'nav.activity.open'|trans }}" aria-haspopup="dialog" data-action="click->modal#open click->activity-drawer#open">
+<div data-controller="modal lazy-frame" data-modal-drawer-value="true" data-lazy-frame-url-value="{{ path('app_project_recent_activity', {id: project.id}) }}">
+    <a class="lp-topbar__global-action" href="{{ path('app_project_activity', {id: project.id}) }}" title="{{ 'nav.activity.open'|trans }}" aria-label="{{ 'nav.activity.open'|trans }}" aria-haspopup="dialog" data-action="click->modal#open click->lazy-frame#load">
         <twig:ux:icon name="lucide:bell" />
     </a>
-    {% embed '_drawer.html.twig' with {
-        project: project,
-        class: 'lp-activity-drawer lp-redesign-activity',
-        attributes: {
-            'data-modal-target': 'dialog',
-            'data-action': 'cancel->modal#close',
-            'aria-labelledby': 'recent-activity-title',
-        },
-    } only %}
-    {% block content %}
-        <header class="lp-activity-drawer__header">
-            <h2 class="lp-activity-drawer__title" id="recent-activity-title"><twig:ux:icon name="lucide:activity" />{{ 'activity.recent.title'|trans }}</h2>
-            <twig:Ds:Button variant="icon" type="button"  data-action="modal#close" aria-label="{{ 'activity.recent.close'|trans }}" autofocus><twig:ux:icon name="lucide:x" /></twig:Ds:Button>
-        </header>
-        <div class="lp-activity-drawer__body">
-            <p class="lp-dialog-desc" data-activity-drawer-target="loading" role="status">{{ 'activity.recent.loading'|trans }}</p>
-            <p class="lp-dialog-desc" data-activity-drawer-target="error" role="alert" hidden>{{ 'activity.recent.failed'|trans }}</p>
-            <turbo-frame id="recent-activity-frame" data-activity-drawer-target="frame" data-action="turbo:before-fetch-response->activity-drawer#received turbo:frame-load->activity-drawer#loaded turbo:frame-missing->activity-drawer#failed turbo:fetch-request-error->activity-drawer#failed" target="_top" hidden></turbo-frame>
-        </div>
-        <footer class="lp-activity-drawer__footer">
+    <twig:Ds:Drawer data-modal-target="dialog" data-action="cancel->modal#close" aria-labelledby="recent-activity-title">
+        <twig:block name="header">
+            <h2 class="lp-drawer__title" id="recent-activity-title"><twig:ux:icon name="lucide:activity" />{{ 'activity.recent.title'|trans }}</h2>
+            <twig:Ds:Button variant="icon" type="button" data-action="modal#close" aria-label="{{ 'activity.recent.close'|trans }}" autofocus><twig:ux:icon name="lucide:x" /></twig:Ds:Button>
+        </twig:block>
+        <twig:block name="body">
+            <p class="lp-dialog-desc" data-lazy-frame-target="loading" role="status">{{ 'activity.recent.loading'|trans }}</p>
+            <p class="lp-dialog-desc" data-lazy-frame-target="error" role="alert" hidden>{{ 'activity.recent.failed'|trans }}</p>
+            <turbo-frame id="recent-activity-frame" data-lazy-frame-target="frame" data-action="turbo:before-fetch-response->lazy-frame#received turbo:frame-load->lazy-frame#loaded turbo:frame-missing->lazy-frame#failed turbo:fetch-request-error->lazy-frame#failed" target="_top" hidden></turbo-frame>
+        </twig:block>
+        <twig:block name="footer">
             <twig:Ds:Button href="{{ path('app_project_activity', {id: project.id}) }}"><twig:ux:icon name="lucide:activity" />{{ 'activity.recent.open'|trans }}</twig:Ds:Button>
-        </footer>
-    {% endblock %}
-    {% endembed %}
+        </twig:block>
+    </twig:Ds:Drawer>
 </div>
