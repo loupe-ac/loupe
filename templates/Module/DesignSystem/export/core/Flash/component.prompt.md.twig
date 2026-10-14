@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's flash message. {{ entry.summary }}
+
+```jsx
+<{{ name }} severity="success">Document saved</{{ name }}>
+<{{ name }} severity="error" dismissLabel="Dismiss">Upload failed</{{ name }}>
+```
+
+Pass `severity` as `success`, `error`, `warning` or `info`. Pass `dismissLabel` to draw a dismiss button. Messages are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

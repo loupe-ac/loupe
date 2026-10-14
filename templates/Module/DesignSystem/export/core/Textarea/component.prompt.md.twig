@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's textarea. {{ entry.summary }}
+
+```jsx
+<{{ name }} defaultValue="Example" />
+<{{ name }} placeholder="Write a note" rows={4} />
+```
+
+Pass the text as `defaultValue`. The component emits the real `lp-input` and `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

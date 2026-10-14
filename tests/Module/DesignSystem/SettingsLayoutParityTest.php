@@ -73,7 +73,7 @@ final class SettingsLayoutParityTest extends KernelTestCase
 
         try {
             $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/SettingsLayout.jsx');
+            $jsx = (string) file_get_contents($directory.'/components/layout/SettingsLayout/SettingsLayout.jsx');
         } finally {
             new Filesystem()->remove($directory);
         }

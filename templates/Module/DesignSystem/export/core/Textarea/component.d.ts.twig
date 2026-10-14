@@ -1,0 +1,17 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }} with text" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The text of the field. Pass it here, never as an element child. */
+    defaultValue?: string;
+    /** Plain text, taken as the default value. */
+    children?: string;
+    className?: string;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

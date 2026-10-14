@@ -25,6 +25,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'Any action or link that looks like a button.',
                 element: 'button',
+                viewport: '700x330',
             ),
             new ComponentEntry(
                 name: 'Input',
@@ -36,6 +37,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A one-line text field.',
                 element: 'input',
+                export: 'Input',
             ),
             new ComponentEntry(
                 name: 'Select',
@@ -58,6 +60,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A text field of several lines.',
                 element: 'textarea',
+                export: 'Textarea',
+                viewport: '700x170',
             ),
             new ComponentEntry(
                 name: 'Label',
@@ -69,6 +73,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The name of a form control.',
                 element: 'label',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'FormField',
@@ -91,6 +96,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The list of errors of a form field.',
                 element: 'div',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'Hint',
@@ -102,6 +108,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A line of help under a form control.',
                 element: 'p',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'Flash',
@@ -113,8 +120,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A short message about the result of an action.',
                 element: 'div',
-                dotClass: 'lp-flash__dot',
-                contentClass: 'lp-flash__message',
+                export: 'Flash',
+                viewport: '700x190',
             ),
             new ComponentEntry(
                 name: 'EmptyState',
@@ -126,6 +133,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The block that tells a user a list or page has no content yet.',
                 element: 'div',
+                export: 'EmptyState',
+                viewport: '700x220',
             ),
             new ComponentEntry(
                 name: 'Badge',
@@ -137,6 +146,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A small label for the review status of a document.',
                 element: 'span',
+                modifierProp: 'status',
             ),
             new ComponentEntry(
                 name: 'Tag',
@@ -148,6 +158,9 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A small coloured label for a category or a tone.',
                 element: 'span',
+                viewport: '700x150',
+                modifierProp: 'tone',
+                takesAs: true,
             ),
             new ComponentEntry(
                 name: 'StatusChip',
@@ -160,6 +173,8 @@ readonly class Catalog
                 summary: 'A chip that names a state, with an optional reason in a tooltip.',
                 element: 'span',
                 dotClass: 'lp-status-chip__dot',
+                export: 'StatusChip',
+                modifierProp: 'modifier',
             ),
             new ComponentEntry(
                 name: 'StateMark',
@@ -171,6 +186,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'An icon that names what a card needs now, with its reason in an interactive tooltip.',
                 element: 'span',
+                export: 'StateMark',
+                modifierProp: 'kind',
             ),
             new ComponentEntry(
                 name: 'StatusBox',
@@ -182,7 +199,9 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The state of a card with its reason, its facts, what clears it, and the other states that apply.',
                 element: 'section',
-                dotClass: 'lp-status-box__dot',
+                export: 'StatusBox',
+                viewport: '700x420',
+                modifierProp: 'kind',
             ),
             new ComponentEntry(
                 name: 'Dialog',
@@ -194,6 +213,9 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A modal window over the page, opened by the modal controller.',
                 element: 'dialog',
+                viewport: '700x420',
+                modifierProp: 'size',
+                attributes: ['data-modal-target' => 'dialog'],
             ),
             new ComponentEntry(
                 name: 'Tabs',
@@ -205,6 +227,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A row of tabs that switches between views of one page, or a pill group that switches a view or a setting.',
                 element: 'nav',
+                viewport: '700x170',
             ),
             new ComponentEntry(
                 name: 'Pagination',
@@ -216,6 +239,8 @@ readonly class Catalog
                 group: 'core',
                 summary: 'The previous, next and page-number links of a long list.',
                 element: 'nav',
+                export: 'Pagination',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'FilterBar',
@@ -285,6 +310,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A short label that shows over an element on hover or focus. The interactive variant stays open for a link.',
                 element: 'span',
+                export: 'Tooltip',
             ),
             new ComponentEntry(
                 name: 'Panel',
@@ -422,6 +448,7 @@ readonly class Catalog
                 group: 'core',
                 summary: 'A size scale for the icon tag: xs is 3, sm is 3.5, md is 4, lg is 5, xl is 8 and 2xl is 12. xl and 2xl are for an empty-state icon. No component wraps it.',
                 element: 'svg',
+                export: 'Icon',
                 classOnly: true,
             ),
             new ComponentEntry(
@@ -435,6 +462,7 @@ readonly class Catalog
                 summary: 'The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column.',
                 element: 'div',
                 export: 'AppShell',
+                viewport: '900x520',
             ),
             new ComponentEntry(
                 name: 'PageHeader',
@@ -447,6 +475,7 @@ readonly class Catalog
                 summary: 'The heading row of a page: a title, an optional description and the actions beside them.',
                 element: 'header',
                 export: 'PageHeader',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'SplitView',
@@ -459,6 +488,7 @@ readonly class Catalog
                 summary: 'A master-detail page: a held header over a list pane beside a detail pane, each scrolling on its own.',
                 element: 'div',
                 export: 'SplitView',
+                viewport: '700x320',
             ),
             new ComponentEntry(
                 name: 'ListRow',
@@ -471,6 +501,7 @@ readonly class Catalog
                 summary: 'One row of a list: an icon, a title and a meta line. The current row is highlighted.',
                 element: 'a',
                 export: 'ListRow',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'BrandMark',
@@ -496,6 +527,7 @@ readonly class Catalog
                 summary: 'The page container: the frame that holds the content of a page, with a named width.',
                 element: 'div',
                 export: 'Workspace',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'NavItem',
@@ -508,6 +540,7 @@ readonly class Catalog
                 summary: 'One link of the sidebar: an icon, a label, an optional count and the current-page mark.',
                 element: 'a',
                 export: 'NavItem',
+                viewport: '700x200',
             ),
             new ComponentEntry(
                 name: 'Breadcrumbs',
@@ -520,6 +553,7 @@ readonly class Catalog
                 summary: 'The trail at the top of a page: links to the parent pages and the current page last.',
                 element: 'nav',
                 export: 'Breadcrumbs',
+                viewport: '700x120',
             ),
             new ComponentEntry(
                 name: 'AuthShell',
@@ -532,6 +566,7 @@ readonly class Catalog
                 summary: 'The frame of every sign-in, sign-up and install page: a topbar with the brand mark, one centred card and a footer of legal links.',
                 element: 'div',
                 export: 'AuthShell',
+                viewport: '900x640',
             ),
             new ComponentEntry(
                 name: 'MarketingShell',
@@ -544,6 +579,7 @@ readonly class Catalog
                 summary: 'The frame of a public page for a signed-out visitor: the marketing header, the page body and the footer with the legal links.',
                 element: 'div',
                 export: 'MarketingShell',
+                viewport: '900x500',
             ),
             new ComponentEntry(
                 name: 'SettingsLayout',
@@ -556,6 +592,7 @@ readonly class Catalog
                 summary: 'A settings page: the page header, a section navigation beside the content, and the content column.',
                 element: 'div',
                 export: 'SettingsLayout',
+                viewport: '900x520',
             ),
             new ComponentEntry(
                 name: 'Drawer',
@@ -568,6 +605,7 @@ readonly class Catalog
                 summary: 'A panel that slides in from the right edge, with a header, a body that scrolls and a footer.',
                 element: 'dialog',
                 export: 'Drawer',
+                viewport: '700x420',
             ),
         ];
     }

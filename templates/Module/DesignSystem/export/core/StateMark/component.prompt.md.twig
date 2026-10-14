@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's state mark. {{ entry.summary }}
+
+```jsx
+<{{ name }} kind="stuck" label="Stuck">A pull request waits for a merge.</{{ name }}>
+<{{ name }} kind="needs-you" label="Needs you">Read the <a href="#">review rules</a>.</{{ name }}>
+```
+
+Pass `kind` as one of {{ entry.variants|join(', ') }}, and a `label` that names the state. The content is the tooltip, and it may hold a link. The tooltip stays open while the pointer or the focus is inside it. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}

@@ -74,23 +74,18 @@ final readonly class ExportDesignSystemHandler
         $imports[] = "@import './tokens/base.css';";
         $write('styles.css', implode("\n", $imports)."\n".$this->tailwind->compile($styles.'/design-system.css'));
 
-        $groups = [];
+        $names = array_map(static fn ($entry): string => $entry->name, $entries);
         foreach ($entries as $entry) {
-            $groups[$entry->group][] = $entry;
-            $base = sprintf('components/%s/%s', $entry->group, $entry->name);
+            $base = sprintf('components/%1$s/%2$s/%2$s', $entry->group, $entry->name);
             $context = ['entry' => $entry, 'section' => ucfirst($entry->group)];
-            $folder = null === $entry->export ? '' : 'layout/'.$entry->export.'/';
+            $folder = null === $entry->export ? '' : $entry->group.'/'.$entry->export.'/';
             $write($base.'.jsx', $this->render($folder.'component.jsx.twig', $context));
             $write($base.'.d.ts', $this->render($folder.'component.d.ts.twig', $context));
             $write($base.'.prompt.md', $this->render($folder.'component.prompt.md.twig', $context));
-        }
-        foreach ($groups as $group => $members) {
-            $card = 'layout' === $group ? 'layout/layout.card.html.twig' : 'group.card.html.twig';
-            $write(sprintf('components/%s/%s.card.html', $group, $group), $this->render($card, [
-                'group' => $group,
-                'name' => ucfirst($group),
-                'entries' => $members,
-            ]));
+
+            $demo = $this->render('' === $folder ? 'default.demo.jsx.twig' : $folder.'demo.jsx.twig', $context);
+            $uses = array_values(array_filter($names, static fn (string $name): bool => $name === $entry->name || 1 === preg_match('~<'.$name.'[\s/>]~', $demo)));
+            $write($base.'.card.html', $this->render('component.card.html.twig', $context + ['demo' => $demo, 'uses' => $uses]));
         }
 
         foreach ($this->tokenReader->groups() as $tokenGroup) {

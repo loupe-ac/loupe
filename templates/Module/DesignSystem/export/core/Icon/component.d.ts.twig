@@ -1,0 +1,23 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="Every {{ entry.name }} size" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The size step. */
+    variant?:
+{% for variant in entry.variants %}
+        | '{{ variant }}'
+{% endfor %}
+        | (string & {});
+    className?: string;
+    /** The SVG shapes of a 24 by 24 Lucide icon. A check mark draws when you leave it out. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

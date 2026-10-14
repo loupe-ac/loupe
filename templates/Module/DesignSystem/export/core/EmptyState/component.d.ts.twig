@@ -1,0 +1,31 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import type { ReactNode } from 'react';
+
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="An {{ entry.name }} with an icon, a title, a sentence and a link" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** An icon, drawn as inline SVG. Optional. */
+    icon?: ReactNode;
+    /** A step of the icon scale, such as `xl`. `2xl` by default. */
+    iconSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+    /** Colour classes of the icon. Optional. */
+    iconClass?: string;
+    /** The heading. Optional. */
+    title?: string;
+    /** The sentence under the heading. Optional. */
+    body?: string;
+    /** The text of the link. The link shows only when `linkHref` is set too. */
+    linkLabel?: string;
+    /** The target of the link. */
+    linkHref?: string;
+    className?: string;
+    /** Goes after the body, for a second paragraph or an action. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

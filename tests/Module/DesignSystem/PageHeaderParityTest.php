@@ -64,7 +64,7 @@ final class PageHeaderParityTest extends KernelTestCase
 
         try {
             $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/PageHeader.jsx');
+            $jsx = (string) file_get_contents($directory.'/components/layout/PageHeader/PageHeader.jsx');
         } finally {
             new Filesystem()->remove($directory);
         }

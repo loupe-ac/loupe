@@ -57,7 +57,7 @@ final class ListRowParityTest extends KernelTestCase
 
         try {
             $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/ListRow.jsx');
+            $jsx = (string) file_get_contents($directory.'/components/layout/ListRow/ListRow.jsx');
         } finally {
             new Filesystem()->remove($directory);
         }
