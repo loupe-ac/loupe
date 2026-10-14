@@ -85,6 +85,9 @@ db_server_version = "18" # the cluster's actual PG major version
 # A domain of its own, never a sub-domain of the app domain. With a DigitalOcean
 # zone, App Platform writes the wildcard certificate's TXT records itself.
 # artifact_content_host = "example-content.com"
+
+# An external blog that nginx serves under /blog. Host only.
+# blog_proxy_host = "blog.example.com"
 # artifact_content_zone = "example-content.com"
 
 # --- Optional: custom domain ---

@@ -99,6 +99,8 @@ x-app-environment: &app-environment
   SITE_REVIEW_WIDGET_CONTEXT: "${SITE_REVIEW_WIDGET_CONTEXT:-}"
   # Domain that serves stored artifacts. Empty means a sealed preview on the app domain.
   ARTIFACT_CONTENT_HOST: "${ARTIFACT_CONTENT_HOST:-}"
+  # External blog host that nginx serves under /blog. Empty leaves /blog to the app.
+  BLOG_PROXY_HOST: "${BLOG_PROXY_HOST:-}"
   # Empty on a real deployment. A preview token signs the widget in with no popup.
   SITE_REVIEW_WIDGET_PREVIEW_TOKEN: "${SITE_REVIEW_WIDGET_PREVIEW_TOKEN:-}"
   # Umami. The first two, plus the analytics.enabled flag, before a tag is
