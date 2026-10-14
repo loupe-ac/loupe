@@ -1137,10 +1137,17 @@
     .lp-redesign-agents .lp-agent-card footer {
         @apply mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-fg-dim break-all;
     }
+    .lp-redesign-agents .lp-btn {
+        @apply max-w-full whitespace-normal leading-5;
+    }
+
     /* One handoff per row: name and trigger, the column-to-bridge flow, then
        the reported state where an enable switch would sit. */
     .lp-redesign-rules .lp-rule-list {
         @apply gap-3 mt-7;
+    }
+    .lp-redesign-rules .lp-filter-primary .lp-btn--icon {
+        @apply shrink-0;
     }
     .lp-redesign-rules .lp-rule-row {
         @apply flex-row flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-line bg-surface-1 px-5.5 py-5;
@@ -1251,6 +1258,9 @@
     .lp-redesign-settings .lp-danger-zone,
     .lp-redesign-settings .lp-settings-section + .lp-settings-section {
         @apply mt-5;
+    }
+    .lp-redesign-settings .lp-btn {
+        @apply max-w-full whitespace-normal leading-5;
     }
     .lp-settings-form-actions {
         @apply flex flex-wrap items-center justify-end gap-3 pt-2;
