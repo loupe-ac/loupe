@@ -67,10 +67,13 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
 
     const token = await agentAccessToken(page);
     const bridgeId = crypto.randomUUID();
-    const report = async (data: Record<string, unknown>) => {
+    const report = async (
+        data: Record<string, unknown>,
+        runId: string = crypto.randomUUID(),
+    ) => {
         // The bearer token alone signs the report, with no session to wait on.
         const response = await request.put(
-            `/api/projects/${projectId}/worker-runs/${crypto.randomUUID()}`,
+            `/api/projects/${projectId}/worker-runs/${runId}`,
             {
                 headers: { Authorization: `Bearer ${token}` },
                 data: {
@@ -139,21 +142,26 @@ test('a card shows a stuck mark until a newer run of the card succeeds or starts
     await expect(card.locator('.lp-state-mark--stuck')).toHaveCount(1);
 
     // A queued retry is the newest run of the card, so the stuck mark goes before it ends.
-    await report({ state: 'queued' });
+    const retry = crypto.randomUUID();
+    await report({ state: 'queued' }, retry);
     await expect(card.locator('.lp-state-mark--stuck')).toHaveCount(0);
     await expect(card).toBeVisible();
     // Each run change places the one card, and never reloads the whole board.
     expect(boardLoads).toEqual([]);
 
-    // The link in the tooltip opens the card in the drawer.
-    await report({
-        ...outcome,
-        state: 'failed',
-        exitCode: 1,
-        output: 'The tests failed again',
-    });
+    // The retry fails and ends, so no work is under way and the mark comes back.
+    await report(
+        {
+            ...outcome,
+            state: 'failed',
+            exitCode: 1,
+            output: 'The tests failed again',
+        },
+        retry,
+    );
     const reopened = card.locator('.lp-state-mark--stuck');
     await expect(reopened).toHaveCount(1);
+    // The link in the tooltip opens the card in the drawer.
     await reopened.getByRole('img', { name: 'Stuck' }).focus();
     await reopened.getByRole('link', { name: 'Open card' }).click();
     await expect(

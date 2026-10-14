@@ -7,6 +7,11 @@
         label: '#' ~ link.card.number ~ ' ' ~ link.card.title,
         line: 'review.document.page_menu.card_line'|trans({'%type%': card_type(link.card).label|trans, '%column%': link.card.column.label|trans}),
     })},
+    {kind: 'artifact', rows: is_feature_enabled('artifacts.enabled') ? document_artifact_links(document)|filter(entry => is_granted(constant('App\\Module\\Artifact\\Security\\ArtifactVoter::VIEW'), entry.link.artifact))|map(entry => {
+        href: path('app_project_artifact', {id: entry.link.artifact.project.id, artifactId: entry.link.artifact.id}),
+        label: entry.link.artifact.name,
+        line: 'review.document.page_menu.artifact_line'|trans({'%version%': entry.link.artifact.archivedAt ? 'artifact.list.archived'|trans : 'v' ~ entry.versionNumber, '%card%': entry.link.card.number}),
+    }) : []},
     {kind: 'outgoing', rows: document.references|map(reference => {
         href: path('app_document_review', {projectId: reference.project.id, documentId: reference.id}),
         label: reference.title,

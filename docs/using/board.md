@@ -189,7 +189,7 @@ is in a state. The mark says what the card needs now:
 
 | State | Means |
 |---|---|
-| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card for longer than the stuck delay and no other reason applies. The remedy line on the card page says what to do |
+| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card for longer than the stuck delay and no other reason applies. The remedy line on the card page says what to do |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
 | **Working** | Work waits for a bridge to take it, a worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
 | **Waiting** | A card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |

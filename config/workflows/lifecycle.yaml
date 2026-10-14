@@ -537,7 +537,13 @@ markers:
       kind: stuck
       label: marker.run_stopped
       remedy: marker.run_stopped.remedy
-      when: { card.run.stopped: {} }
+      when:
+          all:
+              - card.run.stopped: {}
+              - not:
+                    any:
+                        - card.run.work_active: {}
+                        - card.run.worker_active: {}
     - key: checks-failed
       kind: stuck
       label: marker.checks_failed

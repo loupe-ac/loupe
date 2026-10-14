@@ -1,7 +1,8 @@
-{# One row of the document's page menu. Params: kind (card, outgoing, incoming,
+{# One row of the document's page menu. Params: kind (card, artifact, outgoing, incoming,
    history or compare), href, label, line. #}
 <twig:Ds:MenuItem :href="href">
     {% if kind == 'card' %}<twig:ux:icon name="lucide:square-kanban" />{% endif %}
+    {% if kind == 'artifact' %}<twig:ux:icon name="lucide:app-window" />{% endif %}
     {% if kind == 'outgoing' %}<twig:ux:icon name="lucide:arrow-up-right" />{% endif %}
     {% if kind == 'incoming' %}<twig:ux:icon name="lucide:link" />{% endif %}
     {% if kind == 'history' %}<twig:ux:icon name="lucide:history" />{% endif %}
