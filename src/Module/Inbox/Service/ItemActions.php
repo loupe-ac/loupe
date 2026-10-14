@@ -42,16 +42,22 @@ final readonly class ItemActions
     }
 
     /**
-     * The kinds that fit a card now, in menu order: those of its open wait item, and those that fit any card.
+     * The kinds that the owner can run on a card now, in menu order: the enabled actions of its open wait item, or else Open and an available Start session.
      *
      * @return list<InboxActionKind>
      */
-    public function forCard(?InboxItem $waitItem): array
+    public function forCard(Project $project, Uuid $cardId, ?InboxItem $waitItem): array
     {
-        $fitting = null === $waitItem ? [] : array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->forItem($waitItem));
-        $fitting = [...$fitting, InboxActionKind::Open, InboxActionKind::StartSession];
+        if (null !== $waitItem) {
+            $enabled = array_filter($this->forItem($waitItem), static fn (ItemAction $action): bool => null === $action->disabledReasonKey);
 
-        return array_values(array_filter(InboxActionKind::cases(), static fn (InboxActionKind $kind): bool => \in_array($kind, $fitting, true)));
+            return array_values(array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $enabled));
+        }
+
+        $sessionFits = ($this->sessionBridges->onlineFor([$project])[(string) $project->id] ?? false)
+            && !array_any($this->workRequests->findLiveRowsForCards([$cardId->toRfc4122()]), static fn (array $row): bool => WorkRequest::SESSION_KIND === $row['kind']);
+
+        return $sessionFits ? [InboxActionKind::Open, InboxActionKind::StartSession] : [InboxActionKind::Open];
     }
 
     /**
