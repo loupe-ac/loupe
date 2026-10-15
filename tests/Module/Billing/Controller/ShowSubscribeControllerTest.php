@@ -223,4 +223,40 @@ final class ShowSubscribeControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('form[action="/billing/checkout"]'));
     }
+
+    public function test_with_billing_enabled_the_settings_nav_shows_the_billing_tab(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $scenario = new BillingScenario(static::getContainer());
+        $scenario->enableBilling();
+        $scenario->priceFlag('price_settings_tab');
+        $this->stubPrice($client, 'price_settings_tab');
+        $client->loginUser($scenario->verifiedUser('tabuser'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(4, $crawler->filter('.lp-settings-nav a.lp-settings-nav__item'));
+        self::assertSelectorExists('.lp-settings-nav__item--active[aria-current="page"][href="/account/billing"]');
+
+        $crawler = $client->request(Request::METHOD_GET, '/account/profile');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('.lp-settings-nav__item[href="/account/billing"]'));
+        self::assertSelectorNotExists('.lp-settings-nav__item--active[href="/account/billing"]');
+    }
+
+    public function test_with_billing_disabled_the_settings_nav_has_no_billing_tab(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $scenario = new BillingScenario(static::getContainer());
+        $client->loginUser($scenario->verifiedUser('notabuser'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/account/profile');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('.lp-settings-nav__item[href="/account/billing"]'));
+    }
 }

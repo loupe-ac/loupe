@@ -719,7 +719,6 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             }
         }
 
-        self::assertArrayHasKey('billing', $expected);
         self::assertArrayHasKey('account_inboxes', $expected);
         self::assertArrayHasKey('admin', $expected);
         preg_match_all("/\\{ key: '([a-z_]+)'[^}]*\\}/", $jsx, $links, \PREG_SET_ORDER);

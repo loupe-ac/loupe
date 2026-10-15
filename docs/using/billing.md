@@ -16,9 +16,10 @@ price of the plan.
 - **Manage payment details** opens the Stripe portal. Use it to change a card,
   fix a failed payment, or cancel.
 
-When the trial of an account ends, every other page sends you to this tab until
-you subscribe. When the instance is full, the tab offers the waitlist in place
-of the **Subscribe** button, or says that no spot is free when the waitlist is
-closed.
+When the trial of an account ends, the pages of your projects send you to this
+tab until you subscribe. The account settings, the data export, account
+deletion and the sign-in pages stay open. When the instance is full, the tab
+offers the waitlist in place of the **Subscribe** button, or says that no spot
+is free when the waitlist is closed.
 
 Operators enable billing as [Billing](../extending/billing.md) says.
