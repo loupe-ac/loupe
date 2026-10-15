@@ -217,6 +217,19 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getResult());
     }
 
+    /** How many runs of the project are open, of either kind. It matches the open filter of the run list. */
+    public function countOpenOfProject(Project $project): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.state IN (:states)')
+            ->setParameter('project', $project)
+            ->setParameter('states', array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
      * The open runs whose bridge went quiet: its owner's row for the bridge has
      * no heartbeat since the moment given. A bridge with no row at all sent no

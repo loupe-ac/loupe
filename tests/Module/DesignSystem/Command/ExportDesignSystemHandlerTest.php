@@ -748,7 +748,7 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
             }
         }
         sort($expected);
-        self::assertSame(['artifacts', 'documents'], $expected);
+        self::assertSame(['documents'], $expected);
 
         preg_match_all("/\\{ key: '([a-z_]+)'[^}]*alwaysCount: true[^}]*\\}/", $jsx, $links);
         $actual = $links[1];

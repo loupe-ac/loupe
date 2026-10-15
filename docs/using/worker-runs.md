@@ -12,6 +12,9 @@ a card gets a row too, as
 
 Open **Activity** in the project sidebar, or go to
 `/projects/{project}/worker-runs`. Anyone who can view the project can read it.
+The sidebar link shows how many runs are open, and it opens the Runs tab with the
+open runs filter on. The number counts queued, resumed, preparing, running and
+stopping runs, of agents and of interactive sessions. It updates as runs change.
 The open runs also show on the [Workshop](workshop.md), under In motion.
 
 The Activity page has two tabs. **Runs** lists the runs, and the rest of this

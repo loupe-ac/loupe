@@ -37,7 +37,7 @@ export interface {{ entry.name }}Props {
     actions?: ReactNode;
     /** The signed-in user, shown in the account row. */
     userName?: string;
-    /** Numbers shown beside a nav link, keyed by the link name. Documents and Artifacts always show their count, 0 included. Any other link shows it only above 0. */
+    /** Numbers shown beside a nav link, keyed by the link name. Documents always shows its count, 0 included, and it counts the documents in review. Any other link shows it only above 0. Activity takes the number of open runs. */
     counts?: { [link: string]: number };
     /** The projects that the switcher lists, with the document count of each. The entry whose name is projectName gets the current marker. Defaults to projectName alone. */
     projects?: Array<{ name: string; documentCount?: number }>;
