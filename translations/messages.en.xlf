@@ -4414,11 +4414,11 @@
             </trans-unit>
             <trans-unit id="landing.hero.lead_first">
                 <source>landing.hero.lead_first</source>
-                <target>A software factory for coding agents.</target>
+                <target>A software factory that runs on your own terms.</target>
             </trans-unit>
             <trans-unit id="landing.hero.lead_second">
                 <source>landing.hero.lead_second</source>
-                <target>Product design, tech design, code and review, in one workflow.</target>
+                <target>Your agents, your machine, your rules.</target>
             </trans-unit>
             <trans-unit id="landing.hero.explainer_label">
                 <source>landing.hero.explainer_label</source>
