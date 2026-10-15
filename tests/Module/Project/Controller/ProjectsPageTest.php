@@ -377,6 +377,7 @@ final class ProjectsPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('[data-modal-reopen-value="true"]');
         self::assertSelectorExists('button.lp-project-new');
+        self::assertSelectorExists('dialog[data-action="cancel->modal#close"]');
     }
 
     public function test_same_name_for_different_owner_is_allowed(): void

@@ -65,7 +65,7 @@
 
     <twig:Ds:Pagination route="app_projects" :page="page" :totalPages="totalPages" :pageList="pageList" />
 
-    <twig:Ds:Dialog aria-labelledby="new-project-title">
+    <twig:Ds:Dialog aria-labelledby="new-project-title" data-action="cancel->modal#close">
         <h3 class="lp-dialog-title" id="new-project-title">{{ 'project.list.new'|trans }}</h3>
         {{ form_start(form, {'action': path('app_project_create', {page: page}), 'method': 'POST', 'attr': {'class': 'lp-form'}}) }}
             <twig:Ds:FormField>

@@ -48,7 +48,13 @@ test('resizing an open mobile sidebar releases the page at the desktop breakpoin
     await expect(
         page.getByLabel('Project name', { exact: true }),
     ).toBeFocused();
+    // The modal dialog makes the page behind it inert until it closes.
+    await page.keyboard.press('Escape');
+    await expect(
+        page.getByRole('dialog', { name: 'New project' }),
+    ).toBeHidden();
     await page.locator('.lp-sidebar__brand').focus();
+    await expect(page.locator('.lp-sidebar__brand')).toBeFocused();
     await page.setViewportSize({ width: 780, height: 844 });
     await expect(
         page.getByRole('button', { name: 'Open navigation', exact: true }),
