@@ -1,0 +1,7 @@
+{# The sidebar pill of the Agents link, in a frame the live-pill controller reloads when a run or a worker pool changes. #}
+<turbo-frame id="agents-count-{{ project.id }}" class="lp-sidebar__pill-frame" data-live-pill-target="frame">
+    {% if figures is not null %}
+    <span class="lp-sidebar__pill" data-agents-count aria-hidden="true">{{ figures.busy }}/{{ figures.limit }}</span>
+    <span class="sr-only">{{ 'bridge.nav.busy_workers'|trans({'%busy%': figures.busy, '%limit%': figures.limit}) }}</span>
+    {% endif %}
+</turbo-frame>

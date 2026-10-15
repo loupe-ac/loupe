@@ -105,7 +105,7 @@ const WORKSPACE_LINKS = [
 ];
 
 const AGENT_LINKS = [
-    { key: 'agents', label: 'Agents', icon: 'bot' },
+    { key: 'agents', label: 'Agents', icon: 'bot', counted: true },
     { key: 'workflow', label: 'Workflow', icon: 'workflow' },
     { key: 'activity', label: 'Activity', icon: 'activity', counted: true },
     { key: 'analytics', label: 'Analytics', icon: 'chart-column' },
@@ -133,7 +133,9 @@ function NavLink({ link, active, counts }) {
         <a className={classes.join(' ')} href="#" aria-current={isActive ? 'page' : undefined}>
             <Icon name={link.icon} />
             <span className="lp-sidebar__link-label">{link.label}</span>
-            {link.alwaysCount ? (
+            {typeof count === 'string' ? (
+                <span className="lp-sidebar__pill">{count}</span>
+            ) : link.alwaysCount ? (
                 <span className="lp-sidebar__pill">{count ?? 0}</span>
             ) : count > 0 && (
                 <span className={link.amber ? 'lp-sidebar__pill lp-sidebar__pill--amber' : 'lp-sidebar__pill'}>{count}</span>

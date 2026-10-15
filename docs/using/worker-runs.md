@@ -15,6 +15,11 @@ Open **Activity** in the project sidebar, or go to
 The sidebar link shows how many runs are open, and it opens the Runs tab with the
 open runs filter on. The number counts queued, resumed, preparing, running and
 stopping runs, of agents and of interactive sessions. It updates as runs change.
+The **Agents** link shows how many workers are busy over the worker limit, such as
+`1/3`. It adds up the worker pools of the bridges that follow the project, so a
+bridge that also serves another project counts the workers of both. It shows
+nothing when no bridge reports worker pools. It updates as runs and pools change,
+with a delay of up to 10 seconds for a pool change.
 The open runs also show on the [Workshop](workshop.md), under In motion.
 
 The Activity page has two tabs. **Runs** lists the runs, and the rest of this
