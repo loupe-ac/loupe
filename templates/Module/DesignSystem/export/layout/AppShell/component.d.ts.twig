@@ -24,7 +24,6 @@ export interface {{ entry.name }}Props {
         | 'analytics'
         | 'outbox'
         | 'project_settings'
-        | 'billing'
         | 'account_inboxes'
         | 'account'
         | 'admin'
@@ -41,8 +40,8 @@ export interface {{ entry.name }}Props {
     counts?: { [link: string]: number };
     /** The projects that the switcher lists, with the document count of each. The entry whose name is projectName gets the current marker. Defaults to projectName alone. */
     projects?: Array<{ name: string; documentCount?: number }>;
-    /** The feature flags that are on, as the app reads them. Each is off by default, as on a fresh install. inbox shows Needs you and All inboxes, artifacts shows Artifacts, and billing shows Billing. */
-    features?: { inbox?: boolean; artifacts?: boolean; billing?: boolean };
+    /** The feature flags that are on, as the app reads them. Each is off by default, as on a fresh install. inbox shows Needs you and All inboxes, and artifacts shows Artifacts. */
+    features?: { inbox?: boolean; artifacts?: boolean };
     /** True when the user is an admin. It shows the Admin link. */
     admin?: boolean;
     /** `full` drops the frame inset, for a page that reaches the window edge, such as the board. */

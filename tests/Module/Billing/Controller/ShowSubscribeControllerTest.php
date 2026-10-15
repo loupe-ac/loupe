@@ -36,7 +36,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
     {
         $client = static::createClient();
 
-        $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $client->getResponse()->headers->get('Location'));
@@ -52,7 +52,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $this->stubPrice($client, 'price_subscribe_page');
 
         $client->loginUser($scenario->verifiedUser('subscriber'));
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('9.00', $crawler->filter('.lp-billing-price__amount')->text());
@@ -69,7 +69,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $user = $scenario->verifiedUser('provisioned');
 
         $client->loginUser($user);
-        $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -91,7 +91,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $scenario->profile($user, new \DateTimeImmutable('-1 day'));
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('.lp-billing-status--expired'));
@@ -108,7 +108,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $scenario->grant(BillingGrants::stripe($profile, BillingStatus::Active, new \DateTimeImmutable('+30 days'), 'sub_123'));
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('form[action="/billing/portal"]'));
@@ -126,7 +126,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $scenario->grant(BillingGrants::stripe($profile, BillingStatus::PastDue, new \DateTimeImmutable('-1 day'), 'sub_pastdue'));
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('form[action="/billing/portal"]'));
@@ -155,7 +155,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $em->clear();
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('form[action="/billing/checkout"]'));
@@ -198,7 +198,7 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $em->clear();
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         // The waitlist route 404s while registration is off, so the button that
@@ -218,9 +218,45 @@ final class ShowSubscribeControllerTest extends WebTestCase
         $scenario = new BillingScenario(static::getContainer());
 
         $client->loginUser($scenario->verifiedUser('freeuser'));
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertCount(0, $crawler->filter('form[action="/billing/checkout"]'));
+    }
+
+    public function test_with_billing_enabled_the_settings_nav_shows_the_billing_tab(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $scenario = new BillingScenario(static::getContainer());
+        $scenario->enableBilling();
+        $scenario->priceFlag('price_settings_tab');
+        $this->stubPrice($client, 'price_settings_tab');
+        $client->loginUser($scenario->verifiedUser('tabuser'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(4, $crawler->filter('.lp-settings-nav a.lp-settings-nav__item'));
+        self::assertSelectorExists('.lp-settings-nav__item--active[aria-current="page"][href="/account/billing"]');
+
+        $crawler = $client->request(Request::METHOD_GET, '/account/profile');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('.lp-settings-nav__item[href="/account/billing"]'));
+        self::assertSelectorNotExists('.lp-settings-nav__item--active[href="/account/billing"]');
+    }
+
+    public function test_with_billing_disabled_the_settings_nav_has_no_billing_tab(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $scenario = new BillingScenario(static::getContainer());
+        $client->loginUser($scenario->verifiedUser('notabuser'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/account/profile');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('.lp-settings-nav__item[href="/account/billing"]'));
     }
 }

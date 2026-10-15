@@ -22,12 +22,6 @@ const ICONS = {
     ),
     'chart-column': <path d="M3 3v16a2 2 0 0 0 2 2h16m-3-4V9m-5 8V5M8 17v-3" />,
     check: <path d="M20 6L9 17l-5-5" />,
-    'credit-card': (
-        <>
-            <rect width="20" height="14" x="2" y="5" rx="2" />
-            <path d="M2 10h20" />
-        </>
-    ),
     'file-text': (
         <>
             <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
@@ -120,7 +114,6 @@ const AGENT_LINKS = [
 
 const SECONDARY_LINKS = [
     { key: 'project_settings', label: 'Project settings', icon: 'settings', project: true },
-    { key: 'billing', label: 'Billing', icon: 'credit-card', feature: 'billing' },
     { key: 'account_inboxes', label: 'All inboxes', icon: 'mails', feature: 'inbox' },
     { key: 'account', label: 'Account', icon: 'user' },
     { key: 'admin', label: 'Admin', icon: 'shield', admin: true },
