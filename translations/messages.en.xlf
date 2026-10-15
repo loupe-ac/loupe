@@ -7308,25 +7308,6 @@
                 <source>project.workshop.page.description</source>
                 <target>See what needs attention in %project%.</target>
             </trans-unit>
-            <trans-unit id="project.workshop.summary.label">
-                <source>project.workshop.summary.label</source>
-                <target>Project summary</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.requests">
-                <source>project.workshop.summary.requests</source>
-                <target>Open requests</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.cards">
-                <source>project.workshop.summary.cards</source>
-                <target>Open cards</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.completed">
-                <source>project.workshop.summary.completed</source>
-                <target>Completed cards</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.requests_detail"><source>project.workshop.summary.requests_detail</source><target>Questions and reviews</target></trans-unit>
-            <trans-unit id="project.workshop.summary.cards_detail"><source>project.workshop.summary.cards_detail</source><target>Across this project</target></trans-unit>
-            <trans-unit id="project.workshop.summary.completed_detail"><source>project.workshop.summary.completed_detail</source><target>Looking good</target></trans-unit>
             <trans-unit id="project.workshop.needs_you.eyebrow">
                 <source>project.workshop.needs_you.eyebrow</source>
                 <target>Attention</target>
@@ -7413,10 +7394,6 @@
             <trans-unit id="project.workshop.connection.title">
                 <source>project.workshop.connection.title</source>
                 <target>Agent bridge</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.connection.body">
-                <source>project.workshop.connection.body</source>
-                <target>Open the connection guide for current setup details and credentials.</target>
             </trans-unit>
             <trans-unit id="project.workshop.connection.action">
                 <source>project.workshop.connection.action</source>

@@ -17,7 +17,7 @@
             </footer>
         </a>
         {% else %}
-        <p class="lp-workspace-desc">{{ 'project.workshop.cards.empty'|trans }}</p>
+        <twig:Ds:EmptyState compact class="lp-workshop-work-grid__empty" icon="lucide:workflow" :body="'project.workshop.cards.empty'|trans" />
         {% endfor %}
     </div>
     {% if inMotion.more > 0 %}

@@ -33,6 +33,14 @@ final class FeedbackComponentsTest extends KernelTestCase
         self::assertStringNotContainsString('<button', $this->render('<twig:Ds:Flash severity="info">Hi</twig:Ds:Flash>'));
     }
 
+    public function test_a_compact_empty_state_adds_its_modifier_and_a_smaller_icon(): void
+    {
+        $html = $this->render('<twig:Ds:EmptyState compact icon="lucide:inbox" body="None" />');
+
+        self::assertStringContainsString('class="lp-empty-state lp-empty-state--compact"', $html);
+        self::assertStringContainsString('lp-empty-state__icon lp-icon lp-icon--xl"', $html);
+    }
+
     public function test_an_empty_state_renders_its_parts_and_attributes(): void
     {
         $html = $this->render('<twig:Ds:EmptyState icon="lucide:inbox" iconSize="xl" iconClass="text-accent" title="None" body="Add one" linkHref="/docs" linkLabel="Docs" data-empty><p>Extra</p></twig:Ds:EmptyState>');
