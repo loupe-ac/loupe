@@ -1128,12 +1128,6 @@
     .lp-project-tile__arrow {
         @apply absolute bottom-5 right-5 h-4 w-4 text-fg-dim;
     }
-    .lp-project-tile-grid .lp-project-new {
-        @apply min-h-64 justify-center rounded-xl border border-dashed border-line-strong bg-accent-faint p-6;
-    }
-    .lp-project-tile-grid .lp-project-new__toggle {
-        @apply flex-col self-center p-0;
-    }
 
     /* Settings pages keep section navigation beside narrow paper panels. */
     .lp-redesign-settings .lp-danger-zone,
@@ -3159,18 +3153,11 @@
         @apply bg-tint-strong text-ink;
     }
 
-    /* New-project affordance: a dashed 38px square + label that reveals the
-       create form. Collapsed by default; the disclosure controller toggles
-       .open on the panel (and .disclosure-open on the wrapper). */
+    /* New-project tile: a dashed button that opens the create dialog. */
     .lp-project-new {
-        @apply flex flex-col pt-4.5;
+        @apply flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-xl border border-dashed border-line-strong bg-accent-faint p-6 text-fg-dim transition-colors;
     }
-    /* Padded like a project tile so the plus square sits on the same left edge
-       as the avatars in the rows above it. */
-    .lp-project-new__toggle {
-        @apply inline-flex items-center gap-3.5 bg-transparent border-0 py-0 px-4.5 cursor-pointer text-fg-dim transition-colors;
-    }
-    .lp-project-new__toggle:hover {
+    .lp-project-new:hover {
         @apply text-fg;
     }
     .lp-project-new__plus {
@@ -3179,19 +3166,12 @@
     .lp-project-new__plus svg {
         @apply w-4 h-4;
     }
-    .lp-project-new__toggle:hover .lp-project-new__plus {
+    .lp-project-new:hover .lp-project-new__plus {
         border-color: var(--switcher-hover-border);
         @apply text-fg;
     }
     .lp-project-new__label {
         @apply text-base;
-    }
-    /* Collapsed → revealed. Kept out of the normal flow height until open. */
-    .lp-project-new__panel {
-        @apply hidden mt-4 max-w-sm;
-    }
-    .lp-project-new__panel.open {
-        @apply block;
     }
 
     /* ── Documents list ─────────────────────────────────────────────── */

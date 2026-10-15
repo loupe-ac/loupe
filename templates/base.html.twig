@@ -51,8 +51,12 @@
                         </twig:Ds:MenuItem>
                         {% endfor %}
                         <twig:Ds:MenuItem :href="path('app_projects')" class="lp-switcher__all">
-                            <span class="lp-switcher__all-glyph"><twig:ux:icon name="lucide:plus" /></span>
+                            <span class="lp-switcher__all-glyph"><twig:ux:icon name="lucide:layout-dashboard" /></span>
                             {{ 'nav.switcher.all_projects'|trans }}
+                        </twig:Ds:MenuItem>
+                        <twig:Ds:MenuItem :href="path('app_projects', {new: 1})" class="lp-switcher__all">
+                            <span class="lp-switcher__all-glyph"><twig:ux:icon name="lucide:plus" /></span>
+                            {{ 'nav.switcher.new_project'|trans }}
                         </twig:Ds:MenuItem>
                     </twig:block>
                 </twig:Ds:Menu>

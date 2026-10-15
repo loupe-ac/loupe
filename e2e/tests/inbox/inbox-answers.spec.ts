@@ -167,12 +167,10 @@ test('projects header keeps its action reachable with enlarged text', async ({
     await action.focus();
     await expect(action).toBeFocused();
     await action.press('Enter');
-    await expect(page.locator('#new-project-panel')).toBeVisible();
-    await expect(action).toHaveAttribute('aria-expanded', 'true');
+    const dialog = page.getByRole('dialog', { name: 'New project' });
+    await expect(dialog).toBeVisible();
     await expect(
-        page
-            .locator('#new-project-panel')
-            .getByLabel('Project name', { exact: true }),
+        dialog.getByLabel('Project name', { exact: true }),
     ).toBeFocused();
 });
 
