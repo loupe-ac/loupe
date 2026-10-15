@@ -50,6 +50,6 @@ final class SpecimenTest extends KernelTestCase
             static fn (Crawler $link): bool => $link->filter('.lp-sidebar__pill')->count() > 0,
         )->each(static fn (Crawler $link): string => $link->filter('.lp-sidebar__link-label')->text());
 
-        self::assertSame(['Needs you', 'Documents', 'Activity'], $counted);
+        self::assertSame(['Needs you', 'Documents', 'Agents', 'Activity'], $counted);
     }
 }

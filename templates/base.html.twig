@@ -80,7 +80,13 @@
                     <twig:Ds:NavItem :url="path('app_project_artifacts', {id: project.id})" icon="lucide:app-window" :label="'nav.link.artifacts'|trans" :active="route starts with 'app_project_artifact'" />
                     {% endif %}
                     <span class="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">{{ 'bridge.agents.heading'|trans }}</span>
-                    <twig:Ds:NavItem :url="path('app_project_agents', {id: project.id})" icon="lucide:bot" :label="'nav.link.agents'|trans" :active="route == 'app_project_agents'" />
+                    <twig:Ds:NavItem :url="path('app_project_agents', {id: project.id})" icon="lucide:bot" :label="'nav.link.agents'|trans" :active="route == 'app_project_agents'"
+                        data-controller="live-pill" data-live-pill-project-value="{{ project.id }}"
+                        data-action="turbo:frame-missing->live-pill#keepPill"
+                        data-live-pill-events-value="{{ ['worker_run.changed']|json_encode }}"
+                        data-live-pill-url-value="{{ path('app_project_agents_count', {id: project.id}) }}">
+                        {% include '@Bridge/_agents_count.html.twig' with {project: project, figures: project_agents_figures(project)} only %}
+                    </twig:Ds:NavItem>
                     <twig:Ds:NavItem :url="path('app_project_workflow', {id: project.id})" icon="lucide:workflow" :label="'nav.link.workflow'|trans" :active="route == 'app_project_workflow'" />
                     {# A frame response replaces the cookie of its host page, so only a full page subscribes. #}
                     {% if not app.request.headers.has('Turbo-Frame') %}{% do mercure_subscribe(worker_runs_topic(project)) %}{% endif %}

@@ -10,6 +10,7 @@ The sidebar picker marks the current project with a check. It includes the curre
 Select another project to open its Workshop. Escape closes the picker and returns focus to Switch project.
 A page outside a project, such as your account settings, keeps the last project you opened in the sidebar.
 The sidebar marks the current page. The Documents count shows the documents that wait for a review, and archived documents are left out.
+The Agents link shows the busy workers over the worker limit, such as 1/3.
 Document, inbox and Activity counts remain visible beside their labels on the selected row.
 
 Select New project, or anywhere on the dashed tile, to open the form in a dialog. The project switcher in the sidebar also has a New project entry, which opens the projects page with the dialog open. Enter a name and, optionally, a description of up to 500 characters.

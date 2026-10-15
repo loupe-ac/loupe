@@ -198,7 +198,10 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         self::assertSame(0, $this->bridgeReads());
     }
 
-    /** Counts the page's reads of the bridges table, after checking the profiler saw queries at all. */
+    /**
+     * Counts the page's reads of bridges by id, after checking the profiler saw queries at all.
+     * The sidebar reads the bridges of the project by owner on every page, so that read is left out.
+     */
     private function bridgeReads(): int
     {
         $profile = $this->client->getProfile();
@@ -210,7 +213,8 @@ final class InboxQuietBridgeControllerTest extends WebTestCase
         foreach ($collector->getQueries() as $queries) {
             foreach ($queries as $query) {
                 ++$all;
-                if (str_contains((string) $query['sql'], 'FROM bridges')) {
+                $sql = (string) $query['sql'];
+                if (str_contains($sql, 'FROM bridges') && preg_match('/\bid IN \(/', $sql)) {
                     ++$bridgeReads;
                 }
             }
