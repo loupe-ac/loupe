@@ -7,6 +7,7 @@ namespace App\Tests\Module\Review\Repository;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
+use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Repository\DocumentRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -52,18 +53,20 @@ final class DocumentRepositoryTest extends KernelTestCase
         return $document;
     }
 
-    public function test_the_active_count_leaves_out_archived_documents(): void
+    public function test_the_status_count_leaves_out_archived_and_other_statuses(): void
     {
         $project = $this->project('count-active@example.com');
         $this->document($project, 'Open one');
         $this->document($project, 'Open two');
         $this->document($project, 'Put away', archived: true);
+        $this->document($project, 'Settled')->status = DocumentStatus::Approved;
         $this->em->flush();
 
-        // Guard: without it a count of 2 could mean "one was excluded" or
-        // "one was never written", and only the first is what this pins.
-        self::assertCount(3, $this->documents->findBy(['project' => $project]));
-        self::assertSame(2, $this->documents->countActiveByProject($project));
+        // Guard: without it a count of 2 could mean "two were excluded" or
+        // "two were never written", and only the first is what this pins.
+        self::assertCount(4, $this->documents->findBy(['project' => $project]));
+        self::assertSame(2, $this->documents->countByProjectAndStatuses($project, [DocumentStatus::InReview]));
+        self::assertSame(3, $this->documents->countByProjectAndStatuses($project, [DocumentStatus::InReview, DocumentStatus::Approved]));
     }
 
     public function test_the_paginated_list_leaves_out_archived_documents_unless_asked(): void

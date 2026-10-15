@@ -95,19 +95,19 @@ function Icon({ name, className }) {
     );
 }
 
-// The key is the name of the nav.link.* string in templates/base.html.twig.
+// The key is the name of the nav.link.* string in templates/base.html.twig. Only a counted link shows a count, as in the app.
 const WORKSPACE_LINKS = [
     { key: 'workshop', label: 'Workshop', icon: 'layout-dashboard' },
-    { key: 'inbox', label: 'Needs you', icon: 'inbox', amber: true, feature: 'inbox' },
+    { key: 'inbox', label: 'Needs you', icon: 'inbox', amber: true, feature: 'inbox', counted: true },
     { key: 'board', label: 'Board', icon: 'square-kanban' },
-    { key: 'documents', label: 'Documents', icon: 'file-text', alwaysCount: true },
-    { key: 'artifacts', label: 'Artifacts', icon: 'app-window', feature: 'artifacts', alwaysCount: true },
+    { key: 'documents', label: 'Documents', icon: 'file-text', counted: true, alwaysCount: true },
+    { key: 'artifacts', label: 'Artifacts', icon: 'app-window', feature: 'artifacts' },
 ];
 
 const AGENT_LINKS = [
     { key: 'agents', label: 'Agents', icon: 'bot' },
     { key: 'workflow', label: 'Workflow', icon: 'workflow' },
-    { key: 'activity', label: 'Activity', icon: 'activity' },
+    { key: 'activity', label: 'Activity', icon: 'activity', counted: true },
     { key: 'analytics', label: 'Analytics', icon: 'chart-column' },
     { key: 'outbox', label: 'Outbox', icon: 'send' },
 ];
@@ -124,7 +124,7 @@ const LOGOUT = { key: 'logout', label: 'Log out', icon: 'log-out' };
 
 function NavLink({ link, active, counts }) {
     const isActive = active === link.key;
-    const count = counts[link.key];
+    const count = link.counted ? counts[link.key] : undefined;
     const classes = ['lp-sidebar__link'];
     if (isActive) {
         classes.push('lp-sidebar__link--active');

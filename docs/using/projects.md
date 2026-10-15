@@ -9,7 +9,8 @@ The next Tab moves to a control within that content.
 The sidebar picker marks the current project with a check. It includes the current project even when newer projects fill the list.
 Select another project to open its Workshop. Escape closes the picker and returns focus to Switch project.
 A page outside a project, such as your account settings, keeps the last project you opened in the sidebar.
-The sidebar marks the current page. Document and inbox counts remain visible beside their labels on the selected row.
+The sidebar marks the current page. The Documents count shows the documents that wait for a review, and archived documents are left out.
+Document, inbox and Activity counts remain visible beside their labels on the selected row.
 
 Select New project, or anywhere on the dashed tile, to open the form in a dialog. The project switcher in the sidebar also has a New project entry, which opens the projects page with the dialog open. Enter a name and, optionally, a description of up to 500 characters.
 Descriptions appear as plain text on project tiles. Line breaks remain visible.

@@ -51,9 +51,11 @@ test('an answer in one browser lowers the pill in another without a reload', asy
 
     const watcher = await signedInPage(browser, email, PASSWORD);
     await watcher.goto(`/projects/${projectId}/documents`);
-    const link = watcher.locator('a[data-controller="inbox-pill"]');
+    const link = watcher.locator(
+        'a[data-live-pill-url-value$="/inbox/open-count"]',
+    );
     // The hub keeps no history, so a change made before this connects is lost.
-    await expect(link).toHaveAttribute('data-inbox-pill-connected', '');
+    await expect(link).toHaveAttribute('data-live-pill-connected', '');
     const pill = link.locator('[data-inbox-open-count]');
     await expect(pill).toHaveText('2');
 
@@ -111,7 +113,7 @@ test('an answer in one browser lowers the pill in another without a reload', asy
     await watcher.reload();
     await expect(
         watcher.locator(
-            'a[data-controller="inbox-pill"] [data-inbox-open-count]',
+            'a[data-live-pill-url-value$="/inbox/open-count"] [data-inbox-open-count]',
         ),
     ).toHaveCount(0);
 

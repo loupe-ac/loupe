@@ -2,30 +2,34 @@ import { Controller } from '@hotwired/stimulus';
 import { on } from '../lib/live.js';
 
 /**
- * Reloads the sidebar pill when the hub reports a change to this project's open
- * count, and on each open of the connection for any change made while it was
- * not listening, the first open included. One topic carries every project of
- * the user, so a change to another project is ignored.
+ * Reloads a sidebar pill when the hub reports one of its events, and on each
+ * open of the connection for any change made while it was not listening, the
+ * first open included. A message that names a project is ignored when it
+ * names another one, because one topic can carry every project of the user.
  */
 export default class extends Controller {
     static targets = ['frame'];
-    static values = { project: String, url: String };
+    static values = {
+        project: String,
+        url: String,
+        events: { type: Array, default: [] },
+    };
 
     connect() {
         this.unsubscribe = on(
-            'inbox.open_count_changed',
+            this.eventsValue,
             (data) => {
-                if (data?.projectId === this.projectValue) {
+                if (!data?.projectId || data.projectId === this.projectValue) {
                     this.reload();
                 }
             },
             {
                 onOpen: () => {
                     this.reload();
-                    this.element.setAttribute('data-inbox-pill-connected', '');
+                    this.element.setAttribute('data-live-pill-connected', '');
                 },
                 onError: () =>
-                    this.element.removeAttribute('data-inbox-pill-connected'),
+                    this.element.removeAttribute('data-live-pill-connected'),
             },
         );
     }
@@ -33,7 +37,7 @@ export default class extends Controller {
     disconnect() {
         this.unsubscribe?.();
         this.unsubscribe = undefined;
-        this.element.removeAttribute('data-inbox-pill-connected');
+        this.element.removeAttribute('data-live-pill-connected');
     }
 
     keepPill(event) {

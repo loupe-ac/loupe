@@ -230,8 +230,8 @@ final class ListBacklogCardsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $topics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
-        self::assertSame(
-            [$topics->forBoard($projectId)],
+        self::assertEqualsCanonicalizing(
+            [$topics->forBoard($projectId), $topics->forWorkerRuns($projectId)],
             $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn (Crawler $input): ?string => $input->attr('value')),
         );
         $notice = $crawler->filter('[data-controller~="backlog-live"] [data-backlog-live-target="notice"][hidden]');
