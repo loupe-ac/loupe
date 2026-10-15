@@ -1,4 +1,4 @@
-{% extends 'base.html.twig' %}
+{% extends '@Account/_settings_layout.html.twig' %}
 
 {% block title %}{{ 'billing.subscribe.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
@@ -9,9 +9,11 @@
     ]" />
 {% endblock %}
 
-{% block body %}
+{% block settings_section 'billing' %}
+
+{% block settings_content %}
 <div class="lp-billing">
-    <h1 class="lp-workspace-title">{{ 'billing.subscribe.heading'|trans }}</h1>
+    <h2 class="lp-workspace-title">{{ 'billing.subscribe.heading'|trans }}</h2>
     <p class="lp-workspace-desc">{{ 'billing.subscribe.description'|trans }}</p>
 
     <section class="lp-billing-block">

@@ -155,7 +155,7 @@ test('with the cap full a disabled account is offered the waitlist and joining s
         await setRegistrationCap(admin, CLOSED_CAP);
         capClosed = true;
 
-        await page.goto('/billing/subscribe');
+        await page.goto('/account/billing');
         await expect(page.getByText('We are at capacity')).toBeVisible();
         const joinButton = page.getByRole('button', {
             name: 'Join the waitlist',

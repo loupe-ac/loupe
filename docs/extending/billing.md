@@ -16,9 +16,10 @@ never constructed.
 
 ## What it adds
 
-`/billing/subscribe` offers the plan, `/billing/checkout` starts a Stripe
-Checkout session, `/billing/checkout/success` returns from it, and
-`/billing/portal` sends a subscriber to Stripe's own management portal.
+The *Billing* tab of the account settings, at `/account/billing`, offers the
+plan. `/billing/checkout` starts a Stripe Checkout session,
+`/billing/checkout/success` returns from it, and `/billing/portal` sends a
+subscriber to Stripe's own management portal.
 
 Trials end on a schedule rather than on a request: `app:sweep-ended-trials`
 disables expired trials and cancellations past their period, and sends survey
