@@ -18,7 +18,7 @@ Wrap every signed-in page in it. The sidebar and the top bar are part of the she
 
 Pass `projects` to list the projects of the switcher, such as `projects={[{ name: 'Acme', documentCount: 12 }, { name: 'Globex', documentCount: 3 }]}`. The entry whose name is `projectName` gets the check mark. With no `projects`, the switcher lists `projectName` alone.
 
-Pass `counts` to put a number beside a nav link, such as `counts={{ '{{' }} documents: 12, inbox: 2 {{ '}}' }}`. Documents and Artifacts always show their count, and show 0 when you pass none, as the app does. Needs you shows its amber count only above 0.
+Pass `counts` to put a number beside a nav link, such as `counts={{ '{{' }} documents: 12, inbox: 2 {{ '}}' }}`. Only Needs you, Documents and Activity take a count, as in the app, and the shell ignores the count of any other link. Documents always shows its count, and shows 0 when you pass none. Needs you shows its amber count, and Activity its count of open runs, only above 0.
 
 The app hides some links behind a feature flag or a role, and so does the shell. Pass `features={{ '{{' }} inbox: true {{ '}}' }}` to show Needs you and All inboxes, `artifacts: true` to show Artifacts, and `billing: true` to show Billing. Pass `admin` to show the Admin link. Every flag is off by default, as on a fresh install.
 

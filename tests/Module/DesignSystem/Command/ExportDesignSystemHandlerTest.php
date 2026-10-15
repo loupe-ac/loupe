@@ -758,6 +758,28 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString(') : count > 0 && (', $jsx);
     }
 
+    public function test_the_app_shell_wrapper_counts_only_the_links_the_base_template_counts(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 4).'/templates/base.html.twig');
+        $jsx = (string) file_get_contents($this->directory.'/components/layout/AppShell/AppShell.jsx');
+
+        preg_match_all('/<twig:Ds:NavItem\b.*?\'nav\.link\.([a-z_]+)\'\|trans.*?(?:\/>|<\/twig:Ds:NavItem>)/s', $base, $anchors, \PREG_SET_ORDER);
+        $expected = [];
+        foreach ($anchors as [$anchor, $key]) {
+            if (str_contains($anchor, ':count=') || str_contains($anchor, 'lp-sidebar__pill') || str_contains($anchor, '_count.html.twig')) {
+                $expected[] = $key;
+            }
+        }
+        sort($expected);
+        self::assertSame(['activity', 'documents', 'inbox'], $expected);
+
+        preg_match_all("/\\{ key: '([a-z_]+)'[^}]*counted: true[^}]*\\}/", $jsx, $links);
+        $actual = $links[1];
+        sort($actual);
+        self::assertSame($expected, $actual);
+        self::assertStringContainsString('const count = link.counted ? counts[link.key] : undefined;', $jsx);
+    }
+
     /** @return list<string> the body of each `{% if <condition> %}` block, nested blocks included */
     private function ifBlocks(string $twig, string $condition): array
     {
