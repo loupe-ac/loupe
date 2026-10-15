@@ -200,6 +200,32 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertCount(0, $this->publishedRunsChanged(), 'A heartbeat with no pool rows changes nothing.');
     }
 
+    public function test_a_change_of_the_followed_projects_tells_the_pages_of_both_sets_to_reload(): void
+    {
+        self::bootKernel();
+        $this->recordRunsChanged();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-follow-publish@example.com');
+        $kept = (string) $this->project($em, $owner, 'Kept')->id;
+        $added = (string) $this->project($em, $owner, 'Added')->id;
+        $both = [$kept, $added];
+        sort($both);
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
+        $this->publishedRunsChanged();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept, $added], 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame($both, $this->publishedProjects(), 'A newly followed project counts the bridge.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame($both, $this->publishedProjects(), 'A project the bridge left stops counting it.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame([], $this->publishedProjects(), 'The same projects tell nobody.');
+    }
+
     public function test_the_first_heartbeat_stores_the_worker_pools(): void
     {
         self::bootKernel();
@@ -742,6 +768,19 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         $this->runsChanged = [];
 
         return $published;
+    }
+
+    /** @return list<string> the sorted project ids that the runs-changed updates since the last call name */
+    private function publishedProjects(): array
+    {
+        $ids = [];
+        foreach ($this->publishedRunsChanged() as $update) {
+            preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', $update->getTopics()[0], $match);
+            $ids[] = $match[0] ?? '';
+        }
+        sort($ids);
+
+        return $ids;
     }
 
     private function handler(): RecordBridgeHeartbeatHandler

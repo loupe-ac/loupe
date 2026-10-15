@@ -67,7 +67,7 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
@@ -148,6 +148,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 // A project the bridge stopped following can still hold a notice that names it.
                 $heldName === $bridge->name ? [] : array_values(array_unique([...$followed, ...$projects])),
                 $poolsChanged,
+                $followed,
             ];
         });
 
@@ -163,9 +164,11 @@ final readonly class RecordBridgeHeartbeatHandler
             ));
         }
 
-        // The Agents pill of the sidebar sums the busy workers of the pools, so it reloads when they change.
-        if ($pauseChanged || $poolsChanged) {
-            foreach ($this->projects->findOwnedBy($command->owner, $projects) as $project) {
+        // The Agents pill of the sidebar sums the pools of the bridges that follow a project, so it reloads
+        // when the pools change or the bridge follows another set, on the projects it left as well.
+        $followedChanged = [] !== array_diff($followedBefore, $projects) || [] !== array_diff($projects, $followedBefore);
+        if ($pauseChanged || $poolsChanged || $followedChanged) {
+            foreach ($this->projects->findOwnedBy($command->owner, array_values(array_unique([...$followedBefore, ...$projects]))) as $project) {
                 $this->runsChanged->runsChanged($project);
             }
         }
