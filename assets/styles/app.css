@@ -7867,8 +7867,9 @@
     .lp-workshop-attention-list {
         @apply mt-4 px-4.5 rounded-xl border border-line bg-white;
     }
+    /* The row wraps, so the badge and chevron move under the title when large text leaves no room. */
     .lp-workshop-attention {
-        @apply flex items-center gap-3 px-0.5 py-4.5 border-b border-line no-underline transition-colors;
+        @apply flex flex-wrap items-center gap-3 px-0.5 py-4.5 border-b border-line no-underline transition-colors;
     }
     .lp-workshop-attention:last-child {
         @apply border-b-0;
@@ -7883,10 +7884,10 @@
         @apply w-4 h-4;
     }
     .lp-workshop-attention > span:nth-child(2) {
-        @apply flex flex-col min-w-0;
+        @apply flex flex-1 basis-0 flex-col min-w-0;
     }
     .lp-workshop-attention strong {
-        @apply text-sm font-semibold text-ink;
+        @apply text-sm font-semibold text-ink break-words;
     }
     .lp-workshop-attention small {
         @apply text-xs text-fg-dim;
@@ -7895,7 +7896,7 @@
         @apply ml-auto rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
     }
     .lp-workshop-attention__chevron {
-        @apply w-4 h-4 shrink-0 text-fg-dim;
+        @apply w-4 h-4 shrink-0 ml-auto text-fg-dim;
     }
     .lp-workshop-work-grid {
         @apply grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2;
