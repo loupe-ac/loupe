@@ -11,6 +11,7 @@ use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HostSampling;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
@@ -49,6 +50,7 @@ final readonly class RecordBridgeHeartbeatHandler
         private WorkerRunRetentionPolicy $retention,
         private WorkRequestLease $lease,
         private ProjectRepository $projects,
+        private BridgeLiveness $liveness,
         private WorkerRunChangedPublisher $runsChanged,
         private EntityManagerInterface $em,
         private Auditor $auditor,
@@ -67,13 +69,14 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
             $bridge = $this->bridges->findOneByOwnerAndId($command->owner, $command->bridgeId);
             $created = null === $bridge;
             $followed = $bridge->projects ?? [];
+            $wasQuiet = null !== $bridge && $bridge->lastSeenAt < $this->liveness->quietBefore($now);
             if (null === $bridge) {
                 $bridge = new Bridge($command->owner, $command->bridgeId, $projects, $command->cliVersion, $now);
                 $bridge->hooks = $command->hooks ?? [];
@@ -149,6 +152,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $heldName === $bridge->name ? [] : array_values(array_unique([...$followed, ...$projects])),
                 $poolsChanged,
                 $followed,
+                $wasQuiet,
             ];
         });
 
@@ -164,10 +168,11 @@ final readonly class RecordBridgeHeartbeatHandler
             ));
         }
 
-        // The Agents pill of the sidebar sums the pools of the bridges that follow a project, so it reloads
-        // when the pools change or the bridge follows another set, on the projects it left as well.
+        // The Agents pill of the sidebar sums the pools of the live bridges that follow a project, so it reloads
+        // when the pools change, the bridge follows another set or comes back from quiet, on the projects it left as well.
         $followedChanged = [] !== array_diff($followedBefore, $projects) || [] !== array_diff($projects, $followedBefore);
-        if ($pauseChanged || $poolsChanged || $followedChanged) {
+        $cameBack = $wasQuiet && null !== $bridge->workerPools;
+        if ($pauseChanged || $poolsChanged || $followedChanged || $cameBack) {
             foreach ($this->projects->findOwnedBy($command->owner, array_values(array_unique([...$followedBefore, ...$projects]))) as $project) {
                 $this->runsChanged->runsChanged($project);
             }

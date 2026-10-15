@@ -200,6 +200,26 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertCount(0, $this->publishedRunsChanged(), 'A heartbeat with no pool rows changes nothing.');
     }
 
+    /** The Agents pill drops a quiet bridge, so its first heartbeat back counts its workers again. */
+    public function test_a_bridge_back_from_quiet_tells_the_pages_to_reload_with_the_same_pools(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock('2026-09-23 12:00:00'));
+        $this->recordRunsChanged();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-back-from-quiet@example.com');
+        $projects = [(string) $this->project($em, $owner, 'Followed')->id];
+        $quiet = $this->seedBridge($em, $owner, projects: $projects, lastSeenAt: new \DateTimeImmutable('2026-09-23 11:56:59'), workerPools: [self::pool()]);
+        $live = $this->seedBridge($em, $owner, projects: $projects, lastSeenAt: new \DateTimeImmutable('2026-09-23 11:57:00'), workerPools: [self::pool()]);
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $live->id, $projects, 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame([], $this->publishedProjects(), 'A live bridge with the same pools tells nobody.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $quiet->id, $projects, 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame($projects, $this->publishedProjects());
+    }
+
     public function test_a_change_of_the_followed_projects_tells_the_pages_of_both_sets_to_reload(): void
     {
         self::bootKernel();
