@@ -7,6 +7,7 @@ namespace App\Tests\Module\DesignSystem;
 use App\Module\DesignSystem\Catalog;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Twig\Environment;
 
 final class SpecimenTest extends KernelTestCase
@@ -38,5 +39,17 @@ final class SpecimenTest extends KernelTestCase
         }
         self::assertStringNotContainsString('data-controller="drawer"', $html);
         self::assertStringNotContainsString('lp-sidebar--drawer', $html);
+    }
+
+    public function test_the_app_shell_specimen_counts_each_sidebar_link_the_app_counts(): void
+    {
+        self::bootKernel();
+
+        $html = static::getContainer()->get(Environment::class)->render('@DesignSystem/specimen/appshell.html.twig', ['variant' => null]);
+        $counted = new Crawler($html)->filter('.lp-sidebar__link')->reduce(
+            static fn (Crawler $link): bool => $link->filter('.lp-sidebar__pill')->count() > 0,
+        )->each(static fn (Crawler $link): string => $link->filter('.lp-sidebar__link-label')->text());
+
+        self::assertSame(['Needs you', 'Documents', 'Activity'], $counted);
     }
 }
