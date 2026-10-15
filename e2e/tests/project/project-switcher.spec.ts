@@ -197,3 +197,20 @@ test('project switching marks context, clears search, and returns keyboard focus
         animations: 'disabled',
     });
 });
+
+test('the switcher offers a New project entry that opens the create dialog', async ({
+    page,
+}) => {
+    await page.goto('/projects');
+    await page
+        .getByRole('button', { name: 'Switch project', exact: true })
+        .click();
+    await page
+        .locator('#project-switcher-panel')
+        .getByRole('link', { name: 'New project' })
+        .click();
+    await expect(page).toHaveURL(/\/projects\?new=1$/);
+    await expect(
+        page.getByRole('dialog', { name: 'New project' }),
+    ).toBeVisible();
+});
