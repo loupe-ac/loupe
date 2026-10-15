@@ -5,6 +5,10 @@
     .lp-empty-state {
         @apply flex flex-col items-center text-center gap-3 rounded-xl bg-surface-2 py-16 px-8;
     }
+    /* The same part for an empty section inside a page, where the full panel is too tall. */
+    .lp-empty-state--compact {
+        @apply gap-2 py-6 px-4;
+    }
     .lp-empty-state__icon {
         @apply text-line-strong;
     }

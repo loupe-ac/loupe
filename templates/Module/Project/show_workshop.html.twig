@@ -36,25 +36,6 @@
     {% else %}
     <twig:Ds:PageHeader variant="workshop" :title="'project.workshop.page.heading'|trans" :description="'project.workshop.page.description'|trans({'%project%': workshop.project.name})" />
 
-    <div class="lp-workshop-summary" aria-label="{{ 'project.workshop.summary.label'|trans }}">
-        {% if is_feature_enabled('inbox.enabled') %}<a class="lp-workshop-stat" data-workshop-stat="requests" href="{{ path('app_project_inbox', {id: workshop.project.id}) }}">{% else %}<div class="lp-workshop-stat" data-workshop-stat="requests">{% endif %}
-            {% if is_feature_enabled('inbox.enabled') %}<span class="lp-workshop-stat__value">{{ workshop.stats.openInboxItemCount }}</span>{% endif %}
-            <span class="lp-workshop-stat__copy"><strong>{{ 'project.workshop.summary.requests'|trans }}</strong>{{ is_feature_enabled('inbox.enabled') ? 'project.workshop.summary.requests_detail'|trans : 'project.workshop.needs_you.disabled'|trans }}</span>
-        {% if is_feature_enabled('inbox.enabled') %}</a>{% else %}</div>{% endif %}
-        <a class="lp-workshop-stat" data-workshop-stat="open-cards" href="{{ path('app_project_board', {id: workshop.project.id}) }}">
-            <span class="lp-workshop-stat__value">{{ workshop.stats.openCardCount }}</span>
-            <span class="lp-workshop-stat__copy"><strong>{{ 'project.workshop.summary.cards'|trans }}</strong>{{ 'project.workshop.summary.cards_detail'|trans }}</span>
-        </a>
-        <a class="lp-workshop-stat" data-workshop-stat="completed-cards" href="{{ path('app_project_board', {id: workshop.project.id}) }}">
-            <span class="lp-workshop-stat__value">{{ workshop.stats.completedCardCount }}</span>
-            <span class="lp-workshop-stat__copy"><strong>{{ 'project.workshop.summary.completed'|trans }}</strong>{{ 'project.workshop.summary.completed_detail'|trans }}</span>
-        </a>
-        <twig:Ds:Button class="lp-workshop-summary__action" href="{{ path('app_project_board', {id: workshop.project.id}) }}">
-            <twig:ux:icon name="lucide:square-kanban" />
-            {{ 'project.workshop.in_motion.action'|trans }}
-        </twig:Ds:Button>
-    </div>
-
     <div class="lp-workshop-layout">
         <div class="lp-workshop-primary">
         <section class="lp-workshop-section">
@@ -73,7 +54,7 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p class="lp-workspace-desc">{{ is_feature_enabled('inbox.enabled') ? 'project.workshop.needs_you.clear'|trans : 'project.workshop.needs_you.disabled'|trans }}</p>
+            <twig:Ds:EmptyState compact icon="lucide:inbox" :body="is_feature_enabled('inbox.enabled') ? 'project.workshop.needs_you.clear'|trans : 'project.workshop.needs_you.disabled'|trans" />
             {% endif %}
         </section>
 
@@ -114,15 +95,6 @@
                 {% endfor %}
             </section>
 
-            <section class="lp-workshop-note">
-                <div>
-                    <h2>{{ 'project.workshop.connection.title'|trans }}</h2>
-                    <p>{{ 'project.workshop.connection.body'|trans }}</p>
-                    <a class="lp-workshop-text-link" href="{{ path('app_project_connect', {id: workshop.project.id}) }}">{{ 'project.workshop.connection.action'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
-                </div>
-                <img class="lp-workshop-note__mascot" src="{{ asset('images/mascots/planner.png') }}" alt="">
-            </section>
-
             <section class="lp-workshop-recent">
                 <twig:Ds:SectionHeading>{{ 'nav.link.activity'|trans }}
                     <twig:block name="actions"><a class="lp-workshop-text-link" href="{{ path('app_project_activity', {id: workshop.project.id}) }}">{{ 'project.workshop.activity.view_all'|trans }}</a></twig:block>
@@ -133,7 +105,7 @@
                     <span><strong>{% include 'outbox/_event_type_label.html.twig' with {type: entry.event.type} only %}</strong><small>{% if entry.link %}{{ entry.link.label }} · {% endif %}<twig:Ds:RelativeTime :datetime="entry.event.createdAt" /></small></span>
                 </a>
                 {% else %}
-                <p class="lp-workspace-desc">{{ 'project.workshop.activity.empty'|trans }}</p>
+                <twig:Ds:EmptyState compact icon="lucide:activity" :body="'project.workshop.activity.empty'|trans" />
                 {% endfor %}
             </section>
         </aside>
