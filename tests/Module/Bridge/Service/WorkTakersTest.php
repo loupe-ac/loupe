@@ -246,6 +246,21 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
     }
 
+    /** The CLI runs the app prompt when the entry of the kind names another subject, as TestAppPromptRunsWhenTheEntryNamesAnotherSubject shows. */
+    public function test_a_bridge_with_app_prompts_takes_a_prompted_kind_that_its_entry_maps_to_another_subject(): void
+    {
+        $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS, 'subject-analysis'];
+        [$project, $request, $owner] = $this->scenario('mapped-elsewhere-analysis', capability: 'subject-analysis', prompt: 'Analyse.', subject: new WorkSubject('analysis', Uuid::v7()));
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['implement'], capabilities: $appPrompts);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+
+        [$project, $request, $owner] = $this->scenario('mapped-elsewhere-card', prompt: 'Build {cardId}.');
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: $appPrompts);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
     public function test_a_card_kind_of_another_subject_takes_no_card_request(): void
     {
         [$project, $request, $owner] = $this->scenario('card-kind-of-subject');
