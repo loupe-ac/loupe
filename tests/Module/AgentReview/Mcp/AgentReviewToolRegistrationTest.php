@@ -6,6 +6,8 @@ namespace App\Tests\Module\AgentReview\Mcp;
 
 use App\Mcp\FlagGatedToolInterface;
 use App\Module\AgentReview\Mcp\AgentReviewSubmitTool;
+use App\Module\AgentReview\Mcp\DocumentReviewAnswerTool;
+use App\Module\AgentReview\Mcp\DocumentReviewSubmitTool;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\FeedbackMarkAddressedTool;
 use App\Module\Project\Mcp\AdvertisedTools;
@@ -56,6 +58,25 @@ final class AgentReviewToolRegistrationTest extends KernelTestCase
         $start = array_search(FeedbackMarkAddressedTool::NAME, $names, true);
         self::assertIsInt($start);
 
-        self::assertSame([FeedbackMarkAddressedTool::NAME, AgentReviewSubmitTool::NAME, CardCreateTool::NAME], \array_slice($names, $start, 3));
+        self::assertSame([FeedbackMarkAddressedTool::NAME, AgentReviewSubmitTool::NAME], \array_slice($names, $start, 2));
+    }
+
+    public function test_the_document_review_tools_are_published_after_the_pull_request_tool(): void
+    {
+        foreach ([DocumentReviewSubmitTool::NAME, DocumentReviewAnswerTool::NAME] as $name) {
+            self::assertTrue($this->registry->hasTool($name));
+            $translator = self::getContainer()->get(TranslatorInterface::class);
+            self::assertInstanceOf(TranslatorInterface::class, $translator);
+            self::assertNotSame('project.connect.tool.'.$name, $translator->trans('project.connect.tool.'.$name));
+        }
+        self::assertSame(['cardId', 'documentId', 'versionNumber', 'summary', 'findings'], $this->registry->getTool(DocumentReviewSubmitTool::NAME)->tool->inputSchema['required']);
+        self::assertSame(['cardId', 'documentId', 'answers'], $this->registry->getTool(DocumentReviewAnswerTool::NAME)->tool->inputSchema['required']);
+
+        $advertised = self::getContainer()->get(AdvertisedTools::class);
+        self::assertInstanceOf(AdvertisedTools::class, $advertised);
+        $names = array_column($advertised->enabled(), 'name');
+        $start = array_search(AgentReviewSubmitTool::NAME, $names, true);
+        self::assertIsInt($start);
+        self::assertSame([AgentReviewSubmitTool::NAME, DocumentReviewSubmitTool::NAME, DocumentReviewAnswerTool::NAME, CardCreateTool::NAME], \array_slice($names, $start, 4));
     }
 }

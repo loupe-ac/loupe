@@ -2664,6 +2664,14 @@
                 <source>project.connect.tool.agent_review_submit</source>
                 <target>Submit the review of a pull request of a card, with its findings on file lines. Only a running review worker of the card can call it. Loupe shows the review as a check on the pull request when the agent review is on.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.document_review_submit">
+                <source>project.connect.tool.document_review_submit</source>
+                <target>Submit the review of a draft design document of a card, with its findings. Only a running design review worker of the card can call it.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.document_review_answer">
+                <source>project.connect.tool.document_review_answer</source>
+                <target>Answer each finding of the latest agent review that the card got for a draft design document as fixed, not changed with a reason, or for the owner. Only a running design fix worker of the card can call it.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.card_create">
                 <source>project.connect.tool.card_create</source>
                 <target>Add a card to the project board, with a type, a reporter, the pull requests that carry the work and the cards it links to (relatedCards).</target>
