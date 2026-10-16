@@ -86,6 +86,9 @@ final class WorkerRunFactsBackfillMigrationTest extends KernelTestCase
             'on_battery' => null,
             'harness' => null,
             'account' => null,
+            'harness_version' => null,
+            'cli_version' => null,
+            'skill_version' => null,
         ], $this->fact($run));
     }
 
