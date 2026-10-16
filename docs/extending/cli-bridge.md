@@ -1281,8 +1281,11 @@ work:
 The key is the kind of work. Lifecycle asks for the kind `sync-epic` when a
 child waits for a blocker outside its epic and the project has no GitHub App
 installation. Its entry merges `origin/<default branch>` into a detached
-`origin/epic/<n>`, pushes without force, and stops blocked on a conflict. The
-entry sets nothing else, because the workflow reads how the run finished.
+`origin/epic/<n>`, pushes without force, and stops blocked on a conflict. It
+also stops blocked when the merged pull requests of the blockers live in
+another repository than `origin`. Loupe asks for this work only when that code
+lives in one repository. The entry sets nothing else, because the workflow
+reads how the run finished.
 
 A worker entry takes `prompt`, `account`,
 `model`, `permissions`, `before`, `workerPool`, `variants` and `metrics`. A command entry takes

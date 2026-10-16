@@ -26,7 +26,10 @@ final readonly class EpicBranchSyncFactProvider extends BoardFactProvider
         return 'epic-branch-sync';
     }
 
-    /** The epic branch is in sync when no blocker from outside the epic finished after the last merge of the default branch into it. */
+    /**
+     * The epic branch is in sync when a merge of the default branch recorded each done blocker from outside the epic.
+     * The epic records the blockers it covered, not a time, so a merge in the second a blocker finished still counts.
+     */
     #[\Override]
     public function build(CardSnapshot $card): object
     {
@@ -36,17 +39,8 @@ final readonly class EpicBranchSyncFactProvider extends BoardFactProvider
             return new EpicBranchSyncFacts(true);
         }
 
-        $blockers = $this->cards->findDoneBlockersOutsideEpicOf($stored);
-        if ([] === $blockers) {
-            return new EpicBranchSyncFacts(true);
-        }
-
-        $syncedAt = $epic->epicBranchSyncedAt;
-        if (null === $syncedAt) {
-            return new EpicBranchSyncFacts(false);
-        }
-        foreach ($blockers as $blocker) {
-            if (null !== $blocker->completedAt && $blocker->completedAt >= $syncedAt) {
+        foreach ($this->cards->findDoneBlockersOutsideEpicOf($stored) as $blocker) {
+            if (!$epic->epicBranchHolds($blocker)) {
                 return new EpicBranchSyncFacts(false);
             }
         }

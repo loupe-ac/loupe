@@ -83,9 +83,14 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
 
-    /** Only an epic reads it: the time a merge of the default branch into the epic branch last succeeded. */
-    #[ORM\Column(nullable: true)]
-    public ?\DateTimeImmutable $epicBranchSyncedAt = null;
+    /**
+     * Only an epic reads it: each blocker outside the epic whose code a merge of the default branch brought into
+     * the epic branch, by card id, with the completion time the blocker had then.
+     *
+     * @var array<string, string>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+    public array $epicBranchSyncedBlockers = [];
 
     /**
      * Title and body, stemmed and weighted, as one searchable vector. It sits on
@@ -221,6 +226,25 @@ class Card implements ProjectScopedSubject
     public static function normalText(string $text): string
     {
         return trim(str_replace(["\r\n", "\r"], "\n", $text));
+    }
+
+    /** Records on the epic that its branch now holds the code of each blocker, as each blocker stands now. */
+    public function recordEpicBranchSync(Card ...$blockers): void
+    {
+        foreach ($blockers as $blocker) {
+            $this->epicBranchSyncedBlockers[(string) $blocker->id] = self::completionStamp($blocker);
+        }
+    }
+
+    /** A blocker that finished again after the merge reads as not held, because its stamp changed. */
+    public function epicBranchHolds(Card $blocker): bool
+    {
+        return ($this->epicBranchSyncedBlockers[(string) $blocker->id] ?? null) === self::completionStamp($blocker);
+    }
+
+    private static function completionStamp(Card $blocker): string
+    {
+        return $blocker->completedAt?->format(\DATE_ATOM) ?? '';
     }
 
     /** What the workflow reads about this card when it decides on a move. */

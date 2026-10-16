@@ -283,6 +283,8 @@ work:
     prompt: |
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) waits for a blocker outside its epic.
       Read the epic of the card with card_get, and find its epic branch.
+      Read each done blocker of the card from outside the epic with card_get, and the repository of its merged pull requests.
+      When that repository is not the repository of `git remote get-url origin`, push nothing, and stop with `STAGE RESULT: blocked: wrong repository`.
       Fetch origin. Check out origin/epic/<n> detached, where <n> is the epic number.
       Merge origin/<default branch> into it, and push the result to epic/<n> without force.
       When the merge conflicts, abort it, push nothing, and stop with `STAGE RESULT: blocked: merge conflict`.

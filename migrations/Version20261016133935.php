@@ -12,18 +12,18 @@ final class Version20261016133935 extends AbstractMigration
     #[\Override]
     public function getDescription(): string
     {
-        return 'Add the time of the last merge of the default branch into the epic branch to board cards';
+        return 'Add the blockers that the last merge of the default branch brought into the epic branch to board cards';
     }
 
     #[\Override]
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE board_cards ADD epic_branch_synced_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
+        $this->addSql("ALTER TABLE board_cards ADD epic_branch_synced_blockers JSONB DEFAULT '{}' NOT NULL");
     }
 
     #[\Override]
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE board_cards DROP epic_branch_synced_at');
+        $this->addSql('ALTER TABLE board_cards DROP epic_branch_synced_blockers');
     }
 }

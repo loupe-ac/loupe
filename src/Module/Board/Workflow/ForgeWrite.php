@@ -41,7 +41,6 @@ use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -70,7 +69,6 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         private ForgePullRequestRepository $forgePullRequests,
         private EpicBranchMergers $epicBranchMergers,
         private EntityManagerInterface $em,
-        private ClockInterface $clock,
         private PullRequestStateWriters $stateWriters,
         private PullRequestOpeners $pullRequestOpeners,
         private WorkRequestOpener $opener,
@@ -255,39 +253,35 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
 
     /**
      * Merges the default branch into the epic branch in each repository where a blocker outside the epic
-     * merged code, then records the time on the epic. A blocker with no merged pull request brings no code.
+     * merged code, then records the blockers on the epic. A blocker with no merged pull request brings no code.
+     * The fallback work merges in the repository of its own checkout only, so it serves one repository and no more.
      *
      * @param \Closure(): ActionOutcome $fallback
      */
     private function mergeMainIntoEpic(Card $card, \Closure $fallback): ActionOutcome
     {
         $epic = $card->parent;
-        $projectId = $card->project->requireId();
-        $epicBranch = null === $epic ? null : $this->epicBranches->of($projectId, $epic->number);
         if (null === $epic) {
             return ActionOutcome::done();
         }
+        $epicBranch = $this->epicBranches->of($card->project->requireId(), $epic->number);
+        $blockers = $this->cards->findDoneBlockersOutsideEpicOf($card);
         // An epic with no epic branch starts its children from the default branch, so there is no code to bring.
-        $blockers = null === $epicBranch ? [] : $this->cards->findDoneBlockersOutsideEpicOf($card);
         if (null === $epicBranch || [] === $blockers) {
-            return $this->recordEpicSync($card, $epic, $epicBranch, 0);
+            return $this->recordEpicSync($card, $epic, $blockers, $epicBranch, 0);
         }
 
         $references = [];
-        $merged = false;
         foreach ($blockers as $blocker) {
             foreach ($this->cardPullRequests->forCard($blocker) as $pullRequest) {
                 if (PullRequestState::Merged !== $pullRequest->state) {
                     continue;
                 }
-                $merged = true;
-                if (null !== $pullRequest->defaultBranch) {
-                    $references[$pullRequest->forge.' '.mb_strtolower($pullRequest->repository)] ??= $pullRequest;
+                if (null === $pullRequest->defaultBranch) {
+                    return ActionOutcome::refused('no-default-branch');
                 }
+                $references[$pullRequest->forge.' '.mb_strtolower($pullRequest->repository)] ??= $pullRequest;
             }
-        }
-        if ($merged && [] === $references) {
-            return ActionOutcome::refused('no-default-branch');
         }
 
         $failure = null;
@@ -315,20 +309,22 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             return ActionOutcome::refused($failure->cause);
         }
         if ($skipped) {
-            return $fallback();
+            return 1 === \count($references) ? $fallback() : ActionOutcome::refused('several-repositories');
         }
 
-        return $this->recordEpicSync($card, $epic, $epicBranch, \count($references));
+        return $this->recordEpicSync($card, $epic, $blockers, $epicBranch, \count($references));
     }
 
-    private function recordEpicSync(Card $card, Card $epic, ?string $epicBranch, int $repositories): ActionOutcome
+    /** @param list<Card> $blockers */
+    private function recordEpicSync(Card $card, Card $epic, array $blockers, ?string $epicBranch, int $repositories): ActionOutcome
     {
-        $epic->epicBranchSyncedAt = $this->clock->now();
+        $epic->recordEpicBranchSync(...$blockers);
         $this->em->flush();
         $this->logger->info('board.epic_branch_synced', [
             'cardId' => (string) $card->id,
             'epicId' => (string) $epic->id,
             'epicBranch' => $epicBranch,
+            'blockers' => \count($blockers),
             'repositories' => $repositories,
         ]);
         if ($this->evaluations->isOn()) {

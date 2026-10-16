@@ -52,31 +52,60 @@ final class EpicBranchSyncFactProviderTest extends KernelTestCase
         self::assertTrue($this->synced($child));
     }
 
-    public function test_a_done_blocker_outside_the_epic_leaves_the_branch_unsynced_until_a_later_merge(): void
+    public function test_a_done_blocker_outside_the_epic_leaves_the_branch_unsynced_until_a_merge_records_it(): void
     {
         $epic = $this->card();
         $child = $this->card(parent: $epic);
-        $this->blocks($this->card('done', completedAt: '2026-10-02 10:00:00'), $child);
+        $blocker = $this->card('done', completedAt: '2026-10-02 10:00:00');
+        $this->blocks($blocker, $child);
         $this->em->flush();
 
         self::assertFalse($this->synced($child));
 
-        $epic->epicBranchSyncedAt = new \DateTimeImmutable('2026-10-02 09:00:00');
+        $epic->recordEpicBranchSync($blocker);
         $this->em->flush();
-        self::assertFalse($this->synced($child));
-
-        $epic->epicBranchSyncedAt = new \DateTimeImmutable('2026-10-02 11:00:00');
-        $this->em->flush();
-        self::assertTrue($this->synced($child));
+        $this->em->clear();
+        self::assertTrue($this->reloadedSynced($child));
     }
 
-    public function test_a_blocker_that_finishes_after_the_merge_makes_the_branch_unsynced_again(): void
+    public function test_a_merge_in_the_second_the_blocker_finished_still_syncs_the_branch(): void
     {
         $epic = $this->card();
-        $epic->epicBranchSyncedAt = new \DateTimeImmutable('2026-10-02 11:00:00');
         $child = $this->card(parent: $epic);
+        $blocker = $this->card('done', completedAt: '2026-10-02 10:00:00.700');
+        $this->blocks($blocker, $child);
+        $this->em->flush();
+        $this->em->clear();
+
+        $storedEpic = $this->reload($epic);
+        $storedEpic->recordEpicBranchSync($this->reload($blocker));
+        $this->em->flush();
+        $this->em->clear();
+
+        self::assertTrue($this->reloadedSynced($child));
+    }
+
+    public function test_a_blocker_the_merge_did_not_record_makes_the_branch_unsynced(): void
+    {
+        $epic = $this->card();
+        $child = $this->card(parent: $epic);
+        $covered = $this->card('done', completedAt: '2026-10-02 10:00:00');
+        $this->blocks($covered, $child);
         $this->blocks($this->card('done', completedAt: '2026-10-02 10:00:00'), $child);
-        $this->blocks($this->card('done', completedAt: '2026-10-02 12:00:00'), $child);
+        $epic->recordEpicBranchSync($covered);
+        $this->em->flush();
+
+        self::assertFalse($this->synced($child));
+    }
+
+    public function test_a_blocker_that_finishes_again_after_the_merge_makes_the_branch_unsynced(): void
+    {
+        $epic = $this->card();
+        $child = $this->card(parent: $epic);
+        $blocker = $this->card('done', completedAt: '2026-10-02 10:00:00');
+        $this->blocks($blocker, $child);
+        $epic->recordEpicBranchSync($blocker);
+        $blocker->completedAt = new \DateTimeImmutable('2026-10-03 10:00:00');
         $this->em->flush();
 
         self::assertFalse($this->synced($child));
@@ -113,6 +142,19 @@ final class EpicBranchSyncFactProviderTest extends KernelTestCase
         self::assertInstanceOf(EpicBranchSyncFacts::class, $facts);
 
         return $facts->synced;
+    }
+
+    private function reloadedSynced(Card $card): bool
+    {
+        return $this->synced($this->reload($card));
+    }
+
+    private function reload(Card $card): Card
+    {
+        $stored = $this->em->find(Card::class, $card->id);
+        self::assertInstanceOf(Card::class, $stored);
+
+        return $stored;
     }
 
     private function card(string $column = 'in-progress', ?Card $parent = null, ?string $completedAt = null): Card

@@ -285,10 +285,12 @@ instead. See [Automation](board.md#automation).
 
 The `merge-main-into-epic` write acts on a child in Next whose blocker outside
 its epic is done. It merges the default branch into the epic branch in each
-repository where such a blocker merged a pull request, then records the time on
-the epic. A merge conflict refuses the write, and a person resolves the
-conflict. A project with no GitHub App installation gets work of kind
-`sync-epic` instead.
+repository where such a blocker merged a pull request, then records on the
+epic which blockers the merge covered. A merge conflict refuses the write, and
+a person resolves the conflict. A project with no GitHub App installation gets
+work of kind `sync-epic` instead. That work merges in one repository, so when
+the code lives in several repositories and Loupe cannot merge in one of them,
+the write refuses, and a person merges by hand.
 
 Two more writes come from the [rules the app adds](#rules-the-app-adds). They
 act on a site-review verdict, and they never ask a bridge for work:
