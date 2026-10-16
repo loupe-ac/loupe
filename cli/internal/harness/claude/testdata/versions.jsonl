@@ -1,0 +1,3 @@
+{"type":"system","subtype":"hook_started","uuid":"00000000-0000-4000-8000-000000000001","session_id":"00000000-0000-4000-8000-000000000002"}
+{"type":"system","subtype":"init","claude_code_version":"2.1.301","session_id":"00000000-0000-4000-8000-000000000002","plugins":[{"name":"honey","source":"honey@greenpt","version":"1.0.0"},{"name":"unversioned","source":"unversioned@market"},{"name":"loupe","source":"loupe@loupe","version":"0.9.4"}]}
+{"type":"result","subtype":"success","is_error":false,"result":"done"}

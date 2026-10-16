@@ -583,3 +583,28 @@ func TestReportRunStateSendsThePeakContext(t *testing.T) {
 		}
 	}
 }
+
+// The version fields reach the server, and a value it would refuse is left
+// out so the rest of the report still lands.
+func TestReportRunStateSendsTheVersionsItCanTake(t *testing.T) {
+	report := stateReport(RunRunning)
+	report.HarnessVersion, report.CLIVersion, report.SkillVersion = "2.1.301", "abc1234 (dirty)", "0.9.4"
+	_, body, _, err := putState(t, report, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body["harnessVersion"] != "2.1.301" || body["cliVersion"] != "abc1234 (dirty)" || body["skillVersion"] != "0.9.4" {
+		t.Fatalf("body = %v", body)
+	}
+
+	report.HarnessVersion, report.CLIVersion, report.SkillVersion = "bad\x00", strings.Repeat("x", 101), "has space"
+	_, body, _, err = putState(t, report, http.StatusCreated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"harnessVersion", "cliVersion", "skillVersion"} {
+		if _, ok := body[key]; ok {
+			t.Fatalf("%s was sent: %v", key, body)
+		}
+	}
+}

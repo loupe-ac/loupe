@@ -138,6 +138,13 @@ type RunStateReport struct {
 	Harness string `json:"harness,omitempty"`
 	Account string `json:"account,omitempty"`
 	Model   string `json:"model,omitempty"`
+	// CLIVersion goes on running and on the outcome. HarnessVersion and
+	// SkillVersion go on the outcome, because the harness says them in its
+	// first output line. An empty one is not sent, and the server keeps what
+	// it holds.
+	CLIVersion     string `json:"cliVersion,omitempty"`
+	HarnessVersion string `json:"harnessVersion,omitempty"`
+	SkillVersion   string `json:"skillVersion,omitempty"`
 }
 
 // MarshalJSON sends every field of an outcome, so an empty output, a null
@@ -173,6 +180,9 @@ type InventoryRun struct {
 func (c *Client) ReportRunState(ctx context.Context, handle, runID string, report RunStateReport) (bool, error) {
 	report.Output = clip(report.Output, maxRunOutput)
 	report.Model = sendableModel(report.Model)
+	report.HarnessVersion = sendableModel(report.HarnessVersion)
+	report.CLIVersion = sendableModel(report.CLIVersion)
+	report.SkillVersion = sendableSkillVersion(report.SkillVersion)
 	if report.FailureReason != nil {
 		reason := clip(*report.FailureReason, maxFailureReason)
 		report.FailureReason = &reason

@@ -70,6 +70,10 @@ type Output struct {
 	// PeakContextTokens is the largest input context of one main-session
 	// assistant line, and nil when no line gives all three token counts.
 	PeakContextTokens *int64
+	// HarnessVersion and SkillVersion come from the start line of the run,
+	// and are empty when it has none.
+	HarnessVersion string
+	SkillVersion   string
 }
 
 // End is how one call ended. Result is the time of its own result, and zero

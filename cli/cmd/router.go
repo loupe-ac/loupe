@@ -1528,6 +1528,7 @@ func (r *router) outcome(p pending, e endedRun) api.RunStateReport {
 	}
 	report.Usage = r.usage(p, e.res.usage)
 	report.PeakContextTokens = e.res.peakContextTokens
+	report.HarnessVersion, report.SkillVersion = e.res.harnessVersion, e.res.skillVersion
 
 	return report
 }
@@ -1665,6 +1666,7 @@ func (r *router) emitLocked(p pending, report api.RunStateReport) {
 		report.Experiment, report.Variant = p.pin.Experiment, p.pin.Variant
 		report.RequestedModel, report.SwitchedFrom = p.pin.RequestedModel, p.pin.SwitchedFrom
 		report.Harness, report.Account, report.Model = p.spec.harnessName, p.spec.account, p.spec.model
+		report.CLIVersion = cliVersion()
 	}
 	// The handle is the project id the event carried, which a rename never
 	// changes.
