@@ -156,11 +156,11 @@ class WorkerRunOutputChunkRepository extends ServiceEntityRepository
     }
 
     /**
-     * The line count and the stored length of each run in one query, for the runs that have stored text.
+     * The line count, the stored length and the cap state of each run in one query, for the runs that have stored text.
      *
      * @param list<WorkerRun> $runs
      *
-     * @return array<string, array{lines: int, length: int}> keyed by the RFC 4122 run id
+     * @return array<string, array{lines: int, length: int, capped: bool}> keyed by the RFC 4122 run id
      */
     public function stats(array $runs): array
     {
@@ -169,7 +169,8 @@ class WorkerRunOutputChunkRepository extends ServiceEntityRepository
         }
 
         $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
-            "SELECT run_id, SUM(char_length(text) - char_length(replace(text, E'\\n', ''))) AS lines, MAX(start_offset + length) AS length
+            "SELECT run_id, SUM(char_length(text) - char_length(replace(text, E'\\n', ''))) AS lines, MAX(start_offset + length) AS length,
+                    BOOL_OR(cut) AS capped
              FROM bridge_worker_run_output_chunks WHERE run_id IN (:runs) GROUP BY run_id",
             ['runs' => array_map(static fn (WorkerRun $run): string => (string) $run->id, $runs)],
             ['runs' => ArrayParameterType::STRING],
@@ -177,7 +178,7 @@ class WorkerRunOutputChunkRepository extends ServiceEntityRepository
 
         $stats = [];
         foreach ($rows as $row) {
-            $stats[(string) $row['run_id']] = ['lines' => (int) $row['lines'], 'length' => (int) $row['length']];
+            $stats[(string) $row['run_id']] = ['lines' => (int) $row['lines'], 'length' => (int) $row['length'], 'capped' => (bool) $row['capped']];
         }
 
         return $stats;

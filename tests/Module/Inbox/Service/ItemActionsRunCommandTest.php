@@ -431,6 +431,32 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertSame('3 min 12 s', $view->durationLabel());
     }
 
+    public function test_an_ended_command_whose_log_hit_the_cap_shows_the_last_lines_of_its_report(): void
+    {
+        $todo = $this->todo();
+        $run = $this->commandRun($todo, WorkRequestState::Done, WorkerRunState::Failed, exitCode: 1, output: "late line\nfatal: boom\n");
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->chunk($run, "early line\n", cut: true);
+
+        $view = $this->runCommandAction($todo)->runCommand?->run;
+
+        self::assertTrue($view?->hasLog());
+        self::assertSame(['late line', 'fatal: boom'], $view->outputLines);
+    }
+
+    public function test_a_running_command_whose_log_hit_the_cap_shows_its_stored_tail(): void
+    {
+        $todo = $this->todo();
+        $run = $this->commandRun($todo, WorkRequestState::Claimed, WorkerRunState::Running, output: '');
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->chunk($run, "early line\n", cut: true);
+
+        $view = $this->runCommandAction($todo)->runCommand?->run;
+
+        self::assertSame(['early line'], $view?->outputLines);
+        self::assertSame("early line\n", $view->tailText);
+    }
+
     public function test_a_run_with_no_stored_log_has_no_log_link_and_keeps_its_reported_output(): void
     {
         $todo = $this->todo();
@@ -636,10 +662,10 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         return $run;
     }
 
-    private function chunk(WorkerRun $run, string $text): void
+    private function chunk(WorkerRun $run, string $text, bool $cut = false): void
     {
         $start = (int) $this->em->getConnection()->fetchOne('SELECT COALESCE(MAX(start_offset + length), 0) FROM bridge_worker_run_output_chunks WHERE run_id = :run', ['run' => (string) $run->id]);
-        $this->em->persist(new WorkerRunOutputChunk($run, $start, \strlen($text), $text));
+        $this->em->persist(new WorkerRunOutputChunk($run, $start, \strlen($text), $text, $cut));
         $this->em->flush();
     }
 

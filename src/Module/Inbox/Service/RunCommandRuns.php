@@ -67,8 +67,8 @@ final readonly class RunCommandRuns
     }
 
     /**
-     * @param array<string, array{lines: int, length: int}> $stats
-     * @param array<string, string>                         $tails
+     * @param array<string, array{lines: int, length: int, capped: bool}> $stats
+     * @param array<string, string>                                       $tails
      */
     private function runOf(InboxAction $action, WorkRequest $request, ?WorkerRun $run, array $stats, array $tails): RunCommandRun
     {
@@ -84,12 +84,14 @@ final readonly class RunCommandRuns
 
             $runId = (string) $run->id;
             $stored = $tails[$runId] ?? null;
+            // A capped log stops growing, so the final report holds the true last lines of an ended run.
+            $shown = RunCommandRunState::Running !== $state && ($stats[$runId]['capped'] ?? false) ? $run->output : ($stored ?? $run->output);
 
             return new RunCommandRun(
                 $action,
                 $state,
                 exitCode: $run->exitCode,
-                outputLines: RunCommandRun::tail($stored ?? $run->output),
+                outputLines: RunCommandRun::tail($shown),
                 at: $run->endedAt ?? $run->receivedAt,
                 runId: $runId,
                 lineCount: $stats[$runId]['lines'] ?? 0,
