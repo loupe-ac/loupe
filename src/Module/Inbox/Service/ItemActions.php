@@ -134,7 +134,7 @@ final readonly class ItemActions
             return null;
         }
 
-        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? $watch?->cardId : self::onlyCardOf($item), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null);
+        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? $watch?->cardId : self::onlyCardOf($item), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null, isset($this->runCommandRuns->itemsAddingEntry([$item])[self::key($item)]));
     }
 
     /** The card a command run of the item belongs to: the watched card of a wait item, or the only card of a to-do. */
@@ -213,6 +213,7 @@ final readonly class ItemActions
             }
         }
         $commandRuns = $this->runCommandRuns->forItems($commandItems);
+        $addingEntry = $this->runCommandRuns->itemsAddingEntry($commandItems);
 
         $actions = [];
         foreach ($items as $item) {
@@ -222,7 +223,7 @@ final readonly class ItemActions
             $commandSuggestion = $suggestions[InboxActionKind::RunCommand->value] ?? null;
             $runCommand = null === $commandSuggestion?->command
                 ? null
-                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null);
+                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand);
             if (InboxItemKind::Todo === $item->kind) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));

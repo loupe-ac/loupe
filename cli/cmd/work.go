@@ -176,6 +176,11 @@ func (r *router) takeWork(w api.WorkRequest, source string) {
 // offerWork queues an open offer that the work map runs. The queue drops a
 // copy of an offer it holds already.
 func (r *router) offerWork(w api.WorkRequest, source string) {
+	if w.Capability == rules.CapabilityAddEntry {
+		r.addEntry(w, source)
+
+		return
+	}
 	set := r.rules()
 	runCommand := w.Capability == rules.CapabilityRunCommand
 	if runCommand {
@@ -236,6 +241,19 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 // refusal of an invalid claim does. A claim another bridge won, or a claim that
 // fails, leaves nothing, and the next offer tries again.
 func (r *router) refuseWork(w api.WorkRequest, reason string) {
+	r.claimAndSettle(w, func(p pending) (string, string, func()) {
+		r.log.Info("work_request_refused", append(about(p.event, p.rule), "reason", reason)...)
+
+		return api.WorkRequestRefused, reason, nil
+	})
+}
+
+// claimAndSettle claims a request the bridge answers without a run. After the
+// claim, act decides the result and may return a function to call once the
+// result is queued. It takes no pool slot and reports no worker run. A claim
+// another bridge won, or a claim that fails, leaves nothing, and the next
+// offer tries again.
+func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, reason string, after func())) {
 	p := pending{key: w.SubjectID, event: workEvent(w), work: w, rule: rules.WorkRulePrefix + w.Kind, runID: config.NewUUID()}
 	id := w.WorkRequestID
 	r.mu.Lock()
@@ -272,10 +290,68 @@ func (r *router) refuseWork(w api.WorkRequest, reason string) {
 		c.token = claim.ClaimToken
 		p.claimToken = claim.ClaimToken
 		r.noteClaimsLocked()
-		r.log.Info("work_request_refused", append(about(p.event, p.rule), "reason", reason)...)
 		r.mu.Unlock()
-		r.settleWork(p, api.WorkRequestRefused, reason)
+		state, reason, after := act(p)
+		r.settleWork(p, state, reason)
+		if after != nil {
+			after()
+		}
 	}()
+}
+
+// addEntry answers a request to add a command entry to the rule file. The
+// request is no work for an agent, so it never matches the work map. Only the
+// bridge the request names takes it. The bridge settles the request before it
+// reloads, so a failed reload cannot lose the result.
+func (r *router) addEntry(w api.WorkRequest, source string) {
+	if w.TargetBridgeID == "" {
+		r.log.Warn("work_request_skipped", append(workAttrs(w, source), "reason", "no_target")...)
+
+		return
+	}
+	r.mu.Lock()
+	known := r.knownWorkLocked(w.WorkRequestID)
+	r.mu.Unlock()
+	if known {
+		return
+	}
+	r.claimAndSettle(w, func(p pending) (string, string, func()) {
+		attrs := about(p.event, p.rule)
+		if !r.rules().AcceptEntries() {
+			r.log.Info("work_request_refused", append(attrs, "reason", rules.RefuseNotAccepted)...)
+
+			return api.WorkRequestRefused, rules.RefuseNotAccepted, nil
+		}
+		r.addEntryMu.Lock()
+		err := r.addEntryToFile(w.Prompt)
+		r.addEntryMu.Unlock()
+		if err != nil {
+			reason := rules.RefuseWriteFailed
+			var refusal *rules.EntryRefusal
+			if errors.As(err, &refusal) {
+				reason = refusal.Reason
+			}
+			r.log.Warn("work_request_refused", append(attrs, "reason", reason, "error", err.Error())...)
+
+			return api.WorkRequestRefused, reason, nil
+		}
+		r.log.Info("entry_added", attrs...)
+
+		return api.WorkRequestDone, "", func() {
+			if res := r.reload(r.workerContext(), r.source); !res.OK {
+				r.log.Warn("entry_reload_failed", append(attrs, "stage", res.Stage, "problems", res.Problems)...)
+			}
+		}
+	})
+}
+
+// addEntryToFile adds the entry text to the rule file.
+func (r *router) addEntryToFile(text string) error {
+	if r.source.addEntry == nil {
+		return &rules.EntryRefusal{Reason: rules.RefuseWriteFailed, Err: errors.New("the bridge cannot write the rule file")}
+	}
+
+	return r.source.addEntry(text)
 }
 
 // resumeRuns are the settings a run of m can take: those of its entry, and

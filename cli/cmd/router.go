@@ -106,6 +106,8 @@ type router struct {
 	buildTimeout time.Duration
 	// reloadMu lets one reload run at a time. It is never taken under mu.
 	reloadMu sync.Mutex
+	// addEntryMu lets one add-entry request write the rule file at a time.
+	addEntryMu sync.Mutex
 	// update hands the bridge over to a new binary. A nil one, as in most
 	// tests, only logs a staged release.
 	update *bridgeUpdate

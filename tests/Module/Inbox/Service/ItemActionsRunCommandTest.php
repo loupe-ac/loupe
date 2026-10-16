@@ -98,7 +98,8 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertSame((string) $this->bridge->id, $view->bridgeId);
         self::assertSame($this->bridge->label, $view->bridgeName);
         self::assertFalse($view->entryMissing);
-        self::assertNull($view->proposedEntry);
+        self::assertNull($view->entryYaml);
+        self::assertFalse($view->canAddEntry());
         self::assertSame('/work/loupe/.worktrees/card-42', $view->folder);
         self::assertSame(['bin/console', 'app:export', 'var/out', '7'], $view->argv);
         self::assertSame(['bin/console', 'app:export', '{out}', '7'], $view->argvTemplate);
@@ -244,9 +245,118 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $view = $this->viewOf($todo);
 
         self::assertTrue($view->entryMissing);
-        self::assertSame("action: command\nrun: [make, export]", $view->proposedEntry);
+        self::assertSame("design-export:\n  action: command\n  run:\n    - make\n    - export\n", $view->entryYaml);
         self::assertSame([], $view->argv);
         self::assertSame(['out'], array_map(static fn ($param): string => $param->name, $view->params));
+    }
+
+    public function test_the_named_entry_dumps_params_one_level_down_as_the_bridge_writes_them(): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->em->flush();
+        $todo = $this->todo(proposedEntry: "action: command\ndescription: Export it\nparams:\n  out: { pattern: '^var/[a-z-]+\$' }\nrun: [bin/console, '{out}']");
+
+        self::assertSame(
+            "design-export:\n  action: command\n  description: 'Export it'\n  params:\n    out: { pattern: '^var/[a-z-]+\$' }\n  run:\n    - bin/console\n    - '{out}'\n",
+            $this->viewOf($todo)->entryYaml,
+        );
+    }
+
+    #[DataProvider('unusableProposals')]
+    public function test_a_proposal_that_is_no_mapping_gives_no_entry_yaml(string $proposed): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo(proposedEntry: $proposed));
+
+        self::assertNull($view->entryYaml);
+        self::assertFalse($view->canAddEntry());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function unusableProposals(): iterable
+    {
+        yield 'text that is no YAML' => ["a: [unclosed\n"];
+        yield 'a scalar' => ['just text'];
+        yield 'a list' => ["- one\n- two"];
+        yield 'an empty document' => [''];
+    }
+
+    public function test_a_bridge_that_opted_in_can_add_the_missing_entry(): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo(proposedEntry: 'action: command'));
+
+        self::assertTrue($view->acceptsEntries);
+        self::assertTrue($view->canAddEntry());
+        self::assertSame('inbox.action.run-command.disabled.entry_missing', $view->disabledReasonKey);
+    }
+
+    public function test_a_bridge_that_did_not_opt_in_cannot_add_the_missing_entry(): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo(proposedEntry: 'action: command'));
+
+        self::assertFalse($view->acceptsEntries);
+        self::assertSame("design-export:\n  action: command\n", $view->entryYaml);
+        self::assertFalse($view->canAddEntry());
+    }
+
+    public function test_an_entry_the_bridge_has_cannot_be_added(): void
+    {
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+
+        self::assertFalse($this->viewOf($this->todo(proposedEntry: 'action: command'))->canAddEntry());
+    }
+
+    public function test_a_proposal_of_no_entry_cannot_be_added(): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+
+        self::assertFalse($this->viewOf($this->todo())->canAddEntry());
+    }
+
+    #[DataProvider('addStates')]
+    public function test_a_live_add_hides_the_add_button_and_a_settled_one_does_not(WorkRequestState $state, bool $canAdd): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+        $todo = $this->todo(proposedEntry: 'action: command');
+        $this->addEntryRequest($todo, $state);
+
+        self::assertSame($canAdd, $this->viewOf($todo)->canAddEntry());
+    }
+
+    /** @return iterable<string, array{WorkRequestState, bool}> */
+    public static function addStates(): iterable
+    {
+        yield 'queued' => [WorkRequestState::Open, false];
+        yield 'claimed' => [WorkRequestState::Claimed, false];
+        yield 'refused' => [WorkRequestState::Refused, true];
+        yield 'expired' => [WorkRequestState::Expired, true];
+        yield 'cancelled' => [WorkRequestState::Cancelled, true];
+    }
+
+    public function test_an_add_that_was_cancelled_after_it_was_live_does_not_hide_the_button(): void
+    {
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+        $todo = $this->todo(proposedEntry: 'action: command');
+        $this->addEntryRequest($todo, WorkRequestState::Open, cancelled: true);
+
+        self::assertTrue($this->viewOf($todo)->canAddEntry());
     }
 
     public function test_a_value_that_fails_its_pattern_turns_the_action_off_and_marks_the_param(): void
@@ -560,6 +670,28 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             );
             $this->em->persist($run);
         }
+        $this->em->flush();
+    }
+
+    private function addEntryRequest(InboxItem $item, WorkRequestState $state, bool $cancelled = false): void
+    {
+        $request = new WorkRequest(
+            project: $this->project,
+            subjectType: InboxItem::SUBJECT_TYPE,
+            subjectId: $item->id ?? throw new \LogicException('The item is stored.'),
+            cardNumber: null,
+            kind: 'add-entry',
+            capability: Bridge::CAPABILITY_ADD_ENTRY,
+            ruleId: 'inbox:add-entry',
+            createdAt: new \DateTimeImmutable(),
+        );
+        $request->state = $state;
+        $this->em->persist($request);
+        $this->em->flush();
+        $action = new InboxAction($item, InboxActionKind::AddEntry, $this->project->owner, '', new \DateTimeImmutable());
+        $action->workRequestId = $request->id;
+        $action->cancelledAt = $cancelled ? new \DateTimeImmutable() : null;
+        $this->em->persist($action);
         $this->em->flush();
     }
 

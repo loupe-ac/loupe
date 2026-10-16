@@ -24,6 +24,7 @@ final readonly class InboxActionsTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_actions';
 
+    /** The actions a worker can suggest. Add entry is the owner's own step and has no line here. */
     private const array EFFECTS = [
         'resume-run' => 'Wakes the stopped worker so it carries on with its session.',
         'retry-card' => 'Releases the pause of the card so the workflow runs the rule again.',
@@ -70,12 +71,13 @@ final readonly class InboxActionsTool implements FlagGatedToolInterface
             ));
 
             return ['actions' => array_map(
-                static fn (InboxActionKind $kind): array => [
-                    'action' => $kind->value,
-                    'effect' => self::EFFECTS[$kind->value],
-                    'fitsCard' => null === $fitting ? null : \in_array($kind, $fitting, true),
+                static fn (string $action, string $effect): array => [
+                    'action' => $action,
+                    'effect' => $effect,
+                    'fitsCard' => null === $fitting ? null : \in_array(InboxActionKind::from($action), $fitting, true),
                 ],
-                InboxActionKind::cases(),
+                array_keys(self::EFFECTS),
+                self::EFFECTS,
             )];
         } catch (DomainErrors $e) {
             throw new ToolCallException(\sprintf('cardId: %s', InboxLinkResolver::CARD_UNKNOWN === ($e->errors['cardId'] ?? null) ? 'The card id must name a card of this project.' : InboxToolErrorMessages::UNMAPPED), previous: $e);

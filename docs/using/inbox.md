@@ -418,7 +418,8 @@ The reasons are:
 
 - No bridge that follows the project asked for this.
 - The bridge is too old to run commands from the inbox. Update the CLI.
-- The rule file of the bridge has no command of that name.
+- The rule file of the bridge has no command of that name. When the agent
+  proposed the entry, see [Adding a proposed entry](#adding-a-proposed-entry).
 - The command uses `{workRequestId}` or `{project}`. The bridge fills these
   only at the run, so Loupe cannot show the command before you run it.
 - The command uses `{cardId}` or `{cardNumber}`, and the item has no single
@@ -474,6 +475,42 @@ Two limits apply:
 The page shows the end of the output after the run ends. It shows no live output
 and no full log. See [the bridge guide](../extending/cli-bridge.md#running-an-entry-from-the-inbox)
 for the rule file.
+
+### Adding a proposed entry
+
+An agent can propose a command entry that the rule file of the bridge lacks.
+The item then shows the entry, and the Run button stays off.
+
+The reason line says that the entry is not in the `rules.yaml` of the bridge.
+Loupe adds the name of the entry to the text that the agent sent, so you read
+the same text that the bridge writes. What happens next depends on the bridge.
+
+When the bridge opted in with `acceptEntries: true` in its rule file, the main
+button reads **Add to rules.yaml**. The same action sits in the menu when
+another action is the main button. Select it, and Loupe opens a confirm step.
+The step shows the full entry and the name of the bridge. It says that nothing
+runs yet. Select **Add the entry** to send it.
+
+Only the owner of the project can add an entry. The status line then shows
+"Queued", and Cancel withdraws the request while no bridge has taken it. The
+bridge checks the text, adds the entry to the `work:` block, and reloads. Its next heartbeat lists the entry. The status line shows "Added to
+rules.yaml", and the Run button turns on by itself. A run still asks you in its
+own confirm step.
+
+The bridge refuses a text that is no command entry, a name that the file
+already holds, and a file that it cannot change safely. The status line then
+shows "Refused" and the reason code: `entry-invalid`, `entry-exists`,
+`not-accepted` or `write-failed`. A refused add changes nothing. The button
+comes back, so you can try again. Add the entry by hand when the bridge keeps
+refusing.
+
+When the bridge did not opt in, the reason line says so. The item shows the
+entry with a **Copy** button. Add it under `work:` in the rule file by hand,
+then run `loupe bridge reload`. The Run button turns on by itself.
+
+An added entry runs any command with the rights of the bridge user, after you
+confirm each run. Turn on `acceptEntries` only for a bridge that you trust with
+that. See [the bridge guide](../extending/cli-bridge.md) for the key.
 
 ### Notices
 

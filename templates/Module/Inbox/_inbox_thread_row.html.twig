@@ -2,12 +2,12 @@
    Params: row (ThreadAction; a run-command row opens its dialog), actionParams, declineFormId (the form Dismiss submits, or null), cardDrawer. -#}
 {% set kind = row.action.kind.value %}
 {% set command = row.action.runCommand %}
-{% set off = row.action.disabledReasonKey and not (command and command.canOpenDialog) %}
+{% set off = row.action.disabledReasonKey and not (command and (command.canOpenDialog or command.canAddEntry)) %}
 {% set label %}
     {% include '@Inbox/_inbox_action_icon.html.twig' with {kind: kind} only %}
     <span class="lp-menu__text">
-        <span class="lp-menu__label{{ kind == 'dismiss' ? ' inbox-split__danger' }}">{{ command ? 'inbox.action.run-command.run'|trans({'%entry%': command.entry, '%branch%': command.branch}) : row.action.labelKey|trans }}</span>
-        <span class="lp-menu__line">{{ (off ? row.action.disabledReasonKey : row.action.effectKey)|trans }}</span>
+        <span class="lp-menu__label{{ kind == 'dismiss' ? ' inbox-split__danger' }}">{{ command ? (command.canAddEntry ? 'inbox.action.add-entry.label'|trans : 'inbox.action.run-command.run'|trans({'%entry%': command.entry, '%branch%': command.branch})) : row.action.labelKey|trans }}</span>
+        <span class="lp-menu__line">{{ (off ? row.action.disabledReasonKey : (command and command.canAddEntry ? 'inbox.action.add-entry.effect' : row.action.effectKey))|trans }}</span>
     </span>
 {% endset %}
 {% if off %}
@@ -21,7 +21,7 @@
         <twig:Ds:MenuItem :href="row.href" role="menuitem" data-inbox-action="{{ kind }}" data-turbo-frame="_top">{{ label }}</twig:Ds:MenuItem>
     {% endif %}
 {% elseif command %}
-    <twig:Ds:MenuItem type="button" role="menuitem" data-action="click->split-button#close click->modal#open" data-inbox-action="{{ kind }}">{{ label }}</twig:Ds:MenuItem>
+    <twig:Ds:MenuItem type="button" role="menuitem" data-action="click->split-button#close click->modal#open" data-inbox-action="{{ command.canAddEntry ? 'add-entry' : kind }}">{{ label }}</twig:Ds:MenuItem>
 {% elseif kind == 'dismiss' %}
     <twig:Ds:MenuItem type="submit" role="menuitem" form="{{ declineFormId }}" data-inbox-action="dismiss">{{ label }}</twig:Ds:MenuItem>
 {% else %}

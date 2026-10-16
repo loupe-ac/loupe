@@ -35,7 +35,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
     name: 'app_inbox_item_action',
     requirements: [
         'itemId' => Requirement::UUID,
-        'kind' => new EnumRequirement([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::Dismiss]),
+        'kind' => new EnumRequirement([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::AddEntry, InboxActionKind::Dismiss]),
     ],
     methods: ['POST'],
 )]
@@ -75,6 +75,7 @@ final class RunInboxActionController extends AppController
                     InboxActionKind::SendAgent => InboxActionVerb::AgentSent,
                     InboxActionKind::StartSession => InboxActionVerb::SessionStarted,
                     InboxActionKind::RunCommand => InboxActionVerb::CommandQueued,
+                    InboxActionKind::AddEntry => InboxActionVerb::EntryQueued,
                     default => InboxActionVerb::Declined,
                 };
                 $this->feedback->saved($saved, $item, $verb);

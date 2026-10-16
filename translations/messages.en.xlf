@@ -5288,6 +5288,13 @@
             <trans-unit id="inbox.run_command.refusal.worktree_missing"><source>inbox.run_command.refusal.worktree_missing</source><target>The bridge found no worktree for this branch.</target></trans-unit>
             <trans-unit id="inbox.run_command.refusal.placeholder_missing"><source>inbox.run_command.refusal.placeholder_missing</source><target>The command needs a value that this item cannot give.</target></trans-unit>
             <trans-unit id="inbox.action.run-command.run"><source>inbox.action.run-command.run</source><target>Run %entry% on %branch%</target></trans-unit>
+            <trans-unit id="inbox.action.add-entry.label"><source>inbox.action.add-entry.label</source><target>Add to rules.yaml</target></trans-unit>
+            <trans-unit id="inbox.action.add-entry.effect"><source>inbox.action.add-entry.effect</source><target>Adds the proposed command to the rule file of your bridge, after you confirm it. Nothing runs.</target></trans-unit>
+            <trans-unit id="inbox.add_entry.dialog.title"><source>inbox.add_entry.dialog.title</source><target>Add %entry% to rules.yaml?</target></trans-unit>
+            <trans-unit id="inbox.add_entry.dialog.description"><source>inbox.add_entry.dialog.description</source><target>The agent wrote this entry. %bridge% adds it to its rules.yaml and reloads. Nothing runs yet. The Run button turns on, and a run asks you again.</target></trans-unit>
+            <trans-unit id="inbox.add_entry.dialog.entry"><source>inbox.add_entry.dialog.entry</source><target>Entry</target></trans-unit>
+            <trans-unit id="inbox.add_entry.dialog.cancel"><source>inbox.add_entry.dialog.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="inbox.add_entry.dialog.confirm"><source>inbox.add_entry.dialog.confirm</source><target>Add the entry</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.title"><source>inbox.run_command.dialog.title</source><target>Run %entry%?</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.description"><source>inbox.run_command.dialog.description</source><target>Your bridge runs this command from its rules.yaml. The agent chose the entry, the branch and the parameters, not the command line.</target></trans-unit>
             <trans-unit id="inbox.run_command.dialog.bridge"><source>inbox.run_command.dialog.bridge</source><target>Bridge</target></trans-unit>
@@ -5309,6 +5316,10 @@
             <trans-unit id="inbox.run_command.missing.copy"><source>inbox.run_command.missing.copy</source><target>Copy</target></trans-unit>
             <trans-unit id="inbox.run_command.missing.copied"><source>inbox.run_command.missing.copied</source><target>Copied</target></trans-unit>
             <trans-unit id="inbox.run_command.missing.hint"><source>inbox.run_command.missing.hint</source><target>Then run %command%. The Run button turns on by itself.</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.label_add"><source>inbox.run_command.missing.label_add</source><target>Proposed entry</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.reason_proposed"><source>inbox.run_command.missing.reason_proposed</source><target>%entry% is not in the rules.yaml of %bridge%. The agent proposes this entry.</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.reason_no_opt_in"><source>inbox.run_command.missing.reason_no_opt_in</source><target>%entry% is not in the rules.yaml of %bridge%, and that bridge does not accept added entries.</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.adding"><source>inbox.run_command.missing.adding</source><target>%bridge% is adding %entry% to its rules.yaml.</target></trans-unit>
             <trans-unit id="inbox.run_command.state.queued"><source>inbox.run_command.state.queued</source><target>Queued</target></trans-unit>
             <trans-unit id="inbox.run_command.state.running"><source>inbox.run_command.state.running</source><target>Running</target></trans-unit>
             <trans-unit id="inbox.run_command.state.succeeded"><source>inbox.run_command.state.succeeded</source><target>Succeeded</target></trans-unit>
@@ -5334,6 +5345,7 @@
             <trans-unit id="inbox.action.status.preparing"><source>inbox.action.status.preparing</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.resumed"><source>inbox.action.status.resumed</source><target>Preparing</target></trans-unit>
             <trans-unit id="inbox.action.status.retried"><source>inbox.action.status.retried</source><target>Retried at %time%</target></trans-unit>
+            <trans-unit id="inbox.action.status.added"><source>inbox.action.status.added</source><target>Added to rules.yaml</target></trans-unit>
             <trans-unit id="inbox.item.kind.question">
                 <source>inbox.item.kind.question</source>
                 <target>Question</target>
@@ -5758,6 +5770,10 @@
                 <source>inbox.flash.command_queued</source>
                 <target>The command of item %number% is queued.</target>
             </trans-unit>
+            <trans-unit id="inbox.flash.entry_queued">
+                <source>inbox.flash.entry_queued</source>
+                <target>The new entry of item %number% is queued.</target>
+            </trans-unit>
             <trans-unit id="inbox.flash.cancelled">
                 <source>inbox.flash.cancelled</source>
                 <target>The action of item %number% is cancelled.</target>
@@ -5774,6 +5790,7 @@
             <trans-unit id="inbox.thread.you_verb.send-agent"><source>inbox.thread.you_verb.send-agent</source><target>sent an agent at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.start-session"><source>inbox.thread.you_verb.start-session</source><target>started a session at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.run-command"><source>inbox.thread.you_verb.run-command</source><target>ran %entry% at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.add-entry"><source>inbox.thread.you_verb.add-entry</source><target>added an entry at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.cancel"><source>inbox.thread.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="inbox.project_list.open_items">
                 <source>inbox.project_list.open_items</source>
@@ -7351,6 +7368,7 @@
             <trans-unit id="inbox.status.verb.agent-sent"><source>inbox.status.verb.agent-sent</source><target>Agent queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.session-started"><source>inbox.status.verb.session-started</source><target>Session queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.command-queued"><source>inbox.status.verb.command-queued</source><target>Command queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.entry-queued"><source>inbox.status.verb.entry-queued</source><target>Entry queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.cancelled"><source>inbox.status.verb.cancelled</source><target>Action cancelled</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%.</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed_detail"><source>inbox.status.ask_closed_detail</source><target>%title% is closed.</target></trans-unit>

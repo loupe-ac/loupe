@@ -686,7 +686,9 @@ suggestion carries a `command` with the `entry` name, an optional `branch`
 It can also carry `proposedEntry`, the YAML of one entry without its name, with
 the keys `action` (set to `command`), `description`, `params`, `run` and
 `timeout`. Use it when the bridge may not have the entry yet. It is at most
-4,000 characters.
+4,000 characters. Loupe adds the name from `command.entry` when the owner adds
+the entry to the `rules.yaml` of a bridge that opted in, so do not put the name
+in the text.
 
 Loupe checks the `command` before it stores the suggestion. The branch must be a
 git branch name of at most 200 characters. When the bridge has the entry, each

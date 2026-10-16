@@ -322,7 +322,7 @@ final readonly class AskInboxHandler
 
         $checked = [];
         foreach ($suggestions as $suggestion) {
-            if (null === InboxActionKind::tryFrom($suggestion->action)) {
+            if (!(InboxActionKind::tryFrom($suggestion->action)?->isSuggestable() ?? false)) {
                 throw new DomainErrors([$field => self::SUGGESTION_UNKNOWN_ACTION]);
             }
             if (isset($checked[$suggestion->action])) {
