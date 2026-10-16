@@ -394,8 +394,10 @@ func (s *Set) WorkKinds() []string {
 }
 
 // WorkKindsOn lists the kinds of the work map that the bridge can run now, in
-// name order: the kinds whose agent and account are on. It is never nil, so a
-// bridge with no usable kind reports an empty list.
+// name order: the kinds whose agent and account are on. A kind of another
+// subject than card reads <subject>:<kind>, because the server needs the
+// subject to match a request. It is never nil, so a bridge with no usable kind
+// reports an empty list.
 func (s *Set) WorkKindsOn() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -405,6 +407,9 @@ func (s *Set) WorkKindsOn() []string {
 		entry := s.work[kind]
 		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs()) {
 			continue
+		}
+		if entry.Subject != api.SubjectCard {
+			kind = entry.Subject + ":" + kind
 		}
 		out = append(out, kind)
 	}

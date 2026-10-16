@@ -114,7 +114,7 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Valid]
         public ?array $accounts = null,
 
-        #[Assert\All([new Assert\Type('string'), new Assert\Regex(pattern: Bridge::CAPABILITY_PATTERN)])]
+        #[Assert\All([new Assert\Type('string'), new Assert\Regex(pattern: Bridge::WORK_KIND_PATTERN)])]
         #[Assert\Count(max: self::MAX_WORK_KINDS)]
         #[Assert\Type('list')]
         public ?array $workKinds = null,

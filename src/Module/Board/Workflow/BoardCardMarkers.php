@@ -41,14 +41,21 @@ final readonly class BoardCardMarkers implements CardMarkerStore, CardsDueForMar
             return;
         }
 
-        $entries = array_map(static fn (StoredMarker $marker): array => [
-            'key' => $marker->key,
-            'kind' => $marker->kind->value,
-            'label' => $marker->label,
-            'remedy' => $marker->remedy,
-            'params' => $marker->params,
-            'since' => $marker->since->setTimezone(new \DateTimeZone('UTC'))->format(\DATE_ATOM),
-        ], $markers);
+        $entries = array_map(static function (StoredMarker $marker): array {
+            $entry = [
+                'key' => $marker->key,
+                'kind' => $marker->kind->value,
+                'label' => $marker->label,
+                'remedy' => $marker->remedy,
+                'params' => $marker->params,
+                'since' => $marker->since->setTimezone(new \DateTimeZone('UTC'))->format(\DATE_ATOM),
+            ];
+            if (null !== $marker->link) {
+                $entry['link'] = $marker->link->value;
+            }
+
+            return $entry;
+        }, $markers);
 
         $changed = $entries !== ($card->markers ?? []);
         if ($changed || null === $card->markers) {

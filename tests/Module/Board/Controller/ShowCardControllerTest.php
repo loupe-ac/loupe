@@ -85,6 +85,37 @@ final class ShowCardControllerTest extends WebTestCase
         self::assertStringContainsString('Unmanaged: the workflow does not act on this card.', $box->filter('.lp-status-box__other--chip')->text());
     }
 
+    public function test_a_marker_with_a_link_draws_it_under_the_remedy_and_one_without_draws_none(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-status-box-link@example.com');
+        $project = $this->project($em, $owner);
+        $linked = $this->card($em, $project, 'No bridge');
+        $linked->markers = [
+            ['key' => 'no-bridge-online', 'kind' => 'stuck', 'label' => 'marker.no_bridge_online', 'remedy' => 'marker.no_bridge_online.remedy', 'params' => [], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM), 'link' => 'agents'],
+        ];
+        $plain = $this->card($em, $project, 'Plain');
+        $plain->markers = [
+            ['key' => 'paused', 'kind' => 'stuck', 'label' => 'marker.paused', 'remedy' => 'marker.paused.remedy', 'params' => ['%reason%' => 'review-failed'], 'since' => new \DateTimeImmutable('-1 hour')->format(\DATE_ATOM)],
+        ];
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$linked->id);
+        self::assertResponseIsSuccessful();
+        $field = $crawler->filter('[data-card-state="stuck"] .lp-status-box__field--wide');
+        self::assertStringContainsString('Start a bridge, or run `loupe login`.', $field->text());
+        $link = $field->filter('a');
+        self::assertCount(1, $link);
+        self::assertSame('/projects/'.$project->id.'/agents', $link->attr('href'));
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$plain->id);
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[data-card-state="stuck"] .lp-status-box__fields a'));
+    }
+
     public function test_a_card_with_only_chips_shows_a_neutral_status_box_with_the_chip_text(): void
     {
         $client = static::createClient();

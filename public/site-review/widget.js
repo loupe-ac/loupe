@@ -2104,13 +2104,17 @@
     };
 
     // Slide a confirm overlay back out to the left, then remove it. Marked exiting so
-    // repeated renders don't restart the animation or double-remove.
+    // repeated renders don't restart the animation or double-remove. The timer removes
+    // it when no animationend comes, as a busy or hidden page can skip the event.
     const slideOut = (el) => {
         if (!el || el.dataset.exiting) return;
         el.dataset.exiting = '1';
         el.style.animation =
             'lp-slide-left-out .18s cubic-bezier(.4,0,.2,1) forwards';
-        el.addEventListener('animationend', () => el.remove(), { once: true });
+        const remove = () => el.remove();
+        el.addEventListener('animationend', remove, { once: true });
+        el.addEventListener('animationcancel', remove, { once: true });
+        setTimeout(remove, 300);
     };
 
     // Pin nodes are reconciled (not rebuilt) so the lp-pin drop-in animation plays

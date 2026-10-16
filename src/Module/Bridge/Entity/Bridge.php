@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Utils\GitHubLogin;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -46,6 +47,9 @@ class Bridge
     public const string CAPABILITY_COMMANDS = 'commands';
 
     public const string CAPABILITY_PATTERN = '/^[a-z][a-z0-9-]{0,39}$/D';
+
+    /** A card kind, or `<subject>:<kind>` for a kind of another subject, because one kind name runs one subject only. */
+    public const string WORK_KIND_PATTERN = '/^(?:[a-z][a-z0-9-]{0,39}:)?[a-z][a-z0-9-]{0,39}$/D';
 
     /** The capability of a bridge that runs a command run again. */
     public const string CAPABILITY_RERUN_COMMAND = 'rerun-command';
@@ -138,12 +142,16 @@ class Bridge
     public ?array $capabilities = null;
 
     /**
-     * The kinds of work the bridge can run, as its last heartbeat reported them. Empty for a bridge that reports none.
+     * The kinds of work the bridge can run, as its last heartbeat reported them, in the form of workKindOf(). Empty for a bridge that reports none.
      *
      * @var list<string>
      */
     #[ORM\Column(name: 'work_kinds', type: Types::JSON, options: ['default' => '[]'])]
     public array $workKinds = [];
+
+    /** The server clock at the last beat of an online bridge that dropped a work kind, a capability or a followed project. */
+    #[ORM\Column(name: 'narrowed_at', nullable: true)]
+    public ?\DateTimeImmutable $narrowedAt = null;
 
     /** The name the bridge holds. Null while it asked for none, or while another bridge of the owner holds the one it asked for. */
     #[ORM\Column(name: 'name', length: self::MAX_NAME_LENGTH, nullable: true)]
@@ -228,6 +236,12 @@ class Bridge
             || (null !== $request->prompt
                 && str_starts_with($capability, self::SUBJECT_CAPABILITY_PREFIX)
                 && \in_array(self::CAPABILITY_APP_PROMPTS, $reported, true));
+    }
+
+    /** The entry of `workKinds` that runs a request of $kind about a subject of $subjectType. */
+    public static function workKindOf(string $subjectType, string $kind): string
+    {
+        return WorkSubject::CARD === $subjectType ? $kind : $subjectType.':'.$kind;
     }
 
     public function nameClashes(): bool

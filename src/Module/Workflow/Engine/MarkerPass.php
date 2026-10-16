@@ -110,7 +110,7 @@ final readonly class MarkerPass
             $since ??= $evidence->since;
         }
 
-        return new StoredMarker($marker->key, $marker->kind, $marker->label, $marker->remedy, $params, $since ?? $stored->since ?? $now);
+        return new StoredMarker($marker->key, $marker->kind, $marker->label, $marker->remedy, $params, $since ?? $stored->since ?? $now, $marker->link);
     }
 
     /** The time of a leaf counts whether the leaf is true or false now, and on every open pull request, so a marker that turns true later is checked again. */

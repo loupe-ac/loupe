@@ -11,6 +11,7 @@ use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HostSampling;
@@ -21,9 +22,11 @@ use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
 use Symfony\Component\Mercure\MockHub;
 use Symfony\Component\Mercure\Update;
@@ -244,6 +247,123 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
 
         $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
         self::assertSame([], $this->publishedProjects(), 'The same projects tell nobody.');
+    }
+
+    public function test_the_first_heartbeat_of_a_bridge_announces_a_change_of_availability_and_a_routine_one_announces_none(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-availability-first@example.com');
+        $projects = [(string) $this->project($em, $owner, 'Availability First')->id];
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $announced = $this->recordAvailability();
+        $beat = static fn (): RecordBridgeHeartbeatCommand => new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', paused: false, capabilities: [Bridge::CAPABILITY_WORK_REQUESTS], workKinds: ['implement']);
+
+        $handler($beat());
+        self::assertSame([$projects], self::announcedProjects($announced), 'The first beat of a new bridge announces.');
+
+        $handler($beat());
+        $handler($beat());
+        self::assertCount(1, self::announcedProjects($announced), 'A routine beat announces nothing.');
+    }
+
+    public function test_a_bridge_back_from_quiet_announces_a_change_of_availability(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock('2026-10-16 12:00:00'));
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-availability-quiet@example.com');
+        $projects = [(string) $this->project($em, $owner, 'Availability Quiet')->id];
+        $live = $this->seedBridge($em, $owner, projects: $projects, lastSeenAt: new \DateTimeImmutable('2026-10-16 11:59:00'));
+        $quiet = $this->seedBridge($em, $owner, projects: $projects, lastSeenAt: new \DateTimeImmutable('2026-10-16 11:00:00'));
+        $handler = $this->handler();
+        $announced = $this->recordAvailability();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $live->id, $projects, 'b4e39aa7'));
+        self::assertSame([], self::announcedProjects($announced), 'A live bridge announces nothing.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $quiet->id, $projects, 'b4e39aa7'));
+        self::assertSame([$projects], self::announcedProjects($announced));
+    }
+
+    public function test_a_change_of_the_reported_pause_the_capabilities_or_the_work_kinds_announces_a_change_of_availability(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-availability-changes@example.com');
+        $projects = [(string) $this->project($em, $owner, 'Availability Changes')->id];
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $handler(self::beat($owner, $bridgeId, $projects, false, [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        $announced = $this->recordAvailability();
+
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        self::assertCount(1, self::announcedProjects($announced), 'A pause announces.');
+
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        $handler(self::beat($owner, $bridgeId, $projects, null, null, ['implement']));
+        self::assertCount(1, self::announcedProjects($announced), 'The same pause and a beat with no report announce nothing.');
+
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_INTERACTIVE], ['implement']));
+        self::assertCount(2, self::announcedProjects($announced), 'Other capabilities announce.');
+
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_INTERACTIVE, Bridge::CAPABILITY_WORK_REQUESTS], ['implement']));
+        self::assertCount(2, self::announcedProjects($announced), 'The order of the capabilities does not count.');
+
+        $handler(self::beat($owner, $bridgeId, $projects, true, [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_INTERACTIVE], ['implement', 'fix']));
+        self::assertCount(3, self::announcedProjects($announced), 'Other work kinds announce.');
+    }
+
+    public function test_a_change_of_the_followed_projects_announces_a_change_of_availability_for_both_sets(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-availability-follow@example.com');
+        $kept = (string) $this->project($em, $owner, 'Availability Kept')->id;
+        $added = (string) $this->project($em, $owner, 'Availability Added')->id;
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7'));
+        $announced = $this->recordAvailability();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$added], 'b4e39aa7'));
+
+        self::assertCount(1, self::announcedProjects($announced));
+        self::assertEqualsCanonicalizing([$kept, $added], self::announcedProjects($announced)[0]);
+    }
+
+    public function test_an_online_bridge_that_drops_a_kind_a_capability_or_a_project_records_when_it_narrowed(): void
+    {
+        self::bootKernel();
+        $clock = new MockClock('2026-10-16 12:00:00');
+        self::getContainer()->set('clock', $clock);
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-narrowed@example.com');
+        $kept = (string) $this->project($em, $owner, 'Narrowed Kept')->id;
+        $left = (string) $this->project($em, $owner, 'Narrowed Left')->id;
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $both = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $narrowedAt = fn (): ?\DateTimeImmutable => $this->reload($owner, $bridgeId)->narrowedAt;
+
+        $handler(self::beat($owner, $bridgeId, [$kept, $left], false, $both, ['implement']));
+        $handler(self::beat($owner, $bridgeId, [$kept, $left], false, $both, ['implement', 'fix']));
+        self::assertNull($narrowedAt(), 'A first beat and a wider beat narrow nothing.');
+
+        foreach ([
+            'a dropped kind' => [[$kept, $left], $both, ['implement']],
+            'a dropped capability' => [[$kept, $left], [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']],
+            'a dropped project' => [[$kept], [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']],
+        ] as $case => [$projects, $capabilities, $kinds]) {
+            $clock->sleep(30);
+            $handler(self::beat($owner, $bridgeId, $projects, false, $capabilities, $kinds));
+            self::assertEquals($clock->now(), $narrowedAt(), $case);
+        }
+
+        $clock->sleep(3600);
+        $handler(self::beat($owner, $bridgeId, [], false, [], []));
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:01:30'), $narrowedAt(), 'A bridge back from quiet already left the work when it went quiet.');
     }
 
     public function test_the_first_heartbeat_stores_the_worker_pools(): void
@@ -752,6 +872,32 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertInstanceOf(Bridge::class, $bridge);
 
         return $bridge;
+    }
+
+    /**
+     * @param list<string>      $projects
+     * @param list<string>|null $capabilities
+     * @param list<string>      $kinds
+     */
+    private static function beat(User $owner, Uuid $bridgeId, array $projects, ?bool $paused, ?array $capabilities, array $kinds): RecordBridgeHeartbeatCommand
+    {
+        return new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', paused: $paused, capabilities: $capabilities, workKinds: $kinds);
+    }
+
+    private function recordAvailability(): RecordedEvents
+    {
+        $announced = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeAvailabilityChanged::class, $announced);
+
+        return $announced;
+    }
+
+    /** @return list<list<string>> */
+    private static function announcedProjects(RecordedEvents $announced): array
+    {
+        return array_map(static fn (BridgeAvailabilityChanged $event): array => $event->projectIds, $announced->of(BridgeAvailabilityChanged::class));
     }
 
     /** Before anything builds the hub: the container hands the replacement only to what it builds afterwards. */

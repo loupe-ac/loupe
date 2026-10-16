@@ -41,7 +41,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 2], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => 3], $answer['template']);
         $kinds = array_column($answer['kinds'], null, 'kind');
         self::assertSame([
             'product-design', 'product-design-revise', 'tech-design', 'tech-design-revise', 'implement', 'breakdown',
@@ -83,7 +83,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'simple', 'version' => 2], $answer['template']);
+        self::assertSame(['key' => 'simple', 'version' => 3], $answer['template']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => [self::TEARDOWN_CHECK]],
             ['kind' => 'discovery', 'origin' => 'app', 'rules' => ['discovery'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_BRIDGE_CHECK]],
