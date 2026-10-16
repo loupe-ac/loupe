@@ -103,6 +103,13 @@ final class WidgetFileTest extends TestCase
         self::assertMatchesRegularExpression('/^\s*\.lp-launch-action\.on,[^{]*\{[^}]*padding:[1-9]\d*px;[^}]*background-clip:content-box/m', $src);
     }
 
+    public function test_launcher_tools_keep_the_prototype_click_target(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        self::assertMatchesRegularExpression('/^\s*\.lp-launch-action\{[^}]*width:36px;height:36px;/m', $src);
+    }
+
     public function test_every_widget_control_keeps_its_focus_ring(): void
     {
         $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');

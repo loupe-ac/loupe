@@ -76,6 +76,9 @@
     // how elements relate, none for a page note, and quoting when it points at a run of
     // text inside its element rather than at the whole element.
     let comments = [];
+    // Counts the scope switches. A save that began under an older scope
+    // keeps its note out of the new list.
+    let scopeGeneration = 0;
     // Whether this instance offers freehand drawing. The boot load carries it,
     // because the embed snippet lives in someone else's page and nobody re-pastes
     // it. Off until the server says otherwise: a widget that offered a control
@@ -1246,13 +1249,13 @@
          .24s delay) so the buttons are genuinely non-interactive once gone, and back
          immediately on expand. */
       /* max-width is the collapse animation's start, so it has to clear the row
-         and stay near it. Three actions and the divider measure 118px, and the
+         and stay near it. Three actions and the divider measure 124px, and the
          travel above that is time the collapse spends going nowhere. */
       .lp-launch-quick{display:flex;align-items:center;gap:3px;overflow:hidden;max-width:130px;opacity:1;visibility:visible;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s 0s}
       .lp-launcher.open .lp-launch-quick{max-width:0;opacity:0;visibility:hidden;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s .24s}
-      .lp-launch-action{flex:0 0 auto;width:32px;height:32px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
+      .lp-launch-action{flex:0 0 auto;width:36px;height:36px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
       .lp-launch-action:hover{background:var(--chrome-raised);color:var(--accent)}
-      .lp-launch-action.on,.lp-launch-action.on:hover{padding:3px;background:var(--accent);background-clip:content-box;color:var(--ink)}
+      .lp-launch-action.on,.lp-launch-action.on:hover{padding:5px;background:var(--accent);background-clip:content-box;color:var(--ink)}
       .lp-launch-dot{flex:0 0 auto;width:8px;height:8px;border-radius:999px;background:var(--chrome-mute)}
       .lp-launch-div{flex:0 0 auto;width:1px;height:24px;background:var(--chrome-line);margin:0 3px}
       /* A label and not a control: the launcher's chrome weight, no hover state
@@ -4434,6 +4437,7 @@
             // The notes of the old destination are not part of the new one.
             writeSessionCards([]);
             comments = [];
+            scopeGeneration++;
         }
         sync();
         focusAfterDestination();
@@ -4770,6 +4774,7 @@
                     state.deliveryId = newDeliveryId();
                     state.deliveryTarget = targetKey;
                 }
+                const scopeAtSave = scopeGeneration;
                 const comment = {
                     deliveryId: state.deliveryId,
                     body,
@@ -4784,7 +4789,9 @@
                     ...comment,
                     target,
                 });
-                comments.push({ id: saved.commentId, ...comment });
+                if (scopeAtSave === scopeGeneration) {
+                    comments.push({ id: saved.commentId, ...comment });
+                }
                 rememberSessionCard(saved.cardId);
                 savedCard =
                     destination.mode === 'per-review'
@@ -4838,7 +4845,8 @@
         try {
             await ready;
             await api('POST', `/api/site-review/comments/${target.id}/resolve`);
-            comments.splice(index, 1);
+            // By id: the list can change while the request runs.
+            comments = comments.filter((comment) => comment.id !== target.id);
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
             else {
@@ -4864,7 +4872,7 @@
         try {
             await ready; // don't let the boot refresh clobber an early delete
             await api('DELETE', `/api/board/feedback/${target.id}`);
-            comments.splice(index, 1);
+            comments = comments.filter((comment) => comment.id !== target.id);
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
             else {
@@ -4895,16 +4903,17 @@
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.
+            const doomed = comments.map((comment) => comment.id);
             const results = await Promise.allSettled(
-                comments.map((comment) =>
-                    api('DELETE', `/api/board/feedback/${comment.id}`),
-                ),
+                doomed.map((id) => api('DELETE', `/api/board/feedback/${id}`)),
             );
             const failure = results.find(
                 (result) => 'rejected' === result.status,
             );
             if (!failure) {
-                comments = [];
+                comments = comments.filter(
+                    (comment) => !doomed.includes(comment.id),
+                );
             } else if (authFailed(failure.reason)) {
                 enterFatal(failure.reason);
             } else {
@@ -5626,10 +5635,16 @@
         const marker = pageMarker();
         if (marker === lastSeenMarker) return;
         lastSeenMarker = marker;
+        const scope = scopeOf();
         // Changed now, not when the answer lands. Keeping the old card would
         // attach a comment saved during the request, or after it failed, to
         // the page the reviewer has already left.
         lock = lockFor(marker);
+        if (scopeOf() !== scope) {
+            // The old card's notes are not part of the new scope.
+            comments = [];
+            scopeGeneration++;
+        }
         sync();
         refresh();
     };

@@ -801,6 +801,72 @@ describe('navigating to a page that names a different card', () => {
         expect(feedbackSave(fetchMock).target).toEqual({ cardId: 'second' });
     });
 
+    it('clears the old card notes the moment the marker changes', async () => {
+        const fetchMock = bootWidget({
+            context: 'card:first',
+            respond: () =>
+                ok({
+                    comments: [
+                        {
+                            id: 'c1',
+                            body: 'On the first card',
+                            url: 'about:blank',
+                            anchors: [],
+                        },
+                    ],
+                    context: { label: '#1 First page card', url: null },
+                }),
+        });
+        await settle();
+        const count = panelRoot().getElementById('lp-launch-count');
+        expect(count.textContent).toBe('1');
+
+        // The new card's list never arrives, which is the window under test.
+        fetchMock.mockImplementation(() => new Promise(() => {}));
+        await navigate('/second', 'card:second');
+
+        expect(count.textContent).toBe('0');
+    });
+
+    it('keeps a save from the old card out of the new list', async () => {
+        let release;
+        const fetchMock = bootWidget({
+            context: 'card:first',
+            respond: () =>
+                ok({
+                    comments: [],
+                    context: { label: '#1 First page card', url: null },
+                }),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Saved on the first page');
+        fetchMock.mockImplementation((url, init) =>
+            init && init.method === 'POST'
+                ? new Promise((resolve) => (release = resolve))
+                : ok({
+                      comments: [],
+                      context: { label: '#2 Second page card', url: null },
+                  }),
+        );
+        root.getElementById('lp-save').click();
+        await settle();
+        await navigate('/second', 'card:second');
+        release(
+            await ok({
+                commentId: 'c9',
+                cardId: 'first',
+                number: 1,
+                label: '#1',
+                url: null,
+            }),
+        );
+        await settle();
+
+        expect(root.getElementById('lp-launch-count').textContent).toBe('0');
+    });
+
     it('drops the lock when the new page names no card', async () => {
         const fetchMock = bootWidget({
             context: 'card:first',
