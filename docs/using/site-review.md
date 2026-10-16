@@ -73,8 +73,20 @@ go:
 
 The widget keeps the choice in the browser's local storage, for this instance
 and this project. It holds for every later note, and after a reload, until you
-change it. The row under the composer shows where notes go. Click it to choose
-again.
+change it. The panel header shows where notes go. Click it to open the
+destination view and choose again. The row under the note field in the composer
+does the same.
+
+The destination also decides which notes the list shows:
+
+| Choice | What the list shows |
+|---|---|
+| A new card for each note | The notes that you saved on the cards this browser tab made. A new tab starts with an empty list. |
+| One card for this review | Every open note on that card. |
+| A card for each note, under an epic | Every open note on the cards under that epic. |
+
+When you change the destination, the list changes with it. Until you choose a
+destination, the list is empty.
 
 The second and third choices open a card picker. Search the open cards, or
 type a title and create a card. The title starts as `Review: ` and the page
@@ -109,6 +121,12 @@ On such a page, every note goes to that card. The widget does not ask for a
 choice, and it does not change the choice you keep for other pages. When the
 card is closed or deleted, the widget refuses notes and says so.
 
+The list shows only the open notes on that card. The panel header names the
+card. The second line gives the pull request and its last verdict, for example
+**PR #88 · Changes requested**, or **No pull request yet** with the number of
+notes on the card. The footer has one action. It is **Finish review** when the
+card has an open pull request, and **Open #N in Loupe** when it has none.
+
 ## Preview sign-in
 
 A preview page can sign the widget in with no popup. It sets
@@ -138,13 +156,15 @@ allowed sites of the project do not limit where a token works.
 
 ## Sending a verdict
 
-On a page that locks a card, the panel shows three buttons when the card has at
-least one open GitHub pull request: **Approve**, **Request changes** and
-**Comment**. The buttons stay hidden on every other page. That includes a page
-that names no card and a card without an open pull request.
+On a page that locks a card, the panel footer shows **Finish review** when the
+card has at least one open GitHub pull request. It opens a view with three
+buttons: **Approve**, **Request changes** and **Comment**. The footer action
+stays hidden on every other page. That includes a page that names no card and a
+card without an open pull request.
 
 A button opens a confirm panel. Loupe records nothing until you press **Send**.
-Press **Cancel** to close the panel without a record.
+Press **Cancel** to close the panel without a record. The back arrow returns to
+the list.
 
 The confirm panel shows:
 
@@ -392,9 +412,26 @@ private-network rules can still block the request. Nobody tested that case. See
 
 ## What the reviewer sees, and for how long
 
-The widget lists the notes that still wait on the agent. A note stays in that
+The widget lists the notes that still wait on the agent, in the context of the
+panel: the locked card, or the destination of your review. A note stays in that
 list, where you can edit and delete it, until the agent marks it addressed.
 Then it **disappears from the widget**.
+
+The list is always open. It has no timestamps. The notes made on the page that
+you are looking at come first, under **On this page**. The notes made on other
+pages follow under **Other pages**, and each of those rows has a link with the
+path of its page. Pins on the page carry the same numbers as the list. The
+count on the launcher, the pins and **Delete all** read this one list, so
+**Delete all** never reaches a note outside the context.
+
+The panel shows one view at a time. The composer, the destination choice and
+the verdict form slide in over the list, and the back arrow slides them out.
+With the system setting that asks for reduced motion, the views swap with no
+slide. The closed launcher keeps the **Review** button with the count and three
+tool buttons: add a note, pick an element and draw. The tool in use shows with
+the accent fill. When you are signed out, the launcher says **Sign in to
+review**, and the panel explains the three steps with a **Sign in with Loupe**
+button.
 
 That is the intended lifecycle. The note is still on the Feedback tab of its
 card, where you check the fix and resolve it. So the widget is a list of open
