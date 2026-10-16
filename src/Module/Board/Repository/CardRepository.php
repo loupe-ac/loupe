@@ -688,6 +688,67 @@ class CardRepository extends ServiceEntityRepository
         ));
     }
 
+    /** Whether a card that blocks this one sits in a terminal column, as the database holds it now. */
+    public function hasClosedBlocker(Card $card): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT 1 FROM board_card_links l
+             JOIN board_cards s ON s.id = l.source_card_id
+             JOIN board_columns k ON k.id = s.column_id
+             WHERE l.target_card_id = :id AND l.kind = 'blocks' AND k.terminal = true
+             LIMIT 1",
+            ['id' => (string) $card->id],
+        );
+    }
+
+    /**
+     * The cards that block this one from a terminal column and sit outside its epic, as the
+     * database holds them now, by number. A blocker with no parent sits outside every epic.
+     *
+     * @return list<Card>
+     */
+    public function findDoneBlockersOutsideEpicOf(Card $card): array
+    {
+        return $this->cardsByIds($this->getEntityManager()->getConnection()->fetchFirstColumn(
+            "SELECT s.id FROM board_card_links l
+             JOIN board_cards s ON s.id = l.source_card_id
+             JOIN board_columns k ON k.id = s.column_id
+             WHERE l.target_card_id = :id AND l.kind = 'blocks' AND k.terminal = true
+               AND s.parent_card_id IS DISTINCT FROM :parent
+             ORDER BY s.number",
+            ['id' => (string) $card->id, 'parent' => null === $card->parent ? null : (string) $card->parent->id],
+        ));
+    }
+
+    /**
+     * Changes the epic branch sync record of an epic under a row lock, from the row as stored. Two children can
+     * write it at once, so a change from a stale copy would drop the change of the other.
+     *
+     * @template T
+     *
+     * @param \Closure(Card): T $change
+     *
+     * @return T
+     */
+    public function changeEpicBranchSync(Card $epic, \Closure $change): mixed
+    {
+        $em = $this->getEntityManager();
+
+        return $em->wrapInTransaction(static function () use ($em, $epic, $change): mixed {
+            $em->flush();
+            $row = $em->getConnection()->fetchAssociative(
+                'SELECT epic_branch_synced_blockers, epic_branch_pending_syncs FROM board_cards WHERE id = :id FOR UPDATE',
+                ['id' => (string) $epic->id],
+            ) ?: throw new \LogicException('A stored epic has a row.');
+            $epic->epicBranchSyncedBlockers = json_decode((string) $row['epic_branch_synced_blockers'], true, flags: \JSON_THROW_ON_ERROR);
+            $epic->epicBranchPendingSyncs = json_decode((string) $row['epic_branch_pending_syncs'], true, flags: \JSON_THROW_ON_ERROR);
+            $result = $change($epic);
+            $em->flush();
+
+            return $result;
+        });
+    }
+
     /**
      * How many cards this card follows, and how many of them sit in a column that is not terminal.
      *
@@ -1295,7 +1356,7 @@ class CardRepository extends ServiceEntityRepository
         return $this->getEntityManager()->getConnection()->executeQuery(
             \sprintf(
                 'UPDATE board_cards c
-                 SET column_id = :to, updated_at = :now, completed_at = %s, position = %s
+                 SET column_id = :to, updated_at = :now, completed_at = %s, completions = %s, position = %s
                  FROM (
                      SELECT s.id,
                             row_number() OVER (ORDER BY s.position, s.completed_at, s.created_at, s.number) - 1 AS rank,
@@ -1306,6 +1367,7 @@ class CardRepository extends ServiceEntityRepository
                  WHERE c.id = ranked.id
                  RETURNING c.id',
                 $to->terminal ? 'COALESCE(c.completed_at, :now)' : 'NULL',
+                $to->terminal ? 'c.completions + CASE WHEN c.completed_at IS NULL THEN 1 ELSE 0 END' : 'c.completions',
                 $to->terminal ? '0' : 'ranked.tail + ranked.rank',
             ),
             ['from' => (string) $from->id, 'to' => (string) $to->id, 'now' => $now],
@@ -1332,7 +1394,7 @@ class CardRepository extends ServiceEntityRepository
             }
 
             $row = $connection->fetchAssociative(
-                'SELECT column_id, position, completed_at, updated_at FROM board_cards WHERE id = :id',
+                'SELECT column_id, position, completed_at, completions, updated_at FROM board_cards WHERE id = :id',
                 ['id' => (string) $card->id],
             );
             $column = false === $row ? null : $em->find(BoardColumn::class, Uuid::fromString((string) $row['column_id']));
@@ -1343,6 +1405,7 @@ class CardRepository extends ServiceEntityRepository
             $card->column = $column;
             $card->position = (int) $row['position'];
             $card->completedAt = $dateTime->convertToPHPValue($row['completed_at'], $connection->getDatabasePlatform());
+            $card->completions = (int) $row['completions'];
             $card->updatedAt = $dateTime->convertToPHPValue($row['updated_at'], $connection->getDatabasePlatform());
         }
     }
@@ -1436,6 +1499,7 @@ class CardRepository extends ServiceEntityRepository
         $this->createQueryBuilder('c')
             ->update()
             ->set('c.completedAt', ':now')
+            ->set('c.completions', 'c.completions + 1')
             ->set('c.updatedAt', ':now')
             ->set('c.position', 0)
             ->andWhere('c.column = :column')

@@ -283,6 +283,17 @@ alone decides each write, and the write happens when the rule fires. When the
 project has no GitHub App installation, the rule asks a bridge for the same work
 instead. See [Automation](board.md#automation).
 
+The `merge-main-into-epic` write acts on a child in Next whose blocker outside
+its epic is done. It merges the default branch into the epic branch in each
+repository where such a blocker merged a pull request, then records on the
+epic which blockers the merge covered. A merge conflict refuses the write, and
+a person resolves the conflict. A project with no GitHub App installation gets
+work of kind `sync-epic` instead. When that work ends done, the epic records
+the blockers that were done when the work opened. A blocker that finishes
+again later asks for a new merge. That work merges in one repository, so when
+the code lives in several repositories and Loupe cannot merge in one of them,
+the write refuses, and a person merges by hand.
+
 Two more writes come from the [rules the app adds](#rules-the-app-adds). They
 act on a site-review verdict, and they never ask a bridge for work:
 
@@ -325,9 +336,35 @@ back to Implementation at once when it has no open blocker.
 | Slot | The workflow |
 |---|---|
 | Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Claude Design project that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes |
-| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker |
+| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design) |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
+
+### Recheck of a design
+
+A tech design that waited for a blocker describes code that the blocker had not
+merged yet. When the blocker is done, the code can differ from what the design
+assumed, for example a renamed class or a dropped field.
+
+The `tech-design-recheck` rule asks for a recheck when all of these hold:
+
+1. The tech design is approved and has no changes requested.
+2. No blocker of the card is open.
+3. At least one blocker of the card sits in a terminal column.
+4. The latest work request of the card is not a `tech-design-recheck` that ended
+   with the reason `done`.
+
+The agent reads the design and the code on `main`. When every fact
+still holds, it ends with `tech design current`, and the card moves to
+Implementation. When a fact no longer holds, it revises the design. The
+revision puts the design back in review, and the card moves on after the owner
+approves it again. The latest work request is still the recheck, so the
+approval does not ask for a second recheck. A later `tech-design-revise` run
+replaces the latest work request, and the next approval asks for one more
+recheck.
+
+A card with no blocker link never gets a recheck. A card whose blocker link
+points to a card that finished before the design was approved gets one recheck.
 
 A design document in review, a draft and a revision keep the slot from asking
 for a second design. Archive the document to ask for a new one.
@@ -499,7 +536,10 @@ Some rules act from any slot:
 3. A child of an epic starts only when it links an approved tech design and its
    epic sits in Implementation. A child in Next moves to Implementation when it
    has a document with the tag `tech-design`, every such document is approved,
-   it has no open blocker, and it has no pull request. It waits while the epic has work in
+   it has no open blocker, and it has no pull request. It also waits until the epic
+   branch holds the code of each blocker outside the epic. The rule
+   `epic-branch-sync` merges `main` into the epic branch first, and the
+   condition `card.parent.epic_branch.synced` is true when that is done. It waits while the epic has work in
    progress. That work is any open worker run of the epic, and any work that the
    workflow requested for the epic and no bridge finished. When the last such
    work ends, the epic evaluates its children again, in any column. A change to
@@ -672,11 +712,13 @@ A rule that asks for work names its kind. A bridge runs a kind only when its
 | `product-design-revise` | A revision of the product document |
 | `tech-design` | The tech design |
 | `tech-design-revise` | A revision of the tech design |
+| `tech-design-recheck` | A check of an approved tech design against the code, after a card that blocked it is done |
 | `implement` | The implementation and its pull request |
 | `breakdown` | The child cards of an epic |
 | `fix` | A fix of a failed check, a conflict or a request for changes |
 | `rebase-stacked` | A new base for a stacked pull request, when the project has no GitHub App installation |
 | `sync` | An update of a branch that is behind, when the project has no GitHub App installation |
+| `sync-epic` | A merge of the default branch into the epic branch, for a child whose blocker outside the epic is done, when the project has no GitHub App installation |
 | `merge` | A merge, when the project has no GitHub App installation |
 | `teardown` | The removal of the card's worktree |
 | `epic-preview` | A refresh of the epic preview, when the head of the epic pull request has no refresh that ended well |

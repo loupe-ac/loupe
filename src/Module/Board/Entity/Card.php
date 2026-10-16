@@ -55,6 +55,10 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $completedAt = null;
 
+    /** Counts each entry into a terminal column from outside one, so two completions in one second still differ. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $completions = 0;
+
     #[ORM\Column]
     public \DateTimeImmutable $updatedAt;
 
@@ -82,6 +86,24 @@ class Card implements ProjectScopedSubject
     /** Whether the board draws this epic as a lane. Only an epic reads it. */
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
+
+    /**
+     * Only an epic reads it: each blocker outside the epic whose code a merge of the default branch brought into
+     * the epic branch, by card id, with the completion count the blocker had then.
+     *
+     * @var array<string, int>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+    public array $epicBranchSyncedBlockers = [];
+
+    /**
+     * Only an epic reads it: each fallback merge run still live, by work request id, with the blocker completion
+     * counts at its open. The run merges no earlier code than that, so its end records those counts and no newer ones.
+     *
+     * @var array<string, array<string, int>>
+     */
+    #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
+    public array $epicBranchPendingSyncs = [];
 
     /**
      * Title and body, stemmed and weighted, as one searchable vector. It sits on
@@ -217,6 +239,60 @@ class Card implements ProjectScopedSubject
     public static function normalText(string $text): string
     {
         return trim(str_replace(["\r\n", "\r"], "\n", $text));
+    }
+
+    /** Stamps the first entry into a terminal column. A move between two terminal columns keeps the stamp. */
+    public function complete(\DateTimeImmutable $now): void
+    {
+        if (null === $this->completedAt) {
+            $this->completedAt = $now;
+            ++$this->completions;
+        }
+    }
+
+    /** Records on the epic that its branch now holds the code of each blocker, as each blocker stands now. */
+    public function recordEpicBranchSync(Card ...$blockers): void
+    {
+        foreach ($blockers as $blocker) {
+            $this->epicBranchSyncedBlockers[(string) $blocker->id] = $blocker->completions;
+        }
+    }
+
+    /** Notes the blockers that a fallback merge run covers, as each blocker stands when the run opens. */
+    public function awaitEpicBranchSync(Uuid $requestId, Card ...$blockers): void
+    {
+        $counts = [];
+        foreach ($blockers as $blocker) {
+            $counts[(string) $blocker->id] = $blocker->completions;
+        }
+        $this->epicBranchPendingSyncs[$requestId->toRfc4122()] = $counts;
+    }
+
+    /**
+     * Ends a fallback merge run. A run that merged records its counts. Two runs can end out of order, so a lower count never replaces a higher one.
+     *
+     * @return bool whether the epic awaited the run
+     */
+    public function settleEpicBranchSync(Uuid $requestId, bool $merged): bool
+    {
+        $counts = $this->epicBranchPendingSyncs[$requestId->toRfc4122()] ?? null;
+        if (null === $counts) {
+            return false;
+        }
+        unset($this->epicBranchPendingSyncs[$requestId->toRfc4122()]);
+        if ($merged) {
+            foreach ($counts as $blockerId => $count) {
+                $this->epicBranchSyncedBlockers[$blockerId] = max($count, $this->epicBranchSyncedBlockers[$blockerId] ?? 0);
+            }
+        }
+
+        return true;
+    }
+
+    /** A blocker that finished again after the merge reads as not held, because its stamp changed. */
+    public function epicBranchHolds(Card $blocker): bool
+    {
+        return ($this->epicBranchSyncedBlockers[(string) $blocker->id] ?? null) === $blocker->completions;
     }
 
     /** What the workflow reads about this card when it decides on a move. */

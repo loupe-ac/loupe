@@ -19,6 +19,8 @@ use App\Module\Board\Service\VerdictReviewSettler;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\EpicBranchMergeFailed;
+use App\Module\Forge\Service\EpicBranchMergers;
 use App\Module\Forge\Service\ForgePullRequestWrites;
 use App\Module\Forge\Service\PullRequestOpeners;
 use App\Module\Forge\Service\PullRequestStateWriters;
@@ -49,6 +51,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * it opens the pull request of the epic branch and links it to the epic, and it has no fallback.
  * A comment write queues the comment that the card's facts ask for, and it has no fallback.
  * The review-ready write marks the open pull request the rule acts on ready, and it has no fallback.
+ * The epic merge write acts on a child that waits for a blocker outside its epic: it merges the default
+ * branch into the epic branch, and a project with no writer opens the fallback work.
  */
 final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFactChange
 {
@@ -62,6 +66,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         private EpicBranches $epicBranches,
         private ForgePullRequestWrites $forgePullRequestWrites,
         private ForgePullRequestRepository $forgePullRequests,
+        private EpicBranchMergers $epicBranchMergers,
         private PullRequestStateWriters $stateWriters,
         private PullRequestOpeners $pullRequestOpeners,
         private WorkRequestOpener $opener,
@@ -160,6 +165,9 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         if (ForgeWriteKind::OpenEpic === $write) {
             return $this->openEpic($context->ruleId, $card, $pullRequests);
         }
+        if (ForgeWriteKind::MergeMainIntoEpic === $write) {
+            return $this->mergeMainIntoEpic($card, $fallback);
+        }
         $result = match ($write) {
             ForgeWriteKind::PostReview => $this->reviewSettler->settle($card),
             ForgeWriteKind::SiteReviewCheck => $this->checkPublisher->publish($card),
@@ -239,6 +247,103 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
 
             return ActionOutcome::refused($e->cause);
         }
+    }
+
+    /**
+     * Merges the default branch into the epic branch in each repository where a blocker outside the epic
+     * merged code, then records the blockers on the epic. A blocker with no merged pull request brings no code.
+     * The fallback work merges in the repository of its own checkout only, so it serves one repository and no more.
+     *
+     * @param \Closure(): ActionOutcome $fallback
+     */
+    private function mergeMainIntoEpic(Card $card, \Closure $fallback): ActionOutcome
+    {
+        $epic = $card->parent;
+        if (null === $epic) {
+            return ActionOutcome::done();
+        }
+        $epicBranch = $this->epicBranches->of($card->project->requireId(), $epic->number);
+        $blockers = $this->cards->findDoneBlockersOutsideEpicOf($card);
+        // An epic with no epic branch starts its children from the default branch, so there is no code to bring.
+        if (null === $epicBranch || [] === $blockers) {
+            return $this->recordEpicSync($card, $epic, $blockers, $epicBranch, 0);
+        }
+
+        $references = [];
+        foreach ($blockers as $blocker) {
+            foreach ($this->cardPullRequests->forCard($blocker) as $pullRequest) {
+                if (PullRequestState::Merged !== $pullRequest->state) {
+                    continue;
+                }
+                if (null === $pullRequest->defaultBranch) {
+                    return ActionOutcome::refused('no-default-branch');
+                }
+                $references[$pullRequest->forge.' '.mb_strtolower($pullRequest->repository)] ??= $pullRequest;
+            }
+        }
+
+        $failure = null;
+        $skipped = false;
+        foreach ($references as $reference) {
+            $merger = $this->epicBranchMergers->for($reference->forge);
+            if (null === $merger) {
+                $skipped = true;
+
+                continue;
+            }
+            try {
+                $merger->merge($reference, $epicBranch, $reference->defaultBranch ?? throw new \LogicException('A reference has a default branch.'));
+            } catch (EpicBranchMergeFailed $e) {
+                if (self::lacksWriter($e->cause)) {
+                    $skipped = true;
+
+                    continue;
+                }
+                $failure ??= $e;
+            }
+        }
+
+        if (null !== $failure) {
+            return ActionOutcome::refused($failure->cause);
+        }
+        if ($skipped) {
+            return 1 === \count($references) ? $this->awaitEpicSync($epic, $blockers, $fallback()) : ActionOutcome::refused('several-repositories');
+        }
+
+        return $this->recordEpicSync($card, $epic, $blockers, $epicBranch, \count($references));
+    }
+
+    /**
+     * The fallback run settles later, so the epic notes what the run covers and records it when the run ends well.
+     *
+     * @param list<Card> $blockers
+     */
+    private function awaitEpicSync(Card $epic, array $blockers, ActionOutcome $outcome): ActionOutcome
+    {
+        if (null !== $outcome->requestId) {
+            $requestId = $outcome->requestId;
+            $this->cards->changeEpicBranchSync($epic, static fn (Card $epic) => $epic->awaitEpicBranchSync($requestId, ...$blockers));
+        }
+
+        return $outcome;
+    }
+
+    /** @param list<Card> $blockers */
+    private function recordEpicSync(Card $card, Card $epic, array $blockers, ?string $epicBranch, int $repositories): ActionOutcome
+    {
+        $this->cards->changeEpicBranchSync($epic, static fn (Card $epic) => $epic->recordEpicBranchSync(...$blockers));
+        $this->logger->info('board.epic_branch_synced', [
+            'cardId' => (string) $card->id,
+            'epicId' => (string) $epic->id,
+            'epicBranch' => $epicBranch,
+            'blockers' => \count($blockers),
+            'repositories' => $repositories,
+        ]);
+        if ($this->evaluations->isOn()) {
+            $this->evaluations->forCards($this->cards->findChildIds($epic->id ?? throw new \LogicException('A stored card has an id.')));
+        }
+
+        return ActionOutcome::done();
     }
 
     /**

@@ -8,6 +8,7 @@ final readonly class BlockerFacts
 {
     public function __construct(
         public bool $hasOpenBlocker,
+        public bool $hasClosedBlocker,
     ) {
     }
 }

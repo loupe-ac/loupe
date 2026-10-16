@@ -7,7 +7,7 @@ description: "Use when a card enters the Tech design column of a Loupe board, or
 
 Write or revise the tech design of one card, link it, and stop. The requirement source is the approved product document, or the card body when the card has no product document.
 
-Change nothing but Loupe documents, and never move the card. `../loupe-stage-product-design/references/stage-contract.md` holds the full rules.
+Change nothing but Loupe documents and the `blocked-by` links of the card, and never move the card. `../loupe-stage-product-design/references/stage-contract.md` holds the full rules.
 
 ## Procedure
 
@@ -25,14 +25,26 @@ Change nothing but Loupe documents, and never move the card. `../loupe-stage-pro
 9. Find the tech design among the linked documents, as the contract says. It has the tags `tech-design` and `decisions`, or a title that starts `Tech design`. Skip the tech design of the parent card, as `../loupe-stage-implementation/references/breakdown.md` "Build a child" says.
 10. When step 9 finds none, search `document_list` for the title `Tech design: <card title>`, as the contract says. The document to reference is the product document, when there is one.
 
+### Recheck, when the prompt names a recheck
+
+The workflow asks for a recheck when an approved design waited for a blocker, and the blocker is done. The design describes code that the blocker had not merged when it was written. Run this branch when the prompt says this is a recheck, and the design from step 9 or 10 has `status` `approved`. When the prompt names no recheck, skip this branch.
+
+1. Read `card_get` `relatedCards`. A recheck needs a `blocked-by` entry whose `status` is a terminal column. Otherwise stop with `STAGE RESULT: blocked: no closed blocker to recheck against`.
+2. Read the design and its answers, as the contract "Read the answers of a design" says. Do not change an answer.
+3. Read the code on `main`, also for an epic child whose base branch is `epic/<n>`. The epic branch can lack the code of the closed blocker until the epic sync runs. List each checked fact of the design: each class, method, field, route, file and behaviour that it names. Read each one. Pay most attention to the parts that the closed blocker builds, which the design could only assume.
+4. When every fact holds, stop with `STAGE RESULT: tech design current [reason: done]`. Change no document.
+5. When a fact no longer holds, revise the design with `document_revise`. Change only what the new code makes wrong, and keep each ID and each answered decision. Say in the first section what changed and why. A revision sets the design back to In review. Update the deploy notes when a deploy item changed, and record each new dependency, as Revise steps 6 and 7 say. Stop with `STAGE RESULT: tech design revised <id> [reason: done]`.
+6. When a decision of the owner no longer works with the new code, do not change that decision. Add a new open decision with its own ID, then revise as in step 5.
+
 ### Revise, when step 9 or 10 finds the design
 
-1. When its `status` is `approved`, stop with `STAGE RESULT: tech design already approved`.
-2. When its `status` is `draft`, an earlier run stopped before it published the design. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Publish the design, and the linked deploy notes when they are a draft, as "Publish the drafts" says. Stop with `STAGE RESULT: tech design created <id>`.
+1. When its `status` is `approved` and the prompt names no recheck, stop with `STAGE RESULT: tech design already approved`.
+2. When its `status` is `draft`, an earlier run stopped before it published the design. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Publish the design, and the linked deploy notes when they are a draft, as "Publish the drafts" says. Record each new dependency, as Revise step 7 says. Stop with `STAGE RESULT: tech design created <id>`.
 3. Read the code and those design inputs.
 4. Judge the size again, as "Judge the size" says. A revision never changes the ID of an entry.
-5. Before the `document_revise` of the round, read each decision section that the round changes alone, as Create step 6 says, and fix each one that leans on another section. Follow `../loupe-stage-product-design/references/review-round.md`. The document is `tech design`, and the requirement source is the one step 7 chose. Run Revise step 6 below before the round stops.
+5. Before the `document_revise` of the round, read each decision section that the round changes alone, as Create step 6 says, and fix each one that leans on another section. Follow `../loupe-stage-product-design/references/review-round.md`. The document is `tech design`, and the requirement source is the one step 7 chose. Run Revise steps 6 and 7 below before the round stops.
 6. When the round adds, changes or removes a deploy item, update the deploy notes after the `document_revise` of the design. Do this before the replies. Revise the linked notes with `document_revise`, or create and link them as "Deploy notes" says. Publish new notes before the final reply, as "Publish the drafts" says. Keep the deploy line of the design true. When the Solution section is approved, keep its text. In a design that predates it, the same goes for Architecture. The linked notes are then the record.
+7. When the round finds a new dependency, record it after the `document_revise` of the design, as "Record a dependency" says. Call `card_get` again, and send its `relatedCards` unchanged, plus the new entry, in one `card_update`.
 
 ### Create, when neither step finds a design
 
@@ -47,6 +59,17 @@ Change nothing but Loupe documents, and never move the card. `../loupe-stage-pro
 
 1. Call `document_publish` for each draft that the run created or found: the design, then the deploy notes. Do this before the final reply.
 2. When `document_publish` is not among the tools, the documents are not drafts, as `loupe-documents` rule 17 says. Skip this step.
+
+### Record a dependency
+
+A dependency is a part that the design needs, that is missing on the base branch, and that one open card builds.
+
+1. Look for a dependency while you read the code. Find the card that builds the part with `card_search` when the tool exists. Otherwise page `card_list` while `hasMore` is true, and read the titles. `card_list` returns the columns with their `terminal` flag. Call `card_get` on the card, and check that its status is not a terminal column.
+2. When you find one, add a `blocked-by` entry for that card to the `relatedCards` of the card you design. On the Create path, do it in the same `card_update` that links the document (contract rule 5). On the Revise path, Revise step 7 writes it. Send the `relatedCards` of `card_get` unchanged, plus the new entry.
+3. A card that already carries the link needs no write.
+4. Name the dependency in the Solution section, on the line `Depends on: card N (title), which builds X`, above the deploy line. With no dependency, write `Depends on: none`.
+5. A revision that finds a new dependency adds the link, as Revise step 7 says. A revision that no longer needs a dependency says so in the design and leaves the link. Only a person removes a link, because the stage cannot tell a link it wrote from a link a person added.
+6. An epic with the link waits in Tech design after the owner approves the design, until the blocker is done. The breakdown then cuts the epic branch from a `main` that holds the blocker's code.
 
 ### Judge the size
 
@@ -65,7 +88,7 @@ Use these `##` sections, in this order. Follow `../loupe-documents/references/de
 1. At a glance.
 2. Problem. Say in plain words what goes wrong today, or what the product cannot do, and who feels it. Keep the trigger, the event that made someone look, apart from the problem. Leave the solution out.
 3. Priorities. Cite the `P` entries of the product document that the design serves. With no product document, take them from the card body.
-4. Solution. Describe the recommended solution in plain words, for a reader who knows the product. Then show a diagram of it, as `../loupe-documents/references/design-structure.md` "Diagrams" says. Then write a "How it works" numbered list for the implementer: each part that the change adds or changes, with its code name, and the main flow step by step. When the product document has a Design system section, name each component change from its list. A needed component change that the list lacks becomes a decision for the owner. End the section with the deploy line that "Deploy notes" names.
+4. Solution. Describe the recommended solution in plain words, for a reader who knows the product. Then show a diagram of it, as `../loupe-documents/references/design-structure.md` "Diagrams" says. Then write a "How it works" numbered list for the implementer: each part that the change adds or changes, with its code name, and the main flow step by step. When the product document has a Design system section, name each component change from its list. A needed component change that the list lacks becomes a decision for the owner. End the section with the `Depends on:` line that "Record a dependency" names, and then the deploy line that "Deploy notes" names.
 5. Strengths and weaknesses. Write two numbered lists: what the recommended solution does well, and what it costs or risks. Name each weakness in proportion. A design with no weakness has not looked.
 6. Alternatives. Describe each rival whole solution that you considered and did not recommend. Give a table with the columns Option, Pros and Cons, in an options fence, with the recommended solution as the first row. Say in one sentence why each rival lost. When the owner should choose between the solutions, write the choice as an open decision instead. A choice inside the recommended solution belongs in its own decision section, not here.
 7. How others do it. Give two or three libraries or systems that solve the same problem. Link each one, and give one takeaway.
