@@ -14,6 +14,8 @@ use App\Module\AgentReview\Service\AgentReviewPosts;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardLink;
+use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\CardVerdict;
 use App\Module\Board\Entity\CardVerdictDelivery;
@@ -35,14 +37,19 @@ use App\Module\Board\Service\VerdictReviewSettler;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\SiteReviewFactProvider;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Command\ReadPullRequestStateHandler;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Forge\Service\EpicBranchMergeFailed;
+use App\Module\Forge\Service\EpicBranchMergers;
 use App\Module\Forge\Service\ForgePullRequestWrites;
 use App\Module\Forge\Service\PullRequestBaseChangers;
 use App\Module\Forge\Service\PullRequestBranchUpdaters;
@@ -93,12 +100,15 @@ final class ForgeWriteTest extends KernelTestCase
 
     private FakeCheckWriter $checkWriter;
 
+    private FakeEpicBranchMerger $epicMerger;
+
     protected function setUp(): void
     {
         self::bootKernel();
         $this->writer = new FakeForgeWriter();
         $this->reviewPoster = new FakeReviewPoster();
         $this->checkWriter = new FakeCheckWriter();
+        $this->epicMerger = new FakeEpicBranchMerger();
     }
 
     public function test_a_card_with_no_pull_request_is_refused(): void
@@ -633,6 +643,314 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertSame([], $this->service(CardPullRequestRepository::class)->findCurrentKeys($epic));
     }
 
+    public function test_the_epic_merge_brings_the_default_branch_into_the_epic_branch_and_records_the_sync(): void
+    {
+        [$epic, $child, $blockerPullRequest, $blocker] = $this->epicWithBlockedChild($this->project());
+        $this->transport()->reset();
+
+        self::assertEquals(ActionOutcome::done(), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([['repository' => 'acme/widgets', 'epicBranch' => 'epic/'.$epic->number, 'baseBranch' => 'main']], $this->epicMerger->calls);
+        self::assertTrue($epic->epicBranchHolds($blocker));
+        self::assertSame(PullRequestState::Merged, $blockerPullRequest->state);
+        self::assertEquals([new EvaluateCard((string) $child->id)], $this->queuedEvaluations());
+    }
+
+    public function test_the_epic_merge_writes_each_repository_once(): void
+    {
+        [, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        $this->pullRequest($blocker, state: PullRequestState::Merged);
+
+        $this->write($child, 'merge-main-into-epic');
+
+        self::assertCount(1, $this->epicMerger->calls);
+    }
+
+    public function test_the_epic_merge_is_refused_on_a_conflict_and_records_nothing(): void
+    {
+        [$epic, $child] = $this->epicWithBlockedChild($this->project());
+        $this->epicMerger->failure = new EpicBranchMergeFailed('merge-conflict', permanent: true);
+        $this->transport()->reset();
+
+        self::assertEquals(ActionOutcome::refused('merge-conflict'), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertCount(1, $this->epicMerger->calls);
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+        self::assertSame([], $this->queuedEvaluations());
+    }
+
+    public function test_the_epic_merge_is_refused_with_the_cause_of_another_failure(): void
+    {
+        [$epic, $child] = $this->epicWithBlockedChild($this->project());
+        $this->epicMerger->failure = new EpicBranchMergeFailed('permission', permanent: true);
+
+        self::assertEquals(ActionOutcome::refused('permission'), $this->write($child, 'merge-main-into-epic'));
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_epic_merge_with_no_writer_opens_the_fallback_work(): void
+    {
+        [$epic, $child] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+
+        self::assertSame(['sync-epic'], $this->liveKinds($child));
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_fallback_work_records_the_blockers_as_they_stood_when_it_opened_once_it_ends_done(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        self::assertSame([(string) $request->id => [(string) $blocker->id => $blocker->completions]], $epic->epicBranchPendingSyncs);
+        self::assertFalse($epic->epicBranchHolds($blocker));
+
+        $blocker->completedAt = null;
+        $blocker->complete(new \DateTimeImmutable());
+        $this->settle($request, 'done');
+
+        self::assertSame([], $epic->epicBranchPendingSyncs);
+        self::assertSame([(string) $blocker->id => $blocker->completions - 1], $epic->epicBranchSyncedBlockers);
+        self::assertFalse($epic->epicBranchHolds($blocker), 'A blocker that finished again after the work opened needs a new merge.');
+    }
+
+    public function test_a_fallback_work_that_ends_blocked_records_nothing_and_stays_awaited_for_a_resume(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $this->settle($request, 'blocked');
+
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+        self::assertFalse($epic->epicBranchHolds($blocker));
+
+        $this->settle($request, 'done');
+
+        self::assertSame([], $epic->epicBranchPendingSyncs);
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_cancelled_fallback_work_is_no_longer_awaited(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $request->state = WorkRequestState::Cancelled;
+        $this->em()->flush();
+        $this->service(WorkRequestAnnouncer::class)->announce($request);
+
+        self::assertSame([], $epic->epicBranchPendingSyncs);
+        self::assertFalse($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_fallback_work_that_ends_done_records_the_blockers_it_covers(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $this->settle($request, 'done');
+
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_fallback_work_keeps_the_pending_run_another_child_stored_meanwhile(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        $other = (string) Uuid::v7();
+        $this->storeEpicBranchSync($epic, pending: [$other => ['01a00000-0000-7000-8000-000000000001' => 1]]);
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+
+        self::assertSame([$other, (string) $request->id], array_keys($epic->epicBranchPendingSyncs));
+        $this->em()->clear();
+        $stored = $this->service(CardRepository::class)->find($epic->id ?? throw new \LogicException('A flushed card has an id.'));
+        self::assertNotNull($stored);
+        self::assertSame([$other, (string) $request->id], array_keys($stored->epicBranchPendingSyncs));
+        self::assertSame([(string) $request->id => [(string) $blocker->id => $blocker->completions]], array_diff_key($stored->epicBranchPendingSyncs, [$other => true]));
+    }
+
+    public function test_a_direct_merge_keeps_the_pending_run_another_child_stored_meanwhile(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        $other = (string) Uuid::v7();
+        $this->storeEpicBranchSync($epic, pending: [$other => ['01a00000-0000-7000-8000-000000000001' => 1]]);
+
+        self::assertEquals(ActionOutcome::done(), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([$other], array_keys($epic->epicBranchPendingSyncs));
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_fallback_work_settles_on_the_stored_epic_when_another_child_wrote_it_meanwhile(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $other = (string) Uuid::v7();
+        $this->storeEpicBranchSync($epic, pending: [...$epic->epicBranchPendingSyncs, $other => ['01a00000-0000-7000-8000-000000000001' => 1]]);
+
+        $this->settle($request, 'done');
+
+        self::assertSame([$other], array_keys($epic->epicBranchPendingSyncs));
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_the_epic_merge_with_no_installation_opens_the_fallback_work(): void
+    {
+        [$epic, $child] = $this->epicWithBlockedChild($this->project());
+        $this->epicMerger->failure = new EpicBranchMergeFailed('no_installation', permanent: true);
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic'));
+
+        self::assertSame(['sync-epic'], $this->liveKinds($child));
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_epic_merge_with_a_writer_for_one_repository_only_is_refused_and_records_nothing(): void
+    {
+        $project = $this->project();
+        [$epic, $child] = $this->epicWithBlockedChild($project);
+        $other = $this->card($project, 'done');
+        $this->em()->persist(new CardLink($other, $child, CardLinkKind::Blocks));
+        $this->em()->persist(new CardPullRequest($other, 'https://gitlab.example/acme/other/-/merge_requests/9', Forge::GitLab, 'acme/other', 9));
+        $unwritten = new ForgePullRequest($project, 'gitlab', 'acme/other', 9);
+        $unwritten->state = PullRequestState::Merged;
+        $unwritten->defaultBranch = 'main';
+        $this->em()->persist($unwritten);
+        $this->em()->flush();
+
+        self::assertEquals(ActionOutcome::refused('several-repositories'), $this->write($child, 'merge-main-into-epic', fallback: 'sync-epic'));
+
+        self::assertCount(1, $this->epicMerger->calls);
+        self::assertSame([], $this->liveKinds($child));
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_epic_merge_with_no_done_blocker_outside_the_epic_merges_nothing_and_records_the_sync(): void
+    {
+        $project = $this->project();
+        $epic = $this->epic($project);
+        $child = $this->card($project, 'in-progress');
+        $child->parent = $epic;
+        $insider = $this->card($project, 'done');
+        $insider->parent = $epic;
+        $openBlocker = $this->card($project, 'in-progress');
+        $this->em()->persist(new CardLink($insider, $child, CardLinkKind::Blocks));
+        $this->em()->persist(new CardLink($openBlocker, $child, CardLinkKind::Blocks));
+        $this->em()->flush();
+
+        self::assertEquals(ActionOutcome::done(), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([], $this->epicMerger->calls);
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_epic_merge_on_a_card_with_no_epic_is_done(): void
+    {
+        $card = $this->card($this->project(), 'in-progress');
+
+        self::assertEquals(ActionOutcome::done(), $this->write($card, 'merge-main-into-epic'));
+        self::assertSame([], $this->epicMerger->calls);
+    }
+
+    public function test_a_blocker_that_merged_no_pull_request_brings_no_code_but_records_the_sync(): void
+    {
+        $project = $this->project();
+        $epic = $this->epic($project);
+        $child = $this->card($project, 'in-progress');
+        $child->parent = $epic;
+        $blocker = $this->card($project, 'done');
+        $this->em()->persist(new CardLink($blocker, $child, CardLinkKind::Blocks));
+        $this->em()->flush();
+
+        self::assertEquals(ActionOutcome::done(), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([], $this->epicMerger->calls);
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_the_epic_merge_is_refused_when_no_merged_pull_request_knows_the_default_branch(): void
+    {
+        [$epic, $child, $pullRequest] = $this->epicWithBlockedChild($this->project());
+        $pullRequest->defaultBranch = null;
+        $this->em()->flush();
+
+        self::assertEquals(ActionOutcome::refused('no-default-branch'), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([], $this->epicMerger->calls);
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_epic_merge_is_refused_when_one_merged_pull_request_lacks_the_default_branch(): void
+    {
+        $project = $this->project();
+        [$epic, $child] = $this->epicWithBlockedChild($project);
+        $other = $this->card($project, 'done');
+        $this->em()->persist(new CardLink($other, $child, CardLinkKind::Blocks));
+        $this->mergedPullRequestIn($other, 'acme/widgets', null);
+
+        self::assertEquals(ActionOutcome::refused('no-default-branch'), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([], $this->epicMerger->calls);
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    public function test_the_epic_merge_with_no_writer_for_two_repositories_is_refused(): void
+    {
+        $project = $this->project();
+        [$epic, $child] = $this->epicWithBlockedChild($project);
+        $other = $this->card($project, 'done');
+        $this->em()->persist(new CardLink($other, $child, CardLinkKind::Blocks));
+        $this->mergedPullRequestIn($other, 'acme/other', 'main');
+
+        self::assertEquals(ActionOutcome::refused('several-repositories'), $this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+
+        self::assertSame([], $this->liveKinds($child));
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+    }
+
+    /** @return array{Card, Card, ForgePullRequest, Card} the epic, its blocked child, the merged pull request of the blocker, and the blocker */
+    private function epicWithBlockedChild(Project $project): array
+    {
+        $epic = $this->epic($project);
+        $child = $this->card($project, 'in-progress');
+        $child->parent = $epic;
+        $blocker = $this->card($project, 'done');
+        $this->em()->persist(new CardLink($blocker, $child, CardLinkKind::Blocks));
+        $this->em()->flush();
+
+        return [$epic, $child, $this->pullRequest($blocker, state: PullRequestState::Merged), $blocker];
+    }
+
+    /**
+     * Writes the sync record of the epic as another process does, behind the back of the loaded copy.
+     *
+     * @param array<string, array<string, int>> $pending
+     */
+    private function storeEpicBranchSync(Card $epic, array $pending): void
+    {
+        $this->em()->getConnection()->executeStatement(
+            'UPDATE board_cards SET epic_branch_pending_syncs = CAST(:pending AS JSONB) WHERE id = :id',
+            ['pending' => json_encode($pending, \JSON_THROW_ON_ERROR), 'id' => (string) $epic->id],
+        );
+    }
+
+    private function mergedPullRequestIn(Card $card, string $repository, ?string $defaultBranch, int $number = 900): void
+    {
+        $this->em()->persist(new CardPullRequest($card, 'https://github.com/'.$repository.'/pull/'.$number, Forge::GitHub, $repository, $number));
+        $pullRequest = new ForgePullRequest($card->project, 'github', $repository, $number);
+        $pullRequest->state = PullRequestState::Merged;
+        $pullRequest->defaultBranch = $defaultBranch;
+        $this->em()->persist($pullRequest);
+        $this->em()->flush();
+    }
+
     private function epic(Project $project): Card
     {
         $epic = $this->card($project, 'in-review');
@@ -831,6 +1149,7 @@ final class ForgeWriteTest extends KernelTestCase
                 new MockClock('2026-10-02 12:00:00'),
             ),
             $forgePullRequests,
+            new EpicBranchMergers($writers ? [$this->epicMerger] : []),
             new PullRequestStateWriters($registered),
             new PullRequestOpeners($registered),
             $this->opener(),
@@ -879,6 +1198,14 @@ final class ForgeWriteTest extends KernelTestCase
         }
 
         return $this->runAction($action, $this->rule('forge-write', $params), $card->snapshot(), $facts ?? FactsMother::facts(), $this->state($card));
+    }
+
+    private function settle(WorkRequest $request, string $reason): void
+    {
+        $request->state = WorkRequestState::Done;
+        $request->reason = $reason;
+        $this->em()->flush();
+        $this->service(WorkRequestAnnouncer::class)->announce($request);
     }
 
     /** @return list<string> */

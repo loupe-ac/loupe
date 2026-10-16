@@ -283,6 +283,17 @@ alone decides each write, and the write happens when the rule fires. When the
 project has no GitHub App installation, the rule asks a bridge for the same work
 instead. See [Automation](board.md#automation).
 
+The `merge-main-into-epic` write acts on a child in Next whose blocker outside
+its epic is done. It merges the default branch into the epic branch in each
+repository where such a blocker merged a pull request, then records on the
+epic which blockers the merge covered. A merge conflict refuses the write, and
+a person resolves the conflict. A project with no GitHub App installation gets
+work of kind `sync-epic` instead. When that work ends done, the epic records
+the blockers that were done when the work opened. A blocker that finishes
+again later asks for a new merge. That work merges in one repository, so when
+the code lives in several repositories and Loupe cannot merge in one of them,
+the write refuses, and a person merges by hand.
+
 Two more writes come from the [rules the app adds](#rules-the-app-adds). They
 act on a site-review verdict, and they never ask a bridge for work:
 
@@ -525,7 +536,10 @@ Some rules act from any slot:
 3. A child of an epic starts only when it links an approved tech design and its
    epic sits in Implementation. A child in Next moves to Implementation when it
    has a document with the tag `tech-design`, every such document is approved,
-   it has no open blocker, and it has no pull request. It waits while the epic has work in
+   it has no open blocker, and it has no pull request. It also waits until the epic
+   branch holds the code of each blocker outside the epic. The rule
+   `epic-branch-sync` merges `main` into the epic branch first, and the
+   condition `card.parent.epic_branch.synced` is true when that is done. It waits while the epic has work in
    progress. That work is any open worker run of the epic, and any work that the
    workflow requested for the epic and no bridge finished. When the last such
    work ends, the epic evaluates its children again, in any column. A change to
@@ -704,6 +718,7 @@ A rule that asks for work names its kind. A bridge runs a kind only when its
 | `fix` | A fix of a failed check, a conflict or a request for changes |
 | `rebase-stacked` | A new base for a stacked pull request, when the project has no GitHub App installation |
 | `sync` | An update of a branch that is behind, when the project has no GitHub App installation |
+| `sync-epic` | A merge of the default branch into the epic branch, for a child whose blocker outside the epic is done, when the project has no GitHub App installation |
 | `merge` | A merge, when the project has no GitHub App installation |
 | `teardown` | The removal of the card's worktree |
 | `epic-preview` | A refresh of the epic preview, when the head of the epic pull request has no refresh that ended well |

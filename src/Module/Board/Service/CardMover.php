@@ -57,7 +57,7 @@ final readonly class CardMover
             // A terminal column sorts by completion and maintains no position,
             // so the rank is parked at 0. A move between two terminal columns
             // keeps the moment the card was first finished.
-            $card->completedAt ??= new \DateTimeImmutable();
+            $card->complete(new \DateTimeImmutable());
             $card->position = 0;
         } else {
             $card->completedAt = null;
