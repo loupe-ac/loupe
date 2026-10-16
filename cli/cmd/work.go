@@ -301,8 +301,8 @@ func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, r
 
 // addEntry answers a request to add a command entry to the rule file. The
 // request is no work for an agent, so it never matches the work map. Only the
-// bridge the request names takes it. The bridge settles the request before it
-// reloads, so a failed reload cannot lose the result.
+// bridge the request names takes it. The request is done only once a reload
+// runs the entry. A failed reload takes the entry out again and refuses.
 func (r *router) addEntry(w api.WorkRequest, source string) {
 	if w.TargetBridgeID == "" {
 		r.log.Warn("work_request_skipped", append(workAttrs(w, source), "reason", "no_target")...)
@@ -322,9 +322,9 @@ func (r *router) addEntry(w api.WorkRequest, source string) {
 
 			return api.WorkRequestRefused, rules.RefuseNotAccepted, nil
 		}
-		r.addEntryMu.Lock()
-		err := r.addEntryToFile(w.Prompt)
-		r.addEntryMu.Unlock()
+		r.reloadMu.Lock()
+		defer r.reloadMu.Unlock()
+		undo, err := r.addEntryToFile(w.Prompt)
 		if err != nil {
 			reason := rules.RefuseWriteFailed
 			var refusal *rules.EntryRefusal
@@ -335,20 +335,27 @@ func (r *router) addEntry(w api.WorkRequest, source string) {
 
 			return api.WorkRequestRefused, reason, nil
 		}
+		if res := r.reloadLocked(r.workerContext(), r.source); !res.OK {
+			failed := append(attrs, "stage", res.Stage, "problems", res.Problems)
+			if undo != nil {
+				if err := undo(); err != nil {
+					failed = append(failed, "undo_error", err.Error())
+				}
+			}
+			r.log.Warn("entry_reload_failed", failed...)
+
+			return api.WorkRequestRefused, rules.RefuseReloadFailed, nil
+		}
 		r.log.Info("entry_added", attrs...)
 
-		return api.WorkRequestDone, "", func() {
-			if res := r.reload(r.workerContext(), r.source); !res.OK {
-				r.log.Warn("entry_reload_failed", append(attrs, "stage", res.Stage, "problems", res.Problems)...)
-			}
-		}
+		return api.WorkRequestDone, "", nil
 	})
 }
 
 // addEntryToFile adds the entry text to the rule file.
-func (r *router) addEntryToFile(text string) error {
+func (r *router) addEntryToFile(text string) (func() error, error) {
 	if r.source.addEntry == nil {
-		return &rules.EntryRefusal{Reason: rules.RefuseWriteFailed, Err: errors.New("the bridge cannot write the rule file")}
+		return nil, &rules.EntryRefusal{Reason: rules.RefuseWriteFailed, Err: errors.New("the bridge cannot write the rule file")}
 	}
 
 	return r.source.addEntry(text)

@@ -495,6 +495,8 @@ const (
 	RefuseEntryExists  = "entry-exists"
 	RefuseNotAccepted  = "not-accepted"
 	RefuseWriteFailed  = "write-failed"
+	RefuseFileChanged  = "file-changed"
+	RefuseReloadFailed = "reload-failed"
 )
 
 // runsCommand reports whether w asks for the run of a command entry by name,

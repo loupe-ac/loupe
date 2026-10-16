@@ -41,8 +41,9 @@ type reloadSource struct {
 	check         func(ctx context.Context, set *rules.Set) error
 	events        func(ctx context.Context) (api.Events, error)
 	checkAccounts func(ctx context.Context, set *rules.Set) []accountResult
-	// addEntry adds a command entry to the rule file. Nil refuses the request.
-	addEntry func(text string) error
+	// addEntry adds a command entry to the rule file, and returns a func that
+	// takes it out again. Nil refuses the request.
+	addEntry func(text string) (undo func() error, err error)
 }
 
 // newReloadSource reads the rule file at path with the bridge flags as
@@ -55,7 +56,7 @@ func newReloadSource(path string, defaults rules.Defaults, cfg config.Config, lo
 		check:         func(ctx context.Context, set *rules.Set) error { return set.Check(ctx, apiClient(cfg)) },
 		events:        func(ctx context.Context) (api.Events, error) { return apiClient(cfg).Events(ctx, cfg.BridgeID) },
 		checkAccounts: checkAccounts,
-		addEntry:      func(text string) error { return rules.AddWorkEntry(path, text, defaults) },
+		addEntry:      func(text string) (func() error, error) { return rules.AddWorkEntry(path, text, defaults) },
 	}
 	if lock != nil {
 		src.lock = lock.follow
@@ -73,6 +74,11 @@ func (r *router) reload(ctx context.Context, src reloadSource) reloadResult {
 	}
 	defer r.reloadMu.Unlock()
 
+	return r.reloadLocked(ctx, src)
+}
+
+// reloadLocked is reload for a caller that holds reloadMu.
+func (r *router) reloadLocked(ctx context.Context, src reloadSource) reloadResult {
 	r.mu.Lock()
 	shut := r.shut()
 	if !shut {

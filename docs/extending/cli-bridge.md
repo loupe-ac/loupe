@@ -1330,8 +1330,9 @@ request with the capability `add-entry`. The `prompt` field holds the entry
 text: one YAML mapping with one key, the entry name. The bridge starts no agent
 and takes no worker slot. It checks that the file still sets
 `acceptEntries: true`, adds the entry under `work`, and checks the new file as a
-normal load does. It writes the file only when the checks pass. It then settles
-the request as `done` and reloads, as `loupe bridge reload` does.
+normal load does. It writes the file only when the checks pass. It then reloads, as
+`loupe bridge reload` does, and settles the request as `done` only when the
+reload runs the entry. An add waits for a reload that already runs.
 
 The bridge rewrites the whole file from its parsed YAML tree. Comments and
 layout can change. Keep a copy of the file if the layout matters.
@@ -1345,6 +1346,12 @@ file as it was:
 - `entry-exists`: the `work` map holds an entry with this name already.
 - `not-accepted`: the file does not set `acceptEntries: true`.
 - `write-failed`: the bridge could not read or write the file.
+- `file-changed`: the file changed while the bridge added the entry. The
+  bridge keeps the other edit and writes nothing. Try the add again.
+- `reload-failed`: the bridge wrote the entry, and the reload after it failed.
+  The bridge then puts the old file back, so the entry never shows as added
+  while the bridge does not run it. When the file changed again after the
+  write, the bridge keeps it, and the log line `entry_reload_failed` says so.
 
 The bridge acts only on a request that names its own bridge id.
 

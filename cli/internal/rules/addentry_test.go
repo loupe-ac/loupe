@@ -41,7 +41,7 @@ func reasonOf(t *testing.T, err error) string {
 func TestAddWorkEntryAppendsTheEntryAndKeepsTheRest(t *testing.T) {
 	path := writeRules(t, acceptingFile)
 
-	if err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+	if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -76,7 +76,7 @@ func TestAddWorkEntryCreatesTheWorkMap(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			path := writeRules(t, body)
 
-			if err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+			if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
 				t.Fatal(err)
 			}
 
@@ -116,7 +116,7 @@ func TestAddWorkEntryRefusesAndLeavesTheFileAlone(t *testing.T) {
 			path := writeRules(t, tc.file)
 			before := readFile(t, path)
 
-			err := AddWorkEntry(path, tc.entry, Defaults{})
+			_, err := AddWorkEntry(path, tc.entry, Defaults{})
 
 			if got := reasonOf(t, err); got != tc.reason {
 				t.Fatalf("reason = %s (%v), want %s", got, err, tc.reason)
@@ -129,9 +129,75 @@ func TestAddWorkEntryRefusesAndLeavesTheFileAlone(t *testing.T) {
 }
 
 func TestAddWorkEntryRefusesAMissingFile(t *testing.T) {
-	err := AddWorkEntry(t.TempDir()+"/rules.yaml", newEntry, Defaults{})
+	_, err := AddWorkEntry(t.TempDir()+"/rules.yaml", newEntry, Defaults{})
 
 	if got := reasonOf(t, err); got != RefuseWriteFailed {
 		t.Fatalf("reason = %s (%v)", got, err)
+	}
+}
+
+// An edit made while the bridge parses the file stays, and the add refuses.
+func TestAddWorkEntryRefusesWhenTheFileChangesMeanwhile(t *testing.T) {
+	path := writeRules(t, acceptingFile)
+	edited := acceptingFile + "# An edit of the operator.\n"
+	reads := 0
+	readRuleFile = func(name string) ([]byte, error) {
+		reads++
+		if reads == 2 {
+			if err := os.WriteFile(name, []byte(edited), 0o640); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		return os.ReadFile(name)
+	}
+	t.Cleanup(func() { readRuleFile = os.ReadFile })
+
+	_, err := AddWorkEntry(path, newEntry, Defaults{})
+
+	if got := reasonOf(t, err); got != RefuseFileChanged {
+		t.Fatalf("reason = %s (%v), want %s", got, err, RefuseFileChanged)
+	}
+	if after := readFile(t, path); after != edited {
+		t.Fatalf("the edit was lost:\n%s", after)
+	}
+}
+
+// Undo puts the old bytes back.
+func TestAddWorkEntryUndoRestoresTheFile(t *testing.T) {
+	path := writeRules(t, acceptingFile)
+	before := readFile(t, path)
+
+	undo, err := AddWorkEntry(path, newEntry, Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := undo(); err != nil {
+		t.Fatal(err)
+	}
+
+	if after := readFile(t, path); after != before {
+		t.Fatalf("the file was not restored:\n%s", after)
+	}
+}
+
+// Undo keeps an edit made after the add.
+func TestAddWorkEntryUndoKeepsALaterEdit(t *testing.T) {
+	path := writeRules(t, acceptingFile)
+
+	undo, err := AddWorkEntry(path, newEntry, Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	edited := readFile(t, path) + "# A later edit.\n"
+	if err := os.WriteFile(path, []byte(edited), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := undo(); err == nil {
+		t.Fatal("undo replaced a file that changed after the add")
+	}
+	if after := readFile(t, path); after != edited {
+		t.Fatalf("the later edit was lost:\n%s", after)
 	}
 }

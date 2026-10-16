@@ -5,6 +5,7 @@ import (
 	"slices"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ubermuda/loupe/cli/internal/api"
 	"github.com/ubermuda/loupe/cli/internal/rules"
@@ -41,10 +42,10 @@ func withAddEntry(t *testing.T, accept bool) (*harness, *fakeWork, *[]string, *a
 
 		return load()
 	}
-	src.addEntry = func(text string) error {
+	src.addEntry = func(text string) (func() error, error) {
 		added = append(added, text)
 
-		return nil
+		return func() error { return nil }, nil
 	}
 	h.router.source = src
 
@@ -75,15 +76,49 @@ func TestAnAddEntryRequestAddsTheEntryAndReloads(t *testing.T) {
 	}
 }
 
-// The result lands even when the reload fails.
-func TestAnAddEntryResultSurvivesAFailedReload(t *testing.T) {
+// A failed reload takes the entry out again and refuses, so the inbox never
+// says Added for an entry the bridge does not run.
+func TestAFailedReloadUndoesTheEntryAndRefuses(t *testing.T) {
 	h, f, _, _ := withAddEntry(t, true)
 	h.router.source.load = func() (*rules.Set, error) { return nil, errors.New("broken") }
+	undone := 0
+	h.router.source.addEntry = func(string) (func() error, error) {
+		return func() error { undone++; return nil }, nil
+	}
 
 	h.offer(f, addEntryRequest(1, addEntryText))
 
+	if got := f.settled(); !slices.Equal(got, []string{workID(1) + " " + tokenOf(1) + " refused " + rules.RefuseReloadFailed}) {
+		t.Fatalf("results = %v", got)
+	}
+	if undone != 1 {
+		t.Fatalf("undo ran %d times, want once", undone)
+	}
+}
+
+// An add waits for a reload that runs, rather than refusing.
+func TestAnAddEntryWaitsForARunningReload(t *testing.T) {
+	h, f, added, loads := withAddEntry(t, true)
+	w := addEntryRequest(1, addEntryText)
+	f.mu.Lock()
+	f.requests[w.WorkRequestID] = w
+	f.mu.Unlock()
+	h.router.reloadMu.Lock()
+
+	h.router.takeWork(w, workFromEvent)
+	time.Sleep(50 * time.Millisecond)
+	if len(*added) != 0 {
+		h.router.reloadMu.Unlock()
+		t.Fatal("the add wrote the file while a reload ran")
+	}
+	h.router.reloadMu.Unlock()
+	h.router.wg.Wait()
+
 	if got := f.settled(); !slices.Equal(got, []string{workID(1) + " " + tokenOf(1) + " done"}) {
 		t.Fatalf("results = %v", got)
+	}
+	if loads.Load() != 1 {
+		t.Fatalf("loads = %d, want one reload", loads.Load())
 	}
 }
 
@@ -97,16 +132,16 @@ func TestAnAddEntryRequestIsRefusedWithAReasonCode(t *testing.T) {
 		"not accepted":  {false, nil, rules.RefuseNotAccepted},
 		"entry invalid": {true, &rules.EntryRefusal{Reason: rules.RefuseEntryInvalid, Err: errors.New("x")}, rules.RefuseEntryInvalid},
 		"entry exists":  {true, &rules.EntryRefusal{Reason: rules.RefuseEntryExists, Err: errors.New("x")}, rules.RefuseEntryExists},
-		"file changed":  {true, &rules.EntryRefusal{Reason: rules.RefuseNotAccepted, Err: errors.New("x")}, rules.RefuseNotAccepted},
+		"file changed":  {true, &rules.EntryRefusal{Reason: rules.RefuseFileChanged, Err: errors.New("x")}, rules.RefuseFileChanged},
 		"write failed":  {true, &rules.EntryRefusal{Reason: rules.RefuseWriteFailed, Err: errors.New("x")}, rules.RefuseWriteFailed},
 		"other error":   {true, errors.New("disk"), rules.RefuseWriteFailed},
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, f, added, loads := withAddEntry(t, tc.accept)
-			h.router.source.addEntry = func(text string) error {
+			h.router.source.addEntry = func(text string) (func() error, error) {
 				*added = append(*added, text)
 
-				return tc.err
+				return nil, tc.err
 			}
 
 			h.offer(f, addEntryRequest(1, addEntryText))

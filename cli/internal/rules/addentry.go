@@ -24,6 +24,10 @@ func (e *EntryRefusal) Error() string { return e.Reason + ": " + e.Err.Error() }
 
 func (e *EntryRefusal) Unwrap() error { return e.Err }
 
+// readRuleFile reads the rule file for AddWorkEntry. A test replaces it to
+// edit the file between two reads.
+var readRuleFile = os.ReadFile
+
 func refuseEntry(reason string, format string, args ...any) *EntryRefusal {
 	return &EntryRefusal{Reason: reason, Err: fmt.Errorf(format, args...)}
 }
@@ -33,39 +37,41 @@ func refuseEntry(reason string, format string, args ...any) *EntryRefusal {
 // set acceptEntries. The bridge rewrites the whole file from its parsed tree,
 // so comments and layout can change. The file stays unchanged when the
 // function returns an error, and the result must pass the checks of Parse
-// with defaults.
-func AddWorkEntry(path, entryYAML string, defaults Defaults) error {
+// with defaults. The file must also hold the bytes the function read when it
+// replaces them, so an edit made meanwhile stays. On success, undo puts the
+// old bytes back, unless the file changed since the write.
+func AddWorkEntry(path, entryYAML string, defaults Defaults) (undo func() error, err error) {
 	if resolved, err := filepath.EvalSymlinks(path); err == nil {
 		path = resolved
 	}
-	data, err := os.ReadFile(path)
+	data, err := readRuleFile(path)
 	if err != nil {
-		return refuseEntry(RefuseWriteFailed, "read rule file: %w", err)
+		return nil, refuseEntry(RefuseWriteFailed, "read rule file: %w", err)
 	}
 	f, _, err := decodeFile(data)
 	if err != nil {
-		return refuseEntry(RefuseWriteFailed, "%w", err)
+		return nil, refuseEntry(RefuseWriteFailed, "%w", err)
 	}
 	if !f.AcceptEntries {
-		return refuseEntry(RefuseNotAccepted, "the rule file does not set acceptEntries: true")
+		return nil, refuseEntry(RefuseNotAccepted, "the rule file does not set acceptEntries: true")
 	}
 
 	name, entry, err := parseNewEntry(entryYAML)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return refuseEntry(RefuseWriteFailed, "parse rule file: %w", err)
+		return nil, refuseEntry(RefuseWriteFailed, "parse rule file: %w", err)
 	}
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
-		return refuseEntry(RefuseWriteFailed, "parse rule file: the first YAML document is not a mapping, so the bridge cannot edit it")
+		return nil, refuseEntry(RefuseWriteFailed, "parse rule file: the first YAML document is not a mapping, so the bridge cannot edit it")
 	}
 	work := workNode(doc.Content[0])
 	for i := 0; i+1 < len(work.Content); i += 2 {
 		if work.Content[i].Value == name {
-			return refuseEntry(RefuseEntryExists, "the work map holds an entry named %q already", name)
+			return nil, refuseEntry(RefuseEntryExists, "the work map holds an entry named %q already", name)
 		}
 	}
 	work.Style = 0
@@ -75,28 +81,44 @@ func AddWorkEntry(path, entryYAML string, defaults Defaults) error {
 	enc := yaml.NewEncoder(&out)
 	enc.SetIndent(2)
 	if err := enc.Encode(&doc); err != nil {
-		return refuseEntry(RefuseWriteFailed, "encode rule file: %w", err)
+		return nil, refuseEntry(RefuseWriteFailed, "encode rule file: %w", err)
 	}
 	if err := enc.Close(); err != nil {
-		return refuseEntry(RefuseWriteFailed, "encode rule file: %w", err)
+		return nil, refuseEntry(RefuseWriteFailed, "encode rule file: %w", err)
 	}
 	set, err := Parse(out.Bytes(), defaults)
 	if err != nil {
-		return refuseEntry(RefuseEntryInvalid, "the rule file with the new entry fails its checks: %w", err)
+		return nil, refuseEntry(RefuseEntryInvalid, "the rule file with the new entry fails its checks: %w", err)
 	}
 	if got, ok := set.work[name]; !ok || got.Action != ActionCommand {
-		return refuseEntry(RefuseEntryInvalid, "the entry %q is not a command entry", name)
+		return nil, refuseEntry(RefuseEntryInvalid, "the entry %q is not a command entry", name)
 	}
 
 	info, err := os.Stat(path)
 	if err != nil {
-		return refuseEntry(RefuseWriteFailed, "write rule file: %w", err)
+		return nil, refuseEntry(RefuseWriteFailed, "write rule file: %w", err)
 	}
-	if err := update.WriteFile(path, out.Bytes(), info.Mode().Perm()); err != nil {
-		return refuseEntry(RefuseWriteFailed, "write rule file: %w", err)
+	if now, err := readRuleFile(path); err != nil {
+		return nil, refuseEntry(RefuseWriteFailed, "read rule file: %w", err)
+	} else if !bytes.Equal(now, data) {
+		return nil, refuseEntry(RefuseFileChanged, "the rule file changed while the bridge added the entry")
+	}
+	written := out.Bytes()
+	if err := update.WriteFile(path, written, info.Mode().Perm()); err != nil {
+		return nil, refuseEntry(RefuseWriteFailed, "write rule file: %w", err)
 	}
 
-	return nil
+	return func() error {
+		now, err := readRuleFile(path)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(now, written) {
+			return errors.New("the rule file changed after the bridge added the entry, so the bridge keeps it")
+		}
+
+		return update.WriteFile(path, data, info.Mode().Perm())
+	}, nil
 }
 
 // workNode returns the work mapping of the top-level node, and makes it when

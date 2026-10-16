@@ -498,9 +498,11 @@ rules.yaml", and the Run button turns on by itself. A run still asks you in its
 own confirm step.
 
 The bridge refuses a text that is no command entry, a name that the file
-already holds, and a file that it cannot change safely. The status line then
-shows "Refused" and the reason code: `entry-invalid`, `entry-exists`,
-`not-accepted` or `write-failed`. A refused add changes nothing. The button
+already holds, and a file that it cannot change safely. It also refuses when
+the file changed while it added the entry, or when the reload after the write
+failed. The status line then shows "Refused" and the reason code:
+`entry-invalid`, `entry-exists`, `not-accepted`, `write-failed`,
+`file-changed` or `reload-failed`. A refused add changes nothing. The button
 comes back, so you can try again. Add the entry by hand when the bridge keeps
 refusing.
 
