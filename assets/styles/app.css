@@ -11,7 +11,6 @@
 @import './components/state-mark.css';
 @import './components/status-box.css';
 @import './components/tag.css';
-@import './components/agent-review.css';
 @import './components/dialog.css';
 @import './components/pagination.css';
 @import './components/filter-bar.css';
@@ -1616,6 +1615,66 @@
 }
 .lp-review .lp-decision__clear {
     @apply top-4 right-4;
+}
+
+/* ── Agent review summary ───────────────────────────────────────── */
+/* `_agent_review_summary.html.twig` draws it below a document. */
+.lp-agent-review {
+    @apply mt-10 pt-5 border-t border-line text-sm text-fg;
+}
+.lp-agent-review__line {
+    @apply flex flex-wrap items-center gap-3 cursor-pointer list-none;
+}
+.lp-agent-review__line::-webkit-details-marker {
+    @apply hidden;
+}
+.lp-agent-review__chip {
+    @apply ml-0;
+}
+.lp-agent-review__meta {
+    @apply text-fg-mute;
+}
+.lp-agent-review__toggle {
+    @apply ml-auto;
+}
+.lp-agent-review__chevron {
+    @apply transition-transform;
+}
+.lp-agent-review__details[open] .lp-agent-review__chevron {
+    @apply rotate-90;
+}
+.lp-agent-review__rounds {
+    @apply mt-4 flex flex-col gap-2;
+}
+.lp-agent-review__round-title {
+    @apply mt-3 mb-1 text-xs font-semibold uppercase tracking-wide text-fg-label;
+}
+.lp-agent-review__findings {
+    @apply m-0 p-0 flex flex-col gap-2 list-none;
+}
+.lp-agent-review__finding {
+    @apply m-0 p-0 py-2.5 px-3 rounded-lg border border-line bg-surface-1;
+}
+.lp-agent-review__finding-head {
+    @apply flex items-center gap-2;
+}
+.lp-agent-review__finding-title {
+    @apply font-semibold;
+}
+.lp-agent-review__finding-body {
+    @apply mt-1 mb-0 text-fg;
+}
+.lp-agent-review__answer {
+    @apply mt-1.5 mb-0 text-status-ok-deep;
+}
+.lp-agent-review__answer--open {
+    @apply text-fg-mute;
+}
+.lp-agent-review__answer--kept {
+    @apply text-fg;
+}
+.lp-agent-review__more {
+    @apply m-0 text-fg-mute;
 }
 
 /* ── Tables in the document ─────────────────────────────────────── */
