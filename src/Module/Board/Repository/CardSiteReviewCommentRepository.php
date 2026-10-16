@@ -257,4 +257,28 @@ class CardSiteReviewCommentRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * The ids of every comment linked to any of those cards.
+     *
+     * @param list<Card> $cards
+     *
+     * @return list<Uuid>
+     */
+    public function findCommentIdsForCards(array $cards): array
+    {
+        if ([] === $cards) {
+            return [];
+        }
+
+        /** @var list<array{id: Uuid}> $rows */
+        $rows = $this->createQueryBuilder('l')
+            ->select('IDENTITY(l.comment) AS id')
+            ->where('l.card IN (:cards)')
+            ->setParameter('cards', $cards)
+            ->getQuery()
+            ->getScalarResult();
+
+        return array_map(static fn (array $row): Uuid => Uuid::fromString((string) $row['id']), $rows);
+    }
 }
