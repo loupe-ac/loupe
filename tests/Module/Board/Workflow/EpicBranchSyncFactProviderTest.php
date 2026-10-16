@@ -15,6 +15,7 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class EpicBranchSyncFactProviderTest extends KernelTestCase
 {
@@ -154,6 +155,25 @@ final class EpicBranchSyncFactProviderTest extends KernelTestCase
         self::assertInstanceOf(CardRepository::class, $repository);
 
         self::assertSame([$outside, $outsideChild], $repository->findDoneBlockersOutsideEpicOf($child));
+    }
+
+    public function test_two_fallback_runs_that_end_out_of_order_keep_the_newer_count(): void
+    {
+        $epic = $this->card();
+        $blocker = $this->card('done', completedAt: '2026-10-02 10:00:00');
+        $older = Uuid::v7();
+        $epic->awaitEpicBranchSync($older, $blocker);
+        $blocker->completedAt = null;
+        $blocker->complete(new \DateTimeImmutable('2026-10-03 10:00:00'));
+        $newer = Uuid::v7();
+        $epic->awaitEpicBranchSync($newer, $blocker);
+
+        self::assertTrue($epic->settleEpicBranchSync($newer, true));
+        self::assertTrue($epic->settleEpicBranchSync($older, true));
+        self::assertFalse($epic->settleEpicBranchSync($older, true));
+
+        self::assertTrue($epic->epicBranchHolds($blocker));
+        self::assertSame([], $epic->epicBranchPendingSyncs);
     }
 
     public function test_the_fingerprint_is_the_synced_flag(): void

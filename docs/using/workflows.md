@@ -288,7 +288,9 @@ its epic is done. It merges the default branch into the epic branch in each
 repository where such a blocker merged a pull request, then records on the
 epic which blockers the merge covered. A merge conflict refuses the write, and
 a person resolves the conflict. A project with no GitHub App installation gets
-work of kind `sync-epic` instead. That work merges in one repository, so when
+work of kind `sync-epic` instead. When that work ends done, the epic records
+the blockers that were done when the work opened. A blocker that finishes
+again later asks for a new merge. That work merges in one repository, so when
 the code lives in several repositories and Loupe cannot merge in one of them,
 the write refuses, and a person merges by hand.
 

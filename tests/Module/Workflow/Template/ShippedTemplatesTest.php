@@ -761,7 +761,12 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContains('epic-branch-sync', $synced);
         self::assertContains('child-unblocked', $synced);
 
-        $afterBridge = $this->firingRuleIds(FactsMother::facts(card: $child, run: $bridgeDone, provided: $stale));
+        // A finished fallback run counts only through what the epic recorded, so a blocker that finished after it asks for a new merge.
+        $staleAfterBridge = $this->firingRuleIds(FactsMother::facts(card: $child, run: $bridgeDone, provided: $stale));
+        self::assertContains('epic-branch-sync', $staleAfterBridge);
+        self::assertNotContains('child-unblocked', $staleAfterBridge);
+
+        $afterBridge = $this->firingRuleIds(FactsMother::facts(card: $child, run: $bridgeDone));
         self::assertNotContains('epic-branch-sync', $afterBridge);
         self::assertContains('child-unblocked', $afterBridge);
 

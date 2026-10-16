@@ -37,9 +37,12 @@ use App\Module\Board\Service\VerdictReviewSettler;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\SiteReviewFactProvider;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
+use App\Module\Bridge\Service\WorkRequestAnnouncer;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Command\ReadPullRequestStateHandler;
 use App\Module\Forge\Entity\ForgePullRequest;
@@ -695,6 +698,66 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertSame([], $epic->epicBranchSyncedBlockers);
     }
 
+    public function test_the_fallback_work_records_the_blockers_as_they_stood_when_it_opened_once_it_ends_done(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        self::assertSame([(string) $request->id => [(string) $blocker->id => $blocker->completions]], $epic->epicBranchPendingSyncs);
+        self::assertFalse($epic->epicBranchHolds($blocker));
+
+        $blocker->completedAt = null;
+        $blocker->complete(new \DateTimeImmutable());
+        $this->settle($request, 'done');
+
+        self::assertSame([], $epic->epicBranchPendingSyncs);
+        self::assertSame([(string) $blocker->id => $blocker->completions - 1], $epic->epicBranchSyncedBlockers);
+        self::assertFalse($epic->epicBranchHolds($blocker), 'A blocker that finished again after the work opened needs a new merge.');
+    }
+
+    public function test_a_fallback_work_that_ends_blocked_records_nothing_and_stays_awaited_for_a_resume(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $this->settle($request, 'blocked');
+
+        self::assertSame([], $epic->epicBranchSyncedBlockers);
+        self::assertFalse($epic->epicBranchHolds($blocker));
+
+        $this->settle($request, 'done');
+
+        self::assertSame([], $epic->epicBranchPendingSyncs);
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_cancelled_fallback_work_is_no_longer_awaited(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $request->state = WorkRequestState::Cancelled;
+        $this->em()->flush();
+        $this->service(WorkRequestAnnouncer::class)->announce($request);
+
+        self::assertSame([], $epic->epicBranchPendingSyncs);
+        self::assertFalse($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_fallback_work_that_ends_done_records_the_blockers_it_covers(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $this->settle($request, 'done');
+
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
     public function test_the_epic_merge_with_no_installation_opens_the_fallback_work(): void
     {
         [$epic, $child] = $this->epicWithBlockedChild($this->project());
@@ -1080,6 +1143,14 @@ final class ForgeWriteTest extends KernelTestCase
         }
 
         return $this->runAction($action, $this->rule('forge-write', $params), $card->snapshot(), $facts ?? FactsMother::facts(), $this->state($card));
+    }
+
+    private function settle(WorkRequest $request, string $reason): void
+    {
+        $request->state = WorkRequestState::Done;
+        $request->reason = $reason;
+        $this->em()->flush();
+        $this->service(WorkRequestAnnouncer::class)->announce($request);
     }
 
     /** @return list<string> */

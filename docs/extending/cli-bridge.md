@@ -1284,8 +1284,8 @@ installation. Its entry merges `origin/<default branch>` into a detached
 `origin/epic/<n>`, pushes without force, and stops blocked on a conflict. It
 also stops blocked when the merged pull requests of the blockers live in
 another repository than `origin`. Loupe asks for this work only when that code
-lives in one repository. The entry sets nothing else, because the workflow
-reads how the run finished.
+lives in one repository. The entry sets nothing else. When the run ends done,
+Loupe records on the epic the blockers that were done when the work opened.
 
 A worker entry takes `prompt`, `account`,
 `model`, `permissions`, `before`, `workerPool`, `variants` and `metrics`. A command entry takes

@@ -309,10 +309,25 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
             return ActionOutcome::refused($failure->cause);
         }
         if ($skipped) {
-            return 1 === \count($references) ? $fallback() : ActionOutcome::refused('several-repositories');
+            return 1 === \count($references) ? $this->awaitEpicSync($epic, $blockers, $fallback()) : ActionOutcome::refused('several-repositories');
         }
 
         return $this->recordEpicSync($card, $epic, $blockers, $epicBranch, \count($references));
+    }
+
+    /**
+     * The fallback run settles later, so the epic notes what the run covers and records it when the run ends well.
+     *
+     * @param list<Card> $blockers
+     */
+    private function awaitEpicSync(Card $epic, array $blockers, ActionOutcome $outcome): ActionOutcome
+    {
+        if (null !== $outcome->requestId) {
+            $epic->awaitEpicBranchSync($outcome->requestId, ...$blockers);
+            $this->em->flush();
+        }
+
+        return $outcome;
     }
 
     /** @param list<Card> $blockers */
