@@ -79,7 +79,7 @@ final class HeldCardFlowTest extends KernelTestCase
     /** @return list<WorkRequest> */
     private function offers(?Uuid $projectId, Bridge $bridge): array
     {
-        return $this->service(WorkRequestRepository::class)->findOpenOffers([(string) $projectId], $bridge->capabilities ?? [], 10);
+        return $this->service(WorkRequestRepository::class)->findOpenOffers($bridge->id, [(string) $projectId], $bridge->capabilities ?? [], 10);
     }
 
     private function onlyRequest(Card $card): WorkRequest

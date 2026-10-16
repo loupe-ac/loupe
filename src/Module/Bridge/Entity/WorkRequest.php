@@ -50,6 +50,8 @@ class WorkRequest
     /** A reason code, never text a person wrote. */
     public const string REASON_PATTERN = '/^[a-z][a-z0-9-]{0,63}$/D';
 
+    public const int MAX_BRANCH_LENGTH = 200;
+
     public const int MAX_MODEL_LENGTH = 64;
 
     /** One word for claude --model, as the bridge takes it. A leading hyphen would read as an option. */
@@ -120,6 +122,22 @@ class WorkRequest
     #[ORM\Column(name: 'inbox_item_id', type: UuidType::NAME, nullable: true)]
     public ?Uuid $inboxItemId = null;
 
+    /** The one bridge that may take the request, or null when any bridge that can run it may. No foreign key: a heartbeat replaces the bridge row. */
+    #[ORM\Column(name: 'target_bridge_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $targetBridgeId = null;
+
+    /** The git branch whose worktree a command entry runs in, or null for the work of a card. */
+    #[ORM\Column(name: 'branch', length: self::MAX_BRANCH_LENGTH, nullable: true)]
+    public ?string $branch = null;
+
+    /**
+     * The parameter values of a command entry, by parameter name. Null when the request carries none.
+     *
+     * @var array<string, string>|null
+     */
+    #[ORM\Column(name: 'params', type: Types::JSON, nullable: true)]
+    public ?array $params = null;
+
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {
         get => WorkRequestContext::fromArray($this->contextData);
@@ -160,6 +178,23 @@ class WorkRequest
         #[ORM\Column(name: 'created_at')]
         public \DateTimeImmutable $createdAt,
     ) {
+    }
+
+    /** The rules of `git check-ref-format --branch`, a little stricter than git where that is cheap. */
+    public static function isBranchName(string $branch): bool
+    {
+        return '' !== $branch
+            && '@' !== $branch
+            && mb_strlen($branch) <= self::MAX_BRANCH_LENGTH
+            && 1 !== preg_match('/[\x00-\x20\x7f~^:?*\[\\\\]/', $branch)
+            && 1 !== preg_match('#(?:^|/)\.|\.lock(?:/|$)#', $branch)
+            && !str_contains($branch, '..')
+            && !str_contains($branch, '//')
+            && !str_contains($branch, '@{')
+            && !str_starts_with($branch, '-')
+            && !str_starts_with($branch, '/')
+            && !str_ends_with($branch, '/')
+            && !str_ends_with($branch, '.');
     }
 
     public function subject(): WorkSubject

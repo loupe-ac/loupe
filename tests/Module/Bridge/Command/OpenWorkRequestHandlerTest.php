@@ -19,6 +19,8 @@ use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\WorkSubject\WorkSubjectHandlers;
+use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\WorkSubject\InboxItemWorkSubjectHandler;
 use App\Module\Project\Entity\Project;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Bridge\BridgeScenario;
@@ -83,6 +85,9 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             'inboxActionId' => null,
             'inboxItemNumber' => null,
             'inboxItemId' => null,
+            'targetBridgeId' => null,
+            'branch' => null,
+            'params' => null,
         ]], $this->outboxPayloads());
         self::assertNull($stored->prompt);
 
@@ -236,6 +241,62 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         self::assertSame([(string) $actionId, 12], [(string) $stored->inboxActionId, $stored->inboxItemNumber]);
         $payload = $this->outboxPayloads()[0];
         self::assertSame([$actionId->toRfc4122(), 12, 'inbox:send-agent'], [$payload['inboxActionId'], $payload['inboxItemNumber'], $payload['ruleId']]);
+    }
+
+    public function test_the_target_bridge_the_branch_and_the_params_are_stored_and_written_to_the_outbox(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-target');
+        $target = Uuid::v4();
+
+        $request = $this->handler()(new OpenWorkRequestCommand(
+            $project, WorkSubject::card(Uuid::v7()), 7, 'design-export', 'run-command', 'inbox:run-command', new WorkRequestContext(),
+            targetBridgeId: $target, branch: 'epic/42', params: ['out' => 'var/x'],
+        ));
+
+        $this->em()->clear();
+        $stored = $this->em()->find(WorkRequest::class, $request->id);
+        self::assertInstanceOf(WorkRequest::class, $stored);
+        self::assertSame([(string) $target, 'epic/42', ['out' => 'var/x']], [(string) $stored->targetBridgeId, $stored->branch, $stored->params]);
+        $payload = $this->outboxPayloads()[0];
+        self::assertSame([$target->toRfc4122(), 'epic/42', ['out' => 'var/x']], [$payload['targetBridgeId'], $payload['branch'], $payload['params']]);
+    }
+
+    public function test_a_request_with_no_target_and_no_params_writes_nulls_to_the_outbox(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-no-target');
+
+        $this->open($project, Uuid::v7());
+
+        $payload = $this->outboxPayloads()[0];
+        self::assertArrayHasKey('params', $payload);
+        self::assertSame([null, null, null], [$payload['targetBridgeId'], $payload['branch'], $payload['params']]);
+    }
+
+    public function test_an_empty_params_map_is_written_as_null_so_it_never_encodes_as_a_list(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-empty-params');
+
+        $this->handler()(new OpenWorkRequestCommand($project, WorkSubject::card(Uuid::v7()), 7, 'teardown', 'run-command', 'inbox:run-command', new WorkRequestContext(), params: []));
+
+        self::assertNull($this->outboxPayloads()[0]['params']);
+    }
+
+    public function test_a_branch_that_is_no_git_branch_name_is_refused(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-bad-branch');
+
+        try {
+            $this->handler()(new OpenWorkRequestCommand($project, WorkSubject::card(Uuid::v7()), 7, 'teardown', 'run-command', 'inbox:run-command', new WorkRequestContext(), branch: '--upload-pack=x'));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['branch' => OpenWorkRequestHandler::INVALID_BRANCH], $e->errors);
+        }
+
+        self::assertSame(0, $this->countRequests());
     }
 
     public function test_a_run_that_ended_unfinished_more_than_a_day_ago_is_not_resumed(): void
@@ -471,6 +532,18 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         self::assertArrayNotHasKey('cardId', $payloads[1]);
     }
 
+    public function test_a_request_about_an_inbox_item_opens_with_no_card(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-inbox-item-subject');
+        $itemId = Uuid::v7();
+
+        $request = $this->handler()(new OpenWorkRequestCommand($project, new WorkSubject(InboxItem::SUBJECT_TYPE, $itemId), null, 'design-export', 'run-command', 'inbox:run-command', new WorkRequestContext()));
+
+        self::assertSame(['inbox-item', null], [$request->subjectType, $request->cardNumber]);
+        self::assertSame((string) $itemId, (string) $request->subjectId);
+    }
+
     public function test_a_subject_type_that_no_module_handles_is_refused(): void
     {
         $this->boot();
@@ -498,7 +571,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             $this->service(Auditor::class),
             $this->service(WorkRequestAnnouncer::class),
             $this->service(WorkerRunRepository::class),
-            new WorkSubjectHandlers([new RecordingWorkSubjectHandler()]),
+            new WorkSubjectHandlers([new RecordingWorkSubjectHandler(), new InboxItemWorkSubjectHandler()]),
         );
     }
 

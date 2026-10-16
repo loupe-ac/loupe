@@ -156,6 +156,32 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertNull($result->refusal);
     }
 
+    public function test_a_request_for_another_bridge_is_not_found_and_stays_open(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-target-other', WorkRequestState::Open);
+        $request->targetBridgeId = Uuid::v4();
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertNull($result->request);
+        self::assertSame(WorkRequestRefusal::NotFound, $result->refusal);
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Open, $this->em()->find(WorkRequest::class, $request->id)?->state);
+    }
+
+    public function test_the_bridge_a_request_names_claims_it(): void
+    {
+        [$owner, $bridge, $request] = $this->scenario('claim-handler-target-self', WorkRequestState::Open);
+        $request->targetBridgeId = $bridge->id;
+        $this->em()->flush();
+
+        $result = $this->claim($owner, $bridge, $request);
+
+        self::assertNull($result->refusal);
+        self::assertSame(WorkRequestState::Claimed, $result->request?->state);
+    }
+
     /** Writes the row alone, because a real hold cancels the open requests of its card. */
     private function hold(WorkRequest $request, User $owner): void
     {

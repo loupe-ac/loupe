@@ -46,7 +46,8 @@ final readonly class InboxThreadActionBuilder
             } else {
                 $rows[] = $row;
             }
-            if ($action->default && InboxActionKind::Dismiss !== $action->kind && null === $action->disabledReasonKey) {
+            // A run-command action stays the main button when it is off, because its reason and its dialog belong beside the button.
+            if ($action->default && InboxActionKind::Dismiss !== $action->kind && (null === $action->disabledReasonKey || InboxActionKind::RunCommand === $action->kind)) {
                 $default = $row;
             }
         }

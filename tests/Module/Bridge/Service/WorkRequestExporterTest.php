@@ -38,6 +38,9 @@ final class WorkRequestExporterTest extends KernelTestCase
         $claimed->claims = 2;
         $claimed->model = 'opus';
         $claimed->effort = 'high';
+        $claimed->targetBridgeId = $bridgeId;
+        $claimed->branch = 'epic/42';
+        $claimed->params = ['out' => 'var/x'];
         $claimed->context = new WorkRequestContext(42, 'https://github.com/acme/widgets/pull/42', 'abc1234', 'checks-failed', '01a10beb-ba65-736b-8626-a6e3fa59dfc5');
         $refused = $this->seedWorkRequest($em, $project, kind: 'merge', createdAt: new \DateTimeImmutable('2026-10-01T12:10:00+00:00'));
         $refused->state = WorkRequestState::Refused;
@@ -76,6 +79,9 @@ final class WorkRequestExporterTest extends KernelTestCase
                 ],
                 'model' => 'opus',
                 'effort' => 'high',
+                'targetBridgeId' => (string) $bridgeId,
+                'branch' => 'epic/42',
+                'params' => ['out' => 'var/x'],
                 'createdAt' => '2026-10-01T12:00:00+00:00',
                 'reopenedAt' => null,
                 'settledAt' => null,
@@ -97,6 +103,9 @@ final class WorkRequestExporterTest extends KernelTestCase
                 'context' => ['pullRequestNumber' => null, 'pullRequestUrl' => null, 'headSha' => null, 'reason' => null, 'documentId' => null, 'inboxActionId' => null, 'inboxItemNumber' => null, 'inboxItemId' => null],
                 'model' => null,
                 'effort' => null,
+                'targetBridgeId' => null,
+                'branch' => null,
+                'params' => null,
                 'createdAt' => '2026-10-01T12:10:00+00:00',
                 'reopenedAt' => null,
                 'settledAt' => '2026-10-01T12:11:00+00:00',

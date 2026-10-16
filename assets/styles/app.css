@@ -8363,3 +8363,43 @@
 .inbox-split .inbox-split__disabled {
     @apply cursor-not-allowed opacity-50 hover:bg-transparent;
 }
+
+.lp-inbox-thread .lp-btn:disabled {
+    @apply cursor-not-allowed opacity-50;
+}
+
+/* The confirm dialog of a run-command action, and the reason it is off. */
+.lp-run-command {
+    @apply flex flex-col gap-4;
+}
+.lp-run-command .lp-dialog-desc {
+    @apply m-0;
+}
+.lp-run-command__facts {
+    @apply m-0 grid items-start gap-x-3 gap-y-2 text-sm;
+    grid-template-columns: calc(var(--spacing) * 28) minmax(0, 1fr);
+}
+.lp-run-command__facts dt {
+    @apply pt-2 text-fg-mute;
+}
+.lp-run-command__facts dd {
+    @apply m-0 flex flex-col gap-1.5 text-ink;
+}
+.lp-run-command__params {
+    @apply m-0 flex list-none flex-col gap-2 p-0;
+}
+.lp-run-command__param {
+    @apply flex flex-col gap-1;
+}
+.lp-run-command__param-line {
+    @apply flex items-center gap-2;
+}
+.lp-run-command__param-name {
+    @apply shrink-0 font-mono text-xs;
+}
+.lp-run-command__why-off {
+    @apply m-0 text-sm text-danger;
+}
+.lp-run-command .lp-code-dark__body {
+    @apply whitespace-pre-wrap break-words;
+}

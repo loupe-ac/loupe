@@ -151,7 +151,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $lostClaims = array_values(array_diff($named, $renewed));
             }
             $workRequests = $bridge->takesWorkRequests()
-                ? $this->workRequests->findOpenOffers($bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS)
+                ? $this->workRequests->findOpenOffers($bridge->id, $bridge->projects, $bridge->capabilities ?? [], self::MAX_WORK_REQUEST_OFFERS)
                 : [];
 
             // Read under the lock a new command takes, so the reply misses no command stored before it.

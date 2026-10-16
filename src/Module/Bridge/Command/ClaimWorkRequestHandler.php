@@ -111,7 +111,9 @@ final readonly class ClaimWorkRequestHandler
     {
         $project = $request->project;
 
-        return null !== $project->id
+        // A request for one bridge is not found by any other, as it is absent from their offers.
+        return (null === $request->targetBridgeId || $request->targetBridgeId->equals($command->bridgeId))
+            && null !== $project->id
             && null !== $command->owner->id
             && $command->owner->id->equals($project->owner->id)
             && \in_array($project->id->toRfc4122(), $followed, true);

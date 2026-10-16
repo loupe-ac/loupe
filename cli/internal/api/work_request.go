@@ -62,6 +62,54 @@ type WorkRequest struct {
 	InboxActionID   string `json:"inboxActionId,omitempty"`
 	InboxItemNumber int    `json:"inboxItemNumber,omitempty"`
 	InboxItemID     string `json:"inboxItemId,omitempty"`
+	// Branch and Params belong to a request with the capability run-command.
+	// Branch names the worktree the command runs in, and an absent one means
+	// DefaultBranch. Params hold one value for each parameter of the entry.
+	Branch string     `json:"branch,omitempty"`
+	Params WorkParams `json:"params,omitempty"`
+	// TargetBridgeID names the one bridge that may take the request. A null
+	// decodes as "", which any bridge may take.
+	TargetBridgeID string `json:"targetBridgeId,omitempty"`
+}
+
+// ForBridge reports whether the bridge may take the request. A request with a
+// target belongs to that bridge alone, whatever the case of the id.
+func (w WorkRequest) ForBridge(bridgeID string) bool {
+	return w.TargetBridgeID == "" || strings.EqualFold(w.TargetBridgeID, bridgeID)
+}
+
+// DefaultBranch is the branch a run-command request runs on when it names none.
+const DefaultBranch = "main"
+
+// RunBranch is the branch the request runs on.
+func (w WorkRequest) RunBranch() string {
+	if w.Branch == "" {
+		return DefaultBranch
+	}
+
+	return w.Branch
+}
+
+// WorkParams are the parameter values of a run-command request, by name. It
+// decodes null and an empty list, which a PHP server writes for an empty map,
+// as no values.
+type WorkParams map[string]string
+
+// UnmarshalJSON reads an object of strings, null, or an empty list.
+func (p *WorkParams) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if string(trimmed) == "null" || string(trimmed) == "[]" {
+		*p = nil
+
+		return nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal(trimmed, &m); err != nil {
+		return err
+	}
+	*p = m
+
+	return nil
 }
 
 // Efforts are the levels claude --effort takes.

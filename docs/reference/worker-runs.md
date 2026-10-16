@@ -197,6 +197,13 @@ structured result, so the server ignores `hasResult` and refuses
 `resultStatus`. A command run has no session and no usage. A bridge built
 before command rules sends no `kind`, and its runs are worker runs.
 
+A command that the owner starts from the inbox reports in the same way. Its
+work request names the target bridge, a branch and the parameters. The run
+shows in the inbox as Queued, Running, Succeeded or Failed, with the last lines
+of the output. A refused request creates no run. Its reason is `entry-missing`,
+`param-invalid`, `worktree-missing` or `placeholder-missing`. See
+[Running an entry from the inbox](../extending/cli-bridge.md#running-an-entry-from-the-inbox).
+
 ### Usage
 
 An outcome can carry the tokens the worker spent, per model. `claude -p

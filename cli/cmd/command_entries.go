@@ -76,6 +76,43 @@ func worktreeReports(ctx context.Context, set *rules.Set) []api.WorktreeReport {
 	return out[:min(len(out), api.MaxWorktrees)]
 }
 
+// listWorktrees reads `git worktree list --porcelain` in dir. It reads git
+// fresh at each call, so a worktree made a moment ago counts.
+func listWorktrees(ctx context.Context, dir string) ([]worktree, error) {
+	ctx, cancel := context.WithTimeout(ctx, worktreeTimeout)
+	defer cancel()
+	var stdout bytes.Buffer
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "worktree", "list", "--porcelain")
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+
+	return parseWorktrees(stdout.String()), nil
+}
+
+// worktreeDir is the folder where branch is checked out in the project at
+// projectDir, and false when no folder holds it or git fails.
+func (r *router) worktreeDir(ctx context.Context, projectDir, branch string) (string, bool) {
+	list := r.worktrees
+	if list == nil {
+		list = listWorktrees
+	}
+	found, err := list(ctx, projectDir)
+	if err != nil {
+		r.log.Warn("worktree_list_failed", "dir", projectDir, "error", err.Error())
+
+		return "", false
+	}
+	for _, w := range found {
+		if w.Branch == branch {
+			return w.Path, true
+		}
+	}
+
+	return "", false
+}
+
 // worktree is one entry of `git worktree list --porcelain` that has a branch.
 type worktree struct{ Branch, Path string }
 

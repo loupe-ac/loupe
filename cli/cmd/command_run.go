@@ -24,7 +24,8 @@ func (p pending) isCommand() bool {
 	return p.action == rules.ActionCommand
 }
 
-// execute runs the command of a command rule in the project dir, under the
+// execute runs the command of a command rule in the project dir, or for a
+// run-command request in the folder of its branch, under the
 // rule's timeout, and settles the run. It reports running once the command
 // exists, with no session. A person's stop reaches it as it reaches a worker.
 func (r *router) execute(p pending) {
@@ -44,8 +45,19 @@ func (r *router) execute(p pending) {
 	if run == nil {
 		run = runRuleCommand
 	}
+	dir := p.spec.dir
+	if p.work.Capability == rules.CapabilityRunCommand {
+		// The folder may be gone since the offer, while the run waited.
+		var ok bool
+		if dir, ok = r.worktreeDir(r.workerContext(), p.spec.dir, p.work.RunBranch()); !ok {
+			failed := workerResult{exitCode: -1, output: rules.RefuseWorktreeMissing + ": no worktree has " + p.work.RunBranch() + " checked out", command: true}
+			r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+
+			return
+		}
+	}
 	ctx, cancel := context.WithTimeout(r.workerContext(), cmp.Or(p.spec.command.Timeout, rules.DefaultCommandTimeout))
-	res := run(ctx, procSpec{argv: p.spec.command.Argv, dir: p.spec.dir, runID: p.runID}, onStart)
+	res := run(ctx, procSpec{argv: p.spec.command.Argv, dir: dir, runID: p.runID}, onStart)
 	cancel()
 	r.settle(p, endedRun{res: commandResult(res), began: began, elapsed: time.Since(began)})
 }

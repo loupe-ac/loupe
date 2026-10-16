@@ -322,6 +322,9 @@ func (s *Set) MatchWork(w api.WorkRequest) Match {
 		return Match{Skip: NoRule}
 	}
 	m := s.MatchKind(w)
+	if m.Skip == Run && s.RunCommandRefusal(w) != "" {
+		return Match{Skip: NoRule, Project: m.Project}
+	}
 	if _, mapped := s.entry(w); m.Skip == Run && !mapped && !validAppPrompt(w.Prompt) {
 		return Match{Skip: NoRule, Project: m.Project}
 	}
@@ -339,7 +342,7 @@ func validAppPrompt(prompt string) bool {
 // another subject type counts as no entry, so the app prompt runs.
 func (s *Set) entry(w api.WorkRequest) (WorkEntry, bool) {
 	entry, ok := s.work[w.Kind]
-	if ok && s.appPrompts && entry.Subject != w.SubjectType {
+	if ok && s.appPrompts && entry.Subject != w.SubjectType && !runsCommand(w) {
 		return WorkEntry{}, false
 	}
 
@@ -359,6 +362,10 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 		return Match{Skip: Unmapped}
 	}
 	entry, ok := s.entry(w)
+	runCommand := runsCommand(w)
+	if runCommand && (!ok || entry.Action != ActionCommand) {
+		return Match{Skip: NoRule, Project: slug}
+	}
 	runs := entry.runs()
 	if !ok {
 		runs = []RunSettings{s.appRun}
@@ -368,11 +375,18 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	off := s.offLocked(runs)
 	s.mu.RUnlock()
 	off = off || s.agentsOff != "" && (!ok || entry.Action != ActionCommand)
-	if (!ok && !s.appPrompts) || dead || off || (ok && entry.Subject != w.SubjectType) {
+	if (!ok && !s.appPrompts) || dead || off || (ok && entry.Subject != w.SubjectType && !runCommand) {
 		return Match{Skip: NoRule, Project: slug}
 	}
 
 	v := workValues(w, slug)
+	if runCommand {
+		for name := range entry.Params {
+			if value, given := w.Params[name]; given {
+				v[name] = value
+			}
+		}
+	}
 	if !ok {
 		// A nil map of fields always builds.
 		schema, _ := resultSchema(nil)
@@ -464,6 +478,61 @@ func workValues(w api.WorkRequest, slug string) map[string]string {
 		"reason":            w.Context.Reason,
 		"documentId":        w.Context.DocumentID,
 	}
+}
+
+// The reasons a bridge refuses a run-command request.
+const (
+	RefuseEntryMissing       = "entry-missing"
+	RefuseParamInvalid       = "param-invalid"
+	RefuseWorktreeMissing    = "worktree-missing"
+	RefusePlaceholderMissing = "placeholder-missing"
+)
+
+// runsCommand reports whether w asks for the run of a command entry by name,
+// whatever its subject is.
+func runsCommand(w api.WorkRequest) bool {
+	return w.Capability == CapabilityRunCommand
+}
+
+// RunCommandRefusal is the reason code for which the bridge refuses a
+// run-command request, and "" when the rules accept it or when it is no
+// valid run-command request of a mapped project. The worktree is no part of
+// it, because the rules cannot read it. The entry must exist and be a command
+// entry. The request must hold a value for each parameter, each value must
+// match the whole pattern, and the request must hold no other parameter. Each
+// placeholder of the argv must have a value.
+func (s *Set) RunCommandRefusal(w api.WorkRequest) string {
+	if !runsCommand(w) || event.CheckWorkRequest(&w) != nil {
+		return ""
+	}
+	slug, mapped := s.slugs[w.ProjectID]
+	if !mapped {
+		return ""
+	}
+	entry, ok := s.work[w.Kind]
+	if !ok || entry.Action != ActionCommand {
+		return RefuseEntryMissing
+	}
+	for name := range w.Params {
+		if _, declared := entry.Params[name]; !declared {
+			return RefuseParamInvalid
+		}
+	}
+	for name, p := range entry.Params {
+		if value, given := w.Params[name]; !given || !p.Match(value) {
+			return RefuseParamInvalid
+		}
+	}
+	v := workValues(w, slug)
+	for _, arg := range entry.Run {
+		for _, name := range directive.Placeholders(arg) {
+			if _, param := entry.Params[name]; !param && v[name] == "" && !slices.Contains(contextPlaceholders, name) {
+				return RefusePlaceholderMissing
+			}
+		}
+	}
+
+	return ""
 }
 
 // WorkGaps lists the placeholders of the command of the kind that w leaves

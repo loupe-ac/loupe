@@ -352,6 +352,8 @@ The actions are:
   itself.
 - "Start an interactive session" opens a terminal on your machine. See
   [Start an interactive session](#start-an-interactive-session).
+- "Run a command" runs a command of your rule file on your machine. See
+  [Running a command](#running-a-command).
 - "Dismiss" closes the item as declined. It sits apart at the bottom of the
   menu, in red. Dismiss ignores the note.
 
@@ -368,13 +370,11 @@ A worker that stops can name the stop and suggest what to do next. It adds a
 uses the title as its heading, cut to 80 characters, with the full text in the
 tooltip. Without a title, the heading is the first sentence of the report.
 
-Each suggestion names one of the seven actions above and gives a reason. The
+Each suggestion names one of the actions above and gives a reason. The
 reason shows as the heading of the reply card when that action is the main one.
 A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
-fit is dropped. A `run-command` suggestion is stored, and the inbox does not offer
-it yet.
-
+fit is dropped.
 An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
 that carries suggestions shows a reply card with a split button, beside Decline
 and Mark done. The button offers the suggested actions that fit the to-do now,
@@ -406,6 +406,62 @@ status line, so you can still act on that wait.
 The card page shows the same thread in its **Inbox items** section, with the
 same buttons. After you act there, you return to the card page. The document
 page shows no thread.
+
+### Running a command
+
+A worker can suggest that you run one command entry of your rule file. The
+button then reads "Run <entry> on <branch>", such as "Run design-export on
+main". A worker can suggest it on a to-do, or at the end of a stopped run.
+
+The button is off, with the reason beside it, when Loupe cannot offer the run.
+The reasons are:
+
+- No bridge that follows the project asked for this.
+- The bridge is offline.
+- The bridge is too old to run commands from the inbox. Update the CLI.
+- The rule file of the bridge has no command of that name.
+- A value does not fit the pattern of its parameter.
+- The bridge has no worktree for the branch.
+- The command is already queued or running for this item.
+
+Only the owner of the project can run a command. Select the button, and Loupe
+opens a confirm step. It shows the bridge, the branch, the value of each
+parameter, the folder, and the command with the values filled in. The branch
+list holds each branch that has a worktree on the bridge. Check the filled
+command, then select **Run**. Nothing runs before you do.
+
+The bridge checks the request again, with its own rule file. It refuses the
+run, and the item shows the reason, in these cases:
+
+- `entry-missing`: the rule file has no command of that name.
+- `param-invalid`: a value does not match the whole pattern of its parameter.
+- `worktree-missing`: the bridge finds no worktree for the branch.
+- `placeholder-missing`: the command needs a value that the item cannot give,
+  such as a card number for an item with no card.
+
+A refused run starts nothing.
+
+The status line shows the run as Queued, Running, Succeeded or Failed. When the
+run ends, the line shows the last lines of its output. A command that waits for
+a worker of its card stays Queued until that worker ends.
+
+A success ends the item. A to-do closes as done, and the worker that waits for
+the answer resumes. For a stopped run, Loupe resumes the worker, which reads the
+result of the command with `inbox_get`. A failure keeps the item open. The
+status line shows the exit code and the last lines, and **Run again** starts the
+same command again.
+
+Two limits apply:
+
+- The pattern of a parameter is as strict as the operator writes it. A loose
+  pattern lets a worker pass a value that the command reads as an option, such
+  as `--exec=...`. Write each pattern to match only the values that you accept.
+- The output can contain what the command prints, including secrets. Loupe
+  keeps the last lines, and everyone who can see the project can read them.
+
+The page shows the end of the output after the run ends. It shows no live output
+and no full log. See [the bridge guide](../extending/cli-bridge.md#running-an-entry-from-the-inbox)
+for the rule file.
 
 ### Notices
 

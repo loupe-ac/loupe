@@ -28,6 +28,12 @@ final readonly class OpenWorkRequestCommand
         public ?Uuid $inboxActionId = null,
         public ?int $inboxItemNumber = null,
         public ?Uuid $inboxItemId = null,
+        /** The one bridge that may take the request. Null lets any bridge that can run it take it. */
+        public ?Uuid $targetBridgeId = null,
+        /** The git branch whose worktree a command entry runs in. */
+        public ?string $branch = null,
+        /** @var array<string, string>|null the values of the parameters of a command entry */
+        public ?array $params = null,
     ) {
     }
 }

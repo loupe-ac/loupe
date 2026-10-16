@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Service;
 
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkerRunRepository;
@@ -17,6 +18,7 @@ use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\View\ItemAction;
+use App\Module\Inbox\View\RunCommandView;
 use App\Module\Inbox\View\SendAgentTarget;
 use App\Module\Inbox\View\SuggestedAction;
 use App\Module\Project\Entity\Project;
@@ -36,6 +38,9 @@ final readonly class ItemActions
         private SessionBridges $sessionBridges,
         private WorkRequestRepository $workRequests,
         private StageWorks $stageWorks,
+        private AskingBridge $askingBridge,
+        private RunCommandResolver $runCommands,
+        private RunCommandRuns $runCommandRuns,
     ) {
     }
 
@@ -113,6 +118,35 @@ final readonly class ItemActions
         return $this->sendAgentTargets([$item], null === $watch ? [] : [self::key($item) => $watch->cardId])[self::key($item)] ?? null;
     }
 
+    /**
+     * The run-command action of the item as the owner would run it now, or null when the item has no such suggestion.
+     * A branch or parameter values replace those of the suggestion, so the run checks what the owner confirmed.
+     *
+     * @param array<string, string>|null $params
+     */
+    public function runCommandFor(InboxItem $item, ?string $branch = null, ?array $params = null): ?RunCommandView
+    {
+        $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
+        $waits = null === $watch ? [] : self::openWaits($watch->waits->toArray());
+        $runs = $this->runsOf($waits);
+        $suggestion = $this->suggestionsOf($item, $waits, $runs)[InboxActionKind::RunCommand->value] ?? null;
+        if (null === $suggestion || null === $suggestion->command) {
+            return null;
+        }
+
+        return $this->runCommands->view($item, $suggestion, $this->askingBridgeOf($item, $waits, $runs), $branch, $params, $this->runCommandRuns->forItems([$item])[self::key($item)] ?? null);
+    }
+
+    /** The card a command run of the item belongs to: the watched card of a wait item, or the only card of a to-do. */
+    public function runCommandCardId(InboxItem $item): ?Uuid
+    {
+        if (InboxItemKind::Wait === $item->kind) {
+            return ($this->inboxCardWatches->findForItems([$item])[0] ?? null)?->cardId;
+        }
+
+        return self::onlyCardOf($item);
+    }
+
     private static function typeOf(InboxActionKind $kind): InboxCardWaitType
     {
         return InboxActionKind::ResumeRun === $kind ? InboxCardWaitType::WorkerRun : InboxCardWaitType::CardPause;
@@ -170,12 +204,26 @@ final readonly class ItemActions
             }
         }
 
+        $suggested = [];
+        $commandItems = [];
+        foreach ($items as $item) {
+            $suggested[self::key($item)] = $this->suggestionsOf($item, $openWaits[self::key($item)] ?? [], $runs);
+            if (null !== ($suggested[self::key($item)][InboxActionKind::RunCommand->value]->command ?? null)) {
+                $commandItems[] = $item;
+            }
+        }
+        $commandRuns = $this->runCommandRuns->forItems($commandItems);
+
         $actions = [];
         foreach ($items as $item) {
             $waits = $openWaits[self::key($item)] ?? [];
             $cardId = $cardIds[self::key($item)] ?? null;
-            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]));
-            $suggestions = InboxItemKind::Todo === $item->kind ? self::todoSuggestions($item) : self::suggestions($waits, $runs);
+            $suggestions = $suggested[self::key($item)];
+            $commandSuggestion = $suggestions[InboxActionKind::RunCommand->value] ?? null;
+            $runCommand = null === $commandSuggestion?->command
+                ? null
+                : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), run: $commandRuns[self::key($item)] ?? null);
+            $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand);
             if (InboxItemKind::Todo === $item->kind) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
             }
@@ -184,8 +232,9 @@ final readonly class ItemActions
                 static fn (InboxActionKind $kind): ItemAction => ItemAction::for(
                     $kind,
                     $kind === $default,
-                    InboxActionKind::StartSession === $kind && !($sessionOnline[(string) $item->project->id] ?? false) ? 'inbox.action.start-session.disabled' : null,
+                    InboxActionKind::StartSession === $kind && !($sessionOnline[(string) $item->project->id] ?? false) ? 'inbox.action.start-session.disabled' : self::commandReason($kind, $runCommand),
                     $suggestions[$kind->value]->reason ?? null,
+                    InboxActionKind::RunCommand === $kind ? $runCommand : null,
                 ),
                 $fitting,
             );
@@ -200,10 +249,11 @@ final readonly class ItemActions
      * @param array<string, true> $releasablePauses pause ids a person can release
      * @param bool                $sendAgent        Send an agent has a card and a stage work that are free now
      * @param bool                $sessionFits      the item has a card, and no session request of that card is live
+     * @param bool                $runCommand       the item has a run-command suggestion, which the action shows even when it is off
      *
      * @return list<InboxActionKind>
      */
-    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits): array
+    private function fitting(InboxItem $item, array $waits, array $resumableRuns, array $releasablePauses, bool $sendAgent, bool $sessionFits, bool $runCommand): array
     {
         $fits = [
             [InboxActionKind::ResumeRun, self::fitsResumeRun($waits, $resumableRuns)],
@@ -212,6 +262,7 @@ final readonly class ItemActions
             [InboxActionKind::SendAgent, $sendAgent],
             [InboxActionKind::Open, self::fitsOpen($item)],
             [InboxActionKind::StartSession, $sessionFits],
+            [InboxActionKind::RunCommand, $runCommand],
             [InboxActionKind::Dismiss, self::fitsDismiss($item)],
         ];
 
@@ -382,7 +433,7 @@ final readonly class ItemActions
     {
         $suggestions = [];
         foreach ($item->suggestedActions ?? [] as $stored) {
-            $suggestions[$stored['action']] = new SuggestedAction($stored['action'], $stored['reason'], $stored['recommended']);
+            $suggestions[$stored['action']] = new SuggestedAction($stored['action'], $stored['reason'], $stored['recommended'], $stored['command'] ?? null, $stored['proposedEntry'] ?? null);
         }
 
         return $suggestions;
@@ -420,6 +471,39 @@ final readonly class ItemActions
         };
 
         return \in_array($preferred, $fitting, true) ? $preferred : InboxActionKind::Open;
+    }
+
+    private static function commandReason(InboxActionKind $kind, ?RunCommandView $runCommand): ?string
+    {
+        return InboxActionKind::RunCommand === $kind ? $runCommand?->disabledReasonKey : null;
+    }
+
+    /**
+     * @param list<InboxCardWait>      $waits open waits, oldest first
+     * @param array<string, WorkerRun> $runs
+     *
+     * @return array<string, SuggestedAction>
+     */
+    private function suggestionsOf(InboxItem $item, array $waits, array $runs): array
+    {
+        return InboxItemKind::Todo === $item->kind ? self::todoSuggestions($item) : self::suggestions($waits, $runs);
+    }
+
+    /**
+     * The bridge that asked: the one that ran the run of the newest wait, or for a to-do the one of its ask.
+     *
+     * @param list<InboxCardWait>      $waits open waits, oldest first
+     * @param array<string, WorkerRun> $runs
+     */
+    private function askingBridgeOf(InboxItem $item, array $waits, array $runs): ?Bridge
+    {
+        if (InboxItemKind::Todo === $item->kind) {
+            return $this->askingBridge->findForItem($item);
+        }
+        $newest = end($waits);
+        $run = false === $newest || InboxCardWaitType::WorkerRun !== $newest->type || null === $newest->runId ? null : ($runs[$newest->runId->toRfc4122()] ?? null);
+
+        return null === $run ? null : $this->askingBridge->findForRun($run);
     }
 
     /**

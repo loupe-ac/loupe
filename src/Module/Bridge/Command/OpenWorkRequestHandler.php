@@ -37,6 +37,7 @@ final readonly class OpenWorkRequestHandler
     public const string INVALID_MODEL = 'bridge.work_request.error.invalid_model';
     public const string INVALID_EFFORT = 'bridge.work_request.error.invalid_effort';
     public const string INVALID_CARD_NUMBER = 'bridge.work_request.error.invalid_card_number';
+    public const string INVALID_BRANCH = 'bridge.work_request.error.invalid_branch';
     public const string UNKNOWN_SUBJECT_TYPE = 'bridge.work_request.error.unknown_subject_type';
 
     /** Longer than the largest retry backoff of the seeded templates, six hours, so a later request starts fresh. */
@@ -71,6 +72,9 @@ final readonly class OpenWorkRequestHandler
         }
         if (null !== $command->effort && !\in_array($command->effort, WorkRequest::EFFORTS, true)) {
             $errors['effort'] = self::INVALID_EFFORT;
+        }
+        if (null !== $command->branch && !WorkRequest::isBranchName($command->branch)) {
+            $errors['branch'] = self::INVALID_BRANCH;
         }
         if (!$this->subjects->has($command->subject->type)) {
             $errors['subjectType'] = self::UNKNOWN_SUBJECT_TYPE;
@@ -109,6 +113,9 @@ final readonly class OpenWorkRequestHandler
                 $request->inboxActionId = $command->inboxActionId;
                 $request->inboxItemNumber = $command->inboxItemNumber;
                 $request->inboxItemId = $command->inboxItemId;
+                $request->targetBridgeId = $command->targetBridgeId;
+                $request->branch = $command->branch;
+                $request->params = $command->params;
                 $this->em->persist($request);
                 // The payload names the request, so the row needs its id first.
                 $this->em->flush();
@@ -142,6 +149,8 @@ final readonly class OpenWorkRequestHandler
                 'ruleId' => $request->ruleId,
                 'model' => $request->model,
                 'effort' => $request->effort,
+                'targetBridgeId' => $request->targetBridgeId?->toRfc4122(),
+                'branch' => $request->branch,
             ],
             new AuditSubject('work_request', (string) $request->id),
         );

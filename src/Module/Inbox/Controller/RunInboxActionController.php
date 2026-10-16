@@ -35,7 +35,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
     name: 'app_inbox_item_action',
     requirements: [
         'itemId' => Requirement::UUID,
-        'kind' => new EnumRequirement([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::Dismiss]),
+        'kind' => new EnumRequirement([InboxActionKind::ResumeRun, InboxActionKind::RetryCard, InboxActionKind::SendAgent, InboxActionKind::StartSession, InboxActionKind::RunCommand, InboxActionKind::Dismiss]),
     ],
     methods: ['POST'],
 )]
@@ -66,7 +66,7 @@ final class RunInboxActionController extends AppController
 
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                ($this->runAction)(new RunInboxActionCommand($item, $kind, $data->note ?? '', $user));
+                ($this->runAction)(new RunInboxActionCommand($item, $kind, $data->note ?? '', $user, '' === ($data->branch ?? '') ? null : $data->branch, [] === $data->params ? null : $data->params));
                 // Read again, because a saved response can move the item to the completed queue.
                 $saved = $this->returnTargets->resolve($request, $item, $return);
                 $verb = match ($kind) {
@@ -74,6 +74,7 @@ final class RunInboxActionController extends AppController
                     InboxActionKind::RetryCard => InboxActionVerb::Retried,
                     InboxActionKind::SendAgent => InboxActionVerb::AgentSent,
                     InboxActionKind::StartSession => InboxActionVerb::SessionStarted,
+                    InboxActionKind::RunCommand => InboxActionVerb::CommandQueued,
                     default => InboxActionVerb::Declined,
                 };
                 $this->feedback->saved($saved, $item, $verb);

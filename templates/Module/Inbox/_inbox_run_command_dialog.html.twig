@@ -1,0 +1,57 @@
+{#- The confirm step of a run-command action. It sits outside the reply form and posts it through the form attribute.
+   Params: item, command (RunCommandView), actionParams, formId (the id of the reply form), fieldName (its full name). -#}
+{% set titleId = 'run-command-title-' ~ item.id %}
+{% set runnable = command.folder is not null %}
+<twig:Ds:Dialog aria-labelledby="{{ titleId }}" data-action="cancel->modal#close" data-inbox-run-command-dialog>
+    <div class="lp-run-command">
+        <h3 class="lp-dialog-title" id="{{ titleId }}">{{ 'inbox.run_command.dialog.title'|trans({'%entry%': command.entry}) }}</h3>
+        <p class="lp-dialog-desc">{{ 'inbox.run_command.dialog.description'|trans }}</p>
+        <dl class="lp-run-command__facts">
+            <dt>{{ 'inbox.run_command.dialog.bridge'|trans }}</dt>
+            <dd>{{ (command.onSuccess.value == 'closes-todo' ? 'inbox.run_command.dialog.bridge_todo' : 'inbox.run_command.dialog.bridge_run')|trans({'%bridge%': command.bridgeName}) }}</dd>
+            <dt>{{ 'inbox.run_command.dialog.branch'|trans }}</dt>
+            <dd>
+                <twig:Ds:Select name="{{ fieldName }}[branch]" form="{{ formId }}" aria-label="{{ 'inbox.run_command.dialog.branch'|trans }}" data-run-command-target="branch" data-action="change->run-command#refresh">
+                    {% if not runnable %}
+                        <option value="" selected disabled data-folder="">{{ 'inbox.run_command.dialog.branch_choose'|trans }}</option>
+                    {% endif %}
+                    {% for branch in command.branches %}
+                        <option value="{{ branch.branch }}" data-folder="{{ branch.path }}"{{ runnable and branch.branch == command.branch ? ' selected' }}>
+                            {{- (runnable and branch.branch == command.branch ? 'inbox.run_command.dialog.branch_pick' : 'inbox.run_command.dialog.branch_option')|trans({'%branch%': branch.branch, '%folder%': branch.path}) -}}
+                        </option>
+                    {% endfor %}
+                </twig:Ds:Select>
+                <p class="lp-run-command__why-off" role="alert" data-run-command-target="noWorktree" data-inbox-run-command-no-worktree{{ runnable ? ' hidden' }}>{{ 'inbox.run_command.dialog.no_worktree'|trans({'%branch%': command.branch, '%bridge%': command.bridgeName}) }}</p>
+            </dd>
+            {% if command.params|length > 0 %}
+                <dt>{{ 'inbox.run_command.dialog.parameters'|trans }}</dt>
+                <dd>
+                    <ul class="lp-run-command__params">
+                        {% for param in command.params %}
+                            <li class="lp-run-command__param">
+                                <span class="lp-run-command__param-line">
+                                    <span class="lp-run-command__param-name">{{ param.name }} =</span>
+                                    <twig:Ds:Input mono name="{{ fieldName }}[params][{{ param.name }}]" form="{{ formId }}" value="{{ param.value }}" aria-label="{{ param.name }}" data-run-command-target="param" data-name="{{ param.name }}" data-action="input->run-command#refresh" />
+                                </span>
+                                {% if param.description %}<twig:Ds:Hint>{{ param.description }}</twig:Ds:Hint>{% endif %}
+                                {% if not param.valid %}<p class="lp-run-command__why-off" data-inbox-run-command-param-invalid>{{ 'inbox.action.run-command.disabled.param_invalid'|trans }}</p>{% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </dd>
+            {% endif %}
+        </dl>
+        <twig:Ds:CodeBlock
+            :label="command.folder ? 'inbox.run_command.dialog.command_in'|trans({'%folder%': command.folder}) : 'inbox.run_command.dialog.command'|trans"
+            :text="command.argv|join(' ')"
+            :copy="false"
+            data-run-command-target="command"
+            testid="run-command-argv"
+        />
+        <twig:Ds:Hint>{{ (command.onSuccess.value == 'closes-todo' ? 'inbox.run_command.dialog.success_todo' : 'inbox.run_command.dialog.success_run')|trans }}</twig:Ds:Hint>
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="secondary" size="sm" type="button" data-action="click->modal#close">{{ 'inbox.run_command.dialog.cancel'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" size="sm" type="submit" form="{{ formId }}" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'run-command'}))" :disabled="not runnable" data-run-command-target="run" data-inbox-action="run-command-confirm">{{ 'inbox.run_command.dialog.run'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </div>
+</twig:Ds:Dialog>

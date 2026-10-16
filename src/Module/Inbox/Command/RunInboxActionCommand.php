@@ -15,6 +15,14 @@ final readonly class RunInboxActionCommand
         public InboxActionKind $kind,
         public string $note,
         public User $user,
+        /** The branch the owner confirmed for a run-command action. Null keeps the one of the suggestion. */
+        public ?string $branch = null,
+        /**
+         * The parameter values the owner confirmed for a run-command action. Null keeps those of the suggestion.
+         *
+         * @var array<string, string>|null
+         */
+        public ?array $params = null,
     ) {
     }
 }

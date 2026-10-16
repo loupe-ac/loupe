@@ -29,8 +29,13 @@ use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Repository\InboxActionRepository;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\ItemActions;
+use App\Module\Inbox\Service\RunCommandResolver;
+use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
@@ -586,6 +591,22 @@ final class ItemActionsTest extends KernelTestCase
         self::assertInstanceOf(StageWorks::class, $stageWorks);
         self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
 
-        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges, $workRequests, $stageWorks);
+        $inboxActions = $container->get(InboxActionRepository::class);
+        $inboxAsks = $container->get(InboxAskRepository::class);
+        self::assertInstanceOf(InboxActionRepository::class, $inboxActions);
+        self::assertInstanceOf(InboxAskRepository::class, $inboxAsks);
+
+        return new ItemActions(
+            $watches,
+            $runs,
+            $controls,
+            $pauses,
+            $sessionBridges,
+            $workRequests,
+            $stageWorks,
+            new AskingBridge($bridges, $inboxAsks, $runs),
+            new RunCommandResolver($liveness),
+            new RunCommandRuns($inboxActions, $workRequests, $runs),
+        );
     }
 }

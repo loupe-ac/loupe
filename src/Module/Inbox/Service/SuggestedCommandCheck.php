@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\AskInboxRunCommand;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -16,7 +17,7 @@ use Symfony\Component\Yaml\Yaml;
  */
 final class SuggestedCommandCheck
 {
-    public const int MAX_BRANCH_LENGTH = 200;
+    public const int MAX_BRANCH_LENGTH = WorkRequest::MAX_BRANCH_LENGTH;
 
     /** A delimiter that no pattern is likely to hold, because PCRE has no escape for it. */
     private const string DELIMITER = "\x01";
@@ -58,21 +59,9 @@ final class SuggestedCommandCheck
         return null;
     }
 
-    /** The rules of `git check-ref-format --branch`, a little stricter than git where that is cheap. */
     public static function isBranchName(string $branch): bool
     {
-        return '' !== $branch
-            && '@' !== $branch
-            && mb_strlen($branch) <= self::MAX_BRANCH_LENGTH
-            && 1 !== preg_match('/[\x00-\x20\x7f~^:?*\[\\\\]/', $branch)
-            && 1 !== preg_match('#(?:^|/)\.|\.lock(?:/|$)#', $branch)
-            && !str_contains($branch, '..')
-            && !str_contains($branch, '//')
-            && !str_contains($branch, '@{')
-            && !str_starts_with($branch, '-')
-            && !str_starts_with($branch, '/')
-            && !str_ends_with($branch, '/')
-            && !str_ends_with($branch, '.');
+        return WorkRequest::isBranchName($branch);
     }
 
     /** @return array<string, string>|null the pattern of each param of the entry the bridge reported, or null when it has no such entry */
@@ -123,7 +112,7 @@ final class SuggestedCommandCheck
     }
 
     /** True when the whole value matches, false when it does not, null when PCRE cannot compile the pattern. */
-    private static function matches(string $pattern, string $value): ?bool
+    public static function matches(string $pattern, string $value): ?bool
     {
         $regex = self::DELIMITER.'^(?:'.$pattern.')$'.self::DELIMITER.'Du';
 

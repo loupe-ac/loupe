@@ -63,6 +63,24 @@ final class WorkRequestClaimApiTest extends WebTestCase
         self::assertStringNotContainsString($body['claimToken'], json_encode($record->context, \JSON_THROW_ON_ERROR));
     }
 
+    public function test_a_request_for_another_bridge_is_not_found_and_the_target_claims_it(): void
+    {
+        [$client, $owner, $project, $bridge] = $this->scenario('claim-target@example.com');
+        $target = $this->bridgeFor($owner, $project);
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'design-export', targetBridgeId: $target->id, branch: 'main', params: ['out' => 'var/x']);
+
+        $this->post($client, $this->token($owner), $this->path($bridge, $request));
+
+        $this->assertRefused($client, 404, 'work_request_not_found');
+        self::assertSame(WorkRequestState::Open, $this->reload($request)->state);
+
+        $this->post($client, $this->token($owner), $this->path($target, $request));
+
+        self::assertResponseStatusCodeSame(200);
+        $payload = $this->json($client)['workRequest'];
+        self::assertSame([$target->id->toRfc4122(), 'main', ['out' => 'var/x']], [$payload['targetBridgeId'], $payload['branch'], $payload['params']]);
+    }
+
     public function test_a_second_claim_loses(): void
     {
         [$client, $owner, $project, $bridge] = $this->scenario('claim-twice@example.com');

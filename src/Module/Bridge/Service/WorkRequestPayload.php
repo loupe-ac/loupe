@@ -44,6 +44,11 @@ final class WorkRequestPayload
             'inboxActionId' => $request->inboxActionId?->toRfc4122(),
             'inboxItemNumber' => $request->inboxItemNumber,
             'inboxItemId' => $request->inboxItemId?->toRfc4122(),
+            // The only bridge that may take the request, or null for any. The claim refuses the others.
+            'targetBridgeId' => $request->targetBridgeId?->toRfc4122(),
+            'branch' => $request->branch,
+            // An object of parameter name to value. Null when the request has none, because an empty array would encode as a list.
+            'params' => [] === ($request->params ?? []) ? null : $request->params,
         ];
     }
 }

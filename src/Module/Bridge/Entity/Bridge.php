@@ -229,6 +229,11 @@ class Bridge
         return \in_array(self::CAPABILITY_ADD_ENTRY, $this->capabilities ?? [], true);
     }
 
+    public function takesRunCommands(): bool
+    {
+        return $this->takesWorkRequests() && \in_array(self::CAPABILITY_RUN_COMMAND, $this->capabilities ?? [], true);
+    }
+
     public function takesSessionUsage(): bool
     {
         return $this->takesCommands() && \in_array(self::CAPABILITY_SESSION_USAGE, $this->capabilities ?? [], true);

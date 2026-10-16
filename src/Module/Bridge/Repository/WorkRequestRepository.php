@@ -136,12 +136,14 @@ class WorkRequestRepository extends ServiceEntityRepository
      * The open requests of the projects that a bridge with these capabilities
      * can run, oldest first.
      *
+     * A request that names a target bridge is offered to that bridge alone.
+     *
      * @param list<string> $projectIds   RFC 4122 ids, as Bridge::$projects holds them
      * @param list<string> $capabilities
      *
      * @return list<WorkRequest>
      */
-    public function findOpenOffers(array $projectIds, array $capabilities, int $limit): array
+    public function findOpenOffers(Uuid $bridgeId, array $projectIds, array $capabilities, int $limit): array
     {
         if ([] === $projectIds) {
             return [];
@@ -150,7 +152,9 @@ class WorkRequestRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('w')
             ->andWhere('w.project IN (:projects)')
             ->andWhere('w.state = :open')
+            ->andWhere('w.targetBridgeId IS NULL OR w.targetBridgeId = :bridge')
             ->andWhere('NOT (w.subjectType = :card AND EXISTS (SELECT 1 FROM '.CardHold::class.' h WHERE h.project = w.project AND h.cardId = w.subjectId))')
+            ->setParameter('bridge', $bridgeId, UuidType::NAME)
             ->setParameter('projects', $projectIds)
             ->setParameter('open', WorkRequestState::Open->value)
             ->setParameter('card', WorkSubject::CARD)

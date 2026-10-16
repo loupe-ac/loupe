@@ -1272,6 +1272,30 @@ so write the narrowest pattern that fits. A loose pattern lets a value such as
 The heartbeat lists each command entry with its parameters, and each worktree of
 the followed projects. The bridge always reports the capability `run-command`.
 
+### Running an entry from the inbox
+
+When the owner confirms a "Run a command" action in the [inbox](../using/inbox.md#running-a-command),
+Loupe opens a work request for this bridge only. The request names the entry, a
+branch and a value for each parameter. The bridge checks the request again
+against its own `rules.yaml`, and settles it as refused, with a reason code,
+when a check fails:
+
+- `entry-missing`: the work map has no command entry of that name.
+- `param-invalid`: a value is missing, undeclared, or does not match the whole
+  pattern.
+- `worktree-missing`: `git worktree list` shows no folder with that branch.
+- `placeholder-missing`: `run` uses a placeholder with no value.
+
+The bridge runs the command in the folder of the branch. The run reports
+`queued`, `running`, then `succeeded` or `failed`, with the end of the output,
+as [Command runs](../reference/worker-runs.md#command-runs) says. The inbox
+shows that state and output. A success closes the to-do or resumes the waiting
+worker. A failure keeps the item open, with **Run again**.
+
+Update the CLI before you add `params` to `rules.yaml`. A CLI from before this
+change refuses the key, and the whole file fails to load. The output can
+contain secrets that the command prints.
+
 ### Accept entries from Loupe
 
 `acceptEntries: true` at the top of `rules.yaml` lets Loupe add a command entry
