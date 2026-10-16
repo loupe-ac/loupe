@@ -8368,6 +8368,11 @@
     @apply cursor-not-allowed opacity-50;
 }
 
+/* A run-command label names the entry and the branch, so the row wraps on a phone. */
+.lp-inbox-thread .lp-comment-composer__actions {
+    @apply flex-wrap;
+}
+
 /* The confirm dialog of a run-command action, and the reason it is off. */
 .lp-run-command {
     @apply flex flex-col gap-4;
