@@ -11,6 +11,7 @@ use App\Module\Review\Form\CommentRecoveryFormType;
 use App\Module\Review\Form\CommentRecoveryRequest;
 use App\Module\Review\Form\ReplyFormType;
 use App\Module\Review\Form\ReplyRequest;
+use App\Module\Review\Service\AgentReviewSummary;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -28,6 +29,7 @@ final class ReviewExtension extends AbstractExtension
     public function __construct(
         private readonly FormFactoryInterface $formFactory,
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly AgentReviewSummary $agentReviewSummary,
     ) {
     }
 
@@ -38,6 +40,7 @@ final class ReviewExtension extends AbstractExtension
             new TwigFunction('comment_reply_form', $this->commentReplyForm(...)),
             new TwigFunction('document_archive_form', $this->documentArchiveForm(...)),
             new TwigFunction('comment_recovery_form', $this->commentRecoveryForm(...)),
+            new TwigFunction('agent_review_summary', $this->agentReviewSummary->forDocument(...)),
         ];
     }
 
