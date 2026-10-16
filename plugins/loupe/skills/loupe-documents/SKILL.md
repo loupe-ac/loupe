@@ -236,9 +236,17 @@ reading context, not for a terminal or a README.
        have drafts yet, and `document_create` refuses the `draft` argument.
        Create the document without `draft`, as before.
 
+    A product design, a tech design and the deploy notes that the tech design
+    stage creates are the exception to step 3. They stay drafts while an agent
+    reviews them, and the app publishes them when the review ends. Create them
+    as drafts, and never call `document_publish` for them. The same holds when
+    you revise one in a fix round for an agent review. Deploy notes that you
+    add beside a design already in review are published at once.
+
     A review round on a document that is already in review revises it once,
     and needs no draft step. A person in the session with you can read the
-    document at once, so an interactive session needs no draft either.
+    document at once, so an interactive session needs no draft either, unless
+    it writes a product design, which stays a draft for the agent review.
 
 18. **Make each decision stand on its own.** The owner often answers a
     decision outside its document, or after a long gap. A reader who opens
