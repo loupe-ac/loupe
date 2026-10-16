@@ -19,6 +19,8 @@ final class SuggestedCommandCheckTest extends TestCase
     #[TestWith(['main'])]
     #[TestWith(['feature/card-883-run-command'])]
     #[TestWith(['release-1.2'])]
+    #[TestWith(['a@b'])]
+    #[TestWith(['a.b/c.d'])]
     public function test_a_plain_branch_name_passes(string $branch): void
     {
         self::assertTrue(SuggestedCommandCheck::isBranchName($branch));
@@ -40,6 +42,13 @@ final class SuggestedCommandCheckTest extends TestCase
     #[TestWith(['dir/'])]
     #[TestWith(['topic.lock'])]
     #[TestWith(['topic.'])]
+    #[TestWith(['foo//bar'])]
+    #[TestWith(['foo@{bar'])]
+    #[TestWith(['foo/.bar'])]
+    #[TestWith(['.foo'])]
+    #[TestWith(['foo.lock/bar'])]
+    #[TestWith(['/foo'])]
+    #[TestWith(['@'])]
     public function test_a_wrong_branch_name_fails(string $branch): void
     {
         self::assertFalse(SuggestedCommandCheck::isBranchName($branch));
@@ -154,6 +163,10 @@ final class SuggestedCommandCheckTest extends TestCase
         yield 'another action' => ["action: interactive\nprompt: x"];
         yield 'no action' => ["run: [make]\n"];
         yield 'params that are no mapping' => ["action: command\nparams: filter\n"];
+        yield 'a param with no pattern' => ["action: command\nparams:\n  out: {}\n"];
+        yield 'a param that is no mapping' => ["action: command\nparams:\n  out: x\n"];
+        yield 'a pattern that is no string' => ["action: command\nparams:\n  out:\n    pattern: [a]\n"];
+        yield 'an empty pattern' => ["action: command\nparams:\n  out:\n    pattern: ''\n"];
         yield 'a text over the limit' => ["action: command\nrun: [".str_repeat('a, ', 1400).']'];
     }
 

@@ -50,7 +50,7 @@ final class SuggestedCommandCheck
             return AskInboxHandler::SUGGESTION_PARAM_INVALID;
         }
         foreach ($patterns as $name => $pattern) {
-            if (null !== $pattern && false === self::matches($pattern, $values[$name])) {
+            if (false === self::matches($pattern, $values[$name])) {
                 return AskInboxHandler::SUGGESTION_PARAM_INVALID;
             }
         }
@@ -58,20 +58,24 @@ final class SuggestedCommandCheck
         return null;
     }
 
-    /** A conservative check of a git branch name, a little stricter than git where that is cheap. */
+    /** The rules of `git check-ref-format --branch`, a little stricter than git where that is cheap. */
     public static function isBranchName(string $branch): bool
     {
         return '' !== $branch
+            && '@' !== $branch
             && mb_strlen($branch) <= self::MAX_BRANCH_LENGTH
             && 1 !== preg_match('/[\x00-\x20\x7f~^:?*\[\\\\]/', $branch)
+            && 1 !== preg_match('#(?:^|/)\.|\.lock(?:/|$)#', $branch)
             && !str_contains($branch, '..')
+            && !str_contains($branch, '//')
+            && !str_contains($branch, '@{')
             && !str_starts_with($branch, '-')
+            && !str_starts_with($branch, '/')
             && !str_ends_with($branch, '/')
-            && !str_ends_with($branch, '.lock')
             && !str_ends_with($branch, '.');
     }
 
-    /** @return array<string, ?string>|null the pattern of each param of the entry the bridge reported, or null when it has no such entry */
+    /** @return array<string, string>|null the pattern of each param of the entry the bridge reported, or null when it has no such entry */
     private static function bridgePatterns(?Bridge $bridge, string $entry): ?array
     {
         $row = array_find($bridge->commandEntries ?? [], static fn (array $row): bool => $row['name'] === $entry);
@@ -87,7 +91,7 @@ final class SuggestedCommandCheck
         return $patterns;
     }
 
-    /** @return array<string, ?string>|null the pattern of each param of the proposed entry, or null when the text is no entry of action command */
+    /** @return array<string, string>|null the pattern of each param of the proposed entry, or null when the text is no entry of action command or a param has no pattern */
     private static function proposedPatterns(string $text): ?array
     {
         if (mb_strlen($text) > RunSuggestions::MAX_PROPOSED_ENTRY_LENGTH) {
@@ -109,7 +113,10 @@ final class SuggestedCommandCheck
         $patterns = [];
         foreach ($params as $name => $param) {
             $pattern = \is_array($param) ? ($param['pattern'] ?? null) : null;
-            $patterns[(string) $name] = \is_string($pattern) ? $pattern : null;
+            if (!\is_string($pattern) || '' === $pattern) {
+                return null;
+            }
+            $patterns[(string) $name] = $pattern;
         }
 
         return $patterns;
