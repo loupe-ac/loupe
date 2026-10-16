@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-/** The sidebar pill alone, for the frame the inbox-pill controller reloads. */
+/** The sidebar pill alone, for the frame the live-pill controller reloads. */
 #[IsGranted(ProjectVoter::VIEW, subject: 'project')]
 #[Route(
     '/projects/{id:project}/inbox/open-count',

@@ -182,7 +182,9 @@ final class SidebarStatesTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $items = $crawler->filter('.lp-menu__item:not(.lp-switcher__all)');
         self::assertCount(8, $items, 'the panel shows a bounded set, not every project');
-        self::assertCount(1, $crawler->filter('.lp-switcher__all'), 'and offers the rest');
+        self::assertCount(2, $crawler->filter('.lp-switcher__all'), 'and offers the rest and a new project');
+        self::assertCount(1, $crawler->filter('.lp-switcher__all[href="/projects"]'));
+        self::assertCount(1, $crawler->filter('.lp-switcher__all[href="/projects?new=1"]'));
 
         // Newest first, so the project holding the document leads and its count
         // is the batched one rather than the |default(0) fallback.

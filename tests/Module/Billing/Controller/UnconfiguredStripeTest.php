@@ -39,7 +39,7 @@ final class UnconfiguredStripeTest extends WebTestCase
         $scenario = $this->scenarioWithoutStripeKeys();
 
         $client->loginUser($scenario->verifiedUser('nokeys'));
-        $crawler = $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $crawler = $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('h1'));
@@ -70,7 +70,7 @@ final class UnconfiguredStripeTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/projects');
         $client->request(Request::METHOD_POST, '/billing/checkout', ['_csrf_token' => 'csrf-token']);
 
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
         $crawler = $client->followRedirect();
         self::assertCount(1, $crawler->filter('.lp-flash--error'));
     }

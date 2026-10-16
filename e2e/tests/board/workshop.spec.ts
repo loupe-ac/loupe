@@ -27,7 +27,7 @@ test('workshop opens the matching request and keeps card details in its drawer',
     const second = await page.request.post('/dev/seed/inbox');
     expect(second.ok()).toBeTruthy();
     const workshopUrl = `/projects/${projectId}`;
-    const summary = page.locator('.lp-workshop-summary');
+    const layout = page.locator('.lp-workshop-layout');
     const title = `Workshop card ${Date.now()} ${'x'.repeat(90)}`;
     await page.goto(`${workshopUrl}/board/cards/new`);
     await page.getByLabel('Title', { exact: true }).fill(title);
@@ -76,14 +76,7 @@ test('workshop opens the matching request and keeps card details in its drawer',
     await expect(card.locator('.lp-workshop-work-card__kind')).toHaveText(
         'implement',
     );
-    await expect(
-        page.locator('[data-workshop-stat="completed-cards"]'),
-    ).toContainText('Completed cards');
-    await expect(
-        page.locator(
-            '[data-workshop-stat="completed-cards"] .lp-workshop-stat__value',
-        ),
-    ).toHaveText(/^\d+$/);
+    await expect(page.locator('.lp-workshop-summary')).toHaveCount(0);
     const cardUrl = (await card.getAttribute('href'))!;
     await page.route(`**${cardUrl}`, (route) =>
         route.fulfill({
@@ -154,13 +147,13 @@ test('workshop opens the matching request and keeps card details in its drawer',
         await page.setViewportSize({ width, height: 1000 });
         await expect
             .poll(() =>
-                summary.evaluate(
+                layout.evaluate(
                     (element) => element.scrollWidth - element.clientWidth,
                 ),
             )
             .toBeLessThanOrEqual(1);
-        await summary.screenshot({
-            path: `/tmp/loupe-workshop-summary-${width}.png`,
+        await layout.screenshot({
+            path: `/tmp/loupe-workshop-layout-${width}.png`,
             animations: 'disabled',
         });
         await expect
@@ -185,13 +178,13 @@ test('workshop opens the matching request and keeps card details in its drawer',
     await page.addStyleTag({ content: 'html { font-size: 200%; }' });
     await expect
         .poll(() =>
-            summary.evaluate(
+            layout.evaluate(
                 (element) => element.scrollWidth - element.clientWidth,
             ),
         )
         .toBeLessThanOrEqual(1);
-    await summary.screenshot({
-        path: '/tmp/loupe-workshop-summary-text200.png',
+    await layout.screenshot({
+        path: '/tmp/loupe-workshop-layout-text200.png',
         animations: 'disabled',
     });
     await card.scrollIntoViewIfNeeded();
@@ -225,16 +218,6 @@ test('workshop opens the matching request and keeps card details in its drawer',
     expect(inboxOff.ok()).toBeTruthy();
     await page.goto(workshopUrl);
     await expect(
-        page.locator(
-            '[data-workshop-stat="requests"] .lp-workshop-stat__value',
-        ),
-    ).toHaveCount(0);
-    await expect(page.locator('[data-workshop-stat="requests"]')).toContainText(
-        'The inbox is disabled',
-    );
-    await expect(
-        page.locator(
-            '[data-workshop-stat="open-cards"] .lp-workshop-stat__value',
-        ),
-    ).toBeVisible();
+        page.locator('.lp-workshop-section .lp-empty-state--compact').first(),
+    ).toContainText('The inbox is disabled');
 });

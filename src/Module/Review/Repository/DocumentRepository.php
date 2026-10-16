@@ -254,24 +254,28 @@ class DocumentRepository extends ServiceEntityRepository
     }
 
     /**
-     * How many documents a reader would find in the project's list — archived
-     * ones excluded, because a count that disagrees with the rows under it reads
-     * as a bug. Anything that must account for every document that exists (an
-     * export, a quota) counts its own way rather than calling this.
+     * How many documents of the project wait in one of the statuses. Archived
+     * ones are left out, because a count that disagrees with the rows under it
+     * reads as a bug. Anything that must account for every document that exists
+     * (an export, a quota) counts its own way rather than calling this.
+     *
+     * @param list<DocumentStatus> $statuses
      */
-    public function countActiveByProject(Project $project): int
+    public function countByProjectAndStatuses(Project $project, array $statuses): int
     {
         return (int) $this->createQueryBuilder('d')
             ->select('COUNT(d.id)')
             ->andWhere('d.project = :project')
             ->andWhere('d.archivedAt IS NULL')
+            ->andWhere('d.status IN (:statuses)')
             ->setParameter('project', $project)
+            ->setParameter('statuses', array_map(static fn (DocumentStatus $status): string => $status->value, $statuses))
             ->getQuery()
             ->getSingleScalarResult();
     }
 
     /**
-     * Same count as countActiveByProject, for several projects in one query —
+     * How many documents each project holds that are not archived, for several projects in one query —
      * the shell's project switcher lists every project on every page, so the
      * per-project form would be an N+1 on all of them.
      *

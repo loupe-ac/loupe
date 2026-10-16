@@ -194,8 +194,8 @@ names. Paste the markup of that artboard by hand.
 
 ## The library
 
-When the flag is on, the sidebar of a project shows an **Artifacts** link with
-the number of artifacts that are not archived. It opens the library at
+When the flag is on, the sidebar of a project shows an **Artifacts** link. It
+shows no count. It opens the library at
 `/projects/{project}/artifacts`. Each row shows the name of the artifact, its
 newest version, the number of files in that version, and where the files came
 from, such as a Claude Design canvas or a claude.ai artifact. It also shows who

@@ -159,15 +159,15 @@ test('secondary text and active navigation counts remain legible on their render
         if ((await hideGuide.count()) > 0) {
             await hideGuide.click({ timeout: 5000 });
         }
-        await expect(page.locator('.lp-workshop-summary')).toBeVisible();
+        await expect(page.locator('.lp-workshop-layout')).toBeVisible();
     }).toPass({ timeout: 30_000 });
-    const descriptions = page.locator('.lp-workshop-stat__copy');
+    const descriptions = page.locator('.lp-empty-state--compact');
     expect(await descriptions.count()).toBeGreaterThan(0);
     for (const description of await descriptions.all()) {
         await expect(description).toBeVisible();
         expect
             .soft(
-                await contrast(description),
+                await contrast(description.locator('.lp-empty-state__body')),
                 (await description.textContent()) ?? '',
             )
             .toBeGreaterThanOrEqual(4.5);

@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 // No #[IsGranted]: there is no resource subject here, and the `^/` access_control
 // catch-all already requires ROLE_USER — same posture as the project list.
 #[Route(
-    '/billing/subscribe',
+    '/account/billing',
     name: 'app_billing_subscribe',
     methods: ['GET'],
 )]
