@@ -453,9 +453,17 @@ run, and the item shows the reason, in these cases:
 
 A refused run starts nothing.
 
-The status line shows the run as Queued, Running, Succeeded or Failed. When the
-run ends, the line shows the last lines of its output. A command that waits for
-a worker of its card stays Queued until that worker ends.
+The status line shows the run as Queued, Running, Succeeded or Failed. While the
+command runs, the line shows its output as the command writes it, under a
+**Live** marker. The block follows the end of the output. Scroll up to read
+earlier lines, and the block stays where you are. When the run ends, the line
+shows the last 10 lines, and a Succeeded run shows its time, such as "Succeeded
+in 14 s". A command that waits for a worker of its card stays Queued until that
+worker ends.
+
+An ended run that has stored output also shows **Open the full log**, with the
+number of lines. The link opens the whole log as plain text in a new tab. On a
+failed run, the link sits left of **Mark done** and **Run again**.
 
 A success ends the item. A to-do closes as done, and the worker that waits for
 the answer resumes. For a stopped run, Loupe resumes the worker, which reads the
@@ -469,10 +477,14 @@ Two limits apply:
   pattern lets a worker pass a value that the command reads as an option, such
   as `--exec=...`. Write each pattern to match only the values that you accept.
 - The output can contain what the command prints, including secrets. Loupe
-  keeps the last lines, and everyone who can see the project can read them.
+  stores up to 1 MiB of it for each run, and everyone who can see the project
+  can read it, live and in the full log. Loupe deletes the log with the run.
 
-The page shows the end of the output after the run ends. It shows no live output
-and no full log. See [the bridge guide](../extending/cli-bridge.md#running-an-entry-from-the-inbox)
+Loupe stops storing a log at 1 MiB. The full log then ends with the line
+"Loupe stopped storing the log at 1 MiB", and the command still runs to its end.
+A run from a bridge that is too old to stream shows the last lines after the
+run ends, and no link to a full log. See
+[the bridge guide](../extending/cli-bridge.md#running-an-entry-from-the-inbox)
 for the rule file.
 
 ### Notices

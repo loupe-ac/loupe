@@ -64,7 +64,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Panel | A bordered tinted card that holds one block of a page | none. Takes `as` for the element |
 | SectionHeading | The title of a section, with an optional sentence and optional actions | none. The content is the title. Takes `level`, `description`, `titleId` and an `actions` block, and no `title` prop |
 | FormActions | The row of buttons that ends a form or a dialog | none. Takes `align` |
-| CodeBlock | A dark block of code or a command, with a header label and a copy button | none |
+| CodeBlock | A dark block of code or a command, with a header label and a copy button | none. Takes a `meta` block for a header marker and a `tail` block for markup after the code |
 | CopyButton | A button that copies a text and shows that it did. It owns the `clipboard` controller | text, icon. Tones light, chrome |
 | Avatar | The first letter of a name, or an icon, in a disc or a rounded square | tones accent, tint, ink, danger, chrome. Sizes xs, sm, md, lg. Takes `shape` and `presence` |
 | RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |

@@ -5318,6 +5318,11 @@
             <trans-unit id="inbox.run_command.state.expired"><source>inbox.run_command.state.expired</source><target>Expired</target></trans-unit>
             <trans-unit id="inbox.run_command.state.cancelled"><source>inbox.run_command.state.cancelled</source><target>Cancelled</target></trans-unit>
             <trans-unit id="inbox.run_command.output"><source>inbox.run_command.output</source><target>Output, last lines</target></trans-unit>
+            <trans-unit id="inbox.run_command.output_live"><source>inbox.run_command.output_live</source><target>Output</target></trans-unit>
+            <trans-unit id="inbox.run_command.live"><source>inbox.run_command.live</source><target>Live</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.succeeded_in"><source>inbox.run_command.state.succeeded_in</source><target>Succeeded in %duration%</target></trans-unit>
+            <trans-unit id="inbox.run_command.full_log"><source>inbox.run_command.full_log</source><target>{0} Open the full log|{1} Open the full log (1 line)|]1,Inf[ Open the full log (%count% lines)</target></trans-unit>
+            <trans-unit id="inbox.run_command.log_cut"><source>inbox.run_command.log_cut</source><target>Loupe stopped storing the log at 1 MiB</target></trans-unit>
             <trans-unit id="inbox.run_command.run_again"><source>inbox.run_command.run_again</source><target>Run again</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>

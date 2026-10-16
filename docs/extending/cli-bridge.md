@@ -1310,6 +1310,17 @@ as [Command runs](../reference/worker-runs.md#command-runs) says. The inbox
 shows that state and output. A success closes the to-do or resumes the waiting
 worker. A failure keeps the item open, with **Run again**.
 
+While the command runs, the bridge merges its standard output and standard error
+into one stream. About once a second it sends the new bytes to
+`PUT /api/projects/{handle}/worker-runs/{runId}/output`, with the byte `offset`
+of the first byte. Loupe stores the text only when `offset` equals the number of
+bytes it holds, and answers with that number as `length`. The bridge sends again
+from `length` after a lost answer or a refused offset. The last piece goes out
+before the report that ends the run. A stream that fails never fails the run.
+[Appending the output of a run](../reference/worker-runs.md#appending-the-output-of-a-run)
+has the request and the 1 MiB limit. The inbox page reads the stored log, so it
+shows the output as it arrives and keeps it after the run.
+
 Update the CLI before you add `params` to `rules.yaml`. A CLI from before this
 change refuses the key, and the whole file fails to load. The output can
 contain secrets that the command prints.

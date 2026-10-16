@@ -45,4 +45,12 @@ final class CodeBlockComponentTest extends KernelTestCase
 
         self::assertStringContainsString("<code>one\ntwo</code>", $html);
     }
+
+    public function test_the_meta_block_follows_the_label_and_the_tail_block_follows_the_code(): void
+    {
+        $html = $this->render('<twig:Ds:CodeBlock label="Output" text="a" :copy="false"><twig:block name="meta"><span class="marker">Live</span></twig:block><twig:block name="tail"><i class="cursor"></i></twig:block></twig:Ds:CodeBlock>');
+
+        self::assertStringContainsString('<span class="lp-code-dark__label">Output</span><span class="marker">Live</span>', $html);
+        self::assertStringContainsString('<code>a</code><i class="cursor"></i></pre>', $html);
+    }
 }

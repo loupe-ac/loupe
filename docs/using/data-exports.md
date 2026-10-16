@@ -61,6 +61,8 @@ the user owns, with its outcome, its duration, its cost, its token sums, its
 timing, its peak context, its harness, its account, its harness version, its CLI version and its plugin version. It includes the rows whose run the retention sweep deleted.
 `worker_run_tool_calls.json` holds each tool call of those runs, with its tool, its kind,
 its timing and its signatures.
+`worker_run_output.json` holds the live output text of each run that has one, with its
+project, its run key, its length and a flag for text cut at the size limit.
 `worker_run_bucket_times.json` holds the time of each run in each bucket of the project rules.
 The metrics rows also hold the host values of each run: its mean CPU use, its
 peak memory and swap, its concurrent runs and its battery flag.

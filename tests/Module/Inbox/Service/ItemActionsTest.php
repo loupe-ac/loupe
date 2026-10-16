@@ -14,6 +14,7 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\WorkerRunOutputChunkRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
@@ -598,6 +599,9 @@ final class ItemActionsTest extends KernelTestCase
         self::assertInstanceOf(InboxActionRepository::class, $inboxActions);
         self::assertInstanceOf(InboxAskRepository::class, $inboxAsks);
 
+        $chunks = self::getContainer()->get(WorkerRunOutputChunkRepository::class);
+        self::assertInstanceOf(WorkerRunOutputChunkRepository::class, $chunks);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -608,7 +612,7 @@ final class ItemActionsTest extends KernelTestCase
             $stageWorks,
             new AskingBridge($bridges, $inboxAsks, $runs),
             $this->resolver($liveness),
-            new RunCommandRuns($inboxActions, $workRequests, $runs),
+            new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
         );
     }
 
