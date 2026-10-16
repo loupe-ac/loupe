@@ -40,7 +40,6 @@ use App\Module\Workflow\Contract\EpicBranches;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterType;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -68,7 +67,6 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
         private ForgePullRequestWrites $forgePullRequestWrites,
         private ForgePullRequestRepository $forgePullRequests,
         private EpicBranchMergers $epicBranchMergers,
-        private EntityManagerInterface $em,
         private PullRequestStateWriters $stateWriters,
         private PullRequestOpeners $pullRequestOpeners,
         private WorkRequestOpener $opener,
@@ -323,8 +321,8 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
     private function awaitEpicSync(Card $epic, array $blockers, ActionOutcome $outcome): ActionOutcome
     {
         if (null !== $outcome->requestId) {
-            $epic->awaitEpicBranchSync($outcome->requestId, ...$blockers);
-            $this->em->flush();
+            $requestId = $outcome->requestId;
+            $this->cards->changeEpicBranchSync($epic, static fn (Card $epic) => $epic->awaitEpicBranchSync($requestId, ...$blockers));
         }
 
         return $outcome;
@@ -333,8 +331,7 @@ final readonly class ForgeWrite implements Action, ChecksParameters, RefiresOnFa
     /** @param list<Card> $blockers */
     private function recordEpicSync(Card $card, Card $epic, array $blockers, ?string $epicBranch, int $repositories): ActionOutcome
     {
-        $epic->recordEpicBranchSync(...$blockers);
-        $this->em->flush();
+        $this->cards->changeEpicBranchSync($epic, static fn (Card $epic) => $epic->recordEpicBranchSync(...$blockers));
         $this->logger->info('board.epic_branch_synced', [
             'cardId' => (string) $card->id,
             'epicId' => (string) $epic->id,

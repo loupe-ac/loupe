@@ -758,6 +758,49 @@ final class ForgeWriteTest extends KernelTestCase
         self::assertTrue($epic->epicBranchHolds($blocker));
     }
 
+    public function test_a_fallback_work_keeps_the_pending_run_another_child_stored_meanwhile(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        $other = (string) Uuid::v7();
+        $this->storeEpicBranchSync($epic, pending: [$other => ['01a00000-0000-7000-8000-000000000001' => 1]]);
+
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+
+        self::assertSame([$other, (string) $request->id], array_keys($epic->epicBranchPendingSyncs));
+        $this->em()->clear();
+        $stored = $this->service(CardRepository::class)->find($epic->id ?? throw new \LogicException('A flushed card has an id.'));
+        self::assertNotNull($stored);
+        self::assertSame([$other, (string) $request->id], array_keys($stored->epicBranchPendingSyncs));
+        self::assertSame([(string) $request->id => [(string) $blocker->id => $blocker->completions]], array_diff_key($stored->epicBranchPendingSyncs, [$other => true]));
+    }
+
+    public function test_a_direct_merge_keeps_the_pending_run_another_child_stored_meanwhile(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        $other = (string) Uuid::v7();
+        $this->storeEpicBranchSync($epic, pending: [$other => ['01a00000-0000-7000-8000-000000000001' => 1]]);
+
+        self::assertEquals(ActionOutcome::done(), $this->write($child, 'merge-main-into-epic'));
+
+        self::assertSame([$other], array_keys($epic->epicBranchPendingSyncs));
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
+    public function test_a_fallback_work_settles_on_the_stored_epic_when_another_child_wrote_it_meanwhile(): void
+    {
+        [$epic, $child, , $blocker] = $this->epicWithBlockedChild($this->project());
+        self::assertOpenedWork($this->write($child, 'merge-main-into-epic', fallback: 'sync-epic', writers: false));
+        [$request] = $this->service(WorkRequestRepository::class)->findLiveForCard($child->id ?? throw new \LogicException('A flushed card has an id.'));
+        $other = (string) Uuid::v7();
+        $this->storeEpicBranchSync($epic, pending: [...$epic->epicBranchPendingSyncs, $other => ['01a00000-0000-7000-8000-000000000001' => 1]]);
+
+        $this->settle($request, 'done');
+
+        self::assertSame([$other], array_keys($epic->epicBranchPendingSyncs));
+        self::assertTrue($epic->epicBranchHolds($blocker));
+    }
+
     public function test_the_epic_merge_with_no_installation_opens_the_fallback_work(): void
     {
         [$epic, $child] = $this->epicWithBlockedChild($this->project());
@@ -883,6 +926,19 @@ final class ForgeWriteTest extends KernelTestCase
         $this->em()->flush();
 
         return [$epic, $child, $this->pullRequest($blocker, state: PullRequestState::Merged), $blocker];
+    }
+
+    /**
+     * Writes the sync record of the epic as another process does, behind the back of the loaded copy.
+     *
+     * @param array<string, array<string, int>> $pending
+     */
+    private function storeEpicBranchSync(Card $epic, array $pending): void
+    {
+        $this->em()->getConnection()->executeStatement(
+            'UPDATE board_cards SET epic_branch_pending_syncs = CAST(:pending AS JSONB) WHERE id = :id',
+            ['pending' => json_encode($pending, \JSON_THROW_ON_ERROR), 'id' => (string) $epic->id],
+        );
     }
 
     private function mergedPullRequestIn(Card $card, string $repository, ?string $defaultBranch, int $number = 900): void
@@ -1094,7 +1150,6 @@ final class ForgeWriteTest extends KernelTestCase
             ),
             $forgePullRequests,
             new EpicBranchMergers($writers ? [$this->epicMerger] : []),
-            $this->em(),
             new PullRequestStateWriters($registered),
             new PullRequestOpeners($registered),
             $this->opener(),

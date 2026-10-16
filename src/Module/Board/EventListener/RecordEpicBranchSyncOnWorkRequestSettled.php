@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Board\EventListener;
 
+use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Event\WorkRequestChanged;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Workflow\Contract\CardEvaluations;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
@@ -23,7 +23,6 @@ final readonly class RecordEpicBranchSyncOnWorkRequestSettled
     public function __construct(
         private CardRepository $cards,
         private WorkRequestRepository $workRequests,
-        private EntityManagerInterface $em,
         private CardEvaluations $evaluations,
         private LoggerInterface $logger,
     ) {
@@ -36,7 +35,7 @@ final readonly class RecordEpicBranchSyncOnWorkRequestSettled
             return;
         }
         $epic = $this->cards->find($cardId)?->parent;
-        if (null === $epic || !\array_key_exists($event->workRequestId->toRfc4122(), $epic->epicBranchPendingSyncs)) {
+        if (null === $epic) {
             return;
         }
 
@@ -45,8 +44,10 @@ final readonly class RecordEpicBranchSyncOnWorkRequestSettled
         if (WorkRequestState::Done === $event->state && !$merged) {
             return;
         }
-        $epic->settleEpicBranchSync($event->workRequestId, $merged);
-        $this->em->flush();
+        $requestId = $event->workRequestId;
+        if (!$this->cards->changeEpicBranchSync($epic, static fn (Card $epic): bool => $epic->settleEpicBranchSync($requestId, $merged))) {
+            return;
+        }
         $this->logger->info('board.epic_branch_sync_settled', [
             'cardId' => (string) $cardId,
             'epicId' => (string) $epic->id,

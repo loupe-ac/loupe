@@ -721,6 +721,35 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * Changes the epic branch sync record of an epic under a row lock, from the row as stored. Two children can
+     * write it at once, so a change from a stale copy would drop the change of the other.
+     *
+     * @template T
+     *
+     * @param \Closure(Card): T $change
+     *
+     * @return T
+     */
+    public function changeEpicBranchSync(Card $epic, \Closure $change): mixed
+    {
+        $em = $this->getEntityManager();
+
+        return $em->wrapInTransaction(static function () use ($em, $epic, $change): mixed {
+            $em->flush();
+            $row = $em->getConnection()->fetchAssociative(
+                'SELECT epic_branch_synced_blockers, epic_branch_pending_syncs FROM board_cards WHERE id = :id FOR UPDATE',
+                ['id' => (string) $epic->id],
+            ) ?: throw new \LogicException('A stored epic has a row.');
+            $epic->epicBranchSyncedBlockers = json_decode((string) $row['epic_branch_synced_blockers'], true, flags: \JSON_THROW_ON_ERROR);
+            $epic->epicBranchPendingSyncs = json_decode((string) $row['epic_branch_pending_syncs'], true, flags: \JSON_THROW_ON_ERROR);
+            $result = $change($epic);
+            $em->flush();
+
+            return $result;
+        });
+    }
+
+    /**
      * How many cards this card follows, and how many of them sit in a column that is not terminal.
      *
      * @return array{followed: int, open: int}
