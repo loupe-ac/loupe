@@ -59,4 +59,19 @@ final class WidgetFileTest extends TestCase
         self::assertStringContainsString('`loupe-site-review:mode:${BACKEND}:${PROJECT}`', $src);
         self::assertSame(2, substr_count($src, 'localStorage.setItem'));
     }
+
+    public function test_every_widget_control_keeps_its_focus_ring(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        preg_match_all('/^\s*(button:focus-visible,[^{]*)\{outline:2px solid var\(--accent-ink\)/m', $src, $rings);
+        self::assertCount(2, $rings[1]);
+        foreach ($rings[1] as $ring) {
+            $selectors = explode(',', $ring);
+            foreach (['button', 'select', 'input', 'textarea', 'a', '[role="button"]'] as $control) {
+                self::assertContains($control.':focus-visible', $selectors, $ring);
+            }
+        }
+        self::assertDoesNotMatchRegularExpression('/outline:\s*(none|0)\b/', $src);
+    }
 }

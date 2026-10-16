@@ -1144,7 +1144,7 @@
       @keyframes lp-pop-down{from{transform:translateY(-8px) scale(.985)}to{transform:none}}
       @keyframes lp-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
       @keyframes lp-slide-left-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
-      button:focus-visible,select:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
       .lp-launcher button:focus-visible{outline-color:var(--accent)}
       .lp-scroll::-webkit-scrollbar{width:10px;height:10px}
       .lp-scroll::-webkit-scrollbar-thumb{background:var(--text-dim);border-radius:6px;border:3px solid transparent;background-clip:content-box}
@@ -1213,7 +1213,7 @@
          this shadow root, and hardcoding light values put a white panel inside
          the dark widget. */
       .lp-picker{margin-top:8px;border:1px solid var(--border-faint);border-radius:10px;padding:8px;background:var(--surface-2)}
-      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-search::placeholder{color:var(--text-dim)}
       .lp-picker-search:focus{border-color:var(--accent-border);background:var(--field-focus)}
       .lp-picker-list{max-height:min(132px,20vh);overflow:auto;margin-top:6px}
@@ -1223,7 +1223,7 @@
          invisible; every other fill measured under 1.2:1 against the panel in
          light, where the whole palette is pale. The 1px edge is what carries
          light mode: a crisp border reads where a wash does not. */
-      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border);outline:none}
+      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border)}
       .lp-picker-row:hover .n,.lp-picker-row:focus-visible .n{color:var(--accent-ink)}
       .lp-picker-row .n{color:var(--text-mute);margin-right:5px}
       .lp-picker-note{padding:6px;font-size:12px;color:var(--text-mute)}
@@ -1241,7 +1241,7 @@
          runs to two lines at most, so it wraps where a card title ellipses. */
       .lp-context-label[data-wrap]{white-space:normal;overflow:visible}
       .lp-picker-foot .lp-picker-search{flex:1 1 auto}
-      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
       .lp-last-card{margin:6px 0 0}
       .lp-verdict{flex:0 1 auto;min-height:0;overflow:auto;margin:0 14px 12px;font-size:12px;line-height:1.45;color:var(--text)}
@@ -1282,7 +1282,7 @@
       .lp-chip-x:focus-visible{opacity:1;outline:2px solid var(--accent-ink);outline-offset:2px;border-radius:999px}
       .lp-compose-hint{flex:0 0 auto;height:24px;line-height:24px;color:var(--text-mute);font-size:11px;font-weight:600}
       /* Borderless: the fill is the field, as everywhere else in the app. */
-      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;outline:none;transition:background .14s ease}
+      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;transition:background .14s ease}
       .lp-textarea:focus{background:var(--field-focus);box-shadow:inset 0 0 0 1px var(--accent-ink),0 0 0 3px var(--accent-soft)}
       .lp-textarea::placeholder{color:var(--text-dim)}
       .lp-compose-foot{display:flex;align-items:center;margin-top:9px}
@@ -1497,7 +1497,7 @@
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-spin{to{transform:rotate(360deg)}}
       .lp-ov{font-family:var(--font)}
-      button:focus-visible,select:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
       .lp-toast button:focus-visible{outline-color:var(--accent)}
       .lp-scrim{position:fixed;inset:0;background:var(--scrim);animation:lp-fade .18s ease;pointer-events:none}
       /* Chartreuse alone can vanish against a pale or yellowish host page, so
