@@ -688,6 +688,19 @@ class CardRepository extends ServiceEntityRepository
         ));
     }
 
+    /** Whether a card that blocks this one sits in a terminal column, as the database holds it now. */
+    public function hasClosedBlocker(Card $card): bool
+    {
+        return false !== $this->getEntityManager()->getConnection()->fetchOne(
+            "SELECT 1 FROM board_card_links l
+             JOIN board_cards s ON s.id = l.source_card_id
+             JOIN board_columns k ON k.id = s.column_id
+             WHERE l.target_card_id = :id AND l.kind = 'blocks' AND k.terminal = true
+             LIMIT 1",
+            ['id' => (string) $card->id],
+        );
+    }
+
     /**
      * How many cards this card follows, and how many of them sit in a column that is not terminal.
      *

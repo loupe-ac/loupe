@@ -1152,7 +1152,9 @@ every link of its board.
 
 An open `blocked-by` card keeps an approved card in its stage column. The card
 moves on when its last blocker reaches a terminal column, or when its last
-blocking link goes away. See [An approval moves a card](#an-approval-moves-a-card).
+blocking link goes away. When a blocker is done, an agent first rechecks the
+approved tech design against the code. See [An approval moves a card](#an-approval-moves-a-card)
+and [Recheck of a design](workflows.md#recheck-of-a-design).
 
 ## Review feedback on a card
 

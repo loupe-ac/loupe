@@ -14,6 +14,7 @@ use App\Module\Board\Workflow\Condition\CardDocumentApproved;
 use App\Module\Board\Workflow\Condition\CardDocumentChangesRequested;
 use App\Module\Board\Workflow\Condition\CardFollowsFinished;
 use App\Module\Board\Workflow\Condition\CardHasChildren;
+use App\Module\Board\Workflow\Condition\CardHasClosedBlocker;
 use App\Module\Board\Workflow\Condition\CardHasOpenBlocker;
 use App\Module\Board\Workflow\Condition\CardHasType;
 use App\Module\Board\Workflow\Condition\CardParentExists;
@@ -48,6 +49,8 @@ final class CardConditionsTest extends TestCase
 
         yield 'open blocker' => [new CardHasOpenBlocker(), [], self::card(hasOpenBlocker: true), true];
         yield 'no open blocker' => [new CardHasOpenBlocker(), [], self::card(hasOpenBlocker: false), false];
+        yield 'closed blocker' => [new CardHasClosedBlocker(), [], self::card(hasClosedBlocker: true), true];
+        yield 'no closed blocker' => [new CardHasClosedBlocker(), [], self::card(hasClosedBlocker: false), false];
 
         yield 'follows only finished cards' => [new CardFollowsFinished(), [], self::followUp(true, true), true];
         yield 'follows an open card' => [new CardFollowsFinished(), [], self::followUp(true, false), false];
@@ -119,6 +122,7 @@ final class CardConditionsTest extends TestCase
     {
         yield 'card.type' => [new CardHasType(), ['type' => 'epic'], 'workflow.waiting.card_type', ['%type%' => 'epic']];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], 'workflow.waiting.card_has_open_blocker', []];
+        yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], 'workflow.waiting.card_has_closed_blocker', []];
         yield 'card.follows.finished' => [new CardFollowsFinished(), [], 'workflow.waiting.card_follows_finished', []];
         yield 'card.parent.exists' => [new CardParentExists(), [], 'workflow.waiting.card_is_child', []];
         yield 'card.children.exist' => [new CardHasChildren(), [], 'workflow.waiting.card_has_children', []];
@@ -169,6 +173,7 @@ final class CardConditionsTest extends TestCase
     {
         yield 'card.type' => [new CardHasType(), ['type' => 'epic'], [CardTypeFacts::class]];
         yield 'card.blocker.open' => [new CardHasOpenBlocker(), [], [BlockerFacts::class]];
+        yield 'card.blocker.closed' => [new CardHasClosedBlocker(), [], [BlockerFacts::class]];
         yield 'card.follows.finished' => [new CardFollowsFinished(), [], [FollowUpFacts::class]];
         yield 'card.parent.exists' => [new CardParentExists(), [], [ParentFacts::class]];
         yield 'card.children.exist' => [new CardHasChildren(), [], [ChildrenFacts::class]];
@@ -193,6 +198,7 @@ final class CardConditionsTest extends TestCase
     private static function card(
         string $type = 'feature',
         bool $hasOpenBlocker = false,
+        bool $hasClosedBlocker = false,
         bool $isChild = false,
         int $childCount = 0,
         int $openChildCount = 0,
@@ -209,6 +215,7 @@ final class CardConditionsTest extends TestCase
             documents: $documents,
             childMergedIntoEpicBranch: $childMergedIntoEpicBranch,
             parentDocuments: $parentDocuments,
+            hasClosedBlocker: $hasClosedBlocker,
         ));
     }
 }
