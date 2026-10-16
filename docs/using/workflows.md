@@ -618,7 +618,8 @@ this loop runs:
    reaches your inbox in review.
 
 A review that passes but has a finding for you waits for the revise worker to
-answer that finding. The loop then ends.
+answer that finding. The loop then ends. The app publishes the drafts only when
+the loop of each draft with the tag ended.
 
 You can skip the loop. When you publish or review the draft yourself, the
 rule `cancelWhen` no longer holds, so Loupe withdraws the live review or
@@ -633,7 +634,7 @@ ends the loop:
 |---|---|
 | `design_review.due` | a draft with the tag has a version that no review read, or a review that a revision answered, and its loop is not finished |
 | `design_review.fix_due` | the review of the current version of a draft with the tag failed, has no answers, and asks for a revision |
-| `design_review.finished` | the review of the current version of a draft with the tag passed, or a fix round answered a passed review with a question for the owner and revised the draft when an answer is fixed or for the owner, or the draft used all its failed reviews |
+| `design_review.finished` | each draft with the tag has a finished loop, and at least one such draft exists. A loop is finished when the review of the current version passed, or a fix round answered a passed review with a question for the owner and revised the draft when an answer is fixed or for the owner, or the draft used all its failed reviews |
 | `design_review.running` | a draft with the tag has a loop that is not finished. The marker `design-review-running` reads it |
 
 Lifecycle uses them in these rules, for the slots Product design and Tech

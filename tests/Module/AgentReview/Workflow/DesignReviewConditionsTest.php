@@ -33,7 +33,7 @@ final class DesignReviewConditionsTest extends TestCase
         yield 'third failure, not answered' => [self::state(AgentReviewConclusion::Failure, failed: 3), false, false, true, false];
         yield 'third failure, answered' => [self::state(AgentReviewConclusion::Failure, answered: true, failed: 3), false, false, true, false];
         yield 'passed with a question, not answered' => [self::state(AgentReviewConclusion::Success, needsPerson: true), false, true, false, true];
-        yield 'passed with a question, answered not changed' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true), false, false, true, false];
+        yield 'passed with a question that the fix round judged wrong' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true), false, false, true, false];
         yield 'passed with a question, answered for the owner before the revision' => [self::state(AgentReviewConclusion::Success, answered: true, revised: true, needsPerson: true), true, false, false, true];
         yield 'passed without a question' => [self::state(AgentReviewConclusion::Success), false, false, true, false];
         yield 'passed with a question, answered with a revision' => [self::state(AgentReviewConclusion::Success, answered: true, revised: true, needsPerson: true, version: 2, reviewVersion: 1), false, false, true, false];
@@ -68,7 +68,16 @@ final class DesignReviewConditionsTest extends TestCase
         $facts = self::facts(self::state(AgentReviewConclusion::Success), self::state());
 
         self::assertTrue(new DesignReviewDue()->evaluate($facts, self::PARAMS));
-        self::assertTrue(new DesignReviewFinished()->evaluate($facts, self::PARAMS));
+        self::assertTrue(new DesignReviewRunning()->evaluate($facts, self::PARAMS));
+    }
+
+    public function test_finished_waits_for_every_draft_with_the_tag(): void
+    {
+        $finished = new DesignReviewFinished();
+
+        self::assertFalse($finished->evaluate(self::facts(self::state(AgentReviewConclusion::Success), self::state()), self::PARAMS));
+        self::assertTrue($finished->evaluate(self::facts(self::state(AgentReviewConclusion::Success), self::state(AgentReviewConclusion::Failure, failed: 3)), self::PARAMS));
+        self::assertTrue($finished->evaluate(self::facts(self::state(AgentReviewConclusion::Success), self::state(tags: ['product-design'])), self::PARAMS));
     }
 
     public function test_no_document_makes_every_condition_false(): void
