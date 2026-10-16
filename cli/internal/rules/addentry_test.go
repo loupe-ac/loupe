@@ -3,6 +3,7 @@ package rules
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -160,6 +161,81 @@ func TestAddWorkEntryRefusesWhenTheFileChangesMeanwhile(t *testing.T) {
 	}
 	if after := readFile(t, path); after != edited {
 		t.Fatalf("the edit was lost:\n%s", after)
+	}
+	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(path), ".*-*")); len(left) != 0 {
+		t.Fatalf("temporary files left = %v", left)
+	}
+}
+
+// The check that the file is unchanged runs after the new bytes are ready,
+// just before the rename, so an edit made while the bridge encodes stays.
+func TestAddWorkEntryChecksTheFileJustBeforeTheRename(t *testing.T) {
+	path := writeRules(t, acceptingFile)
+	edited := acceptingFile + "# An edit of the operator.\n"
+	reads := 0
+	readRuleFile = func(name string) ([]byte, error) {
+		reads++
+		if reads == 2 {
+			left, _ := filepath.Glob(filepath.Join(filepath.Dir(name), ".*-*"))
+			if len(left) != 1 {
+				t.Errorf("the check ran before the new bytes were ready: temporary files = %v", left)
+			}
+			if err := os.WriteFile(name, []byte(edited), 0o640); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		return os.ReadFile(name)
+	}
+	t.Cleanup(func() { readRuleFile = os.ReadFile })
+
+	_, err := AddWorkEntry(path, newEntry, Defaults{})
+
+	if got := reasonOf(t, err); got != RefuseFileChanged {
+		t.Fatalf("reason = %s (%v), want %s", got, err, RefuseFileChanged)
+	}
+	if after := readFile(t, path); after != edited {
+		t.Fatalf("the edit was lost:\n%s", after)
+	}
+}
+
+// A retry of an add that wrote the file finds the same entry, whatever its
+// style, and changes nothing.
+func TestAddWorkEntryReportsTheSameEntryAsPresent(t *testing.T) {
+	path := writeRules(t, acceptingFile)
+	if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+		t.Fatal(err)
+	}
+	before := readFile(t, path)
+
+	for name, text := range map[string]string{
+		"same text":  newEntry,
+		"flow style": "export: {action: command, description: Export it, params: {out: {pattern: 'var/[a-z-]+', description: The folder}}, run: [bin/export, '{out}'], timeout: 5m}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			undo, err := AddWorkEntry(path, text, Defaults{})
+
+			if !errors.Is(err, ErrEntryPresent) || undo != nil {
+				t.Fatalf("err = %v, want ErrEntryPresent and no undo", err)
+			}
+			if after := readFile(t, path); after != before {
+				t.Fatalf("the file changed:\n%s", after)
+			}
+		})
+	}
+}
+
+// An entry of the same name with another body is still refused.
+func TestAddWorkEntryRefusesTheSameNameWithAnotherBody(t *testing.T) {
+	path := writeRules(t, acceptingFile)
+	if _, err := AddWorkEntry(path, newEntry, Defaults{}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := AddWorkEntry(path, strings.Replace(newEntry, "timeout: 5m", "timeout: 6m", 1), Defaults{})
+
+	if got := reasonOf(t, err); got != RefuseEntryExists {
+		t.Fatalf("reason = %s (%v), want %s", got, err, RefuseEntryExists)
 	}
 }
 

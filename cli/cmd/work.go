@@ -302,7 +302,8 @@ func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, r
 // addEntry answers a request to add a command entry to the rule file. The
 // request is no work for an agent, so it never matches the work map. Only the
 // bridge the request names takes it. The request is done only once a reload
-// runs the entry. A failed reload takes the entry out again and refuses.
+// runs the entry. A failed reload takes the entry out again and refuses. A
+// retry that finds the same entry in the file reloads, and is done.
 func (r *router) addEntry(w api.WorkRequest, source string) {
 	if w.TargetBridgeID == "" {
 		r.log.Warn("work_request_skipped", append(workAttrs(w, source), "reason", "no_target")...)
@@ -325,6 +326,9 @@ func (r *router) addEntry(w api.WorkRequest, source string) {
 		r.reloadMu.Lock()
 		defer r.reloadMu.Unlock()
 		undo, err := r.addEntryToFile(w.Prompt)
+		if errors.Is(err, rules.ErrEntryPresent) {
+			undo, err = nil, nil
+		}
 		if err != nil {
 			reason := rules.RefuseWriteFailed
 			var refusal *rules.EntryRefusal

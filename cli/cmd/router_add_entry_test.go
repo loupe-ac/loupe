@@ -96,6 +96,22 @@ func TestAFailedReloadUndoesTheEntryAndRefuses(t *testing.T) {
 	}
 }
 
+// A retry that finds the same entry in the file reloads and settles as done,
+// so an add that wrote the file before the bridge stopped reports its result.
+func TestARetriedAddEntryWithTheSameEntrySettlesAsDone(t *testing.T) {
+	h, f, _, loads := withAddEntry(t, true)
+	h.router.source.addEntry = func(string) (func() error, error) { return nil, rules.ErrEntryPresent }
+
+	h.offer(f, addEntryRequest(1, addEntryText))
+
+	if got := f.settled(); !slices.Equal(got, []string{workID(1) + " " + tokenOf(1) + " done"}) {
+		t.Fatalf("results = %v", got)
+	}
+	if loads.Load() != 1 {
+		t.Fatalf("loads = %d, want one reload", loads.Load())
+	}
+}
+
 // An add waits for a reload that runs, rather than refusing.
 func TestAnAddEntryWaitsForARunningReload(t *testing.T) {
 	h, f, added, loads := withAddEntry(t, true)

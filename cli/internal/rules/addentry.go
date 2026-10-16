@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"go.yaml.in/yaml/v3"
 
@@ -23,6 +24,11 @@ type EntryRefusal struct {
 func (e *EntryRefusal) Error() string { return e.Reason + ": " + e.Err.Error() }
 
 func (e *EntryRefusal) Unwrap() error { return e.Err }
+
+// ErrEntryPresent is the error of AddWorkEntry when the work map holds the
+// same entry already, such as after a retry of an add that wrote the file. The
+// file is unchanged.
+var ErrEntryPresent = errors.New("the work map holds the same entry already")
 
 // readRuleFile reads the rule file for AddWorkEntry. A test replaces it to
 // edit the file between two reads.
@@ -70,9 +76,14 @@ func AddWorkEntry(path, entryYAML string, defaults Defaults) (undo func() error,
 	}
 	work := workNode(doc.Content[0])
 	for i := 0; i+1 < len(work.Content); i += 2 {
-		if work.Content[i].Value == name {
-			return nil, refuseEntry(RefuseEntryExists, "the work map holds an entry named %q already", name)
+		if work.Content[i].Value != name {
+			continue
 		}
+		if sameNode(work.Content[i+1], entry) {
+			return nil, ErrEntryPresent
+		}
+
+		return nil, refuseEntry(RefuseEntryExists, "the work map holds an entry named %q already", name)
 	}
 	work.Style = 0
 	work.Content = append(work.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: name}, entry)
@@ -98,27 +109,47 @@ func AddWorkEntry(path, entryYAML string, defaults Defaults) (undo func() error,
 	if err != nil {
 		return nil, refuseEntry(RefuseWriteFailed, "write rule file: %w", err)
 	}
-	if now, err := readRuleFile(path); err != nil {
-		return nil, refuseEntry(RefuseWriteFailed, "read rule file: %w", err)
-	} else if !bytes.Equal(now, data) {
-		return nil, refuseEntry(RefuseFileChanged, "the rule file changed while the bridge added the entry")
-	}
 	written := out.Bytes()
-	if err := update.WriteFile(path, written, info.Mode().Perm()); err != nil {
+	if err := update.ReplaceFile(path, written, info.Mode().Perm(), holds(path, data)); err != nil {
+		var refusal *EntryRefusal
+		if errors.As(err, &refusal) {
+			return nil, refusal
+		}
+
 		return nil, refuseEntry(RefuseWriteFailed, "write rule file: %w", err)
 	}
 
 	return func() error {
+		return update.ReplaceFile(path, data, info.Mode().Perm(), holds(path, written))
+	}, nil
+}
+
+// holds checks that the file at path still holds want. ReplaceFile runs it
+// just before its rename, so an edit made before that point stays. No
+// portable rename compares first, so an edit inside the rename call is lost.
+func holds(path string, want []byte) func() error {
+	return func() error {
 		now, err := readRuleFile(path)
 		if err != nil {
-			return err
+			return refuseEntry(RefuseWriteFailed, "read rule file: %w", err)
 		}
-		if !bytes.Equal(now, written) {
-			return errors.New("the rule file changed after the bridge added the entry, so the bridge keeps it")
+		if !bytes.Equal(now, want) {
+			return refuseEntry(RefuseFileChanged, "the rule file changed while the bridge wrote it, so the bridge keeps the change")
 		}
 
-		return update.WriteFile(path, data, info.Mode().Perm())
-	}, nil
+		return nil
+	}
+}
+
+// sameNode reports whether two YAML nodes hold the same value, whatever
+// their style.
+func sameNode(a, b *yaml.Node) bool {
+	var av, bv any
+	if a.Decode(&av) != nil || b.Decode(&bv) != nil {
+		return false
+	}
+
+	return reflect.DeepEqual(av, bv)
 }
 
 // workNode returns the work mapping of the top-level node, and makes it when
