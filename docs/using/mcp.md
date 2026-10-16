@@ -276,7 +276,7 @@ Roughly in the order an agent uses them:
 | `document_revise` | Submit a new version, described by what changed |
 | `document_publish` | Send a draft to review, so it reaches the reviewer's inbox |
 | `document_get` / `document_list` | Read a document, or enumerate the project's, with search and filters |
-| `document_get_review` | Verdict, threaded comments, and answered decision blocks |
+| `document_get_review` | Verdict, threaded comments, answered decision blocks, and the agent reviews of the document with the answer to each finding |
 | `document_reply_to_comment` | Reply to a reviewer's thread |
 | `document_mark_comment_addressed` | Mark a thread acted on |
 | `document_highlight` | Tint the passages to read first (off by default — see below) |
@@ -290,6 +290,8 @@ Roughly in the order an agent uses them:
 | `feedback_list` | The project's site-review feedback, each item with the card it belongs to (off with the board, see below) |
 | `feedback_mark_addressed` | Mark feedback items acted on, so the next `feedback_list` skips them (off with the board, see below) |
 | `agent_review_submit` | Submit the review of a pull request of a card, with findings on file lines. A finding has the category `code` (the default) or `spec`, a gap between the pull request and the approved design. Only a `spec` finding can leave out the file and the lines. A `spec` finding can set `needsPerson` when a worker cannot settle it from the design and the code alone. The fix worker then asks the owner. Only a running `review` worker of the card can call it. Loupe stores the review against the commit it names, and the `agent-review-check` forge write shows it as a check on the pull request. The result field `current` says whether that commit matches the last head commit that Loupe read from the forge |
+| `document_review_submit` | Submit the review of a draft design document of a card, with findings that name no file. A finding can set `needsPerson` for a gap that only the owner can settle, and such a finding does not fail the review. Only a running `design-review` worker of the card can call it, and only for a draft that the card links. Loupe stores the review against the version number it names. The result field `current` says whether that version is still the newest |
+| `document_review_answer` | Answer each finding of the latest agent review of a draft design document as `fixed`, `not-changed` with a reason, or `to-owner`. Only a running `product-design-revise` or `tech-design-revise` worker of the card can call it, once for each review, with one answer for every finding |
 | `card_create` | Put a card on the project board (off with the board, see below) |
 | `card_list` | Read a page of the board, filtered by status, type, reporter or parent, with the board's columns |
 | `board_columns` | List the board's columns, each with its slug, label, terminal flag, default flag and backlog flag, and the card types of the project |

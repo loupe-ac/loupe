@@ -59,6 +59,8 @@ final class AdvertisedTools
         'feedback_list',
         'feedback_mark_addressed',
         'agent_review_submit',
+        'document_review_submit',
+        'document_review_answer',
         'card_create',
         'card_list',
         'board_columns',

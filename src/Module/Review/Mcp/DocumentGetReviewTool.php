@@ -15,7 +15,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-import-type ReviewPayload from ShowReviewHandler
  */
-#[McpTool(name: 'document_get_review', description: 'Fetch the review state (verdict, status, threaded comments, and answered decision blocks) for a document\'s current version. Every comment and reply reports whether an agent or a human wrote it, and a comment may carry a replacement for the text it quotes. A decision block reports its type: a single-choice block answers in selected, and a multiple-choice block answers in selections.')]
+#[McpTool(name: 'document_get_review', description: 'Fetch the review state (verdict, status, threaded comments, answered decision blocks, and the agent reviews with their answers) for a document\'s current version. Every comment and reply reports whether an agent or a human wrote it, and a comment may carry a replacement for the text it quotes. A decision block reports its type: a single-choice block answers in selected, and a multiple-choice block answers in selections.')]
 final readonly class DocumentGetReviewTool
 {
     public function __construct(
@@ -68,6 +68,11 @@ final readonly class DocumentGetReviewTool
      *
      * Each decision's `id` is the one the document declared in its fence, and it is permanent:
      * changing it in a revision discards the answer keyed to the old one
+     *
+     * `agentReviews` lists each agent review of the document, newest first. Each carries the
+     * `versionNumber` that the reviewer read, its `conclusion`, its `findings` with their
+     * `index`, and the `answer` of the fix round to each finding, or null before it answers.
+     * `answered` says whether the fix round has answered the review
      *
      * @return ReviewPayload
      */
