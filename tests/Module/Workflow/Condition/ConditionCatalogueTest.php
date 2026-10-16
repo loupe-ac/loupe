@@ -21,6 +21,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'agent_review.passed' => 'workflow.source.agent_review',
         'agent_review.uncommented' => 'workflow.source.agent_review',
         'agent_review.unposted' => 'workflow.source.agent_review',
+        'card.blocker.closed' => 'workflow.source.board',
         'card.blocker.open' => 'workflow.source.board',
         'card.children.exist' => 'workflow.source.board',
         'card.children.finished' => 'workflow.source.board',
@@ -36,6 +37,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.in_slot' => 'workflow.source.board',
         'card.inbox.open_question' => 'workflow.source.inbox',
         'card.parent.document.approved' => 'workflow.source.board',
+        'card.parent.epic_branch.synced' => 'workflow.source.board',
         'card.parent.exists' => 'workflow.source.board',
         'card.parent.in_slot' => 'workflow.source.board',
         'card.parent.run.active' => 'workflow.source.bridge',
@@ -76,6 +78,7 @@ final class ConditionCatalogueTest extends KernelTestCase
 
     /** The keys whose waiting sentence id is not the key with underscores. */
     private const array WAITING_SUFFIXES = [
+        'card.blocker.closed' => 'card_has_closed_blocker',
         'card.blocker.open' => 'card_has_open_blocker',
         'card.children.exist' => 'card_has_children',
         'card.children.finished' => 'card_children_finished',

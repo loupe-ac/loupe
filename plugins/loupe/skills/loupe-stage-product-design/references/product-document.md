@@ -4,7 +4,7 @@ Read this before you write or revise a product document. The `loupe-documents` r
 
 Use the sections below, in this order, as `##` headings. Write each section as a numbered list, so a reviewer can cite an entry (rule 2). Open each entry with a short lead sentence (rule 4). Follow `loupe-documents` `references/design-structure.md` for the reader rule, At a glance, the decisions and the tables (rule 15). The reader rule is its section "Write for a reader who knows the product".
 
-A Light session uses these sections: At a glance, Problem, Current behaviour, Proposed behaviour, Out of scope, Assumptions, Decisions log, For tech design, Scenarios, Open questions, and Docs and landing page impact. Its At a glance is two sentences, and it skips Priorities and How others do it. A Full session uses every section. Leave out a section with nothing real to say. Problem, Proposed behaviour, Decisions log, Scenarios, and Docs and landing page impact always stay.
+A Light session uses these sections: At a glance, Problem, Current behaviour, Proposed behaviour, Out of scope, Assumptions, Decisions log, Design system, For tech design, Scenarios, Open questions, and Docs and landing page impact. Its At a glance is two sentences, and it skips Priorities and How others do it. A Full session uses every section. Leave out a section with nothing real to say. Problem, Proposed behaviour, Decisions log, Scenarios, and Docs and landing page impact always stay.
 
 ## At a glance
 
@@ -51,6 +51,10 @@ List each guess that the author made and nobody can check yet, such as how users
 ## Decisions log
 
 Record each question that the session asked, with its answer. When an agent wrote the document with no owner present, write one entry that says so.
+
+## Design system
+
+Write it when the `Instruction files` section of the repository profile names a design system, and the change touches the user interface. List each component that the change reuses. List each component that it must change, and say what changes, such as a new option or a new state. A change to the look or the behaviour of a component goes into the component. The position on the page stays a page rule. Cite the `R` IDs each entry serves. Propose no new component, and name a part that no component covers as page-level.
 
 ## For tech design
 

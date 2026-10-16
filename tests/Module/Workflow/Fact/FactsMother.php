@@ -18,6 +18,8 @@ use App\Module\Board\Workflow\ChildrenFactProvider;
 use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\DocumentsFactProvider;
 use App\Module\Board\Workflow\DocumentsFacts;
+use App\Module\Board\Workflow\EpicBranchSyncFactProvider;
+use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\FollowUpFacts;
 use App\Module\Board\Workflow\ParentDocumentsFactProvider;
@@ -65,6 +67,7 @@ final class FactsMother
         CardTypeFactProvider::class,
         BlockerFactProvider::class,
         ParentFactProvider::class,
+        EpicBranchSyncFactProvider::class,
         ChildrenFactProvider::class,
         DocumentsFactProvider::class,
         ParentDocumentsFactProvider::class,
@@ -94,7 +97,7 @@ final class FactsMother
         $card ??= self::card();
         $run ??= self::run();
         $given = [
-            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild)),
+            ...self::byClass(new CardTypeFacts($card->type), new BlockerFacts($card->hasOpenBlocker, $card->hasClosedBlocker), new FollowUpFacts(false, false), new ParentFacts($card->isChild), new EpicBranchSyncFacts(true)),
             ...self::byClass(new ChildrenFacts($card->childCount, $card->openChildCount, $card->childMergedIntoEpicBranch), new DocumentsFacts($card->documents), new ParentDocumentsFacts($card->parentDocuments)),
             ...self::byClass(new PullRequestList($pullRequests, $pullRequest)),
             ...self::byClass(new AgentReviewFacts(self::reviewedHeads($pullRequest, $pullRequests), epic: false, unposted: false, uncommented: [])),
@@ -169,8 +172,9 @@ final class FactsMother
         bool $childMergedIntoEpicBranch = false,
         array $parentDocuments = [],
         ?string $parentSlot = null,
+        bool $hasClosedBlocker = false,
     ): CardInputs {
-        return new CardInputs($slot, $type, $hasOpenBlocker, $isChild, $childCount, $openChildCount, $documents, $childMergedIntoEpicBranch, $parentDocuments, $parentSlot);
+        return new CardInputs($slot, $type, $hasOpenBlocker, $isChild, $childCount, $openChildCount, $documents, $childMergedIntoEpicBranch, $parentDocuments, $parentSlot, $hasClosedBlocker);
     }
 
     /** @param list<ForgeRequest> $forgeRequests */

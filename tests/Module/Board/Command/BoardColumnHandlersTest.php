@@ -233,6 +233,7 @@ final class BoardColumnHandlersTest extends KernelTestCase
         self::assertInstanceOf(Card::class, $stamped);
         self::assertTrue($stamped->column->terminal);
         self::assertNotNull($stamped->completedAt);
+        self::assertSame(1, $stamped->completions);
         self::assertGreaterThan(new \DateTimeImmutable('2021-01-01'), $stamped->updatedAt);
         self::assertTrue($this->audit->record('board.column_terminal_set')->context['terminal']);
     }
@@ -371,6 +372,7 @@ final class BoardColumnHandlersTest extends KernelTestCase
         self::assertInstanceOf(Card::class, $moved);
         self::assertSame('done', $moved->column->slug);
         self::assertNotNull($moved->completedAt);
+        self::assertSame(1, $moved->completions);
     }
 
     public function test_a_loaded_card_reads_its_new_column_rank_and_completion_after_the_bulk_move(): void
@@ -385,6 +387,7 @@ final class BoardColumnHandlersTest extends KernelTestCase
         self::assertSame('done', $second->column->slug);
         self::assertSame(0, $second->position);
         self::assertNotNull($second->completedAt);
+        self::assertSame(1, $second->completions);
     }
 
     public function test_a_card_moved_into_a_column_deleted_since_it_was_loaded_is_refused(): void
