@@ -129,6 +129,97 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 	}
 }
 
+// lateSource holds its first call until release closes, then fails it with
+// the old login. Every other call follows fixed.
+type lateSource struct {
+	flakySource
+	first   atomic.Bool
+	started chan struct{}
+	release chan struct{}
+}
+
+func (s *lateSource) Token(ctx context.Context) (string, error) {
+	if s.first.CompareAndSwap(false, true) {
+		close(s.started)
+		<-s.release
+
+		return "", oauth.ErrLoginExpired
+	}
+
+	return s.flakySource.Token(ctx)
+}
+
+func (s *lateSource) Refresh(ctx context.Context, _ string) (string, error) { return s.Token(ctx) }
+
+func TestLoginGateIgnoresALateErrorFromThePriorLogin(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"login":"new"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	src := &lateSource{started: make(chan struct{}), release: make(chan struct{})}
+	ticks := make(chan time.Time)
+	var notices atomic.Int32
+	g := newLoginGate(ctx, newBridgeLogger(&out), cfgPath, func(context.Context) error {
+		if !src.fixed.Load() {
+			return oauth.ErrLoginExpired
+		}
+
+		return nil
+	})
+	g.notice = func(context.Context) { notices.Add(1) }
+	g.after = func(time.Duration) <-chan time.Time { return ticks }
+	gated := gatedSource{inner: src, gate: g}
+
+	late := make(chan error, 1)
+	go func() {
+		_, err := gated.Token(ctx)
+		late <- err
+	}()
+	<-src.started
+
+	tripping := make(chan error, 1)
+	go func() {
+		_, err := gated.Token(ctx)
+		tripping <- err
+	}()
+	for {
+		g.mu.Lock()
+		tripped := g.tripped
+		g.mu.Unlock()
+		if tripped {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	src.fixed.Store(true)
+	ticks <- time.Now()
+	if err := <-tripping; err != nil {
+		t.Fatalf("the tripping call failed: %v", err)
+	}
+
+	close(src.release)
+	select {
+	case err := <-late:
+		if err != nil {
+			t.Fatalf("the late call failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the late error from the prior login closed the gate again")
+	}
+
+	if n := strings.Count(out.String(), `"event":"login_expired"`); n != 1 {
+		t.Fatalf("login_expired logged %d times, want 1:\n%s", n, out.String())
+	}
+	if notices.Load() != 1 {
+		t.Fatalf("notices = %d, want 1", notices.Load())
+	}
+}
+
 func TestLoginGateFindsLoginWrittenBeforeTheWatcherStarts(t *testing.T) {
 	cfgPath := filepath.Join(t.TempDir(), "config.json")
 	if err := os.WriteFile(cfgPath, []byte(`{"login":"new"}`), 0o600); err != nil {
@@ -147,7 +238,7 @@ func TestLoginGateFindsLoginWrittenBeforeTheWatcherStarts(t *testing.T) {
 	})
 	g.notice = func(context.Context) {}
 	g.after = func(time.Duration) <-chan time.Time { return ticks }
-	g.trip()
+	g.trip(0)
 	ticks <- time.Now()
 
 	waitCtx, stop := context.WithTimeout(ctx, 2*time.Second)
@@ -176,7 +267,7 @@ func TestLoginGateProbesAgainAfterANetworkError(t *testing.T) {
 	})
 	g.notice = func(context.Context) {}
 	g.after = func(time.Duration) <-chan time.Time { return ticks }
-	g.trip()
+	g.trip(0)
 	ticks <- time.Now()
 	ticks <- time.Now()
 
@@ -234,7 +325,7 @@ func TestLoginGateWaitEndsWithContext(t *testing.T) {
 	g := newLoginGate(context.Background(), newBridgeLogger(&bytes.Buffer{}), filepath.Join(t.TempDir(), "config.json"), nil)
 	g.notice = func(context.Context) {}
 	g.after = func(time.Duration) <-chan time.Time { return nil }
-	g.trip()
+	g.trip(0)
 	cancel()
 
 	if err := g.wait(ctx); !errors.Is(err, context.Canceled) {

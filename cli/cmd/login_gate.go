@@ -45,6 +45,8 @@ type loginGate struct {
 	tripped bool
 	// open is closed when the gate opens, and replaced at each trip.
 	open chan struct{}
+	// openings counts the times the gate opened.
+	openings uint64
 }
 
 func newLoginGate(ctx context.Context, log *slog.Logger, configPath string, probe func(context.Context) error) *loginGate {
@@ -61,10 +63,12 @@ func newLoginGate(ctx context.Context, log *slog.Logger, configPath string, prob
 }
 
 // trip closes the gate. Only the first call since the last opening logs, shows
-// the notice and starts the watcher.
-func (g *loginGate) trip() {
+// the notice and starts the watcher. seen is the openings count read before the
+// failed call. A call that started before the last opening used the old login,
+// so its error does not close the gate again.
+func (g *loginGate) trip(seen uint64) {
 	g.mu.Lock()
-	if g.tripped {
+	if g.tripped || g.openings != seen {
 		g.mu.Unlock()
 
 		return
@@ -125,6 +129,7 @@ func (g *loginGate) watch(open chan struct{}) {
 		}
 		g.mu.Lock()
 		g.tripped = false
+		g.openings++
 		g.mu.Unlock()
 		g.log.Info("login_resumed", "message", loginResumedMessage)
 		close(open)
@@ -153,11 +158,14 @@ func (s gatedSource) gated(ctx context.Context, call func() (string, error)) (st
 		if err := s.gate.wait(ctx); err != nil {
 			return "", err
 		}
+		s.gate.mu.Lock()
+		seen := s.gate.openings
+		s.gate.mu.Unlock()
 		token, err := call()
 		if !errors.Is(err, oauth.ErrLoginExpired) {
 			return token, err
 		}
-		s.gate.trip()
+		s.gate.trip(seen)
 	}
 }
 
