@@ -47,7 +47,7 @@ final class InboxActionsToolTest extends KernelTestCase
         ($this->tool)();
     }
 
-    public function test_it_lists_the_seven_actions_with_no_fit_when_no_card_is_given(): void
+    public function test_it_lists_the_eight_actions_with_no_fit_when_no_card_is_given(): void
     {
         $this->enableInbox();
         $this->actAsMcpTokenBoundTo($this->makeProject('inbox-actions-list'));
@@ -55,7 +55,7 @@ final class InboxActionsToolTest extends KernelTestCase
         $actions = ($this->tool)()['actions'];
 
         self::assertSame(
-            ['resume-run', 'retry-card', 'review', 'open', 'send-agent', 'start-session', 'dismiss'],
+            ['resume-run', 'retry-card', 'review', 'open', 'send-agent', 'start-session', 'run-command', 'dismiss'],
             array_column($actions, 'action'),
         );
         self::assertSame([null], array_unique(array_column($actions, 'fitsCard')));

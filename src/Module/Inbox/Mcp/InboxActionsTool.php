@@ -19,7 +19,7 @@ use Mcp\Exception\ToolCallException;
  *
  * @phpstan-type InboxActionSummary array{action: string, effect: string, fitsCard: ?bool}
  */
-#[McpTool(name: self::NAME, description: 'List the built-in actions you can suggest to the owner with suggestedActions on inbox_ask: resume-run, retry-card, review, open, send-agent, start-session and dismiss, each with one line on what it does. Pass cardId to also learn which actions fit that card now; fitsCard is then true or false for each action, and null otherwise. Loupe shows a suggestion only while its action fits the item, so suggest the actions that fit. A card with no open wait item fits open, start-session while a bridge can open a session and none of the card is live, and send-agent while its column names stage work that no request or worker does yet.')]
+#[McpTool(name: self::NAME, description: 'List the built-in actions you can suggest to the owner with suggestedActions on inbox_ask: resume-run, retry-card, review, open, send-agent, start-session, run-command and dismiss, each with one line on what it does. Pass cardId to also learn which actions fit that card now; fitsCard is then true or false for each action, and null otherwise. Loupe shows a suggestion only while its action fits the item, so suggest the actions that fit. A card with no open wait item fits open, start-session while a bridge can open a session and none of the card is live, and send-agent while its column names stage work that no request or worker does yet.')]
 final readonly class InboxActionsTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_actions';
@@ -31,6 +31,7 @@ final readonly class InboxActionsTool implements FlagGatedToolInterface
         'open' => 'Opens the card or the document.',
         'send-agent' => 'Starts a new worker for the stage work of the column the card sits in.',
         'start-session' => 'Opens an interactive session on the card, on a bridge that can open one.',
+        'run-command' => 'Asks the bridge of the asking worker to run one named command entry of its rules.yaml after the owner confirms.',
         'dismiss' => 'Closes the item without an action.',
     ];
 

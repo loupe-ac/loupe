@@ -438,7 +438,7 @@ func TestTheWorkerRunsWithTheMatchingRulesSettings(t *testing.T) {
 	if !v4UUID.MatchString(calls[0].runID) {
 		t.Fatalf("run id %q is not a uuid", calls[0].runID)
 	}
-	schema := `{"properties":{"reason":{"type":"string"},"status":{"enum":["finished","blocked","unfinished","waiting"],"type":"string"},"suggestedActions":{"items":{"properties":{"action":{"type":"string"},"reason":{"type":"string"},"recommended":{"type":"boolean"}},"required":["action","reason"],"type":"object"},"type":"array"},"summary":{"type":"string"},"title":{"type":"string"}},"required":["status","summary"],"type":"object"}`
+	schema := `{"properties":{"reason":{"type":"string"},"status":{"enum":["finished","blocked","unfinished","waiting"],"type":"string"},"suggestedActions":{"items":{"properties":{"action":{"type":"string"},"command":{"properties":{"branch":{"type":"string"},"entry":{"type":"string"},"params":{"items":{"properties":{"name":{"type":"string"},"value":{"type":"string"}},"required":["name","value"],"type":"object"},"type":"array"}},"required":["entry"],"type":"object"},"proposedEntry":{"type":"string"},"reason":{"type":"string"},"recommended":{"type":"boolean"}},"required":["action","reason"],"type":"object"},"type":"array"},"summary":{"type":"string"},"title":{"type":"string"}},"required":["status","summary"],"type":"object"}`
 	want := workerSpec{
 		dir: h.dir, permissionMode: "plan", model: "opus", schema: schema, sessionID: testSession,
 		prompt: "Review " + testCard + " in loupe, for review.\n\n" + directive.Footer,

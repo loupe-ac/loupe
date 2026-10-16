@@ -192,8 +192,15 @@ The core schema also takes an optional `title` and an optional list
 of the wait item, and falls back to the first sentence of the report when it is absent. Each
 suggested action has an `action` key, a one-line `reason` and an optional `recommended` flag.
 The bridge sends both fields in `resultFields`. The app keeps the built-in action keys it
-knows, drops the other keys, and keeps three suggestions at most. The [inbox](../using/inbox.md#titles-and-suggestions-from-the-agent)
+knows, drops the other keys, and keeps three suggestions at most.
+The [inbox](../using/inbox.md#titles-and-suggestions-from-the-agent)
 shows the title, and uses a recommended suggestion as the main action.
+A `run-command` suggestion also carries a `command` and an optional `proposedEntry`. The `command`
+has the `entry` name, an optional `branch` and `params`. In the result schema, `params` is a list of
+`name` and `value` objects, because the strict schema of Codex cannot hold a map with free keys.
+The app also reads a map of names to values. The `proposedEntry` is the YAML of one command entry
+without its name, at most 4,000 characters. The app drops a `run-command` suggestion with a
+malformed `command`.
 
 A worker reports `waiting` when its work waits on the forge, such as checks on
 a pushed pull request. The bridge reports that run as `waiting-on-forge`. The

@@ -668,9 +668,9 @@ reason is at most 2,000 characters. A second call that names a different
 An item can carry `suggestedActions`, at most three, to record which built-in
 action you suggest. Each entry has an `action`, a
 one-line `reason` of at most 200 characters, an optional `recommended`, and an
-optional `cardId` that must be one of the `cardIds` of the same item. The seven
+optional `cardId` that must be one of the `cardIds` of the same item. The eight
 actions are `resume-run`, `retry-card`, `review`, `open`, `send-agent`,
-`start-session` and `dismiss`. The call is refused for an unknown action, a
+`start-session`, `run-command` and `dismiss`. The call is refused for an unknown action, a
 repeated action, a second `recommended` action, or a `cardId` that the item
 does not link. It never checks that
 the action fits, because the fit changes while the item is open. `inbox_get`
@@ -678,6 +678,28 @@ returns the suggestions. A to-do shows them in the split button of its reply
 card, as [the inbox page](inbox.md) says.
 Call `inbox_actions` for the list, with one line on each action. With a `cardId`
 it also says, for each action, whether it fits that card now.
+
+Only a `todo` can suggest `run-command`. It asks the bridge that started you to
+run one named command entry of its `rules.yaml` after the owner confirms. The
+suggestion carries a `command` with the `entry` name, an optional `branch`
+(default `main`) and `params`, an object that maps each param name to a string.
+It can also carry `proposedEntry`, the YAML of one entry without its name, with
+the keys `action` (set to `command`), `description`, `params`, `run` and
+`timeout`. Use it when the bridge may not have the entry yet. It is at most
+4,000 characters.
+
+Loupe checks the `command` before it stores the suggestion. The branch must be a
+git branch name of at most 200 characters. When the bridge has the entry, each
+param must be one the entry declares, each declared param must have a value, and
+each value must match the whole pattern of its param. The bridge entry comes from
+the `bridgeId` you pass, else from the open ask of your session, else from the
+first run of your session, and only while that bridge belongs to the project
+owner and follows the project. Without a bridge entry, Loupe uses the params of
+`proposedEntry` in the same way. With neither, it stores the values unchecked and
+the bridge decides when it runs the command. The call is refused when a question
+or a review suggests `run-command`, when `run-command` has no `command`, and when
+another action carries `command` or `proposedEntry`. The inbox page does not
+offer `run-command` yet.
 
 `MCP_ALLOWED_HOSTS` is a DNS-rebinding allowlist — hostnames only, no port. It
 must contain the hostname agents actually use, or every call is rejected with a

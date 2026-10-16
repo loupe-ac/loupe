@@ -14,6 +14,7 @@ use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Inbox\Service\InboxLinkResolver;
 use App\Module\Inbox\Service\InboxSessionAsks;
 use App\Module\Inbox\Service\RunSuggestions;
+use App\Module\Inbox\Service\SuggestedCommandCheck;
 use Mcp\Exception\ToolCallException;
 
 /**
@@ -58,6 +59,12 @@ final readonly class InboxToolErrorMessages
             AskInboxHandler::SUGGESTION_REASON_TOO_LONG => \sprintf('A suggestion reason must be at most %d characters.', RunSuggestions::MAX_REASON_LENGTH),
             AskInboxHandler::SUGGESTION_CARD_NOT_LINKED => 'The cardId of a suggested action must be one of the cardIds of the same item.',
             AskInboxHandler::TOO_MANY_SUGGESTIONS => \sprintf('Suggest at most %d actions on one item.', RunSuggestions::MAX_SUGGESTIONS),
+            AskInboxHandler::SUGGESTION_RUN_COMMAND_KIND => 'Only a todo can suggest run-command. A question and a review cannot.',
+            AskInboxHandler::SUGGESTION_COMMAND_REQUIRED => 'A run-command suggestion needs a command with the name of the entry.',
+            AskInboxHandler::SUGGESTION_COMMAND_UNEXPECTED => 'Only a run-command suggestion takes command and proposedEntry.',
+            AskInboxHandler::SUGGESTION_BRANCH_INVALID => \sprintf('The branch of a command must be a git branch name of at most %d characters.', SuggestedCommandCheck::MAX_BRANCH_LENGTH),
+            AskInboxHandler::SUGGESTION_PARAM_INVALID => 'The params of a command must name each param of the entry once, and each value must match the pattern of its param whole.',
+            AskInboxHandler::SUGGESTION_ENTRY_INVALID => \sprintf('proposedEntry must be YAML of at most %d characters: a mapping with action: command, and params that each have a pattern.', RunSuggestions::MAX_PROPOSED_ENTRY_LENGTH),
             InboxLinkResolver::CARD_UNKNOWN => 'Every card id must name a card of this project.',
             InboxLinkResolver::DOCUMENT_UNKNOWN => 'Every document id must name a document of this project.',
             InboxLinkResolver::PULL_REQUEST_UNKNOWN => 'The pull request id must name a pull request linked to a card in this project.',
