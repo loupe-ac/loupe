@@ -118,8 +118,8 @@ final readonly class ItemActions
         return InboxActionKind::ResumeRun === $kind ? InboxCardWaitType::WorkerRun : InboxCardWaitType::CardPause;
     }
 
-    /** The card that an action on the item acts on: the card of its watch, or else its first linked card. */
-    public function cardIdOf(InboxItem $item): ?Uuid
+    /** The card that an action on the item acts on: the card of its watch, else the card its suggestion names, else its first linked card. */
+    public function cardIdOf(InboxItem $item, InboxActionKind $kind): ?Uuid
     {
         $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
         if (null !== $watch) {
@@ -127,7 +127,7 @@ final readonly class ItemActions
         }
         $link = $item->cards->first();
 
-        return false === $link ? null : $link->card->id;
+        return self::suggestedCardOf($item, $kind) ?? (false === $link ? null : $link->card->id);
     }
 
     /**
@@ -150,7 +150,7 @@ final readonly class ItemActions
         }
         foreach ($items as $item) {
             $link = $item->cards->first();
-            $linkedId = false === $link ? null : $link->card->id;
+            $linkedId = self::suggestedCardOf($item, InboxActionKind::StartSession) ?? (false === $link ? null : $link->card->id);
             if (!isset($cardIds[self::key($item)]) && null !== $linkedId) {
                 $cardIds[self::key($item)] = $linkedId->toRfc4122();
             }
@@ -175,7 +175,10 @@ final readonly class ItemActions
             $waits = $openWaits[self::key($item)] ?? [];
             $cardId = $cardIds[self::key($item)] ?? null;
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]));
-            $suggestions = self::suggestions($waits, $runs);
+            $suggestions = InboxItemKind::Todo === $item->kind ? self::todoSuggestions($item) : self::suggestions($waits, $runs);
+            if (InboxItemKind::Todo === $item->kind) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
+            }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             $actions[self::key($item)] = array_map(
                 static fn (InboxActionKind $kind): ItemAction => ItemAction::for(
@@ -234,7 +237,7 @@ final readonly class ItemActions
     {
         $cards = [];
         foreach ($items as $item) {
-            $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item);
+            $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : (self::suggestedCardOf($item, InboxActionKind::SendAgent) ?? self::onlyCardOf($item));
             if (null !== $cardId) {
                 $cards[self::key($item)] = [$item->project, $cardId];
             }
@@ -284,6 +287,23 @@ final readonly class ItemActions
             array_map(static fn (array $candidate): SendAgentTarget => $candidate[1], $candidates),
             static fn (SendAgentTarget $target): bool => !isset($live[$target->cardId->toRfc4122().':'.$target->kind]) && !isset($busy[$target->cardId->toRfc4122()]),
         );
+    }
+
+    /** The linked card that the stored suggestion of the kind names, or null. */
+    private static function suggestedCardOf(InboxItem $item, InboxActionKind $kind): ?Uuid
+    {
+        foreach ($item->suggestedActions ?? [] as $stored) {
+            if ($kind->value !== $stored['action'] || null === $stored['cardId']) {
+                continue;
+            }
+            foreach ($item->cards as $link) {
+                if ($link->card->id?->toRfc4122() === $stored['cardId']) {
+                    return $link->card->id;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** The card of a non-wait item that links exactly one card. */
@@ -354,6 +374,21 @@ final readonly class ItemActions
     }
 
     /**
+     * The suggestions that the asking agent stored on a to-do, keyed by action. The to-do offers only these.
+     *
+     * @return array<string, SuggestedAction>
+     */
+    private static function todoSuggestions(InboxItem $item): array
+    {
+        $suggestions = [];
+        foreach ($item->suggestedActions ?? [] as $stored) {
+            $suggestions[$stored['action']] = new SuggestedAction($stored['action'], $stored['reason'], $stored['recommended']);
+        }
+
+        return $suggestions;
+    }
+
+    /**
      * The recommended suggestion when it fits. Otherwise the kind of the newest open wait when it fits,
      * otherwise Open, so a wait item always has a default that fits.
      *
@@ -363,7 +398,7 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
-        if (InboxItemKind::Wait !== $item->kind) {
+        if (!\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Todo], true)) {
             return null;
         }
 
@@ -371,6 +406,10 @@ final readonly class ItemActions
             if (InboxActionKind::Dismiss !== $kind && true === ($suggestions[$kind->value]->recommended ?? false)) {
                 return $kind;
             }
+        }
+
+        if (InboxItemKind::Todo === $item->kind) {
+            return null;
         }
 
         $newest = end($waits);

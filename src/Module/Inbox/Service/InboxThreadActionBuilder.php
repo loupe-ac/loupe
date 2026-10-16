@@ -68,9 +68,7 @@ final readonly class InboxThreadActionBuilder
 
     private function openRow(InboxItem $item, ItemAction $action, ?string $hostCardId): ?ThreadAction
     {
-        $watch = $this->inboxCardWatches->findOneForItem($item);
-        $firstCard = $item->cards->first();
-        $cardId = null !== $watch ? $watch->cardId : (false === $firstCard ? null : $firstCard->card->id);
+        $cardId = $this->itemActions->cardIdOf($item, InboxActionKind::Open);
         if (null !== $cardId) {
             if ($cardId->toRfc4122() === $hostCardId) {
                 return null;

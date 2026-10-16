@@ -198,7 +198,7 @@ final readonly class RunInboxActionHandler
     {
         $item = $command->item;
         $projectId = $item->project->id ?? throw new \LogicException('A stored project has an id.');
-        $card = $this->cardDirectory->findInProject($projectId, $this->itemActions->cardIdOf($item) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
+        $card = $this->cardDirectory->findInProject($projectId, $this->itemActions->cardIdOf($item, InboxActionKind::StartSession) ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]))
             ?? throw new DomainErrors(['action' => self::NOT_AVAILABLE]);
 
         // The row commits first, because the request names it. A refused request removes it again.

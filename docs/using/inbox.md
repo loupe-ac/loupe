@@ -374,9 +374,11 @@ A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
 fit is dropped.
 
-An agent can also attach `suggestedActions` to an item of `inbox_ask`. Loupe
-stores them, and `inbox_get` returns them. The inbox page does not show them
-yet. See [MCP](mcp.md#what-the-tools-do).
+An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
+that carries suggestions shows a reply card with a split button, beside Decline
+and Mark done. The button offers the suggested actions that fit the to-do now,
+and the recommended one is the main action. A to-do with no suggestion that
+fits shows no split button. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to

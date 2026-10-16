@@ -394,6 +394,28 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertNull($this->itemActions()->sendAgentFor($none));
     }
 
+    public function test_a_todo_acts_on_the_linked_card_that_its_suggestion_names(): void
+    {
+        $other = $this->cardIn('in-progress');
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export it', blocking: false);
+        $this->em()->persist($item);
+        $item->cards->add(new InboxItemCard($item, $other));
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $cardId = (string) $this->card->id;
+        $item->suggestedActions = [
+            ['action' => 'send-agent', 'reason' => 'Let an agent do it.', 'recommended' => true, 'cardId' => $cardId],
+            ['action' => 'open', 'reason' => 'Read the card.', 'recommended' => false, 'cardId' => $cardId],
+            ['action' => 'start-session', 'reason' => 'Pair on it.', 'recommended' => false, 'cardId' => $cardId],
+        ];
+        $this->em()->flush();
+
+        self::assertContains(InboxActionKind::SendAgent, array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($item)));
+        self::assertSame($cardId, (string) $this->itemActions()->sendAgentFor($item)?->cardId);
+        self::assertSame($cardId, (string) $this->itemActions()->cardIdOf($item, InboxActionKind::Open));
+        self::assertSame($cardId, (string) $this->itemActions()->cardIdOf($item, InboxActionKind::StartSession));
+        self::assertSame((string) $other->id, (string) $this->itemActions()->cardIdOf($item, InboxActionKind::Review), 'A kind with no suggestion falls back to the first linked card.');
+    }
+
     public function test_a_card_with_no_wait_item_fits_send_agent_as_a_question_on_it_does(): void
     {
         $cardId = $this->card->id ?? throw new \LogicException('Stored.');
