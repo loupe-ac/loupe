@@ -681,6 +681,35 @@ describe('deleting a note', () => {
         );
         expect(deleted[0]).toBe(`${BACKEND}/api/board/feedback/c1`);
     });
+
+    it('drops the confirm overlay of a row on Cancel with no animation event', async () => {
+        bootWidget({
+            respond: () =>
+                ok({
+                    comments: [
+                        {
+                            id: 'c1',
+                            body: 'a note',
+                            url: 'about:blank',
+                            anchors: [],
+                        },
+                    ],
+                    context: null,
+                }),
+        });
+        await settle();
+
+        const root = panelRoot();
+        root.getElementById('lp-launch-main').click();
+        root.getElementById('lp-list-toggle').click();
+        const row = root.querySelector('#lp-list .lp-item');
+        row.querySelector('.lp-del').click();
+        row.querySelector('[data-del-no]').click();
+        expect(row.querySelectorAll('.lp-item-confirm')).toHaveLength(1);
+
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        expect(row.querySelectorAll('.lp-item-confirm')).toHaveLength(0);
+    });
 });
 
 describe('a token revoked while the picker is open', () => {
