@@ -88,6 +88,7 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
             'targetBridgeId' => null,
             'branch' => null,
             'params' => null,
+            'run' => null,
         ]], $this->outboxPayloads());
         self::assertNull($stored->prompt);
 
@@ -251,15 +252,15 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
 
         $request = $this->handler()(new OpenWorkRequestCommand(
             $project, WorkSubject::card(Uuid::v7()), 7, 'design-export', 'run-command', 'inbox:run-command', new WorkRequestContext(),
-            targetBridgeId: $target, branch: 'epic/42', params: ['out' => 'var/x'],
+            targetBridgeId: $target, branch: 'epic/42', params: ['out' => 'var/x'], run: ['export', '{out}'],
         ));
 
         $this->em()->clear();
         $stored = $this->em()->find(WorkRequest::class, $request->id);
         self::assertInstanceOf(WorkRequest::class, $stored);
-        self::assertSame([(string) $target, 'epic/42', ['out' => 'var/x']], [(string) $stored->targetBridgeId, $stored->branch, $stored->params]);
+        self::assertSame([(string) $target, 'epic/42', ['out' => 'var/x'], ['export', '{out}']], [(string) $stored->targetBridgeId, $stored->branch, $stored->params, $stored->run]);
         $payload = $this->outboxPayloads()[0];
-        self::assertSame([$target->toRfc4122(), 'epic/42', ['out' => 'var/x']], [$payload['targetBridgeId'], $payload['branch'], $payload['params']]);
+        self::assertSame([$target->toRfc4122(), 'epic/42', ['out' => 'var/x'], ['export', '{out}']], [$payload['targetBridgeId'], $payload['branch'], $payload['params'], $payload['run']]);
     }
 
     public function test_a_request_with_no_target_and_no_params_writes_nulls_to_the_outbox(): void

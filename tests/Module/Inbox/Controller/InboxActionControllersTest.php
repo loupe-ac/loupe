@@ -372,21 +372,35 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->commandTodo();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'branch' => 'main', 'params' => ['out' => 'other/folder']]);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'branch' => 'main', 'params' => ['out' => 'other/folder'], 'runDigest' => self::shownDigest()]);
 
         self::assertStringStartsWith($this->pageUrl().'?ask=', (string) $this->client->getResponse()->headers->get('Location'));
         $action = $this->onlyAction($item);
         self::assertSame(InboxActionKind::RunCommand, $action->kind);
         $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
         self::assertInstanceOf(WorkRequest::class, $request);
-        self::assertSame(['design-export', (string) $this->bridge->id, 'main', ['out' => 'other/folder'], WorkRequestState::Open], [$request->kind, (string) $request->targetBridgeId, $request->branch, $request->params, $request->state]);
+        self::assertSame(['design-export', (string) $this->bridge->id, 'main', ['out' => 'other/folder'], ['bin/console', 'app:export', '{out}'], WorkRequestState::Open], [$request->kind, (string) $request->targetBridgeId, $request->branch, $request->params, $request->run, $request->state]);
+    }
+
+    public function test_a_run_command_whose_entry_changed_since_the_dialog_is_refused_in_place_and_queues_nothing(): void
+    {
+        $item = $this->commandTodo();
+        $this->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '--force', '{out}'], 'timeout' => '10m']];
+        $this->em()->flush();
+
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => self::shownDigest()]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-'.$item->number, 'The command changed on the bridge since you opened this dialog.');
+        self::assertSame([], $this->actionsOf($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
     }
 
     public function test_a_run_command_without_confirmed_values_runs_the_values_of_the_suggestion(): void
     {
         $item = $this->commandTodo();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '']);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => self::shownDigest()]);
 
         $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId);
         self::assertSame(['epic/42', ['out' => 'var/out']], [$request?->branch, $request?->params]);
@@ -396,7 +410,7 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->commandTodo();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'params' => ['out' => '--exec=1']]);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'params' => ['out' => '--exec=1'], 'runDigest' => self::shownDigest()]);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('#inbox-item-'.$item->number, 'A value does not fit its pattern.');
@@ -427,6 +441,8 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('epic/42', $dialog->filter('select option[selected]')->attr('value'));
         self::assertSame('/work/loupe/.worktrees/card-42', $options->first()->attr('data-folder'));
         self::assertSame('var/out', $dialog->filter('input[name="'.$formId.'[params][out]"]')->attr('value'));
+        $digest = $dialog->filter('input[name="'.$formId.'[runDigest]"]');
+        self::assertSame([self::shownDigest(), $formId], [$digest->attr('value'), $digest->attr('form')]);
         self::assertSame('bin/console app:export var/out', trim($dialog->filter('[data-testid="run-command-argv"]')->text()));
         self::assertSame('Command, in /work/loupe/.worktrees/card-42', trim($dialog->filter('.lp-code-dark__label')->text()));
         self::assertStringContainsString('A success marks the to-do done.', $dialog->text());
@@ -642,6 +658,12 @@ final class InboxActionControllersTest extends WebTestCase
         $this->askHolding($this->em(), $this->project, [$item]);
 
         return $item;
+    }
+
+    /** The digest of the run list of the design-export entry that the dialog shows. */
+    private static function shownDigest(): string
+    {
+        return hash('sha256', json_encode(['bin/console', 'app:export', '{out}'], \JSON_THROW_ON_ERROR));
     }
 
     /** @param array<string, string|array<string, string>> $fields */

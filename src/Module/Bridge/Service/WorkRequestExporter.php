@@ -46,6 +46,7 @@ final readonly class WorkRequestExporter implements UserDataExporterInterface
                 'targetBridgeId' => $request->targetBridgeId?->toRfc4122(),
                 'branch' => $request->branch,
                 'params' => $request->params,
+                'run' => $request->run,
                 'createdAt' => $request->createdAt->format(\DateTimeInterface::ATOM),
                 'reopenedAt' => $request->reopenedAt?->format(\DateTimeInterface::ATOM),
                 'settledAt' => $request->settledAt?->format(\DateTimeInterface::ATOM),

@@ -49,6 +49,7 @@ final class WorkRequestPayload
             'branch' => $request->branch,
             // An object of parameter name to value. Null when the request has none, because an empty array would encode as a list.
             'params' => [] === ($request->params ?? []) ? null : $request->params,
+            'run' => $request->run,
         ];
     }
 }

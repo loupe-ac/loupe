@@ -116,6 +116,7 @@ final readonly class OpenWorkRequestHandler
                 $request->targetBridgeId = $command->targetBridgeId;
                 $request->branch = $command->branch;
                 $request->params = $command->params;
+                $request->run = $command->run;
                 $this->em->persist($request);
                 // The payload names the request, so the row needs its id first.
                 $this->em->flush();

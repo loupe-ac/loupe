@@ -438,12 +438,14 @@ parameter values and the built-in placeholders filled in. The branch list holds
 each branch that has a worktree on the bridge. When the branch of the worker has
 no worktree, the list shows it off, and Run stays off until you pick another
 branch. Check the filled command, then select **Run**. Nothing runs before you
-do.
+do. When the bridge reports a changed command before you select **Run**, Loupe
+refuses the run and asks you to read the command again.
 
 The bridge checks the request again, with its own rule file. It refuses the
 run, and the item shows the reason, in these cases:
 
 - `entry-missing`: the rule file has no command of that name.
+- `entry-changed`: the command in the rule file changed after you confirmed it.
 - `param-invalid`: a value does not match the whole pattern of its parameter.
 - `worktree-missing`: the bridge finds no worktree for the branch.
 - `placeholder-missing`: the command needs a value that the item cannot give,

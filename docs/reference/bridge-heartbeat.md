@@ -487,6 +487,7 @@ another bridge claimed. Each request carries these fields:
 | `targetBridgeId` | the id of the one bridge that may claim the request, or `null` when any bridge that can run it may. The heartbeat reply offers the request to that bridge alone, and the claim of any other bridge answers `work_request_not_found`. A bridge ignores an event that names another bridge |
 | `branch` | the git branch whose worktree a command entry runs in, or `null`. Set on a command that the owner ran from the inbox |
 | `params` | an object of parameter name to value for a command entry, or `null` when the request has none. The bridge matches each value against the pattern of its parameter before it runs |
+| `run` | the `run` list of the command entry, with its placeholders, as the owner confirmed it, or `null`. The bridge refuses the request as `entry-changed` when its entry holds another list |
 
 The `context` object always holds seven keys. Each one is `null` when the card
 held no such value. A server from before the context sends no `context` key.

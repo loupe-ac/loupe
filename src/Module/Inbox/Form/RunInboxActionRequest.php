@@ -25,6 +25,10 @@ class RunInboxActionRequest
 
         #[Assert\Count(max: self::MAX_PARAMS)]
         public array $params = [],
+
+        /** The digest of the run list the confirm dialog showed. */
+        #[Assert\Length(max: 64)]
+        public ?string $runDigest = null,
     ) {
     }
 }

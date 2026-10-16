@@ -138,6 +138,14 @@ class WorkRequest
     #[ORM\Column(name: 'params', type: Types::JSON, nullable: true)]
     public ?array $params = null;
 
+    /**
+     * The run list of a command entry, with its placeholders, as the owner confirmed it. The bridge refuses the request when its entry differs.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(name: 'run', type: Types::JSON, nullable: true)]
+    public ?array $run = null;
+
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {
         get => WorkRequestContext::fromArray($this->contextData);

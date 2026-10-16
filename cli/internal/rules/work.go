@@ -483,6 +483,7 @@ func workValues(w api.WorkRequest, slug string) map[string]string {
 // The reasons a bridge refuses a run-command request.
 const (
 	RefuseEntryMissing       = "entry-missing"
+	RefuseEntryChanged       = "entry-changed"
 	RefuseParamInvalid       = "param-invalid"
 	RefuseWorktreeMissing    = "worktree-missing"
 	RefusePlaceholderMissing = "placeholder-missing"
@@ -498,7 +499,8 @@ func runsCommand(w api.WorkRequest) bool {
 // run-command request, and "" when the rules accept it or when it is no
 // valid run-command request of a mapped project. The worktree is no part of
 // it, because the rules cannot read it. The entry must exist and be a command
-// entry. The request must hold a value for each parameter, each value must
+// entry. Its run list must be the one the owner confirmed, when the request
+// carries that list. The request must hold a value for each parameter, each value must
 // match the whole pattern, and the request must hold no other parameter. Each
 // placeholder of the argv must have a value.
 func (s *Set) RunCommandRefusal(w api.WorkRequest) string {
@@ -512,6 +514,9 @@ func (s *Set) RunCommandRefusal(w api.WorkRequest) string {
 	entry, ok := s.work[w.Kind]
 	if !ok || entry.Action != ActionCommand {
 		return RefuseEntryMissing
+	}
+	if w.Run != nil && !slices.Equal(w.Run, entry.Run) {
+		return RefuseEntryChanged
 	}
 	for name := range w.Params {
 		if _, declared := entry.Params[name]; !declared {

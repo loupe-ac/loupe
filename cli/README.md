@@ -1028,11 +1028,14 @@ The bridge always reports the capability `run-command`.
 
 A work request with the capability `run-command` runs the command entry named
 by its kind, whatever the subject is. It carries a `branch`, which defaults to
-`main`, and `params`, one string for each parameter. The bridge checks the
+`main`, `params`, one string for each parameter, and `run`, the `run` list of
+the entry as the owner confirmed it. The bridge checks the
 request again before it runs. It settles the request as refused, with a reason
 code, and starts no run, when a check fails:
 
 - `entry-missing`: the work map has no command entry of that name.
+- `entry-changed`: the `run` list of the entry differs from the one in the
+  request, because the rule file changed after the owner confirmed it.
 - `param-invalid`: a parameter is missing, undeclared, or does not match its
   whole pattern.
 - `placeholder-missing`: the `run` list uses a placeholder with no value, such

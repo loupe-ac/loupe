@@ -85,7 +85,10 @@ func TestARunCommandRequestRunsTheEntryInTheFolderOfItsBranch(t *testing.T) {
 		h, f, cmd, wt, rec := withRunCommand(t)
 		cmd.result = procResult{output: "done"}
 
-		h.offer(f, runCommandRequest(1, "export", branch, map[string]string{"out": "my folder"}))
+		w := runCommandRequest(1, "export", branch, map[string]string{"out": "my folder"})
+		w.Run = []string{"export", "--out={out}"}
+
+		h.offer(f, w)
 
 		specs := cmd.recorded()
 		if len(specs) != 1 || specs[0].dir != want {
@@ -117,20 +120,24 @@ func TestARunCommandRequestIsRefusedWithAReasonCode(t *testing.T) {
 		kind, branch string
 		params       map[string]string
 		reason       string
+		run          []string
 	}{
-		"unknown entry":        {"nope", "", nil, "entry-missing"},
-		"agent entry":          {"plan", "", nil, "entry-missing"},
-		"missing param":        {"export", "", nil, "param-invalid"},
-		"undeclared param":     {"export", "", map[string]string{"out": "ok", "extra": "x"}, "param-invalid"},
-		"option as value":      {"export", "", map[string]string{"out": "--exec=evil"}, "param-invalid"},
-		"trailing newline":     {"export", "", map[string]string{"out": "ok\n"}, "param-invalid"},
-		"branch has no folder": {"export", "nope", map[string]string{"out": "ok"}, "worktree-missing"},
-		"card value, no card":  {"note", "", nil, "placeholder-missing"},
+		"unknown entry":        {"nope", "", nil, "entry-missing", nil},
+		"agent entry":          {"plan", "", nil, "entry-missing", nil},
+		"missing param":        {"export", "", nil, "param-invalid", nil},
+		"undeclared param":     {"export", "", map[string]string{"out": "ok", "extra": "x"}, "param-invalid", nil},
+		"option as value":      {"export", "", map[string]string{"out": "--exec=evil"}, "param-invalid", nil},
+		"trailing newline":     {"export", "", map[string]string{"out": "ok\n"}, "param-invalid", nil},
+		"branch has no folder": {"export", "nope", map[string]string{"out": "ok"}, "worktree-missing", nil},
+		"card value, no card":  {"note", "", nil, "placeholder-missing", nil},
+		"run list changed":     {"export", "", map[string]string{"out": "ok"}, "entry-changed", []string{"export", "--dry-run", "--out={out}"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, f, cmd, _, rec := withRunCommand(t)
+			w := runCommandRequest(1, tc.kind, tc.branch, tc.params)
+			w.Run = tc.run
 
-			h.offer(f, runCommandRequest(1, tc.kind, tc.branch, tc.params))
+			h.offer(f, w)
 
 			if got := f.settled(); !slices.Equal(got, []string{workID(1) + " " + tokenOf(1) + " refused " + tc.reason}) {
 				t.Fatalf("results = %v, want refused %s", got, tc.reason)
@@ -200,13 +207,17 @@ func TestAWorkRequestDecodesBranchAndParams(t *testing.T) {
 		"absent":     {``, "", nil},
 		"empty list": {`,"params":[]`, "", nil},
 		"null":       {`,"params":null`, "", nil},
-		"values":     {`,"branch":"epic/1","params":{"out":"a b"}`, "epic/1", map[string]string{"out": "a b"}},
+		"values":     {`,"branch":"epic/1","params":{"out":"a b"},"run":["export","--out={out}"]`, "epic/1", map[string]string{"out": "a b"}},
 	} {
 		w, err := event.ParseWorkRequest([]byte(strings.TrimSuffix(base, "}") + tc.extra + "}"))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if w.Branch != tc.branch || len(w.Params) != len(tc.params) || w.Params["out"] != tc.params["out"] {
+		wantRun := []string(nil)
+		if tc.branch != "" {
+			wantRun = []string{"export", "--out={out}"}
+		}
+		if w.Branch != tc.branch || len(w.Params) != len(tc.params) || w.Params["out"] != tc.params["out"] || !slices.Equal(w.Run, wantRun) {
 			t.Fatalf("%s: branch %q params %v", name, w.Branch, w.Params)
 		}
 	}

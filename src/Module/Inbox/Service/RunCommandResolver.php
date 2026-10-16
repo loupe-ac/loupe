@@ -122,6 +122,7 @@ final readonly class RunCommandResolver
             run: $run,
             argvTemplate: $argvTemplate,
             bridgeQuiet: null !== $bridge && $this->isQuiet($bridge, $item),
+            runList: $row['run'] ?? [],
         );
     }
 

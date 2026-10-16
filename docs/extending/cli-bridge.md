@@ -1276,11 +1276,13 @@ the followed projects. The bridge always reports the capability `run-command`.
 
 When the owner confirms a "Run a command" action in the [inbox](../using/inbox.md#running-a-command),
 Loupe opens a work request for this bridge only. The request names the entry, a
-branch and a value for each parameter. The bridge checks the request again
+branch, a value for each parameter, and the `run` list that the owner confirmed. The bridge checks the request again
 against its own `rules.yaml`, and settles it as refused, with a reason code,
 when a check fails:
 
 - `entry-missing`: the work map has no command entry of that name.
+- `entry-changed`: the `run` list of the entry is not the one the owner
+  confirmed.
 - `param-invalid`: a value is missing, undeclared, or does not match the whole
   pattern.
 - `worktree-missing`: `git worktree list` shows no folder with that branch.

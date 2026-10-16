@@ -48,6 +48,7 @@ final readonly class RunInboxActionHandler
     public const string NOT_AVAILABLE = 'inbox.action.error.not_available';
 
     public const string COMMAND_LIVE = 'inbox.action.error.run_command_live';
+    public const string COMMAND_CHANGED = 'inbox.action.error.run_command_changed';
 
     public const string SESSION_RULE_ID = PersonWork::RULE_PREFIX.'start-session';
     public const string RUN_COMMAND_RULE_ID = PersonWork::RULE_PREFIX.'run-command';
@@ -238,6 +239,7 @@ final readonly class RunInboxActionHandler
 
     /**
      * Checks the entry, the values and the worktree again, as the owner confirmed them. The bridge checks them once more at the run.
+     * The run list must be the one the dialog showed, and the request carries it so the bridge refuses an entry edited since.
      * A to-do with one card, and a wait item, run on the card, so the bridge queue rule holds the run for a worker of that card.
      */
     private function runCommand(RunInboxActionCommand $command, string $note): InboxAction
@@ -249,6 +251,9 @@ final readonly class RunInboxActionHandler
         }
         if (null !== $view->disabledReasonKey) {
             throw new DomainErrors(['action' => $view->disabledReasonKey]);
+        }
+        if (null === $command->runDigest || !hash_equals($view->runDigest(), $command->runDigest)) {
+            throw new DomainErrors(['action' => self::COMMAND_CHANGED]);
         }
         $bridgeId = Uuid::fromString($view->bridgeId ?? throw new \LogicException('A command with no disabled reason has a bridge.'));
         $cardId = $this->itemActions->runCommandCardId($item);
@@ -276,6 +281,7 @@ final readonly class RunInboxActionHandler
                 targetBridgeId: $bridgeId,
                 branch: $view->branch,
                 params: $view->values(),
+                run: $view->runList,
             ));
         } catch (WorkRequestAlreadyLive|DomainErrors $e) {
             // The bridge closes the entity manager when a race trips its unique index, so delete through the connection.

@@ -201,7 +201,7 @@ A command that the owner starts from the inbox reports in the same way. Its
 work request names the target bridge, a branch and the parameters. The run
 shows in the inbox as Queued, Running, Succeeded or Failed, with the last lines
 of the output. A refused request creates no run. Its reason is `entry-missing`,
-`param-invalid`, `worktree-missing` or `placeholder-missing`. See
+`entry-changed`, `param-invalid`, `worktree-missing` or `placeholder-missing`. See
 [Running an entry from the inbox](../extending/cli-bridge.md#running-an-entry-from-the-inbox).
 
 ### Usage

@@ -23,6 +23,8 @@ final readonly class RunInboxActionCommand
          * @var array<string, string>|null
          */
         public ?array $params = null,
+        /** The digest of the run list the owner read in the confirm dialog. */
+        public ?string $runDigest = null,
     ) {
     }
 }

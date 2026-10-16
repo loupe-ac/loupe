@@ -50,7 +50,19 @@ final readonly class RunCommandView
         public array $argvTemplate = [],
         /** The bridge sent no recent heartbeat, so a run waits in the queue until it comes back. */
         public bool $bridgeQuiet = false,
+        /**
+         * The run list of the entry with its placeholders, as the last heartbeat reported it.
+         *
+         * @var list<string>
+         */
+        public array $runList = [],
     ) {
+    }
+
+    /** Names the run list the dialog shows, so a submit can tell that the entry changed after the owner read it. */
+    public function runDigest(): string
+    {
+        return hash('sha256', json_encode($this->runList, \JSON_THROW_ON_ERROR));
     }
 
     /** The owner can open the confirm dialog: a wrong branch or value is fixed there, so only those two reasons keep it open. */

@@ -5281,6 +5281,8 @@
             <trans-unit id="inbox.run_command.dialog.branch_unavailable"><source>inbox.run_command.dialog.branch_unavailable</source><target>%branch%, no worktree on %bridge%</target></trans-unit>
             <trans-unit id="inbox.action.run-command.disabled.no_worktree"><source>inbox.action.run-command.disabled.no_worktree</source><target>The bridge has no worktree for this branch.</target></trans-unit>
             <trans-unit id="inbox.action.error.run_command_live"><source>inbox.action.error.run_command_live</source><target>This command is already queued or running for this item.</target></trans-unit>
+            <trans-unit id="inbox.action.error.run_command_changed"><source>inbox.action.error.run_command_changed</source><target>The command changed on the bridge since you opened this dialog. Read it again, then run it.</target></trans-unit>
+            <trans-unit id="inbox.run_command.refusal.entry_changed"><source>inbox.run_command.refusal.entry_changed</source><target>The bridge refused the run because its command changed after you confirmed it.</target></trans-unit>
             <trans-unit id="inbox.run_command.refusal.entry_missing"><source>inbox.run_command.refusal.entry_missing</source><target>The bridge has no command with this name.</target></trans-unit>
             <trans-unit id="inbox.run_command.refusal.param_invalid"><source>inbox.run_command.refusal.param_invalid</source><target>The bridge refused a value because it does not fit its pattern.</target></trans-unit>
             <trans-unit id="inbox.run_command.refusal.worktree_missing"><source>inbox.run_command.refusal.worktree_missing</source><target>The bridge found no worktree for this branch.</target></trans-unit>

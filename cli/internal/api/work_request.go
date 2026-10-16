@@ -67,6 +67,10 @@ type WorkRequest struct {
 	// DefaultBranch. Params hold one value for each parameter of the entry.
 	Branch string     `json:"branch,omitempty"`
 	Params WorkParams `json:"params,omitempty"`
+	// Run is the run list of the entry, with its placeholders, as the owner
+	// confirmed it. The bridge refuses the request when its entry differs. An
+	// older server sends none, and the bridge then compares nothing.
+	Run []string `json:"run,omitempty"`
 	// TargetBridgeID names the one bridge that may take the request. A null
 	// decodes as "", which any bridge may take.
 	TargetBridgeID string `json:"targetBridgeId,omitempty"`

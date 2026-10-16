@@ -804,10 +804,34 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->commandBridge();
         $item = $this->commandTodo();
 
-        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, 'main', ['out' => 'other/folder'])) ?? throw new \LogicException('A command records a row.');
+        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, 'main', ['out' => 'other/folder'], self::shownDigest())) ?? throw new \LogicException('A command records a row.');
 
         $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
-        self::assertSame(['main', ['out' => 'other/folder']], [$request->branch, $request->params]);
+        self::assertSame(['main', ['out' => 'other/folder'], ['bin/console', 'app:export', '{out}']], [$request->branch, $request->params, $request->run]);
+    }
+
+    /** @return iterable<string, array{?string}> */
+    public static function staleDigests(): iterable
+    {
+        yield 'the run list before an edit' => [hash('sha256', json_encode(['bin/console', 'app:export', '--force', '{out}'], \JSON_THROW_ON_ERROR))];
+        yield 'no digest' => [null];
+    }
+
+    #[DataProvider('staleDigests')]
+    public function test_a_run_list_other_than_the_one_the_dialog_showed_is_refused_and_leaves_no_request(?string $digest): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $digest));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::COMMAND_CHANGED], $e->errors);
+        }
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
     }
 
     public function test_a_quiet_bridge_takes_the_run_as_a_request_that_waits_for_it(): void
@@ -851,7 +875,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->flush();
 
         try {
-            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, $branch, $params));
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, $branch, $params, self::shownDigest()));
             self::fail('Expected a refusal.');
         } catch (DomainErrors $e) {
             self::assertSame(['action' => $key], $e->errors);
@@ -1006,7 +1030,13 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     private function runAction(InboxItem $item, InboxActionKind $kind, string $note = ''): ?InboxAction
     {
-        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner));
+        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner, runDigest: InboxActionKind::RunCommand === $kind ? self::shownDigest() : null));
+    }
+
+    /** The digest of the run list of the entry that commandBridge() reports, as the dialog shows it. */
+    private static function shownDigest(): string
+    {
+        return hash('sha256', json_encode(['bin/console', 'app:export', '{out}'], \JSON_THROW_ON_ERROR));
     }
 
     /** Built by hand, because nothing injects the handlers yet and the compiler drops an unused private service. */

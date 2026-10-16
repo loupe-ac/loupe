@@ -48,6 +48,7 @@
                 </dd>
             {% endif %}
         </dl>
+        <input type="hidden" name="{{ fieldName }}[runDigest]" form="{{ formId }}" value="{{ command.runDigest }}" data-inbox-run-command-digest>
         <twig:Ds:CodeBlock
             :label="command.folder ? 'inbox.run_command.dialog.command_in'|trans({'%folder%': command.folder}) : 'inbox.run_command.dialog.command'|trans"
             :text="command.argv|join(' ')"

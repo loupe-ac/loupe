@@ -12,6 +12,7 @@ final readonly class RunCommandRun
     /** The refusal codes of a bridge, with the translation key of each. */
     public const array REASON_KEYS = [
         'entry-missing' => 'inbox.run_command.refusal.entry_missing',
+        'entry-changed' => 'inbox.run_command.refusal.entry_changed',
         'param-invalid' => 'inbox.run_command.refusal.param_invalid',
         'worktree-missing' => 'inbox.run_command.refusal.worktree_missing',
         'placeholder-missing' => 'inbox.run_command.refusal.placeholder_missing',

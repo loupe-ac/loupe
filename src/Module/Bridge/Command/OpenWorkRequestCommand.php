@@ -34,6 +34,8 @@ final readonly class OpenWorkRequestCommand
         public ?string $branch = null,
         /** @var array<string, string>|null the values of the parameters of a command entry */
         public ?array $params = null,
+        /** @var list<string>|null the run list of a command entry as the owner confirmed it */
+        public ?array $run = null,
     ) {
     }
 }
