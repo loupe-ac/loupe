@@ -80,6 +80,20 @@ The card tracks the run, and Loupe moves it. Each run gets a new card.
 The [`discovery` rule](workflows.md#rules-the-app-adds) then asks a bridge for the work.
 An agent can start discovery with the `discovery_start` MCP tool, and read the checklist with `readiness_get`.
 
+Discovery runs these generic checks on every project:
+
+- How to build and test the project, and whether CI runs those commands.
+- An instructions file for agents, such as `AGENTS.md` or `CLAUDE.md`.
+- The GitHub remote, the GitHub App, the bridge and the agent GitHub account.
+- Playwright is installed, and an agent can use it.
+- Each setup step that an agent cannot do through the MCP.
+
+It also runs the checks of each kind of work that the workflow asks for.
+The [Lifecycle workflow](workflows.md) asks for product design work, so it adds two checks for a project with a user interface.
+The first check looks for a design system that an agent can read.
+The second check looks for a Claude Design project that holds or mirrors it.
+A project with no user interface, such as a library or a CLI, gets no finding for these two checks.
+
 Discovery needs a running bridge that serves the project.
 The project must also have a workflow, and **Run the workflow of the board** must be on, on the [Automation](board.md#automation) tab.
 Otherwise the workflow cannot ask a bridge for the work, so Loupe refuses the start.

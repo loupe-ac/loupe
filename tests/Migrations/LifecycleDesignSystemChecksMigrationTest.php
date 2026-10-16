@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Migrations;
+
+use App\Module\Workflow\Template\ShippedTemplates;
+use App\Tests\Module\Workflow\Action\ActionScenario;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Schema\Schema;
+use DoctrineMigrations\Version20261016030512;
+use Psr\Log\NullLogger;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+
+require_once __DIR__.'/../../migrations/Version20261016030512.php';
+
+final class LifecycleDesignSystemChecksMigrationTest extends KernelTestCase
+{
+    use ActionScenario;
+
+    public function test_a_lifecycle_binding_without_the_design_system_checks_gets_the_shipped_copy_and_keeps_its_epic_branch(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('migration-design-checks');
+        $this->bindLifecycle($project);
+        $projectId = ($project->id ?? throw new \LogicException('The project is not flushed.'))->toRfc4122();
+        $connection = $this->em()->getConnection();
+        $old = $this->row($connection, $projectId);
+        $rules = $old['rules'];
+        self::assertIsArray($rules);
+        $old['rules'] = array_map(static function (mixed $rule): mixed {
+            if (!\is_array($rule) || 'product-design-session' !== ($rule['id'] ?? null)) {
+                return $rule;
+            }
+            $rule['then']['request']['checks'] = \array_slice($rule['then']['request']['checks'], 0, 2);
+
+            return $rule;
+        }, $rules);
+        $old['epicBranch'] = 'feature/epic-{number}';
+        $connection->executeStatement('UPDATE workflow_bindings SET definition = CAST(? AS JSONB) WHERE project_id = ?', [json_encode($old, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION), $projectId]);
+
+        $migration = new Version20261016030512($connection, new NullLogger());
+        $migration->up(new Schema());
+        foreach ($migration->getSql() as $query) {
+            $connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
+        }
+
+        self::assertEquals([...$this->service(ShippedTemplates::class)->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $this->row($connection, $projectId));
+    }
+
+    /** @return array<string, mixed> */
+    private function row(Connection $connection, string $projectId): array
+    {
+        $definition = $connection->fetchOne('SELECT definition FROM workflow_bindings WHERE project_id = ?', [$projectId]);
+        self::assertIsString($definition);
+        $decoded = json_decode($definition, true, flags: \JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+
+        return $decoded;
+    }
+}
