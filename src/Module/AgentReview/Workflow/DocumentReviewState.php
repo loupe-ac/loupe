@@ -42,7 +42,11 @@ final readonly class DocumentReviewState
             return true;
         }
 
-        return AgentReviewConclusion::Success === $this->conclusion && ($this->answered || !$this->needsPerson);
+        if (AgentReviewConclusion::Success !== $this->conclusion) {
+            return false;
+        }
+
+        return $this->needsPerson ? $this->answered : $this->reviewVersion === $this->versionNumber;
     }
 
     public function due(int $rounds): bool

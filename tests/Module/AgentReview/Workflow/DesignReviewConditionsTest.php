@@ -35,7 +35,9 @@ final class DesignReviewConditionsTest extends TestCase
         yield 'passed with a question, not answered' => [self::state(AgentReviewConclusion::Success, needsPerson: true), false, true, false, true];
         yield 'passed with a question, answered' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true), false, false, true, false];
         yield 'passed without a question' => [self::state(AgentReviewConclusion::Success), false, false, true, false];
-        yield 'passed review of an older version' => [self::state(AgentReviewConclusion::Success, version: 2, reviewVersion: 1), false, false, true, false];
+        yield 'passed with a question, answered with a revision' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true, version: 2, reviewVersion: 1), false, false, true, false];
+        yield 'passed review of an older version' => [self::state(AgentReviewConclusion::Success, version: 2, reviewVersion: 1), true, false, false, true];
+        yield 'passed review of an older version after two failures' => [self::state(AgentReviewConclusion::Success, failed: 2, version: 3, reviewVersion: 2), true, false, false, true];
         yield 'passed after two failures' => [self::state(AgentReviewConclusion::Success, failed: 2), false, false, true, false];
     }
 

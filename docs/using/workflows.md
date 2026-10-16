@@ -633,7 +633,7 @@ ends the loop:
 |---|---|
 | `design_review.due` | a draft with the tag has a version that no review read, or a review that a revision answered, and its loop is not finished |
 | `design_review.fix_due` | the review of the current version of a draft with the tag failed, has no answers, and asks for a revision |
-| `design_review.finished` | the review of a draft with the tag passed, or the draft used all its failed reviews |
+| `design_review.finished` | the review of the current version of a draft with the tag passed, or a fix round answered a passed review with a question for the owner, or the draft used all its failed reviews |
 | `design_review.running` | a draft with the tag has a loop that is not finished. The marker `design-review-running` reads it |
 
 Lifecycle uses them in these rules, for the slots Product design and Tech
