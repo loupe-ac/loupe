@@ -8,6 +8,7 @@ use App\Exception\DomainErrors;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\DocumentAgentReview;
+use App\Module\AgentReview\Service\WithdrawnWorkGuard;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Review\Entity\DocumentStatus;
@@ -29,7 +30,10 @@ final readonly class SubmitDocumentReviewHandler
     public const string NOT_DRAFT = 'agent_review.error.document_not_draft';
     public const string NO_SUCH_VERSION = 'agent_review.error.document_version_missing';
 
+    public const string WORK_WITHDRAWN = 'agent_review.error.work_withdrawn';
+
     public function __construct(
+        private WithdrawnWorkGuard $withdrawnWork,
         private WorkerRunRepository $workerRuns,
         private CardDocumentRepository $cardDocuments,
         private DocumentVersionRepository $documentVersions,
@@ -50,6 +54,9 @@ final readonly class SubmitDocumentReviewHandler
         $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, self::REVIEW_WORK_KIND);
         if (null === $run) {
             throw new DomainErrors(['session' => self::NO_REVIEW_RUN]);
+        }
+        if ($this->withdrawnWork->runIsWithdrawn($run)) {
+            throw new DomainErrors(['session' => self::WORK_WITHDRAWN]);
         }
         if (!array_any($this->cardDocuments->findForDocument($document), static fn ($link): bool => $link->card->id?->equals($cardId) ?? false)) {
             throw new DomainErrors(['documentId' => self::NOT_LINKED]);

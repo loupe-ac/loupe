@@ -1047,6 +1047,35 @@ final class EngineTest extends KernelTestCase
         self::assertFalse($this->ruleState($card, 'work')->repaired);
     }
 
+    public function test_a_live_request_is_cancelled_when_its_cancel_when_holds(): void
+    {
+        $rule = self::requestRule('work', self::ALWAYS);
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'epic']];
+        $card = $this->boundCard([$rule]);
+        $this->evaluate($card);
+        $request = $this->liveRequestOfKind($card, 'work');
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_a_live_request_stays_when_its_rule_turns_false_and_its_cancel_when_does_not_hold(): void
+    {
+        $rule = self::requestRule('work', self::NOT_EPIC);
+        $rule['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'bug']];
+        $card = $this->boundCard([$rule]);
+        $this->evaluate($card);
+        $request = $this->liveRequestOfKind($card, 'work');
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertSame([$request], $this->liveRequests($card));
+        self::assertSame(WorkRequestState::Open, $request->state);
+    }
+
     public function test_a_repair_that_no_bridge_takes_expires_and_pauses_the_card(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: self::REPAIR);

@@ -39,6 +39,7 @@ final readonly class DocumentReviewAnswerTool
 
     private const array MESSAGES = [
         AnswerDocumentReviewHandler::NO_FIX_RUN => 'document_review_answer takes answers only from a running design fix worker of this card. The call names no such run. A fix worker sends its session with every call through the loupe CLI.',
+        AnswerDocumentReviewHandler::WORK_WITHDRAWN => 'This work was withdrawn.',
         AnswerDocumentReviewHandler::NOT_LINKED => 'documentId must name a document that the card links.',
         AnswerDocumentReviewHandler::NO_REVIEW => 'The document has no agent review of this card to answer.',
         AnswerDocumentReviewHandler::ALREADY_ANSWERED => 'The latest agent review of the document for this card already has its answers.',

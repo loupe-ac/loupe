@@ -43,6 +43,7 @@ final readonly class DocumentReviewSubmitTool
 
     private const array MESSAGES = [
         SubmitDocumentReviewHandler::NO_REVIEW_RUN => 'document_review_submit takes a review only from a running design review worker of this card. The call names no such run. A review worker sends its session with every call through the loupe CLI.',
+        SubmitDocumentReviewHandler::WORK_WITHDRAWN => 'This work was withdrawn.',
         SubmitDocumentReviewHandler::NOT_LINKED => 'documentId must name a document that the card links.',
         SubmitDocumentReviewHandler::NOT_DRAFT => 'The document is not a draft, so it takes no agent review.',
         SubmitDocumentReviewHandler::NO_SUCH_VERSION => 'versionNumber must name a version of the document.',

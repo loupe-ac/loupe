@@ -12,7 +12,9 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Mcp\AgentRunCause;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
@@ -40,8 +42,16 @@ trait DocumentReviewScenario
         return $document;
     }
 
-    private function workRun(Project $project, Card $card, Uuid $sessionId, string $workKind, WorkerRunState $state = WorkerRunState::Running): WorkerRun
+    private function workRun(Project $project, Card $card, Uuid $sessionId, string $workKind, WorkerRunState $state = WorkerRunState::Running, ?WorkRequestState $requestState = null): WorkerRun
     {
+        $requestId = Uuid::v7();
+        if (null !== $requestState) {
+            $request = new WorkRequest($project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), 1, $workKind, null, 'rule', new \DateTimeImmutable());
+            $request->state = $requestState;
+            $this->em->persist($request);
+            $this->em->flush();
+            $requestId = $request->id ?? throw new \LogicException('A flushed request has an id.');
+        }
         $run = new WorkerRun(
             project: $project,
             bridgeId: Uuid::v4(),
@@ -51,7 +61,7 @@ trait DocumentReviewScenario
             workKind: $workKind,
             state: $state,
             sessionId: $sessionId,
-            workRequestId: Uuid::v7(),
+            workRequestId: $requestId,
         );
         $this->em->persist($run);
         $this->em->flush();

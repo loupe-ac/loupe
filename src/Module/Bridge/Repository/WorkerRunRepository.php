@@ -630,6 +630,23 @@ class WorkerRunRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /** The newest worker run of the session in the project, whatever its card and state, or null. An interactive run is not a worker run. */
+    public function findNewestWorkerOfSession(Project $project, Uuid $sessionId): ?WorkerRun
+    {
+        return $this->createQueryBuilder('r')
+            ->andWhere('r.project = :project')
+            ->andWhere('r.sessionId = :sessionId')
+            ->andWhere('r.kind = :kind')
+            ->setParameter('project', $project)
+            ->setParameter('sessionId', $sessionId, UuidType::NAME)
+            ->setParameter('kind', WorkerRunKind::Worker->value)
+            ->orderBy('r.receivedAt', 'DESC')
+            ->addOrderBy('r.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function hasOpenWorkerOfSessionOnCard(Project $project, Uuid $sessionId, Uuid $cardId): bool
     {
         return null !== $this->createQueryBuilder('r')

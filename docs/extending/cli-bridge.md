@@ -1333,6 +1333,15 @@ no review: the review rules belong to the Lifecycle template, which carries no
 app prompt. When a `fix` request starts for an agent review, the `fix` entry runs
 the `loupe-stage-fix-round` skill, which reads the findings from `card_get`.
 
+The `design-review` kind reviews a draft product document or tech design.
+The worker reads the draft, and sends its findings with the
+`document_review_submit` tool. It changes no file. Give the entry its own
+`model` and a `workerPool` apart from the design entries, as for `review`. A
+request that no bridge takes pauses the card after the work timeout. A revision after a failed review uses the `product-design-revise`
+or `tech-design-revise` entry, and answers the findings with the
+`document_review_answer` tool. See
+[Agent review of a design](../using/workflows.md#agent-review-of-a-design).
+
 The file needs `work:`, or `appPrompts: true`. The bridge reports the
 `work-requests` capability when the map has an entry or `appPrompts` is on,
 and `interactive` too when an entry opens an interactive session. An entry for

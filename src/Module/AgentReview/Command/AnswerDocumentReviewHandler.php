@@ -9,6 +9,7 @@ use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Entity\DocumentReviewFindingAnswer;
 use App\Module\AgentReview\Repository\DocumentAgentReviewRepository;
+use App\Module\AgentReview\Service\WithdrawnWorkGuard;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
@@ -31,7 +32,10 @@ final readonly class AnswerDocumentReviewHandler
     public const string MISSING_ANSWER = 'agent_review.error.finding_has_no_answer';
     public const string REASON_REQUIRED = 'agent_review.error.not_changed_needs_reason';
 
+    public const string WORK_WITHDRAWN = 'agent_review.error.work_withdrawn';
+
     public function __construct(
+        private WithdrawnWorkGuard $withdrawnWork,
         private WorkerRunRepository $workerRuns,
         private CardDocumentRepository $cardDocuments,
         private DocumentAgentReviewRepository $documentAgentReviews,
@@ -56,6 +60,9 @@ final readonly class AnswerDocumentReviewHandler
         }
         if (null === $run) {
             throw new DomainErrors(['session' => self::NO_FIX_RUN]);
+        }
+        if ($this->withdrawnWork->runIsWithdrawn($run)) {
+            throw new DomainErrors(['session' => self::WORK_WITHDRAWN]);
         }
         if (!array_any($this->cardDocuments->findForDocument($document), static fn ($link): bool => $link->card->id?->equals($cardId) ?? false)) {
             throw new DomainErrors(['documentId' => self::NOT_LINKED]);
