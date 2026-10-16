@@ -247,7 +247,7 @@ final class ShippedMarkersTest extends KernelTestCase
     {
         $facts = static fn (string $slot, string $tag): Facts => FactsMother::facts(
             card: FactsMother::card(slot: $slot),
-            provided: [DocumentReviewFacts::class => new DocumentReviewFacts([new DocumentReviewState('doc', [$tag], 2, null, null, null, false, false, 1)])],
+            provided: [DocumentReviewFacts::class => new DocumentReviewFacts([new DocumentReviewState('doc', [$tag], 2, null, null, null, false, false, false, 1)])],
         );
 
         $this->pass($this->template('lifecycle'), $facts('tech-design', 'tech-design'));

@@ -91,7 +91,23 @@ final class DocumentReviewFactProviderTest extends KernelTestCase
         $review->answer([new DocumentReviewFindingAnswer(0, DocumentReviewAnswer::ToOwner)]);
         $this->em->flush();
 
-        self::assertTrue($this->only($card)->answered);
+        $after = $this->only($card);
+        self::assertTrue($after->answered);
+        self::assertTrue($after->revised);
+    }
+
+    public function test_an_answer_of_not_changed_alone_says_no_revision(): void
+    {
+        [$card, $document] = $this->cardWithDesign();
+        $review = $this->documentReview($card->project, $card, $document, findings: 1);
+        self::assertFalse($this->only($card)->revised);
+
+        $review->answer([new DocumentReviewFindingAnswer(0, DocumentReviewAnswer::NotChanged, 'The design is right.')]);
+        $this->em->flush();
+
+        $state = $this->only($card);
+        self::assertTrue($state->answered);
+        self::assertFalse($state->revised);
     }
 
     public function test_documents_that_are_not_tagged_drafts_are_left_out(): void
