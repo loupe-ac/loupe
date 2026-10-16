@@ -38,7 +38,12 @@ const refreshTimeout = 15 * time.Second
 func apiClient(cfg config.Config) *api.Client {
 	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
 
-	return api.NewWithSource(cfg.BaseURL, tokenSource(cfg, hc), hc)
+	var tokens api.TokenSource = tokenSource(cfg, hc)
+	if g := currentBridgeGate(); g != nil {
+		tokens = gatedSource{inner: tokens, gate: g}
+	}
+
+	return api.NewWithSource(cfg.BaseURL, tokens, hc)
 }
 
 func newBridgeCmd() *cobra.Command {
@@ -402,6 +407,8 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	defer stop()
 	r.ctx = ctx
 	go r.priceLoop(ctx)
+	startLoginGate(ctx, r.log, cfg)
+	defer setBridgeGate(nil)
 
 	// The queue closes after the workers, so it sees every report a dying worker
 	// still makes, and its grace window can send them.

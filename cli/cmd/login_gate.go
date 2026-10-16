@@ -1,0 +1,192 @@
+package cmd
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"os"
+	"sync"
+	"time"
+
+	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/ubermuda/loupe/cli/internal/notify"
+	"github.com/ubermuda/loupe/cli/internal/oauth"
+)
+
+// loginPollInterval is how often a tripped gate looks at config.json.
+const loginPollInterval = 5 * time.Second
+
+const (
+	loginExpiredMessage = "Your Loupe login expired. Run `loupe login` in another terminal. The bridge resumes by itself."
+	loginResumedMessage = "Login found. Bridge resumed."
+	loginNoticeTitle    = "Loupe bridge needs a new login"
+	loginNoticeText     = "Run loupe login in a terminal. The bridge resumes by itself."
+)
+
+// loginGate puts the whole bridge in one waiting state while its login is
+// expired. The first expired-login error trips it. Every token request then
+// waits, so no call fails, no retry is spent and no new claim starts. A running
+// worker keeps running. The gate opens when config.json holds a login that the
+// token source accepts.
+type loginGate struct {
+	log *slog.Logger
+	// configPath is the file to watch. probe asks for a token with the login on
+	// disk. notice shows the macOS notice. after is time.After, and a field so
+	// a test waits for no real interval.
+	configPath string
+	probe      func(context.Context) error
+	notice     func(context.Context)
+	after      func(time.Duration) <-chan time.Time
+
+	mu      sync.Mutex
+	ctx     context.Context
+	tripped bool
+	// open is closed when the gate opens, and replaced at each trip.
+	open chan struct{}
+}
+
+func newLoginGate(ctx context.Context, log *slog.Logger, configPath string, probe func(context.Context) error) *loginGate {
+	return &loginGate{
+		log:        log,
+		configPath: configPath,
+		probe:      probe,
+		notice: func(ctx context.Context) {
+			_ = notify.Send(ctx, loginNoticeTitle, loginNoticeText)
+		},
+		after: time.After,
+		ctx:   ctx,
+	}
+}
+
+// trip closes the gate. Only the first call since the last opening logs, shows
+// the notice and starts the watcher.
+func (g *loginGate) trip() {
+	g.mu.Lock()
+	if g.tripped {
+		g.mu.Unlock()
+
+		return
+	}
+	g.tripped = true
+	g.open = make(chan struct{})
+	open := g.open
+	g.mu.Unlock()
+
+	g.log.Warn("login_expired", "message", loginExpiredMessage)
+	go g.notice(g.ctx)
+	go g.watch(open)
+}
+
+// wait blocks while the gate is closed, and returns the error of ctx when it
+// ends first.
+func (g *loginGate) wait(ctx context.Context) error {
+	for {
+		g.mu.Lock()
+		open := g.open
+		tripped := g.tripped
+		g.mu.Unlock()
+		if !tripped {
+			return nil
+		}
+		select {
+		case <-open:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-g.ctx.Done():
+			return g.ctx.Err()
+		}
+	}
+}
+
+// watch looks at config.json every loginPollInterval. A changed file earns one
+// probe, and a probe that gives a token opens the gate.
+func (g *loginGate) watch(open chan struct{}) {
+	seen, _ := os.Stat(g.configPath)
+	for {
+		select {
+		case <-g.ctx.Done():
+			return
+		case <-g.after(loginPollInterval):
+		}
+		now, err := os.Stat(g.configPath)
+		if err != nil || unchanged(seen, now) {
+			continue
+		}
+		seen = now
+		if err := g.probe(g.ctx); err != nil {
+			continue
+		}
+		g.mu.Lock()
+		g.tripped = false
+		g.mu.Unlock()
+		g.log.Info("login_resumed", "message", loginResumedMessage)
+		close(open)
+
+		return
+	}
+}
+
+// gatedSource wraps a token source of the bridge. An expired login trips the
+// gate and the call waits for it, so the caller never sees ErrLoginExpired.
+type gatedSource struct {
+	inner api.TokenSource
+	gate  *loginGate
+}
+
+func (s gatedSource) Token(ctx context.Context) (string, error) {
+	return s.gated(ctx, func() (string, error) { return s.inner.Token(ctx) })
+}
+
+func (s gatedSource) Refresh(ctx context.Context, rejected string) (string, error) {
+	return s.gated(ctx, func() (string, error) { return s.inner.Refresh(ctx, rejected) })
+}
+
+func (s gatedSource) gated(ctx context.Context, call func() (string, error)) (string, error) {
+	for {
+		if err := s.gate.wait(ctx); err != nil {
+			return "", err
+		}
+		token, err := call()
+		if !errors.Is(err, oauth.ErrLoginExpired) {
+			return token, err
+		}
+		s.gate.trip()
+	}
+}
+
+// bridgeGate is the gate of the running bridge. It is nil in every other
+// command, whose callers read the expired-login error and tell the person.
+var (
+	bridgeGateMu sync.RWMutex
+	bridgeGate   *loginGate
+)
+
+func setBridgeGate(g *loginGate) {
+	bridgeGateMu.Lock()
+	bridgeGate = g
+	bridgeGateMu.Unlock()
+}
+
+func currentBridgeGate() *loginGate {
+	bridgeGateMu.RLock()
+	defer bridgeGateMu.RUnlock()
+
+	return bridgeGate
+}
+
+// startLoginGate makes the gate of a bridge. A bridge with no config path runs
+// without one.
+func startLoginGate(ctx context.Context, log *slog.Logger, cfg config.Config) {
+	path, err := config.Path()
+	if err != nil || cfg.OAuth == nil {
+		return
+	}
+	probe := func(ctx context.Context) error {
+		_, err := tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}).Token(ctx)
+
+		return err
+	}
+	setBridgeGate(newLoginGate(ctx, log, path, probe))
+}
