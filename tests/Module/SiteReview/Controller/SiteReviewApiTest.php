@@ -115,7 +115,10 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $this->addComment($client, $raw, $payload);
         self::assertResponseStatusCodeSame(201);
-        self::assertSame($first, (string) $client->getResponse()->getContent());
+        $retried = json_decode((string) $client->getResponse()->getContent(), true, flags: \JSON_THROW_ON_ERROR);
+        $original = json_decode($first, true, flags: \JSON_THROW_ON_ERROR);
+        self::assertSame(array_diff_key($original, ['label' => 1]), array_diff_key($retried, ['label' => 1]));
+        self::assertSame('#1 Edited after saving', $retried['label']);
         $this->addComment($client, $raw, array_replace($payload, ['body' => 'Conflicting retry']));
         self::assertResponseStatusCodeSame(409);
         self::assertJsonStringEqualsJsonString('{"error":"delivery_conflict"}', (string) $client->getResponse()->getContent());

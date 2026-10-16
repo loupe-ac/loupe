@@ -89,7 +89,7 @@ final readonly class AddFeedbackHandler
             $card ??= ($this->createCard)(new CreateCardCommand(
                 project: $command->project,
                 title: FeedbackCardTitle::of($command->body),
-                body: '',
+                body: Card::normalText($command->body),
                 type: $this->catalog->forProject($command->project->requireId())->defaultKey,
                 reporter: Actor::Reviewer,
                 parentCardId: $command->parentCardId,
@@ -97,7 +97,7 @@ final readonly class AddFeedbackHandler
             ));
 
             $comment = ($this->addComment)($this->addCommentCommand($command));
-            $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null);
+            $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null, $createdCard ? $card->body : null);
             $this->em->persist($link);
             $created = true;
 

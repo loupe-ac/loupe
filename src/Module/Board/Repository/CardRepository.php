@@ -560,18 +560,18 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
-     * Whether the database shows anyone worked on the card: a body, a title
-     * other than the one it was created with, another type, a pull request, a
+     * Whether the database shows anyone worked on the card: a body or a title
+     * other than the ones it was created with, another type, a pull request, a
      * document, or a link to or from another card.
      */
-    public function hasWork(Card $card, string $createdTitle, string $createdType): bool
+    public function hasWork(Card $card, string $createdTitle, string $createdBody, string $createdType): bool
     {
         return (bool) $this->getEntityManager()->getConnection()->fetchOne(
-            "SELECT EXISTS (SELECT 1 FROM board_cards WHERE id = :id AND (body <> '' OR title <> :title OR type <> :type))
+            'SELECT EXISTS (SELECT 1 FROM board_cards WHERE id = :id AND (body <> :body OR title <> :title OR type <> :type))
                  OR EXISTS (SELECT 1 FROM board_card_pull_requests WHERE card_id = :id)
                  OR EXISTS (SELECT 1 FROM board_card_documents WHERE card_id = :id)
-                 OR EXISTS (SELECT 1 FROM board_card_links WHERE source_card_id = :id OR target_card_id = :id)",
-            ['id' => (string) $card->id, 'title' => $createdTitle, 'type' => $createdType],
+                 OR EXISTS (SELECT 1 FROM board_card_links WHERE source_card_id = :id OR target_card_id = :id)',
+            ['id' => (string) $card->id, 'title' => $createdTitle, 'body' => $createdBody, 'type' => $createdType],
         );
     }
 

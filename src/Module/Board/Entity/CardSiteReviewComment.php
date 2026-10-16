@@ -6,6 +6,7 @@ namespace App\Module\Board\Entity;
 
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\SiteReview\Entity\SiteReviewComment;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Uid\Uuid;
@@ -46,7 +47,11 @@ class CardSiteReviewComment
 
         /** The title the comment gave the card it created, so a later rename shows. */
         #[ORM\Column(length: 255, nullable: true)]
-        public readonly ?string $createdTitle = null,
+        public ?string $createdTitle = null,
+
+        /** The body the comment gave the card it created, so a later edit shows. */
+        #[ORM\Column(type: Types::TEXT, nullable: true)]
+        public ?string $createdBody = null,
 
         #[ORM\Column]
         public readonly \DateTimeImmutable $linkedAt = new \DateTimeImmutable(),
