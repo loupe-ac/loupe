@@ -407,9 +407,25 @@ page shows no thread.
 ### Notices
 
 A notice states a fact of the project. It does not block an agent and takes no
-answer, and it holds no card. Loupe opened a notice while a bridge rule raced
-the sync of the project. Bridge rules are gone, so Loupe closed each such
-notice as **obsolete**, and opens no new one.
+answer. A notice may link the cards that the fact is about.
+
+Loupe opens the notice **No bridge can take work** when the work of a card waits
+for 10 minutes and no online bridge can take it. A paused bridge keeps the work
+waiting, and Loupe opens no notice for it.
+The notice lists each card that waits. It tells you to start a bridge, or to run
+`loupe login`. When more work starts to wait, Loupe adds its card to the open
+notice. A project has one such notice at a time. The inbox switches do not
+turn it off.
+
+Loupe closes the notice as **done** when a bridge can take the work again. The
+note says when no bridge could take work, and how many cards waited. Loupe closes
+it as **obsolete** when the waiting work ended and no bridge came back, for
+example when the work was cancelled. It also closes the notice as obsolete when
+you switch the inbox off.
+
+Loupe once opened a notice while a bridge rule raced the sync of the project.
+Bridge rules are gone, so Loupe closed each such notice as **obsolete**, and
+opens no new one.
 
 ### Workflow questions
 

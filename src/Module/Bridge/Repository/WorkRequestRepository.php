@@ -464,6 +464,38 @@ class WorkRequestRepository extends ServiceEntityRepository
         return $ids;
     }
 
+    /**
+     * The open requests about a card of the project, oldest first.
+     *
+     * @return list<WorkRequest>
+     */
+    public function findOpenOfCardsInProject(Project $project): array
+    {
+        return array_values($this->createQueryBuilder('w')
+            ->andWhere('w.project = :project')
+            ->andWhere('w.subjectType = :subject')
+            ->andWhere('w.state = :open')
+            ->setParameter('project', $project)
+            ->setParameter('subject', WorkSubject::CARD)
+            ->setParameter('open', WorkRequestState::Open->value)
+            ->orderBy('w.createdAt', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->getQuery()
+            ->getResult());
+    }
+
+    /** @return list<string> RFC 4122 ids of the projects that have an open request about a card */
+    public function findProjectIdsWithOpenCardRequest(): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT DISTINCT project_id FROM work_requests WHERE subject_type = :subject AND state = 'open'",
+            ['subject' => WorkSubject::CARD],
+        )->fetchFirstColumn();
+
+        return $ids;
+    }
+
     /** The newest request of the card that the rule opened for the kind, in any state. */
     public function findLatestOfCardKindRule(Uuid $cardId, string $kind, string $ruleId): ?WorkRequest
     {

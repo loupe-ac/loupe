@@ -9,7 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * Bulk-deletes the asks, the items and the wait switches of a project, inside
+ * Bulk-deletes the asks, the bridge outages, the items and the wait switches of a project, inside
  * ProjectDeleter's transaction. The foreign keys of the three link tables cascade from both
  * parents, so the database removes the links. The foreign key of inbox_actions cascades from
  * inbox_items, so deleting the items removes their actions.
@@ -26,6 +26,10 @@ final readonly class DeleteInboxDataOnProjectDeleting
     {
         $this->em->createQuery(
             'DELETE App\Module\Inbox\Entity\InboxAsk a WHERE a.project = :project',
+        )->setParameter('project', $event->project)->execute();
+
+        $this->em->createQuery(
+            'DELETE App\Module\Inbox\Entity\InboxBridgeOutage o WHERE o.project = :project',
         )->setParameter('project', $event->project)->execute();
 
         $this->em->createQuery(
