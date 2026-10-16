@@ -7,7 +7,7 @@ description: "Use when a card enters the Tech design column of a Loupe board, or
 
 Write or revise the tech design of one card, link it, and stop. The requirement source is the approved product document, or the card body when the card has no product document.
 
-Change nothing but Loupe documents, and never move the card. `../loupe-stage-product-design/references/stage-contract.md` holds the full rules.
+Change nothing but Loupe documents and the `blocked-by` links of the card, and never move the card. `../loupe-stage-product-design/references/stage-contract.md` holds the full rules.
 
 ## Procedure
 
@@ -48,6 +48,17 @@ Change nothing but Loupe documents, and never move the card. `../loupe-stage-pro
 1. Call `document_publish` for each draft that the run created or found: the design, then the deploy notes. Do this before the final reply.
 2. When `document_publish` is not among the tools, the documents are not drafts, as `loupe-documents` rule 17 says. Skip this step.
 
+### Record a dependency
+
+A dependency is a part that the design needs, that is missing on the base branch, and that one open card builds.
+
+1. Look for a dependency while you read the code. Find the card that builds the part with `card_search`. Call `card_get` on it, and check that its status is not a terminal column.
+2. When you find one, add a `blocked-by` entry for that card to the `relatedCards` of the card you design. Do it in the same `card_update` that links the document (contract rule 5). Send the `relatedCards` of `card_get` unchanged, plus the new entry.
+3. A card that already carries the link needs no write.
+4. Name the dependency in the Solution section, on the line `Depends on: card N (title), which builds X`, above the deploy line. With no dependency, write `Depends on: none`.
+5. A revision that finds a new dependency adds the link. A revision that no longer needs a dependency says so in the design and leaves the link. Only a person removes a link, because the stage cannot tell a link it wrote from a link a person added.
+6. An epic with the link waits in Tech design after the owner approves the design, until the blocker is done. The breakdown then cuts the epic branch from a `main` that holds the blocker's code.
+
 ### Judge the size
 
 1. Judge whether one pull request of normal size can build the design. A worker builds a small task with clear limits better than a large one.
@@ -65,7 +76,7 @@ Use these `##` sections, in this order. Follow `../loupe-documents/references/de
 1. At a glance.
 2. Problem. Say in plain words what goes wrong today, or what the product cannot do, and who feels it. Keep the trigger, the event that made someone look, apart from the problem. Leave the solution out.
 3. Priorities. Cite the `P` entries of the product document that the design serves. With no product document, take them from the card body.
-4. Solution. Describe the recommended solution in plain words, for a reader who knows the product. Then show a diagram of it, as `../loupe-documents/references/design-structure.md` "Diagrams" says. Then write a "How it works" numbered list for the implementer: each part that the change adds or changes, with its code name, and the main flow step by step. End the section with the deploy line that "Deploy notes" names.
+4. Solution. Describe the recommended solution in plain words, for a reader who knows the product. Then show a diagram of it, as `../loupe-documents/references/design-structure.md` "Diagrams" says. Then write a "How it works" numbered list for the implementer: each part that the change adds or changes, with its code name, and the main flow step by step. End the section with the `Depends on:` line that "Record a dependency" names, and then the deploy line that "Deploy notes" names.
 5. Strengths and weaknesses. Write two numbered lists: what the recommended solution does well, and what it costs or risks. Name each weakness in proportion. A design with no weakness has not looked.
 6. Alternatives. Describe each rival whole solution that you considered and did not recommend. Give a table with the columns Option, Pros and Cons, in an options fence, with the recommended solution as the first row. Say in one sentence why each rival lost. When the owner should choose between the solutions, write the choice as an open decision instead. A choice inside the recommended solution belongs in its own decision section, not here.
 7. How others do it. Give two or three libraries or systems that solve the same problem. Link each one, and give one takeaway.
