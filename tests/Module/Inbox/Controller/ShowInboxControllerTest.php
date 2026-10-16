@@ -95,7 +95,7 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertSelectorTextContains('[data-inbox-queue-empty="open-asks"] a[href="/projects/'.$project->id.'/inbox?side=closed"]', 'See what you already answered');
         self::assertSelectorNotExists('[data-inbox-open-count]');
         // The frame stays, so a live reload has somewhere to put a count.
-        self::assertSelectorExists('a[data-controller="inbox-pill"] turbo-frame#inbox-open-count-'.$project->id);
+        self::assertSelectorExists('a[data-controller="live-pill"] turbo-frame#inbox-open-count-'.$project->id);
     }
 
     public function test_linked_card_pull_requests_appear_once_with_safe_links(): void
@@ -147,14 +147,17 @@ final class ShowInboxControllerTest extends WebTestCase
         $topics = static::getContainer()->get(UserTopicBuilder::class);
         self::assertInstanceOf(UserTopicBuilder::class, $topics);
         $inboxTopic = $topics->forInbox($owner->id ?? throw new \LogicException('The owner has no id.'));
-        self::assertSame([$inboxTopic], self::subscribedTopics($this->client->getResponse()));
-        self::assertSame([$inboxTopic], $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
+        $projectTopics = static::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $projectTopics);
+        $topics = [$inboxTopic, $projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.'))];
+        self::assertSame($topics, self::subscribedTopics($this->client->getResponse()));
+        self::assertSame($topics, $crawler->filter('form#mercure-subscriptions input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
 
-        $link = $crawler->filter('a[data-controller="inbox-pill"]');
+        $link = $crawler->filter('a[data-live-pill-events-value=\'["inbox.open_count_changed"]\']');
         self::assertCount(1, $link);
-        self::assertSame((string) $project->id, $link->attr('data-inbox-pill-project-value'));
-        self::assertSame('/projects/'.$project->id.'/inbox/open-count', $link->attr('data-inbox-pill-url-value'));
-        self::assertSame('1', $link->filter('turbo-frame[data-inbox-pill-target="frame"] [data-inbox-open-count]')->text());
+        self::assertSame((string) $project->id, $link->attr('data-live-pill-project-value'));
+        self::assertSame('/projects/'.$project->id.'/inbox/open-count', $link->attr('data-live-pill-url-value'));
+        self::assertSame('1', $link->filter('turbo-frame[data-live-pill-target="frame"] [data-inbox-open-count]')->text());
     }
 
     public function test_the_page_listens_on_the_project_inbox_topic_for_live_changes(): void
@@ -279,12 +282,12 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/documents');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextSame('a[data-controller="inbox-pill"] [data-inbox-open-count]', '2');
+        self::assertSelectorTextSame('a[data-controller="live-pill"] [data-inbox-open-count]', '2');
         self::assertNull(self::subscribedTopics($this->client->getResponse()));
         self::assertSelectorNotExists('form#mercure-subscriptions');
     }
 
-    public function test_no_topic_is_granted_while_the_inbox_is_off(): void
+    public function test_no_inbox_topic_is_granted_while_the_inbox_is_off(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-pill-off');
         $project = $this->inboxProject($this->em, $owner);
@@ -294,7 +297,12 @@ final class ShowInboxControllerTest extends WebTestCase
         $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/documents');
 
         self::assertResponseIsSuccessful();
-        self::assertNull(self::subscribedTopics($this->client->getResponse()));
+        $projectTopics = static::getContainer()->get(ProjectTopicBuilder::class);
+        self::assertInstanceOf(ProjectTopicBuilder::class, $projectTopics);
+        self::assertSame(
+            [$projectTopics->forWorkerRuns($project->id ?? throw new \LogicException('The project has no id.'))],
+            self::subscribedTopics($this->client->getResponse()),
+        );
     }
 
     public function test_a_one_item_ask_names_its_item_once_as_the_heading(): void

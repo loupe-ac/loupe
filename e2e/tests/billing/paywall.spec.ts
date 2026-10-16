@@ -45,15 +45,15 @@ test('an expired trial paywalls the app but not the subscribe page', async ({
 
     await page.goto('/projects');
 
-    await expect(page).toHaveURL(/\/billing\/subscribe$/);
+    await expect(page).toHaveURL(/\/account\/billing$/);
     await expect(
         page.getByRole('heading', { name: 'Subscribe', exact: true }),
     ).toBeVisible();
 
     // The subscribe page is reachable directly — the listener allowlists it, so
     // there is no redirect loop.
-    await page.goto('/billing/subscribe');
-    await expect(page).toHaveURL(/\/billing\/subscribe$/);
+    await page.goto('/account/billing');
+    await expect(page).toHaveURL(/\/account\/billing$/);
     await expect(
         page.getByRole('heading', { name: 'Subscribe', exact: true }),
     ).toBeVisible();

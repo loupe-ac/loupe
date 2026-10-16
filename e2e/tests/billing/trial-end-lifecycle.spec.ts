@@ -103,7 +103,7 @@ test('the sweep disables an expired trial and the paywall lands on the trial-exp
 
     // The account is now disabled — the observable is the paywall bounce.
     await page.goto('/projects');
-    await expect(page).toHaveURL(/\/billing\/subscribe$/);
+    await expect(page).toHaveURL(/\/account\/billing$/);
     await expect(page.getByText(TRIAL_EXPIRED_TEXT)).toBeVisible();
     // With the cap open the page still offers checkout, not the waitlist.
     await expect(
@@ -129,7 +129,7 @@ test('the sweep disables a canceled subscription past its period', async ({
     expect(counts.cancelSurveys).toBeGreaterThanOrEqual(1);
 
     await page.goto('/projects');
-    await expect(page).toHaveURL(/\/billing\/subscribe$/);
+    await expect(page).toHaveURL(/\/account\/billing$/);
     await expect(page.getByText(TRIAL_EXPIRED_TEXT)).toBeVisible();
 });
 
@@ -155,7 +155,7 @@ test('with the cap full a disabled account is offered the waitlist and joining s
         await setRegistrationCap(admin, CLOSED_CAP);
         capClosed = true;
 
-        await page.goto('/billing/subscribe');
+        await page.goto('/account/billing');
         await expect(page.getByText('We are at capacity')).toBeVisible();
         const joinButton = page.getByRole('button', {
             name: 'Join the waitlist',

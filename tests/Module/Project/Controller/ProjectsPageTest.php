@@ -344,10 +344,40 @@ final class ProjectsPageTest extends WebTestCase
         $client->submitForm('Add project', ['create_project_form[name]' => 'taken']);
 
         self::assertResponseStatusCodeSame(422);
-        // The disclosure must re-open so the user sees their rejected input and
-        // the error, instead of a collapsed panel hiding both.
-        self::assertSelectorExists('.lp-project-new.disclosure-open');
-        self::assertSelectorExists('.lp-project-new__panel.open');
+        // The dialog must re-open so the user sees their rejected input and
+        // the error, instead of a closed dialog hiding both.
+        self::assertSelectorExists('[data-controller="modal"][data-modal-reopen-value="true"]');
+    }
+
+    public function test_new_query_opens_the_create_dialog(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'projects-new-query@example.com');
+        $em->flush();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, '/projects', ['new' => 1]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-controller="modal"][data-modal-reopen-value="true"]');
+        self::assertSelectorExists('dialog form[name="create_project_form"]');
+    }
+
+    public function test_dialog_stays_closed_without_new_query(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'projects-no-query@example.com');
+        $em->flush();
+
+        $client->loginUser($owner);
+        $client->request(Request::METHOD_GET, '/projects');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('[data-modal-reopen-value="true"]');
+        self::assertSelectorExists('button.lp-project-new');
+        self::assertSelectorExists('dialog[data-action="cancel->modal#close"]');
     }
 
     public function test_same_name_for_different_owner_is_allowed(): void

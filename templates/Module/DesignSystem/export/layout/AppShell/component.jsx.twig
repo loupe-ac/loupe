@@ -22,12 +22,6 @@ const ICONS = {
     ),
     'chart-column': <path d="M3 3v16a2 2 0 0 0 2 2h16m-3-4V9m-5 8V5M8 17v-3" />,
     check: <path d="M20 6L9 17l-5-5" />,
-    'credit-card': (
-        <>
-            <rect width="20" height="14" x="2" y="5" rx="2" />
-            <path d="M2 10h20" />
-        </>
-    ),
     'file-text': (
         <>
             <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
@@ -101,26 +95,25 @@ function Icon({ name, className }) {
     );
 }
 
-// The key is the name of the nav.link.* string in templates/base.html.twig.
+// The key is the name of the nav.link.* string in templates/base.html.twig. Only a counted link shows a count, as in the app.
 const WORKSPACE_LINKS = [
     { key: 'workshop', label: 'Workshop', icon: 'layout-dashboard' },
-    { key: 'inbox', label: 'Needs you', icon: 'inbox', amber: true, feature: 'inbox' },
+    { key: 'inbox', label: 'Needs you', icon: 'inbox', amber: true, feature: 'inbox', counted: true },
     { key: 'board', label: 'Board', icon: 'square-kanban' },
-    { key: 'documents', label: 'Documents', icon: 'file-text', alwaysCount: true },
-    { key: 'artifacts', label: 'Artifacts', icon: 'app-window', feature: 'artifacts', alwaysCount: true },
+    { key: 'documents', label: 'Documents', icon: 'file-text', counted: true, alwaysCount: true },
+    { key: 'artifacts', label: 'Artifacts', icon: 'app-window', feature: 'artifacts' },
 ];
 
 const AGENT_LINKS = [
-    { key: 'agents', label: 'Agents', icon: 'bot' },
+    { key: 'agents', label: 'Agents', icon: 'bot', counted: true },
     { key: 'workflow', label: 'Workflow', icon: 'workflow' },
-    { key: 'activity', label: 'Activity', icon: 'activity' },
+    { key: 'activity', label: 'Activity', icon: 'activity', counted: true },
     { key: 'analytics', label: 'Analytics', icon: 'chart-column' },
     { key: 'outbox', label: 'Outbox', icon: 'send' },
 ];
 
 const SECONDARY_LINKS = [
     { key: 'project_settings', label: 'Project settings', icon: 'settings', project: true },
-    { key: 'billing', label: 'Billing', icon: 'credit-card', feature: 'billing' },
     { key: 'account_inboxes', label: 'All inboxes', icon: 'mails', feature: 'inbox' },
     { key: 'account', label: 'Account', icon: 'user' },
     { key: 'admin', label: 'Admin', icon: 'shield', admin: true },
@@ -131,7 +124,7 @@ const LOGOUT = { key: 'logout', label: 'Log out', icon: 'log-out' };
 
 function NavLink({ link, active, counts }) {
     const isActive = active === link.key;
-    const count = counts[link.key];
+    const count = link.counted ? counts[link.key] : undefined;
     const classes = ['lp-sidebar__link'];
     if (isActive) {
         classes.push('lp-sidebar__link--active');
@@ -140,7 +133,9 @@ function NavLink({ link, active, counts }) {
         <a className={classes.join(' ')} href="#" aria-current={isActive ? 'page' : undefined}>
             <Icon name={link.icon} />
             <span className="lp-sidebar__link-label">{link.label}</span>
-            {link.alwaysCount ? (
+            {typeof count === 'string' ? (
+                <span className="lp-sidebar__pill">{count}</span>
+            ) : link.alwaysCount ? (
                 <span className="lp-sidebar__pill">{count ?? 0}</span>
             ) : count > 0 && (
                 <span className={link.amber ? 'lp-sidebar__pill lp-sidebar__pill--amber' : 'lp-sidebar__pill'}>{count}</span>
@@ -214,9 +209,15 @@ export function {{ entry.name }}({ projectName = 'Project', projectPage = true, 
                                 })}
                                 <a href="#" className="lp-menu__item lp-switcher__all">
                                     <span className="lp-switcher__all-glyph">
-                                        <Icon name="plus" />
+                                        <Icon name="layout-dashboard" />
                                     </span>
                                     All projects
+                                </a>
+                                <a href="#" className="lp-menu__item lp-switcher__all">
+                                    <span className="lp-switcher__all-glyph">
+                                        <Icon name="plus" />
+                                    </span>
+                                    New project
                                 </a>
                             </div>
                         </div>

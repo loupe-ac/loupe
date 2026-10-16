@@ -102,7 +102,7 @@ final class AcceptTermsControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, self::ACCEPTANCE_PATH);
 
         // Guards the acceptance routes' paywall exemption. Without it the
-        // paywall (priority 4) sends this to /billing/subscribe, which the terms
+        // paywall (priority 4) sends this to /account/billing, which the terms
         // gate (priority 3) then sends straight back here — forever.
         self::assertResponseIsSuccessful();
     }

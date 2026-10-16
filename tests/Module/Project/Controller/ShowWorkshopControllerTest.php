@@ -100,8 +100,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         );
         self::assertSelectorNotExists('[data-workshop-card="'.$idle->number.'"]');
         self::assertSelectorNotExists('[data-workshop-card="'.$blocked->number.'"]');
-        self::assertSelectorTextSame('[data-workshop-stat="open-cards"] .lp-workshop-stat__value', '5');
-        self::assertSelectorTextSame('[data-workshop-stat="completed-cards"] .lp-workshop-stat__value', '1');
+        self::assertSelectorNotExists('[data-workshop-stat]');
         $queuedTile = $crawler->filter('[data-workshop-card="'.$queued->number.'"]');
         self::assertStringContainsString('Queued work', $queuedTile->text());
         self::assertStringContainsString('Backlog', $queuedTile->text());
@@ -166,6 +165,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('[data-workshop-card]');
+        self::assertSelectorExists('#workshop-in-motion .lp-empty-state--compact');
         self::assertSelectorTextContains('#workshop-in-motion', 'Nothing in motion. A card shows here when a bridge queues it or a session works on it.');
         self::assertSelectorExists('.lp-section-heading a[href="/projects/'.$project->id.'/board"]');
     }
@@ -228,10 +228,9 @@ final class ShowWorkshopControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSame('Your workshop', trim($crawler->filter('[data-workshop] h1')->text()));
-        self::assertSelectorNotExists('[data-workshop-stat="requests"] .lp-workshop-stat__value');
-        self::assertSelectorTextContains('[data-workshop-stat="requests"]', 'The inbox is disabled');
-        self::assertSelectorTextSame('[data-workshop-stat="open-cards"] .lp-workshop-stat__value', '0');
-        self::assertSelectorTextSame('[data-workshop-stat="completed-cards"] .lp-workshop-stat__value', '0');
+        self::assertSelectorNotExists('.lp-workshop-summary');
+        self::assertSelectorNotExists('.lp-workshop-note');
+        self::assertSelectorTextContains('.lp-workshop-section .lp-empty-state--compact', 'The inbox is disabled');
         self::assertSelectorExists('a[href="/projects/'.$project->id.'/documents"]');
     }
 
@@ -320,7 +319,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertCount(6, $crawler->filter('[data-workshop-attention]'));
-        self::assertSame('8', trim($crawler->filter('.lp-workshop-stat__value')->first()->text()));
+        self::assertSame('8', trim($crawler->filter('.lp-section-heading span')->first()->text()));
         self::assertSelectorTextContains('[data-workshop-attention]', 'Request 1');
         self::assertSelectorTextContains('[data-workshop-attention] .lp-workshop-attention__badge', 'Blocking');
         // A question or a to-do shows the agent that asked it.
@@ -503,7 +502,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('[data-readiness-guide]');
-        self::assertSelectorExists('.lp-workshop-summary');
+        self::assertSelectorExists('.lp-workshop-layout');
         self::assertSelectorExists('#workshop-in-motion');
     }
 

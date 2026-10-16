@@ -28,7 +28,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 
 final class RequireSubscriptionListenerTest extends TestCase
 {
-    private const string SUBSCRIBE_URL = '/billing/subscribe';
+    private const string SUBSCRIBE_URL = '/account/billing';
 
     private function user(bool $verified = true): User
     {

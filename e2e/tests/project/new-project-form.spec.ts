@@ -9,12 +9,10 @@ import {
 test.use({ storageState: { cookies: [], origins: [] } });
 
 /**
- * The create-project form lives behind a disclosure, so opening it is the moment
- * the reviewer means to start typing. Focus follows the disclosure rather than
- * the page, which is opt-in per field — the same controller collapses read-only
- * rows elsewhere and must not take the caret there.
+ * The create-project form lives in a dialog. The whole dashed tile, the header
+ * button and the switcher entry all open it, and the caret lands in the name field.
  */
-test('opening the new-project disclosure puts the caret in the name field', async ({
+test('the tile, the header button and the switcher entry open the new-project dialog', async ({
     page,
     request,
 }) => {
@@ -26,35 +24,27 @@ test('opening the new-project disclosure puts the caret in the name field', asyn
     });
 
     await page.goto('/projects');
-    const headerToggle = page
-        .locator('.lp-page-header')
-        .getByRole('button', { name: /new project/i });
-    const tileToggle = page.locator('.lp-project-new__toggle');
-    const panel = page.locator('#new-project-panel');
-    await expect(headerToggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(tileToggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(headerToggle).toHaveAttribute(
-        'aria-controls',
-        'new-project-panel',
-    );
-    await expect(tileToggle).toHaveAttribute(
-        'aria-controls',
-        'new-project-panel',
-    );
-    await headerToggle.click();
+    const dialog = page.getByRole('dialog', { name: 'New project' });
+    await expect(dialog).toBeHidden();
 
+    await page
+        .locator('.lp-page-header')
+        .getByRole('button', { name: /new project/i })
+        .click();
+    await expect(dialog).toBeVisible();
     await expect(page.getByLabel('Project name')).toBeFocused();
-    await expect(headerToggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(tileToggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(panel).toBeVisible();
-    await tileToggle.click();
-    await expect(panel).toBeHidden();
-    await expect(headerToggle).toHaveAttribute('aria-expanded', 'false');
-    await expect(tileToggle).toHaveAttribute('aria-expanded', 'false');
-    await tileToggle.click();
-    await expect(panel).toBeVisible();
-    await expect(headerToggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(tileToggle).toHaveAttribute('aria-expanded', 'true');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+
+    const tile = page.locator('.lp-project-new');
+    const box = (await tile.boundingBox())!;
+    await page.mouse.click(box.x + 8, box.y + 8);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+
+    await page.goto('/projects?new=1');
+    await expect(dialog).toBeVisible();
 });
 
 test('project descriptions persist on tiles and can be edited or cleared', async ({

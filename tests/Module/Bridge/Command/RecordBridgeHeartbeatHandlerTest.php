@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Command;
 
+use App\Mercure\LiveUpdatePublisher;
+use App\Mercure\LiveUpdates;
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatCommand;
 use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
@@ -12,6 +14,7 @@ use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HostSampling;
+use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunRetentionPolicy;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\BridgeHostSampleReport;
@@ -21,12 +24,21 @@ use App\Tests\Module\Bridge\BridgeScenario;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Mercure\Jwt\StaticTokenProvider;
+use Symfony\Component\Mercure\MockHub;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 use Ubermuda\AuditBundle\AuditOutcome;
+use Ubermuda\FeatureFlagsBundle\Reader\FeatureFlagReaderInterface;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
 {
     use BridgeScenario;
+
+    /** @var list<Update> */
+    private array $runsChanged = [];
 
     public function test_the_first_heartbeat_of_a_bridge_is_audited(): void
     {
@@ -159,6 +171,79 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         );
 
         self::assertSame([], $this->reload($owner, $bridgeId)->hooks);
+    }
+
+    public function test_a_change_of_the_worker_pools_tells_the_pages_of_the_followed_project_to_reload(): void
+    {
+        self::bootKernel();
+        $this->recordRunsChanged();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-pools-publish@example.com');
+        $project = $this->project($em, $owner, 'Followed');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $projects = [(string) $project->id];
+        $busy = ['inUse' => 3] + self::pool();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertCount(1, $this->publishedRunsChanged(), 'The first report of pools changes what the pill shows.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertCount(0, $this->publishedRunsChanged(), 'The same pools tell nobody.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7', workerPools: [$busy]));
+        $published = $this->publishedRunsChanged();
+        self::assertCount(1, $published);
+        self::assertStringContainsString((string) $project->id, $published[0]->getTopics()[0]);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, $projects, 'b4e39aa7'));
+        self::assertCount(0, $this->publishedRunsChanged(), 'A heartbeat with no pool rows changes nothing.');
+    }
+
+    /** The Agents pill drops a quiet bridge, so its first heartbeat back counts its workers again. */
+    public function test_a_bridge_back_from_quiet_tells_the_pages_to_reload_with_the_same_pools(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock('2026-09-23 12:00:00'));
+        $this->recordRunsChanged();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-back-from-quiet@example.com');
+        $projects = [(string) $this->project($em, $owner, 'Followed')->id];
+        $quiet = $this->seedBridge($em, $owner, projects: $projects, lastSeenAt: new \DateTimeImmutable('2026-09-23 11:56:59'), workerPools: [self::pool()]);
+        $live = $this->seedBridge($em, $owner, projects: $projects, lastSeenAt: new \DateTimeImmutable('2026-09-23 11:57:00'), workerPools: [self::pool()]);
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $live->id, $projects, 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame([], $this->publishedProjects(), 'A live bridge with the same pools tells nobody.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $quiet->id, $projects, 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame($projects, $this->publishedProjects());
+    }
+
+    public function test_a_change_of_the_followed_projects_tells_the_pages_of_both_sets_to_reload(): void
+    {
+        self::bootKernel();
+        $this->recordRunsChanged();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-follow-publish@example.com');
+        $kept = (string) $this->project($em, $owner, 'Kept')->id;
+        $added = (string) $this->project($em, $owner, 'Added')->id;
+        $both = [$kept, $added];
+        sort($both);
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
+        $this->publishedRunsChanged();
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept, $added], 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame($both, $this->publishedProjects(), 'A newly followed project counts the bridge.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame($both, $this->publishedProjects(), 'A project the bridge left stops counting it.');
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [$kept], 'b4e39aa7', workerPools: [self::pool()]));
+        self::assertSame([], $this->publishedProjects(), 'The same projects tell nobody.');
     }
 
     public function test_the_first_heartbeat_stores_the_worker_pools(): void
@@ -667,6 +752,55 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertInstanceOf(Bridge::class, $bridge);
 
         return $bridge;
+    }
+
+    /** Before anything builds the hub: the container hands the replacement only to what it builds afterwards. */
+    private function recordRunsChanged(): void
+    {
+        self::getContainer()->set('mercure.hub.default', new MockHub(
+            'http://mercure/.well-known/mercure',
+            new StaticTokenProvider('token'),
+            function (Update $update): string {
+                if (str_contains($update->getData(), WorkerRunChangedPublisher::TYPE)) {
+                    $this->runsChanged[] = $update;
+                }
+
+                return 'id';
+            },
+        ));
+
+        $flags = self::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $flags);
+        $flags->findAllIndexed()[LiveUpdates::FLAG]->value = true;
+        $this->em()->flush();
+        $reader = self::getContainer()->get(FeatureFlagReaderInterface::class);
+        self::assertInstanceOf(ResetInterface::class, $reader);
+        $reader->reset();
+    }
+
+    /** @return list<Update> the runs-changed updates sent since the last call */
+    private function publishedRunsChanged(): array
+    {
+        $live = self::getContainer()->get(LiveUpdatePublisher::class);
+        self::assertInstanceOf(LiveUpdatePublisher::class, $live);
+        $live->publish();
+        $published = $this->runsChanged;
+        $this->runsChanged = [];
+
+        return $published;
+    }
+
+    /** @return list<string> the sorted project ids that the runs-changed updates since the last call name */
+    private function publishedProjects(): array
+    {
+        $ids = [];
+        foreach ($this->publishedRunsChanged() as $update) {
+            preg_match('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', $update->getTopics()[0], $match);
+            $ids[] = $match[0] ?? '';
+        }
+        sort($ids);
+
+        return $ids;
     }
 
     private function handler(): RecordBridgeHeartbeatHandler
