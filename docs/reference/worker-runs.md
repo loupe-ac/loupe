@@ -526,6 +526,41 @@ Loupe takes the count when the run ends, and does not change it when another
 run reports later. `bin/console app:bridge:rebuild-run-facts` counts every run
 again from the stored times.
 
+## Appending the output of a run
+
+`PUT /api/projects/{handle}/worker-runs/{runId}/output`
+
+The bridge sends the live output of a command run in pieces. `runId` is the
+uuid the bridge generated for the run, and the run must belong to the bridge
+in `bridgeId`.
+
+```json
+{
+  "bridgeId": "0199a0e2-b1f3-7a44-9c11-2d3e4f506180",
+  "offset": 4096,
+  "text": "build finished\n"
+}
+```
+
+`offset` is the byte offset where `text` starts. `text` is valid UTF-8 of at
+most 262144 bytes. The server stores the text only when `offset` equals the
+number of bytes it holds. Any other offset stores nothing. The answer names
+the bytes the server holds, so the bridge sends the missing text from there.
+
+```json
+{ "length": 4111, "capped": false }
+```
+
+The server keeps at most 1048576 bytes of output for a run. It cuts the text
+that crosses the limit at a character boundary, answers `"capped": true`, and
+takes no more text for the run. A 404 carries the code `project_not_found` or
+`run_not_found`. A run key that is not a uuid gets `invalid_run_id` with a 422.
+Each stored append tells the open run pages through Mercure.
+
+The output endpoint has its own limit, `agent_run_output`, of 240 requests in
+one minute for each token. The retention sweep deletes the output of a run with
+the run.
+
 ## Resolving an experiment pin
 
 `PUT /api/projects/{handle}/experiments/{experiment}/pins/{cardId}`
@@ -688,7 +723,8 @@ endpoint answers 404 there.
 
 ### Rate limit
 
-The endpoints on this page share one limit, `agent_worker_runs`, of 240
+The endpoints on this page, except the output endpoint, share one limit,
+`agent_worker_runs`, of 240
 requests in one minute for each token. A run sends about four state reports,
 and one tool call report for each 500 calls, with a minimum of one. A run in
 an experiment adds one pin call. The limit lets a bridge drain a
