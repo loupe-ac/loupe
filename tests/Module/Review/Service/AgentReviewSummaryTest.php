@@ -114,9 +114,23 @@ final class AgentReviewSummaryTest extends TestCase
         self::assertNull($this->summary->summarize([$this->review(1, 'failure', [['important', null]])], DocumentStatus::Draft));
     }
 
+    public function test_a_draft_has_no_summary_after_a_passed_review(): void
+    {
+        self::assertNull($this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::Draft));
+    }
+
+    public function test_a_draft_has_no_summary_after_three_failed_reviews(): void
+    {
+        self::assertNull($this->summary->summarize([
+            $this->review(3, 'failure', [['important', null]]),
+            $this->review(2, 'failure', [['important', 'fixed']]),
+            $this->review(1, 'failure', [['important', 'fixed']]),
+        ], DocumentStatus::Draft));
+    }
+
     public function test_a_finding_for_the_owner_stays_open(): void
     {
-        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::Draft);
+        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::InReview);
 
         self::assertNotNull($result);
         self::assertSame('passed', $result['state']);

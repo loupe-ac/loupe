@@ -41,7 +41,7 @@ final readonly class AgentReviewSummary
      */
     public function summarize(array $newestFirst, DocumentStatus $status): ?array
     {
-        if ([] === $newestFirst) {
+        if ([] === $newestFirst || DocumentStatus::Draft === $status) {
             return null;
         }
 
@@ -49,12 +49,8 @@ final readonly class AgentReviewSummary
         $state = match (true) {
             'success' === $newestFirst[0]['conclusion'] => 'passed',
             $failed >= self::FAILED_ROUND_LIMIT => 'failed',
-            DocumentStatus::Draft !== $status => 'skipped',
-            default => null,
+            default => 'skipped',
         };
-        if (null === $state) {
-            return null;
-        }
 
         $oldestFirst = array_reverse($newestFirst);
         $roundList = [];

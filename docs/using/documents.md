@@ -550,7 +550,7 @@ The summary has three states:
 2. **Agent review did not pass.** Three reviews failed, so the document reached you anyway.
 3. **Agent review skipped.** You published the draft while the loop still ran.
 
-A document with no agent review shows no summary. A draft in the middle of its loop shows none either.
+A document with no agent review shows no summary. A draft shows none either, also after its loop ends. The summary appears when the draft is published.
 
 The line next to the state counts the rounds, the findings that the fix round fixed, the findings it did not change, and the findings still open.
 A skipped summary says after which round you published.
