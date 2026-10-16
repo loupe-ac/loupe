@@ -750,6 +750,8 @@ Each entry takes these fields:
 | `variants` | no | The variants of an experiment that the kind names. Only a worker entry can set it. See below |
 | `run` | for `action: command` | The argv list of the command, with placeholders. Only a command entry can set it |
 | `timeout` | no | How long the command can run. Defaults to `10m`, and is at most `60m`. Only a command entry can set it |
+| `description` | no | A short text that says what the command does. The bridge reports it to Loupe. Only a command entry can set it |
+| `params` | no | The parameters of the command, as [Command parameters](#command-parameters) says. Only a command entry can set it |
 
 An interactive entry needs the top-level `launch` block, and works on macOS and
 Linux only. The prompt of a worker entry gets the [prompt footer](#prompt-footer).
@@ -981,6 +983,64 @@ and the bridge refuses more than `60m`. The check refuses `prompt`, `model`,
 entry. The accounts, the `defaults:` block and the bridge flags do not reach
 it.
 
+### Command parameters
+
+A command entry can declare `params`. `run` names a parameter as a placeholder,
+such as `{out}`. Each parameter has a `pattern`, and an optional `description`.
+
+```yaml
+work:
+  design-export:
+    action: command
+    description: Export the design system for Claude Design
+    params:
+      out: { pattern: "var/[a-z-]+", description: The export folder }
+    run: [bin/console, app:design-system:export, "{out}"]
+```
+
+The pattern is RE2 syntax, as Go reads it. It has no lookahead and no
+backreference. The bridge wraps it as `^(?:pattern)$`, so a value must match
+whole. The value fills one element of `run`, and never splits.
+
+The check refuses a parameter with no pattern, a pattern that RE2 cannot
+compile, a name that is not letters only, and a name that is a built-in
+placeholder such as `kind`. A placeholder that is neither built in nor declared
+stays an error.
+
+A pattern is only as strict as the operator writes it. A loose pattern such as
+`.*` lets a value like `--exec=...` or `../..` through. Write the narrowest
+pattern that fits.
+
+### Command entries in the heartbeat
+
+The heartbeat lists every command entry: `name`, `description`, `params`, `run`
+and `timeout`. It lists at most 50 entries, in name order. It also lists, for
+each followed project, the branch and the folder of each worktree that
+`git worktree list --porcelain` shows in the project `dir`. It lists at most 200
+worktrees. A detached or bare worktree has no branch and is left out. The bridge
+reads the worktrees at each heartbeat. When git fails or runs past five
+seconds, the heartbeat leaves the list out, and Loupe keeps the rows it holds.
+A reload sends a heartbeat at once, so a new entry shows with no wait.
+
+The bridge always reports the capability `run-command`.
+
+### Accepting entries from Loupe
+
+`acceptEntries: true` at the top of the file lets Loupe add a command entry to
+this file, after the owner confirms. The bridge then reports the capability
+`add-entry`. The key is off when it is absent.
+
+```yaml
+acceptEntries: true
+```
+
+The cost: a compromised server could then add any command entry and run it. It
+could run any program as the bridge user. Turn the key on only when you accept
+that risk.
+
+Update the CLI before you use `params` or `acceptEntries`. A CLI from before
+this change refuses both as unknown keys, and the whole file fails to load.
+
 A command takes no worker slot, so it starts while every pool is full. It still
 holds its card. A command that arrives while a worker of the card runs waits for
 that worker, and a worker that arrives while the command runs waits for the
@@ -1184,7 +1244,9 @@ or another server holds no pause for this bridge. The first reply that carries
 missing cache heals. When the bridge cannot find its config directory, it runs
 with no cache. An update hands the pause to the new version directly. Each
 heartbeat sends `paused` with the state the bridge applies, and
-`capabilities: ["commands", "rerun-command", "session-usage"]`.
+`capabilities: ["commands", "rerun-command", "session-usage", "run-command"]`,
+with `add-entry` when `acceptEntries` is on, and with the capabilities of the
+work map.
 
 The project owner sends a stop, a resume, a rerun or a pause from the web UI.
 Stop, Resume and Run again are in the runs section of a card page and in the

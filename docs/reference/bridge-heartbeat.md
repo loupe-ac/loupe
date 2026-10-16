@@ -67,8 +67,10 @@ The path holds no project, because one bridge follows several projects.
 | `hooks` | optional. A list of at most 100 rows, one for each event of each [hook package](../extending/bridge-hooks.md) the bridge runs. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `workerPools` | optional. A list of at most 50 rows, one for each worker pool of the bridge. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `accounts` | optional. A list of at most 50 rows, one for each account the bridge checked. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
+| `commandEntries` | optional. A list of at most 50 rows, one for each command entry of the `work:` map in `rules.yaml` that the inbox can run. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
+| `worktrees` | optional. A list of at most 200 rows, one for each worktree of each followed project folder. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
-| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
+| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
 | `hostSamples` | optional. A list of at most 720 [host samples](#host-samples), oldest first. A missing, `null` or empty value stores nothing |
 
@@ -115,6 +117,29 @@ server stamps that time from its own clock when a heartbeat carries an
 `accounts` list, an empty list included. A heartbeat with no list keeps the
 rows and their time. A bridge that never sent an `accounts` list shows no
 accounts.
+
+Each row of `commandEntries` holds these fields:
+
+| Field | Rule |
+|---|---|
+| `name` | required. The entry name, 1 to 100 characters |
+| `description` | optional. What the entry does, at most 500 characters after trimming. The server stores a blank value as no value |
+| `params` | required. A list of at most 20 parameters, which may be empty. Each parameter has a `name` of 1 to 100 characters, a `pattern` of 1 to 500 characters, and an optional `description` of at most 500 characters. A value must match the whole pattern |
+| `run` | required. The argv of the entry with its placeholders, a list of 1 to 50 strings of at most 1000 characters each |
+| `timeout` | required. The time limit of the entry, such as `10m`, at most 20 characters |
+
+Each row of `worktrees` holds these fields:
+
+| Field | Rule |
+|---|---|
+| `projectId` | required. The project id, as a uuid. The server stores it in lower case |
+| `branch` | required. The branch that the worktree has checked out, 1 to 255 characters |
+| `path` | required. The folder of the worktree, 1 to 4096 characters |
+
+The server stamps a report time from its own clock when a heartbeat carries a
+`commandEntries` list or a `worktrees` list, an empty list included. A
+heartbeat with no list keeps the rows and their time. The
+[`bridge_list`](../using/mcp.md) tool shows the entries to a worker.
 
 ### Host samples
 
@@ -580,7 +605,7 @@ writes a `bridge.work_request_settled` record to the audit log.
 Deleting an account deletes the rows of its bridges and their commands. The
 data export holds the bridges in `bridges.json`, with the stored update state,
 version and install method, the hook rows, the worker pool rows with their
-report time, the account rows with their report time, the pause state, the capabilities, the name the bridge holds,
+report time, the account rows with their report time, the command entry rows and the worktree rows, each with its report time, the pause state, the capabilities, the name the bridge holds,
 the name it asked for and the push login. It holds the commands in
 `bridge_commands.json`. Deleting an account also deletes the host samples of
 its bridges. The data export holds them in `bridge_host_samples.json`, with the

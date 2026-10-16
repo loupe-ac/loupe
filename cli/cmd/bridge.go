@@ -478,6 +478,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 			hb.onSent = r.update.markBeat
 		}
 		hb.onReply, hb.onLost = r.onHeartbeatReply, r.loseClaims
+		hb.worktrees = func(ctx context.Context) []api.WorktreeReport { return worktreeReports(ctx, r.rules()) }
 		// Adopted runs can end on their own goroutines, and read heartbeat
 		// under mu.
 		r.mu.Lock()
@@ -596,7 +597,12 @@ func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
 
 	name := set.Name()
 
-	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: set.Capabilities(), Name: &name, PushLogin: &pushLogin, Accounts: accountReports(set)}
+	caps := set.Capabilities()
+	if set.AcceptEntries() {
+		caps = append(caps, rules.CapabilityAddEntry)
+	}
+
+	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: caps, Name: &name, PushLogin: &pushLogin, Accounts: accountReports(set), CommandEntries: commandEntryReports(set)}
 }
 
 // missingProjects names the mapped projects that GET /api/events does not list:

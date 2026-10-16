@@ -36,6 +36,19 @@ final class BridgeTest extends TestCase
         self::assertSame(null !== $capabilities && \in_array(Bridge::CAPABILITY_WORK_REQUESTS, $capabilities, true), $bridge->takesWorkRequests());
     }
 
+    public function test_a_bridge_accepts_entries_only_when_it_reports_the_capability(): void
+    {
+        $bridge = new Bridge(new User('Riley Chen', 'riley@example.com', 'x'), Uuid::v4(), [], 'b4e39aa7', new \DateTimeImmutable());
+
+        self::assertFalse($bridge->acceptsEntries());
+
+        $bridge->capabilities = [Bridge::CAPABILITY_RUN_COMMAND];
+        self::assertFalse($bridge->acceptsEntries());
+
+        $bridge->capabilities = [Bridge::CAPABILITY_RUN_COMMAND, Bridge::CAPABILITY_ADD_ENTRY];
+        self::assertTrue($bridge->acceptsEntries());
+    }
+
     /** @return iterable<string, array{list<string>, ?string, ?string, bool}> */
     public static function appPrompts(): iterable
     {

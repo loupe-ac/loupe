@@ -540,6 +540,41 @@ type Heartbeat struct {
 	// Accounts is nil until the bridge checked its accounts, which sends no
 	// key and keeps the rows the server holds.
 	Accounts []AccountReport `json:"accounts,omitzero"`
+	// CommandEntries and Worktrees follow the same rule: nil sends no key and
+	// keeps the rows the server holds, and an empty list sends [] and clears
+	// them.
+	CommandEntries []CommandEntryReport `json:"commandEntries,omitzero"`
+	Worktrees      []WorktreeReport     `json:"worktrees,omitzero"`
+}
+
+// The most rows of each list a heartbeat carries.
+const (
+	MaxCommandEntries = 50
+	MaxWorktrees      = 200
+)
+
+// CommandEntryReport is one command entry of the rule file. Run holds the
+// argv with its placeholders unfilled.
+type CommandEntryReport struct {
+	Name        string               `json:"name"`
+	Description string               `json:"description"`
+	Params      []CommandParamReport `json:"params"`
+	Run         []string             `json:"run"`
+	Timeout     string               `json:"timeout"`
+}
+
+// CommandParamReport is one parameter of a command entry.
+type CommandParamReport struct {
+	Name        string `json:"name"`
+	Pattern     string `json:"pattern"`
+	Description string `json:"description"`
+}
+
+// WorktreeReport is one git worktree of a followed project, on a branch.
+type WorktreeReport struct {
+	ProjectID string `json:"projectId"`
+	Branch    string `json:"branch"`
+	Path      string `json:"path"`
 }
 
 // The states of an account row.
@@ -660,6 +695,12 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 	}
 	if len(hb.WorkClaims) > MaxWorkClaims {
 		hb.WorkClaims = hb.WorkClaims[:MaxWorkClaims]
+	}
+	if len(hb.CommandEntries) > MaxCommandEntries {
+		hb.CommandEntries = hb.CommandEntries[:MaxCommandEntries]
+	}
+	if len(hb.Worktrees) > MaxWorktrees {
+		hb.Worktrees = hb.Worktrees[:MaxWorktrees]
 	}
 	if len(hb.HostSamples) > HostSamplesPerHeartbeat {
 		hb.HostSamples = hb.HostSamples[:HostSamplesPerHeartbeat]

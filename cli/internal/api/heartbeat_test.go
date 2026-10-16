@@ -382,3 +382,62 @@ func TestHeartbeatSendsNoHostSamplesKeyWhenThereAreNone(t *testing.T) {
 		t.Fatalf("body = %s", body)
 	}
 }
+
+func TestHeartbeatSendsEntriesAndWorktreesOnlyWhenTheListsAreSet(t *testing.T) {
+	var body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+	client := New(server.URL, "t", server.Client())
+
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, Heartbeat{CLIVersion: "v"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(body, "commandEntries") || strings.Contains(body, "worktrees") {
+		t.Fatalf("nil lists sent keys: %s", body)
+	}
+
+	hb := Heartbeat{CLIVersion: "v", CommandEntries: []CommandEntryReport{}, Worktrees: []WorktreeReport{}}
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, `"commandEntries":[]`) || !strings.Contains(body, `"worktrees":[]`) {
+		t.Fatalf("empty lists sent no []: %s", body)
+	}
+
+	hb = Heartbeat{CLIVersion: "v",
+		CommandEntries: []CommandEntryReport{{Name: "x", Params: []CommandParamReport{{Name: "out", Pattern: "a"}}, Run: []string{"b", "{out}"}, Timeout: "10m"}},
+		Worktrees:      []WorktreeReport{{ProjectID: "p", Branch: "main", Path: "/r"}},
+	}
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"commandEntries":[{"name":"x","description":"","params":[{"name":"out","pattern":"a","description":""}],"run":["b","{out}"],"timeout":"10m"}]`,
+		`"worktrees":[{"projectId":"p","branch":"main","path":"/r"}]`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body lacks %s: %s", want, body)
+		}
+	}
+}
+
+func TestHeartbeatClipsEntriesAndWorktrees(t *testing.T) {
+	var sent Heartbeat
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&sent)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	hb := Heartbeat{CLIVersion: "v", CommandEntries: make([]CommandEntryReport, MaxCommandEntries+5), Worktrees: make([]WorktreeReport, MaxWorktrees+5)}
+	if _, err := New(server.URL, "t", server.Client()).Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent.CommandEntries) != MaxCommandEntries || len(sent.Worktrees) != MaxWorktrees {
+		t.Fatalf("sent %d entries and %d worktrees", len(sent.CommandEntries), len(sent.Worktrees))
+	}
+}

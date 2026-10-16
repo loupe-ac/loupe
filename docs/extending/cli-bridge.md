@@ -1237,7 +1237,45 @@ placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
 `permissions`, `variants`, `metrics`, `workerPool` and `before` on a command
-entry.
+entry. A worker or interactive entry cannot set `params` or `description`.
+
+### Command parameters
+
+A command entry can set `description`, and `params`. `run` names a parameter
+as a placeholder, such as `{out}`:
+
+```yaml
+work:
+  design-export:
+    action: command
+    description: Export the design system for Claude Design
+    params:
+      out: { pattern: "var/[a-z-]+", description: The export folder }
+    run: ["bin/console", "app:design-system:export", "{out}"]
+```
+
+Each parameter needs a `pattern` in RE2 syntax, with no lookahead and no
+backreference. The bridge wraps it as `^(?:pattern)$`, so a value must match
+whole. The value fills one element of `run` and never splits. The check refuses
+a parameter with no pattern, a pattern that does not compile, and a name that is
+a built-in placeholder. A pattern is only as strict as the operator writes it,
+so write the narrowest pattern that fits. A loose pattern lets a value such as
+`--exec=...` through.
+
+The heartbeat lists each command entry with its parameters, and each worktree of
+the followed projects. The bridge always reports the capability `run-command`.
+
+### Accept entries from Loupe
+
+`acceptEntries: true` at the top of `rules.yaml` lets Loupe add a command entry
+to the file, after the owner confirms. The bridge then reports the capability
+`add-entry`. The key is off when it is absent.
+
+A compromised server could then add and run any command entry. It could run any
+program as the bridge user. Turn the key on only when you accept that risk.
+
+Update the CLI first. A CLI from before this change refuses `params` and
+`acceptEntries` as unknown keys, and the whole file fails to load.
 
 A command takes no worker slot. It holds its card, so it waits for a worker of
 the card that runs, and a worker that arrives later waits for it. Commands on

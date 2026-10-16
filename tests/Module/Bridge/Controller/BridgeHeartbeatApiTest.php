@@ -6,8 +6,11 @@ namespace App\Tests\Module\Bridge\Controller;
 
 use App\Module\Account\Entity\User;
 use App\Module\Bridge\Controller\Api\BridgeAccountInput;
+use App\Module\Bridge\Controller\Api\BridgeCommandEntryInput;
+use App\Module\Bridge\Controller\Api\BridgeCommandParamInput;
 use App\Module\Bridge\Controller\Api\BridgeHookInput;
 use App\Module\Bridge\Controller\Api\BridgeHostSampleInput;
+use App\Module\Bridge\Controller\Api\BridgeWorktreeInput;
 use App\Module\Bridge\Controller\Api\RecordBridgeHeartbeatRequest;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
@@ -390,6 +393,62 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $this->put($client, (string) Uuid::v4(), $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'accounts' => [self::account(['used' => 'maybe'])]]);
 
         self::assertResponseStatusCodeSame(422);
+    }
+
+    public function test_the_command_entries_and_worktrees_are_stored(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-entries@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $projectId = strtoupper((string) Uuid::v7());
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'commandEntries' => [
+            self::commandEntry(),
+            self::commandEntry(['name' => 'plain', 'description' => '  ', 'params' => [], 'run' => ['true']]),
+        ], 'worktrees' => [['projectId' => $projectId, 'branch' => 'epic/42', 'path' => '/work/card-42']]]);
+
+        self::assertResponseStatusCodeSame(200);
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertSame([
+            [
+                'name' => 'design-export',
+                'description' => 'Export the design system',
+                'params' => [['name' => 'out', 'pattern' => '^var/[a-z-]+$', 'description' => null]],
+                'run' => ['bin/console', 'app:design-system:export', '{out}'],
+                'timeout' => '10m',
+            ],
+            ['name' => 'plain', 'description' => null, 'params' => [], 'run' => ['true'], 'timeout' => '10m'],
+        ], $bridge->commandEntries);
+        self::assertSame([['projectId' => strtolower($projectId), 'branch' => 'epic/42', 'path' => '/work/card-42']], $bridge->worktrees);
+        self::assertNotNull($bridge->commandEntriesReportedAt);
+        self::assertNotNull($bridge->worktreesReportedAt);
+    }
+
+    /** A bridge from before command entries sends none, so a missing key keeps the rows and an empty list clears them. */
+    public function test_a_missing_key_keeps_the_entries_and_an_empty_list_clears_them(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-entries-keep@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $worktree = ['projectId' => (string) Uuid::v7(), 'branch' => 'main', 'path' => '/work/main'];
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'commandEntries' => [self::commandEntry()], 'worktrees' => [$worktree]]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7']);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'commandEntries' => null, 'worktrees' => null]);
+
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertCount(1, $bridge->commandEntries ?? []);
+        self::assertSame([$worktree], $bridge->worktrees);
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'commandEntries' => [], 'worktrees' => []]);
+
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertSame([], $bridge->commandEntries);
+        self::assertSame([], $bridge->worktrees);
     }
 
     /** A bridge from before accounts sends none, so its heartbeat leaves the stored rows alone. */
@@ -785,6 +844,32 @@ final class BridgeHeartbeatApiTest extends WebTestCase
      *
      * @return array<string, mixed>
      */
+    private static function commandEntry(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => 'design-export',
+            'description' => 'Export the design system',
+            'params' => [['name' => 'out', 'pattern' => '^var/[a-z-]+$', 'description' => '']],
+            'run' => ['bin/console', 'app:design-system:export', '{out}'],
+            'timeout' => '10m',
+        ], $overrides);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private static function worktree(array $overrides = []): array
+    {
+        return array_merge(['projectId' => (string) Uuid::v7(), 'branch' => 'main', 'path' => '/work/main'], $overrides);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
     private static function pool(array $overrides = []): array
     {
         return array_merge(['name' => 'default', 'size' => 3, 'inUse' => 2, 'queued' => 5], $overrides);
@@ -869,6 +954,31 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'an account with no state' => [['accounts' => [self::account(['state' => null])]]];
         yield 'an account reason that is too long' => [['accounts' => [self::account(['state' => 'failing', 'reason' => str_repeat('a', BridgeAccountInput::MAX_REASON_LENGTH + 1)])]]];
         yield 'an account reason that is not text' => [['accounts' => [self::account(['state' => 'failing', 'reason' => 7])]]];
+        yield 'command entries that are not a list' => [['commandEntries' => 'design-export']];
+        yield 'command entries keyed by name' => [['commandEntries' => ['design-export' => self::commandEntry()]]];
+        yield 'too many command entries' => [['commandEntries' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_COMMAND_ENTRIES + 1, self::commandEntry())]];
+        yield 'a command entry that is not an object' => [['commandEntries' => ['design-export']]];
+        yield 'a command entry with no name' => [['commandEntries' => [self::commandEntry(['name' => null])]]];
+        yield 'a command entry name that is too long' => [['commandEntries' => [self::commandEntry(['name' => str_repeat('a', BridgeCommandEntryInput::MAX_NAME_LENGTH + 1)])]]];
+        yield 'a command entry description that is too long' => [['commandEntries' => [self::commandEntry(['description' => str_repeat('a', BridgeCommandEntryInput::MAX_DESCRIPTION_LENGTH + 1)])]]];
+        yield 'a command entry with no timeout' => [['commandEntries' => [self::commandEntry(['timeout' => null])]]];
+        yield 'a command entry with an empty run' => [['commandEntries' => [self::commandEntry(['run' => []])]]];
+        yield 'a command entry with no run' => [['commandEntries' => [self::commandEntry(['run' => null])]]];
+        yield 'a command entry run element that is not text' => [['commandEntries' => [self::commandEntry(['run' => ['bin/console', 7]])]]];
+        yield 'a command entry run element that is too long' => [['commandEntries' => [self::commandEntry(['run' => [str_repeat('a', BridgeCommandEntryInput::MAX_RUN_ELEMENT_LENGTH + 1)]])]]];
+        yield 'a command entry with too many run elements' => [['commandEntries' => [self::commandEntry(['run' => array_fill(0, BridgeCommandEntryInput::MAX_RUN_ELEMENTS + 1, 'a')])]]];
+        yield 'a command entry with params keyed by name' => [['commandEntries' => [self::commandEntry(['params' => ['out' => ['name' => 'out', 'pattern' => 'a']]])]]];
+        yield 'a command entry with too many params' => [['commandEntries' => [self::commandEntry(['params' => array_fill(0, BridgeCommandEntryInput::MAX_PARAMS + 1, ['name' => 'out', 'pattern' => 'a'])])]]];
+        yield 'a command param with no name' => [['commandEntries' => [self::commandEntry(['params' => [['name' => null, 'pattern' => 'a']]])]]];
+        yield 'a command param with no pattern' => [['commandEntries' => [self::commandEntry(['params' => [['name' => 'out', 'pattern' => '']]])]]];
+        yield 'a command param pattern that is too long' => [['commandEntries' => [self::commandEntry(['params' => [['name' => 'out', 'pattern' => str_repeat('a', BridgeCommandParamInput::MAX_PATTERN_LENGTH + 1)]]])]]];
+        yield 'worktrees that are not a list' => [['worktrees' => 'main']];
+        yield 'too many worktrees' => [['worktrees' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_WORKTREES + 1, self::worktree())]];
+        yield 'a worktree with a project id that is not a uuid' => [['worktrees' => [self::worktree(['projectId' => 'loupe'])]]];
+        yield 'a worktree with no branch' => [['worktrees' => [self::worktree(['branch' => null])]]];
+        yield 'a worktree branch that is too long' => [['worktrees' => [self::worktree(['branch' => str_repeat('a', BridgeWorktreeInput::MAX_BRANCH_LENGTH + 1)])]]];
+        yield 'a worktree with no path' => [['worktrees' => [self::worktree(['path' => ''])]]];
+        yield 'a worktree path that is too long' => [['worktrees' => [self::worktree(['path' => str_repeat('a', BridgeWorktreeInput::MAX_PATH_LENGTH + 1)])]]];
         yield 'capabilities that are not a list' => [['capabilities' => 'commands']];
         yield 'capabilities keyed by name' => [['capabilities' => ['commands' => 'commands']]];
         yield 'too many capabilities' => [['capabilities' => array_map(static fn (int $i): string => 'c'.$i, range(0, RecordBridgeHeartbeatRequest::MAX_CAPABILITIES))]];

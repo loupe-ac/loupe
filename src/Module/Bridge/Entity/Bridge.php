@@ -25,6 +25,9 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type HookRow array{package: string, ref: string, event: string, lastRunAt: ?string, outcome: string, error: ?string}
  * @phpstan-type WorkerPoolRow array{name: string, size: int, inUse: int, queued: int}
  * @phpstan-type AccountRow array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used?: bool}
+ * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
+ * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
+ * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
  */
 #[ORM\Entity(repositoryClass: BridgeRepository::class)]
 #[ORM\Table(name: 'bridges')]
@@ -64,6 +67,12 @@ class Bridge
 
     /** Reported by a bridge that runs the prompts the app ships, for a request that carries one. */
     public const string CAPABILITY_APP_PROMPTS = 'app-prompts';
+
+    /** The capability of a bridge that runs a command entry of its rule file for the inbox. */
+    public const string CAPABILITY_RUN_COMMAND = 'run-command';
+
+    /** The capability of a bridge that adds a proposed command entry to its rule file. */
+    public const string CAPABILITY_ADD_ENTRY = 'add-entry';
 
     /** The prefix of the capability a request names for a subject that is no card. */
     public const string SUBJECT_CAPABILITY_PREFIX = 'subject-';
@@ -112,6 +121,30 @@ class Bridge
     /** The server clock at the heartbeat that carried the account rows. */
     #[ORM\Column(name: 'accounts_reported_at', nullable: true)]
     public ?\DateTimeImmutable $accountsReportedAt = null;
+
+    /**
+     * The command entries of the rule file, as the last heartbeat reported them. Null until a bridge sends a report.
+     *
+     * @var list<CommandEntryRow>|null
+     */
+    #[ORM\Column(name: 'command_entries', type: Types::JSON, nullable: true)]
+    public ?array $commandEntries = null;
+
+    /** The server clock at the heartbeat that carried the command entry rows. */
+    #[ORM\Column(name: 'command_entries_reported_at', nullable: true)]
+    public ?\DateTimeImmutable $commandEntriesReportedAt = null;
+
+    /**
+     * The worktrees of the followed projects, as the last heartbeat reported them. Null until a bridge sends a report.
+     *
+     * @var list<WorktreeRow>|null
+     */
+    #[ORM\Column(name: 'worktrees', type: Types::JSON, nullable: true)]
+    public ?array $worktrees = null;
+
+    /** The server clock at the heartbeat that carried the worktree rows. */
+    #[ORM\Column(name: 'worktrees_reported_at', nullable: true)]
+    public ?\DateTimeImmutable $worktreesReportedAt = null;
 
     /** Whether a person asked the bridge to start no new work. It stays until a person clears it. */
     #[ORM\Column(name: 'pause_requested', options: ['default' => false])]
@@ -189,6 +222,11 @@ class Bridge
     public function takesReruns(): bool
     {
         return $this->takesCommands() && \in_array(self::CAPABILITY_RERUN_COMMAND, $this->capabilities ?? [], true);
+    }
+
+    public function acceptsEntries(): bool
+    {
+        return \in_array(self::CAPABILITY_ADD_ENTRY, $this->capabilities ?? [], true);
     }
 
     public function takesSessionUsage(): bool
