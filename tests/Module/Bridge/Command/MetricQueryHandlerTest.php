@@ -269,6 +269,30 @@ final class MetricQueryHandlerTest extends KernelTestCase
         );
     }
 
+    public function test_it_groups_the_runs_by_the_three_versions(): void
+    {
+        $card = Uuid::v7();
+        $this->fact($card, endedAt: '2026-10-01 09:00:00', cost: 1_000_000, harnessVersion: '2.1.300', cliVersion: '0.9.0', skillVersion: '5.4.0');
+        $this->fact($card, endedAt: '2026-10-01 10:00:00', cost: 2_000_000, harnessVersion: '2.1.301', cliVersion: '0.9.0', skillVersion: '5.5.0');
+        $this->fact($card, endedAt: '2026-10-01 11:00:00', cost: 4_000_000, harnessVersion: '2.1.301', cliVersion: '0.9.0', skillVersion: '5.5.0');
+        $this->fact($card, endedAt: '2026-10-01 12:00:00', cost: 8_000_000);
+
+        $totals = static fn (MetricQueryView $view): array => array_map(static fn (MetricSeries $series): array => [$series->group, $series->total->value], $view->series);
+
+        self::assertEqualsCanonicalizing(
+            [['2.1.300', 1.0], ['2.1.301', 6.0], [null, 8.0]],
+            $totals($this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::HarnessVersion)),
+        );
+        self::assertEqualsCanonicalizing(
+            [['0.9.0', 7.0], [null, 8.0]],
+            $totals($this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::CliVersion)),
+        );
+        self::assertEqualsCanonicalizing(
+            [['5.4.0', 1.0], ['5.5.0', 6.0], [null, 8.0]],
+            $totals($this->query(MetricUnit::Run, Metric::Cost, MetricStatistic::Sum, MetricGroup::SkillVersion)),
+        );
+    }
+
     /** @return iterable<string, array{MetricUnit, Metric, MetricStatistic, MetricGroup, string}> */
     public static function refusals(): iterable
     {
@@ -280,6 +304,7 @@ final class MetricQueryHandlerTest extends KernelTestCase
         yield 'fix rounds by model' => [MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum, MetricGroup::Model, 'group'];
         yield 'hours to merge by bridge' => [MetricUnit::Card, Metric::HoursToMerge, MetricStatistic::Median, MetricGroup::Bridge, 'group'];
         yield 'the merge rate by harness' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::Harness, 'group'];
+        yield 'the merge rate by skill version' => [MetricUnit::Card, Metric::MergeRate, MetricStatistic::Mean, MetricGroup::SkillVersion, 'group'];
         yield 'fix rounds by account' => [MetricUnit::Card, Metric::FixRounds, MetricStatistic::Sum, MetricGroup::Account, 'group'];
     }
 
@@ -375,6 +400,9 @@ final class MetricQueryHandlerTest extends KernelTestCase
         ?Uuid $runId = null,
         ?string $harness = null,
         ?string $account = null,
+        ?string $harnessVersion = null,
+        ?string $cliVersion = null,
+        ?string $skillVersion = null,
     ): Uuid {
         $runId ??= Uuid::v7();
         $this->em->getConnection()->insert('bridge_worker_run_facts', [
@@ -393,6 +421,9 @@ final class MetricQueryHandlerTest extends KernelTestCase
             'usage_source' => null === $cost ? null : 'reported',
             'harness' => $harness,
             'account' => $account,
+            'harness_version' => $harnessVersion,
+            'cli_version' => $cliVersion,
+            'skill_version' => $skillVersion,
         ]);
 
         return $runId;

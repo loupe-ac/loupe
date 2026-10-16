@@ -21,7 +21,7 @@ final readonly class WorkerRunFactWriter
     private const string UPSERT_SQL = <<<'SQL'
         INSERT INTO bridge_worker_run_facts (
             run_id, project_id, subject_type, subject_id, card_number, kind, work_kind, rule_id,
-            experiment, variant, model, harness, account, bridge_id, outcome, started_at, ended_at, received_at,
+            experiment, variant, model, harness, account, harness_version, cli_version, skill_version, bridge_id, outcome, started_at, ended_at, received_at,
             duration_ms, cost_micro_usd, tokens_in, tokens_out, tokens_cache_read, tokens_cache_write,
             usage_source, tool_time_ms, model_time_ms, tool_calls, failed_calls, longest_call_ms,
             idle_gap_ms, subagent_ms, peak_context_tokens, mean_cpu_pct, peak_mem_bytes, peak_swap_bytes,
@@ -41,6 +41,9 @@ final readonly class WorkerRunFactWriter
             top.model,
             r.harness,
             r.account,
+            r.harness_version,
+            r.cli_version,
+            r.skill_version,
             r.bridge_id,
             r.state,
             r.started_at,
@@ -136,6 +139,9 @@ final readonly class WorkerRunFactWriter
             model = EXCLUDED.model,
             harness = EXCLUDED.harness,
             account = EXCLUDED.account,
+            harness_version = EXCLUDED.harness_version,
+            cli_version = EXCLUDED.cli_version,
+            skill_version = EXCLUDED.skill_version,
             bridge_id = EXCLUDED.bridge_id,
             outcome = EXCLUDED.outcome,
             started_at = EXCLUDED.started_at,

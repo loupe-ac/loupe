@@ -479,6 +479,46 @@ final class WorkerRunStatesApiTest extends WebTestCase
         self::assertSame(['codex', 'work.main', 'gpt-5', 'thread_01:abc-9'], [$run->harness, $run->account, $run->model, $run->harnessSessionId]);
     }
 
+    public function test_the_version_fields_are_stored_kept_and_filled_late(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-versions@example.com');
+        $project = $this->project($em, $owner, 'Run States Versions');
+        $raw = $this->agentToken($client, $owner);
+        $path = $this->path($project->id, (string) Uuid::v4());
+        $running = [
+            'state' => 'running',
+            'sessionId' => (string) Uuid::v4(),
+            'startedAt' => '2026-09-23T10:00:05+00:00',
+        ];
+
+        $this->put($client, $path, $raw, $this->payload(['cliVersion' => '0.9.0 (dirty)']));
+        self::assertResponseStatusCodeSame(201);
+        $this->put($client, $path, $raw, $this->payload([...$running, 'harnessVersion' => '2.1.301', 'skillVersion' => '5.5.0']));
+        self::assertResponseStatusCodeSame(201);
+        $this->put($client, $path, $raw, $this->payload($running));
+        self::assertResponseStatusCodeSame(200);
+
+        $run = $this->onlyRun();
+        self::assertSame(['2.1.301', '0.9.0 (dirty)', '5.5.0'], [$run->harnessVersion, $run->cliVersion, $run->skillVersion]);
+    }
+
+    public function test_an_older_bridge_stores_no_version(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'run-states-no-versions@example.com');
+        $project = $this->project($em, $owner, 'Run States No Versions');
+        $raw = $this->agentToken($client, $owner);
+
+        $this->put($client, $this->path($project->id, (string) Uuid::v4()), $raw, $this->payload());
+        self::assertResponseStatusCodeSame(201);
+
+        $run = $this->onlyRun();
+        self::assertSame([null, null, null], [$run->harnessVersion, $run->cliVersion, $run->skillVersion]);
+    }
+
     public function test_the_experiment_of_the_run_is_stored(): void
     {
         $client = static::createClient();
@@ -951,6 +991,15 @@ final class WorkerRunStatesApiTest extends WebTestCase
         yield 'a blank model' => [['model' => '']];
         yield 'a model with a newline' => [['model' => "gpt\n5"]];
         yield 'a model above the limit' => [['model' => str_repeat('m', WorkerRun::MAX_MODEL_LENGTH + 1)]];
+        yield 'a blank harness version' => [['harnessVersion' => '']];
+        yield 'a harness version with a newline' => [['harnessVersion' => "2.1\n301"]];
+        yield 'a harness version above the limit' => [['harnessVersion' => str_repeat('v', WorkerRun::MAX_HARNESS_VERSION_LENGTH + 1)]];
+        yield 'a blank CLI version' => [['cliVersion' => '']];
+        yield 'a CLI version with a newline' => [['cliVersion' => "0.9\n0"]];
+        yield 'a skill version with a space' => [['skillVersion' => '5.5 0']];
+        yield 'a skill version that starts with a dot' => [['skillVersion' => '.5.5']];
+        yield 'a blank skill version' => [['skillVersion' => '']];
+        yield 'a skill version above the limit' => [['skillVersion' => str_repeat('1', WorkerRun::MAX_SKILL_VERSION_LENGTH + 1)]];
         yield 'a harness session id with a space' => [['harnessSessionId' => 'thread 1']];
         yield 'a blank harness session id' => [['harnessSessionId' => '']];
         yield 'a harness session id above the limit' => [['harnessSessionId' => 'a'.str_repeat('b', WorkerRun::MAX_HARNESS_SESSION_ID_LENGTH)]];
