@@ -16,6 +16,7 @@ use App\Module\Workflow\Contract\DocumentStatuses;
 use App\Module\Workflow\Contract\EngineFact;
 use App\Module\Workflow\Contract\LabelTone;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\Parameter;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ParameterType;
@@ -42,7 +43,7 @@ final readonly class TemplateParser
     private const array TYPE_KEYS = ['key', 'label', 'tone', 'capabilities'];
     private const int TYPE_KEY_MAX_LENGTH = 20;
     private const array TYPE_CAPABILITIES = ['children', 'lane'];
-    private const array MARKER_KEYS = ['key', 'kind', 'label', 'remedy', 'slots', 'when', 'fallback'];
+    private const array MARKER_KEYS = ['key', 'kind', 'label', 'remedy', 'slots', 'when', 'fallback', 'link'];
 
     /** The names an action call keeps for the parameter types that have a field of their own. */
     private const array KEPT_PARAMETERS = ['expression' => ['until', 'refill'], 'list' => ['checks'], 'options' => ['options']];
@@ -582,6 +583,13 @@ final readonly class TemplateParser
                 $errors[] = $where.' remedy: must be a non-empty string';
                 $remedy = null;
             }
+            $link = null;
+            if (\array_key_exists('link', $entry)) {
+                $link = \is_string($entry['link']) ? MarkerLink::tryFrom($entry['link']) : null;
+                if (null === $link) {
+                    $errors[] = \sprintf('%s link: must be one of %s', $where, implode(', ', array_column(MarkerLink::cases(), 'value')));
+                }
+            }
             $fallback = $entry['fallback'] ?? false;
             if (!\is_bool($fallback)) {
                 $errors[] = $where.' fallback: must be a boolean';
@@ -606,7 +614,7 @@ final readonly class TemplateParser
             }
 
             if (\count($errors) === $errorCount && \is_string($key) && null !== $kind && \is_string($label) && null !== $when) {
-                $markers[] = new TemplateMarker($key, $kind, $label, $remedy, array_values(array_unique($slots)), $when, $fallback);
+                $markers[] = new TemplateMarker($key, $kind, $label, $remedy, array_values(array_unique($slots)), $when, $fallback, $link);
             }
         }
 

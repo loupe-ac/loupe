@@ -65,7 +65,7 @@ class Card implements ProjectScopedSubject
     /**
      * The markers the workflow engine found on the card, as stored by CardMarkerStore. Null until the first pass.
      *
-     * @var list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string}>|null
+     * @var list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string, link?: ?string}>|null
      */
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
     public ?array $markers = null;

@@ -22,6 +22,7 @@ use App\Module\Board\EventListener\EvaluateCardOnCardDocumentsChanged;
 use App\Module\Board\EventListener\EvaluateCardOnWorkRequestChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnBoardColumnDeleted;
 use App\Module\Board\EventListener\EvaluateCardsOnBoardColumnTerminalChanged;
+use App\Module\Board\EventListener\EvaluateCardsOnBridgeAvailabilityChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnCardBlockersChanged;
 use App\Module\Board\EventListener\EvaluateCardsOnCardMoved;
 use App\Module\Board\EventListener\EvaluateCardsOnCardParentChanged;
@@ -33,6 +34,7 @@ use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardMove;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\CardHoldsReleased;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Event\WorkRequestChanged;
@@ -292,6 +294,26 @@ final class EvaluationListenersTest extends KernelTestCase
         );
 
         self::assertEqualsCanonicalizing($this->ids($epic, $child, $sibling), $this->sent());
+    }
+
+    public function test_a_change_of_bridge_availability_asks_for_the_cards_with_an_open_request_in_the_projects(): void
+    {
+        [$waiting, $claimed] = [$this->card($this->project, 'next'), $this->card($this->project, 'next')];
+        $this->card($this->project, 'next');
+        $other = $this->workflowProject('listeners-other');
+        $elsewhere = $this->card($other, 'next');
+        $this->workRequest($waiting, 'implement');
+        $this->workRequest($claimed, 'implement')->state = WorkRequestState::Claimed;
+        $this->em()->persist(new WorkRequest($other, WorkSubject::CARD, $elsewhere->id ?? throw new \LogicException('A flushed card has an id.'), $elsewhere->number, 'implement', null, 'implement', new \DateTimeImmutable('2026-10-02 09:00:00')));
+        $this->em()->flush();
+        $listener = new EvaluateCardsOnBridgeAvailabilityChanged($this->service(WorkRequestRepository::class), $this->trigger());
+
+        $listener(new BridgeAvailabilityChanged([$this->projectId()->toRfc4122()]));
+        self::assertSame($this->ids($waiting), $this->sent());
+
+        $this->transport()->reset();
+        $listener(new BridgeAvailabilityChanged([]));
+        self::assertSame([], $this->sent());
     }
 
     public function test_a_release_resets_the_rules_restarts_the_clock_of_the_open_requests_and_asks_for_the_cards(): void

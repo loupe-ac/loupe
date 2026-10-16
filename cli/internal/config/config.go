@@ -63,6 +63,16 @@ func Dir() (string, error) {
 	return filepath.Join(d, "loupe"), nil
 }
 
+// Path is config.json, the file `loupe login` writes.
+func Path() (string, error) {
+	d, err := Dir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(d, configFileName), nil
+}
+
 // RunsDir is the directory that holds one directory per worker run.
 func RunsDir() (string, error) {
 	d, err := Dir()

@@ -36,6 +36,7 @@ The path holds no project, because one bridge follows several projects.
     {"name": "default", "size": 3, "inUse": 2, "queued": 0},
     {"name": "quick", "size": 1, "inUse": 1, "queued": 4}
   ],
+  "workKinds": ["fix", "tech-design"],
   "accounts": [
     {"name": "claude", "harness": "claude-code", "state": "ready", "reason": null},
     {"name": "work", "harness": "claude-code", "state": "failing", "reason": "not logged in"}
@@ -69,6 +70,7 @@ The path holds no project, because one bridge follows several projects.
 | `accounts` | optional. A list of at most 50 rows, one for each account the bridge checked. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
 | `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
+| `workKinds` | optional. A list of at most 50 kinds of work the bridge can run, such as `fix` or `tech-design`. It holds the kinds of the rule file whose agent and account are on. A kind whose subject is `card` is its bare name. A kind of another subject is `<subject>:<kind>`, such as `analysis:cost-report`. Each kind and each subject starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. An empty list says that the bridge can run no kind. A missing or `null` value stores an empty list, so a bridge from before work kinds counts as able to run no kind until its CLI is upgraded |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
 | `hostSamples` | optional. A list of at most 720 [host samples](#host-samples), oldest first. A missing, `null` or empty value stores nothing |
 
@@ -513,8 +515,9 @@ record holds no claim token.
 
 ### The lease
 
-A claim holds a lease of 2 minutes. `app.bridge.work_request_lease_seconds` in
-`config/services.yaml` sets it. Each heartbeat renews the leases of the claims
+A claim holds a lease of 30 minutes. `app.bridge.work_request_lease_seconds` in
+`config/services.yaml` sets it. A bridge that cannot reach Loupe for less than
+that time, such as during an expired login, keeps its workers. Each heartbeat renews the leases of the claims
 it names in `workClaims`. The server renews a claim only when this bridge holds
 it with that token, and the project of the request belongs to the account of
 the heartbeat. The reply names each other id in `lostClaims`. The bridge then
@@ -580,7 +583,7 @@ writes a `bridge.work_request_settled` record to the audit log.
 Deleting an account deletes the rows of its bridges and their commands. The
 data export holds the bridges in `bridges.json`, with the stored update state,
 version and install method, the hook rows, the worker pool rows with their
-report time, the account rows with their report time, the pause state, the capabilities, the name the bridge holds,
+report time, the account rows with their report time, the pause state, the capabilities, the work kinds, the name the bridge holds,
 the name it asked for and the push login. It holds the commands in
 `bridge_commands.json`. Deleting an account also deletes the host samples of
 its bridges. The data export holds them in `bridge_host_samples.json`, with the

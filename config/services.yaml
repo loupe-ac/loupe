@@ -79,6 +79,10 @@ parameters:
     app.forge.sweep_schedule: '*/10 * * * *'
     # The backstop for a card wait that no event reported.
     app.inbox.card_wait_sweep_schedule: '*/15 * * * *'
+    # Every minute, so the notice closes soon after a bridge is back.
+    app.inbox.bridge_outage_schedule: '* * * * *'
+    # How long work waits with no bridge that could take it before the notice opens, in minutes.
+    app.inbox.bridge_outage_after_minutes: 10
     # How often a CLI bridge posts its heartbeat, in seconds, as the default the
     # `bridge.heartbeat_interval_seconds` feature flag starts from.
     app.bridge.default_heartbeat_interval_seconds: 60
@@ -98,7 +102,7 @@ parameters:
     # Every minute, so an expired command leaves the pending list soon after its time.
     app.bridge.command_expiry_schedule: '* * * * *'
     # How long a claim of a work request holds, in seconds. A heartbeat renews it.
-    app.bridge.work_request_lease_seconds: 120
+    app.bridge.work_request_lease_seconds: 1800
     # Every minute, so the work of a bridge that died waits at most a minute past its lease.
     app.bridge.work_request_reopen_schedule: '* * * * *'
     # How long a work request about a subject other than a card waits for a
