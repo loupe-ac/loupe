@@ -208,7 +208,9 @@ Hover the mark, or focus it, to read the tooltip. The tooltip gives these items:
 - The reason the card has the state.
 - The time the reason began.
 - Every other marker of the card, chips included.
-- On a board tile, an **Open card** link. A list row leaves the link out,
+- On a board tile, an **Open the Agents page** link when no bridge can take
+  the work of the card, or the only bridge that can is paused.
+- On a board tile, an **Open card** link. A list row leaves both links out,
   because the row itself opens the card.
 
 The card page shows the remedy line, which says what clears the state.
@@ -223,7 +225,7 @@ A card in a terminal column shows no mark. A card in Next with no blocker and no
 parent shows no mark, because no marker applies to it.
 
 The **List** view shows the same state mark as the tile, with the same
-tooltip less the **Open card** link. The list keeps the warning of the last worker run. See
+tooltip less its links. The list keeps the warning of the last worker run. See
 [A warning on the card](worker-runs.md#a-warning-on-the-card).
 
 The marks come from the markers that the workflow template defines. The engine
