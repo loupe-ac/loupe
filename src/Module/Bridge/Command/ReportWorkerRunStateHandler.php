@@ -97,7 +97,7 @@ final readonly class ReportWorkerRunStateHandler
                 $run->workerPool = $command->workerPool;
             }
             // A Codex thread id or a model can arrive after the state it belongs to, so a repeat fills it too.
-            $harnessChanged = $run->recordHarness($command->harness, $command->account, $command->model, $command->harnessSessionId);
+            $harnessChanged = $run->recordHarness($command->harness, $command->account, $command->model, $command->harnessSessionId, $command->harnessVersion, $command->cliVersion, $command->skillVersion);
             // A retry of the state a timed-out run last held is the bridge
             // speaking again, so it reopens the run and says so in the history.
             $repeat = \in_array($command->state, $history, true);

@@ -6707,6 +6707,9 @@
             <trans-unit id="bridge.worker_runs.details.worker_pool"><source>bridge.worker_runs.details.worker_pool</source><target>Worker pool</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.harness"><source>bridge.worker_runs.details.harness</source><target>Harness</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.account"><source>bridge.worker_runs.details.account</source><target>Account</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.harness_version"><source>bridge.worker_runs.details.harness_version</source><target>Harness version</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.cli_version"><source>bridge.worker_runs.details.cli_version</source><target>CLI version</target></trans-unit>
+            <trans-unit id="bridge.worker_runs.details.skill_version"><source>bridge.worker_runs.details.skill_version</source><target>Plugin version</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.model"><source>bridge.worker_runs.details.model</source><target>Model</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.harness_session"><source>bridge.worker_runs.details.harness_session</source><target>Harness session</target></trans-unit>
             <trans-unit id="bridge.worker_runs.details.experiment"><source>bridge.worker_runs.details.experiment</source><target>Experiment</target></trans-unit>
@@ -7795,6 +7798,9 @@
             <trans-unit id="analytics.metrics.group.bridge"><source>analytics.metrics.group.bridge</source><target>By bridge</target></trans-unit>
             <trans-unit id="analytics.metrics.group.harness"><source>analytics.metrics.group.harness</source><target>By harness</target></trans-unit>
             <trans-unit id="analytics.metrics.group.account"><source>analytics.metrics.group.account</source><target>By account</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.harness-version"><source>analytics.metrics.group.harness-version</source><target>By harness version</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.cli-version"><source>analytics.metrics.group.cli-version</source><target>By CLI version</target></trans-unit>
+            <trans-unit id="analytics.metrics.group.skill-version"><source>analytics.metrics.group.skill-version</source><target>By plugin version</target></trans-unit>
             <trans-unit id="analytics.metrics.range.thirty-days"><source>analytics.metrics.range.thirty-days</source><target>30 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.ninety-days"><source>analytics.metrics.range.ninety-days</source><target>90 days</target></trans-unit>
             <trans-unit id="analytics.metrics.range.all"><source>analytics.metrics.range.all</source><target>All time</target></trans-unit>

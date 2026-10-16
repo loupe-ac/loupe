@@ -13,11 +13,14 @@ enum MetricGroup: string
     case Bridge = 'bridge';
     case Harness = 'harness';
     case Account = 'account';
+    case HarnessVersion = 'harness-version';
+    case CliVersion = 'cli-version';
+    case SkillVersion = 'skill-version';
     case None = 'none';
 
     /** A grouping that a single run answers, so a card splits into one row per key. */
     public function isRunGrouping(): bool
     {
-        return \in_array($this, [self::Stage, self::Model, self::Variant, self::Bridge, self::Harness, self::Account], true);
+        return \in_array($this, [self::Stage, self::Model, self::Variant, self::Bridge, self::Harness, self::Account, self::HarnessVersion, self::CliVersion, self::SkillVersion], true);
     }
 }

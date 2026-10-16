@@ -62,6 +62,9 @@ final readonly class ReportWorkerRunStateCommand
         public ?string $account = null,
         public ?string $model = null,
         public ?string $harnessSessionId = null,
+        public ?string $harnessVersion = null,
+        public ?string $cliVersion = null,
+        public ?string $skillVersion = null,
         /** Null keeps the peak the run holds. */
         public ?int $peakContextTokens = null,
     ) {

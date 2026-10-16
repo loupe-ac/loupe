@@ -201,6 +201,8 @@ type session struct {
 	cwd      string
 	provider string
 	model    string
+	// version is the cli_version of the session_meta line.
+	version  string
 	events   []tokenEvent
 	// lines holds the time of each timed line, in file order, and contexts the
 	// input context of each token count.
@@ -252,9 +254,11 @@ func readSession(path string) (session, error) {
 				ID            string `json:"id"`
 				Cwd           string `json:"cwd"`
 				ModelProvider string `json:"model_provider"`
+				CLIVersion    string `json:"cli_version"`
 			}
 			if json.Unmarshal(entry.Payload, &p) == nil {
 				s.id, s.cwd, s.provider = cmp.Or(s.id, p.ID), cmp.Or(s.cwd, p.Cwd), cmp.Or(s.provider, p.ModelProvider)
+				s.version = cmp.Or(s.version, p.CLIVersion)
 			}
 		case "turn_context":
 			var p struct {
@@ -473,6 +477,9 @@ func (h Harness) ReadRun(dir string, run harness.RunInfo) harness.Output {
 	treeErr := sessErr
 	if sessErr == nil {
 		t, treeErr = h.load(sess, map[string]bool{}, run.Since, end)
+	}
+	if sessErr == nil {
+		out.HarnessVersion = sess.version
 	}
 	if treeErr == nil && sess.id != "" {
 		out.CallsRead = true

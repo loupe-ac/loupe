@@ -22,7 +22,7 @@ again when you change a control. Without JavaScript, press **Apply**.
 | Metric | one metric from [the list below](#the-metrics) | **Cost** |
 | Unit | **Per run** or **Per finished card** | **Per finished card** |
 | Statistic | **Median**, **Mean**, **Sum**, **90th percentile** or **Count** | **Median** |
-| Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account** or **No grouping** | **No grouping** |
+| Group | **By stage**, **By model**, **By variant**, **By card type**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version**, **By plugin version** or **No grouping** | **No grouping** |
 | Range | **30 days**, **90 days** or **All time** | **90 days** |
 | Bucket | **Per day**, **Per week** or **Per month** | **Per week** |
 
@@ -46,7 +46,7 @@ value of a card is the sum over its runs. A run that started and has no value
 makes the value of its card unknown. A command run has no agent, so its missing
 cost and tokens count as none.
 
-With **By stage**, **By model**, **By variant**, **By bridge**, **By harness** or **By account**, a card gives
+With **By stage**, **By model**, **By variant**, **By bridge**, **By harness**, **By account**, **By harness version**, **By CLI version** or **By plugin version**, a card gives
 one row for each group that its runs used. A card whose runs used two variants
 gives two rows. Each row of a card outcome metric carries the whole outcome of
 the card. Thus the card counts once for each variant.
@@ -111,7 +111,16 @@ A group splits the rows into one series for each value:
 | **By bridge** | bridge, by its name. A bridge with no name shows the end of its id |
 | **By harness** | harness that ran the run, such as `claude-code` or `codex` |
 | **By account** | named harness account of the bridge, such as `claude` |
+| **By harness version** | version of the harness that ran the run, such as `2.1.301` for Claude Code |
+| **By CLI version** | version of the Loupe CLI that started the run |
+| **By plugin version** | version of the Loupe plugin that the worker loaded, such as `5.5.0` |
 | **No grouping** | one series for all the rows |
+
+A run from a bridge that does not send a version has no value for the three
+version groups. The values start with the first run of a bridge that sends them,
+and no earlier run gets one. The three groups split run metrics only. A card
+outcome metric keeps its groups, because a card can span runs of several
+versions.
 
 The rows with no value for the group form the series **No group**, which comes
 last.

@@ -120,6 +120,7 @@ func (Harness) ReadRun(dir string, _ harness.RunInfo) harness.Output {
 	doc.ReadErr = err
 	if err == nil {
 		doc.CallsRead, doc.Calls, doc.Timing, doc.PeakContextTokens = true, out.Calls, out.Timing, out.PeakContextTokens
+		doc.HarnessVersion, doc.SkillVersion = out.HarnessVersion, out.SkillVersion
 	}
 
 	return doc

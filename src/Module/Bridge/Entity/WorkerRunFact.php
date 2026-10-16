@@ -70,6 +70,15 @@ class WorkerRunFact
         #[ORM\Column(name: 'account', length: WorkerRun::MAX_ACCOUNT_LENGTH, nullable: true)]
         public readonly ?string $account,
 
+        #[ORM\Column(name: 'harness_version', length: WorkerRun::MAX_HARNESS_VERSION_LENGTH, nullable: true)]
+        public readonly ?string $harnessVersion,
+
+        #[ORM\Column(name: 'cli_version', length: Bridge::MAX_CLI_VERSION_LENGTH, nullable: true)]
+        public readonly ?string $cliVersion,
+
+        #[ORM\Column(name: 'skill_version', length: WorkerRun::MAX_SKILL_VERSION_LENGTH, nullable: true)]
+        public readonly ?string $skillVersion,
+
         #[ORM\Column(name: 'bridge_id', type: UuidType::NAME, nullable: true)]
         public readonly ?Uuid $bridgeId,
 

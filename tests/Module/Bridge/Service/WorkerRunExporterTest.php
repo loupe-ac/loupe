@@ -58,6 +58,9 @@ final class WorkerRunExporterTest extends TestCase
         $run->account = 'work';
         $run->model = 'gpt-5';
         $run->harnessSessionId = 'thread-1';
+        $run->harnessVersion = '0.121.0';
+        $run->cliVersion = '0.9.0';
+        $run->skillVersion = '5.5.0';
         $run->toolTimeMs = 4000;
         $run->idleGapMs = 500;
         $run->peakContextTokens = 64_000;
@@ -104,6 +107,9 @@ final class WorkerRunExporterTest extends TestCase
             'account' => 'work',
             'model' => 'gpt-5',
             'harnessSessionId' => 'thread-1',
+            'harnessVersion' => '0.121.0',
+            'cliVersion' => '0.9.0',
+            'skillVersion' => '5.5.0',
             'toolTimeMs' => 4000,
             'idleGapMs' => 500,
             'peakContextTokens' => 64_000,

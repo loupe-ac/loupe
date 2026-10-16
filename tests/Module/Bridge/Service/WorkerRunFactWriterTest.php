@@ -84,6 +84,25 @@ final class WorkerRunFactWriterTest extends KernelTestCase
         self::assertSame(['claude-code', 'personal'], $this->harnessesOf($ids)[(string) $unknown->id]);
     }
 
+    public function test_it_copies_the_three_versions_of_the_run_and_updates_them(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'facts-writer-versions@example.com'), 'Facts Writer Versions');
+        $run = $this->seedRun($em, $project);
+        $connection = $em->getConnection();
+        $connection->executeStatement('DELETE FROM bridge_worker_run_facts');
+        $ids = [$run->id ?? throw new \LogicException('The run has no id.')];
+        $read = static fn (): array => array_values((array) $connection->fetchAssociative('SELECT harness_version, cli_version, skill_version FROM bridge_worker_run_facts WHERE run_id = ?', [(string) $ids[0]]));
+
+        $this->writer()->upsert($ids);
+        self::assertSame([null, null, null], $read());
+
+        $connection->executeStatement("UPDATE bridge_worker_runs SET harness_version = '2.1.301', cli_version = '0.9.0', skill_version = '5.5.0' WHERE id = ?", [(string) $ids[0]]);
+        $this->writer()->upsert($ids);
+        self::assertSame(['2.1.301', '0.9.0', '5.5.0'], $read());
+    }
+
     public function test_it_reads_the_host_samples_inside_the_run_window(): void
     {
         self::bootKernel();

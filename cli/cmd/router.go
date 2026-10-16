@@ -298,6 +298,10 @@ type pending struct {
 	// origin is the work of the run that a person's resume or rerun
 	// continues. Such a run claims nothing and settles no request.
 	origin api.WorkRequest
+	// adopted marks a run a former image started. cliVersion is then the
+	// version of that image, and "" when it wrote none.
+	adopted    bool
+	cliVersion string
 }
 
 // runPin is the variant a run in an experiment runs with, as its reports
@@ -1528,6 +1532,7 @@ func (r *router) outcome(p pending, e endedRun) api.RunStateReport {
 	}
 	report.Usage = r.usage(p, e.res.usage)
 	report.PeakContextTokens = e.res.peakContextTokens
+	report.HarnessVersion, report.SkillVersion = e.res.harnessVersion, e.res.skillVersion
 
 	return report
 }
@@ -1665,10 +1670,21 @@ func (r *router) emitLocked(p pending, report api.RunStateReport) {
 		report.Experiment, report.Variant = p.pin.Experiment, p.pin.Variant
 		report.RequestedModel, report.SwitchedFrom = p.pin.RequestedModel, p.pin.SwitchedFrom
 		report.Harness, report.Account, report.Model = p.spec.harnessName, p.spec.account, p.spec.model
+		report.CLIVersion = p.runCLIVersion()
 	}
 	// The handle is the project id the event carried, which a rename never
 	// changes.
 	r.reports.Enqueue(r.runs.state(p.event.ProjectID, p.runID, report))
+}
+
+// runCLIVersion is the version of the image that started the run, which an
+// update handover never changes.
+func (p pending) runCLIVersion() string {
+	if p.adopted {
+		return p.cliVersion
+	}
+
+	return cliVersion()
 }
 
 // sendKept queues the final reports an earlier outage kept, ahead of the

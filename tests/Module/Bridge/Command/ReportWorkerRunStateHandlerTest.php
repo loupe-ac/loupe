@@ -792,6 +792,22 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertSame(['codex', 'work', 'gpt-5', 'thread-1'], [$stored->harness, $stored->account, $stored->model, $stored->harnessSessionId]);
     }
 
+    /** The harness writes its version after the first report, so a repeat fills it and a null keeps it. */
+    public function test_a_later_report_fills_the_versions_and_a_null_keeps_them(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-versions');
+        $runKey = Uuid::v4();
+
+        $this->report($owner, $project, $runKey, WorkerRunState::Queued, cliVersion: '0.9.0');
+        $repeat = $this->report($owner, $project, $runKey, WorkerRunState::Queued, harnessVersion: '2.1.301', skillVersion: '5.5.0');
+        self::assertFalse($repeat->newState);
+        $run = $this->report($owner, $project, $runKey, WorkerRunState::Running)->run;
+
+        self::assertInstanceOf(WorkerRun::class, $run);
+        self::assertSame(['2.1.301', '0.9.0', '5.5.0'], [$run->harnessVersion, $run->cliVersion, $run->skillVersion]);
+    }
+
     public function test_a_run_that_never_started_stores_its_harness(): void
     {
         self::bootKernel();
@@ -985,6 +1001,9 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         ?string $model = null,
         ?string $harnessSessionId = null,
         ?int $peakContextTokens = null,
+        ?string $harnessVersion = null,
+        ?string $cliVersion = null,
+        ?string $skillVersion = null,
     ): ReportWorkerRunStateResult {
         $outcome = $state->isOutcome();
         $started = $withStart && ($outcome || WorkerRunState::Running === $state);
@@ -1034,6 +1053,9 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
             account: $account,
             model: $model,
             harnessSessionId: $harnessSessionId,
+            harnessVersion: $harnessVersion,
+            cliVersion: $cliVersion,
+            skillVersion: $skillVersion,
             peakContextTokens: $peakContextTokens,
         ));
     }

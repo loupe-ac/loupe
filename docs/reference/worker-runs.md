@@ -136,6 +136,9 @@ order.
 | `account` | the named harness account the worker uses. It holds 1 to 64 letters, digits, dots, underscores and hyphens, and starts with a letter or a digit. It is a short name, never a path or a key |
 | `model` | the model the harness runs, at most 100 characters with no control characters |
 | `harnessSessionId` | the id the harness gives the session, such as a Codex thread id. It holds 1 to 100 letters, digits, dots, colons, underscores and hyphens, and starts with a letter or a digit. Loupe keeps its own session id in `sessionId` |
+| `harnessVersion` | the version of the harness binary that ran the worker, such as `2.1.301`. At most 100 characters with no control characters. Null from an older bridge |
+| `cliVersion` | the version of the Loupe CLI that started the run, at most 100 characters with no control characters |
+| `skillVersion` | the version of the Loupe plugin that the worker loaded, such as `5.5.0`. It holds 1 to 100 letters, digits, dots, plus signs and hyphens, and starts with a letter or a digit. The run stores it as `skill_version` |
 
 A `gave-up` report needs the exit code, the result flag and the status of the
 outcome the bridge would have resumed: `failed`, `no-result` or `unfinished`.
@@ -156,7 +159,7 @@ sends none, and its runs have no pool. The bridge can move a queued run to
 another pool before the run starts. Until the next report arrives, a queued run
 can show the pool it had before the move.
 
-The server stores `harness`, `account`, `model` and `harnessSessionId` from
+The server stores `harness`, `account`, `model`, `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion` from
 every report that carries them, a repeat of a state included. A report with no
 value for a field keeps the stored value. So a value can arrive late: Codex
 names its thread only after it starts, and the model can come with the outcome.
@@ -736,7 +739,7 @@ its experiment weights and its card holds with it. Deleting an account deletes
 the same data of every project it owned, and removes the account's name from a hold it placed in
 another project. The account's data export holds each run in
 `worker_runs.json`, with its state, its history, its usage source, its worker pool, its `experiment`, `variant`,
-`requestedModel` and `switchedFrom`, its `harness`, `account`, `model` and `harnessSessionId`, its `workRequestId`, `workKind` and `ruleId`, and its `toolTimeMs`, `idleGapMs` and `peakContextTokens`. It holds every usage
+`requestedModel` and `switchedFrom`, its `harness`, `account`, `model`, `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion`, its `workRequestId`, `workKind` and `ruleId`, and its `toolTimeMs`, `idleGapMs` and `peakContextTokens`. It holds every usage
 row in `worker_run_usage.json`. It holds every tool call in
 `worker_run_tool_calls.json`, with its project, the `runKey` of its run, and the
 fields of [the tool call report](#reporting-the-tool-calls-of-a-run). It holds the time of each run in each bucket in
