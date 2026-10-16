@@ -85,6 +85,13 @@ func StagePath(dir, version string) string {
 // WriteFile writes data to path through a temporary file in the same
 // directory and a rename, and creates the directory.
 func WriteFile(path string, data []byte, mode os.FileMode) error {
+	return ReplaceFile(path, data, mode, nil)
+}
+
+// ReplaceFile is WriteFile with a check that runs after the temporary file is
+// complete and just before the rename. An error from verify leaves path
+// unchanged. A nil verify checks nothing.
+func ReplaceFile(path string, data []byte, mode os.FileMode, verify func() error) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -105,6 +112,11 @@ func WriteFile(path string, data []byte, mode os.FileMode) error {
 	}
 	if err := tmp.Close(); err != nil {
 		return err
+	}
+	if verify != nil {
+		if err := verify(); err != nil {
+			return err
+		}
 	}
 
 	return os.Rename(tmp.Name(), path)

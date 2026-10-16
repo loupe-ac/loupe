@@ -15,8 +15,10 @@
 {% set actionForm = reply ? inbox_action_form(item, refusedForm) : null %}
 {# The dialog posts the reply form, so it needs the reply card on the page. #}
 {% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
-{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
-<div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% endif %}>
+{# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
+{% set addEntryDialog = runCommand and runCommand.canAddEntry and not answering %}
+{% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', added: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
+<div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% elseif addEntryDialog %} data-controller="modal"{% endif %}>
     <ul class="lp-inbox-thread__messages" data-inbox-waits>
         {% for wait in shownWaits %}
             {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
@@ -81,12 +83,21 @@
                 {% if actions.main %}
                     <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans }}</h3>
                 {% endif %}
-                {% if runCommand and runCommand.entryMissing and runCommand.proposedEntry %}
-                    <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label'|trans" :text="runCommand.proposedEntry" :copyLabel="'inbox.run_command.missing.copy'|trans" :copiedLabel="'inbox.run_command.missing.copied'|trans" data-inbox-run-command-proposed />
-                    <twig:Ds:Hint>{{ 'inbox.run_command.missing.hint'|trans({'%command%': 'loupe bridge reload'}) }}</twig:Ds:Hint>
-                {% endif %}
+                {% set entryProposed = runCommand and runCommand.entryYaml and runCommand.disabledReasonKey == 'inbox.action.run-command.disabled.entry_missing' %}
                 {% if runCommand and not runCommand.canOpenDialog and not (runCommand.run and runCommand.run.state.isLive) %}
-                    <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ runCommand.disabledReasonKey|trans }}</p>
+                    {% if entryProposed %}
+                        <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ (runCommand.addEntryLive ? 'inbox.run_command.missing.adding' : (runCommand.acceptsEntries ? 'inbox.run_command.missing.reason_proposed' : 'inbox.run_command.missing.reason_no_opt_in'))|trans({'%entry%': runCommand.entry, '%bridge%': runCommand.bridgeName}) }}</p>
+                    {% else %}
+                        <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ runCommand.disabledReasonKey|trans }}</p>
+                    {% endif %}
+                {% endif %}
+                {% if entryProposed %}
+                    {% if runCommand.acceptsEntries %}
+                        <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label_add'|trans" :text="runCommand.entryYaml|trim" :copy="false" data-inbox-run-command-proposed />
+                    {% else %}
+                        <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label'|trans" :text="runCommand.entryYaml|trim" :copyLabel="'inbox.run_command.missing.copy'|trans" :copiedLabel="'inbox.run_command.missing.copied'|trans" data-inbox-run-command-proposed />
+                        <twig:Ds:Hint>{{ 'inbox.run_command.missing.hint'|trans({'%command%': 'loupe bridge reload'}) }}</twig:Ds:Hint>
+                    {% endif %}
                 {% endif %}
                 {% if not todoButtons %}
                     {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
@@ -108,6 +119,8 @@
                         <twig:block name="trigger">
                         {% if actions.main and actions.main.isLink %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
+                        {% elseif actions.main and actions.main.action.runCommand and addEntryDialog %}
+                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" data-action="click->modal#open" data-inbox-action="add-entry">{{ 'inbox.action.add-entry.label'|trans }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
                         {% elseif actions.main %}
@@ -145,5 +158,7 @@
 
     {% if commandDialog %}
         {% include '@Inbox/_inbox_run_command_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: actionForm.vars.id, fieldName: actionForm.vars.full_name} only %}
+    {% elseif addEntryDialog %}
+        {% include '@Inbox/_inbox_add_entry_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: actionForm.vars.id} only %}
     {% endif %}
 </div>

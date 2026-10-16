@@ -433,6 +433,7 @@ final class InboxAskToolTest extends KernelTestCase
     public static function refusedSuggestions(): iterable
     {
         yield 'an unknown action' => [['suggestedActions' => [['action' => 'explode', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, run-command, dismiss.'];
+        yield 'the owner-only add-entry action' => [['suggestedActions' => [['action' => 'add-entry', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, run-command, dismiss.'];
         yield 'a duplicate action' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a'], ['action' => 'open', 'reason' => 'b']]], 'items[0].suggestedActions: Suggest each action once.'];
         yield 'two recommended actions' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'recommended' => true], ['action' => 'review', 'reason' => 'b', 'recommended' => true]]], 'items[0].suggestedActions: Mark at most one suggested action as recommended.'];
         yield 'a blank reason' => [['suggestedActions' => [['action' => 'open', 'reason' => '  ']]], 'items[0].suggestedActions: A suggested action needs a reason the owner reads.'];

@@ -104,7 +104,8 @@ type router struct {
 	// buildTimeout bounds the build of a reloaded set. Zero means
 	// reloadBuildTimeout.
 	buildTimeout time.Duration
-	// reloadMu lets one reload run at a time. It is never taken under mu.
+	// reloadMu lets one reload, or one add-entry write and its reload, run at
+	// a time. It is never taken under mu.
 	reloadMu sync.Mutex
 	// update hands the bridge over to a new binary. A nil one, as in most
 	// tests, only logs a staged release.

@@ -67,6 +67,37 @@ final readonly class RunCommandRuns
     }
 
     /**
+     * The items that have an add of a command entry queued or claimed.
+     *
+     * @param list<InboxItem> $items
+     *
+     * @return array<string, true> keyed by the RFC 4122 item id
+     */
+    public function itemsAddingEntry(array $items): array
+    {
+        $byItem = [];
+        $requestIds = [];
+        foreach ($this->inboxActions->findByItems($items) as $itemId => $actions) {
+            foreach ($actions as $action) {
+                if (InboxActionKind::AddEntry === $action->kind && null === $action->cancelledAt && null !== $action->workRequestId) {
+                    $byItem[$itemId][] = (string) $action->workRequestId;
+                    $requestIds[] = $action->workRequestId;
+                }
+            }
+        }
+
+        $requests = $this->workRequests->findByIds($requestIds);
+        $adding = [];
+        foreach ($byItem as $itemId => $ids) {
+            if (array_any($ids, static fn (string $id): bool => isset($requests[$id]) && $requests[$id]->state->isLive())) {
+                $adding[$itemId] = true;
+            }
+        }
+
+        return $adding;
+    }
+
+    /**
      * @param array<string, array{lines: int, length: int, capped: bool}> $stats
      * @param array<string, string>                                       $tails
      */

@@ -22,8 +22,10 @@ final readonly class RunCommandView
         public ?string $bridgeName,
         /** True when a bridge exists and its last heartbeat lists no entry of this name. */
         public bool $entryMissing,
-        /** The YAML text of the entry the agent proposes, shown when the entry is missing. */
-        public ?string $proposedEntry,
+        /** The bridge opted in to adding entries from the inbox. */
+        public bool $acceptsEntries,
+        /** The named entry as the bridge writes it into the rule file, or null when the agent proposed none or the text is no mapping. */
+        public ?string $entryYaml,
         /**
          * The branches that have a worktree on the bridge, the agent's pick first, with no folder when it has none.
          *
@@ -60,7 +62,15 @@ final readonly class RunCommandView
         public array $runList = [],
         /** The pull request values the built-in placeholders were filled from, which the work request must carry. */
         public ?WorkRequestContext $context = null,
+        /** An add of the entry is queued or claimed for this item. */
+        public bool $addEntryLive = false,
     ) {
+    }
+
+    /** The owner can add the proposed entry to the rule file of the asking bridge. */
+    public function canAddEntry(): bool
+    {
+        return null !== $this->bridgeId && $this->acceptsEntries && $this->entryMissing && null !== $this->entryYaml && !$this->addEntryLive;
     }
 
     /** Names the run list and the built-in values the dialog shows, so a submit can tell that either changed after the owner read it. */

@@ -21,6 +21,8 @@ use App\Module\Inbox\View\RunCommandRun;
 use App\Module\Inbox\View\RunCommandView;
 use App\Module\Inbox\View\SuggestedAction;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Yaml\Exception\ExceptionInterface;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Checks a run-command suggestion against what the asking bridge reported in its last heartbeat:
@@ -53,7 +55,7 @@ final readonly class RunCommandResolver
      * @param array<string, string>|null $params the values the owner confirmed, else the ones of the suggestion
      * @param Uuid|null                  $cardId the card the run belongs to, which fills the card placeholders
      */
-    public function view(InboxItem $item, SuggestedAction $suggestion, ?Bridge $bridge, ?Uuid $cardId, ?string $branch = null, ?array $params = null, ?RunCommandRun $run = null): RunCommandView
+    public function view(InboxItem $item, SuggestedAction $suggestion, ?Bridge $bridge, ?Uuid $cardId, ?string $branch = null, ?array $params = null, ?RunCommandRun $run = null, bool $addEntryLive = false): RunCommandView
     {
         $command = $suggestion->command ?? throw new \LogicException('A run-command suggestion carries its command.');
         $branch ??= $command['branch'];
@@ -114,7 +116,8 @@ final readonly class RunCommandResolver
             bridgeId: $bridge?->id->toRfc4122(),
             bridgeName: $bridge?->label,
             entryMissing: null !== $bridge && null === $row,
-            proposedEntry: $suggestion->proposedEntry,
+            acceptsEntries: $bridge?->acceptsEntries() ?? false,
+            entryYaml: self::entryYaml($command['entry'], $suggestion->proposedEntry),
             branches: $branches,
             folder: $folder,
             params: $paramViews,
@@ -126,7 +129,23 @@ final readonly class RunCommandResolver
             bridgeQuiet: null !== $bridge && $this->isQuiet($bridge, $item),
             runList: $row['run'] ?? [],
             context: $context,
+            addEntryLive: $addEntryLive,
         );
+    }
+
+    /** The proposed entry under its name, as the bridge writes it, or null when the text is no mapping of keys. */
+    private static function entryYaml(string $name, ?string $proposed): ?string
+    {
+        if (null === $proposed) {
+            return null;
+        }
+        try {
+            $body = Yaml::parse($proposed);
+
+            return \is_array($body) && [] !== $body && !array_is_list($body) ? Yaml::dump([$name => $body], 3, 2) : null;
+        } catch (ExceptionInterface) {
+            return null;
+        }
     }
 
     /**

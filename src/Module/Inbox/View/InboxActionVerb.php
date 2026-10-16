@@ -16,6 +16,7 @@ enum InboxActionVerb: string
     case AgentSent = 'agent-sent';
     case SessionStarted = 'session-started';
     case CommandQueued = 'command-queued';
+    case EntryQueued = 'entry-queued';
     case Cancelled = 'cancelled';
 
     /** The flash that the card tab and the document page show instead of the status line. */
@@ -31,6 +32,7 @@ enum InboxActionVerb: string
             self::AgentSent => 'inbox.flash.agent_sent',
             self::SessionStarted => 'inbox.flash.session_started',
             self::CommandQueued => 'inbox.flash.command_queued',
+            self::EntryQueued => 'inbox.flash.entry_queued',
             self::Cancelled => 'inbox.flash.cancelled',
         };
     }

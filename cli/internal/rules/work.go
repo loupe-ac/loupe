@@ -489,6 +489,16 @@ const (
 	RefusePlaceholderMissing = "placeholder-missing"
 )
 
+// The reasons a bridge refuses an add-entry request.
+const (
+	RefuseEntryInvalid = "entry-invalid"
+	RefuseEntryExists  = "entry-exists"
+	RefuseNotAccepted  = "not-accepted"
+	RefuseWriteFailed  = "write-failed"
+	RefuseFileChanged  = "file-changed"
+	RefuseReloadFailed = "reload-failed"
+)
+
 // runsCommand reports whether w asks for the run of a command entry by name,
 // whatever its subject is.
 func runsCommand(w api.WorkRequest) bool {

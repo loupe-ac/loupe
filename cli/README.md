@@ -1064,9 +1064,47 @@ this file, after the owner confirms. The bridge then reports the capability
 acceptEntries: true
 ```
 
+You must set the key by hand. The bridge never sets it.
+
 The cost: a compromised server could then add any command entry and run it. It
 could run any program as the bridge user. Turn the key on only when you accept
 that risk.
+
+When the owner chooses **Add to rules.yaml** in Loupe, the server sends a work
+request with the capability `add-entry` to this bridge. The entry text is in
+the `prompt` field of the request. It is one YAML mapping with one key, the
+entry name. The bridge starts no agent and takes no worker slot. It does this:
+
+1. It checks that the file still sets `acceptEntries: true`.
+2. It adds the entry to the `work` map. It creates the map when the file has
+   none.
+3. It loads the new text through the checks of a normal load. It writes the
+   file only when the checks pass.
+4. It reloads, as `loupe bridge reload` does, and settles the request as
+   `done` only when the reload runs the entry. An add waits for a reload
+   that already runs.
+
+The bridge rewrites the whole file from its parsed YAML tree. Comments and
+layout can change. Keep a copy of the file if the layout matters.
+
+The bridge refuses a request with one of these reason codes, and leaves the
+file as it was:
+
+- `entry-invalid`: the text does not parse, holds more or less than one key,
+  has a body that is no mapping, has an action other than `command`, or the
+  new file fails its checks. A parameter with no `pattern`, a pattern that RE2
+  refuses, and a parameter named like a built-in placeholder are examples.
+- `entry-exists`: the `work` map holds an entry with this name already.
+- `not-accepted`: the file does not set `acceptEntries: true`.
+- `write-failed`: the bridge could not read or write the file.
+- `file-changed`: the file changed while the bridge added the entry. The
+  bridge keeps the other edit and writes nothing. Try the add again.
+- `reload-failed`: the bridge wrote the entry, and the reload after it failed.
+  The bridge then puts the old file back, so the entry never shows as added
+  while the bridge does not run it. When the file changed again after the
+  write, the bridge keeps it, and the log line `entry_reload_failed` says so.
+
+The bridge acts only on a request that names its own bridge id.
 
 Update the CLI before you use `params` or `acceptEntries`. A CLI from before
 this change refuses both as unknown keys, and the whole file fails to load.
