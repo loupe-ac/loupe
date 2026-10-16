@@ -1327,7 +1327,7 @@ class CardRepository extends ServiceEntityRepository
         return $this->getEntityManager()->getConnection()->executeQuery(
             \sprintf(
                 'UPDATE board_cards c
-                 SET column_id = :to, updated_at = :now, completed_at = %s, position = %s
+                 SET column_id = :to, updated_at = :now, completed_at = %s, completions = %s, position = %s
                  FROM (
                      SELECT s.id,
                             row_number() OVER (ORDER BY s.position, s.completed_at, s.created_at, s.number) - 1 AS rank,
@@ -1338,6 +1338,7 @@ class CardRepository extends ServiceEntityRepository
                  WHERE c.id = ranked.id
                  RETURNING c.id',
                 $to->terminal ? 'COALESCE(c.completed_at, :now)' : 'NULL',
+                $to->terminal ? 'c.completions + CASE WHEN c.completed_at IS NULL THEN 1 ELSE 0 END' : 'c.completions',
                 $to->terminal ? '0' : 'ranked.tail + ranked.rank',
             ),
             ['from' => (string) $from->id, 'to' => (string) $to->id, 'now' => $now],
@@ -1364,7 +1365,7 @@ class CardRepository extends ServiceEntityRepository
             }
 
             $row = $connection->fetchAssociative(
-                'SELECT column_id, position, completed_at, updated_at FROM board_cards WHERE id = :id',
+                'SELECT column_id, position, completed_at, completions, updated_at FROM board_cards WHERE id = :id',
                 ['id' => (string) $card->id],
             );
             $column = false === $row ? null : $em->find(BoardColumn::class, Uuid::fromString((string) $row['column_id']));
@@ -1375,6 +1376,7 @@ class CardRepository extends ServiceEntityRepository
             $card->column = $column;
             $card->position = (int) $row['position'];
             $card->completedAt = $dateTime->convertToPHPValue($row['completed_at'], $connection->getDatabasePlatform());
+            $card->completions = (int) $row['completions'];
             $card->updatedAt = $dateTime->convertToPHPValue($row['updated_at'], $connection->getDatabasePlatform());
         }
     }
@@ -1468,6 +1470,7 @@ class CardRepository extends ServiceEntityRepository
         $this->createQueryBuilder('c')
             ->update()
             ->set('c.completedAt', ':now')
+            ->set('c.completions', 'c.completions + 1')
             ->set('c.updatedAt', ':now')
             ->set('c.position', 0)
             ->andWhere('c.column = :column')

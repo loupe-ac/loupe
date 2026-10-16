@@ -8,6 +8,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardLink;
 use App\Module\Board\Entity\CardLinkKind;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Service\CardMover;
 use App\Module\Board\Workflow\EpicBranchSyncFactProvider;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Project\Entity\Project;
@@ -98,17 +99,42 @@ final class EpicBranchSyncFactProviderTest extends KernelTestCase
         self::assertFalse($this->synced($child));
     }
 
-    public function test_a_blocker_that_finishes_again_after_the_merge_makes_the_branch_unsynced(): void
+    public function test_a_blocker_that_finishes_again_in_the_same_second_after_the_merge_makes_the_branch_unsynced(): void
     {
         $epic = $this->card();
         $child = $this->card(parent: $epic);
         $blocker = $this->card('done', completedAt: '2026-10-02 10:00:00');
         $this->blocks($blocker, $child);
         $epic->recordEpicBranchSync($blocker);
-        $blocker->completedAt = new \DateTimeImmutable('2026-10-03 10:00:00');
         $this->em->flush();
 
-        self::assertFalse($this->synced($child));
+        $mover = self::getContainer()->get(CardMover::class);
+        self::assertInstanceOf(CardMover::class, $mover);
+        $mover->move($blocker, $this->column($this->project, 'in-progress'));
+        $mover->move($blocker, $this->column($this->project, 'done'));
+        $blocker->completedAt = new \DateTimeImmutable('2026-10-02 10:00:00');
+        $this->em->flush();
+        $this->em->clear();
+
+        self::assertFalse($this->reloadedSynced($child));
+    }
+
+    public function test_a_move_between_two_terminal_columns_keeps_the_branch_synced(): void
+    {
+        $epic = $this->card();
+        $child = $this->card(parent: $epic);
+        $blocker = $this->card('done', completedAt: '2026-10-02 10:00:00');
+        $this->blocks($blocker, $child);
+        $epic->recordEpicBranchSync($blocker);
+        $this->em->flush();
+
+        $this->column($this->project, 'next')->terminal = true;
+        $mover = self::getContainer()->get(CardMover::class);
+        self::assertInstanceOf(CardMover::class, $mover);
+        $mover->move($blocker, $this->column($this->project, 'next'));
+        $this->em->flush();
+
+        self::assertTrue($this->synced($child));
     }
 
     public function test_the_repository_lists_the_done_blockers_outside_the_epic_only(): void
@@ -161,7 +187,9 @@ final class EpicBranchSyncFactProviderTest extends KernelTestCase
     {
         $card = new Card($this->project, $this->column($this->project, $column), 'Card', '', ++$this->number);
         $card->parent = $parent;
-        $card->completedAt = null === $completedAt ? null : new \DateTimeImmutable($completedAt);
+        if (null !== $completedAt) {
+            $card->complete(new \DateTimeImmutable($completedAt));
+        }
         $this->em->persist($card);
 
         return $card;

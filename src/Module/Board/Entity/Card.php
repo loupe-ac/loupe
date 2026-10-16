@@ -55,6 +55,10 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $completedAt = null;
 
+    /** Counts each entry into a terminal column from outside one, so two completions in one second still differ. */
+    #[ORM\Column(options: ['default' => 0])]
+    public int $completions = 0;
+
     #[ORM\Column]
     public \DateTimeImmutable $updatedAt;
 
@@ -85,9 +89,9 @@ class Card implements ProjectScopedSubject
 
     /**
      * Only an epic reads it: each blocker outside the epic whose code a merge of the default branch brought into
-     * the epic branch, by card id, with the completion time the blocker had then.
+     * the epic branch, by card id, with the completion count the blocker had then.
      *
-     * @var array<string, string>
+     * @var array<string, int>
      */
     #[ORM\Column(type: Types::JSON, options: ['jsonb' => true, 'default' => '{}'])]
     public array $epicBranchSyncedBlockers = [];
@@ -228,23 +232,27 @@ class Card implements ProjectScopedSubject
         return trim(str_replace(["\r\n", "\r"], "\n", $text));
     }
 
+    /** Stamps the first entry into a terminal column. A move between two terminal columns keeps the stamp. */
+    public function complete(\DateTimeImmutable $now): void
+    {
+        if (null === $this->completedAt) {
+            $this->completedAt = $now;
+            ++$this->completions;
+        }
+    }
+
     /** Records on the epic that its branch now holds the code of each blocker, as each blocker stands now. */
     public function recordEpicBranchSync(Card ...$blockers): void
     {
         foreach ($blockers as $blocker) {
-            $this->epicBranchSyncedBlockers[(string) $blocker->id] = self::completionStamp($blocker);
+            $this->epicBranchSyncedBlockers[(string) $blocker->id] = $blocker->completions;
         }
     }
 
     /** A blocker that finished again after the merge reads as not held, because its stamp changed. */
     public function epicBranchHolds(Card $blocker): bool
     {
-        return ($this->epicBranchSyncedBlockers[(string) $blocker->id] ?? null) === self::completionStamp($blocker);
-    }
-
-    private static function completionStamp(Card $blocker): string
-    {
-        return $blocker->completedAt?->format(\DATE_ATOM) ?? '';
+        return ($this->epicBranchSyncedBlockers[(string) $blocker->id] ?? null) === $blocker->completions;
     }
 
     /** What the workflow reads about this card when it decides on a move. */
