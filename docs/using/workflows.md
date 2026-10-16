@@ -621,9 +621,9 @@ A review that passes but has a finding for you waits for the revise worker to
 answer that finding. The loop then ends. The app publishes the drafts only when
 the loop of each draft with the tag ended.
 
-You can skip the loop. When you publish or review the draft yourself, the
-rule `cancelWhen` no longer holds, so Loupe withdraws the live review or
-revision request. The publish rule waits while any work or worker is
+You can skip the loop. When you publish or review the draft yourself, no
+draft with the tag remains. The `cancelWhen` condition of the rule is then
+true, so Loupe withdraws the live review or revision request. The publish rule waits while any work or worker is
 active on the card, so it never cancels the worker that is ending.
 
 Four conditions of the **Agent review** group read the loop of a draft with a
