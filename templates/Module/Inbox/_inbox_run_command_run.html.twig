@@ -18,6 +18,9 @@
         <twig:Ds:CodeBlock :label="'inbox.run_command.output'|trans" :text="outputText" :copy="false" data-inbox-run-command-output />
     {% endif %}
     {% if run.state.value == 'queued' %}
+        {% if command.bridgeQuiet %}
+            <twig:Ds:Hint data-inbox-run-command-offline>{{ 'inbox.action.status.offline'|trans }}</twig:Ds:Hint>
+        {% endif %}
         {% set cancelForm = inbox_action_cancel_form(run.action, refusedForm) %}
         <div class="lp-inbox-thread__status">
             {{ form_start(cancelForm, {action: path('app_inbox_item_action_cancel', actionParams|merge({actionId: run.action.id})), attr: {class: 'lp-inbox-thread__cancel', 'data-turbo-frame': responseFrame}}) }}

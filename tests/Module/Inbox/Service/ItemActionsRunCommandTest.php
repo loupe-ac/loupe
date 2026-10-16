@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
@@ -98,7 +100,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertFalse($view->entryMissing);
         self::assertNull($view->proposedEntry);
         self::assertSame('/work/loupe/.worktrees/card-42', $view->folder);
-        self::assertSame(['bin/console', 'app:export', 'var/out', '{cardNumber}'], $view->argv);
+        self::assertSame(['bin/console', 'app:export', 'var/out', '7'], $view->argv);
+        self::assertSame(['bin/console', 'app:export', '{out}', '7'], $view->argvTemplate);
+        self::assertFalse($view->bridgeQuiet);
         self::assertSame(RunCommandOutcome::ClosesTodo, $view->onSuccess);
         self::assertNull($view->run);
         self::assertSame(['out' => 'var/out'], $view->values());
@@ -115,6 +119,51 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             [['epic/42', '/work/loupe/.worktrees/card-42'], ['a-branch', '/work/loupe/.worktrees/a'], ['main', '/work/loupe']],
             array_map(static fn ($branch): array => [$branch->branch, $branch->path], $view->branches),
         );
+    }
+
+    public function test_the_agents_pick_with_no_worktree_shows_first_with_no_folder(): void
+    {
+        $view = $this->viewOf($this->todo(branch: 'epic/99'));
+
+        self::assertSame(
+            [['epic/99', null], ['a-branch', '/work/loupe/.worktrees/a'], ['epic/42', '/work/loupe/.worktrees/card-42'], ['main', '/work/loupe']],
+            array_map(static fn ($branch): array => [$branch->branch, $branch->path], $view->branches),
+        );
+        self::assertNull($view->folder);
+        self::assertSame('inbox.action.run-command.disabled.no_worktree', $view->disabledReasonKey);
+    }
+
+    public function test_a_quiet_bridge_leaves_the_action_on_and_marks_the_view(): void
+    {
+        $this->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->em->flush();
+
+        self::assertTrue($this->viewOf($this->todo())->bridgeQuiet);
+    }
+
+    public function test_the_argv_fills_every_built_in_placeholder_the_bridge_fills(): void
+    {
+        $this->bridge->commandEntries = [['run' => ['run', '{cardId}', '{cardNumber}', '{subjectType}', '{subjectId}', '{projectId}', '{kind}', '{ruleId}', '{headSha}', '{out}']] + self::entryRow()];
+        $this->em->flush();
+
+        $view = $this->viewOf($this->todo());
+
+        self::assertSame(['run', (string) $this->card->id, '7', 'card', (string) $this->card->id, (string) $this->project->id, 'design-export', 'inbox:run-command', '', 'var/out'], $view->argv);
+        self::assertNull($view->disabledReasonKey);
+    }
+
+    public function test_a_todo_with_no_card_fills_its_own_subject_and_turns_off_a_card_placeholder(): void
+    {
+        $this->bridge->commandEntries = [['run' => ['run', '{subjectType}', '{subjectId}', '{out}']] + self::entryRow()];
+        $this->em->flush();
+        $todo = $this->todo(card: false);
+
+        self::assertSame(['run', 'inbox-item', (string) $todo->id, 'var/out'], $this->viewOf($todo)->argv);
+
+        $this->bridge->commandEntries = [self::entryRow()];
+        $this->em->flush();
+
+        self::assertSame('inbox.action.run-command.disabled.placeholder_missing', $this->runCommandAction($todo)->disabledReasonKey);
     }
 
     public function test_the_worktree_of_main_is_the_folder_of_a_main_run(): void
@@ -134,8 +183,14 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         yield 'a bridge that takes no work requests' => ['inbox.action.run-command.disabled.unsupported', static function (self $test): void {
             $test->bridge->capabilities = [Bridge::CAPABILITY_RUN_COMMAND];
         }];
-        yield 'a bridge with no recent heartbeat' => ['inbox.action.run-command.disabled.offline', static function (self $test): void {
+        yield 'a bridge with no recent heartbeat, whose run waits for it' => [null, static function (self $test): void {
             $test->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
+        }];
+        yield 'a command that names the work request, which only the bridge knows' => ['inbox.action.run-command.disabled.placeholder_unknown', static function (self $test): void {
+            $test->bridge->commandEntries = [['run' => ['bin/console', '{out}', '{workRequestId}']] + self::entryRow()];
+        }];
+        yield 'a command that names the project slug of the bridge' => ['inbox.action.run-command.disabled.placeholder_unknown', static function (self $test): void {
+            $test->bridge->commandEntries = [['run' => ['bin/console', '{out}', '--project={project}']] + self::entryRow()];
         }];
         yield 'an entry the bridge does not list' => ['inbox.action.run-command.disabled.entry_missing', static function (self $test): void {
             $test->bridge->commandEntries = [];
@@ -222,7 +277,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         $view = $this->actions()->runCommandFor($todo, 'main', ['out' => 'other']);
 
         self::assertInstanceOf(RunCommandView::class, $view);
-        self::assertSame(['main', '/work/loupe', ['out' => 'other'], ['bin/console', 'app:export', 'other', '{cardNumber}']], [$view->branch, $view->folder, $view->values(), $view->argv]);
+        self::assertSame(['main', '/work/loupe', ['out' => 'other'], ['bin/console', 'app:export', 'other', '7']], [$view->branch, $view->folder, $view->values(), $view->argv]);
         self::assertNull($view->disabledReasonKey);
         $bad = $this->actions()->runCommandFor($todo, 'no-such-branch', ['out' => 'other']);
         self::assertSame('inbox.action.run-command.disabled.no_worktree', $bad?->disabledReasonKey);
@@ -399,7 +454,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
     /**
      * @param array<string, string> $params
      */
-    private function todo(string $branch = 'epic/42', array $params = ['out' => 'var/out'], bool $asked = true, bool $recommended = true, ?string $proposedEntry = null): InboxItem
+    private function todo(string $branch = 'epic/42', array $params = ['out' => 'var/out'], bool $asked = true, bool $recommended = true, ?string $proposedEntry = null, bool $card = true): InboxItem
     {
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
         $item->suggestedActions = [[
@@ -410,7 +465,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             'command' => ['entry' => 'design-export', 'branch' => $branch, 'params' => $params],
             'proposedEntry' => $proposedEntry,
         ]];
-        $item->cards->add(new InboxItemCard($item, $this->card));
+        if ($card) {
+            $item->cards->add(new InboxItemCard($item, $this->card));
+        }
         $this->em->persist($item);
         if ($asked) {
             $ask = new InboxAsk(project: $this->project, sessionId: Uuid::v4(), bridgeId: $this->bridge->id);
@@ -551,8 +608,18 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             $workRequests,
             $stageWorks,
             new AskingBridge($bridges, $inboxAsks, $runs),
-            new RunCommandResolver($liveness),
+            $this->resolver($liveness),
             new RunCommandRuns($inboxActions, $workRequests, $runs),
         );
+    }
+
+    private function resolver(BridgeLiveness $liveness): RunCommandResolver
+    {
+        $cards = self::getContainer()->get(CardRepository::class);
+        $contexts = self::getContainer()->get(WorkRequestContexts::class);
+        self::assertInstanceOf(CardRepository::class, $cards);
+        self::assertInstanceOf(WorkRequestContexts::class, $contexts);
+
+        return new RunCommandResolver($liveness, $cards, $contexts);
     }
 }

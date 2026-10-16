@@ -417,18 +417,28 @@ The button is off, with the reason beside it, when Loupe cannot offer the run.
 The reasons are:
 
 - No bridge that follows the project asked for this.
-- The bridge is offline.
 - The bridge is too old to run commands from the inbox. Update the CLI.
 - The rule file of the bridge has no command of that name.
+- The command uses `{workRequestId}` or `{project}`. The bridge fills these
+  only at the run, so Loupe cannot show the command before you run it.
+- The command uses `{cardId}` or `{cardNumber}`, and the item has no single
+  card.
 - A value does not fit the pattern of its parameter.
 - The bridge has no worktree for the branch.
 - The command is already queued or running for this item.
 
+An offline bridge does not turn the button off. Loupe checks the run against
+the last heartbeat of the bridge. The run then shows "Queued" and "No bridge is
+online", with Cancel, until the bridge comes back.
+
 Only the owner of the project can run a command. Select the button, and Loupe
 opens a confirm step. It shows the bridge, the branch, the value of each
-parameter, the folder, and the command with the values filled in. The branch
-list holds each branch that has a worktree on the bridge. Check the filled
-command, then select **Run**. Nothing runs before you do.
+parameter, the folder, and the command as the bridge runs it, with the
+parameter values and the built-in placeholders filled in. The branch list holds
+each branch that has a worktree on the bridge. When the branch of the worker has
+no worktree, the list shows it off, and Run stays off until you pick another
+branch. Check the filled command, then select **Run**. Nothing runs before you
+do.
 
 The bridge checks the request again, with its own rule file. It refuses the
 run, and the item shows the reason, in these cases:

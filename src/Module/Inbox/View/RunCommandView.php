@@ -23,7 +23,7 @@ final readonly class RunCommandView
         /** The YAML text of the entry the agent proposes, shown when the entry is missing. */
         public ?string $proposedEntry,
         /**
-         * The branches that have a worktree on the bridge, the agent's pick first.
+         * The branches that have a worktree on the bridge, the agent's pick first, with no folder when it has none.
          *
          * @var list<RunCommandBranch>
          */
@@ -33,7 +33,7 @@ final readonly class RunCommandView
         /** @var list<RunCommandParam> */
         public array $params,
         /**
-         * The argv of the entry with the parameter values filled in. Built-in placeholders stay as they are.
+         * The argv of the entry with the built-in placeholders and the parameter values filled in, as the bridge runs it.
          *
          * @var list<string>
          */
@@ -43,11 +43,13 @@ final readonly class RunCommandView
         public ?string $disabledReasonKey,
         public ?RunCommandRun $run = null,
         /**
-         * The argv of the entry with the `{name}` placeholders of its parameters left in, for the dialog to fill as the owner types.
+         * The argv with the built-in placeholders filled in and those of the parameters left in, for the dialog to fill as the owner types.
          *
          * @var list<string>
          */
         public array $argvTemplate = [],
+        /** The bridge sent no recent heartbeat, so a run waits in the queue until it comes back. */
+        public bool $bridgeQuiet = false,
     ) {
     }
 

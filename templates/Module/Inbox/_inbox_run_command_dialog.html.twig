@@ -2,6 +2,7 @@
    Params: item, command (RunCommandView), actionParams, formId (the id of the reply form), fieldName (its full name). -#}
 {% set titleId = 'run-command-title-' ~ item.id %}
 {% set runnable = command.folder is not null %}
+{% set pickListed = command.branches|filter(b => b.branch == command.branch)|length > 0 %}
 <twig:Ds:Dialog aria-labelledby="{{ titleId }}" data-action="cancel->modal#close" data-inbox-run-command-dialog>
     <div class="lp-run-command">
         <h3 class="lp-dialog-title" id="{{ titleId }}">{{ 'inbox.run_command.dialog.title'|trans({'%entry%': command.entry}) }}</h3>
@@ -12,13 +13,19 @@
             <dt>{{ 'inbox.run_command.dialog.branch'|trans }}</dt>
             <dd>
                 <twig:Ds:Select name="{{ fieldName }}[branch]" form="{{ formId }}" aria-label="{{ 'inbox.run_command.dialog.branch'|trans }}" data-run-command-target="branch" data-action="change->run-command#refresh">
-                    {% if not runnable %}
+                    {% if not runnable and not pickListed %}
                         <option value="" selected disabled data-folder="">{{ 'inbox.run_command.dialog.branch_choose'|trans }}</option>
                     {% endif %}
                     {% for branch in command.branches %}
-                        <option value="{{ branch.branch }}" data-folder="{{ branch.path }}"{{ runnable and branch.branch == command.branch ? ' selected' }}>
-                            {{- (runnable and branch.branch == command.branch ? 'inbox.run_command.dialog.branch_pick' : 'inbox.run_command.dialog.branch_option')|trans({'%branch%': branch.branch, '%folder%': branch.path}) -}}
-                        </option>
+                        {% if branch.path is null %}
+                            <option value="{{ branch.branch }}" data-folder="" disabled{{ branch.branch == command.branch ? ' selected' }} data-inbox-run-command-branch-off>
+                                {{- 'inbox.run_command.dialog.branch_unavailable'|trans({'%branch%': branch.branch, '%bridge%': command.bridgeName}) -}}
+                            </option>
+                        {% else %}
+                            <option value="{{ branch.branch }}" data-folder="{{ branch.path }}"{{ branch.branch == command.branch ? ' selected' }}>
+                                {{- (runnable and branch.branch == command.branch ? 'inbox.run_command.dialog.branch_pick' : 'inbox.run_command.dialog.branch_option')|trans({'%branch%': branch.branch, '%folder%': branch.path}) -}}
+                            </option>
+                        {% endif %}
                     {% endfor %}
                 </twig:Ds:Select>
                 <p class="lp-run-command__why-off" role="alert" data-run-command-target="noWorktree" data-inbox-run-command-no-worktree{{ runnable ? ' hidden' }}>{{ 'inbox.run_command.dialog.no_worktree'|trans({'%branch%': command.branch, '%bridge%': command.bridgeName}) }}</p>

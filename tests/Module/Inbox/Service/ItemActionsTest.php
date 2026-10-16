@@ -7,6 +7,8 @@ namespace App\Tests\Module\Inbox\Service;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
@@ -605,8 +607,18 @@ final class ItemActionsTest extends KernelTestCase
             $workRequests,
             $stageWorks,
             new AskingBridge($bridges, $inboxAsks, $runs),
-            new RunCommandResolver($liveness),
+            $this->resolver($liveness),
             new RunCommandRuns($inboxActions, $workRequests, $runs),
         );
+    }
+
+    private function resolver(BridgeLiveness $liveness): RunCommandResolver
+    {
+        $cards = self::getContainer()->get(CardRepository::class);
+        $contexts = self::getContainer()->get(WorkRequestContexts::class);
+        self::assertInstanceOf(CardRepository::class, $cards);
+        self::assertInstanceOf(WorkRequestContexts::class, $contexts);
+
+        return new RunCommandResolver($liveness, $cards, $contexts);
     }
 }

@@ -468,6 +468,21 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertCount(1, $block->filter('form.lp-inbox-thread__cancel'));
         self::assertCount(0, $block->filter('[data-inbox-action="run-command-again"]'));
         self::assertNotNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertCount(0, $block->filter('[data-inbox-run-command-offline]'));
+    }
+
+    public function test_a_command_queued_for_a_quiet_bridge_says_no_bridge_is_online(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Open);
+        $this->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="queued"]');
+        self::assertSame('No bridge is online.', trim($block->filter('[data-inbox-run-command-offline]')->text()));
+        self::assertCount(1, $block->filter('form.lp-inbox-thread__cancel'));
     }
 
     public function test_a_refused_command_shows_the_refusal_and_run_again(): void
@@ -516,7 +531,12 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertNotNull($dialog->filter('[data-inbox-action="run-command-confirm"]')->attr('disabled'));
         self::assertSame('No worktree for epic/42 on '.$this->bridge->label, trim($dialog->filter('[data-inbox-run-command-no-worktree]')->text()));
         self::assertNull($dialog->filter('[data-inbox-run-command-no-worktree]')->attr('hidden'));
-        self::assertSame(['', 'main'], $dialog->filter('select option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        self::assertSame(['epic/42', 'main'], $dialog->filter('select option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        $off = $dialog->filter('[data-inbox-run-command-branch-off]');
+        self::assertSame('epic/42, no worktree on '.$this->bridge->label, trim($off->text()));
+        self::assertNotNull($off->attr('disabled'));
+        self::assertNotNull($off->attr('selected'));
+        self::assertSame('', $off->attr('data-folder'));
     }
 
     private function commandRunOf(InboxItem $item, WorkRequestState $state, ?WorkerRunState $runState = null, ?int $exitCode = null, string $output = '', ?string $reason = null): void

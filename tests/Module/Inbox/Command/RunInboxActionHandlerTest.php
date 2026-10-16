@@ -810,6 +810,19 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame(['main', ['out' => 'other/folder']], [$request->branch, $request->params]);
     }
 
+    public function test_a_quiet_bridge_takes_the_run_as_a_request_that_waits_for_it(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $this->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame([(string) $this->bridge->id, WorkRequestState::Open], [(string) $request->targetBridgeId, $request->state]);
+    }
+
     /** @return iterable<string, array{?string, ?array<string, string>, callable(self): void, string}> */
     public static function refusedCommands(): iterable
     {
@@ -820,9 +833,6 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         yield 'an entry the bridge no longer lists' => [null, null, static function (self $test): void {
             $test->bridge->commandEntries = [];
         }, 'inbox.action.run-command.disabled.entry_missing'];
-        yield 'a bridge that went quiet' => [null, null, static function (self $test): void {
-            $test->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
-        }, 'inbox.action.run-command.disabled.offline'];
         yield 'a bridge that lost the capability' => [null, null, static function (self $test): void {
             $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS];
         }, 'inbox.action.run-command.disabled.unsupported'];
