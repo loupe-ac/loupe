@@ -4562,7 +4562,7 @@
             </trans-unit>
             <trans-unit id="landing.features.inbox.text">
                 <source>landing.features.inbox.text</source>
-                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, or pick it up yourself.</target>
+                <target>Questions, reviews and to-dos from agents, plus workflow questions and waiting cards from Loupe, in one list. The next step is one click away: resume the run, send an agent, run a command on your machine, or pick it up yourself.</target>
             </trans-unit>
             <trans-unit id="landing.features.inbox.caption">
                 <source>landing.features.inbox.caption</source>
@@ -5269,6 +5269,56 @@
             <trans-unit id="inbox.action.start-session.label"><source>inbox.action.start-session.label</source><target>Start an interactive session</target></trans-unit>
             <trans-unit id="inbox.action.start-session.effect"><source>inbox.action.start-session.effect</source><target>Opens a terminal on your machine, in a new session on this card.</target></trans-unit>
             <trans-unit id="inbox.action.start-session.disabled"><source>inbox.action.start-session.disabled</source><target>No bridge can open a session.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.label"><source>inbox.action.run-command.label</source><target>Run a command</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.effect"><source>inbox.action.run-command.effect</source><target>Runs a command from your rule file on your machine, after you confirm it.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.running"><source>inbox.action.run-command.disabled.running</source><target>This command is queued or running.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.no_bridge"><source>inbox.action.run-command.disabled.no_bridge</source><target>No bridge that follows this project asked for this.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.unsupported"><source>inbox.action.run-command.disabled.unsupported</source><target>The bridge cannot run commands from the inbox. Update the CLI.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.entry_missing"><source>inbox.action.run-command.disabled.entry_missing</source><target>The rule file of the bridge has no such command.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.param_invalid"><source>inbox.action.run-command.disabled.param_invalid</source><target>A value does not fit its pattern.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.placeholder_missing"><source>inbox.action.run-command.disabled.placeholder_missing</source><target>The command needs a card, and this item has no single card.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.placeholder_unknown"><source>inbox.action.run-command.disabled.placeholder_unknown</source><target>The command uses a value that the bridge fills only at the run, so Loupe cannot show the command before you run it.</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.branch_unavailable"><source>inbox.run_command.dialog.branch_unavailable</source><target>%branch%, no worktree on %bridge%</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.disabled.no_worktree"><source>inbox.action.run-command.disabled.no_worktree</source><target>The bridge has no worktree for this branch.</target></trans-unit>
+            <trans-unit id="inbox.action.error.run_command_live"><source>inbox.action.error.run_command_live</source><target>This command is already queued or running for this item.</target></trans-unit>
+            <trans-unit id="inbox.action.error.run_command_changed"><source>inbox.action.error.run_command_changed</source><target>The command changed on the bridge since you opened this dialog. Read it again, then run it.</target></trans-unit>
+            <trans-unit id="inbox.run_command.refusal.entry_changed"><source>inbox.run_command.refusal.entry_changed</source><target>The bridge refused the run because its command changed after you confirmed it.</target></trans-unit>
+            <trans-unit id="inbox.run_command.refusal.entry_missing"><source>inbox.run_command.refusal.entry_missing</source><target>The bridge has no command with this name.</target></trans-unit>
+            <trans-unit id="inbox.run_command.refusal.param_invalid"><source>inbox.run_command.refusal.param_invalid</source><target>The bridge refused a value because it does not fit its pattern.</target></trans-unit>
+            <trans-unit id="inbox.run_command.refusal.worktree_missing"><source>inbox.run_command.refusal.worktree_missing</source><target>The bridge found no worktree for this branch.</target></trans-unit>
+            <trans-unit id="inbox.run_command.refusal.placeholder_missing"><source>inbox.run_command.refusal.placeholder_missing</source><target>The command needs a value that this item cannot give.</target></trans-unit>
+            <trans-unit id="inbox.action.run-command.run"><source>inbox.action.run-command.run</source><target>Run %entry% on %branch%</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.title"><source>inbox.run_command.dialog.title</source><target>Run %entry%?</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.description"><source>inbox.run_command.dialog.description</source><target>Your bridge runs this command from its rules.yaml. The agent chose the entry, the branch and the parameters, not the command line.</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.bridge"><source>inbox.run_command.dialog.bridge</source><target>Bridge</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.bridge_todo"><source>inbox.run_command.dialog.bridge_todo</source><target>%bridge%, the bridge that sent the to-do</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.bridge_run"><source>inbox.run_command.dialog.bridge_run</source><target>%bridge%, the bridge that ran the worker</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.branch"><source>inbox.run_command.dialog.branch</source><target>Branch</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.branch_option"><source>inbox.run_command.dialog.branch_option</source><target>%branch% (%folder%)</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.branch_pick"><source>inbox.run_command.dialog.branch_pick</source><target>%branch% (%folder%), the agent&apos;s pick</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.branch_choose"><source>inbox.run_command.dialog.branch_choose</source><target>Pick a branch</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.no_worktree"><source>inbox.run_command.dialog.no_worktree</source><target>No worktree for %branch% on %bridge%</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.parameters"><source>inbox.run_command.dialog.parameters</source><target>Parameters</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.command"><source>inbox.run_command.dialog.command</source><target>Command</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.command_in"><source>inbox.run_command.dialog.command_in</source><target>Command, in %folder%</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.success_todo"><source>inbox.run_command.dialog.success_todo</source><target>A success marks the to-do done.</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.success_run"><source>inbox.run_command.dialog.success_run</source><target>A success resumes the run.</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.cancel"><source>inbox.run_command.dialog.cancel</source><target>Cancel</target></trans-unit>
+            <trans-unit id="inbox.run_command.dialog.run"><source>inbox.run_command.dialog.run</source><target>Run</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.label"><source>inbox.run_command.missing.label</source><target>Proposed entry, add it under work:</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.copy"><source>inbox.run_command.missing.copy</source><target>Copy</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.copied"><source>inbox.run_command.missing.copied</source><target>Copied</target></trans-unit>
+            <trans-unit id="inbox.run_command.missing.hint"><source>inbox.run_command.missing.hint</source><target>Then run %command%. The Run button turns on by itself.</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.queued"><source>inbox.run_command.state.queued</source><target>Queued</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.running"><source>inbox.run_command.state.running</source><target>Running</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.succeeded"><source>inbox.run_command.state.succeeded</source><target>Succeeded</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.failed"><source>inbox.run_command.state.failed</source><target>Failed</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.failed_exit"><source>inbox.run_command.state.failed_exit</source><target>Failed, exit %code%</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.refused"><source>inbox.run_command.state.refused</source><target>Refused</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.expired"><source>inbox.run_command.state.expired</source><target>Expired</target></trans-unit>
+            <trans-unit id="inbox.run_command.state.cancelled"><source>inbox.run_command.state.cancelled</source><target>Cancelled</target></trans-unit>
+            <trans-unit id="inbox.run_command.output"><source>inbox.run_command.output</source><target>Output, last lines</target></trans-unit>
+            <trans-unit id="inbox.run_command.run_again"><source>inbox.run_command.run_again</source><target>Run again</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
             <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
@@ -5704,6 +5754,10 @@
                 <source>inbox.flash.session_started</source>
                 <target>The session of item %number% is queued.</target>
             </trans-unit>
+            <trans-unit id="inbox.flash.command_queued">
+                <source>inbox.flash.command_queued</source>
+                <target>The command of item %number% is queued.</target>
+            </trans-unit>
             <trans-unit id="inbox.flash.cancelled">
                 <source>inbox.flash.cancelled</source>
                 <target>The action of item %number% is cancelled.</target>
@@ -5719,6 +5773,7 @@
             <trans-unit id="inbox.thread.you_verb.retry-card"><source>inbox.thread.you_verb.retry-card</source><target>retried the card at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.send-agent"><source>inbox.thread.you_verb.send-agent</source><target>sent an agent at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.you_verb.start-session"><source>inbox.thread.you_verb.start-session</source><target>started a session at %time%</target></trans-unit>
+            <trans-unit id="inbox.thread.you_verb.run-command"><source>inbox.thread.you_verb.run-command</source><target>ran %entry% at %time%</target></trans-unit>
             <trans-unit id="inbox.thread.cancel"><source>inbox.thread.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="inbox.project_list.open_items">
                 <source>inbox.project_list.open_items</source>
@@ -7295,6 +7350,7 @@
             <trans-unit id="inbox.status.verb.retried"><source>inbox.status.verb.retried</source><target>Card released</target></trans-unit>
             <trans-unit id="inbox.status.verb.agent-sent"><source>inbox.status.verb.agent-sent</source><target>Agent queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.session-started"><source>inbox.status.verb.session-started</source><target>Session queued</target></trans-unit>
+            <trans-unit id="inbox.status.verb.command-queued"><source>inbox.status.verb.command-queued</source><target>Command queued</target></trans-unit>
             <trans-unit id="inbox.status.verb.cancelled"><source>inbox.status.verb.cancelled</source><target>Action cancelled</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed"><source>inbox.status.ask_closed</source><target>%verb%.</target></trans-unit>
             <trans-unit id="inbox.status.ask_closed_detail"><source>inbox.status.ask_closed_detail</source><target>%title% is closed.</target></trans-unit>

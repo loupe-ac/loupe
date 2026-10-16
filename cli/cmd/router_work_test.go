@@ -882,3 +882,41 @@ func TestApplyCarriesTheEffortOfTheMatch(t *testing.T) {
 		}
 	}
 }
+
+// A request with a target belongs to that bridge alone. The event reaches
+// every bridge of the project, and the heartbeat reply offers it again.
+func TestAWorkOfferWithATargetIsTakenOnlyByThatBridge(t *testing.T) {
+	cases := map[string]struct {
+		target string
+		want   int
+	}{
+		"another bridge": {"0192f3a1-0000-4d3e-8f10-a2b3c4d5e6f7", 0},
+		"this bridge":    {strings.ToUpper(testBridgeID), 1},
+		"no target":      {"", 1},
+	}
+	for name, tc := range cases {
+		for _, source := range []string{"event", "heartbeat"} {
+			t.Run(name+" by "+source, func(t *testing.T) {
+				h := newHarnessWith(t, workRules, rules.Defaults{})
+				f := h.withWork()
+				h.worker.result = workerResult{hasResult: true, status: "finished"}
+				w := workRequest(1, 87, "implement", api.WorkRequestOpen)
+				w.TargetBridgeID = tc.target
+
+				if source == "event" {
+					h.offer(f, w)
+				} else {
+					f.mu.Lock()
+					f.requests[w.WorkRequestID] = w
+					f.mu.Unlock()
+					h.router.onHeartbeatReply(api.HeartbeatReply{WorkRequests: []api.WorkRequest{w}})
+					h.router.wg.Wait()
+				}
+
+				if got := f.claimed(); len(got) != tc.want {
+					t.Fatalf("claims = %v, want %d", got, tc.want)
+				}
+			})
+		}
+	}
+}

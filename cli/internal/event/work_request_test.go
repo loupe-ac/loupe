@@ -2,6 +2,7 @@ package event
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestParseWorkRequest(t *testing.T) {
 		RuleID:        "impl.rule-1",
 		CreatedAt:     w.CreatedAt,
 	}
-	if w != want || !w.CreatedAt.Equal(time.Date(2026, 10, 1, 12, 30, 0, 0, time.UTC)) {
+	if !reflect.DeepEqual(w, want) || !w.CreatedAt.Equal(time.Date(2026, 10, 1, 12, 30, 0, 0, time.UTC)) {
 		t.Fatalf("work request = %+v", w)
 	}
 }

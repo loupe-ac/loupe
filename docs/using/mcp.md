@@ -698,8 +698,10 @@ owner and follows the project. Without a bridge entry, Loupe uses the params of
 `proposedEntry` in the same way. With neither, it stores the values unchecked and
 the bridge decides when it runs the command. The call is refused when a question
 or a review suggests `run-command`, when `run-command` has no `command`, and when
-another action carries `command` or `proposedEntry`. The inbox page does not
-offer `run-command` yet.
+another action carries `command` or `proposedEntry`. The inbox page shows a
+`run-command` suggestion as a button that opens a confirm step, as
+[the inbox page](inbox.md#running-a-command) says. Only the owner can run it, and
+the bridge checks the entry, the patterns and the worktree again.
 
 `MCP_ALLOWED_HOSTS` is a DNS-rebinding allowlist — hostnames only, no port. It
 must contain the hostname agents actually use, or every call is rejected with a

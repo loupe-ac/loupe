@@ -639,6 +639,33 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame([(string) $any->id, (string) $interactive->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
     }
 
+    public function test_a_request_for_one_bridge_is_offered_to_that_bridge_alone(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->set('clock', new MockClock(self::WORK_NOW));
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-offers-target@example.com');
+        $project = $this->project($em, $owner, 'Offers Target');
+        $target = Uuid::v4();
+        $any = $this->seedWorkRequest($em, $project, createdAt: new \DateTimeImmutable('2026-10-01 12:00:00'));
+        $targeted = $this->seedWorkRequest($em, $project, kind: 'design-export', capability: Bridge::CAPABILITY_RUN_COMMAND, createdAt: new \DateTimeImmutable('2026-10-01 12:05:00'), targetBridgeId: $target, branch: 'main', params: ['out' => 'var/x']);
+        $raw = $this->agentToken($client, $owner);
+        $body = [
+            'projects' => [(string) $project->id],
+            'cliVersion' => 'b4e39aa7',
+            'capabilities' => [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND],
+        ];
+
+        $this->put($client, (string) Uuid::v4(), $raw, $body);
+        self::assertSame([(string) $any->id], array_column($this->reply($client)['workRequests'], 'workRequestId'));
+
+        $this->put($client, (string) $target, $raw, $body);
+        $offers = $this->reply($client)['workRequests'];
+        self::assertSame([(string) $any->id, (string) $targeted->id], array_column($offers, 'workRequestId'));
+        self::assertSame([(string) $target, 'main', ['out' => 'var/x']], [$offers[1]['targetBridgeId'], $offers[1]['branch'], $offers[1]['params']]);
+    }
+
     public function test_a_bridge_that_takes_no_work_requests_gets_no_offer(): void
     {
         $client = static::createClient();

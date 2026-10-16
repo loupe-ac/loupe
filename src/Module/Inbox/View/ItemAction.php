@@ -17,11 +17,13 @@ final readonly class ItemAction
         public ?string $disabledReasonKey = null,
         /** The one-line reason of the worker that suggested the action, as plain text. */
         public ?string $reason = null,
+        /** The command, its checks and its run state, for a run-command action alone. */
+        public ?RunCommandView $runCommand = null,
     ) {
     }
 
-    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null): self
+    public static function for(InboxActionKind $kind, bool $default = false, ?string $disabledReasonKey = null, ?string $reason = null, ?RunCommandView $runCommand = null): self
     {
-        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason);
+        return new self($kind, \sprintf('inbox.action.%s.label', $kind->value), \sprintf('inbox.action.%s.effect', $kind->value), $default, $disabledReasonKey, $reason, $runCommand);
     }
 }

@@ -111,6 +111,9 @@ type router struct {
 	update *bridgeUpdate
 	// scriptDir holds the launch scripts, and "" means defaultScriptDir.
 	scriptDir string
+	// worktrees lists the worktrees of a project folder. A nil one runs git.
+	worktrees func(ctx context.Context, dir string) ([]worktree, error)
+
 	// ackCommand answers a command through the report queue. A nil one, as in
 	// most tests, answers nothing. pauseFile caches a person's pause, and ""
 	// caches nothing. baseURL names the server in the cache.

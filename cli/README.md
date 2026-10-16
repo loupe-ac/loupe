@@ -1024,6 +1024,30 @@ A reload sends a heartbeat at once, so a new entry shows with no wait.
 
 The bridge always reports the capability `run-command`.
 
+### Running an entry from the inbox
+
+A work request with the capability `run-command` runs the command entry named
+by its kind, whatever the subject is. It carries a `branch`, which defaults to
+`main`, `params`, one string for each parameter, and `run`, the `run` list of
+the entry as the owner confirmed it. The bridge checks the
+request again before it runs. It settles the request as refused, with a reason
+code, and starts no run, when a check fails:
+
+- `entry-missing`: the work map has no command entry of that name.
+- `entry-changed`: the `run` list of the entry differs from the one in the
+  request, because the rule file changed after the owner confirmed it.
+- `param-invalid`: a parameter is missing, undeclared, or does not match its
+  whole pattern.
+- `placeholder-missing`: the `run` list uses a placeholder with no value, such
+  as `{cardNumber}` for a request that names no card.
+- `worktree-missing`: `git worktree list --porcelain` shows no folder with the
+  branch checked out.
+
+The bridge reads the worktrees again when the command starts, and runs the
+command in the folder of the branch. A value fills one element of the `run`
+list and never reaches a shell. A pattern must exclude a value such as
+`--exec=...` if the command reads it as an option.
+
 ### Accepting entries from Loupe
 
 `acceptEntries: true` at the top of the file lets Loupe add a command entry to

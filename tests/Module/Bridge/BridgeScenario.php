@@ -254,6 +254,7 @@ trait BridgeScenario
         return (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_commands');
     }
 
+    /** @param array<string, string>|null $params */
     private function seedWorkRequest(
         EntityManagerInterface $em,
         Project $project,
@@ -269,6 +270,9 @@ trait BridgeScenario
         ?WorkSubject $subject = null,
         ?\DateTimeImmutable $reopenedAt = null,
         ?string $prompt = null,
+        ?Uuid $targetBridgeId = null,
+        ?string $branch = null,
+        ?array $params = null,
     ): WorkRequest {
         $subject ??= WorkSubject::card($cardId ?? Uuid::v7());
         $request = new WorkRequest(
@@ -287,6 +291,9 @@ trait BridgeScenario
         $request->leaseUntil = $leaseUntil;
         $request->reopenedAt = $reopenedAt;
         $request->prompt = $prompt;
+        $request->targetBridgeId = $targetBridgeId;
+        $request->branch = $branch;
+        $request->params = $params;
         $em->persist($request);
         $em->flush();
 

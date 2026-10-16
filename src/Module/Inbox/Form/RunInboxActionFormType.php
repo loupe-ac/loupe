@@ -6,7 +6,9 @@ namespace App\Module\Inbox\Form;
 
 use App\Module\Inbox\Entity\InboxItem;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -27,6 +29,15 @@ class RunInboxActionFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('note', TextareaType::class, ['required' => false]);
+        $builder->add('branch', TextType::class, ['required' => false]);
+        $builder->add('runDigest', TextType::class, ['required' => false]);
+        // An empty value stays an empty string, so the parameter is checked against its pattern rather than dropped.
+        $builder->add('params', CollectionType::class, [
+            'entry_type' => TextType::class,
+            'entry_options' => ['required' => false, 'empty_data' => ''],
+            'allow_add' => true,
+            'required' => false,
+        ]);
     }
 
     #[\Override]

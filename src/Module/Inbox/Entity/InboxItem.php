@@ -27,6 +27,9 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(name: 'uniq_inbox_item_project_number', columns: ['project_id', 'number'])]
 class InboxItem implements ProjectScopedSubject
 {
+    /** The subject type of a work request that an inbox item opened and that no card carries. */
+    public const string SUBJECT_TYPE = 'inbox-item';
+
     public const int MAX_TITLE_LENGTH = 255;
 
     #[ORM\Column(type: UuidType::NAME, unique: true)]

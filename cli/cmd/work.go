@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/event"
 	"github.com/ubermuda/loupe/cli/internal/outbound"
 	"github.com/ubermuda/loupe/cli/internal/rules"
@@ -134,6 +135,11 @@ func (r *router) takeWork(w api.WorkRequest, source string) {
 	if r.workAPI == nil || r.bridgeID == "" {
 		return
 	}
+	if !w.ForBridge(r.bridgeID) {
+		r.log.Debug("work_request_dropped", append(workAttrs(w, source), "reason", "other_bridge")...)
+
+		return
+	}
 	if w.State == api.WorkRequestOpen {
 		r.offerWork(w, source)
 
@@ -171,9 +177,25 @@ func (r *router) takeWork(w api.WorkRequest, source string) {
 // copy of an offer it holds already.
 func (r *router) offerWork(w api.WorkRequest, source string) {
 	set := r.rules()
+	runCommand := w.Capability == rules.CapabilityRunCommand
+	if runCommand {
+		r.mu.Lock()
+		known := r.knownWorkLocked(w.WorkRequestID)
+		r.mu.Unlock()
+		if known {
+			return
+		}
+	}
 	m := set.MatchWork(w)
 	switch m.Skip {
 	case rules.Run:
+		if runCommand {
+			if _, ok := r.worktreeDir(context.Background(), m.Dir, w.RunBranch()); !ok {
+				r.refuseWork(w, rules.RefuseWorktreeMissing)
+
+				return
+			}
+		}
 	case rules.Unmapped:
 		r.mu.Lock()
 		first := r.markUnmappedLocked(w.ProjectID)
@@ -184,6 +206,11 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 
 		return
 	default:
+		if reason := set.RunCommandRefusal(w); reason != "" {
+			r.refuseWork(w, reason)
+
+			return
+		}
 		// The heartbeat offers an open request again at each interval.
 		level := slog.LevelInfo
 		if source == workFromHeartbeat {
@@ -202,6 +229,53 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 	}
 	p.apply(m)
 	r.enqueue(p)
+}
+
+// refuseWork claims a request the bridge cannot run, and settles it as refused
+// with the reason code. It starts no run and reports no worker run, as the
+// refusal of an invalid claim does. A claim another bridge won, or a claim that
+// fails, leaves nothing, and the next offer tries again.
+func (r *router) refuseWork(w api.WorkRequest, reason string) {
+	p := pending{key: w.SubjectID, event: workEvent(w), work: w, rule: rules.WorkRulePrefix + w.Kind, runID: config.NewUUID()}
+	id := w.WorkRequestID
+	r.mu.Lock()
+	if r.frozen || r.shut() {
+		r.mu.Unlock()
+
+		return
+	}
+	if err := r.registerClaimLocked(p); err != nil {
+		r.mu.Unlock()
+		r.logClaimFailed(about(p.event, p.rule), err)
+
+		return
+	}
+	r.wg.Add(1)
+	r.mu.Unlock()
+	go func() {
+		defer r.wg.Done()
+
+		claim, err := r.requestClaim(p)
+		r.mu.Lock()
+		c := r.claims[id]
+		if err != nil || c == nil || c.gone || r.shut() {
+			if c != nil {
+				delete(r.claims, id)
+			}
+			r.mu.Unlock()
+			if err != nil {
+				r.logClaimFailed(about(p.event, p.rule), err)
+			}
+
+			return
+		}
+		c.token = claim.ClaimToken
+		p.claimToken = claim.ClaimToken
+		r.noteClaimsLocked()
+		r.log.Info("work_request_refused", append(about(p.event, p.rule), "reason", reason)...)
+		r.mu.Unlock()
+		r.settleWork(p, api.WorkRequestRefused, reason)
+	}()
 }
 
 // resumeRuns are the settings a run of m can take: those of its entry, and

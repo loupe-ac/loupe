@@ -133,10 +133,30 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $this->seedWorkRequest($em, $this->project($em, $owner, 'Not Followed'), createdAt: $at('11:00:00'));
         $projects = [(string) $followed->id, (string) $alsoFollowed->id];
 
-        self::assertSame([$older, $newer, $interactive], $this->repository()->findOpenOffers($projects, ['work-requests', 'interactive'], 10));
-        self::assertSame([$older, $newer], $this->repository()->findOpenOffers($projects, [], 10));
-        self::assertSame([$older], $this->repository()->findOpenOffers($projects, ['interactive'], 1));
-        self::assertSame([], $this->repository()->findOpenOffers([], ['interactive'], 10));
+        self::assertSame([$older, $newer, $interactive], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests', 'interactive'], 10));
+        self::assertSame([$older, $newer], $this->repository()->findOpenOffers(Uuid::v4(), $projects, [], 10));
+        self::assertSame([$older], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['interactive'], 1));
+        self::assertSame([], $this->repository()->findOpenOffers(Uuid::v4(), [], ['interactive'], 10));
+    }
+
+    public function test_a_request_with_a_target_is_offered_to_that_bridge_alone(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'offers-target@example.com'), 'Offers Target');
+        $target = Uuid::v4();
+        $other = Uuid::v4();
+        $at = static fn (string $time): \DateTimeImmutable => new \DateTimeImmutable('2026-10-01 '.$time);
+        $untargeted = $this->seedWorkRequest($em, $project, createdAt: $at('12:00:00'));
+        $targeted = $this->seedWorkRequest($em, $project, kind: 'design-export', capability: 'run-command', createdAt: $at('12:01:00'), targetBridgeId: $target, branch: 'main', params: ['out' => 'var/x']);
+        $projects = [(string) $project->id];
+
+        self::assertSame([$untargeted, $targeted], $this->repository()->findOpenOffers($target, $projects, ['run-command'], 10));
+        self::assertSame([$untargeted], $this->repository()->findOpenOffers($other, $projects, ['run-command'], 10));
+        $em->clear();
+        $stored = $em->find(WorkRequest::class, $targeted->id);
+        self::assertInstanceOf(WorkRequest::class, $stored);
+        self::assertSame([(string) $target, 'main', ['out' => 'var/x']], [(string) $stored->targetBridgeId, $stored->branch, $stored->params]);
     }
 
     public function test_offers_leave_out_the_requests_of_held_cards(): void
@@ -152,7 +172,7 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $em->persist(new CardHold($project, $heldCard, $owner, new \DateTimeImmutable('2026-10-01 12:03:00')));
         $em->flush();
 
-        self::assertSame([$free, $subject], $this->repository()->findOpenOffers([(string) $project->id], [], 10));
+        self::assertSame([$free, $subject], $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10));
     }
 
     public function test_open_requests_of_a_card_leave_out_settled_and_claimed_ones(): void
@@ -180,8 +200,8 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $this->seedWorkRequest($em, $project, capability: 'interactive', createdAt: $at('12:02:00'), prompt: 'Run it.');
         $projects = [(string) $project->id];
 
-        self::assertSame([$withPrompt], $this->repository()->findOpenOffers($projects, ['work-requests', 'app-prompts'], 10));
-        self::assertSame([], $this->repository()->findOpenOffers($projects, ['work-requests'], 10));
+        self::assertSame([$withPrompt], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests', 'app-prompts'], 10));
+        self::assertSame([], $this->repository()->findOpenOffers(Uuid::v4(), $projects, ['work-requests'], 10));
     }
 
     public function test_the_sweep_reopens_the_claims_whose_lease_lapsed(): void
@@ -402,13 +422,13 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         $holds->hold($project, $heldCard, $owner);
         $em->clear();
 
-        self::assertSame([(string) $offered->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers([(string) $project->id], [], 10)));
+        self::assertSame([(string) $offered->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10)));
         self::assertSame([], $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00')));
 
         $holds->release($project, [$heldCard]);
 
         self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'))));
         // The hold cancelled the open request of the card, so the release offers the reopened claim alone.
-        self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers([(string) $project->id], [], 10)));
+        self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10)));
     }
 }

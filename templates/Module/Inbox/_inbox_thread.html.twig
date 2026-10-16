@@ -8,8 +8,15 @@
 {% set lastStatus = statuses|last %}
 {# Another open wait, or an expired or cancelled action, brings the reply card back. #}
 {% set answering = lastStatus and lastStatus.answers(watch ? watch.waits : []) %}
+{% set actions = reply ? inbox_actions(item, hostCardId) : null %}
+{# The one run-command row of the item, whether it is the main button or in the menu. #}
+{% set commandRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.runCommand)|first : null %}
+{% set runCommand = commandRow ? commandRow.action.runCommand : null %}
+{% set actionForm = reply ? inbox_action_form(item, refusedForm) : null %}
+{# The dialog posts the reply form, so it needs the reply card on the page. #}
+{% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
 {% set chips = {queued: 'pending', resumed: 'active', preparing: 'active', running: 'active', retried: 'ok', expired: 'failed', refused: 'failed', cancelled: 'neutral'} %}
-<div class="lp-inbox-thread" data-inbox-thread>
+<div class="lp-inbox-thread" data-inbox-thread{% if commandDialog %} data-controller="modal run-command" data-run-command-template-value="{{ runCommand.argvTemplate|json_encode }}" data-run-command-label-value="{{ 'inbox.run_command.dialog.command'|trans }}" data-run-command-label-in-value="{{ 'inbox.run_command.dialog.command_in'|trans }}"{% endif %}>
     <ul class="lp-inbox-thread__messages" data-inbox-waits>
         {% for wait in shownWaits %}
             {%- set line = inbox_wait_line(wait, wait.documentId and wait.documentId.toRfc4122 in linkedDocumentIds) -%}
@@ -62,15 +69,24 @@
         </div>
     {% endfor %}
 
+    {% if runCommand and runCommand.run %}
+        {% include '@Inbox/_inbox_run_command_run.html.twig' with {item: item, command: runCommand, actionParams: actionParams, responseFrame: responseFrame, refusedForm: refusedForm ?? null, rerun: commandDialog, doneFormId: todoButtons ? todoButtons.doneFormId : null} only %}
+    {% endif %}
+
     {% if reply and not answering %}
-        {% set actions = inbox_actions(item, hostCardId) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
-        {% set actionForm = inbox_action_form(item, refusedForm) %}
         {% set noteLabel = 'inbox.thread.note_placeholder'|trans %}
         <div class="lp-inbox-item__actions">
-            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}}) }}
+            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}}) }}
                 {% if actions.main %}
                     <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans }}</h3>
+                {% endif %}
+                {% if runCommand and runCommand.entryMissing and runCommand.proposedEntry %}
+                    <twig:Ds:CodeBlock :label="'inbox.run_command.missing.label'|trans" :text="runCommand.proposedEntry" :copyLabel="'inbox.run_command.missing.copy'|trans" :copiedLabel="'inbox.run_command.missing.copied'|trans" data-inbox-run-command-proposed />
+                    <twig:Ds:Hint>{{ 'inbox.run_command.missing.hint'|trans({'%command%': 'loupe bridge reload'}) }}</twig:Ds:Hint>
+                {% endif %}
+                {% if runCommand and not runCommand.canOpenDialog and not (runCommand.run and runCommand.run.state.isLive) %}
+                    <p class="lp-run-command__why-off" data-inbox-run-command-off>{{ runCommand.disabledReasonKey|trans }}</p>
                 {% endif %}
                 {% if not todoButtons %}
                     {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
@@ -79,7 +95,7 @@
                 <twig:Ds:FieldErrors :fieldView="actionForm" />
                 {{ form_widget(actionForm._token) }}
                 <div class="lp-comment-composer__actions">
-                    <twig:Ds:Hint as="span" class="inbox-split__hint">{{ todoButtons ? '' : 'inbox.thread.note_hint'|trans }}</twig:Ds:Hint>
+                    <twig:Ds:Hint as="span" class="inbox-split__hint">{{ actions.main and actions.main.action.runCommand ? (runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '') : (todoButtons ? '' : 'inbox.thread.note_hint'|trans) }}</twig:Ds:Hint>
                     {% if todoButtons %}
                         {% include '@Inbox/_decline_button.html.twig' with {formId: todoButtons.declineFormId, label: todoButtons.declineLabel} only %}
                         <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ todoButtons.doneFormId }}" data-inbox-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
@@ -92,6 +108,8 @@
                         <twig:block name="trigger">
                         {% if actions.main and actions.main.isLink %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
+                        {% elseif actions.main and actions.main.action.runCommand %}
+                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
                         {% elseif actions.main %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: actions.main.action.kind.value}))" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
                         {% endif %}
@@ -123,5 +141,9 @@
             {{ form_end(declineForm) }}
             {% endif %}
         </div>
+    {% endif %}
+
+    {% if commandDialog %}
+        {% include '@Inbox/_inbox_run_command_dialog.html.twig' with {item: item, command: runCommand, actionParams: actionParams, formId: actionForm.vars.id, fieldName: actionForm.vars.full_name} only %}
     {% endif %}
 </div>
