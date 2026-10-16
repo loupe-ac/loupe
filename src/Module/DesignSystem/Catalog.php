@@ -127,7 +127,7 @@ readonly class Catalog
                 name: 'EmptyState',
                 rootClass: 'lp-empty-state',
                 template: 'components/Ds/EmptyState.html.twig',
-                variants: [],
+                variants: ['compact'],
                 states: [],
                 enforced: true,
                 group: 'core',

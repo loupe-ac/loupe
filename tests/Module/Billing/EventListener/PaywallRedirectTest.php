@@ -28,7 +28,7 @@ final class PaywallRedirectTest extends WebTestCase
         $client->loginUser($user);
         $client->request(Request::METHOD_GET, '/projects');
 
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
     }
 
     public function test_a_running_trial_reaches_the_app(): void
@@ -97,10 +97,10 @@ final class PaywallRedirectTest extends WebTestCase
         // The wizard entry point itself, and the home route that would otherwise
         // send a project-less user into it.
         $client->request(Request::METHOD_GET, '/welcome');
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
 
         $client->request(Request::METHOD_GET, '/');
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
 
         $client->followRedirect();
         self::assertResponseIsSuccessful();
@@ -129,7 +129,7 @@ final class PaywallRedirectTest extends WebTestCase
         $scenario->profile($user, new \DateTimeImmutable('-1 day'));
 
         $client->loginUser($user);
-        $client->request(Request::METHOD_GET, '/billing/subscribe');
+        $client->request(Request::METHOD_GET, '/account/billing');
 
         self::assertResponseIsSuccessful();
     }

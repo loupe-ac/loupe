@@ -2052,6 +2052,10 @@
                 <source>nav.switcher.all_projects</source>
                 <target>All projects</target>
             </trans-unit>
+            <trans-unit id="nav.switcher.new_project">
+                <source>nav.switcher.new_project</source>
+                <target>New project</target>
+            </trans-unit>
             <trans-unit id="nav.switcher.document_count">
                 <source>nav.switcher.document_count</source>
                 <target>{0}no documents|{1}1 document|]1,Inf[%count% documents</target>
@@ -2089,6 +2093,10 @@
             <trans-unit id="project.list.meta.cards">
                 <source>project.list.meta.cards</source>
                 <target>{0}0 open cards|{1}1 open card|]1,Inf[%count% open cards</target>
+            </trans-unit>
+            <trans-unit id="project.list.form.cancel">
+                <source>project.list.form.cancel</source>
+                <target>Cancel</target>
             </trans-unit>
             <trans-unit id="project.list.form.submit">
                 <source>project.list.form.submit</source>
@@ -5163,6 +5171,14 @@
                 <source>nav.link.inbox</source>
                 <target>Needs you</target>
             </trans-unit>
+            <trans-unit id="bridge.nav.open_runs">
+                <source>bridge.nav.open_runs</source>
+                <target>{0}No open runs|{1}1 open run|]1,Inf[%count% open runs</target>
+            </trans-unit>
+            <trans-unit id="bridge.nav.busy_workers">
+                <source>bridge.nav.busy_workers</source>
+                <target>%busy% of %limit% workers busy</target>
+            </trans-unit>
             <trans-unit id="inbox.nav.open_items">
                 <source>inbox.nav.open_items</source>
                 <target>{0}No open items|{1}1 open item|]1,Inf[%count% open items</target>
@@ -7311,25 +7327,6 @@
                 <source>project.workshop.page.description</source>
                 <target>See what needs attention in %project%.</target>
             </trans-unit>
-            <trans-unit id="project.workshop.summary.label">
-                <source>project.workshop.summary.label</source>
-                <target>Project summary</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.requests">
-                <source>project.workshop.summary.requests</source>
-                <target>Open requests</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.cards">
-                <source>project.workshop.summary.cards</source>
-                <target>Open cards</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.completed">
-                <source>project.workshop.summary.completed</source>
-                <target>Completed cards</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.summary.requests_detail"><source>project.workshop.summary.requests_detail</source><target>Questions and reviews</target></trans-unit>
-            <trans-unit id="project.workshop.summary.cards_detail"><source>project.workshop.summary.cards_detail</source><target>Across this project</target></trans-unit>
-            <trans-unit id="project.workshop.summary.completed_detail"><source>project.workshop.summary.completed_detail</source><target>Looking good</target></trans-unit>
             <trans-unit id="project.workshop.needs_you.eyebrow">
                 <source>project.workshop.needs_you.eyebrow</source>
                 <target>Attention</target>
@@ -7416,10 +7413,6 @@
             <trans-unit id="project.workshop.connection.title">
                 <source>project.workshop.connection.title</source>
                 <target>Agent bridge</target>
-            </trans-unit>
-            <trans-unit id="project.workshop.connection.body">
-                <source>project.workshop.connection.body</source>
-                <target>Open the connection guide for current setup details and credentials.</target>
             </trans-unit>
             <trans-unit id="project.workshop.connection.action">
                 <source>project.workshop.connection.action</source>
@@ -8023,6 +8016,7 @@
             <trans-unit id="board.card.tab.details"><source>board.card.tab.details</source><target>Details</target></trans-unit>
             <trans-unit id="inbox.account.project.oldest"><source>inbox.account.project.oldest</source><target>oldest %time%</target></trans-unit>
             <trans-unit id="account.settings.nav.connected_apps"><source>account.settings.nav.connected_apps</source><target>Connected apps</target></trans-unit>
+            <trans-unit id="account.settings.nav.billing"><source>account.settings.nav.billing</source><target>Billing</target></trans-unit>
             <trans-unit id="oauth.consent.page.title"><source>oauth.consent.page.title</source><target>Connect an app</target></trans-unit>
             <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and site reviews of one project, through MCP.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.site_review"><source>oauth.consent.scope.site_review</source><target>Read and post site-review comments on one project.</target></trans-unit>

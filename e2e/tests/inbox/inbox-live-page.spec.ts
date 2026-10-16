@@ -51,8 +51,8 @@ test('a new ask appears, and an ask closed elsewhere locks the typed form', asyn
     await expect(watcher.locator('a.lp-list-row')).toHaveCount(1);
     // The hub keeps no history, so a change made before this connects is lost.
     await expect(
-        watcher.locator('a[data-controller="inbox-pill"]'),
-    ).toHaveAttribute('data-inbox-pill-connected', '');
+        watcher.locator('a[data-live-pill-url-value$="/inbox/open-count"]'),
+    ).toHaveAttribute('data-live-pill-connected', '');
     await watcher.evaluate(() => {
         (window as unknown as { stayed: boolean }).stayed = true;
     });

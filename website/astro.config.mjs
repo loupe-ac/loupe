@@ -101,6 +101,7 @@ export default defineConfig({
             { slug: 'using/workshop' },
             { slug: 'using/admin' },
             { slug: 'using/data-exports' },
+            { slug: 'using/billing' },
           ],
         },
         {

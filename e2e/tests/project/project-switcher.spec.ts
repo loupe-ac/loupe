@@ -48,7 +48,13 @@ test('resizing an open mobile sidebar releases the page at the desktop breakpoin
     await expect(
         page.getByLabel('Project name', { exact: true }),
     ).toBeFocused();
+    // The modal dialog makes the page behind it inert until it closes.
+    await page.keyboard.press('Escape');
+    await expect(
+        page.getByRole('dialog', { name: 'New project' }),
+    ).toBeHidden();
     await page.locator('.lp-sidebar__brand').focus();
+    await expect(page.locator('.lp-sidebar__brand')).toBeFocused();
     await page.setViewportSize({ width: 780, height: 844 });
     await expect(
         page.getByRole('button', { name: 'Open navigation', exact: true }),
@@ -196,4 +202,21 @@ test('project switching marks context, clears search, and returns keyboard focus
         path: '/tmp/loupe-project-switcher-text200.png',
         animations: 'disabled',
     });
+});
+
+test('the switcher offers a New project entry that opens the create dialog', async ({
+    page,
+}) => {
+    await page.goto('/projects');
+    await page
+        .getByRole('button', { name: 'Switch project', exact: true })
+        .click();
+    await page
+        .locator('#project-switcher-panel')
+        .getByRole('link', { name: 'New project' })
+        .click();
+    await expect(page).toHaveURL(/\/projects\?new=1$/);
+    await expect(
+        page.getByRole('dialog', { name: 'New project' }),
+    ).toBeVisible();
 });

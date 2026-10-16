@@ -97,7 +97,7 @@ final class BillingActionsSecurityTest extends WebTestCase
 
         $client->request(Request::METHOD_POST, $url, ['_csrf_token' => self::VALID_CSRF_TOKEN]);
 
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
     }
 
     public function test_checkout_redirects_to_the_stripe_hosted_page(): void
@@ -143,7 +143,7 @@ final class BillingActionsSecurityTest extends WebTestCase
         $this->authenticate($client, $scenario->verifiedUser('noprice'));
         $client->request(Request::METHOD_POST, '/billing/checkout', ['_csrf_token' => self::VALID_CSRF_TOKEN]);
 
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
         $crawler = $client->followRedirect();
         self::assertCount(1, $crawler->filter('.lp-flash--error'));
     }
@@ -184,7 +184,7 @@ final class BillingActionsSecurityTest extends WebTestCase
         $this->authenticate($client, $scenario->verifiedUser('noportal'));
         $client->request(Request::METHOD_POST, '/billing/portal', ['_csrf_token' => self::VALID_CSRF_TOKEN]);
 
-        self::assertResponseRedirects('/billing/subscribe');
+        self::assertResponseRedirects('/account/billing');
         $crawler = $client->followRedirect();
         self::assertCount(1, $crawler->filter('.lp-flash--error'));
     }

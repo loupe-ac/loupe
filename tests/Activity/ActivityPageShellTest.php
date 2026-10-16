@@ -58,7 +58,7 @@ final class ActivityPageShellTest extends WebTestCase
         self::assertStringNotContainsString('Run history', $crawler->filter('.lp-sidebar')->text());
         $active = $crawler->filter('a.lp-sidebar__link--active[aria-current="page"]');
         self::assertCount(1, $active);
-        self::assertSame($base.'/worker-runs', $active->attr('href'));
+        self::assertSame($base.'/worker-runs?outcome=open', $active->attr('href'));
         self::assertSame('Activity', trim($active->text()));
     }
 

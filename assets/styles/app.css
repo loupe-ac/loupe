@@ -1128,12 +1128,6 @@
     .lp-project-tile__arrow {
         @apply absolute bottom-5 right-5 h-4 w-4 text-fg-dim;
     }
-    .lp-project-tile-grid .lp-project-new {
-        @apply min-h-64 justify-center rounded-xl border border-dashed border-line-strong bg-accent-faint p-6;
-    }
-    .lp-project-tile-grid .lp-project-new__toggle {
-        @apply flex-col self-center p-0;
-    }
 
     /* Settings pages keep section navigation beside narrow paper panels. */
     .lp-redesign-settings .lp-danger-zone,
@@ -3159,18 +3153,11 @@
         @apply bg-tint-strong text-ink;
     }
 
-    /* New-project affordance: a dashed 38px square + label that reveals the
-       create form. Collapsed by default; the disclosure controller toggles
-       .open on the panel (and .disclosure-open on the wrapper). */
+    /* New-project tile: a dashed button that opens the create dialog. */
     .lp-project-new {
-        @apply flex flex-col pt-4.5;
+        @apply flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3.5 rounded-xl border border-dashed border-line-strong bg-accent-faint p-6 text-fg-dim transition-colors;
     }
-    /* Padded like a project tile so the plus square sits on the same left edge
-       as the avatars in the rows above it. */
-    .lp-project-new__toggle {
-        @apply inline-flex items-center gap-3.5 bg-transparent border-0 py-0 px-4.5 cursor-pointer text-fg-dim transition-colors;
-    }
-    .lp-project-new__toggle:hover {
+    .lp-project-new:hover {
         @apply text-fg;
     }
     .lp-project-new__plus {
@@ -3179,19 +3166,12 @@
     .lp-project-new__plus svg {
         @apply w-4 h-4;
     }
-    .lp-project-new__toggle:hover .lp-project-new__plus {
+    .lp-project-new:hover .lp-project-new__plus {
         border-color: var(--switcher-hover-border);
         @apply text-fg;
     }
     .lp-project-new__label {
         @apply text-base;
-    }
-    /* Collapsed → revealed. Kept out of the normal flow height until open. */
-    .lp-project-new__panel {
-        @apply hidden mt-4 max-w-sm;
-    }
-    .lp-project-new__panel.open {
-        @apply block;
     }
 
     /* ── Documents list ─────────────────────────────────────────────── */
@@ -7845,30 +7825,6 @@
     }
 
     /* Workshop overview with the handoff's wide work column and support rail. */
-    .lp-workshop-summary {
-        @apply flex flex-col items-stretch gap-0 p-5 mb-7 rounded-xl border border-accent-border bg-accent-faint sm:flex-row sm:items-center sm:gap-7;
-    }
-    .lp-workshop-stat {
-        @apply flex items-center gap-3 min-w-0 py-2 text-ink no-underline transition-colors;
-    }
-    a.lp-workshop-stat:hover {
-        @apply text-accent-ink;
-    }
-    .lp-workshop-stat__value {
-        @apply font-display text-3xl leading-none font-bold text-ink;
-    }
-    .lp-workshop-stat__copy {
-        @apply flex flex-col text-xs leading-snug text-fg-dim;
-    }
-    .lp-workshop-stat__copy strong {
-        @apply text-xs font-medium text-ink;
-    }
-    .lp-workshop-summary__action {
-        @apply mt-3 sm:mt-0 sm:ml-auto;
-    }
-    .lp-workshop-summary__action:hover {
-        @apply border-accent-border bg-accent-soft text-ink;
-    }
     .lp-workshop-layout {
         @apply grid grid-cols-1 gap-7 xl:grid-cols-3;
     }
@@ -7891,8 +7847,9 @@
     .lp-workshop-attention-list {
         @apply mt-4 px-4.5 rounded-xl border border-line bg-white;
     }
+    /* The row wraps, so the badge and chevron move under the title when large text leaves no room. */
     .lp-workshop-attention {
-        @apply flex items-center gap-3 px-0.5 py-4.5 border-b border-line no-underline transition-colors;
+        @apply flex flex-wrap items-center gap-3 px-0.5 py-4.5 border-b border-line no-underline transition-colors;
     }
     .lp-workshop-attention:last-child {
         @apply border-b-0;
@@ -7907,10 +7864,10 @@
         @apply w-4 h-4;
     }
     .lp-workshop-attention > span:nth-child(2) {
-        @apply flex flex-col min-w-0;
+        @apply flex flex-1 basis-0 flex-col min-w-0;
     }
     .lp-workshop-attention strong {
-        @apply text-sm font-semibold text-ink;
+        @apply text-sm font-semibold text-ink break-words;
     }
     .lp-workshop-attention small {
         @apply text-xs text-fg-dim;
@@ -7919,13 +7876,13 @@
         @apply ml-auto rounded-md bg-status-pending-bg px-2 py-1 text-xs font-semibold text-status-pending-deep;
     }
     .lp-workshop-attention__chevron {
-        @apply w-4 h-4 shrink-0 text-fg-dim;
+        @apply w-4 h-4 shrink-0 ml-auto text-fg-dim;
     }
     .lp-workshop-work-grid {
         @apply grid grid-cols-1 gap-3 mt-4 sm:grid-cols-2;
     }
     .lp-workshop-work-card {
-        @apply block min-w-0 rounded-xl border border-line bg-white p-4 no-underline transition-colors;
+        @apply flex flex-col min-w-0 rounded-xl border border-line bg-white p-4 no-underline transition-colors;
     }
     .lp-workshop-work-card:hover {
         @apply border-accent-border;
@@ -7941,7 +7898,7 @@
     }
     /* The open run of the card: its state chip, its rule or kind, and how long it has waited or run. */
     .lp-workshop-work-card__run {
-        @apply flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-3 text-xs text-fg-dim;
+        @apply flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-auto pt-3 text-xs text-fg-dim;
     }
     /* The base status chip pushes itself right, and here it leads the row. */
     .lp-workshop-work-card__run .lp-status-chip {
@@ -7952,6 +7909,9 @@
     }
     .lp-workshop-work-card__elapsed {
         @apply ml-auto tabular-nums;
+    }
+    .lp-workshop-work-grid__empty {
+        @apply col-span-full;
     }
     .lp-workshop-work-more {
         @apply flex w-fit ml-auto mt-3;
@@ -7988,21 +7948,6 @@
     }
     .lp-workshop-crew__status {
         @apply ml-auto text-xs font-semibold text-accent-ink;
-    }
-    .lp-workshop-note {
-        @apply relative flex min-h-44 mt-4 overflow-hidden rounded-xl border border-line-warm bg-warm p-5;
-    }
-    .lp-workshop-note > div {
-        @apply relative z-10 max-w-40;
-    }
-    .lp-workshop-note h2 {
-        @apply m-0 font-display text-base font-bold tracking-tight text-ink;
-    }
-    .lp-workshop-note p {
-        @apply my-2 text-xs leading-relaxed text-fg-dim;
-    }
-    .lp-workshop-note__mascot {
-        @apply absolute -right-4 -bottom-2 h-36 w-36 -rotate-6 object-contain;
     }
     .lp-workshop-recent {
         @apply mt-6;

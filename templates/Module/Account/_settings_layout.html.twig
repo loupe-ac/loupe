@@ -14,12 +14,15 @@
 
 {% block body %}
 {% set section = block('settings_section') %}
-{% set settingsContent %}<twig:BillingSummary />{% block settings_content %}{% endblock %}{% endset %}
+{% set settingsContent %}{% if 'billing' != section %}<twig:BillingSummary />{% endif %}{% block settings_content %}{% endblock %}{% endset %}
 {% set items = [
     {label: 'account.settings.nav.profile'|trans, url: path('app_account_profile'), icon: 'lucide:users', active: 'profile' == section},
     {label: 'account.settings.nav.connected_apps'|trans, url: path('app_account_connected_apps'), icon: 'lucide:plug', active: 'connected-apps' == section},
     {label: 'account.settings.nav.data'|trans, url: path('app_account_data'), icon: 'lucide:archive', active: 'data' == section},
 ] %}
+{% if 'billing' == section or is_feature_enabled('billing.enabled') %}
+{% set items = items|merge([{label: 'account.settings.nav.billing'|trans, url: path('app_billing_subscribe'), icon: 'lucide:credit-card', active: 'billing' == section}]) %}
+{% endif %}
 <twig:Ds:Workspace class="lp-redesign-secondary lp-redesign-settings">
     <twig:Ds:SettingsLayout
         :title="'account.settings.page.title'|trans"

@@ -48,7 +48,6 @@ final class ListArtifactsControllerTest extends WebTestCase
         self::assertSame('1 file', trim($other->filter('[data-artifact-file-count]')->text()));
         self::assertSame('—', trim($other->filter('[data-artifact-source]')->text()));
         self::assertSame('2 artifacts', trim($crawler->filter('[data-artifact-count]')->text()));
-        self::assertSame('2', trim($crawler->filter('[data-artifact-nav-count]')->text()));
         self::assertCount(0, $crawler->filter('[data-artifact-empty]'));
     }
 
@@ -176,6 +175,6 @@ final class ListArtifactsControllerTest extends WebTestCase
         $link = $crawler->filter('a.lp-sidebar__link[href="/projects/'.$projectId.'/artifacts"]');
         self::assertCount(1, $link);
         self::assertSame('Artifacts', trim($link->filter('.lp-sidebar__link-label')->text()));
-        self::assertSame('0', trim($link->filter('[data-artifact-nav-count]')->text()));
+        self::assertCount(0, $link->filter('.lp-sidebar__pill'));
     }
 }

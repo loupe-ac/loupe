@@ -44,9 +44,9 @@ final class NavItemComponentTest extends KernelTestCase
 
     public function test_extra_attributes_and_content_land_on_the_link(): void
     {
-        $html = $this->render('<twig:Ds:NavItem url="/i" icon="lucide:inbox" label="Inbox" data-controller="inbox-pill"><b>extra</b></twig:Ds:NavItem>');
+        $html = $this->render('<twig:Ds:NavItem url="/i" icon="lucide:inbox" label="Inbox" data-controller="live-pill"><b>extra</b></twig:Ds:NavItem>');
 
-        self::assertStringContainsString('data-controller="inbox-pill"', $html);
+        self::assertStringContainsString('data-controller="live-pill"', $html);
         self::assertStringContainsString('<b>extra</b></a>', $html);
     }
 }

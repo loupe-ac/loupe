@@ -38,13 +38,13 @@ final class BoardLiveSubscriptionTest extends WebTestCase
         $runTopic = $topics->forWorkerRuns($project->id);
 
         // The agent outbox topic stays out of reach of a browser.
-        self::assertSame([$boardTopic, $runTopic], self::subscribedTopics($client->getResponse()));
+        self::assertEqualsCanonicalizing([$boardTopic, $runTopic], self::subscribedTopics($client->getResponse()));
 
         $page = $crawler->filter('form#mercure-subscriptions');
         self::assertCount(1, $page);
         self::assertSame('https://mercure.loupe.dev.localhost/.well-known/mercure', $page->attr('data-hub'));
         self::assertSame('/mercure/authorize', $page->attr('action'));
-        self::assertSame([$boardTopic, $runTopic], $page->filter('input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
+        self::assertEqualsCanonicalizing([$boardTopic, $runTopic], $page->filter('input[data-mercure-topic]')->each(static fn ($input): ?string => $input->attr('value')));
 
         self::assertCount(1, $crawler->filter('[data-controller~="board-live"] #board'));
         self::assertCount(0, $crawler->filter('turbo-frame#board-frame'));
@@ -158,7 +158,7 @@ final class BoardLiveSubscriptionTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $topics = static::getContainer()->get(ProjectTopicBuilder::class);
         self::assertInstanceOf(ProjectTopicBuilder::class, $topics);
-        self::assertSame([$topics->forBoard($project->id), $topics->forWorkerRuns($project->id)], self::subscribedTopics($client->getResponse()));
+        self::assertEqualsCanonicalizing([$topics->forBoard($project->id), $topics->forWorkerRuns($project->id)], self::subscribedTopics($client->getResponse()));
         self::assertCount(1, $crawler->filter('form#mercure-subscriptions'));
     }
 
