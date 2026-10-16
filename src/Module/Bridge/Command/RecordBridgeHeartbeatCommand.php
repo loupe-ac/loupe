@@ -33,6 +33,7 @@ final readonly class RecordBridgeHeartbeatCommand
      * @param list<AccountRow>|null        $accounts       null keeps the stored rows, because a bridge that predates account checks sends none
      * @param list<CommandEntryRow>|null   $commandEntries null keeps the stored rows, because a bridge that predates command entries sends none
      * @param list<WorktreeRow>|null       $worktrees      null keeps the stored rows, because a bridge that predates worktrees sends none
+     * @param list<string>                 $workKinds      empty from a bridge that predates work kinds, which then runs no kind
      */
     public function __construct(
         public User $owner,
@@ -53,6 +54,7 @@ final readonly class RecordBridgeHeartbeatCommand
         public ?array $accounts = null,
         public ?array $commandEntries = null,
         public ?array $worktrees = null,
+        public array $workKinds = [],
     ) {
     }
 }

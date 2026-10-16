@@ -438,6 +438,32 @@ func TestCapabilities(t *testing.T) {
 	}
 }
 
+func TestWorkKindsOn(t *testing.T) {
+	two := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  fix:\n    prompt: x\n  tech-design:\n    prompt: x\n"
+	command := "  test:\n    action: command\n    run: [make]\n"
+	for name, tc := range map[string]struct {
+		body     string
+		problems map[string]string
+		want     []string
+	}{
+		"kinds in name order":                   {two, nil, []string{"fix", "tech-design"}},
+		"app prompts only":                      {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nappPrompts: true\n", nil, []string{}},
+		"agents off keeps command entries":      {"projects:\n  loupe:\n    dir: {dir}\nwork:\n  fix:\n    prompt: x\n" + command, nil, []string{"test"}},
+		"failed account keeps command entries":  {two + command, map[string]string{"claude": "not logged in"}, []string{"test"}},
+		"other failed account keeps every kind": {two + command, map[string]string{"other": "not logged in"}, []string{"fix", "tech-design", "test"}},
+		"other subjects name their subject":     {two + "  implement:\n    subject: analysis\n    prompt: x\n", nil, []string{"fix", "analysis:implement", "tech-design"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := parse(t, tc.body)
+			s.SetAccountProblems(tc.problems)
+			got := s.WorkKindsOn()
+			if got == nil || !slices.Equal(got, tc.want) {
+				t.Fatalf("WorkKindsOn = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
 // A project rename stops the work of the old slug, and any other event stops
 // nothing.
 func TestARenamedProjectKillsItsWork(t *testing.T) {

@@ -748,6 +748,22 @@ the account now names another harness. The reason names the account. An
 automatic continuation of an unfinished run uses the account that the rule
 names now.
 
+## Expired login
+
+A running bridge that finds its login expired does not retry every 30 seconds.
+The first error puts the whole bridge in one waiting state. It writes one
+`login_expired` event to the log with the message "Your Loupe login expired.
+Run `loupe login` in another terminal. The bridge resumes by itself." On macOS
+it also shows one notice, "Loupe bridge needs a new login". The notice needs
+notifications for your terminal to be on in System Settings.
+
+While it waits, the bridge sends no heartbeat, starts no new claim and spends no
+report retry. Workers that already run keep running. The bridge looks at
+`config.json` every 5 seconds. When `loupe login` writes a new login, the bridge
+writes a `login_resumed` event and carries on with no restart. A bridge that
+starts with an expired login still exits, and the error tells you to run
+`loupe login`.
+
 ## Tool calls
 
 The harness adapter of the bridge reads each tool call of a worker. For Claude
@@ -1323,7 +1339,16 @@ work:
     run: ["bin/teardown.sh", "{cardNumber}"]
 ```
 
-The key is the kind of work. A worker entry takes `prompt`, `account`,
+The key is the kind of work. Lifecycle asks for the kind `sync-epic` when a
+child waits for a blocker outside its epic and the project has no GitHub App
+installation. Its entry merges `origin/<default branch>` into a detached
+`origin/epic/<n>`, pushes without force, and stops blocked on a conflict. It
+also stops blocked when the merged pull requests of the blockers live in
+another repository than `origin`. Loupe asks for this work only when that code
+lives in one repository. The entry sets nothing else. When the run ends done,
+Loupe records on the epic the blockers that were done when the work opened.
+
+A worker entry takes `prompt`, `account`,
 `model`, `permissions`, `before`, `workerPool`, `variants` and `metrics`. A command entry takes
 `run` and `timeout`. The rule check
 refuses a field that the action does not use.

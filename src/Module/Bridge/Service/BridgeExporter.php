@@ -46,6 +46,8 @@ final readonly class BridgeExporter implements UserDataExporterInterface
                 'pauseRequestedAt' => $bridge->pauseRequestedAt?->format(\DateTimeInterface::ATOM),
                 'pausedReported' => $bridge->pausedReported,
                 'capabilities' => $bridge->capabilities,
+                'workKinds' => $bridge->workKinds,
+                'narrowedAt' => $bridge->narrowedAt?->format(\DateTimeInterface::ATOM),
                 'name' => $bridge->name,
                 'requestedName' => $bridge->requestedName,
                 'pushLogin' => $bridge->pushLogin,

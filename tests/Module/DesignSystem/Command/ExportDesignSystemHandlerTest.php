@@ -191,6 +191,31 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringNotContainsString('@group', $css);
     }
 
+    public function test_motion_tokens_and_tailwind_internals_are_of_the_other_kind(): void
+    {
+        $motion = (string) file_get_contents($this->directory.'/tokens/motion.css');
+        self::assertStringContainsString('--duration-fast: 120ms; /* @kind other */', $motion);
+        self::assertStringContainsString('--ease-lane: cubic-bezier(0.3, 0.8, 0.2, 1); /* @kind other */', $motion);
+
+        $css = (string) file_get_contents($this->directory.'/styles.css');
+        self::assertStringContainsString('--tw-outline-style:none; /* @kind other */', $css);
+        self::assertMatchesRegularExpression('~--color-white:#fff;(?! /\*)~', $css);
+
+        $unmarked = preg_replace('~--[\w-]+:[^;{}]*; /\* @kind other \*/~', '', $css) ?? $css;
+        self::assertDoesNotMatchRegularExpression('~(?<![\w-])--(?:tw-|duration-|ease-|default-transition-|animate-)[\w-]*:~', $unmarked);
+    }
+
+    public function test_the_readme_lists_every_catalog_component(): void
+    {
+        $readme = (string) file_get_contents($this->directory.'/readme.md');
+        $catalog = static::getContainer()->get(Catalog::class);
+        self::assertInstanceOf(Catalog::class, $catalog);
+
+        foreach ($catalog->entries() as $entry) {
+            self::assertStringContainsString("\n| ".$entry->name.' | ', $readme, $entry->name.' has no row in the readme.');
+        }
+    }
+
     public function test_the_card_uses_the_platform_mount(): void
     {
         $card = (string) file_get_contents($this->directory.'/components/core/Button/Button.card.html');

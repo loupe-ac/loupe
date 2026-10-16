@@ -298,6 +298,27 @@ func TestAnEmptyCapabilityListIsSent(t *testing.T) {
 	}
 }
 
+// A nil kind list sends no key, and an empty one sends [], so a bridge with no
+// usable kind still replaces the list the server holds.
+func TestAnEmptyWorkKindListIsSent(t *testing.T) {
+	for _, tc := range []struct {
+		kinds []string
+		want  string
+	}{
+		{nil, `{"projects":null,"cliVersion":""}`},
+		{[]string{}, `{"projects":null,"cliVersion":"","workKinds":[]}`},
+		{[]string{"fix"}, `{"projects":null,"cliVersion":"","workKinds":["fix"]}`},
+	} {
+		b, err := json.Marshal(Heartbeat{WorkKinds: tc.kinds})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(b) != tc.want {
+			t.Fatalf("body = %s, want %s", b, tc.want)
+		}
+	}
+}
+
 func TestHeartbeatSendsTheNameOnlyWhenSet(t *testing.T) {
 	var body string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

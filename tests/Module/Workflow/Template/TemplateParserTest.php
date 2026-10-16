@@ -28,6 +28,7 @@ use App\Module\Workflow\Condition\Conditions;
 use App\Module\Workflow\Contract\Action;
 use App\Module\Workflow\Contract\LabelTone;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Expression\AllOf;
@@ -923,7 +924,7 @@ final class TemplateParserTest extends TestCase
             $t['rules'][2]['then']['forge-write']['write'] = 'squash';
 
             return $t;
-        }, 'rules[2] (merge) then.forge-write: parameter "write" must be one of merge, update-branch, change-base, comment, draft, ready, close, open-epic, post-review, site-review-check, agent-review-check, review-ready'];
+        }, 'rules[2] (merge) then.forge-write: parameter "write" must be one of merge, update-branch, change-base, comment, draft, ready, close, open-epic, post-review, site-review-check, agent-review-check, review-ready, merge-main-into-epic'];
         yield 'merge with no fallback' => [static function (array $t): array {
             unset($t['rules'][2]['then']['forge-write']['fallback']);
 
@@ -1375,6 +1376,8 @@ final class TemplateParserTest extends TestCase
         self::assertSame('marker.test.has_pull_request.remedy', $pullRequest->remedy);
         self::assertSame(['build', 'review'], $pullRequest->slots);
         self::assertFalse($pullRequest->fallback);
+        self::assertSame(MarkerLink::Agents, $pullRequest->link);
+        self::assertNull($blocked->link);
         self::assertInstanceOf(ConditionLeaf::class, $pullRequest->when);
         self::assertNull($blocked->remedy);
         self::assertSame([], $blocked->slots);
@@ -1414,6 +1417,8 @@ final class TemplateParserTest extends TestCase
         yield 'blank remedy' => [['remedy' => ''], 'markers[0] (m) remedy: must be a non-empty string'];
         yield 'fallback not a boolean' => [['fallback' => 'yes'], 'markers[0] (m) fallback: must be a boolean'];
         yield 'unknown key' => [['colour' => 'red'], 'markers[0] (m): unknown key "colour"'];
+        yield 'unknown link' => [['link' => 'settings'], 'markers[0] (m) link: must be one of agents'];
+        yield 'link not a string' => [['link' => ['agents']], 'markers[0] (m) link: must be one of agents'];
     }
 
     public function test_a_duplicate_marker_key_is_refused(): void

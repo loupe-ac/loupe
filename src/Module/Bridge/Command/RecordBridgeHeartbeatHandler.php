@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Bridge\Command;
 
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
@@ -69,7 +70,7 @@ final readonly class RecordBridgeHeartbeatHandler
 
         // Two first heartbeats of one bridge would otherwise both miss the read
         // and one would trip the primary key.
-        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
+        [$bridge, $created, $commands, $pauseChanged, $workRequests, $lostClaims, $renamedIn, $poolsChanged, $followedBefore, $wasQuiet, $availabilityChanged] = $this->em->wrapInTransaction(function () use ($command, $ownerId, $projects, $samples): array {
             $this->bridges->lockForWrite($ownerId, $command->bridgeId);
 
             $now = $this->clock->now();
@@ -77,6 +78,9 @@ final readonly class RecordBridgeHeartbeatHandler
             $created = null === $bridge;
             $followed = $bridge->projects ?? [];
             $wasQuiet = null !== $bridge && $bridge->lastSeenAt < $this->liveness->quietBefore($now);
+            $pausedBefore = true === $bridge?->pausedReported;
+            $capabilitiesBefore = $bridge?->capabilities;
+            $kindsBefore = $bridge->workKinds ?? [];
             if (null === $bridge) {
                 $bridge = new Bridge($command->owner, $command->bridgeId, $projects, $command->cliVersion, $now);
                 $bridge->hooks = $command->hooks ?? [];
@@ -117,8 +121,25 @@ final readonly class RecordBridgeHeartbeatHandler
             if (null !== $command->capabilities) {
                 $bridge->capabilities = $command->capabilities;
             }
+            $bridge->workKinds = $command->workKinds;
             if (null !== $command->pushLogin) {
                 $bridge->pushLogin = '' === $command->pushLogin ? null : $command->pushLogin;
+            }
+            // A new bridge and a bridge back from quiet change what the waiting cards can expect.
+            $availabilityChanged = $created
+                || $wasQuiet
+                || $pausedBefore !== (true === $bridge->pausedReported)
+                || (null !== $command->capabilities && self::sorted($capabilitiesBefore ?? []) !== self::sorted($command->capabilities))
+                || self::sorted($kindsBefore) !== self::sorted($bridge->workKinds)
+                || [] !== array_diff($followed, $projects)
+                || [] !== array_diff($projects, $followed);
+            // An online bridge that drops what it takes starts the no-taker wait of the work it leaves.
+            if (!$created && !$wasQuiet && (
+                [] !== array_diff($kindsBefore, $bridge->workKinds)
+                || [] !== array_diff($capabilitiesBefore ?? [], $bridge->capabilities ?? [])
+                || [] !== array_diff($followed, $projects)
+            )) {
+                $bridge->narrowedAt = $now;
             }
             $heldName = $bridge->name;
             if ('' === $command->name) {
@@ -161,6 +182,7 @@ final readonly class RecordBridgeHeartbeatHandler
                 $poolsChanged,
                 $followed,
                 $wasQuiet,
+                $availabilityChanged,
             ];
         });
 
@@ -186,6 +208,10 @@ final readonly class RecordBridgeHeartbeatHandler
             }
         }
 
+        if ($availabilityChanged) {
+            $this->events->dispatch(new BridgeAvailabilityChanged(array_values(array_unique([...$followedBefore, ...$projects]))));
+        }
+
         if ([] !== $renamedIn) {
             $this->events->dispatch(new BridgeNameChanged($this->projects->findOwnedBy($command->owner, $renamedIn)));
         }
@@ -202,6 +228,18 @@ final readonly class RecordBridgeHeartbeatHandler
         }
 
         return new RecordBridgeHeartbeatResult($bridge, CliCompatibility::RANGE, $commands, $workRequests, $lostClaims);
+    }
+
+    /**
+     * @param list<string> $items
+     *
+     * @return list<string>
+     */
+    private static function sorted(array $items): array
+    {
+        sort($items);
+
+        return $items;
     }
 
     /**

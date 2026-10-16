@@ -44,6 +44,25 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         $this->handler = $handler;
     }
 
+    public function test_a_short_note_is_its_own_title_and_body(): void
+    {
+        $link = ($this->handler)($this->command($this->project('feedback-short'), 'Footer overlaps the launcher'));
+
+        self::assertSame('Footer overlaps the launcher', $link->card->title);
+        self::assertSame('Footer overlaps the launcher', $link->card->body);
+    }
+
+    public function test_a_note_on_an_existing_card_stores_no_body(): void
+    {
+        $project = $this->project('feedback-existing');
+        $first = ($this->handler)($this->command($project, 'First note'));
+
+        $second = ($this->handler)($this->command($project, 'Second note', (string) $first->card->id));
+
+        self::assertNull($second->createdBody);
+        self::assertSame('First note', $second->card->body);
+    }
+
     public function test_a_note_creates_its_card_and_the_link_says_so(): void
     {
         $project = $this->project('feedback-new');
@@ -54,9 +73,12 @@ final class AddFeedbackHandlerTest extends KernelTestCase
         self::assertTrue($link->createdCard);
         $card = $link->card;
         self::assertSame('backlog', $card->column->slug);
-        self::assertSame(80, mb_strlen($card->title));
+        self::assertLessThanOrEqual(80, mb_strlen($card->title));
         self::assertStringStartsWith('Footer overlaps the launcher Footer', $card->title);
-        self::assertSame('', $card->body);
+        self::assertStringEndsWith('…', $card->title);
+        self::assertSame(Card::normalText($body), $card->body);
+        self::assertSame($card->body, $link->createdBody);
+        self::assertSame($card->title, $link->createdTitle);
         self::assertSame('feature', $card->type);
         self::assertSame(Actor::Reviewer, $card->reporter);
         self::assertSame(CardSourceKind::Widget, $card->source->kind);

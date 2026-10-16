@@ -82,6 +82,36 @@ class CardSiteReviewCommentRepository extends ServiceEntityRepository
         return $byCard;
     }
 
+    /**
+     * Reads onto the link and its note the text that another process may have written since the
+     * request loaded them, like CardRepository::refreshContent(). Returns false when the link is gone.
+     */
+    public function refreshText(CardSiteReviewComment $link): bool
+    {
+        $row = $this->getEntityManager()->getConnection()->fetchAssociative(
+            'SELECT l.created_title, l.created_body, n.body AS note_body
+               FROM board_card_site_review_comments l
+               JOIN site_review_comments n ON n.id = l.comment_id
+              WHERE l.id = :id',
+            ['id' => (string) $link->id],
+        );
+
+        if (false === $row) {
+            return false;
+        }
+
+        $unitOfWork = $this->getEntityManager()->getUnitOfWork();
+        foreach (['createdTitle' => 'created_title', 'createdBody' => 'created_body'] as $property => $column) {
+            $value = null === $row[$column] ? null : (string) $row[$column];
+            $link->{$property} = $value;
+            $unitOfWork->setOriginalEntityProperty(spl_object_id($link), $property, $value);
+        }
+        $link->comment->body = (string) $row['note_body'];
+        $unitOfWork->setOriginalEntityProperty(spl_object_id($link->comment), 'body', $link->comment->body);
+
+        return true;
+    }
+
     public function findOneByCommentId(Uuid $commentId): ?CardSiteReviewComment
     {
         return $this->createQueryBuilder('l')

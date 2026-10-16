@@ -21,6 +21,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'agent_review.passed' => 'workflow.source.agent_review',
         'agent_review.uncommented' => 'workflow.source.agent_review',
         'agent_review.unposted' => 'workflow.source.agent_review',
+        'card.blocker.closed' => 'workflow.source.board',
         'card.blocker.open' => 'workflow.source.board',
         'card.children.exist' => 'workflow.source.board',
         'card.children.finished' => 'workflow.source.board',
@@ -36,6 +37,7 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.in_slot' => 'workflow.source.board',
         'card.inbox.open_question' => 'workflow.source.inbox',
         'card.parent.document.approved' => 'workflow.source.board',
+        'card.parent.epic_branch.synced' => 'workflow.source.board',
         'card.parent.exists' => 'workflow.source.board',
         'card.parent.in_slot' => 'workflow.source.board',
         'card.parent.run.active' => 'workflow.source.bridge',
@@ -51,6 +53,8 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.run.session_open' => 'workflow.source.bridge',
         'card.run.stopped' => 'workflow.source.bridge',
         'card.run.work_active' => 'workflow.source.bridge',
+        'card.run.work_no_taker' => 'workflow.source.bridge',
+        'card.run.work_taker_paused' => 'workflow.source.bridge',
         'card.run.worker_active' => 'workflow.source.bridge',
         'card.site_review.check_stale' => 'workflow.source.board',
         'card.site_review.verdict_unsent' => 'workflow.source.board',
@@ -76,6 +80,7 @@ final class ConditionCatalogueTest extends KernelTestCase
 
     /** The keys whose waiting sentence id is not the key with underscores. */
     private const array WAITING_SUFFIXES = [
+        'card.blocker.closed' => 'card_has_closed_blocker',
         'card.blocker.open' => 'card_has_open_blocker',
         'card.children.exist' => 'card_has_children',
         'card.children.finished' => 'card_children_finished',
@@ -95,6 +100,8 @@ final class ConditionCatalogueTest extends KernelTestCase
         'card.run.finished_with' => 'run_finished_with',
         'card.run.last_refusal' => 'run_last_refusal',
         'card.run.work_active' => 'run_work_active',
+        'card.run.work_no_taker' => 'run_work_no_taker',
+        'card.run.work_taker_paused' => 'run_work_taker_paused',
         'card.run.worker_active' => 'run_worker_active',
         'card.site_review.check_stale' => 'site_review_check_stale',
         'card.site_review.verdict_unsent' => 'site_review_verdict_unsent',

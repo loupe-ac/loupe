@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAskItem;
+use App\Module\Inbox\Entity\InboxBridgeOutage;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitReason;
 use App\Module\Inbox\Entity\InboxCardWaitTrigger;
@@ -31,7 +32,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
 {
     use InboxFixtures;
 
-    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_project_settings', 'inbox_actions'];
+    private const array TABLES = ['inbox_items', 'inbox_asks', 'inbox_ask_items', 'inbox_item_cards', 'inbox_item_documents', 'inbox_card_watches', 'inbox_card_waits', 'inbox_project_settings', 'inbox_actions', 'inbox_bridge_outages'];
 
     private EntityManagerInterface $em;
     private Connection $connection;
@@ -125,6 +126,10 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
         $this->em->persist($settings);
         $action = new InboxAction($item, InboxActionKind::Dismiss, $owner);
         $this->em->persist($action);
+        $notice = new InboxItem(project: $project, number: 3, kind: InboxItemKind::Notice, title: 'No bridge can take work', blocking: false);
+        $this->em->persist($notice);
+        $outage = new InboxBridgeOutage($project, $notice, new \DateTimeImmutable('2026-10-16 11:00:00'));
+        $this->em->persist($outage);
 
         return [$project, [
             'inbox_items' => $item,
@@ -136,6 +141,7 @@ final class DeleteInboxDataOnProjectDeletingTest extends KernelTestCase
             'inbox_card_waits' => $wait,
             'inbox_project_settings' => $settings,
             'inbox_actions' => $action,
+            'inbox_bridge_outages' => $outage,
         ]];
     }
 

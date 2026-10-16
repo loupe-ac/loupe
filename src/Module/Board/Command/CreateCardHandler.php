@@ -135,7 +135,7 @@ final readonly class CreateCardHandler
             // A terminal column is entered here as much as by a move, so a card
             // created straight into one still carries the completion it sorts on.
             if ($column->terminal) {
-                $card->completedAt = new \DateTimeImmutable();
+                $card->complete(new \DateTimeImmutable());
             }
 
             $card->replacePullRequests(...$this->pullRequests->linksFor($card, array_values($command->pullRequestUrls)));

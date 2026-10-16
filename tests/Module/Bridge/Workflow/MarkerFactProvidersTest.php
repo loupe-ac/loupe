@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Module\Bridge\Workflow;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
+use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Bridge\Workflow\HoldFactProvider;
 use App\Module\Bridge\Workflow\HoldFacts;
 use App\Module\Bridge\Workflow\RunStoppedFactProvider;
@@ -20,6 +23,8 @@ use App\Module\Bridge\Workflow\WorkerRunFactProvider;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
 use App\Module\Bridge\Workflow\WorkRequestFactProvider;
 use App\Module\Bridge\Workflow\WorkRequestFacts;
+use App\Module\Bridge\Workflow\WorkTakerFactProvider;
+use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Workflow\Contract\FactProvider;
 use App\Tests\Module\Board\CardStateFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -101,6 +106,40 @@ final class MarkerFactProvidersTest extends KernelTestCase
         $this->em()->flush();
 
         self::assertEquals(new \DateTimeImmutable('2026-10-02 09:00:00'), $this->build(HoldFactProvider::class, HoldFacts::class)->heldAt);
+    }
+
+    public function test_a_card_with_no_live_work_request_has_no_taker_reading(): void
+    {
+        $facts = $this->build(WorkTakerFactProvider::class, WorkTakerFacts::class);
+
+        self::assertSame([], $facts->readings);
+        self::assertSame([], $this->provider(WorkTakerFactProvider::class)->fingerprint($facts));
+    }
+
+    public function test_an_open_work_request_gets_the_reading_of_its_takers_and_the_fingerprint_follows_the_state(): void
+    {
+        $this->requestWork($this->card, 'implement', '2026-10-02 09:30:00');
+        $facts = $this->build(WorkTakerFactProvider::class, WorkTakerFacts::class);
+        self::assertSame(WorkTakerState::None, $facts->readings['implement']->state);
+        self::assertSame([['implement', 'none']], $this->provider(WorkTakerFactProvider::class)->fingerprint($facts));
+
+        $bridge = new Bridge($this->card->project->owner, Uuid::v4(), [(string) $this->card->project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $bridge->workKinds = ['implement'];
+        $this->em()->persist($bridge);
+        $this->em()->flush();
+        $facts = $this->build(WorkTakerFactProvider::class, WorkTakerFacts::class);
+
+        self::assertSame(WorkTakerState::Available, $facts->readings['implement']->state);
+        self::assertSame([['implement', 'available']], $this->provider(WorkTakerFactProvider::class)->fingerprint($facts));
+    }
+
+    public function test_a_claimed_work_request_has_no_taker_reading(): void
+    {
+        $this->requestWork($this->card, 'implement')->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+
+        self::assertSame([], $this->build(WorkTakerFactProvider::class, WorkTakerFacts::class)->readings);
     }
 
     private function workerRun(WorkerRunKind $kind, WorkerRunState $state, string $at, ?string $workKind): WorkerRun

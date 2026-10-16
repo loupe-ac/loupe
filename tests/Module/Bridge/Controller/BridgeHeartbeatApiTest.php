@@ -485,6 +485,45 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertTrue($bridge->takesCommands());
     }
 
+    public function test_the_work_kinds_are_stored_once_each_and_replaced_by_an_empty_list(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-work-kinds@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => ['fix', 'tech-design', 'fix', 'analysis:cost-report']]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame(['fix', 'tech-design', 'analysis:cost-report'], $this->bridge($owner, $bridgeId)->workKinds);
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => []]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->workKinds);
+    }
+
+    /** A bridge from before work kinds sends no field, so it stores an empty list and counts as able to run no kind. */
+    public function test_a_heartbeat_without_work_kinds_stores_an_empty_list(): void
+    {
+        $client = static::createClient();
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-work-kinds-absent@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7']);
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->workKinds);
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => ['fix']]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => null]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->workKinds);
+    }
+
     /** A bridge from before commands sends neither field, so its heartbeat leaves the stored values alone. */
     public function test_a_heartbeat_without_the_pause_state_or_the_capabilities_keeps_the_stored_values(): void
     {
@@ -647,7 +686,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $reply = $this->reply($client);
         self::assertSame([], $reply['lostClaims']);
         self::assertSame([], $reply['workRequests']);
-        self::assertSame('2026-10-01 12:32:00', $this->leaseUntil($held));
+        self::assertSame('2026-10-01 13:00:00', $this->leaseUntil($held));
     }
 
     public function test_a_named_claim_that_the_bridge_no_longer_holds_is_lost(): void
@@ -686,7 +725,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
             $reply['lostClaims'],
         );
         self::assertSame([], $reply['workRequests']);
-        self::assertSame('2026-10-01 12:32:00', $this->leaseUntil($held));
+        self::assertSame('2026-10-01 13:00:00', $this->leaseUntil($held));
         self::assertSame('2026-10-01 12:31:00', $this->leaseUntil($otherToken));
     }
 
@@ -986,6 +1025,15 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a capability name with a trailing newline' => [['capabilities' => ["commands\n"]]];
         yield 'a capability name that is too long' => [['capabilities' => [str_repeat('a', 41)]]];
         yield 'a capability that is not a string' => [['capabilities' => [7]]];
+        yield 'work kinds that are not a list' => [['workKinds' => 'fix']];
+        yield 'work kinds keyed by name' => [['workKinds' => ['fix' => 'fix']]];
+        yield 'too many work kinds' => [['workKinds' => array_map(static fn (int $i): string => 'k'.$i, range(0, RecordBridgeHeartbeatRequest::MAX_WORK_KINDS))]];
+        yield 'a work kind with an upper-case name' => [['workKinds' => ['Fix']]];
+        yield 'a work kind name with a trailing newline' => [['workKinds' => ["fix\n"]]];
+        yield 'a work kind that is not a string' => [['workKinds' => [7]]];
+        yield 'a work kind with an empty subject' => [['workKinds' => [':fix']]];
+        yield 'a work kind with a subject and no kind' => [['workKinds' => ['analysis:']]];
+        yield 'a work kind with two subjects' => [['workKinds' => ['a:b:c']]];
         yield 'a pause state as text' => [['paused' => 'yes']];
         yield 'work claims that are not a list' => [['workClaims' => 'claims']];
         yield 'work claims keyed by id' => [['workClaims' => ['first' => self::workClaim()]]];

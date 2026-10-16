@@ -526,6 +526,9 @@ type Heartbeat struct {
 	// server holds.
 	Paused       *bool    `json:"paused,omitempty"`
 	Capabilities []string `json:"capabilities,omitzero"`
+	// WorkKinds lists the kinds of work the bridge can run. Nil sends no key,
+	// and an empty list sends [].
+	WorkKinds []string `json:"workKinds,omitzero"`
 	// WorkClaims are the claims whose leases the heartbeat renews. Nil sends
 	// no key. The client sends at most MaxWorkClaims of them.
 	WorkClaims []WorkClaim `json:"workClaims,omitzero"`

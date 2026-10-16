@@ -16,6 +16,7 @@ markers:
       kind: waiting
       label: marker.test.has_pull_request
       remedy: marker.test.has_pull_request.remedy
+      link: agents
       slots: [build, review]
       when: { pr.open: {} }
     - key: blocked
