@@ -29,13 +29,14 @@ final class AddFeedbackApiTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(1, $data['number']);
-        self::assertSame('#1 Footer overlaps the launcher', $data['label']);
+        self::assertSame('#1 Footer overlaps the launcher Seen at 1280px.', $data['label']);
         self::assertStringContainsString($data['cardId'], $data['url']);
         self::assertIsString($data['commentId']);
 
         $cards = $this->service(CardRepository::class)->findBy(['project' => $project]);
         self::assertCount(1, $cards);
         self::assertSame('feature', $cards[0]->type);
+        self::assertSame("Footer overlaps the launcher\nSeen at 1280px.", $cards[0]->body);
         $links = $this->service(CardSiteReviewCommentRepository::class)->findForCard($cards[0]);
         self::assertCount(1, $links);
         self::assertTrue($links[0]->createdCard);
