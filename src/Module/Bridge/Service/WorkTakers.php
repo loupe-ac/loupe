@@ -8,6 +8,7 @@ use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Project\Entity\Project;
@@ -60,10 +61,13 @@ final readonly class WorkTakers
         return $readings;
     }
 
+    /** A bridge reports the kinds of its card entries only, so its subject capability alone stands for another subject. */
     private static function takes(Bridge $bridge, WorkRequest $request): bool
     {
         return $bridge->canRun($request)
-            && (\in_array($request->kind, $bridge->workKinds, true) || self::runsAsAppPrompt($bridge, $request));
+            && (WorkSubject::CARD !== $request->subjectType
+                || \in_array($request->kind, $bridge->workKinds, true)
+                || self::runsAsAppPrompt($bridge, $request));
     }
 
     /** The bridge runs an unmapped kind only from the prompt of the request, so a request with no prompt needs its kind. */

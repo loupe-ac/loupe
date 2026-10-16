@@ -10,6 +10,7 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Project\Entity\Project;
@@ -17,6 +18,7 @@ use App\Tests\Module\Bridge\BridgeScenario;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Uid\Uuid;
 
 final class WorkTakersTest extends KernelTestCase
 {
@@ -222,6 +224,18 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
     }
 
+    public function test_a_request_about_another_subject_needs_the_subject_capability_and_no_kind(): void
+    {
+        [$project, $request, $owner] = $this->scenario('subject', capability: 'subject-analysis', subject: new WorkSubject('analysis', Uuid::v7()));
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: []);
+
+        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis']);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
     public function test_a_bridge_that_does_not_follow_the_project_is_no_taker(): void
     {
         [$project, $request, $owner] = $this->scenario('not-followed');
@@ -238,14 +252,14 @@ final class WorkTakersTest extends KernelTestCase
     }
 
     /** @return array{Project, WorkRequest, User} */
-    private function scenario(string $name, string $createdAt = '2026-10-16 11:00:00', ?string $reopenedAt = null, ?string $capability = null, WorkRequestState $state = WorkRequestState::Open, ?string $prompt = null): array
+    private function scenario(string $name, string $createdAt = '2026-10-16 11:00:00', ?string $reopenedAt = null, ?string $capability = null, WorkRequestState $state = WorkRequestState::Open, ?string $prompt = null, ?WorkSubject $subject = null): array
     {
         self::bootKernel();
         self::getContainer()->set('clock', new MockClock(self::NOW));
         $em = $this->em();
         $owner = $this->user($em, 'work-takers-'.$name.'@example.com');
         $project = $this->project($em, $owner, 'Takers '.$name);
-        $request = $this->seedWorkRequest($em, $project, capability: $capability, state: $state, createdAt: new \DateTimeImmutable($createdAt), reopenedAt: null === $reopenedAt ? null : new \DateTimeImmutable($reopenedAt), prompt: $prompt);
+        $request = $this->seedWorkRequest($em, $project, capability: $capability, state: $state, createdAt: new \DateTimeImmutable($createdAt), subject: $subject, reopenedAt: null === $reopenedAt ? null : new \DateTimeImmutable($reopenedAt), prompt: $prompt);
 
         return [$project, $request, $owner];
     }

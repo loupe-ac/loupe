@@ -442,6 +442,7 @@ func TestWorkKindsOn(t *testing.T) {
 		"agents off keeps command entries":      {"projects:\n  loupe:\n    dir: {dir}\nwork:\n  fix:\n    prompt: x\n" + command, nil, []string{"test"}},
 		"failed account keeps command entries":  {two + command, map[string]string{"claude": "not logged in"}, []string{"test"}},
 		"other failed account keeps every kind": {two + command, map[string]string{"other": "not logged in"}, []string{"fix", "tech-design", "test"}},
+		"other subjects stay out":               {two + "  implement:\n    subject: analysis\n    prompt: x\n", nil, []string{"fix", "tech-design"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := parse(t, tc.body)
