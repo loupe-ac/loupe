@@ -424,6 +424,44 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertNotNull($bridge->accountsReportedAt);
     }
 
+    public function test_command_entries_and_worktrees_are_replaced_kept_and_cleared(): void
+    {
+        self::bootKernel();
+        $clock = new MockClock('2026-09-14 16:00:00');
+        self::getContainer()->set('clock', $clock);
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-entries-handler@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $entry = ['name' => 'design-export', 'description' => null, 'params' => [], 'run' => ['true'], 'timeout' => '10m'];
+        $worktree = ['projectId' => (string) Uuid::v7(), 'branch' => 'main', 'path' => '/work/main'];
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+        $bridge = $this->reload($owner, $bridgeId);
+        self::assertNull($bridge->commandEntries);
+        self::assertNull($bridge->worktrees);
+        self::assertNull($bridge->commandEntriesReportedAt);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', commandEntries: [$entry], worktrees: [$worktree]));
+        $clock->modify('+1 minute');
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+
+        $bridge = $this->reload($owner, $bridgeId);
+        self::assertSame([$entry], $bridge->commandEntries);
+        self::assertSame([$worktree], $bridge->worktrees);
+        self::assertSame('2026-09-14 16:00:00', $bridge->commandEntriesReportedAt?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-09-14 16:00:00', $bridge->worktreesReportedAt?->format('Y-m-d H:i:s'));
+
+        $clock->modify('+1 minute');
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', commandEntries: [], worktrees: []));
+
+        $bridge = $this->reload($owner, $bridgeId);
+        self::assertSame([], $bridge->commandEntries);
+        self::assertSame([], $bridge->worktrees);
+        self::assertSame('2026-09-14 16:02:00', $bridge->commandEntriesReportedAt?->format('Y-m-d H:i:s'));
+        self::assertSame('2026-09-14 16:02:00', $bridge->worktreesReportedAt?->format('Y-m-d H:i:s'));
+    }
+
     public function test_a_first_heartbeat_answers_no_commands_and_stores_the_reports(): void
     {
         self::bootKernel();

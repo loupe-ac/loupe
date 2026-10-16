@@ -125,6 +125,15 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 		"cardId off card":              {entry("x", "subject: analysis\nprompt: 'Do {cardId}'"), "prompt uses {cardId}, which names a card, and this entry runs subject analysis"},
 		"cardNumber in run off card":   {entry("x", "subject: analysis\naction: command\nrun: [make, '{cardNumber}']"), "run uses {cardNumber}, which names a card"},
 		"cardId in before off card":    {entry("x", "subject: analysis\nprompt: x\nbefore:\n  run: [prep, '{cardId}']"), "before.run uses {cardId}, which names a card"},
+		"param without pattern":        {entry("x", command+"params:\n  out: {description: d}"), "params.out: pattern is required"},
+		"param bad pattern":            {entry("x", command+"params:\n  out: {pattern: '(?!x)'}"), "params.out: pattern does not compile as RE2"},
+		"param built-in name":          {entry("x", command+"params:\n  kind: {pattern: a}"), `"kind" is a built-in placeholder`},
+		"param bad name":               {entry("x", command+"params:\n  out1: {pattern: a}"), `name "out1" is not letters only`},
+		"undeclared param placeholder": {entry("x", "action: command\nrun: [make, '{out}']"), "run: unknown placeholder {out}"},
+		"unknown param field":          {entry("x", command+"params:\n  out: {pattern: a, flag: b}"), "field flag not found"},
+		"worker with params":           {entry("x", "prompt: x\nparams:\n  out: {pattern: a}"), "params belongs to action command"},
+		"worker with description":      {entry("x", "prompt: x\ndescription: d"), "description belongs to action command"},
+		"interactive with params":      {entry("x", interactive+"params:\n  out: {pattern: a}"), "params belongs to action command"},
 		"session not interactive":      {entry("session", "prompt: x"), "the session entry needs action interactive"},
 		"session as a command":         {entry("session", command), "the session entry needs action interactive"},
 		"interactive off card":         {entry("x", "subject: analysis\n"+interactive), "action interactive opens a session on a card, and this entry runs subject analysis"},
@@ -648,5 +657,51 @@ func TestAppPromptRunsWhenTheEntryNamesAnotherSubject(t *testing.T) {
 	}
 	if m := checked(t, workFile).MatchWork(w); m.Skip != NoRule {
 		t.Fatalf("no opt-in: match = %+v", m)
+	}
+}
+
+const paramFile = "projects:\n  loupe:\n    dir: {dir}\nwork:\n  export:\n    action: command\n    description: Export it\n" +
+	"    params:\n      out: {pattern: 'var/[a-z-]+', description: The folder}\n    run: [bin/export, '{out}', '{kind}']\n"
+
+func TestParseAcceptsParamsAndDescriptionOnACommandEntry(t *testing.T) {
+	set := parse(t, paramFile)
+	entries := set.CommandEntries()
+	if len(entries) != 1 || entries[0].Name != "export" {
+		t.Fatalf("entries = %+v", entries)
+	}
+	e := entries[0].Entry
+	if e.Description != "Export it" || e.Params["out"].Description != "The folder" {
+		t.Fatalf("entry = %+v", e)
+	}
+}
+
+func TestParamMatchesTheWholeValue(t *testing.T) {
+	p := Param{Pattern: "var/[a-z-]+|tmp"}
+	for value, want := range map[string]bool{
+		"var/out": true, "tmp": true, "var/": false, "xvar/out": false, "var/out/..": false,
+		"tmpx": false, "var/out\n": false, "": false,
+	} {
+		if got := p.Match(value); got != want {
+			t.Errorf("Match(%q) = %v, want %v", value, got, want)
+		}
+	}
+	if (Param{Pattern: "("}).Match("") {
+		t.Error("a pattern that does not compile matched")
+	}
+}
+
+func TestParseReadsAcceptEntries(t *testing.T) {
+	if parse(t, paramFile).AcceptEntries() {
+		t.Error("acceptEntries is on without the key")
+	}
+	if !parse(t, "acceptEntries: true\n"+paramFile).AcceptEntries() {
+		t.Error("acceptEntries: true is off")
+	}
+}
+
+func TestCheckReportSizes(t *testing.T) {
+	w := &WorkEntry{Action: ActionCommand, Run: []string{"x"}, Description: strings.Repeat("a", maxReportText+1)}
+	if err := checkWork("export", w); err == nil || !strings.Contains(err.Error(), "description is longer") {
+		t.Fatalf("want a size error, got %v", err)
 	}
 }

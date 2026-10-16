@@ -16,6 +16,8 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @phpstan-import-type HookRow from Bridge
  * @phpstan-import-type WorkerPoolRow from Bridge
  * @phpstan-import-type AccountRow from Bridge
+ * @phpstan-import-type CommandEntryRow from Bridge
+ * @phpstan-import-type WorktreeRow from Bridge
  */
 final class RecordBridgeHeartbeatRequest
 {
@@ -31,6 +33,12 @@ final class RecordBridgeHeartbeatRequest
     /** Far above the accounts one bridge runs, and small enough to bound the JSON column. */
     public const int MAX_ACCOUNTS = 50;
 
+    /** Far above the command entries one bridge holds, and small enough to bound the JSON column. */
+    public const int MAX_COMMAND_ENTRIES = 50;
+
+    /** Far above the worktrees one bridge holds, and small enough to bound the JSON column. */
+    public const int MAX_WORKTREES = 200;
+
     /** Far above the features one bridge reports, and small enough to bound the JSON column. */
     public const int MAX_CAPABILITIES = 20;
 
@@ -41,16 +49,18 @@ final class RecordBridgeHeartbeatRequest
     public const int MAX_HOST_SAMPLES = 720;
 
     /**
-     * @param list<string>|null                $projects
-     * @param list<BridgeHookInput>|null       $hooks        null from a bridge that predates hooks
-     * @param list<BridgeWorkerPoolInput>|null $workerPools  null from a bridge that predates worker pools
-     * @param bool|null                        $paused       null from a bridge that predates the pause
-     * @param list<string>|null                $capabilities null from a bridge that predates capabilities
-     * @param list<BridgeWorkClaimInput>|null  $workClaims   null from a bridge that predates work requests
-     * @param string|null                      $name         null from a bridge that predates names; blank clears the name
-     * @param list<BridgeHostSampleInput>|null $hostSamples  null from a bridge that predates host samples
-     * @param string|null                      $pushLogin    null from a bridge that predates push logins; empty clears the login
-     * @param list<BridgeAccountInput>|null    $accounts     null from a bridge that predates account checks
+     * @param list<string>|null                  $projects
+     * @param list<BridgeHookInput>|null         $hooks          null from a bridge that predates hooks
+     * @param list<BridgeWorkerPoolInput>|null   $workerPools    null from a bridge that predates worker pools
+     * @param bool|null                          $paused         null from a bridge that predates the pause
+     * @param list<string>|null                  $capabilities   null from a bridge that predates capabilities
+     * @param list<BridgeWorkClaimInput>|null    $workClaims     null from a bridge that predates work requests
+     * @param string|null                        $name           null from a bridge that predates names; blank clears the name
+     * @param list<BridgeHostSampleInput>|null   $hostSamples    null from a bridge that predates host samples
+     * @param string|null                        $pushLogin      null from a bridge that predates push logins; empty clears the login
+     * @param list<BridgeAccountInput>|null      $accounts       null from a bridge that predates account checks
+     * @param list<BridgeCommandEntryInput>|null $commandEntries null from a bridge that predates command entries
+     * @param list<BridgeWorktreeInput>|null     $worktrees      null from a bridge that predates worktrees
      */
     public function __construct(
         #[Assert\All([new Assert\NotBlank(), new Assert\Uuid()])]
@@ -109,6 +119,18 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $accounts = null,
+
+        #[Assert\All([new Assert\Type(BridgeCommandEntryInput::class)])]
+        #[Assert\Count(max: self::MAX_COMMAND_ENTRIES)]
+        #[Assert\Type('list')]
+        #[Assert\Valid]
+        public ?array $commandEntries = null,
+
+        #[Assert\All([new Assert\Type(BridgeWorktreeInput::class)])]
+        #[Assert\Count(max: self::MAX_WORKTREES)]
+        #[Assert\Type('list')]
+        #[Assert\Valid]
+        public ?array $worktrees = null,
     ) {
     }
 
@@ -220,6 +242,50 @@ final class RecordBridgeHeartbeatRequest
                 'used' => $account->used ?? true,
             ];
         }, array_values($this->accounts));
+    }
+
+    /**
+     * The command entry rows as the bridge row stores them. A blank
+     * description is stored as none. Null when the bridge sent no report.
+     *
+     * @return list<CommandEntryRow>|null
+     */
+    public function commandEntries(): ?array
+    {
+        if (null === $this->commandEntries) {
+            return null;
+        }
+
+        return array_map(static fn (BridgeCommandEntryInput $entry): array => [
+            'name' => $entry->name ?? '',
+            'description' => '' === trim($entry->description ?? '') ? null : trim($entry->description ?? ''),
+            'params' => array_map(static fn (BridgeCommandParamInput $param): array => [
+                'name' => $param->name ?? '',
+                'pattern' => $param->pattern ?? '',
+                'description' => '' === trim($param->description ?? '') ? null : trim($param->description ?? ''),
+            ], array_values($entry->params ?? [])),
+            'run' => array_values($entry->run ?? []),
+            'timeout' => $entry->timeout ?? '',
+        ], array_values($this->commandEntries));
+    }
+
+    /**
+     * The worktree rows as the bridge row stores them, with the project id in
+     * canonical form. Null when the bridge sent no report.
+     *
+     * @return list<WorktreeRow>|null
+     */
+    public function worktrees(): ?array
+    {
+        if (null === $this->worktrees) {
+            return null;
+        }
+
+        return array_map(static fn (BridgeWorktreeInput $worktree): array => [
+            'projectId' => Uuid::fromString($worktree->projectId ?? '')->toRfc4122(),
+            'branch' => $worktree->branch ?? '',
+            'path' => $worktree->path ?? '',
+        ], array_values($this->worktrees));
     }
 
     /**

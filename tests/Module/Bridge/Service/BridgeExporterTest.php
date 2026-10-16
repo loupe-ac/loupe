@@ -33,6 +33,12 @@ final class BridgeExporterTest extends TestCase
         $account = ['name' => 'work', 'harness' => 'claude-code', 'state' => 'failing', 'reason' => 'not logged in'];
         $bridge->accounts = [$account];
         $bridge->accountsReportedAt = new \DateTimeImmutable('2026-09-14T15:58:00+00:00');
+        $entry = ['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '^var$', 'description' => null]], 'run' => ['true', '{out}'], 'timeout' => '10m'];
+        $bridge->commandEntries = [$entry];
+        $bridge->commandEntriesReportedAt = new \DateTimeImmutable('2026-09-14T15:57:00+00:00');
+        $worktree = ['projectId' => $projectId, 'branch' => 'main', 'path' => '/work/main'];
+        $bridge->worktrees = [$worktree];
+        $bridge->worktreesReportedAt = new \DateTimeImmutable('2026-09-14T15:56:00+00:00');
         $bridge->pauseRequested = true;
         $bridge->pauseRequestedAt = new \DateTimeImmutable('2026-09-14T15:30:00+00:00');
         $bridge->pauseRequestedBy = $owner;
@@ -57,6 +63,10 @@ final class BridgeExporterTest extends TestCase
             'workerPoolsReportedAt' => '2026-09-14T15:59:00+00:00',
             'accounts' => [$account],
             'accountsReportedAt' => '2026-09-14T15:58:00+00:00',
+            'commandEntries' => [$entry],
+            'commandEntriesReportedAt' => '2026-09-14T15:57:00+00:00',
+            'worktrees' => [$worktree],
+            'worktreesReportedAt' => '2026-09-14T15:56:00+00:00',
             'pauseRequested' => true,
             'pauseRequestedAt' => '2026-09-14T15:30:00+00:00',
             'pausedReported' => false,

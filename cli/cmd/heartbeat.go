@@ -10,6 +10,7 @@ import (
 
 	"github.com/ubermuda/loupe/cli/internal/api"
 	"github.com/ubermuda/loupe/cli/internal/outbound"
+	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // defaultHeartbeatInterval applies when the server shares no usable interval,
@@ -29,7 +30,7 @@ const heartbeatLane = "heartbeat"
 const poolsWindow = 10 * time.Second
 
 // bridgeCapabilities names what this bridge supports to the server.
-var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage"}
+var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", rules.CapabilityRunCommand}
 
 // heartbeatSender sends one heartbeat. *api.Client is one.
 type heartbeatSender interface {
@@ -60,6 +61,9 @@ type heartbeater struct {
 	// onLost gets the claims the reply names lost, each with the token this
 	// heartbeat sent, before onReply. It may be nil.
 	onLost func([]api.WorkClaim)
+	// worktrees reads the worktrees of the followed projects when a heartbeat
+	// goes out. It returns nil on a failure, which sends no list. It may be nil.
+	worktrees func(context.Context) []api.WorktreeReport
 
 	mu   sync.Mutex
 	body api.Heartbeat
@@ -336,6 +340,9 @@ func (h *heartbeater) send() {
 		// heartbeat can replace this one before then.
 		var upto uint64
 		body.HostSamples, upto = h.pendingHostSamples()
+		if h.worktrees != nil {
+			body.Worktrees = h.worktrees(ctx)
+		}
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {
 			h.dropHostSamples(upto)

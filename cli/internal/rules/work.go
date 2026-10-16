@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,6 +25,10 @@ const (
 	CapabilityInteractive  = "interactive"
 	CapabilityAppPrompts   = "app-prompts"
 	CapabilitySession      = "session"
+	// CapabilityRunCommand and CapabilityAddEntry are not part of Capabilities.
+	// The first is always on, and the second needs acceptEntries.
+	CapabilityRunCommand = "run-command"
+	CapabilityAddEntry   = "add-entry"
 )
 
 // SessionKind is the work kind that starts an interactive session from an
@@ -67,6 +72,10 @@ type WorkEntry struct {
 	// Subject is the subject type the entry runs. The check fills card when
 	// it is empty.
 	Subject string `yaml:"subject"`
+	// Description and Params belong to a command entry. The bridge reports
+	// them, so a worker can name the entry and fill its parameters.
+	Description string           `yaml:"description"`
+	Params      map[string]Param `yaml:"params"`
 
 	schema string
 	// run holds the settings of an agent run, and an experiment holds those
@@ -76,6 +85,90 @@ type WorkEntry struct {
 	beforeTimeout  time.Duration
 	commandTimeout time.Duration
 }
+
+// Param is one parameter of a command entry. A value must match the whole
+// Pattern, which is RE2 syntax.
+type Param struct {
+	Pattern     string `yaml:"pattern"`
+	Description string `yaml:"description"`
+}
+
+// paramRegexp wraps a pattern so it must match a whole value.
+func paramRegexp(pattern string) (*regexp.Regexp, error) {
+	return regexp.Compile(`^(?:` + pattern + `)$`)
+}
+
+// Match reports whether value matches the whole pattern. A pattern that does
+// not compile matches nothing, and the check refuses such a pattern at load.
+func (p Param) Match(value string) bool {
+	re, err := paramRegexp(p.Pattern)
+
+	return err == nil && re.MatchString(value)
+}
+
+// checkParams checks the parameters of a command entry.
+func checkParams(params map[string]Param) []error {
+	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(params)) {
+		p := params[name]
+		switch {
+		case !paramName.MatchString(name):
+			errs = append(errs, fmt.Errorf("params: name %q is not letters only, such as out", name))
+		case slices.Contains(workPlaceholders, name):
+			errs = append(errs, fmt.Errorf("params: %q is a built-in placeholder, so name the parameter differently", name))
+		}
+		if p.Pattern == "" {
+			errs = append(errs, fmt.Errorf("params.%s: pattern is required", name))
+
+			continue
+		}
+		if _, err := paramRegexp(p.Pattern); err != nil {
+			errs = append(errs, fmt.Errorf("params.%s: pattern does not compile as RE2: %w", name, err))
+		}
+	}
+
+	return errs
+}
+
+// The sizes the server takes in a heartbeat. An entry over them would make the
+// server refuse the whole heartbeat.
+const (
+	maxReportText    = 500
+	maxReportParams  = 20
+	maxReportRun     = 50
+	maxReportRunItem = 1000
+)
+
+// checkReportSizes refuses a command entry that the heartbeat cannot carry.
+func checkReportSizes(w *WorkEntry) []error {
+	var errs []error
+	if len(w.Description) > maxReportText {
+		errs = append(errs, fmt.Errorf("description is longer than %d characters", maxReportText))
+	}
+	if len(w.Params) > maxReportParams {
+		errs = append(errs, fmt.Errorf("params has more than %d parameters", maxReportParams))
+	}
+	for name, p := range w.Params {
+		if len(p.Pattern) > maxReportText || len(p.Description) > maxReportText || len(name) > 100 {
+			errs = append(errs, fmt.Errorf("params.%s: name, pattern or description is too long, and the limit is %d characters", name, maxReportText))
+		}
+	}
+	if len(w.Run) > maxReportRun {
+		errs = append(errs, fmt.Errorf("run has more than %d elements", maxReportRun))
+	}
+	for _, item := range w.Run {
+		if len(item) > maxReportRunItem {
+			errs = append(errs, fmt.Errorf("a run element is longer than %d characters", maxReportRunItem))
+
+			break
+		}
+	}
+
+	return errs
+}
+
+// paramName is the shape of a placeholder name.
+var paramName = regexp.MustCompile(`^[A-Za-z]+$`)
 
 // runs are the settings of each agent run the entry can start, its variants
 // included, and nil for a command entry.
@@ -95,10 +188,12 @@ func (w WorkEntry) runs() []RunSettings {
 var workRefusals = map[string][]refusal{
 	"": {
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry runs a worker"},
+		{[]string{"params", "description"}, "%s belongs to action command, and this entry runs a worker"},
 	},
 	ActionInteractive: {
 		{[]string{"before", "metrics", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry launches an interactive session"},
+		{[]string{"params", "description"}, "%s belongs to action command, and this entry launches an interactive session"},
 	},
 	ActionCommand: {
 		{[]string{"account", "before", "metrics", "model", "permissionMode", "permissions", "prompt", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
@@ -125,6 +220,8 @@ func checkWork(kind string, w *WorkEntry) error {
 			"run":            w.Run != nil,
 			"timeout":        w.Timeout != "",
 			"variants":       w.Variants != nil,
+			"params":         w.Params != nil,
+			"description":    w.Description != "",
 			"workerPool":     w.WorkerPool != "",
 		})...)
 	} else {
@@ -141,7 +238,10 @@ func checkWork(kind string, w *WorkEntry) error {
 	}
 
 	if w.Action == ActionCommand {
-		timeout, runErrs := checkRun("", w.Run, w.Timeout, DefaultCommandTimeout, MaxCommandTimeout, event.WorkRequestType, workPlaceholders)
+		errs = append(errs, checkParams(w.Params)...)
+		errs = append(errs, checkReportSizes(w)...)
+		allowed := slices.Concat(workPlaceholders, slices.Sorted(maps.Keys(w.Params)))
+		timeout, runErrs := checkRun("", w.Run, w.Timeout, DefaultCommandTimeout, MaxCommandTimeout, event.WorkRequestType, allowed)
 		errs = append(errs, runErrs...)
 		w.commandTimeout = timeout
 	} else if strings.TrimSpace(w.Prompt) == "" {
@@ -386,6 +486,24 @@ func (s *Set) WorkGaps(w api.WorkRequest) []string {
 	}
 
 	return gaps
+}
+
+// CommandEntry is a command entry as the bridge reports it.
+type CommandEntry struct {
+	Name  string
+	Entry WorkEntry
+}
+
+// CommandEntries lists the command entries of the work map, in name order.
+func (s *Set) CommandEntries() []CommandEntry {
+	var out []CommandEntry
+	for _, kind := range s.WorkKinds() {
+		if e := s.work[kind]; e.Action == ActionCommand {
+			out = append(out, CommandEntry{Name: kind, Entry: e})
+		}
+	}
+
+	return out
 }
 
 // WorkKinds lists the kinds of the work map, in name order.

@@ -379,7 +379,7 @@ func TestTheHeartbeatCarriesThePauseAndTheCapabilities(t *testing.T) {
 	defer client.mu.Unlock()
 	var got []bool
 	for i, hb := range client.sent {
-		if hb.Paused == nil || !slices.Equal(hb.Capabilities, []string{"commands", "rerun-command", "session-usage"}) {
+		if hb.Paused == nil || !slices.Equal(hb.Capabilities, []string{"commands", "rerun-command", "session-usage", "run-command"}) {
 			t.Fatalf("heartbeat %d = %+v", i, hb)
 		}
 		got = append(got, *hb.Paused)
@@ -640,5 +640,22 @@ func TestShutdownStopsTheHeartbeat(t *testing.T) {
 
 	if client.count() != 1 {
 		t.Fatalf("%d heartbeats after shutdown", client.count()-1)
+	}
+}
+
+func TestHeartbeatReadsTheWorktreesWhenItGoesOut(t *testing.T) {
+	client := &fakeHeartbeats{}
+	rows := []api.WorktreeReport{{ProjectID: testProject, Branch: "main", Path: "/r"}}
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) {
+		h.worktrees = func(context.Context) []api.WorktreeReport { return rows }
+	})
+	hh.h.setBody(api.Heartbeat{Projects: []string{testProject}, CLIVersion: "v"})
+	eventually(t, "the second heartbeat", func() bool { return client.count() == 2 })
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	for i, hb := range client.sent {
+		if !slices.Equal(hb.Worktrees, rows) {
+			t.Errorf("heartbeat %d worktrees = %+v", i, hb.Worktrees)
+		}
 	}
 }
