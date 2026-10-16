@@ -73,6 +73,8 @@ parameters:
     # Every minute, because a bridge goes quiet after three heartbeat intervals
     # and a run shown as running for longer than that misleads.
     app.bridge.run_timeout_schedule: '* * * * *'
+    # Every minute, so a stuck queue shows on the Sentry graph within a minute.
+    app.observability.queue_depth_schedule: '* * * * *'
     # The backstop for a forge delivery that never arrived.
     app.forge.sweep_schedule: '*/10 * * * *'
     # The backstop for a card wait that no event reported.
