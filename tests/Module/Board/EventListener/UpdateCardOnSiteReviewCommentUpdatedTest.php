@@ -16,8 +16,10 @@ use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Command\NewAnchor;
 use App\Module\SiteReview\Command\UpdateCommentCommand;
 use App\Module\SiteReview\Command\UpdateCommentHandler;
+use App\Module\SiteReview\Event\SiteReviewCommentUpdated;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class UpdateCardOnSiteReviewCommentUpdatedTest extends KernelTestCase
@@ -146,6 +148,55 @@ final class UpdateCardOnSiteReviewCommentUpdatedTest extends KernelTestCase
         $card = $this->fresh($first);
         self::assertSame('First note', $card->title);
         self::assertSame('First note', $card->body);
+    }
+
+    public function test_a_late_listener_follows_an_edit_that_another_listener_already_applied(): void
+    {
+        $project = $this->project('edit-race-link');
+        $link = $this->addNote($project, 'One');
+        $this->applyElsewhere($link, note: 'Three', card: 'Two');
+
+        $this->dispatchEdit($project, $link, 'Three');
+
+        $card = $this->fresh($link);
+        self::assertSame('Three', $card->title);
+        self::assertSame('Three', $card->body);
+    }
+
+    public function test_a_late_event_writes_the_latest_note_rather_than_its_own_body(): void
+    {
+        $project = $this->project('edit-race-body');
+        $link = $this->addNote($project, 'One');
+        $this->applyElsewhere($link, note: 'Three', card: 'Two');
+
+        $this->dispatchEdit($project, $link, 'Two');
+
+        $card = $this->fresh($link);
+        self::assertSame('Three', $card->title);
+        self::assertSame('Three', $card->body);
+    }
+
+    /** Another process saved the note and applied an earlier edit to the card and its link. */
+    private function applyElsewhere(CardSiteReviewComment $link, string $note, string $card): void
+    {
+        $connection = $this->em->getConnection();
+        $connection->executeStatement('UPDATE site_review_comments SET body = ? WHERE id = ?', [$note, (string) $link->comment->id]);
+        $connection->executeStatement('UPDATE board_cards SET title = ?, body = ? WHERE id = ?', [$card, $card, (string) $link->card->id]);
+        $connection->executeStatement(
+            'UPDATE board_card_site_review_comments SET created_title = ?, created_body = ? WHERE id = ?',
+            [$card, $card, (string) $link->id],
+        );
+    }
+
+    private function dispatchEdit(Project $project, CardSiteReviewComment $link, string $body): void
+    {
+        $events = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $events);
+        $events->dispatch(new SiteReviewCommentUpdated(
+            $project->requireId(),
+            $link->comment->id ?? throw new \LogicException('unsaved comment'),
+            $body,
+        ));
     }
 
     private function fresh(CardSiteReviewComment $link): Card

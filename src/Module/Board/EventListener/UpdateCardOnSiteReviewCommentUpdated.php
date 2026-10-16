@@ -41,10 +41,15 @@ final readonly class UpdateCardOnSiteReviewCommentUpdated
             return;
         }
 
-        $card = $link->card;
-        // The check and the write share the project lock, so a person's edit cannot land between them.
-        $this->em->wrapInTransaction(function () use ($event, $link, $card): void {
-            $this->em->lock($card->project, LockMode::PESSIMISTIC_WRITE);
+        // Two edits of one note can run their listeners in either order. Under the project lock, read
+        // the link and the note again, so the last listener writes the latest note against the latest link.
+        $this->em->wrapInTransaction(function () use ($event, $link): void {
+            $this->em->lock($link->card->project, LockMode::PESSIMISTIC_WRITE);
+            if (!$this->cardSiteReviewComments->refreshText($link)) {
+                return;
+            }
+            $card = $link->card;
+            $this->cards->refreshContent($card);
             $this->cards->refreshColumn($card);
             $this->cards->refreshTypeAndParent($card);
             $createdType = $this->cardEvents->createdType($card) ?? $this->catalog->forProject($event->projectId)->defaultKey;
@@ -54,8 +59,8 @@ final readonly class UpdateCardOnSiteReviewCommentUpdated
                 return;
             }
 
-            $title = FeedbackCardTitle::of($event->body);
-            $body = Card::normalText($event->body);
+            $title = FeedbackCardTitle::of($link->comment->body);
+            $body = Card::normalText($link->comment->body);
             if ($title === $card->title && $body === $card->body) {
                 return;
             }
