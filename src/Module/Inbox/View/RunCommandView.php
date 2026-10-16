@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\View;
 
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+
 /**
  * Everything the inbox shows for a "Run a command" action: the main button, the confirm dialog and the
  * run state block. The values are what the agent suggested, until the owner confirms others.
@@ -56,13 +58,15 @@ final readonly class RunCommandView
          * @var list<string>
          */
         public array $runList = [],
+        /** The pull request values the built-in placeholders were filled from, which the work request must carry. */
+        public ?WorkRequestContext $context = null,
     ) {
     }
 
-    /** Names the run list the dialog shows, so a submit can tell that the entry changed after the owner read it. */
+    /** Names the run list and the built-in values the dialog shows, so a submit can tell that either changed after the owner read it. */
     public function runDigest(): string
     {
-        return hash('sha256', json_encode($this->runList, \JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$this->runList, $this->argvTemplate], \JSON_THROW_ON_ERROR));
     }
 
     /** The owner can open the confirm dialog: a wrong branch or value is fixed there, so only those two reasons keep it open. */

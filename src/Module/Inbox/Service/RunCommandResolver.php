@@ -9,6 +9,7 @@ use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Service\BridgeLiveness;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxItem;
@@ -66,6 +67,7 @@ final readonly class RunCommandResolver
         $argv = [];
         $argvTemplate = [];
         $placeholderReason = null;
+        $context = null;
         $valid = true;
         if (null !== $row) {
             $declared = [];
@@ -82,7 +84,7 @@ final readonly class RunCommandResolver
                     $paramViews[] = new RunCommandParam((string) $name, $value, null, null, false);
                 }
             }
-            [$builtIns, $placeholderReason] = $this->builtIns($item, $command['entry'], $cardId, $row['run'], $declared);
+            [$builtIns, $placeholderReason, $context] = $this->builtIns($item, $command['entry'], $cardId, $row['run'], $declared);
             $argvTemplate = array_map(static fn (string $element): string => strtr($element, $builtIns), $row['run']);
             $replacements = $builtIns;
             foreach ($row['params'] as $param) {
@@ -123,17 +125,19 @@ final readonly class RunCommandResolver
             argvTemplate: $argvTemplate,
             bridgeQuiet: null !== $bridge && $this->isQuiet($bridge, $item),
             runList: $row['run'] ?? [],
+            context: $context,
         );
     }
 
     /**
      * The values the bridge gives the built-in placeholders of the argv, as `{name}` => value, and the reason the dialog cannot show
      * the argv the bridge runs: a placeholder the bridge fills only at the run, or a card placeholder of a run with no card.
+     * The context is the one the pull request placeholders came from, or null when the run list uses none.
      *
      * @param list<string>        $run
      * @param array<string, true> $params the names of the parameters of the entry
      *
-     * @return array{array<string, string>, ?string}
+     * @return array{array<string, string>, ?string, ?WorkRequestContext}
      */
     private function builtIns(InboxItem $item, string $entry, ?Uuid $cardId, array $run, array $params): array
     {
@@ -147,14 +151,14 @@ final readonly class RunCommandResolver
             }
         }
         if ([] !== array_intersect(array_keys($used), self::UNKNOWN_PLACEHOLDERS)) {
-            return [[], self::PLACEHOLDER_UNKNOWN];
+            return [[], self::PLACEHOLDER_UNKNOWN, null];
         }
         $card = null;
         if (null !== $cardId && (isset($used['cardNumber']) || [] !== array_intersect(array_keys($used), self::CONTEXT_PLACEHOLDERS))) {
             $card = $this->cards->find($cardId);
         }
         if ((isset($used['cardId']) && null === $cardId) || (isset($used['cardNumber']) && null === $card)) {
-            return [[], self::PLACEHOLDER_MISSING];
+            return [[], self::PLACEHOLDER_MISSING, null];
         }
         $context = null === $card || [] === array_intersect(array_keys($used), self::CONTEXT_PLACEHOLDERS) ? null : $this->contexts->forCard($card, null);
         $itemId = (string) ($item->id ?? throw new \LogicException('A stored item has an id.'));
@@ -177,7 +181,7 @@ final readonly class RunCommandResolver
             $builtIns['{'.$name.'}'] = $value;
         }
 
-        return [$builtIns, null];
+        return [$builtIns, null, $context];
     }
 
     /**

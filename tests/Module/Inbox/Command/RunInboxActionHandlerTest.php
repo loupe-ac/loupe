@@ -10,6 +10,8 @@ use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Workflow\WorkRequestContexts;
@@ -35,6 +37,8 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
+use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Inbox\Command\CancelInboxActionCommand;
 use App\Module\Inbox\Command\CancelInboxActionHandler;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
@@ -813,7 +817,9 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     /** @return iterable<string, array{?string}> */
     public static function staleDigests(): iterable
     {
-        yield 'the run list before an edit' => [hash('sha256', json_encode(['bin/console', 'app:export', '--force', '{out}'], \JSON_THROW_ON_ERROR))];
+        $before = ['bin/console', 'app:export', '--force', '{out}'];
+        yield 'the run list before an edit' => [hash('sha256', json_encode([$before, $before], \JSON_THROW_ON_ERROR))];
+        yield 'the run list alone, with no filled values' => [hash('sha256', json_encode(['bin/console', 'app:export', '{out}'], \JSON_THROW_ON_ERROR))];
         yield 'no digest' => [null];
     }
 
@@ -832,6 +838,41 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
         self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
         self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
+    public function test_a_pull_request_head_that_moved_after_the_dialog_opened_is_refused_and_the_request_carries_the_head_shown(): void
+    {
+        $this->commandBridge();
+        $this->bridge->commandEntries = [[
+            'name' => 'design-export',
+            'description' => null,
+            'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]],
+            'run' => ['bin/deploy', '{headSha}', '{out}'],
+            'timeout' => '10m',
+        ]];
+        $this->em()->persist(new CardPullRequest($this->card, 'https://github.com/Acme/Widgets/pull/7', Forge::GitHub, 'Acme/Widgets', 7));
+        $pullRequest = new ForgePullRequest($this->project, 'github', 'acme/widgets', 7);
+        $pullRequest->state = PullRequestState::Open;
+        $pullRequest->headSha = str_repeat('a', 40);
+        $this->em()->persist($pullRequest);
+        $this->em()->flush();
+        $item = $this->commandTodo();
+        $shown = $this->itemActions()->runCommandFor($item) ?? throw new \LogicException('The item has a command.');
+        self::assertSame(['bin/deploy', str_repeat('a', 40), 'var/out'], $shown->argv);
+
+        $pullRequest->headSha = str_repeat('b', 40);
+        $this->em()->flush();
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $shown->runDigest()));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::COMMAND_CHANGED], $e->errors);
+        }
+
+        $reread = $this->itemActions()->runCommandFor($item) ?? throw new \LogicException('The item has a command.');
+        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $reread->runDigest())) ?? throw new \LogicException('A command records a row.');
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame(str_repeat('b', 40), $request->context->headSha);
     }
 
     public function test_a_quiet_bridge_takes_the_run_as_a_request_that_waits_for_it(): void
@@ -1036,7 +1077,9 @@ final class RunInboxActionHandlerTest extends KernelTestCase
     /** The digest of the run list of the entry that commandBridge() reports, as the dialog shows it. */
     private static function shownDigest(): string
     {
-        return hash('sha256', json_encode(['bin/console', 'app:export', '{out}'], \JSON_THROW_ON_ERROR));
+        $run = ['bin/console', 'app:export', '{out}'];
+
+        return hash('sha256', json_encode([$run, $run], \JSON_THROW_ON_ERROR));
     }
 
     /** Built by hand, because nothing injects the handlers yet and the compiler drops an unused private service. */

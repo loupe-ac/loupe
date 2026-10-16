@@ -239,7 +239,8 @@ final readonly class RunInboxActionHandler
 
     /**
      * Checks the entry, the values and the worktree again, as the owner confirmed them. The bridge checks them once more at the run.
-     * The run list must be the one the dialog showed, and the request carries it so the bridge refuses an entry edited since.
+     * The run list and its filled values must be the ones the dialog showed. The request carries the run list, so the bridge
+     * refuses an entry edited since, and the context of those values, so a new pull request head cannot change the argv.
      * A to-do with one card, and a wait item, run on the card, so the bridge queue rule holds the run for a worker of that card.
      */
     private function runCommand(RunInboxActionCommand $command, string $note): InboxAction
@@ -273,7 +274,7 @@ final readonly class RunInboxActionHandler
                 kind: $view->entry,
                 capability: Bridge::CAPABILITY_RUN_COMMAND,
                 ruleId: self::RUN_COMMAND_RULE_ID,
-                context: null === $card ? new WorkRequestContext() : $this->contexts->forCard($card, null),
+                context: $view->context ?? (null === $card ? new WorkRequestContext() : $this->contexts->forCard($card, null)),
                 fresh: true,
                 inboxActionId: $action->id,
                 inboxItemNumber: $item->number,

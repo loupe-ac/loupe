@@ -663,7 +663,9 @@ final class InboxActionControllersTest extends WebTestCase
     /** The digest of the run list of the design-export entry that the dialog shows. */
     private static function shownDigest(): string
     {
-        return hash('sha256', json_encode(['bin/console', 'app:export', '{out}'], \JSON_THROW_ON_ERROR));
+        $run = ['bin/console', 'app:export', '{out}'];
+
+        return hash('sha256', json_encode([$run, $run], \JSON_THROW_ON_ERROR));
     }
 
     /** @param array<string, string|array<string, string>> $fields */
