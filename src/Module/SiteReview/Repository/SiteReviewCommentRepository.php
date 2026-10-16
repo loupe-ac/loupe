@@ -38,11 +38,20 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
      * readers: the agent's queue, and the widget's own list of the comments its
      * reviewer may still edit or delete.
      *
+     * $commentIds narrows the list to those comments. Null keeps the whole
+     * project, and an empty list finds nothing.
+     *
+     * @param list<Uuid>|null $commentIds
+     *
      * @return list<SiteReviewComment>
      */
-    public function findPendingForProject(Project $project): array
+    public function findPendingForProject(Project $project, ?array $commentIds = null): array
     {
-        return $this->createQueryBuilder('c')
+        if ([] === $commentIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('c')
             ->leftJoin('c.anchors', 'a')
             ->addSelect('a')
             ->andWhere('c.project = :project')
@@ -50,9 +59,15 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
             ->setParameter('project', $project)
             ->setParameter('status', SiteReviewCommentStatus::Pending)
             ->orderBy('c.position', 'ASC')
-            ->addOrderBy('a.position', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('a.position', 'ASC');
+
+        if (null !== $commentIds) {
+            $qb->andWhere('c.id IN (:ids)')
+                ->setParameter('ids', array_map(static fn (Uuid $id): string => $id->toRfc4122(), $commentIds));
+        }
+
+        /* @var list<SiteReviewComment> */
+        return $qb->getQuery()->getResult();
     }
 
     /**

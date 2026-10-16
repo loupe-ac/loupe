@@ -57,6 +57,7 @@ final readonly class ShowCardVerdictHandler
             ),
             notes: $this->notes->pendingOf($card),
             connection: $this->forgeAccount->stateOf($command->reviewer),
+            login: $this->forgeAccount->loginOf($command->reviewer),
             latest: $latest,
             latestDeliveries: $latest instanceof CardVerdict ? $this->cardVerdictDeliveries->findForVerdicts([$latest])[(string) $latest->id] ?? [] : [],
             actions: $this->actionsFor($command->project),

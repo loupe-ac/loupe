@@ -14,4 +14,7 @@ interface ReviewerForgeAccount
 
     /** The forge's id of the reviewer's account, to tell the reviewer's own pull requests apart. */
     public function forgeUserIdOf(User $reviewer): ?string;
+
+    /** The reviewer's login on the forge, for the verdict view to name the account. */
+    public function loginOf(User $reviewer): ?string;
 }

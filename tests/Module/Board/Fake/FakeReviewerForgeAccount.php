@@ -12,6 +12,7 @@ final class FakeReviewerForgeAccount implements ReviewerForgeAccount
     public function __construct(
         public string $state = 'connected',
         public ?string $forgeUserId = '4242',
+        public ?string $login = 'octocat',
     ) {
     }
 
@@ -25,5 +26,11 @@ final class FakeReviewerForgeAccount implements ReviewerForgeAccount
     public function forgeUserIdOf(User $reviewer): ?string
     {
         return $this->forgeUserId;
+    }
+
+    #[\Override]
+    public function loginOf(User $reviewer): ?string
+    {
+        return $this->login;
     }
 }

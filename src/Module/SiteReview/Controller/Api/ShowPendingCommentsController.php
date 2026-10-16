@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\ShowPendingCommentsCommand;
 use App\Module\SiteReview\Command\ShowPendingCommentsHandler;
+use App\Module\SiteReview\Context\CommentScopeResolver;
 use App\Module\SiteReview\Context\ContextLabelResolver;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
@@ -36,6 +37,7 @@ final class ShowPendingCommentsController extends AppController
         private readonly AuthenticatedProjectResolver $projectResolver,
         private readonly FeatureFlagService $featureFlags,
         private readonly ContextLabelResolver $contextLabels,
+        private readonly CommentScopeResolver $commentScopes,
         private readonly ParentTypeProviderInterface $parentTypes,
     ) {
     }
@@ -47,7 +49,15 @@ final class ShowPendingCommentsController extends AppController
             return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
         }
 
-        $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project));
+        // No scope keeps the project-wide list, because a browser can hold an
+        // old copy of the script for a long time. A scope nothing resolves
+        // lists nothing.
+        $scope = $request->query->get('scope');
+        $commentIds = \is_string($scope) && '' !== trim($scope)
+            ? $this->commentScopes->resolve($scope, $project) ?? []
+            : null;
+
+        $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds));
 
         // The marker is the page's preview card or the target the widget
         // stored for its mode. A marker nothing resolves comes back as null,

@@ -50,7 +50,7 @@ final class CardVerdictApiTest extends WebTestCase
         self::assertSame((string) $card->id, $data['cardId']);
         self::assertSame([['id' => (string) $open->id, 'label' => 'acme/widgets#7', 'ownPullRequest' => false]], $data['pullRequests']);
         self::assertSame([['id' => (string) $note->id, 'url' => 'https://app.example/page', 'body' => 'The footer overlaps the launcher.', 'anchorCount' => 1]], $data['notes']);
-        self::assertSame(['state' => 'none'], $data['connection']);
+        self::assertSame(['state' => 'none', 'login' => null], $data['connection']);
         self::assertSame(['approve' => ['actions' => []], 'request-changes' => ['actions' => []], 'comment' => ['actions' => []]], $data['preview']);
         self::assertNull($data['latestVerdict']);
     }
@@ -138,7 +138,7 @@ final class CardVerdictApiTest extends WebTestCase
 
         $data = $this->call($client, Request::METHOD_GET, $this->panelPath($card), $raw);
 
-        self::assertSame(['state' => 'connected'], $data['connection']);
+        self::assertSame(['state' => 'connected', 'login' => 'octocat'], $data['connection']);
         self::assertSame([true, false], array_column($data['pullRequests'], 'ownPullRequest'));
     }
 
@@ -152,7 +152,7 @@ final class CardVerdictApiTest extends WebTestCase
 
         $data = $this->call($client, Request::METHOD_GET, $this->panelPath($card), $raw);
 
-        self::assertSame(['state' => 'expired'], $data['connection']);
+        self::assertSame(['state' => 'expired', 'login' => 'octocat'], $data['connection']);
         self::assertTrue($data['pullRequests'][0]['ownPullRequest']);
     }
 
