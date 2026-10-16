@@ -94,6 +94,15 @@ final class WidgetFileTest extends TestCase
         self::assertStringContainsString('prefers-reduced-motion:reduce', $src);
     }
 
+    public function test_active_launcher_tool_shows_an_accent_disc_inside_the_button(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        // The padding insets the accent, so the disc sits inside the button
+        // and the click target keeps its full size.
+        self::assertMatchesRegularExpression('/^\s*\.lp-launch-action\.on,[^{]*\{[^}]*padding:[1-9]\d*px;[^}]*background-clip:content-box/m', $src);
+    }
+
     public function test_every_widget_control_keeps_its_focus_ring(): void
     {
         $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');

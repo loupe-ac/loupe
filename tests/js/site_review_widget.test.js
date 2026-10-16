@@ -1626,6 +1626,98 @@ describe('the panel views', () => {
         expect(root.activeElement).toBe(dest);
     });
 
+    const escape = (node) =>
+        node.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                composed: true,
+            }),
+        );
+
+    it('focuses the destination button when Escape closes the destination over the list', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+        const dest = root.getElementById('lp-dest');
+
+        dest.click();
+        const choice = root.querySelector('#lp-picker-modes [data-mode]');
+        expect(root.activeElement).toBe(choice);
+        escape(choice);
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(dest);
+    });
+
+    it('focuses Finish review when Back or Escape closes its view', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            respond: (url) =>
+                url.includes('/verdict')
+                    ? ok({
+                          connection: { state: 'connected' },
+                          pullRequests: [
+                              {
+                                  id: 'p1',
+                                  label: 'acme/site#88',
+                                  ownPullRequest: false,
+                              },
+                          ],
+                          notes: [],
+                          preview: {},
+                          latestVerdict: null,
+                      })
+                    : ok({
+                          comments: [],
+                          context: {
+                              label: '#412 Fix the redirect',
+                              url: 'https://loupe.example/c',
+                          },
+                      }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+
+        root.getElementById('lp-finish').click();
+        await settle();
+        expect(viewOf(root)).toBe('finish');
+        root.getElementById('lp-finish-back').focus();
+        root.getElementById('lp-finish-back').click();
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(root.getElementById('lp-finish'));
+
+        root.getElementById('lp-finish').click();
+        await settle();
+        const back = root.getElementById('lp-finish-back');
+        back.focus();
+        escape(back);
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(root.getElementById('lp-finish'));
+    });
+
+    it('never leaves focus in a view that turned inert', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        expect(root.activeElement).toBe(root.getElementById('lp-textarea'));
+
+        root.getElementById('lp-compose-back').focus();
+        root.getElementById('lp-compose-back').click();
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).not.toBeNull();
+        expect(
+            root.getElementById('lp-view-list').contains(root.activeElement),
+        ).toBe(true);
+    });
+
     it('shows the plain sign-in view with three steps', async () => {
         bootWidget({ signedIn: false, respond: () => ok({ comments: [] }) });
         await settle();

@@ -1252,7 +1252,7 @@
       .lp-launcher.open .lp-launch-quick{max-width:0;opacity:0;visibility:hidden;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s .24s}
       .lp-launch-action{flex:0 0 auto;width:32px;height:32px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
       .lp-launch-action:hover{background:var(--chrome-raised);color:var(--accent)}
-      .lp-launch-action.on,.lp-launch-action.on:hover{background:var(--accent);color:var(--ink)}
+      .lp-launch-action.on,.lp-launch-action.on:hover{padding:3px;background:var(--accent);background-clip:content-box;color:var(--ink)}
       .lp-launch-dot{flex:0 0 auto;width:8px;height:8px;border-radius:999px;background:var(--chrome-mute)}
       .lp-launch-div{flex:0 0 auto;width:1px;height:24px;background:var(--chrome-line);margin:0 3px}
       /* A label and not a control: the launcher's chrome weight, no hover state
@@ -2727,8 +2727,24 @@
         }
         if (state.view === 'finish' && !verdictCurrent()) resetView();
     };
+    const focusFirstControl = (node) =>
+        [
+            ...node.querySelectorAll(
+                'button:not([disabled]), a[href], input, textarea, select',
+            ),
+        ].some((control) => {
+            control.focus({ preventScroll: true });
+
+            return root.activeElement === control;
+        });
     const applyViewClasses = () => {
         viewsNode.dataset.view = state.view;
+        const focused = root.activeElement;
+        const stranded =
+            !!focused &&
+            Object.entries(viewNodes).some(
+                ([name, node]) => name !== state.view && node.contains(focused),
+            );
         Object.entries(viewNodes).forEach(([name, node]) => {
             const current = name === state.view;
             node.classList.toggle(
@@ -2745,6 +2761,9 @@
             node.toggleAttribute('inert', !current);
             node.setAttribute('aria-hidden', current ? 'false' : 'true');
         });
+        // Focus left in a view that turned inert lands on the first control
+        // of the current view.
+        if (stranded) focusFirstControl(viewNodes[state.view]);
     };
     // The panel is as tall as its current view, up to the viewport budget.
     const fitPanel = (instant) => {
@@ -3634,6 +3653,13 @@
         showView('finish');
         sync();
         loadVerdict();
+    };
+    // Focus goes back to the footer action that opened the view.
+    const leaveFinish = () => {
+        resetView();
+        sync();
+        const action = footAction.querySelector('button, a');
+        if (action) action.focus({ preventScroll: true });
     };
     const closeVerdict = () => {
         verdict.kind = null;
@@ -5288,10 +5314,7 @@
     );
     drawBtns.forEach((button) => button.addEventListener('click', toggleDraw));
     $('lp-compose-back').addEventListener('click', cancelCompose);
-    $('lp-finish-back').addEventListener('click', () => {
-        resetView();
-        sync();
-    });
+    $('lp-finish-back').addEventListener('click', leaveFinish);
     $('lp-signin-close').addEventListener('click', togglePanel);
     $('lp-sign-in').addEventListener('click', signIn);
     canvasNode.addEventListener('pointerdown', beginStroke);
@@ -5522,12 +5545,11 @@
             if (state.view === 'destination') {
                 leaveDestination();
                 sync();
-                if (composing()) focusTextarea();
+                focusAfterDestination();
                 return;
             }
             if (state.view === 'finish') {
-                resetView();
-                sync();
+                leaveFinish();
                 return;
             }
             if (composing()) {
