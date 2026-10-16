@@ -297,7 +297,7 @@ final class ItemActionsTest extends KernelTestCase
         $this->em->flush();
 
         self::assertNull($this->startSession($item)->disabledReasonKey);
-        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
+        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item, InboxActionKind::Open)?->toRfc4122());
     }
 
     /** @return iterable<string, array{string, WorkRequestState, bool}> */
@@ -331,8 +331,8 @@ final class ItemActionsTest extends KernelTestCase
     {
         $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
 
-        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
-        self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98)));
+        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item, InboxActionKind::Open)?->toRfc4122());
+        self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98), InboxActionKind::Open));
     }
 
     private function startSession(InboxItem $item): ItemAction

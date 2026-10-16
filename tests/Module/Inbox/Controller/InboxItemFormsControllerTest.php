@@ -476,6 +476,14 @@ final class InboxItemFormsControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-2 [data-inbox-action="send-agent"]'));
         self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
         self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-decline__form'));
+        $row = $crawler->filter('#inbox-item-2 .lp-comment-composer__actions');
+        self::assertCount(1, $row, 'Decline, Mark done and the split button share one reply card row.');
+        self::assertCount(1, $row->filter('.inbox-split'));
+        self::assertCount(1, $row->filter('[data-action="inbox-decline#carryNote"]'));
+        self::assertCount(1, $row->filter('[data-inbox-done]'));
+        $doneForm = $crawler->filter('#inbox-item-2 form.lp-inbox-done');
+        self::assertSame($doneForm->attr('id'), $row->filter('[data-inbox-done]')->attr('form'));
+        self::assertCount(0, $doneForm->filter('button'), 'The done form keeps no second Mark done button.');
     }
 
     public function test_a_to_do_with_no_suggestion_shows_no_split_button(): void

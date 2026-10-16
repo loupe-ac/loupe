@@ -84,8 +84,11 @@
     {% elseif item.kind.value != 'wait' and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
-        {% if item.kind.value == 'todo' and not inbox_actions(item, hostCardId ?? null).isEmpty %}
-            {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: null, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: true} only %}
+        {# A to-do with suggested actions puts Decline and Mark done beside its split button, in one reply card. #}
+        {% set todoSplit = item.kind.value == 'todo' and (open or item.state.value != 'done') and not inbox_actions(item, hostCardId ?? null).isEmpty %}
+        {% if todoSplit %}
+            {% set doneForm = inbox_done_form(item, refusedForm) %}
+            {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: null, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: true, todoButtons: {declineFormId: declineForm.vars.id, declineLabel: declineLabel, doneFormId: doneForm.vars.id}} only %}
         {% endif %}
         <div class="lp-inbox-item__actions">
             {% if item.kind.value in ['question', 'workflow'] %}
@@ -156,6 +159,11 @@
                         <div class="lp-inbox-item__refusal" role="alert">{% for message in reviewRefusals %}<p>{{ message }}</p>{% endfor %}</div>
                     {% endif %}
                 {% endif %}
+            {% elseif todoSplit %}
+                {# The buttons of this form sit in the reply card above, through the form attribute. #}
+                {{ form_start(doneForm, {action: path('app_inbox_item_done', actionParams), attr: {id: doneForm.vars.id, class: 'lp-inbox-done', 'data-turbo-frame': responseFrame}}) }}
+                    <twig:Ds:FieldErrors :fieldView="doneForm" />
+                {{ form_end(doneForm) }}
             {% elseif open or item.state.value != 'done' %}
                 {% set doneForm = inbox_done_form(item, refusedForm) %}
                 {{ form_start(doneForm, {action: path('app_inbox_item_done', actionParams), attr: {class: 'lp-inbox-done', 'data-turbo-frame': responseFrame}}) }}

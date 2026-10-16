@@ -118,8 +118,8 @@ final readonly class ItemActions
         return InboxActionKind::ResumeRun === $kind ? InboxCardWaitType::WorkerRun : InboxCardWaitType::CardPause;
     }
 
-    /** The card that an action on the item acts on: the card of its watch, or else its first linked card. */
-    public function cardIdOf(InboxItem $item): ?Uuid
+    /** The card that an action on the item acts on: the card of its watch, else the card its suggestion names, else its first linked card. */
+    public function cardIdOf(InboxItem $item, InboxActionKind $kind): ?Uuid
     {
         $watch = $this->inboxCardWatches->findForItems([$item])[0] ?? null;
         if (null !== $watch) {
@@ -127,7 +127,7 @@ final readonly class ItemActions
         }
         $link = $item->cards->first();
 
-        return false === $link ? null : $link->card->id;
+        return self::suggestedCardOf($item, $kind) ?? (false === $link ? null : $link->card->id);
     }
 
     /**
@@ -150,7 +150,7 @@ final readonly class ItemActions
         }
         foreach ($items as $item) {
             $link = $item->cards->first();
-            $linkedId = false === $link ? null : $link->card->id;
+            $linkedId = self::suggestedCardOf($item, InboxActionKind::StartSession) ?? (false === $link ? null : $link->card->id);
             if (!isset($cardIds[self::key($item)]) && null !== $linkedId) {
                 $cardIds[self::key($item)] = $linkedId->toRfc4122();
             }
@@ -237,7 +237,7 @@ final readonly class ItemActions
     {
         $cards = [];
         foreach ($items as $item) {
-            $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item);
+            $cardId = InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : (self::suggestedCardOf($item, InboxActionKind::SendAgent) ?? self::onlyCardOf($item));
             if (null !== $cardId) {
                 $cards[self::key($item)] = [$item->project, $cardId];
             }
@@ -287,6 +287,23 @@ final readonly class ItemActions
             array_map(static fn (array $candidate): SendAgentTarget => $candidate[1], $candidates),
             static fn (SendAgentTarget $target): bool => !isset($live[$target->cardId->toRfc4122().':'.$target->kind]) && !isset($busy[$target->cardId->toRfc4122()]),
         );
+    }
+
+    /** The linked card that the stored suggestion of the kind names, or null. */
+    private static function suggestedCardOf(InboxItem $item, InboxActionKind $kind): ?Uuid
+    {
+        foreach ($item->suggestedActions ?? [] as $stored) {
+            if ($kind->value !== $stored['action'] || null === $stored['cardId']) {
+                continue;
+            }
+            foreach ($item->cards as $link) {
+                if ($link->card->id?->toRfc4122() === $stored['cardId']) {
+                    return $link->card->id;
+                }
+            }
+        }
+
+        return null;
     }
 
     /** The card of a non-wait item that links exactly one card. */
