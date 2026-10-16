@@ -83,17 +83,20 @@ final readonly class BridgeOutageReconciler
                 return true;
             }
 
-            // The delay applies to opening the notice only. An open notice takes each waiting card at once.
-            $cutoff = $now->modify(\sprintf('-%d minutes', $this->afterMinutes));
-            $due = null === $outage
-                ? array_filter($withoutTaker, static fn (array $row): bool => $row['reading']->noTakerSince <= $cutoff)
-                : $withoutTaker;
-            $cards = $this->cardsOf($project, $due);
+            // The delay decides when the notice opens. The notice then lists every waiting card at once.
+            $cards = $this->cardsOf($project, $withoutTaker);
             if ([] === $cards) {
                 return null;
             }
 
             if (null === $outage) {
+                $cutoff = $now->modify(\sprintf('-%d minutes', $this->afterMinutes));
+                $due = array_filter($withoutTaker, static fn (array $row): bool => $row['reading']->noTakerSince <= $cutoff
+                    && isset($cards[$row['request']->subjectId->toRfc4122()]));
+                if ([] === $due) {
+                    return null;
+                }
+
                 $outage = $this->open($project, $cards, self::earliest($due), $now);
                 $this->em->flush();
                 $this->searchIndexer->index($outage->item);

@@ -136,6 +136,35 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         self::assertEquals(new \DateTimeImmutable('2026-10-16 11:49:00'), $outage->startedAt);
     }
 
+    public function test_the_notice_lists_every_waiting_card_when_it_opens(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:49:00');
+        $other = $this->card($this->em, $this->project, 9);
+        $this->waitingRequest($other, '2026-10-16 11:55:00');
+        $this->em->flush();
+
+        $this->reconciler->reconcile($this->project);
+
+        $outage = $this->onlyOutage();
+        self::assertSame([$other, $this->card], $this->cardsOf($outage->item));
+        self::assertSame("No bridge is online that can take the work of these cards:\n\n- Card 9: Ship it\n- Card 12: Ship it\n\nStart a bridge, or run `loupe login`.", $outage->item->body);
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 11:49:00'), $outage->startedAt);
+    }
+
+    public function test_a_card_that_waited_less_than_ten_minutes_opens_nothing_when_the_due_card_is_deleted(): void
+    {
+        $this->waitingRequest($this->card, '2026-10-16 11:49:00');
+        $other = $this->card($this->em, $this->project, 9);
+        $this->waitingRequest($other, '2026-10-16 11:55:00');
+        $this->em->remove($this->card);
+        $this->em->flush();
+
+        $this->reconciler->reconcile($this->project);
+
+        self::assertSame([], $this->outages());
+        self::assertSame(0, $this->itemCount());
+    }
+
     public function test_a_second_reconcile_changes_nothing_and_each_project_gets_its_own_notice(): void
     {
         $this->waitingRequest($this->card, '2026-10-16 11:49:00');
