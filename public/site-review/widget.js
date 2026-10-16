@@ -1303,7 +1303,7 @@
       .lp-dest svg{flex:0 0 auto}
       .lp-body{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:6px}
       .lp-section{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
-      .lp-view-body{flex:1 1 auto;min-height:0;overflow:auto}
+      .lp-view-body{flex:1 1 auto;min-height:0;overflow:auto;padding:0 16px 16px}
       .lp-spacer{flex:1}
       .lp-iconbtn{width:32px;height:32px;border:0;background:transparent;color:var(--text-mute);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}
       .lp-iconbtn:hover{background:var(--surface-2);color:var(--text)}
