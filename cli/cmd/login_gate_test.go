@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/oauth"
 )
 
@@ -151,6 +154,64 @@ func TestLoginGateFindsLoginWrittenBeforeTheWatcherStarts(t *testing.T) {
 	defer stop()
 	if err := g.wait(waitCtx); err != nil {
 		t.Fatalf("the gate stayed closed after a login that landed before the watcher: %v", err)
+	}
+}
+
+func TestLoginGateProbesAgainAfterANetworkError(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"login":"new"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var probes atomic.Int32
+	ticks := make(chan time.Time)
+	g := newLoginGate(ctx, newBridgeLogger(&bytes.Buffer{}), cfgPath, func(context.Context) error {
+		if probes.Add(1) == 1 {
+			return errors.New("connection refused")
+		}
+
+		return nil
+	})
+	g.notice = func(context.Context) {}
+	g.after = func(time.Duration) <-chan time.Time { return ticks }
+	g.trip()
+	ticks <- time.Now()
+	ticks <- time.Now()
+
+	waitCtx, stop := context.WithTimeout(ctx, 2*time.Second)
+	defer stop()
+	if err := g.wait(waitCtx); err != nil {
+		t.Fatalf("the gate stayed closed after a network error on an unchanged file: %v", err)
+	}
+	if probes.Load() != 2 {
+		t.Fatalf("probes = %d, want 2", probes.Load())
+	}
+}
+
+func TestProbeLoginRefusesARevokedLoginWithTimeLeft(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("HOME", dir)
+	var refreshes atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		refreshes.Add(1)
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+	}))
+	defer server.Close()
+	if err := config.Save(config.Config{BaseURL: server.URL, OAuth: &config.OAuthTokens{
+		AccessToken: "revoked", RefreshToken: "dead", ExpiresAt: time.Now().Add(time.Hour),
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := probeLogin(context.Background(), server.URL, server.Client()); !errors.Is(err, oauth.ErrLoginExpired) {
+		t.Fatalf("probe error = %v, want ErrLoginExpired", err)
+	}
+	if refreshes.Load() != 1 {
+		t.Fatalf("refreshes = %d, want 1: the probe trusted the cached access token", refreshes.Load())
 	}
 }
 

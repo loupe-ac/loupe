@@ -100,9 +100,10 @@ func (g *loginGate) wait(ctx context.Context) error {
 	}
 }
 
-// watch looks at config.json every loginPollInterval. A changed file earns one
+// watch looks at config.json every loginPollInterval. A changed file earns a
 // probe, and a probe that gives a token opens the gate. The first tick always
-// probes, because a login can land before the watcher reads the file.
+// probes, because a login can land before the watcher reads the file. Only an
+// expired login marks the file as seen, so a network error probes again.
 func (g *loginGate) watch(open chan struct{}) {
 	var seen os.FileInfo
 	for {
@@ -115,8 +116,11 @@ func (g *loginGate) watch(open chan struct{}) {
 		if err != nil || unchanged(seen, now) {
 			continue
 		}
-		seen = now
 		if err := g.probe(g.ctx); err != nil {
+			if errors.Is(err, oauth.ErrLoginExpired) {
+				seen = now
+			}
+
 			continue
 		}
 		g.mu.Lock()
@@ -184,10 +188,24 @@ func startLoginGate(ctx context.Context, log *slog.Logger, cfg config.Config) {
 	if err != nil || cfg.OAuth == nil {
 		return
 	}
-	probe := func(ctx context.Context) error {
-		_, err := tokenSource(cfg, &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}).Token(ctx)
+	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
+	setBridgeGate(newLoginGate(ctx, log, path, func(ctx context.Context) error {
+		return probeLogin(ctx, cfg.BaseURL, hc)
+	}))
+}
 
+// probeLogin spends the refresh token on disk, so only a login that Loupe
+// accepts opens the gate. A cached access token proves nothing, because a
+// revoked login can keep one with time left.
+func probeLogin(ctx context.Context, baseURL string, hc *http.Client) error {
+	cfg, err := config.Load()
+	if errors.Is(err, config.ErrNotLoggedIn) {
+		return oauth.ErrLoginExpired
+	}
+	if err != nil {
 		return err
 	}
-	setBridgeGate(newLoginGate(ctx, log, path, probe))
+	_, err = oauth.NewSource(baseURL, *cfg.OAuth, hc).Refresh(ctx, cfg.OAuth.AccessToken)
+
+	return err
 }
