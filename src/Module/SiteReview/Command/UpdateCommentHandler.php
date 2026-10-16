@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Module\SiteReview\Command;
 
 use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Event\SiteReviewCommentUpdated;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -17,6 +19,7 @@ final readonly class UpdateCommentHandler
         private SiteReviewCommentRepository $siteReviewComments,
         private EntityManagerInterface $em,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -37,6 +40,8 @@ final readonly class UpdateCommentHandler
             ],
             new AuditSubject('site_review_comment', (string) $command->commentId),
         );
+
+        $this->events->dispatch(new SiteReviewCommentUpdated($command->project->requireId(), $command->commentId, $comment->body));
 
         return $comment;
     }

@@ -24,6 +24,7 @@ final readonly class CardInputs
         public bool $childMergedIntoEpicBranch,
         public array $parentDocuments,
         public ?string $parentSlot,
+        public bool $hasClosedBlocker = false,
     ) {
     }
 }

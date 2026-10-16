@@ -23,7 +23,7 @@ use Ubermuda\AuditBundle\AuditSubject;
 /**
  * Deletes a pending widget note, and the card the note created when nobody
  * has worked on that card since: it still sits in the Backlog, holds
- * no other note, is not a type that may have children, has an empty body, has no pull request,
+ * no other note, is not a type that may have children, has the body it was created with, has no pull request,
  * no document and no link to or from another card, and has no open run. Returns whether the card
  * went too.
  */
@@ -78,7 +78,7 @@ final readonly class DeleteFeedbackHandler
                 || $types->get($card->type)->children
                 || [] !== $this->cardSiteReviewComments->findForCard($card)
                 || (null !== $card->id && [] !== $this->workerRuns->findCardIdsWithOpenRun($command->project, [$card->id]))
-                || $this->cards->hasWork($card, $link->createdTitle ?? $card->title, $this->cardEvents->createdType($card) ?? $types->defaultKey)) {
+                || $this->cards->hasWork($card, $link->createdTitle ?? $card->title, $link->createdBody ?? '', $this->cardEvents->createdType($card) ?? $types->defaultKey)) {
                 return false;
             }
 

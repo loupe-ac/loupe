@@ -35,6 +35,9 @@ final readonly class ExportDesignSystemHandler
         'motion' => 'motion',
     ];
 
+    /** Custom properties that Claude Design must not read as theme tokens. */
+    private const string OTHER_KIND = '~(?<![\w-])(--(?:tw-|duration-|ease-|default-transition-|animate-)[\w-]*:[^;{}]*)(;|(?=\}))~';
+
     public function __construct(
         private Catalog $catalog,
         private TokenReader $tokenReader,
@@ -72,7 +75,7 @@ final readonly class ExportDesignSystemHandler
         $write('tokens/fonts.css', $this->fontsCss($this->read($styles.'/app.css')));
         $write('tokens/base.css', $this->render('base.css.twig'));
         $imports[] = "@import './tokens/base.css';";
-        $write('styles.css', implode("\n", $imports)."\n".$this->tailwind->compile($styles.'/design-system.css'));
+        $write('styles.css', implode("\n", $imports)."\n".$this->markOtherKind($this->tailwind->compile($styles.'/design-system.css')));
 
         $names = array_map(static fn ($entry): string => $entry->name, $entries);
         foreach ($entries as $entry) {
@@ -140,7 +143,13 @@ final readonly class ExportDesignSystemHandler
             $files[$file] = ($files[$file] ?? "/* Copied from assets/styles/tokens.css by app:design-system:export. Edit that file instead. */\n").trim($css)."\n\n";
         }
 
-        return array_map(static fn (string $css): string => rtrim($css)."\n", $files);
+        return array_map(fn (string $css): string => rtrim($this->markOtherKind($css))."\n", $files);
+    }
+
+    /** Tags each Tailwind internal, motion and transition property as `@kind other`. */
+    private function markOtherKind(string $css): string
+    {
+        return preg_replace(self::OTHER_KIND, '$1; /* @kind other */', $css) ?? $css;
     }
 
     /** Reuses the app's `@font-face` rules, pointed at the copied files. */

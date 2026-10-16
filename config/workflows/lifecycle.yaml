@@ -92,6 +92,23 @@ rules:
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
                   - The Loupe plugin skills are installed for the agent
 
+    - id: tech-design-recheck
+      slot: tech-design
+      when:
+          all:
+              - card.document.approved: { tag: tech-design }
+              - not: { card.document.changes_requested: { tag: tech-design } }
+              - not: { card.blocker.open: {} }
+              - card.blocker.closed: {}
+              - not: { card.run.finished_with: { kind: tech-design-recheck, reason: done } }
+      then:
+          request:
+              kind: tech-design-recheck
+              checks:
+                  - The agent can read the whole repository
+                  - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
+                  - The Loupe plugin skills are installed for the agent
+
     - id: tech-design-approved
       slot: tech-design
       when:
@@ -99,6 +116,9 @@ rules:
               - card.document.approved: { tag: tech-design }
               - not: { card.document.changes_requested: { tag: tech-design } }
               - not: { card.blocker.open: {} }
+              - any:
+                    - not: { card.blocker.closed: {} }
+                    - card.run.finished_with: { kind: tech-design-recheck, reason: done }
       then: { move: { to: implementation } }
 
     - id: implement
@@ -475,6 +495,15 @@ rules:
               checks:
                   - A preview URL per epic branch
 
+    - id: epic-branch-sync
+      slot: next
+      when:
+          all:
+              - card.parent.exists: {}
+              - not: { card.blocker.open: {} }
+              - not: { card.parent.epic_branch.synced: {} }
+      then: { forge-write: { write: merge-main-into-epic, fallback: sync-epic } }
+
     - id: child-unblocked
       slot: next
       when:
@@ -483,6 +512,7 @@ rules:
               - card.document.approved: { tag: tech-design }
               - card.parent.in_slot: { slot: implementation }
               - not: { card.blocker.open: {} }
+              - card.parent.epic_branch.synced: {}
               - not: { card.pr.linked: {} }
               - not: { card.parent.run.active: {} }
       then: { move: { to: implementation } }

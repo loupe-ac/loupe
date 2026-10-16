@@ -138,13 +138,13 @@ final class GitHubAppApi
     /**
      * @param array<string, mixed> $body
      *
-     * @return array<mixed>
+     * @return array<mixed> the decoded answer, or an empty array when the caller accepts no body and GitHub sends none
      *
      * @throws GitHubAppApiFailed
      */
-    public function post(int $installationId, string $path, array $body): array
+    public function post(int $installationId, string $path, array $body, bool $emptyBodyAccepted = false): array
     {
-        return $this->send('POST', $path, ['json' => $body], $this->installationToken($installationId));
+        return $this->send('POST', $path, ['json' => $body], $this->installationToken($installationId), $emptyBodyAccepted);
     }
 
     /**

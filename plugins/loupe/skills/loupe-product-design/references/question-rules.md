@@ -35,3 +35,4 @@ P6 works through this checklist. Mark each area Clear, Partial or Missing for yo
 11. Terminology. The names a user sees, and whether they match the names the product already uses.
 12. Completion signals. How a user knows that the action worked.
 13. Docs and landing page. The pages the change alters, when the profile is missing.
+14. Design system. For a change that touches the user interface, when the profile names a design system: the components the change reuses, and the components it must change. Settle each component change with the owner.

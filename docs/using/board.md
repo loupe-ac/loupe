@@ -671,8 +671,14 @@ number. Both shipped templates carry `epic/{number}`. A template with no
 `epicBranch` value has no epic branches.
 
 Each child of the epic starts from `epic/<n>`, and its pull request targets
-`epic/<n>`. A child that waits on blockers starts when they are done, so its
-branch already holds their code. Before a merge, the merge stage updates the
+`epic/<n>`. A child that waits on a blocker inside the epic starts when the
+blocker is done, and `epic/<n>` already holds the code of that blocker.
+
+A blocker outside the epic merges into `main`, and `epic/<n>` does not hold
+its code. When such a blocker is done, Loupe merges `main` into `epic/<n>`
+before the child starts. A GitHub App installation does the merge. Without one,
+a bridge runs work of kind `sync-epic`. A merge conflict pauses the child, and a
+person resolves it. Before a merge, the merge stage updates the
 child branch when it is behind `epic/<n>`. When the required checks pass, the
 stage squash-merges the child into `epic/<n>`. That merge needs no approval.
 GitHub has no rule for `epic/<n>`, so the stage checks the child against the
@@ -1154,7 +1160,17 @@ every link of its board.
 
 An open `blocked-by` card keeps an approved card in its stage column. The card
 moves on when its last blocker reaches a terminal column, or when its last
-blocking link goes away. See [An approval moves a card](#an-approval-moves-a-card).
+blocking link goes away. When a blocker is done, an agent first rechecks the
+approved tech design against the code. See [An approval moves a card](#an-approval-moves-a-card)
+and [Recheck of a design](workflows.md#recheck-of-a-design).
+
+The tech design stage records a dependency of a design as a `blocked-by` link.
+A dependency is a part that the design needs, that is missing on the base
+branch, and that one open card builds. The stage adds the link to the card it
+designs, and names the dependency on the `Depends on:` line of the design. It
+never removes or changes a link, so remove a stale link by hand. On an epic, the
+link keeps the whole epic in Tech design after you approve the design. The
+breakdown then cuts `epic/<n>` from a `main` that holds the code of the blocker.
 
 ## Review feedback on a card
 

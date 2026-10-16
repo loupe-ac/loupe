@@ -22,7 +22,7 @@ The workflow also makes the moves that follow a pull request.
 |---|---|---|---|
 | Backlog | `backlog` | backlog | none |
 | Product design | `product-design` | | `product-design`, `product-design-revise` |
-| Tech design | `tech-design` | | `tech-design`, `tech-design-revise` |
+| Tech design | `tech-design` | | `tech-design`, `tech-design-revise`, `tech-design-recheck` |
 | Implementation | `implementation` | | `implement`, `breakdown`, `review`, `fix` |
 | In review | `in-review` | | `review`, `fix`, `merge`, `sync`, `rebase-stacked` |
 | Done | `done` | terminal | `teardown` |
@@ -273,6 +273,22 @@ work:
       Use the loupe-stage-merge skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Loupe asks for sync work.
+      Loupe instance https://loupe.ac.
+
+  sync-epic:
+    permissions: full
+    before:
+      run: [bin/worktrees/bridge-before.sh, "--git-only", "{cardNumber}", "{cardId}"]
+      timeout: 15m
+    prompt: |
+      Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) waits for a blocker outside its epic.
+      Read the epic of the card with card_get, and find its epic branch.
+      Read each done blocker of the card from outside the epic with card_get, and the repository of its merged pull requests.
+      When that repository is not the repository of `git remote get-url origin`, push nothing, and stop with `STAGE RESULT: blocked: wrong repository`.
+      Fetch origin. Check out origin/epic/<n> detached, where <n> is the epic number.
+      Merge origin/<default branch> into it, and push the result to epic/<n> without force.
+      When the merge conflicts, abort it, push nothing, and stop with `STAGE RESULT: blocked: merge conflict`.
+      Change nothing else. Loupe reads the end of this run to know the epic branch is up to date.
       Loupe instance https://loupe.ac.
 
   epic-preview:

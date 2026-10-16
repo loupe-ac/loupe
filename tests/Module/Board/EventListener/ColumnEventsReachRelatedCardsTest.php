@@ -76,6 +76,8 @@ final class ColumnEventsReachRelatedCardsTest extends KernelTestCase
 
         $this->configureColumn($this->project, 'parked', terminal: true);
         $this->runQueuedEvaluations();
+        // The blocker sits outside the epic, so the first pass syncs the epic branch and queues the child again.
+        $this->runQueuedEvaluations();
 
         self::assertSame('in-progress', $this->columnOf($child));
     }
