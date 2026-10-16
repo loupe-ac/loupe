@@ -33,7 +33,7 @@ The workflow asks for a recheck when an approved design waited for a blocker, an
 2. Read the design and its answers, as the contract "Read the answers of a design" says. Do not change an answer.
 3. Read the code on the base branch. List each checked fact of the design: each class, method, field, route, file and behaviour that it names. Read each one. Pay most attention to the parts that the closed blocker builds, which the design could only assume.
 4. When every fact holds, stop with `STAGE RESULT: tech design current [reason: done]`. Change no document.
-5. When a fact no longer holds, revise the design with `document_revise`. Change only what the new code makes wrong, and keep each ID and each answered decision. Say in the first section what changed and why. A revision sets the design back to In review. Update the deploy notes when a deploy item changed, as Revise step 6 says. Stop with `STAGE RESULT: tech design revised <id> [reason: done]`.
+5. When a fact no longer holds, revise the design with `document_revise`. Change only what the new code makes wrong, and keep each ID and each answered decision. Say in the first section what changed and why. A revision sets the design back to In review. Update the deploy notes when a deploy item changed, and record each new dependency, as Revise steps 6 and 7 say. Stop with `STAGE RESULT: tech design revised <id> [reason: done]`.
 6. When a decision of the owner no longer works with the new code, do not change that decision. Add a new open decision with its own ID, then revise as in step 5.
 
 ### Revise, when step 9 or 10 finds the design
