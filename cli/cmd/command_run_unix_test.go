@@ -63,3 +63,22 @@ func TestAdoptRuleCommandWithNoRecordFails(t *testing.T) {
 		t.Fatalf("commandResult = %+v", got)
 	}
 }
+
+// A merged run keeps stdout and stderr in the order they arrived, in one file.
+func TestRunRuleCommandMergesItsStreams(t *testing.T) {
+	shortConfigHome(t)
+	res := runRuleCommand(context.Background(), procSpec{
+		argv: []string{"sh", "-c", "echo one; echo two >&2; echo three; echo four >&2"},
+		dir:  t.TempDir(), runID: "run-1", merge: true,
+	}, nil)
+
+	if res.failureOf(commandProc) != "" || res.output != "one\ntwo\nthree\nfour" {
+		t.Fatalf("runRuleCommand = %+v", res)
+	}
+	if b, err := os.ReadFile(filepath.Join(res.runDir, "command.stderr")); err != nil || len(b) != 0 {
+		t.Fatalf("stderr file = %q, %v, want present and empty", b, err)
+	}
+	if got := adoptRuleCommand(context.Background(), res.runDir); got.output != res.output {
+		t.Fatalf("adoptRuleCommand = %+v, want %+v", got, res)
+	}
+}

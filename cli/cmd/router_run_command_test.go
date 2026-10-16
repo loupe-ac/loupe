@@ -225,3 +225,61 @@ func TestAWorkRequestDecodesBranchAndParams(t *testing.T) {
 		t.Fatal("RunBranch default is not main")
 	}
 }
+
+// A run-command run streams its output while it runs. The last chunk reaches
+// Loupe before the run reports succeeded, so the stored log is complete when the
+// item shows it.
+func TestARunCommandRunStreamsItsOutputBeforeItSucceeds(t *testing.T) {
+	h, f, cmd, _, rec := withRunCommand(t)
+	cmd.dir, cmd.stdout = t.TempDir(), "one\ntwo\nthree\n"
+	cmd.result = procResult{output: "done"}
+
+	h.offer(f, runCommandRequest(1, "export", "", map[string]string{"out": "ok"}))
+
+	sent := rec.states()
+	wantStates(t, sent, api.RunQueued, api.RunRunning, api.RunSucceeded)
+	runID := sent[0].runID
+	if got := rec.output(runID); got != cmd.stdout {
+		t.Fatalf("stored output = %q, want %q", got, cmd.stdout)
+	}
+	names := rec.names()
+	succeeded := slices.Index(names, api.RunSucceeded)
+	if slices.Index(names, "output") < slices.Index(names, api.RunRunning) {
+		t.Fatalf("order = %v, want output after running", names)
+	}
+	if slices.Contains(names[succeeded:], "output") {
+		t.Fatalf("order = %v, want no output after succeeded", names)
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	for _, v := range rec.sent {
+		if o, ok := v.(outputSent); ok && (o.handle != testProject || o.runID != runID || o.bridgeID != testBridgeID) {
+			t.Fatalf("chunk = %+v", o)
+		}
+	}
+}
+
+// A run-command run asks for merged streams, and a command rule does not
+// ask for them. A command rule streams nothing either.
+func TestOnlyARunCommandRunMergesAndStreams(t *testing.T) {
+	h, f, cmd, _, rec := withRunCommand(t)
+	cmd.dir, cmd.stdout = t.TempDir(), "out\n"
+	h.offer(f, runCommandRequest(1, "export", "", map[string]string{"out": "ok"}))
+	if specs := cmd.recorded(); len(specs) != 1 || !specs[0].merge {
+		t.Fatalf("run-command specs = %+v, want merge", specs)
+	}
+
+	rh, rule := withCommand(t, "1m")
+	rrec := rh.states()
+	rule.dir, rule.stdout = t.TempDir(), "out\n"
+	rh.send(doneMoved(87))
+	if specs := rule.recorded(); len(specs) != 1 || specs[0].merge {
+		t.Fatalf("rule command specs = %+v, want no merge", specs)
+	}
+	if slices.Contains(rrec.names(), "output") {
+		t.Fatalf("a command rule streamed: %v", rrec.names())
+	}
+	if !slices.Contains(rec.names(), "output") {
+		t.Fatalf("a run-command run streamed nothing: %v", rec.names())
+	}
+}

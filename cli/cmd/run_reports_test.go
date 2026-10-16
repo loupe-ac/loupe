@@ -39,6 +39,10 @@ func (f *fakeRunClient) ReportToolCalls(_ context.Context, handle, runID string,
 	return f.toolCalls(batch)
 }
 
+func (f *fakeRunClient) PutRunOutput(context.Context, string, string, string, int64, string) (api.RunOutputAnswer, error) {
+	return api.RunOutputAnswer{}, nil
+}
+
 func (f *fakeRunClient) Sites(context.Context) ([]api.Site, error) {
 	f.mu.Lock()
 	f.siteReads++

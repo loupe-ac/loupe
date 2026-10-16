@@ -12,6 +12,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
@@ -472,6 +473,100 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertCount(1, $crawler->filter('[data-inbox-run-command-dialog]'));
     }
 
+    public function test_a_running_command_streams_its_stored_log_into_a_live_block(): void
+    {
+        $item = $this->commandTodo();
+        $run = $this->commandRunOf($item, WorkRequestState::Claimed, WorkerRunState::Running);
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->storeLog($run, "Reading tokens\nExporting 12/38 ");
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="running"]');
+        $output = $block->filter('[data-inbox-run-command-live]');
+        self::assertCount(1, $output);
+        self::assertSame('run-output', $output->attr('data-controller'));
+        self::assertSame('/projects/'.$this->project->id.'/worker-runs/'.$run->id.'/output', $output->attr('data-run-output-url-value'));
+        self::assertSame((string) $run->id, $output->attr('data-run-output-run-id-value'));
+        self::assertSame((string) \strlen("Reading tokens\nExporting 12/38 "), $output->attr('data-run-output-length-value'));
+        self::assertSame('Output', trim($output->filter('.lp-code-dark__label')->text()));
+        self::assertSame('Live', trim($output->filter('.lp-run-output__live')->text()));
+        self::assertSame("Reading tokens\nExporting 12/38 ", $output->filter('pre code')->html());
+        self::assertCount(1, $output->filter('pre .lp-run-output__cursor'));
+        self::assertCount(0, $block->filter('[data-inbox-run-command-log]'));
+    }
+
+    public function test_a_running_command_with_no_output_yet_shows_an_empty_live_block(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Claimed, WorkerRunState::Running);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $output = $crawler->filter('[data-inbox-run-command-live]');
+        self::assertCount(1, $output);
+        self::assertSame('0', $output->attr('data-run-output-length-value'));
+        self::assertSame('', $output->filter('pre code')->text());
+    }
+
+    public function test_a_succeeded_command_shows_its_time_its_last_lines_and_a_link_to_the_full_log(): void
+    {
+        $item = $this->commandTodo();
+        $run = $this->commandRunOf(
+            $item,
+            WorkRequestState::Done,
+            WorkerRunState::Succeeded,
+            0,
+            startedAt: new \DateTimeImmutable('2026-10-16 10:00:00'),
+            endedAt: new \DateTimeImmutable('2026-10-16 10:00:14'),
+        );
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->storeLog($run, implode('', array_map(static fn (int $line): string => 'line '.$line."\n", range(1, 12))));
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="succeeded"]');
+        self::assertStringContainsString('Succeeded in 14 s', $block->filter('.lp-status-chip')->text());
+        $output = $block->filter('[data-inbox-run-command-output]');
+        self::assertSame('Output, last lines', trim($output->filter('.lp-code-dark__label')->text()));
+        self::assertSame('line 3', explode("\n", $output->filter('pre code')->html())[0]);
+        self::assertCount(0, $block->filter('[data-controller="run-output"]'));
+        $link = $block->filter('[data-inbox-run-command-log]');
+        self::assertSame('Open the full log (12 lines)', trim($link->text()));
+        self::assertSame('/projects/'.$this->project->id.'/worker-runs/'.$run->id.'/log', $link->attr('href'));
+        self::assertSame('_blank', $link->attr('target'));
+        self::assertStringContainsString('noopener', (string) $link->attr('rel'));
+    }
+
+    public function test_a_failed_command_puts_the_log_link_left_of_its_buttons(): void
+    {
+        $item = $this->commandTodo();
+        $run = $this->commandRunOf($item, WorkRequestState::Done, WorkerRunState::Failed, 1);
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->storeLog($run, "one\ntwo\n");
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $row = $crawler->filter('[data-inbox-run-command="failed"] .lp-form-actions');
+        self::assertCount(1, $row->filter('.lp-form-actions--between'));
+        self::assertSame('Open the full log (2 lines)', trim($row->filter('[data-inbox-run-command-log]')->text()));
+        self::assertSame('a', $row->children()->first()->nodeName());
+        self::assertCount(1, $row->filter('[data-inbox-run-command-done]'));
+        self::assertCount(1, $row->filter('[data-inbox-action="run-command-again"]'));
+    }
+
+    public function test_a_command_with_no_stored_log_offers_no_log_link(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Done, WorkerRunState::Failed, 1, 'boom');
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="failed"]');
+        self::assertStringContainsString('boom', $block->filter('[data-inbox-run-command-output]')->text());
+        self::assertCount(0, $block->filter('[data-inbox-run-command-log]'));
+    }
+
     public function test_a_queued_command_shows_the_chip_and_a_cancel_button_and_no_output(): void
     {
         $item = $this->commandTodo();
@@ -717,7 +812,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('', $off->attr('data-folder'));
     }
 
-    private function commandRunOf(InboxItem $item, WorkRequestState $state, ?WorkerRunState $runState = null, ?int $exitCode = null, string $output = '', ?string $reason = null): void
+    private function commandRunOf(InboxItem $item, WorkRequestState $state, ?WorkerRunState $runState = null, ?int $exitCode = null, string $output = '', ?string $reason = null, ?\DateTimeImmutable $startedAt = null, ?\DateTimeImmutable $endedAt = null): ?WorkerRun
     {
         $request = new WorkRequest(
             project: $this->project,
@@ -737,8 +832,9 @@ final class InboxActionControllersTest extends WebTestCase
         $action = new InboxAction($item, InboxActionKind::RunCommand, $this->project->owner, '', new \DateTimeImmutable());
         $action->workRequestId = $request->id;
         $this->em()->persist($action);
+        $run = null;
         if (null !== $runState) {
-            $this->em()->persist(new WorkerRun(
+            $this->em()->persist($run = new WorkerRun(
                 project: $this->project,
                 bridgeId: $this->bridge->id,
                 subjectType: WorkSubject::CARD,
@@ -747,11 +843,21 @@ final class InboxActionControllersTest extends WebTestCase
                 workKind: 'design-export',
                 state: $runState,
                 runKey: Uuid::v7(),
+                startedAt: $startedAt,
+                endedAt: $endedAt,
                 exitCode: $exitCode,
                 output: $output,
                 workRequestId: $request->id,
             ));
         }
+        $this->em()->flush();
+
+        return $run;
+    }
+
+    private function storeLog(WorkerRun $run, string $text): void
+    {
+        $this->em()->persist(new WorkerRunOutputChunk($run, 0, \strlen($text), $text));
         $this->em()->flush();
     }
 

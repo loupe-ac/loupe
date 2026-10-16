@@ -28,8 +28,12 @@ func (p pending) isCommand() bool {
 // run-command request in the folder of its branch, under the
 // rule's timeout, and settles the run. It reports running once the command
 // exists, with no session. A person's stop reaches it as it reaches a worker.
+// A run-command request streams its output to Loupe while it runs, and the
+// last chunk goes out before the run settles.
 func (r *router) execute(p pending) {
 	began := time.Now()
+	streams := p.work.Capability == rules.CapabilityRunCommand
+	var stream *outputStreamer
 	onStart := func(proc workerProc) {
 		began = time.Now()
 		r.mu.Lock()
@@ -37,6 +41,9 @@ func (r *router) execute(p pending) {
 		r.trackLocked(liveRun{p: p, began: began, proc: proc})
 		r.log.Info("command_started", append(about(p.event, p.rule), "pid", proc.pid)...)
 		r.emitLocked(p, api.RunStateReport{State: api.RunRunning, StartedAt: began})
+		if streams {
+			stream = r.startOutput(p, proc)
+		}
 		if r.stops[p.runID] {
 			r.stopLiveLocked(r.live[p.runID])
 		}
@@ -57,8 +64,9 @@ func (r *router) execute(p pending) {
 		}
 	}
 	ctx, cancel := context.WithTimeout(r.workerContext(), cmp.Or(p.spec.command.Timeout, rules.DefaultCommandTimeout))
-	res := run(ctx, procSpec{argv: p.spec.command.Argv, dir: dir, runID: p.runID}, onStart)
+	res := run(ctx, procSpec{argv: p.spec.command.Argv, dir: dir, runID: p.runID, merge: streams}, onStart)
 	cancel()
+	stream.finish()
 	r.settle(p, endedRun{res: commandResult(res), began: began, elapsed: time.Since(began)})
 }
 

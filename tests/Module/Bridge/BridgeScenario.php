@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
@@ -164,6 +165,18 @@ trait BridgeScenario
             signatures: [$tool],
             fullText: null,
         )]);
+    }
+
+    /** Stores one chunk at the end of the log of the run. */
+    private function seedOutputChunk(WorkerRun $run, string $text, bool $cut = false): WorkerRunOutputChunk
+    {
+        $em = $this->em();
+        $start = (int) $em->getConnection()->fetchOne('SELECT COALESCE(MAX(start_offset + length), 0) FROM bridge_worker_run_output_chunks WHERE run_id = :run', ['run' => (string) $run->id]);
+        $chunk = new WorkerRunOutputChunk($run, $start, \strlen($text), $text, $cut);
+        $em->persist($chunk);
+        $em->flush();
+
+        return $chunk;
     }
 
     /** @param list<float> $cpuPct */
