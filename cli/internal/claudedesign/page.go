@@ -834,6 +834,11 @@ func (p *page) expandElement(n *html.Node, scope map[string]any) []*html.Node {
 				continue
 			}
 			inner = &markup
+		case booleanAttrs[a.Key] && plainHoleOK(a.Val):
+			path, _ := plainHole(a.Val)
+			if v, found := lookup(scope, path); found && truthy(v) {
+				el.Attr = append(el.Attr, html.Attribute{Namespace: a.Namespace, Key: a.Key})
+			}
 		default:
 			val, problems := p.interpolateAttr(a.Val, scope)
 			for _, pr := range problems {

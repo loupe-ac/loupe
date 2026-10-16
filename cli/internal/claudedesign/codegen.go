@@ -291,6 +291,18 @@ func (g *gen) element(n *html.Node, d int) error {
 	return nil
 }
 
+// booleanAttrs are the attributes that a browser reads as on when they are
+// present, whatever their value. A hole alone in one of them draws the
+// attribute or leaves it out, as React does.
+var booleanAttrs = map[string]bool{
+	"allowfullscreen": true, "async": true, "autofocus": true, "autoplay": true,
+	"checked": true, "controls": true, "default": true, "defer": true,
+	"disabled": true, "formnovalidate": true, "hidden": true, "inert": true,
+	"itemscope": true, "loop": true, "multiple": true, "muted": true,
+	"nomodule": true, "novalidate": true, "open": true, "playsinline": true,
+	"readonly": true, "required": true, "reversed": true, "selected": true,
+}
+
 func (g *gen) attr(a html.Attribute, d int) error {
 	key := a.Key
 	if a.Namespace != "" {
@@ -303,6 +315,13 @@ func (g *gen) attr(a html.Attribute, d int) error {
 	hasHole := false
 	for _, s := range segs {
 		hasHole = hasHole || s.hole
+	}
+	if path, ok := plainHole(a.Val); ok && booleanAttrs[a.Key] {
+		g.line("if(R.T(" + get(d, path) + ")){")
+		g.text(" " + key + `=""`)
+		g.line("}")
+
+		return nil
 	}
 	r, moved := g.p.rebaser()
 	rebase := hasHole && moved && rebasedAttrs[a.Key]

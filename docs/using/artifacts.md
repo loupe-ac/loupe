@@ -115,8 +115,11 @@ full page. The page also holds one inline script. That script holds the logic
 of the canvas, a small Loupe redraw runtime, and the template as a render
 function. When a click or a keystroke calls `setState`, the page draws again and
 keeps the focus and the caret of a text field. An `onChange` on a text field
-runs on each keystroke, as in React. Timers and `componentDidMount`
-also run. A canvas with a script and no event, timer or mount hook compiles to
+runs on each keystroke, as in React. Timers, `componentDidMount` and
+`componentDidUpdate` also run. `componentDidUpdate` gets the props and the
+state from before the change, and runs after the page draws again. An
+attribute such as `disabled`, `checked` or `hidden` with a hole as its whole
+value is on when the value is true in JavaScript, and absent otherwise. A canvas with a script and no event, timer or mount hook compiles to
 plain markup, with no script.
 
 One canvas becomes `index.html`. A link to a canvas of the folder, such as
