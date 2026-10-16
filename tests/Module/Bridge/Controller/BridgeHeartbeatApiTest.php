@@ -588,7 +588,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $reply = $this->reply($client);
         self::assertSame([], $reply['lostClaims']);
         self::assertSame([], $reply['workRequests']);
-        self::assertSame('2026-10-01 12:32:00', $this->leaseUntil($held));
+        self::assertSame('2026-10-01 13:00:00', $this->leaseUntil($held));
     }
 
     public function test_a_named_claim_that_the_bridge_no_longer_holds_is_lost(): void
@@ -627,7 +627,7 @@ final class BridgeHeartbeatApiTest extends WebTestCase
             $reply['lostClaims'],
         );
         self::assertSame([], $reply['workRequests']);
-        self::assertSame('2026-10-01 12:32:00', $this->leaseUntil($held));
+        self::assertSame('2026-10-01 13:00:00', $this->leaseUntil($held));
         self::assertSame('2026-10-01 12:31:00', $this->leaseUntil($otherToken));
     }
 

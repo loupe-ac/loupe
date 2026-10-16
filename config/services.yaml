@@ -98,7 +98,7 @@ parameters:
     # Every minute, so an expired command leaves the pending list soon after its time.
     app.bridge.command_expiry_schedule: '* * * * *'
     # How long a claim of a work request holds, in seconds. A heartbeat renews it.
-    app.bridge.work_request_lease_seconds: 120
+    app.bridge.work_request_lease_seconds: 1800
     # Every minute, so the work of a bridge that died waits at most a minute past its lease.
     app.bridge.work_request_reopen_schedule: '* * * * *'
     # How long a work request about a subject other than a card waits for a

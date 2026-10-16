@@ -38,7 +38,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(200);
         $body = $this->json($client);
         self::assertSame((string) $request->id, $body['workRequestId']);
-        self::assertSame('2026-10-01T12:32:00+00:00', $body['leaseUntil']);
+        self::assertSame('2026-10-01T13:00:00+00:00', $body['leaseUntil']);
         self::assertIsString($body['claimToken']);
         self::assertTrue(Uuid::isValid($body['claimToken']));
         self::assertIsArray($body['workRequest']);
@@ -49,7 +49,7 @@ final class WorkRequestClaimApiTest extends WebTestCase
         self::assertSame(WorkRequestState::Claimed, $stored->state);
         self::assertTrue($bridge->id->equals($stored->bridgeId));
         self::assertSame($body['claimToken'], $stored->claimToken?->toRfc4122());
-        self::assertSame('2026-10-01T12:32:00+00:00', $stored->leaseUntil?->format(\DateTimeInterface::ATOM));
+        self::assertSame('2026-10-01T13:00:00+00:00', $stored->leaseUntil?->format(\DateTimeInterface::ATOM));
         self::assertSame(1, $stored->claims);
 
         $payloads = $this->outboxPayloads();

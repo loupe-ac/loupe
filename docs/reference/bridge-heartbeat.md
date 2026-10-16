@@ -513,8 +513,9 @@ record holds no claim token.
 
 ### The lease
 
-A claim holds a lease of 2 minutes. `app.bridge.work_request_lease_seconds` in
-`config/services.yaml` sets it. Each heartbeat renews the leases of the claims
+A claim holds a lease of 30 minutes. `app.bridge.work_request_lease_seconds` in
+`config/services.yaml` sets it. A bridge that cannot reach Loupe for less than
+that time, such as during an expired login, keeps its workers. Each heartbeat renews the leases of the claims
 it names in `workClaims`. The server renews a claim only when this bridge holds
 it with that token, and the project of the request belongs to the account of
 the heartbeat. The reply names each other id in `lostClaims`. The bridge then
