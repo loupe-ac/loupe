@@ -49,12 +49,11 @@ final class ShowPendingCommentsController extends AppController
             return $this->json(['error' => 'token_not_bound_to_site'], JsonResponse::HTTP_FORBIDDEN);
         }
 
-        // No scope keeps the project-wide list, because a browser can hold an
-        // old copy of the script for a long time. A scope nothing resolves
-        // lists nothing.
-        $scope = $request->query->get('scope');
-        $commentIds = \is_string($scope) && '' !== trim($scope)
-            ? $this->commentScopes->resolve($scope, $project) ?? []
+        // Only an absent scope keeps the project-wide list, because a browser
+        // can hold an old copy of the script for a long time. A scope nothing
+        // resolves, an empty one included, lists nothing.
+        $commentIds = $request->query->has('scope')
+            ? $this->commentScopes->resolve((string) $request->query->get('scope'), $project) ?? []
             : null;
 
         $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds));

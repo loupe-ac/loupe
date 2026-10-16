@@ -212,6 +212,8 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertSame([], $ids('?scope='.urlencode('card:'.$epic->id)));
         self::assertSame([], $ids('?scope='.urlencode('branch:feat/x')));
         self::assertSame([], $ids('?scope='.urlencode('card:not-a-uuid')));
+        self::assertSame([], $ids('?scope='));
+        self::assertSame([], $ids('?scope='.urlencode('  ')));
     }
 
     public function test_the_list_scope_drops_a_card_of_another_project_and_a_closed_one(): void
