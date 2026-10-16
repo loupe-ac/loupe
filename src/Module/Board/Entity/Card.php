@@ -83,6 +83,10 @@ class Card implements ProjectScopedSubject
     #[ORM\Column(name: 'lane_enabled', options: ['default' => true])]
     public bool $laneEnabled = true;
 
+    /** Only an epic reads it: the time a merge of the default branch into the epic branch last succeeded. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $epicBranchSyncedAt = null;
+
     /**
      * Title and body, stemmed and weighted, as one searchable vector. It sits on
      * the card rather than in a table of its own because card_search already

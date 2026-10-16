@@ -1,5 +1,5 @@
 key: lifecycle
-version: 2
+version: 3
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -475,6 +475,16 @@ rules:
               checks:
                   - A preview URL per epic branch
 
+    - id: epic-branch-sync
+      slot: next
+      when:
+          all:
+              - card.parent.exists: {}
+              - not: { card.blocker.open: {} }
+              - not: { card.parent.epic_branch.synced: {} }
+              - not: { card.run.finished_with: { kind: sync-epic, reason: done } }
+      then: { forge-write: { write: merge-main-into-epic, fallback: sync-epic } }
+
     - id: child-unblocked
       slot: next
       when:
@@ -483,6 +493,9 @@ rules:
               - card.document.approved: { tag: tech-design }
               - card.parent.in_slot: { slot: implementation }
               - not: { card.blocker.open: {} }
+              - any:
+                    - card.parent.epic_branch.synced: {}
+                    - card.run.finished_with: { kind: sync-epic, reason: done }
               - not: { card.pr.linked: {} }
               - not: { card.parent.run.active: {} }
       then: { move: { to: implementation } }

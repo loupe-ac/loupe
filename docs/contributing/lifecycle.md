@@ -275,6 +275,20 @@ work:
       Loupe asks for sync work.
       Loupe instance https://loupe.ac.
 
+  sync-epic:
+    permissions: full
+    before:
+      run: [bin/worktrees/bridge-before.sh, "--git-only", "{cardNumber}", "{cardId}"]
+      timeout: 15m
+    prompt: |
+      Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) waits for a blocker outside its epic.
+      Read the epic of the card with card_get, and find its epic branch.
+      Fetch origin. Check out origin/epic/<n> detached, where <n> is the epic number.
+      Merge origin/<default branch> into it, and push the result to epic/<n> without force.
+      When the merge conflicts, abort it, push nothing, and stop with `STAGE RESULT: blocked: merge conflict`.
+      Change nothing else. Loupe reads the end of this run to know the epic branch is up to date.
+      Loupe instance https://loupe.ac.
+
   epic-preview:
     permissions: full
     prompt: |

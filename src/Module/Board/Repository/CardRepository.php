@@ -689,6 +689,25 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The cards that block this one from a terminal column and sit outside its epic, as the
+     * database holds them now, by number. A blocker with no parent sits outside every epic.
+     *
+     * @return list<Card>
+     */
+    public function findDoneBlockersOutsideEpicOf(Card $card): array
+    {
+        return $this->cardsByIds($this->getEntityManager()->getConnection()->fetchFirstColumn(
+            "SELECT s.id FROM board_card_links l
+             JOIN board_cards s ON s.id = l.source_card_id
+             JOIN board_columns k ON k.id = s.column_id
+             WHERE l.target_card_id = :id AND l.kind = 'blocks' AND k.terminal = true
+               AND s.parent_card_id IS DISTINCT FROM :parent
+             ORDER BY s.number",
+            ['id' => (string) $card->id, 'parent' => null === $card->parent ? null : (string) $card->parent->id],
+        ));
+    }
+
+    /**
      * How many cards this card follows, and how many of them sit in a column that is not terminal.
      *
      * @return array{followed: int, open: int}

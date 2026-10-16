@@ -669,8 +669,14 @@ number. Both shipped templates carry `epic/{number}`. A template with no
 `epicBranch` value has no epic branches.
 
 Each child of the epic starts from `epic/<n>`, and its pull request targets
-`epic/<n>`. A child that waits on blockers starts when they are done, so its
-branch already holds their code. Before a merge, the merge stage updates the
+`epic/<n>`. A child that waits on a blocker inside the epic starts when the
+blocker is done, and `epic/<n>` already holds the code of that blocker.
+
+A blocker outside the epic merges into `main`, and `epic/<n>` does not hold
+its code. When such a blocker is done, Loupe merges `main` into `epic/<n>`
+before the child starts. A GitHub App installation does the merge. Without one,
+a bridge runs work of kind `sync-epic`. A merge conflict pauses the child, and a
+person resolves it. Before a merge, the merge stage updates the
 child branch when it is behind `epic/<n>`. When the required checks pass, the
 stage squash-merges the child into `epic/<n>`. That merge needs no approval.
 GitHub has no rule for `epic/<n>`, so the stage checks the child against the
