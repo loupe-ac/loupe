@@ -272,7 +272,11 @@ saw a new head, asks for a review of the current head again.
 
 A work request that no bridge takes within 2 hours pauses the card with "no
 bridge took the work". A teardown request is the exception: it expires with no
-pause.
+pause. The inbox then shows the item **Card paused: no bridge took its work in
+time**. It tells you to check that a bridge is online, then to open the card and
+resume it. Before that, work that waits 10 minutes with no online bridge opens
+the notice **No bridge can take work**, as [the inbox guide](inbox.md#notices)
+says.
 
 A person ends a pause with **Retry now** in the Workflow panel of the card. The
 button shows for a pause after too many retries, after the work limit, after

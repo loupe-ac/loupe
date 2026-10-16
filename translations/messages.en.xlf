@@ -5394,11 +5394,11 @@
             </trans-unit>
             <trans-unit id="board.inbox_wait.work_timeout">
                 <source>board.inbox_wait.work_timeout</source>
-                <target>Card %card% paused because its work ran too long.</target>
+                <target>Card %card% paused because no bridge took its work in time.</target>
             </trans-unit>
             <trans-unit id="board.inbox_wait.work_timeout.action">
                 <source>board.inbox_wait.work_timeout.action</source>
-                <target>Open the card and resume it</target>
+                <target>Check that a bridge is online, then open the card and resume it</target>
             </trans-unit>
             <trans-unit id="board.inbox_wait.work_stopped">
                 <source>board.inbox_wait.work_stopped</source>
@@ -5454,7 +5454,7 @@
             </trans-unit>
             <trans-unit id="board.inbox_wait.work_timeout.title">
                 <source>board.inbox_wait.work_timeout.title</source>
-                <target>Card paused: its work ran too long</target>
+                <target>Card paused: no bridge took its work in time</target>
             </trans-unit>
             <trans-unit id="board.inbox_wait.work_stopped.title">
                 <source>board.inbox_wait.work_stopped.title</source>
@@ -5587,6 +5587,26 @@
             <trans-unit id="inbox.item.error.notice">
                 <source>inbox.item.error.notice</source>
                 <target>A notice takes no response. Loupe closes it when the fact ends.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.title">
+                <source>inbox.bridge_outage.title</source>
+                <target>No bridge can take work</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.intro">
+                <source>inbox.bridge_outage.body.intro</source>
+                <target>No bridge is online that can take the work of these cards:</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.card">
+                <source>inbox.bridge_outage.body.card</source>
+                <target>Card %number%: %title%</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.body.remedy">
+                <source>inbox.bridge_outage.body.remedy</source>
+                <target>Start a bridge, or run `loupe login`.</target>
+            </trans-unit>
+            <trans-unit id="inbox.bridge_outage.closed">
+                <source>inbox.bridge_outage.closed</source>
+                <target>{0}No bridge could take work from %start% to %end%. %count% cards waited.|{1}No bridge could take work from %start% to %end%. %count% card waited.|]1,Inf[No bridge could take work from %start% to %end%. %count% cards waited.</target>
             </trans-unit>
             <trans-unit id="inbox.item.error.workflow_not_declinable">
                 <source>inbox.item.error.workflow_not_declinable</source>
