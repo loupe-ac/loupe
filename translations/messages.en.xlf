@@ -8347,6 +8347,10 @@
             <trans-unit id="workflow.waiting.not.run_done_at_head"><source>workflow.waiting.not.run_done_at_head</source><target>Waiting: a matching work request ended done at the current head of the pull request.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_active"><source>workflow.waiting.run_work_active</source><target>Waiting: no matching work request is active.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_active"><source>workflow.waiting.not.run_work_active</source><target>Waiting: a matching work request is still active.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_no_taker"><source>workflow.waiting.run_work_no_taker</source><target>Waiting: every open work request has an online bridge that could take it.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_no_taker"><source>workflow.waiting.not.run_work_no_taker</source><target>Waiting: an open work request has no online bridge that could take it.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_taker_paused"><source>workflow.waiting.run_work_taker_paused</source><target>Waiting: the bridges that could take the open work are not all paused.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_worker_active"><source>workflow.waiting.not.run_worker_active</source><target>Waiting: a matching worker run is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.parent_document_approved"><source>workflow.waiting.parent_document_approved</source><target>Waiting: not every %tag% document of the parent card is approved.</target></trans-unit>
@@ -8725,6 +8729,11 @@
             <trans-unit id="marker.session_open.remedy"><source>marker.session_open.remedy</source><target>Nothing. The card moves on when the session ends.</target></trans-unit>
             <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
+            <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
+            <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
+            <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
+            <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
+            <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>
             <trans-unit id="marker.work_requested.remedy"><source>marker.work_requested.remedy</source><target>Start a bridge that takes this kind of work.</target></trans-unit>
             <trans-unit id="marker.forge_request_pending"><source>marker.forge_request_pending</source><target>Loupe asked the forge to change pull request #%number%, and the forge has not answered.</target></trans-unit>

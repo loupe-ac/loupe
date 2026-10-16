@@ -4,7 +4,7 @@
     title        string   Translated heading of the box.
     chip         string   Translated chip text, the state and how long it has held.
     lead         string   Translated sentence that says why the card has the state.
-    fields       list     Optional facts, each with a translated label and value, and wide for a sentence.
+    fields       list     Optional facts, each with a translated label and value, wide for a sentence, and link with href and label for a link after the value.
     others       list     The other states that apply, each with kind, label, lead and since. Optional.
     othersTitle  string   Translated heading of the other-states list. Optional.
   Any other attribute, class included, is passed to the element.
@@ -23,7 +23,7 @@
         {% for field in fields %}
         <div class="lp-status-box__field{{ field.wide ?? false ? ' lp-status-box__field--wide' }}">
             <dt>{{ field.label }}</dt>
-            <dd>{{ field.value }}</dd>
+            <dd>{{ field.value }}{% if field.link ?? null %} <a href="{{ field.link.href }}" data-turbo-frame="_top">{{ field.link.label }}</a>{% endif %}</dd>
         </div>
         {% endfor %}
     </dl>

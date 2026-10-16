@@ -43,6 +43,7 @@ use App\Module\Bridge\Workflow\WorkerRunFactProvider;
 use App\Module\Bridge\Workflow\WorkerRunFacts;
 use App\Module\Bridge\Workflow\WorkRequestFactProvider;
 use App\Module\Bridge\Workflow\WorkRequestFacts;
+use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Inbox\Workflow\OpenQuestionFacts;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
@@ -101,7 +102,7 @@ final class FactsMother
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
             ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
-            ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts(null)),
+            ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts(null), new WorkTakerFacts([])),
         ];
         $prints = [
             FixRunFacts::class => [],
@@ -115,6 +116,7 @@ final class FactsMother
             SessionFacts::class => false,
             HoldFacts::class => false,
             OpenQuestionFacts::class => null,
+            WorkTakerFacts::class => [],
             LatestWorkFacts::class => new \ReflectionClass(LatestWorkFactProvider::class)->newInstanceWithoutConstructor()->fingerprint($given[LatestWorkFacts::class]),
         ];
         $legacy = [];

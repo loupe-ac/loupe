@@ -60,6 +60,7 @@ A marker has these parts:
 - A kind. See below.
 - A label. This is the reason that a reader sees.
 - A remedy. This is one line that says what clears the marker.
+- A link, optional. The only value is `agents`. The card page then shows a link to the Agents page under the remedy.
 - Slots, optional. They name the slots where the marker applies.
 - A condition. The marker is on while the condition is true.
 
@@ -102,7 +103,9 @@ The shipped markers are:
 | `open-question` | Needs you | An inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
 | `run-open` | Working | A worker runs on the card |
-| `work-requested` | Working | Work waits for a bridge to take it |
+| `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
+| `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
+| `work-requested` | Working | Work waits for a bridge to take it, and a bridge could take it |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
@@ -140,6 +143,13 @@ markers:
   card did not move after it ended.
 - `card.run.session_open`: a person has an interactive session open on the card.
 - `card.held`: a person held the agents of the card.
+- `card.run.work_no_taker`: a work request of the card waits, and no bridge that
+  follows the project, reports the kind of work and was seen in the last three
+  heartbeat intervals could take it. The marker counts from the later of the
+  start of the wait and the moment the last such bridge went quiet.
+- `card.run.work_taker_paused`: a work request of the card waits, and every
+  online bridge that could take it is paused. A bridge counts as paused while
+  you paused it, or while its last heartbeat said so.
 - `card.inbox.open_question`: an open inbox question names the card.
 - `pr.checks_pending`: the pull request is open, and its checks run.
 - `pr.waits_for_approval`: the pull request is open, not a draft, green and
