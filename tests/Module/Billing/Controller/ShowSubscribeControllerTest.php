@@ -247,6 +247,20 @@ final class ShowSubscribeControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-settings-nav__item--active[href="/account/billing"]');
     }
 
+    public function test_the_billing_page_shows_its_own_tab_and_a_panel_with_billing_disabled(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $scenario = new BillingScenario(static::getContainer());
+        $client->loginUser($scenario->verifiedUser('offtabuser'));
+
+        $client->request(Request::METHOD_GET, '/account/billing');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-settings-nav__item--active[aria-current="page"][href="/account/billing"]');
+        self::assertSelectorExists('section.lp-panel[data-testid="billing-section"] .lp-billing-block');
+    }
+
     public function test_with_billing_disabled_the_settings_nav_has_no_billing_tab(): void
     {
         $client = static::createClient();

@@ -12,9 +12,9 @@
 {% block settings_section 'billing' %}
 
 {% block settings_content %}
-<div class="lp-billing">
-    <h2 class="lp-workspace-title">{{ 'billing.subscribe.heading'|trans }}</h2>
-    <p class="lp-workspace-desc">{{ 'billing.subscribe.description'|trans }}</p>
+<twig:Ds:Panel as="section" class="lp-connect-block" data-testid="billing-section">
+    <twig:Ds:SectionHeading>{{ 'billing.subscribe.heading'|trans }}</twig:Ds:SectionHeading>
+    <p class="lp-connect-hint">{{ 'billing.subscribe.description'|trans }}</p>
 
     <section class="lp-billing-block">
         <p class="lp-eyebrow">{{ 'billing.subscribe.status.eyebrow'|trans }}</p>
@@ -91,5 +91,5 @@
     <p class="lp-connect-hint">{{ 'billing.subscribe.secure_note'|trans }}</p>
     {% endif %}
     {% endif %}
-</div>
+</twig:Ds:Panel>
 {% endblock %}
