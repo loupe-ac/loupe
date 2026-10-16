@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\SiteReview;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class WidgetFileTest extends TestCase
@@ -73,5 +74,25 @@ final class WidgetFileTest extends TestCase
             }
         }
         self::assertDoesNotMatchRegularExpression('/outline:\s*(none|0)\b/', $src);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function overlaySizes(): iterable
+    {
+        yield 'remove control' => ['X_SIZE', '.lp-hl-x', 'width'];
+        yield 'pin' => ['PIN_SIZE', '.pin', 'width'];
+        yield 'quote button' => ['QUOTE_BTN_HEIGHT', '.lp-quote-btn', 'height'];
+    }
+
+    #[DataProvider('overlaySizes')]
+    public function test_overlay_size_constant_matches_its_css(string $constant, string $selector, string $property): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        self::assertSame(1, preg_match('/const '.$constant.' = (\d+);/', $src, $js));
+        self::assertSame(1, preg_match('/^\s*'.preg_quote($selector, '/').'\{(?:[^}]*?;)?'.$property.':(\d+)px/m', $src, $css));
+        self::assertSame($css[1], $js[1]);
     }
 }

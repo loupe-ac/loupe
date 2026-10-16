@@ -1971,7 +1971,7 @@
     // One remove control per removable anchor, pooled and pinned to the padded
     // box's top-right corner. `lit` follows the box the pointer is over.
     const xNodes = [];
-    const X_SIZE = 22; // matches .lp-hl-x
+    const X_SIZE = 24; // matches .lp-hl-x
     const drawRemoveControls = (entries) => {
         entries.forEach((entry, index) => {
             let node = xNodes[index];
@@ -2011,8 +2011,9 @@
             const clamp = (value, limit) =>
                 Math.min(Math.max(value, 0), limit - X_SIZE);
             node.style.left =
-                clamp(r.left + r.width - 11, window.innerWidth) + 'px';
-            node.style.top = clamp(r.top - 11, window.innerHeight) + 'px';
+                clamp(r.left + r.width - X_SIZE / 2, window.innerWidth) + 'px';
+            node.style.top =
+                clamp(r.top - X_SIZE / 2, window.innerHeight) + 'px';
         });
         for (let index = entries.length; index < xNodes.length; index++) {
             xNodes[index].style.display = 'none';
@@ -2367,7 +2368,7 @@
     // The offer sits just under the selection, flipping above it near the bottom
     // edge and clamped horizontally, on the same reasoning as the pin popover.
     const QUOTE_BTN_GAP = 8;
-    const QUOTE_BTN_HEIGHT = 30; // matches .lp-quote-btn
+    const QUOTE_BTN_HEIGHT = 32; // matches .lp-quote-btn
     const renderQuoteButton = () => {
         const pick = state.quotePick;
         // Hidden while another mode owns the pointer, drawing included: the canvas

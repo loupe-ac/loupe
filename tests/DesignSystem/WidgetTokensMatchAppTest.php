@@ -11,6 +11,7 @@ final class WidgetTokensMatchAppTest extends TestCase
     private const array WIDGET_ONLY = [
         '--font', '--mono', '--bar-shadow', '--pin-ring', '--pin-shadow',
         '--field-focus', '--accent-fill', '--shadow', '--scrim',
+        '--on-danger', '--warn', '--warn-soft',
     ];
 
     public function test_widget_values_equal_the_app_tokens(): void
