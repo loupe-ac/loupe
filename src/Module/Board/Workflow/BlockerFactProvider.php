@@ -31,7 +31,7 @@ final readonly class BlockerFactProvider extends BoardFactProvider
     {
         $stored = $this->cards->find($card->id) ?? throw new \LogicException('A stored card has an id.');
 
-        return new BlockerFacts([] !== $this->cards->findOpenBlockersOf($stored));
+        return new BlockerFacts([] !== $this->cards->findOpenBlockersOf($stored), $this->cards->hasClosedBlocker($stored));
     }
 
     #[\Override]

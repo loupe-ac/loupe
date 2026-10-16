@@ -92,6 +92,23 @@ rules:
                   - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
                   - The Loupe plugin skills are installed for the agent
 
+    - id: tech-design-recheck
+      slot: tech-design
+      when:
+          all:
+              - card.document.approved: { tag: tech-design }
+              - not: { card.document.changes_requested: { tag: tech-design } }
+              - not: { card.blocker.open: {} }
+              - card.blocker.closed: {}
+              - not: { card.run.finished_with: { kind: tech-design-recheck, reason: done } }
+      then:
+          request:
+              kind: tech-design-recheck
+              checks:
+                  - The agent can read the whole repository
+                  - Agent instructions such as AGENTS.md or CLAUDE.md describe the architecture
+                  - The Loupe plugin skills are installed for the agent
+
     - id: tech-design-approved
       slot: tech-design
       when:
@@ -99,6 +116,9 @@ rules:
               - card.document.approved: { tag: tech-design }
               - not: { card.document.changes_requested: { tag: tech-design } }
               - not: { card.blocker.open: {} }
+              - any:
+                    - not: { card.blocker.closed: {} }
+                    - card.run.finished_with: { kind: tech-design-recheck, reason: done }
       then: { move: { to: implementation } }
 
     - id: implement

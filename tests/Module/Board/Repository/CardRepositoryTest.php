@@ -98,6 +98,26 @@ final class CardRepositoryTest extends KernelTestCase
         self::assertSame([], $this->cards->findRelatedForEvaluation([]));
     }
 
+    public function test_a_card_has_a_closed_blocker_only_when_a_blocking_card_sits_in_a_terminal_column(): void
+    {
+        $project = $this->makeProject('repo-closed-blocker');
+        $open = $this->epicIn($project, 'Open', 'next', 0, 'feature');
+        $done = $this->epicIn($project, 'Done', 'done', 0, 'feature');
+        $heldByOpen = $this->cardIn($project);
+        $heldByDone = $this->cardIn($project);
+        $follower = $this->cardIn($project);
+        $this->em->persist(new CardLink($open, $heldByOpen, CardLinkKind::Blocks));
+        $this->em->persist(new CardLink($done, $heldByDone, CardLinkKind::Blocks));
+        $this->em->persist(new CardLink($done, $follower, CardLinkKind::HasFollowUp));
+        $this->em->flush();
+
+        // Guard: the done card blocks one card, so a query that ignores the column or the kind still shows a difference.
+        self::assertCount(1, $this->cards->findBlockedBy($done));
+        self::assertTrue($this->cards->hasClosedBlocker($heldByDone));
+        self::assertFalse($this->cards->hasClosedBlocker($heldByOpen));
+        self::assertFalse($this->cards->hasClosedBlocker($follower));
+    }
+
     public function test_a_follow_up_row_makes_the_follow_up_related_to_the_followed_card(): void
     {
         $project = $this->makeProject('repo-follow-up-related');

@@ -8243,6 +8243,8 @@
             <trans-unit id="workflow.waiting.not.card_has_open_blocker"><source>workflow.waiting.not.card_has_open_blocker</source><target>Waiting: a blocking card is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_parent_epic_branch_synced"><source>workflow.waiting.card_parent_epic_branch_synced</source><target>Waiting: the default branch is not yet merged into the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_parent_epic_branch_synced"><source>workflow.waiting.not.card_parent_epic_branch_synced</source><target>Waiting: the epic branch already holds the default branch.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_has_closed_blocker"><source>workflow.waiting.card_has_closed_blocker</source><target>Waiting: no blocking card is done.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_has_closed_blocker"><source>workflow.waiting.not.card_has_closed_blocker</source><target>Waiting: a blocking card is done.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_follows_finished"><source>workflow.waiting.card_follows_finished</source><target>Waiting: the card follows no card, or a card it follows is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_follows_finished"><source>workflow.waiting.not.card_follows_finished</source><target>Waiting: every card that this card follows is finished.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_is_child"><source>workflow.waiting.card_is_child</source><target>Waiting: the card is not a child of an epic.</target></trans-unit>
