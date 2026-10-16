@@ -28,11 +28,12 @@ Change nothing but Loupe documents and the `blocked-by` links of the card, and n
 ### Revise, when step 9 or 10 finds the design
 
 1. When its `status` is `approved`, stop with `STAGE RESULT: tech design already approved`.
-2. When its `status` is `draft`, an earlier run stopped before it published the design. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Publish the design, and the linked deploy notes when they are a draft, as "Publish the drafts" says. Stop with `STAGE RESULT: tech design created <id>`.
+2. When its `status` is `draft`, an earlier run stopped before it published the design. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Publish the design, and the linked deploy notes when they are a draft, as "Publish the drafts" says. Record each new dependency, as Revise step 7 says. Stop with `STAGE RESULT: tech design created <id>`.
 3. Read the code and those design inputs.
 4. Judge the size again, as "Judge the size" says. A revision never changes the ID of an entry.
-5. Before the `document_revise` of the round, read each decision section that the round changes alone, as Create step 6 says, and fix each one that leans on another section. Follow `../loupe-stage-product-design/references/review-round.md`. The document is `tech design`, and the requirement source is the one step 7 chose. Run Revise step 6 below before the round stops.
+5. Before the `document_revise` of the round, read each decision section that the round changes alone, as Create step 6 says, and fix each one that leans on another section. Follow `../loupe-stage-product-design/references/review-round.md`. The document is `tech design`, and the requirement source is the one step 7 chose. Run Revise steps 6 and 7 below before the round stops.
 6. When the round adds, changes or removes a deploy item, update the deploy notes after the `document_revise` of the design. Do this before the replies. Revise the linked notes with `document_revise`, or create and link them as "Deploy notes" says. Publish new notes before the final reply, as "Publish the drafts" says. Keep the deploy line of the design true. When the Solution section is approved, keep its text. In a design that predates it, the same goes for Architecture. The linked notes are then the record.
+7. When the round finds a new dependency, record it after the `document_revise` of the design, as "Record a dependency" says. Call `card_get` again, and send its `relatedCards` unchanged, plus the new entry, in one `card_update`.
 
 ### Create, when neither step finds a design
 
@@ -52,11 +53,11 @@ Change nothing but Loupe documents and the `blocked-by` links of the card, and n
 
 A dependency is a part that the design needs, that is missing on the base branch, and that one open card builds.
 
-1. Look for a dependency while you read the code. Find the card that builds the part with `card_search`. Call `card_get` on it, and check that its status is not a terminal column.
-2. When you find one, add a `blocked-by` entry for that card to the `relatedCards` of the card you design. Do it in the same `card_update` that links the document (contract rule 5). Send the `relatedCards` of `card_get` unchanged, plus the new entry.
+1. Look for a dependency while you read the code. Find the card that builds the part with `card_search` when the tool exists. Otherwise page `card_list` while `hasMore` is true, and read the titles. `card_list` returns the columns with their `terminal` flag. Call `card_get` on the card, and check that its status is not a terminal column.
+2. When you find one, add a `blocked-by` entry for that card to the `relatedCards` of the card you design. On the Create path, do it in the same `card_update` that links the document (contract rule 5). On the Revise path, Revise step 7 writes it. Send the `relatedCards` of `card_get` unchanged, plus the new entry.
 3. A card that already carries the link needs no write.
 4. Name the dependency in the Solution section, on the line `Depends on: card N (title), which builds X`, above the deploy line. With no dependency, write `Depends on: none`.
-5. A revision that finds a new dependency adds the link. A revision that no longer needs a dependency says so in the design and leaves the link. Only a person removes a link, because the stage cannot tell a link it wrote from a link a person added.
+5. A revision that finds a new dependency adds the link, as Revise step 7 says. A revision that no longer needs a dependency says so in the design and leaves the link. Only a person removes a link, because the stage cannot tell a link it wrote from a link a person added.
 6. An epic with the link waits in Tech design after the owner approves the design, until the blocker is done. The breakdown then cuts the epic branch from a `main` that holds the blocker's code.
 
 ### Judge the size
