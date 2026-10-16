@@ -14,6 +14,7 @@ use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 
@@ -151,12 +152,66 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
     }
 
-    public function test_a_bridge_with_app_prompts_takes_every_kind_its_capabilities_allow(): void
+    public function test_a_bridge_with_app_prompts_takes_every_kind_whose_request_carries_a_prompt(): void
     {
-        [$project, $request, $owner] = $this->scenario('app-prompts');
+        [$project, $request, $owner] = $this->scenario('app-prompts', prompt: 'Build {cardId}.');
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    /** @return iterable<string, array{?string}> */
+    public static function noPrompt(): iterable
+    {
+        yield 'no prompt' => [null];
+        yield 'a blank prompt' => ["  \n"];
+    }
+
+    #[DataProvider('noPrompt')]
+    public function test_a_bridge_with_app_prompts_takes_a_request_with_no_prompt_only_by_its_kind(?string $prompt): void
+    {
+        [$project, $request, $owner] = $this->scenario('app-prompts-no-prompt', prompt: $prompt);
+        $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix'], capabilities: $appPrompts);
+
+        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['implement'], capabilities: $appPrompts);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_the_wait_counts_from_the_moment_an_online_bridge_dropped_what_it_takes(): void
+    {
+        [$project, $request, $owner] = $this->scenario('narrowed', createdAt: '2026-10-16 08:00:00');
+        $narrowed = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
+        $narrowed->narrowedAt = new \DateTimeImmutable('2026-10-16 11:58:00');
+        $this->em()->flush();
+
+        $reading = $this->read($project, $request);
+
+        self::assertSame(WorkTakerState::None, $reading->state);
+        self::assertEquals($narrowed->narrowedAt, $reading->noTakerSince);
+    }
+
+    public function test_a_bridge_that_left_the_project_still_bounds_the_wait(): void
+    {
+        [$project, $request, $owner] = $this->scenario('left', createdAt: '2026-10-16 08:00:00');
+        $left = $this->bridge($owner, $project, seenSecondsAgo: 10, follows: false);
+        $left->narrowedAt = new \DateTimeImmutable('2026-10-16 11:58:00');
+        $this->em()->flush();
+
+        self::assertEquals($left->narrowedAt, $this->read($project, $request)->noTakerSince);
+    }
+
+    public function test_a_narrowing_before_the_wait_leaves_the_start_of_the_wait(): void
+    {
+        [$project, $request, $owner] = $this->scenario('narrowed-before', createdAt: '2026-10-16 11:00:00');
+        $narrowed = $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
+        $narrowed->narrowedAt = new \DateTimeImmutable('2026-10-16 10:00:00');
+        $this->em()->flush();
+
+        self::assertEquals($request->createdAt, $this->read($project, $request)->noTakerSince);
     }
 
     public function test_a_bridge_without_the_capability_of_the_request_is_no_taker(): void
@@ -183,14 +238,14 @@ final class WorkTakersTest extends KernelTestCase
     }
 
     /** @return array{Project, WorkRequest, User} */
-    private function scenario(string $name, string $createdAt = '2026-10-16 11:00:00', ?string $reopenedAt = null, ?string $capability = null, WorkRequestState $state = WorkRequestState::Open): array
+    private function scenario(string $name, string $createdAt = '2026-10-16 11:00:00', ?string $reopenedAt = null, ?string $capability = null, WorkRequestState $state = WorkRequestState::Open, ?string $prompt = null): array
     {
         self::bootKernel();
         self::getContainer()->set('clock', new MockClock(self::NOW));
         $em = $this->em();
         $owner = $this->user($em, 'work-takers-'.$name.'@example.com');
         $project = $this->project($em, $owner, 'Takers '.$name);
-        $request = $this->seedWorkRequest($em, $project, capability: $capability, state: $state, createdAt: new \DateTimeImmutable($createdAt), reopenedAt: null === $reopenedAt ? null : new \DateTimeImmutable($reopenedAt));
+        $request = $this->seedWorkRequest($em, $project, capability: $capability, state: $state, createdAt: new \DateTimeImmutable($createdAt), reopenedAt: null === $reopenedAt ? null : new \DateTimeImmutable($reopenedAt), prompt: $prompt);
 
         return [$project, $request, $owner];
     }

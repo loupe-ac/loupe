@@ -145,6 +145,10 @@ class Bridge
     #[ORM\Column(name: 'work_kinds', type: Types::JSON, options: ['default' => '[]'])]
     public array $workKinds = [];
 
+    /** The server clock at the last beat of an online bridge that dropped a work kind, a capability or a followed project. */
+    #[ORM\Column(name: 'narrowed_at', nullable: true)]
+    public ?\DateTimeImmutable $narrowedAt = null;
+
     /** The name the bridge holds. Null while it asked for none, or while another bridge of the owner holds the one it asked for. */
     #[ORM\Column(name: 'name', length: self::MAX_NAME_LENGTH, nullable: true)]
     public ?string $name = null;

@@ -40,12 +40,21 @@ final readonly class WorkTakers
         $now = $this->clock->now();
         $quietBefore = $this->liveness->quietBefore($now);
         $window = $now->getTimestamp() - $quietBefore->getTimestamp();
-        $bridges = $this->bridges->findFollowingProject($project);
+        $projectId = ($project->id ?? throw new \LogicException('A stored project has an id.'))->toRfc4122();
+        // A bridge that left the project still bounds the wait of the work it left.
+        $bridges = $this->bridges->findByOwner($project->owner);
+        $narrowedAt = null;
+        foreach ($bridges as $bridge) {
+            if (null !== $bridge->narrowedAt) {
+                $narrowedAt = self::later($narrowedAt, $bridge->narrowedAt);
+            }
+        }
+        $followers = array_values(array_filter($bridges, static fn (Bridge $bridge): bool => \in_array($projectId, $bridge->projects, true)));
 
         $readings = [];
         foreach ($open as $request) {
-            $takers = array_values(array_filter($bridges, fn (Bridge $bridge): bool => self::takes($bridge, $request)));
-            $readings[($request->id ?? throw new \LogicException('A stored request has an id.'))->toRfc4122()] = $this->read($request, $takers, $quietBefore, $window);
+            $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => self::takes($bridge, $request)));
+            $readings[($request->id ?? throw new \LogicException('A stored request has an id.'))->toRfc4122()] = $this->read($request, $takers, $narrowedAt, $quietBefore, $window);
         }
 
         return $readings;
@@ -54,13 +63,21 @@ final readonly class WorkTakers
     private static function takes(Bridge $bridge, WorkRequest $request): bool
     {
         return $bridge->canRun($request)
-            && (\in_array($request->kind, $bridge->workKinds, true) || \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true));
+            && (\in_array($request->kind, $bridge->workKinds, true) || self::runsAsAppPrompt($bridge, $request));
+    }
+
+    /** The bridge runs an unmapped kind only from the prompt of the request, so a request with no prompt needs its kind. */
+    private static function runsAsAppPrompt(Bridge $bridge, WorkRequest $request): bool
+    {
+        return null !== $request->prompt
+            && '' !== trim($request->prompt)
+            && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true);
     }
 
     /** @param list<Bridge> $takers */
-    private function read(WorkRequest $request, array $takers, \DateTimeImmutable $quietBefore, int $window): WorkTakerReading
+    private function read(WorkRequest $request, array $takers, ?\DateTimeImmutable $narrowedAt, \DateTimeImmutable $quietBefore, int $window): WorkTakerReading
     {
-        $noTakerSince = $request->reopenedAt ?? $request->createdAt;
+        $noTakerSince = self::later($narrowedAt, $request->reopenedAt ?? $request->createdAt);
         $newestUnpaused = null;
         $newestPaused = null;
         foreach ($takers as $taker) {

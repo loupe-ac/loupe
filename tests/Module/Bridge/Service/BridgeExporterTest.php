@@ -39,6 +39,7 @@ final class BridgeExporterTest extends TestCase
         $bridge->pausedReported = false;
         $bridge->capabilities = ['commands'];
         $bridge->workKinds = ['fix', 'tech-design'];
+        $bridge->narrowedAt = new \DateTimeImmutable('2026-09-14T15:20:00+00:00');
         $bridge->name = 'laptop';
         $bridge->requestedName = 'laptop';
         $bridge->pushLogin = 'acme-agent';
@@ -63,6 +64,7 @@ final class BridgeExporterTest extends TestCase
             'pausedReported' => false,
             'capabilities' => ['commands'],
             'workKinds' => ['fix', 'tech-design'],
+            'narrowedAt' => '2026-09-14T15:20:00+00:00',
             'name' => 'laptop',
             'requestedName' => 'laptop',
             'pushLogin' => 'acme-agent',

@@ -333,6 +333,39 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertEqualsCanonicalizing([$kept, $added], self::announcedProjects($announced)[0]);
     }
 
+    public function test_an_online_bridge_that_drops_a_kind_a_capability_or_a_project_records_when_it_narrowed(): void
+    {
+        self::bootKernel();
+        $clock = new MockClock('2026-10-16 12:00:00');
+        self::getContainer()->set('clock', $clock);
+        $em = $this->em();
+        $owner = $this->user($em, 'heartbeat-narrowed@example.com');
+        $kept = (string) $this->project($em, $owner, 'Narrowed Kept')->id;
+        $left = (string) $this->project($em, $owner, 'Narrowed Left')->id;
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $both = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $narrowedAt = fn (): ?\DateTimeImmutable => $this->reload($owner, $bridgeId)->narrowedAt;
+
+        $handler(self::beat($owner, $bridgeId, [$kept, $left], false, $both, ['implement']));
+        $handler(self::beat($owner, $bridgeId, [$kept, $left], false, $both, ['implement', 'fix']));
+        self::assertNull($narrowedAt(), 'A first beat and a wider beat narrow nothing.');
+
+        foreach ([
+            'a dropped kind' => [[$kept, $left], $both, ['implement']],
+            'a dropped capability' => [[$kept, $left], [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']],
+            'a dropped project' => [[$kept], [Bridge::CAPABILITY_WORK_REQUESTS], ['implement']],
+        ] as $case => [$projects, $capabilities, $kinds]) {
+            $clock->sleep(30);
+            $handler(self::beat($owner, $bridgeId, $projects, false, $capabilities, $kinds));
+            self::assertEquals($clock->now(), $narrowedAt(), $case);
+        }
+
+        $clock->sleep(3600);
+        $handler(self::beat($owner, $bridgeId, [], false, [], []));
+        self::assertEquals(new \DateTimeImmutable('2026-10-16 12:01:30'), $narrowedAt(), 'A bridge back from quiet already left the work when it went quiet.');
+    }
+
     public function test_the_first_heartbeat_stores_the_worker_pools(): void
     {
         self::bootKernel();
@@ -841,7 +874,6 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         return $bridge;
     }
 
-    /** Before anything builds the hub: the container hands the replacement only to what it builds afterwards. */
     /**
      * @param list<string>      $projects
      * @param list<string>|null $capabilities
@@ -868,6 +900,7 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         return array_map(static fn (BridgeAvailabilityChanged $event): array => $event->projectIds, $announced->of(BridgeAvailabilityChanged::class));
     }
 
+    /** Before anything builds the hub: the container hands the replacement only to what it builds afterwards. */
     private function recordRunsChanged(): void
     {
         self::getContainer()->set('mercure.hub.default', new MockHub(

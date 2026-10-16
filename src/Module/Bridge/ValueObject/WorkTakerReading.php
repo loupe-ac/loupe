@@ -8,7 +8,7 @@ namespace App\Module\Bridge\ValueObject;
 final readonly class WorkTakerReading
 {
     /**
-     * @param \DateTimeImmutable  $noTakerSince the later of the start of the wait and the moment the last able bridge went quiet
+     * @param \DateTimeImmutable  $noTakerSince the latest of the start of the wait, the moment the last able bridge went quiet, and the last beat at which a bridge dropped what it takes
      * @param ?\DateTimeImmutable $quietAt      the moment the answer next changes because an online bridge turns quiet, or null when it cannot
      */
     public function __construct(

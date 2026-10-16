@@ -125,6 +125,14 @@ final readonly class RecordBridgeHeartbeatHandler
                 || self::sorted($kindsBefore) !== self::sorted($bridge->workKinds)
                 || [] !== array_diff($followed, $projects)
                 || [] !== array_diff($projects, $followed);
+            // An online bridge that drops what it takes starts the no-taker wait of the work it leaves.
+            if (!$created && !$wasQuiet && (
+                [] !== array_diff($kindsBefore, $bridge->workKinds)
+                || [] !== array_diff($capabilitiesBefore ?? [], $bridge->capabilities ?? [])
+                || [] !== array_diff($followed, $projects)
+            )) {
+                $bridge->narrowedAt = $now;
+            }
             $heldName = $bridge->name;
             if ('' === $command->name) {
                 // A release holds the lock until it commits, so a claim waiting on it reads the free name.
