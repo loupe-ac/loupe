@@ -9,8 +9,10 @@ use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\WorkerRunOutputChunkRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
@@ -40,6 +42,7 @@ use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Inbox\View\RunCommandOutcome;
+use App\Module\Inbox\View\RunCommandRun;
 use App\Module\Inbox\View\RunCommandRunState;
 use App\Module\Inbox\View\RunCommandView;
 use App\Module\Project\Entity\Project;
@@ -384,6 +387,69 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertSame(['done'], $run->outputLines);
     }
 
+    public function test_a_running_command_carries_the_end_of_its_stored_log_and_where_it_stops(): void
+    {
+        $todo = $this->todo();
+        $run = $this->commandRun($todo, WorkRequestState::Claimed, WorkerRunState::Running);
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $lines = array_map(static fn (int $line): string => 'line '.$line."\n", range(1, 250));
+        $this->chunk($run, implode('', \array_slice($lines, 0, 100)));
+        $this->chunk($run, implode('', \array_slice($lines, 100)).'partial');
+
+        $view = $this->runCommandAction($todo)->runCommand?->run;
+
+        self::assertTrue($view?->isStreaming());
+        self::assertSame((string) $run->id, $view->runId);
+        self::assertSame(250, $view->lineCount);
+        self::assertSame(array_sum(array_map(strlen(...), $lines)) + \strlen('partial'), $view->logLength);
+        self::assertSame(implode('', \array_slice($lines, 51)).'partial', $view->tailText);
+    }
+
+    public function test_an_ended_command_shows_the_last_lines_of_its_stored_log_and_its_duration(): void
+    {
+        $todo = $this->todo();
+        $run = $this->commandRun(
+            $todo,
+            WorkRequestState::Done,
+            WorkerRunState::Succeeded,
+            exitCode: 0,
+            output: 'the capped report',
+            startedAt: new \DateTimeImmutable('2026-10-16 10:00:00'),
+            endedAt: new \DateTimeImmutable('2026-10-16 10:03:12'),
+        );
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->chunk($run, implode('', array_map(static fn (int $line): string => 'line '.$line."\n", range(1, 12))));
+
+        $view = $this->runCommandAction($todo)->runCommand?->run;
+
+        self::assertTrue($view?->hasLog());
+        self::assertFalse($view->isStreaming());
+        self::assertSame(12, $view->lineCount);
+        self::assertSame(['line 3', 'line 4', 'line 5', 'line 6', 'line 7', 'line 8', 'line 9', 'line 10', 'line 11', 'line 12'], $view->outputLines);
+        self::assertSame('', $view->tailText);
+        self::assertSame(192, $view->durationSeconds);
+        self::assertSame('3 min 12 s', $view->durationLabel());
+    }
+
+    public function test_a_run_with_no_stored_log_has_no_log_link_and_keeps_its_reported_output(): void
+    {
+        $todo = $this->todo();
+        $this->commandRun($todo, WorkRequestState::Done, WorkerRunState::Failed, exitCode: 1, output: "boom\n");
+
+        $view = $this->runCommandAction($todo)->runCommand?->run;
+
+        self::assertFalse($view?->hasLog());
+        self::assertSame(['boom'], $view->outputLines);
+        self::assertNull($view->durationLabel());
+    }
+
+    public function test_a_short_duration_reads_in_seconds(): void
+    {
+        $view = new RunCommandRun(new InboxAction($this->todo(), InboxActionKind::RunCommand, $this->project->owner, '', new \DateTimeImmutable()), RunCommandRunState::Succeeded, durationSeconds: 14);
+
+        self::assertSame('14 s', $view->durationLabel());
+    }
+
     public function test_a_command_with_no_output_has_no_lines(): void
     {
         $todo = $this->todo();
@@ -522,7 +588,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         ?string $reason = null,
         ?\DateTimeImmutable $requestedAt = null,
         string $kind = 'design-export',
-    ): void {
+        ?\DateTimeImmutable $startedAt = null,
+        ?\DateTimeImmutable $endedAt = null,
+    ): ?WorkerRun {
         $request = new WorkRequest(
             project: $this->project,
             subjectType: WorkSubject::CARD,
@@ -544,6 +612,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             $action->cancelledAt = new \DateTimeImmutable();
         }
         $this->em->persist($action);
+        $run = null;
         if (null !== $runState) {
             $run = new WorkerRun(
                 project: $this->project,
@@ -554,12 +623,23 @@ final class ItemActionsRunCommandTest extends KernelTestCase
                 workKind: $kind,
                 state: $runState,
                 runKey: Uuid::v7(),
+                startedAt: $startedAt,
+                endedAt: $endedAt,
                 exitCode: $exitCode,
                 output: $output,
                 workRequestId: $request->id,
             );
             $this->em->persist($run);
         }
+        $this->em->flush();
+
+        return $run;
+    }
+
+    private function chunk(WorkerRun $run, string $text): void
+    {
+        $start = (int) $this->em->getConnection()->fetchOne('SELECT COALESCE(MAX(start_offset + length), 0) FROM bridge_worker_run_output_chunks WHERE run_id = :run', ['run' => (string) $run->id]);
+        $this->em->persist(new WorkerRunOutputChunk($run, $start, \strlen($text), $text));
         $this->em->flush();
     }
 
@@ -599,6 +679,9 @@ final class ItemActionsRunCommandTest extends KernelTestCase
         self::assertInstanceOf(InboxActionRepository::class, $inboxActions);
         self::assertInstanceOf(InboxAskRepository::class, $inboxAsks);
 
+        $chunks = self::getContainer()->get(WorkerRunOutputChunkRepository::class);
+        self::assertInstanceOf(WorkerRunOutputChunkRepository::class, $chunks);
+
         return new ItemActions(
             $watches,
             $runs,
@@ -609,7 +692,7 @@ final class ItemActionsRunCommandTest extends KernelTestCase
             $stageWorks,
             new AskingBridge($bridges, $inboxAsks, $runs),
             $this->resolver($liveness),
-            new RunCommandRuns($inboxActions, $workRequests, $runs),
+            new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
         );
     }
 

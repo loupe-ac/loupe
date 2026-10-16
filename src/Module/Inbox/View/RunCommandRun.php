@@ -20,6 +20,9 @@ final readonly class RunCommandRun
 
     public const int OUTPUT_LINES = 10;
 
+    /** The lines of the stored log that a running command shows when the page opens. */
+    public const int LIVE_LINES = 200;
+
     public function __construct(
         public InboxAction $action,
         public RunCommandRunState $state,
@@ -33,7 +36,40 @@ final readonly class RunCommandRun
          */
         public array $outputLines = [],
         public ?\DateTimeImmutable $at = null,
+        /** The id of the worker run, or null when the bridge has reported none. */
+        public ?string $runId = null,
+        /** The stored log lines, which are the line breaks. */
+        public int $lineCount = 0,
+        /** The bytes of the stored log, which is also where the live view reads on. */
+        public int $logLength = 0,
+        public ?int $durationSeconds = null,
+        /** The exact end of the stored log, as the live view starts from it. */
+        public string $tailText = '',
     ) {
+    }
+
+    /** The run has stored output to open. */
+    public function hasLog(): bool
+    {
+        return null !== $this->runId && $this->logLength > 0;
+    }
+
+    /** The command runs and its worker run is known, so its output can stream in. */
+    public function isStreaming(): bool
+    {
+        return RunCommandRunState::Running === $this->state && null !== $this->runId;
+    }
+
+    /** The duration as `14 s` or `3 min 12 s`, or null when the run has none. */
+    public function durationLabel(): ?string
+    {
+        if (null === $this->durationSeconds) {
+            return null;
+        }
+
+        return $this->durationSeconds < 60
+            ? $this->durationSeconds.' s'
+            : intdiv($this->durationSeconds, 60).' min '.($this->durationSeconds % 60).' s';
     }
 
     /** The translation key of the refusal reason, or null when the code is unknown or absent. */

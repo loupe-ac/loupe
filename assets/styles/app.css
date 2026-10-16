@@ -8408,3 +8408,21 @@
 .lp-run-command .lp-code-dark__body {
     @apply whitespace-pre-wrap break-words;
 }
+
+/* The output of a command run in the inbox thread. It scrolls, and a running command streams into it. */
+.lp-run-output .lp-code-dark__body {
+    @apply max-h-80 overflow-y-auto whitespace-pre-wrap break-words;
+}
+.lp-run-output__live {
+    @apply inline-flex items-center gap-1.5 font-mono text-xs text-accent;
+}
+.lp-run-output__live::before {
+    @apply size-1.75 rounded-full bg-accent;
+    content: '';
+}
+.lp-run-output__cursor {
+    @apply inline-block h-3.5 w-1.75 bg-code-dark-text align-text-bottom;
+}
+.lp-run-output__log {
+    @apply text-sm text-accent-ink underline underline-offset-2;
+}

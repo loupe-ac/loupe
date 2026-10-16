@@ -6,6 +6,7 @@ namespace App\Module\Inbox\Service;
 
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\WorkerRunOutputChunkRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -27,6 +28,7 @@ final readonly class RunCommandRuns
         private InboxActionRepository $inboxActions,
         private WorkRequestRepository $workRequests,
         private WorkerRunRepository $workerRuns,
+        private WorkerRunOutputChunkRepository $workerRunOutputChunks,
     ) {
     }
 
@@ -48,6 +50,9 @@ final readonly class RunCommandRuns
         $requestIds = array_values(array_filter(array_map(static fn (InboxAction $action) => $action->workRequestId, $newest)));
         $requests = $this->workRequests->findByIds($requestIds);
         $runs = $this->workerRuns->findNewestOfWorkRequests($requestIds);
+        $runList = array_values($runs);
+        $stats = $this->workerRunOutputChunks->stats($runList);
+        $tails = $this->workerRunOutputChunks->tailTexts($runList, RunCommandRun::LIVE_LINES);
 
         $states = [];
         foreach ($newest as $itemId => $action) {
@@ -55,13 +60,17 @@ final readonly class RunCommandRuns
             if (null === $request) {
                 continue;
             }
-            $states[$itemId] = $this->runOf($action, $request, $runs[(string) $request->id] ?? null);
+            $states[$itemId] = $this->runOf($action, $request, $runs[(string) $request->id] ?? null, $stats, $tails);
         }
 
         return $states;
     }
 
-    private function runOf(InboxAction $action, WorkRequest $request, ?WorkerRun $run): RunCommandRun
+    /**
+     * @param array<string, array{lines: int, length: int}> $stats
+     * @param array<string, string>                         $tails
+     */
+    private function runOf(InboxAction $action, WorkRequest $request, ?WorkerRun $run, array $stats, array $tails): RunCommandRun
     {
         if (null !== $action->cancelledAt || WorkRequestState::Cancelled === $request->state) {
             return new RunCommandRun($action, RunCommandRunState::Cancelled, at: $action->cancelledAt ?? $request->settledAt);
@@ -73,7 +82,21 @@ final readonly class RunCommandRuns
                 default => RunCommandRunState::Failed,
             };
 
-            return new RunCommandRun($action, $state, exitCode: $run->exitCode, outputLines: RunCommandRun::tail($run->output), at: $run->endedAt ?? $run->receivedAt);
+            $runId = (string) $run->id;
+            $stored = $tails[$runId] ?? null;
+
+            return new RunCommandRun(
+                $action,
+                $state,
+                exitCode: $run->exitCode,
+                outputLines: RunCommandRun::tail($stored ?? $run->output),
+                at: $run->endedAt ?? $run->receivedAt,
+                runId: $runId,
+                lineCount: $stats[$runId]['lines'] ?? 0,
+                logLength: $stats[$runId]['length'] ?? 0,
+                durationSeconds: null === $run->startedAt || null === $run->endedAt ? null : max(0, $run->endedAt->getTimestamp() - $run->startedAt->getTimestamp()),
+                tailText: RunCommandRunState::Running === $state ? ($stored ?? '') : '',
+            );
         }
 
         return match ($request->state) {

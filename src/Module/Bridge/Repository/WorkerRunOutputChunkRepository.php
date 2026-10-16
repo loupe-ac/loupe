@@ -9,6 +9,7 @@ use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\ValueObject\WorkerRunOutputSlice;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -118,6 +119,72 @@ class WorkerRunOutputChunkRepository extends ServiceEntityRepository
             }
         }
 
+        return self::lastLines($tail, $lines);
+    }
+
+    /**
+     * The tail of each run in one query, for the runs that have stored text.
+     *
+     * @param list<WorkerRun> $runs
+     *
+     * @return array<string, string> keyed by the RFC 4122 run id
+     */
+    public function tailTexts(array $runs, int $lines): array
+    {
+        if ([] === $runs || $lines <= 0) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT run_id, text FROM (
+                 SELECT run_id, start_offset, text,
+                        SUM(char_length(text) - char_length(replace(text, E'\\n', ''))) OVER (PARTITION BY run_id ORDER BY start_offset DESC)
+                          - (char_length(text) - char_length(replace(text, E'\\n', ''))) AS newer_breaks
+                 FROM bridge_worker_run_output_chunks WHERE run_id IN (:runs)
+             ) t WHERE newer_breaks <= :lines ORDER BY run_id, start_offset ASC",
+            ['runs' => array_map(static fn (WorkerRun $run): string => (string) $run->id, $runs), 'lines' => $lines],
+            ['runs' => ArrayParameterType::STRING],
+        );
+
+        $joined = [];
+        foreach ($rows as $row) {
+            $key = (string) $row['run_id'];
+            $joined[$key] = ($joined[$key] ?? '').$row['text'];
+        }
+
+        return array_map(static fn (string $text): string => self::lastLines($text, $lines), $joined);
+    }
+
+    /**
+     * The line count and the stored length of each run in one query, for the runs that have stored text.
+     *
+     * @param list<WorkerRun> $runs
+     *
+     * @return array<string, array{lines: int, length: int}> keyed by the RFC 4122 run id
+     */
+    public function stats(array $runs): array
+    {
+        if ([] === $runs) {
+            return [];
+        }
+
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT run_id, SUM(char_length(text) - char_length(replace(text, E'\\n', ''))) AS lines, MAX(start_offset + length) AS length
+             FROM bridge_worker_run_output_chunks WHERE run_id IN (:runs) GROUP BY run_id",
+            ['runs' => array_map(static fn (WorkerRun $run): string => (string) $run->id, $runs)],
+            ['runs' => ArrayParameterType::STRING],
+        );
+
+        $stats = [];
+        foreach ($rows as $row) {
+            $stats[(string) $row['run_id']] = ['lines' => (int) $row['lines'], 'length' => (int) $row['length']];
+        }
+
+        return $stats;
+    }
+
+    private static function lastLines(string $tail, int $lines): string
+    {
         $body = str_ends_with($tail, "\n") ? substr($tail, 0, -1) : $tail;
         $all = explode("\n", $body);
         if (\count($all) <= $lines) {

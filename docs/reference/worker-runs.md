@@ -555,7 +555,12 @@ The server keeps at most 1048576 bytes of output for a run. It cuts the text
 that crosses the limit at a character boundary, answers `"capped": true`, and
 takes no more text for the run. A 404 carries the code `project_not_found` or
 `run_not_found`. A run key that is not a uuid gets `invalid_run_id` with a 422.
-Each stored append tells the open run pages through Mercure.
+Each stored append tells the open run pages through Mercure with a
+`worker_run.output` message. It carries the `runId` of the worker run and the new
+`length`. The inbox page then reads `GET /projects/{id}/worker-runs/{runId}/output?from=N`.
+The answer holds `text`, `length` and `cut`, with at most 64 KiB of text.
+`GET /projects/{id}/worker-runs/{runId}/log` answers the whole log as plain text.
+Both need a signed-in member of the project.
 
 The output endpoint has its own limit, `agent_run_output`, of 240 requests in
 one minute for each token. The retention sweep deletes the output of a run with
