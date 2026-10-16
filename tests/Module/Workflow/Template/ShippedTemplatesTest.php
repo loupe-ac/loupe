@@ -121,6 +121,32 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame([], array_values(array_filter($actions, static fn (ActionCall $action): bool => 'move' === $action->key)));
     }
 
+    public function test_an_approved_tech_design_with_a_closed_blocker_asks_for_a_recheck_and_does_not_move(): void
+    {
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: [self::approved('tech-design')], hasClosedBlocker: true));
+
+        self::assertSame(['tech-design-recheck'], $this->firingRuleIds($facts));
+        $requests = array_values(array_filter($this->actions($facts), static fn (ActionCall $action): bool => 'request' === $action->key));
+        self::assertSame([['kind' => 'tech-design-recheck']], array_map(static fn (ActionCall $action): array => ['kind' => $action->params['kind']], $requests));
+    }
+
+    public function test_an_approved_tech_design_with_a_closed_blocker_moves_after_the_recheck_is_done(): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'tech-design', documents: [self::approved('tech-design')], hasClosedBlocker: true),
+            run: FactsMother::run(latestWorkState: WorkRequestState::Done, latestWorkKind: 'tech-design-recheck', latestWorkReason: 'done'),
+        );
+
+        self::assertSame(['tech-design-approved'], $this->firingRuleIds($facts));
+    }
+
+    public function test_an_approved_tech_design_with_a_closed_and_an_open_blocker_neither_rechecks_nor_moves(): void
+    {
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'tech-design', hasOpenBlocker: true, documents: [self::approved('tech-design')], hasClosedBlocker: true));
+
+        self::assertSame([], $this->firingRuleIds($facts));
+    }
+
     public function test_an_approved_product_design_asks_for_a_tech_design_and_does_not_move(): void
     {
         $facts = FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: [self::approved('product-design')]));

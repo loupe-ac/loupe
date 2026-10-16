@@ -82,7 +82,7 @@ A `blocked`, `unfinished` or `waiting` result can also carry two optional fields
 
 | `STAGE RESULT:` form | `status` |
 |---|---|
-| `merged`, `preview refreshed`, `breakdown`, `nothing to build`, `delivered without code`, `created`, `revised`, `comments answered`, `unchanged`, `nothing to fix`, `no open pull request`, `already approved`, `card left`, `repaired`, `reviewed` | `finished` |
+| `merged`, `preview refreshed`, `breakdown`, `tech design current`, `nothing to build`, `delivered without code`, `created`, `revised`, `comments answered`, `unchanged`, `nothing to fix`, `no open pull request`, `already approved`, `card left`, `repaired`, `reviewed` | `finished` |
 | `blocked:`, `loupe MCP unavailable`, `not approved`, `no approved tech design`, `no product document`, `no linked`, `open pull request exists`, `no fix round for column` | `blocked` |
 | `waiting` or `not ready`, because the work waits on the forge, such as checks on a pushed pull request | `waiting` |
 | No form yet, because work still runs or remains | `unfinished` |
@@ -91,7 +91,7 @@ Set the reason code from the `STAGE RESULT:` form. A form takes the code of the 
 
 | Reason code | `STAGE RESULT:` forms |
 |---|---|
-| `done` | `merged`, `preview refreshed <url>`, `breakdown`, `created`, `revised`, `comments answered`, `unchanged`, `nothing to fix`, `already approved`, `repaired <what>`, `reviewed <url>: <conclusion>` |
+| `done` | `merged`, `preview refreshed <url>`, `breakdown`, `tech design current`, `created`, `revised`, `comments answered`, `unchanged`, `nothing to fix`, `already approved`, `repaired <what>`, `reviewed <url>: <conclusion>` |
 | `card-left` | `card left <column>`, `no fix round for column` |
 | `nothing-to-build` | `nothing to build` |
 | `delivered-without-code` | `delivered without code <document url>` |

@@ -25,9 +25,20 @@ Change nothing but Loupe documents and the `blocked-by` links of the card, and n
 9. Find the tech design among the linked documents, as the contract says. It has the tags `tech-design` and `decisions`, or a title that starts `Tech design`. Skip the tech design of the parent card, as `../loupe-stage-implementation/references/breakdown.md` "Build a child" says.
 10. When step 9 finds none, search `document_list` for the title `Tech design: <card title>`, as the contract says. The document to reference is the product document, when there is one.
 
+### Recheck, when the prompt names a recheck
+
+The workflow asks for a recheck when an approved design waited for a blocker, and the blocker is done. The design describes code that the blocker had not merged when it was written. Run this branch when the prompt says this is a recheck, and the design from step 9 or 10 has `status` `approved`. When the prompt names no recheck, skip this branch.
+
+1. Read `card_get` `relatedCards`. A recheck needs a `blocked-by` entry whose `status` is a terminal column. Otherwise stop with `STAGE RESULT: blocked: no closed blocker to recheck against`.
+2. Read the design and its answers, as the contract "Read the answers of a design" says. Do not change an answer.
+3. Read the code on `main`, also for an epic child whose base branch is `epic/<n>`. The epic branch can lack the code of the closed blocker until the epic sync runs. List each checked fact of the design: each class, method, field, route, file and behaviour that it names. Read each one. Pay most attention to the parts that the closed blocker builds, which the design could only assume.
+4. When every fact holds, stop with `STAGE RESULT: tech design current [reason: done]`. Change no document.
+5. When a fact no longer holds, revise the design with `document_revise`. Change only what the new code makes wrong, and keep each ID and each answered decision. Say in the first section what changed and why. A revision sets the design back to In review. Update the deploy notes when a deploy item changed, and record each new dependency, as Revise steps 6 and 7 say. Stop with `STAGE RESULT: tech design revised <id> [reason: done]`.
+6. When a decision of the owner no longer works with the new code, do not change that decision. Add a new open decision with its own ID, then revise as in step 5.
+
 ### Revise, when step 9 or 10 finds the design
 
-1. When its `status` is `approved`, stop with `STAGE RESULT: tech design already approved`.
+1. When its `status` is `approved` and the prompt names no recheck, stop with `STAGE RESULT: tech design already approved`.
 2. When its `status` is `draft`, an earlier run stopped before it published the design. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Publish the design, and the linked deploy notes when they are a draft, as "Publish the drafts" says. Record each new dependency, as Revise step 7 says. Stop with `STAGE RESULT: tech design created <id>`.
 3. Read the code and those design inputs.
 4. Judge the size again, as "Judge the size" says. A revision never changes the ID of an entry.
