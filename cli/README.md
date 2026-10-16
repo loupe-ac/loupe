@@ -1048,6 +1048,12 @@ command in the folder of the branch. A value fills one element of the `run`
 list and never reaches a shell. A pattern must exclude a value such as
 `--exec=...` if the command reads it as an option.
 
+While the command runs, the bridge streams its output to Loupe, about once a
+second. It merges stderr into stdout, so the lines keep the order in which they
+arrived. Loupe keeps up to 1 MiB of it. The last
+chunk reaches Loupe before the run shows as succeeded or failed. A failed
+stream never fails or slows the command.
+
 ### Accepting entries from Loupe
 
 `acceptEntries: true` at the top of the file lets Loupe add a command entry to
