@@ -113,7 +113,7 @@ final class WorkRequestResultApiTest extends WebTestCase
         $raw = $this->token($owner);
         [$request, $stale] = $this->claimed($client, $raw, $project, $first);
 
-        $this->clock()->sleep(121);
+        $this->clock()->sleep(1801);
         $repository = static::getContainer()->get(WorkRequestRepository::class);
         self::assertInstanceOf(WorkRequestRepository::class, $repository);
         self::assertCount(1, $repository->reopenLapsed($this->clock()->now()));
