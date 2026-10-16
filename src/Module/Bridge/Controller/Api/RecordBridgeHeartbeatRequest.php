@@ -164,17 +164,13 @@ final class RecordBridgeHeartbeatRequest
     }
 
     /**
-     * The work kinds once each. Null when the bridge sent no report.
+     * The work kinds once each. Empty when the bridge sent no report.
      *
-     * @return list<string>|null
+     * @return list<string>
      */
-    public function workKinds(): ?array
+    public function workKinds(): array
     {
-        if (null === $this->workKinds) {
-            return null;
-        }
-
-        return array_values(array_unique($this->workKinds));
+        return array_values(array_unique($this->workKinds ?? []));
     }
 
     /**

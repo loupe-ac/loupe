@@ -445,8 +445,8 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertSame([], $this->bridge($owner, $bridgeId)->workKinds);
     }
 
-    /** A bridge from before work kinds sends no field, so its heartbeat leaves the stored list alone, and a new bridge stores none. */
-    public function test_a_heartbeat_without_work_kinds_keeps_the_stored_list(): void
+    /** A bridge from before work kinds sends no field, so it stores an empty list and counts as able to run no kind. */
+    public function test_a_heartbeat_without_work_kinds_stores_an_empty_list(): void
     {
         $client = static::createClient();
         $em = $this->em();
@@ -456,13 +456,13 @@ final class BridgeHeartbeatApiTest extends WebTestCase
 
         $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7']);
         self::assertResponseStatusCodeSame(200);
-        self::assertNull($this->bridge($owner, $bridgeId)->workKinds);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->workKinds);
 
         $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => ['fix']]);
         $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => null]);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['fix'], $this->bridge($owner, $bridgeId)->workKinds);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->workKinds);
     }
 
     /** A bridge from before commands sends neither field, so its heartbeat leaves the stored values alone. */
