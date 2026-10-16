@@ -68,6 +68,9 @@
             : '';
     let lastSeenPreviewToken = PREVIEW_TOKEN;
     let refreshGeneration = 0;
+    // The newest list request, and whether it has no answer yet.
+    let listReady = Promise.resolve();
+    let refreshPending = false;
     // Every comment is saved to the API as it is written and is live from that
     // moment — there is no send step. `comments` mirrors the project's Pending
     // comments, the ones this reviewer may still edit or delete; once the agent marks
@@ -495,13 +498,15 @@
     };
 
     // Rehydrate the list from the project's Pending comments.
-    const refresh = async ({ firstLoad = false } = {}) => {
+    const refresh = (options) => (listReady = loadList(options));
+    const loadList = async ({ firstLoad = false } = {}) => {
         // The marker this answer will describe, read once. Navigation or a new
         // choice can change it while the request is in flight, and an answer
         // about one card must not label another.
         const asked = bootMarker();
         const scope = scopeOf();
         const generation = ++refreshGeneration;
+        refreshPending = true;
         try {
             const payload = await api(
                 'GET',
@@ -554,6 +559,8 @@
                 // load has nothing to keep.
                 comments = [];
             }
+        } finally {
+            if (generation === refreshGeneration) refreshPending = false;
         }
     };
 
@@ -4791,10 +4798,19 @@
                 });
                 if (scopeAtSave === scopeGeneration) {
                     comments.push({ id: saved.commentId, ...comment });
+                    // A list request still in flight answers with a snapshot
+                    // from before this note, so it is asked again.
+                    let stale = refreshPending;
                     // Only a per-note review lists the cards of this tab.
                     if (destination.mode === 'per-note') {
+                        const sent = sessionCards.slice(0, SESSION_CARDS_SENT);
                         rememberSessionCard(saved.cardId);
+                        // A card pushed out of the sent ids takes its notes
+                        // out of the scope, and the rows hold no card id.
+                        const kept = sessionCards.slice(0, SESSION_CARDS_SENT);
+                        stale = stale || sent.some((id) => !kept.includes(id));
                     }
+                    if (stale) refresh().then(sync);
                 }
                 savedCard =
                     destination.mode === 'per-review'
@@ -4903,6 +4919,8 @@
         state.deleting = true;
         try {
             await ready; // don't let the boot refresh clobber an early clear
+            // A list still loading can hold notes of an old scope.
+            while (refreshPending) await listReady;
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.

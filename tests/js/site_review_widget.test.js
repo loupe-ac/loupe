@@ -1519,6 +1519,162 @@ describe('the scope of the list request', () => {
         expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
     });
 
+    const listedBodies = () =>
+        [...panelRoot().querySelectorAll('#lp-list .lp-item')].map(
+            (node) =>
+                node.querySelector('.lp-item-body, p')?.textContent ??
+                node.textContent,
+        );
+
+    it('asks again when a save pushes a card out of the 50 it sends', async () => {
+        const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: (url, init) => {
+                if (init.method === 'POST') return madeCard('made-new');
+                // card-49 holds the old note, and made-new holds the new one.
+                const scope = new URL(url).searchParams.get('scope');
+                const rows = [];
+                if (scope.includes('card-49,') || scope.endsWith('card-49')) {
+                    rows.push({
+                        id: 'old',
+                        body: 'Old note',
+                        url: window.location.href,
+                        anchors: [],
+                    });
+                }
+                if (scope.includes('made-new')) {
+                    rows.push({
+                        id: 'c1',
+                        body: 'New note',
+                        url: window.location.href,
+                        anchors: [],
+                    });
+                }
+                return ok({ comments: rows, context: null });
+            },
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'New note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(listRequest(fetchMock, 1).scope).toBe(
+            `cards:${['made-new', ...ids.slice(0, 49)].join(',')}`,
+        );
+        const listed = listedBodies().join(' ');
+        expect(listed).toContain('New note');
+        expect(listed).not.toContain('Old note');
+    });
+
+    it('deletes only the notes of the scope while the list reloads', async () => {
+        const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const old = {
+            id: 'old',
+            body: 'Old note',
+            url: window.location.href,
+            anchors: [],
+        };
+        const fresh = {
+            id: 'c1',
+            body: 'New note',
+            url: window.location.href,
+            anchors: [],
+        };
+        let release = null;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [old], context: null }),
+        });
+        await settle();
+        fetchMock.mockImplementation((url, init) => {
+            if (init.method === 'POST') return madeCard('made-new');
+            if (init.method === 'DELETE') return ok({});
+            return new Promise((resolve) => {
+                release = () =>
+                    resolve(ok({ comments: [fresh], context: null }));
+            });
+        });
+        const root = openNote();
+        await write(root, 'New note');
+        root.getElementById('lp-save').click();
+        await settle();
+        expect(release).toBeTypeOf('function');
+
+        root.getElementById('lp-clear').click();
+        root.getElementById('lp-clear-yes').click();
+        await settle();
+        release();
+        await settle();
+
+        const deleted = fetchMock.mock.calls
+            .filter(([, init]) => init && init.method === 'DELETE')
+            .map(([url]) => url.split('/').pop());
+        expect(deleted).toEqual(['c1']);
+    });
+
+    it('asks again when a save lands while the list still loads', async () => {
+        const OTHER = '01a0cafe-0000-7000-8000-000000000002';
+        let saved = false;
+        let release = null;
+        const row = {
+            id: 'c1',
+            body: 'Saved while loading',
+            url: window.location.href,
+            anchors: [],
+        };
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Saved while loading');
+        fetchMock.mockImplementation((url, init) => {
+            if (init.method === 'POST') {
+                saved = true;
+                return madeCard(OTHER);
+            }
+            if (!url.includes('/api/site-review/review')) {
+                return ok({ comments: [], context: null });
+            }
+            // The first list request of the new page answers last, with a
+            // snapshot from before the save.
+            if (release === null) {
+                return new Promise((resolve) => {
+                    release = () =>
+                        resolve(
+                            ok({
+                                comments: [],
+                                context: { label: '#8', url: null },
+                            }),
+                        );
+                });
+            }
+            return ok({
+                comments: saved ? [row] : [],
+                context: { label: '#8', url: null },
+            });
+        });
+        document
+            .querySelector('script[src*="site-review/widget.js"]')
+            .setAttribute('data-context', `card:${OTHER}`);
+        window.history.pushState({}, '', '/preview');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await settle();
+        expect(release).toBeTypeOf('function');
+
+        root.getElementById('lp-save').click();
+        await settle();
+        release();
+        await settle();
+
+        expect(listedBodies().join(' ')).toContain('Saved while loading');
+    });
+
     it('forgets the cards of a tab when the destination changes', async () => {
         window.sessionStorage.setItem(
             SESSION_CARDS_KEY,
