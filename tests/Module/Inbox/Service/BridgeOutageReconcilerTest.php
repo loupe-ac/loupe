@@ -115,14 +115,14 @@ final class BridgeOutageReconcilerTest extends KernelTestCase
         self::assertSame(1, $this->itemCount());
     }
 
-    public function test_a_card_whose_work_starts_to_wait_later_joins_the_open_notice(): void
+    public function test_a_card_whose_work_starts_to_wait_later_joins_the_open_notice_before_its_own_ten_minutes_pass(): void
     {
         $this->waitingRequest($this->card, '2026-10-16 11:49:00');
         $this->reconciler->reconcile($this->project);
         $item = $this->onlyOutage()->item;
         $number = $item->number;
         $other = $this->card($this->em, $this->project, 9);
-        $this->waitingRequest($other, '2026-10-16 11:50:00');
+        $this->waitingRequest($other, '2026-10-16 11:55:00');
         $this->em->flush();
 
         $this->reconciler->reconcile($this->project);

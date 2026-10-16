@@ -75,15 +75,19 @@ final readonly class BridgeOutageReconciler
             }
 
             $readings = $enabled ? $this->readings($project) : [];
-            if (null !== $outage && [] === $this->withoutTaker($readings)) {
+            $withoutTaker = $this->withoutTaker($readings);
+            if (null !== $outage && [] === $withoutTaker) {
                 $this->close($outage, $enabled, $now);
                 $this->em->flush();
 
                 return true;
             }
 
+            // The delay applies to opening the notice only. An open notice takes each waiting card at once.
             $cutoff = $now->modify(\sprintf('-%d minutes', $this->afterMinutes));
-            $due = array_filter($readings, static fn (array $row): bool => WorkTakerState::None === $row['reading']->state && $row['reading']->noTakerSince <= $cutoff);
+            $due = null === $outage
+                ? array_filter($withoutTaker, static fn (array $row): bool => $row['reading']->noTakerSince <= $cutoff)
+                : $withoutTaker;
             $cards = $this->cardsOf($project, $due);
             if ([] === $cards) {
                 return null;
