@@ -17,8 +17,10 @@ use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Support\ScheduledTasks;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Console\Tester\CommandTester;
 
 final class ReconcileBridgeOutagesTaskTest extends KernelTestCase
 {
@@ -60,6 +62,16 @@ final class ReconcileBridgeOutagesTaskTest extends KernelTestCase
         self::assertCount(1, $outages);
         self::assertSame($this->waiting->id?->toRfc4122(), $outages[0]->project->id?->toRfc4122());
         self::assertSame(InboxItemState::Open, $outages[0]->item->state);
+    }
+
+    public function test_the_console_command_opens_the_notice_and_reports_the_count(): void
+    {
+        $tester = new CommandTester(new Application(self::$kernel ?? throw new \LogicException('The kernel is booted.'))->find('app:reconcile-bridge-outages'));
+        $tester->execute([]);
+
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('Reconciled 1 project(s).', $tester->getDisplay());
+        self::assertCount(1, $this->outages());
     }
 
     public function test_the_handler_visits_the_projects_with_open_card_work_and_the_projects_with_an_open_outage(): void
