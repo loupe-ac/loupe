@@ -428,6 +428,44 @@ final class ItemActionsTest extends KernelTestCase
         );
     }
 
+    public function test_a_todo_offers_only_the_suggestions_that_fit_and_defaults_to_the_recommended_one(): void
+    {
+        $todo = $this->todo([
+            ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null],
+            ['action' => 'retry-card', 'reason' => 'Retry it.', 'recommended' => false, 'cardId' => null],
+            ['action' => 'dismiss', 'reason' => 'Nothing to do.', 'recommended' => false, 'cardId' => null],
+        ]);
+
+        self::assertSame(
+            [[InboxActionKind::Open, true, 'Read the card first.']],
+            array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($todo)),
+        );
+    }
+
+    public function test_a_todo_with_no_suggestions_offers_no_action(): void
+    {
+        self::assertSame([], $this->actions()->forItem($this->todo(null)));
+    }
+
+    public function test_a_todo_without_a_recommendation_has_no_default(): void
+    {
+        $todo = $this->todo([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
+
+        self::assertSame([], $this->defaults($todo));
+    }
+
+    /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}>|null $suggestions */
+    private function todo(?array $suggestions): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item->suggestedActions = $suggestions;
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em->persist($item);
+        $this->em->flush();
+
+        return $item;
+    }
+
     /** @param list<InboxCardWait> $waits */
     private function waitItem(array $waits): InboxItem
     {

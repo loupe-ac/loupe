@@ -12,6 +12,7 @@ use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxAskOrigin;
 use App\Module\Inbox\Entity\InboxItem;
+use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxReview;
@@ -451,6 +452,42 @@ final class InboxItemFormsControllerTest extends WebTestCase
         $stored = $this->reload($item);
         self::assertSame(InboxItemState::Done, $stored->state);
         self::assertNotNull($stored->closedAt);
+    }
+
+    public function test_a_to_do_shows_its_suggested_actions_in_the_split_button_beside_decline_and_done(): void
+    {
+        $this->seedColumns($this->project);
+        $card = new Card($this->project, $this->column($this->project, 'backlog'), 'Export card', 'Body', number: 1);
+        $this->em->persist($card);
+        $item = $this->todo($this->em, $this->project, 2);
+        $item->suggestedActions = [
+            ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null],
+            ['action' => 'send-agent', 'reason' => 'Let an agent do it.', 'recommended' => false, 'cardId' => null],
+        ];
+        $item->cards->add(new InboxItemCard($item, $card));
+        $this->em->flush();
+        $this->askHolding($this->em, $this->project, [$item]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Read the card first.', trim($crawler->filter('#inbox-item-2 [data-inbox-reply-heading]')->text()));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 .inbox-split__main[data-inbox-action="open"]'));
+        self::assertCount(0, $crawler->filter('#inbox-item-2 [data-inbox-action="send-agent"]'));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-decline__form'));
+    }
+
+    public function test_a_to_do_with_no_suggestion_shows_no_split_button(): void
+    {
+        $item = $this->todo($this->em, $this->project, 2);
+        $this->askHolding($this->em, $this->project, [$item]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('#inbox-item-2 .inbox-split'));
+        self::assertCount(1, $crawler->filter('#inbox-item-2 .lp-inbox-done'));
     }
 
     public function test_a_done_on_a_final_to_do_is_refused_in_place(): void

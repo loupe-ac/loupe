@@ -84,6 +84,9 @@
     {% elseif item.kind.value != 'wait' and inbox.acceptsResponse(item) and is_granted(constant('App\\Module\\Inbox\\Security\\InboxItemVoter::ANSWER'), item) %}
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
+        {% if item.kind.value == 'todo' and not inbox_actions(item, hostCardId ?? null).isEmpty %}
+            {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: null, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: true} only %}
+        {% endif %}
         <div class="lp-inbox-item__actions">
             {% if item.kind.value in ['question', 'workflow'] %}
                 {% set answerForm = inbox_answer_form(item, refusedForm) %}

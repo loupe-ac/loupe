@@ -175,7 +175,10 @@ final readonly class ItemActions
             $waits = $openWaits[self::key($item)] ?? [];
             $cardId = $cardIds[self::key($item)] ?? null;
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]));
-            $suggestions = self::suggestions($waits, $runs);
+            $suggestions = InboxItemKind::Todo === $item->kind ? self::todoSuggestions($item) : self::suggestions($waits, $runs);
+            if (InboxItemKind::Todo === $item->kind) {
+                $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
+            }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
             $actions[self::key($item)] = array_map(
                 static fn (InboxActionKind $kind): ItemAction => ItemAction::for(
@@ -354,6 +357,21 @@ final readonly class ItemActions
     }
 
     /**
+     * The suggestions that the asking agent stored on a to-do, keyed by action. The to-do offers only these.
+     *
+     * @return array<string, SuggestedAction>
+     */
+    private static function todoSuggestions(InboxItem $item): array
+    {
+        $suggestions = [];
+        foreach ($item->suggestedActions ?? [] as $stored) {
+            $suggestions[$stored['action']] = new SuggestedAction($stored['action'], $stored['reason'], $stored['recommended']);
+        }
+
+        return $suggestions;
+    }
+
+    /**
      * The recommended suggestion when it fits. Otherwise the kind of the newest open wait when it fits,
      * otherwise Open, so a wait item always has a default that fits.
      *
@@ -363,7 +381,7 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
-        if (InboxItemKind::Wait !== $item->kind) {
+        if (!\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Todo], true)) {
             return null;
         }
 
@@ -371,6 +389,10 @@ final readonly class ItemActions
             if (InboxActionKind::Dismiss !== $kind && true === ($suggestions[$kind->value]->recommended ?? false)) {
                 return $kind;
             }
+        }
+
+        if (InboxItemKind::Todo === $item->kind) {
+            return null;
         }
 
         $newest = end($waits);
