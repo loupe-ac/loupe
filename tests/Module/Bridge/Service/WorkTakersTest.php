@@ -224,16 +224,34 @@ final class WorkTakersTest extends KernelTestCase
         self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
     }
 
-    public function test_a_request_about_another_subject_needs_the_subject_capability_and_no_kind(): void
+    public function test_a_request_about_another_subject_needs_the_subject_capability_and_its_kind_on_that_subject(): void
     {
         [$project, $request, $owner] = $this->scenario('subject', capability: 'subject-analysis', subject: new WorkSubject('analysis', Uuid::v7()));
-        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: []);
+        $analysis = [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis'];
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement']);
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:report', 'implement'], capabilities: $analysis);
 
         self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
 
-        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis']);
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: $analysis);
 
         self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_a_bridge_with_app_prompts_takes_a_request_about_another_subject_that_carries_a_prompt(): void
+    {
+        [$project, $request, $owner] = $this->scenario('subject-prompt', capability: 'subject-analysis', prompt: 'Analyse.', subject: new WorkSubject('analysis', Uuid::v7()));
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:report'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+
+        self::assertSame(WorkTakerState::Available, $this->read($project, $request)->state);
+    }
+
+    public function test_a_card_kind_of_another_subject_takes_no_card_request(): void
+    {
+        [$project, $request, $owner] = $this->scenario('card-kind-of-subject');
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis']);
+
+        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
     }
 
     public function test_a_bridge_that_does_not_follow_the_project_is_no_taker(): void

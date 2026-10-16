@@ -434,10 +434,10 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $raw = $this->agentToken($client, $owner);
         $bridgeId = (string) Uuid::v4();
 
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => ['fix', 'tech-design', 'fix']]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => ['fix', 'tech-design', 'fix', 'analysis:cost-report']]);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame(['fix', 'tech-design'], $this->bridge($owner, $bridgeId)->workKinds);
+        self::assertSame(['fix', 'tech-design', 'analysis:cost-report'], $this->bridge($owner, $bridgeId)->workKinds);
 
         $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'workKinds' => []]);
 
@@ -921,6 +921,9 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a work kind with an upper-case name' => [['workKinds' => ['Fix']]];
         yield 'a work kind name with a trailing newline' => [['workKinds' => ["fix\n"]]];
         yield 'a work kind that is not a string' => [['workKinds' => [7]]];
+        yield 'a work kind with an empty subject' => [['workKinds' => [':fix']]];
+        yield 'a work kind with a subject and no kind' => [['workKinds' => ['analysis:']]];
+        yield 'a work kind with two subjects' => [['workKinds' => ['a:b:c']]];
         yield 'a pause state as text' => [['paused' => 'yes']];
         yield 'work claims that are not a list' => [['workClaims' => 'claims']];
         yield 'work claims keyed by id' => [['workClaims' => ['first' => self::workClaim()]]];
