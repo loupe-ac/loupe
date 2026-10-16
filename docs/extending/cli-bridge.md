@@ -1333,6 +1333,30 @@ no review: the review rules belong to the Lifecycle template, which carries no
 app prompt. When a `fix` request starts for an agent review, the `fix` entry runs
 the `loupe-stage-fix-round` skill, which reads the findings from `card_get`.
 
+The `design-review` kind runs the `loupe-stage-design-review` skill. The
+worker reads a draft product design or a draft tech design, with its product
+document, the code and the prototype, and sends its findings with the
+`document_review_submit` tool. It changes no file and no document. Give the
+entry its own `model`, as for `review`. The entry needs no worktree, so it has
+no `before` command. A bridge with no `design-review` entry takes no design
+review: the card pauses with "no bridge took the work", and the draft stays
+hidden until the owner publishes it.
+
+```yaml
+work:
+  design-review:
+    model: opus
+    prompt: |
+      Use the loupe-stage-design-review skill.
+      Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
+      Loupe instance https://loupe.ac.
+```
+
+When a `product-design-revise` or `tech-design-revise` request starts for an
+agent review, the same `loupe-stage-fix-round` skill answers the findings. It
+revises the draft, and records one answer for each finding with the
+`document_review_answer` tool. Its prompt needs no change.
+
 The file needs `work:`, or `appPrompts: true`. The bridge reports the
 `work-requests` capability when the map has an entry or `appPrompts` is on,
 and `interactive` too when an entry opens an interactive session. An entry for

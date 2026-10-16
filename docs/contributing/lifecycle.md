@@ -21,8 +21,8 @@ The workflow also makes the moves that follow a pull request.
 | Label | Slug | Flag | Work |
 |---|---|---|---|
 | Backlog | `backlog` | backlog | none |
-| Product design | `product-design` | | `product-design`, `product-design-revise` |
-| Tech design | `tech-design` | | `tech-design`, `tech-design-revise`, `tech-design-recheck` |
+| Product design | `product-design` | | `product-design`, `product-design-revise`, `design-review` |
+| Tech design | `tech-design` | | `tech-design`, `tech-design-revise`, `tech-design-recheck`, `design-review` |
 | Implementation | `implementation` | | `implement`, `breakdown`, `review`, `fix` |
 | In review | `in-review` | | `review`, `fix`, `merge`, `sync`, `rebase-stacked` |
 | Done | `done` | terminal | `teardown` |
@@ -219,6 +219,14 @@ work:
     prompt: |
       Use the loupe-stage-fix-round skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}), column tech-design.
+      Loupe instance https://loupe.ac.
+
+  design-review:
+    model: opus
+    permissions: workspace
+    prompt: |
+      Use the loupe-stage-design-review skill.
+      Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Loupe instance https://loupe.ac.
 
   review:
