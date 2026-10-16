@@ -76,10 +76,20 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 	}
 
-	// An unchanged file earns no probe.
+	// The first tick probes, and the expired login keeps the gate closed.
 	callsBefore := src.calls.Load()
 	ticks <- time.Now()
 	for arms.Load() < 2 {
+		time.Sleep(time.Millisecond)
+	}
+	if src.calls.Load() != callsBefore+1 {
+		t.Fatal("the first tick did not probe")
+	}
+
+	// An unchanged file earns no probe.
+	callsBefore = src.calls.Load()
+	ticks <- time.Now()
+	for arms.Load() < 3 {
 		time.Sleep(time.Millisecond)
 	}
 	if src.calls.Load() != callsBefore {
@@ -113,6 +123,34 @@ func TestLoginGateWaitsQuietlyThenResumes(t *testing.T) {
 	}
 	if notices.Load() != 1 {
 		t.Fatalf("notices = %d, want 1", notices.Load())
+	}
+}
+
+func TestLoginGateFindsLoginWrittenBeforeTheWatcherStarts(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"login":"new"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	src := &flakySource{}
+	src.fixed.Store(true)
+	ticks := make(chan time.Time, 1)
+	g := newLoginGate(ctx, newBridgeLogger(&bytes.Buffer{}), cfgPath, func(ctx context.Context) error {
+		_, err := src.Token(ctx)
+
+		return err
+	})
+	g.notice = func(context.Context) {}
+	g.after = func(time.Duration) <-chan time.Time { return ticks }
+	g.trip()
+	ticks <- time.Now()
+
+	waitCtx, stop := context.WithTimeout(ctx, 2*time.Second)
+	defer stop()
+	if err := g.wait(waitCtx); err != nil {
+		t.Fatalf("the gate stayed closed after a login that landed before the watcher: %v", err)
 	}
 }
 

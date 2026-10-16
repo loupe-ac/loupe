@@ -101,9 +101,10 @@ func (g *loginGate) wait(ctx context.Context) error {
 }
 
 // watch looks at config.json every loginPollInterval. A changed file earns one
-// probe, and a probe that gives a token opens the gate.
+// probe, and a probe that gives a token opens the gate. The first tick always
+// probes, because a login can land before the watcher reads the file.
 func (g *loginGate) watch(open chan struct{}) {
-	seen, _ := os.Stat(g.configPath)
+	var seen os.FileInfo
 	for {
 		select {
 		case <-g.ctx.Done():
