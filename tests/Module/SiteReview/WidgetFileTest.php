@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\SiteReview;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class WidgetFileTest extends TestCase
@@ -58,5 +59,40 @@ final class WidgetFileTest extends TestCase
         self::assertStringContainsString("'loupe.site-review.corner'", $src);
         self::assertStringContainsString('`loupe-site-review:mode:${BACKEND}:${PROJECT}`', $src);
         self::assertSame(2, substr_count($src, 'localStorage.setItem'));
+    }
+
+    public function test_every_widget_control_keeps_its_focus_ring(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        preg_match_all('/^\s*(button:focus-visible,[^{]*)\{outline:2px solid var\(--accent-ink\)/m', $src, $rings);
+        self::assertCount(2, $rings[1]);
+        foreach ($rings[1] as $ring) {
+            $selectors = explode(',', $ring);
+            foreach (['button', 'select', 'input', 'textarea', 'a', '[role="button"]'] as $control) {
+                self::assertContains($control.':focus-visible', $selectors, $ring);
+            }
+        }
+        self::assertDoesNotMatchRegularExpression('/outline:\s*(none|0)\b/', $src);
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function overlaySizes(): iterable
+    {
+        yield 'remove control' => ['X_SIZE', '.lp-hl-x', 'width'];
+        yield 'pin' => ['PIN_SIZE', '.pin', 'width'];
+        yield 'quote button' => ['QUOTE_BTN_HEIGHT', '.lp-quote-btn', 'height'];
+    }
+
+    #[DataProvider('overlaySizes')]
+    public function test_overlay_size_constant_matches_its_css(string $constant, string $selector, string $property): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        self::assertSame(1, preg_match('/const '.$constant.' = (\d+);/', $src, $js));
+        self::assertSame(1, preg_match('/^\s*'.preg_quote($selector, '/').'\{(?:[^}]*?;)?'.$property.':(\d+)px/m', $src, $css));
+        self::assertSame($css[1], $js[1]);
     }
 }

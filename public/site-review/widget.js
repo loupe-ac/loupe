@@ -198,6 +198,7 @@
     );
     const MOD_KEY = IS_MAC ? 'Meta' : 'Control';
     const MOD_LABEL = IS_MAC ? '⌘' : 'Ctrl';
+    const ALT_LABEL = IS_MAC ? '⌥' : 'Alt';
     const modHeld = (event) => (IS_MAC ? event.metaKey : event.ctrlKey);
 
     // Anchors of a comment, tolerating a pre-anchors server that sends only the
@@ -913,6 +914,9 @@
         '--scrim': 'rgba(24,29,24,.28)',
         '--status-ok': '#2f9e5c',
         '--status-danger': '#c2372b',
+        '--on-danger': '#ffffff',
+        '--warn': '#7a4f00',
+        '--warn-soft': '#fbf1d9',
     };
     // The app itself is light-only. These values exist in the widget alone, built
     // from the dark shell rungs, so a widget on a dark host page still reads as Loupe.
@@ -935,6 +939,9 @@
         '--scrim': 'rgba(0,0,0,.45)',
         '--status-ok': '#4ab97a',
         '--status-danger': '#e4685c',
+        '--on-danger': '#20241f',
+        '--warn': '#f0b54a',
+        '--warn-soft': '#3a3016',
     };
 
     // Inline SVG icons — this widget is embedded on third-party sites with no access
@@ -1137,11 +1144,13 @@
       @keyframes lp-pop-down{from{transform:translateY(-8px) scale(.985)}to{transform:none}}
       @keyframes lp-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
       @keyframes lp-slide-left-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+      button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      .lp-launcher button:focus-visible{outline-color:var(--accent)}
       .lp-scroll::-webkit-scrollbar{width:10px;height:10px}
-      .lp-scroll::-webkit-scrollbar-thumb{background:var(--text-dim);border-radius:9px;border:3px solid transparent;background-clip:content-box}
+      .lp-scroll::-webkit-scrollbar-thumb{background:var(--text-dim);border-radius:6px;border:3px solid transparent;background-clip:content-box}
       .lp-scroll::-webkit-scrollbar-track{background:transparent}
 
-      .lp-launcher{position:fixed;right:20px;bottom:20px;height:46px;padding:0 7px;display:flex;align-items:center;gap:0;background:var(--chrome);border:1px solid var(--chrome-line);border-radius:999px;box-shadow:var(--bar-shadow);font-family:var(--font);pointer-events:auto;cursor:grab;user-select:none;-webkit-user-select:none;transition:box-shadow .14s ease,background .25s ease}
+      .lp-launcher{position:fixed;right:20px;bottom:20px;height:44px;padding:0 7px;display:flex;align-items:center;gap:0;background:var(--chrome);border:1px solid var(--chrome-line);border-radius:999px;box-shadow:var(--bar-shadow);font-family:var(--font);pointer-events:auto;cursor:grab;user-select:none;-webkit-user-select:none;transition:box-shadow .14s ease,background .25s ease}
       /* Corner placement. Only the two offsets move: the launcher keeps one
          shape in every corner, so the open/close collapse is untouched. */
       .lp-launcher.at-left{right:auto;left:20px}
@@ -1159,29 +1168,29 @@
          travel above that is time the collapse spends going nowhere. */
       .lp-launch-quick{display:flex;align-items:center;gap:3px;overflow:hidden;max-width:130px;opacity:1;visibility:visible;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s 0s}
       .lp-launcher.open .lp-launch-quick{max-width:0;opacity:0;visibility:hidden;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s .24s}
-      .lp-launch-action{flex:0 0 auto;width:34px;height:34px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
+      .lp-launch-action{flex:0 0 auto;width:32px;height:32px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
       .lp-launch-action:hover{background:var(--chrome-raised);color:var(--accent)}
-      .lp-launch-div{flex:0 0 auto;width:1px;height:22px;background:var(--chrome-line);margin:0 3px}
+      .lp-launch-div{flex:0 0 auto;width:1px;height:24px;background:var(--chrome-line);margin:0 3px}
       /* A label and not a control: the launcher's chrome weight, no hover state
          and no pointer target of its own, so a press still drags the bar. */
-      .lp-local{flex:0 0 auto;height:22px;margin:0 5px 0 3px;padding:0 8px;display:inline-flex;align-items:center;background:var(--chrome-raised);border:1px solid var(--chrome-line);border-radius:999px;color:var(--chrome-mute);font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-      .lp-launch-main{display:flex;align-items:center;gap:9px;height:38px;padding:0 10px 0 9px;background:transparent;border:0;color:var(--chrome-fg);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border-radius:999px;transition:background .14s ease}
+      .lp-local{flex:0 0 auto;height:24px;margin:0 5px 0 3px;padding:0 8px;display:inline-flex;align-items:center;background:var(--chrome-raised);border:1px solid var(--chrome-line);border-radius:999px;color:var(--chrome-mute);font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+      .lp-launch-main{display:flex;align-items:center;gap:9px;height:32px;padding:0 10px 0 9px;background:transparent;border:0;color:var(--chrome-fg);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border-radius:999px;transition:background .14s ease}
       .lp-launch-main:hover{background:var(--chrome-raised)}
       /* Styled tooltips for the launcher buttons, above each on hover. */
       [data-tip]{position:relative}
-      [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(3px);padding:5px 10px;background:var(--chrome-raised);border:1px solid var(--chrome-line);color:var(--chrome-fg);font-size:11.5px;font-weight:500;line-height:1.4;white-space:nowrap;border-radius:999px;box-shadow:var(--bar-shadow);opacity:0;pointer-events:none;transition:opacity .12s ease,transform .12s ease}
+      [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(3px);padding:5px 10px;background:var(--chrome-raised);border:1px solid var(--chrome-line);color:var(--chrome-fg);font-size:12px;font-weight:500;line-height:1.4;white-space:nowrap;border-radius:999px;box-shadow:var(--bar-shadow);opacity:0;pointer-events:none;transition:opacity .12s ease,transform .12s ease}
       [data-tip]:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
       /* A tooltip above a launcher docked at the top would sit off screen, so
          it hangs below instead. The hover rule is restated because the corner
          selector outranks the plain one. */
       .lp-launcher.at-top [data-tip]::after{bottom:auto;top:calc(100% + 8px);transform:translateX(-50%) translateY(-3px)}
       .lp-launcher.at-top [data-tip]:hover::after{transform:translateX(-50%) translateY(0)}
-      .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 7px;border-radius:999px;font-size:11.5px;font-weight:700}
+      .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;font-size:12px;font-weight:700}
       .lp-count.solid{background:var(--accent);color:var(--ink)}
       .lp-count.soft{background:var(--accent-soft);color:var(--accent-ink)}
-      .lp-count.danger{background:var(--status-danger);color:#fff}
+      .lp-count.danger{background:var(--status-danger);color:var(--on-danger)}
 
-      .lp-panel{position:fixed;right:20px;bottom:78px;width:348px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-pop .2s cubic-bezier(.2,.9,.3,1);transition:background .25s ease,border-color .25s ease}
+      .lp-panel{position:fixed;right:20px;bottom:78px;width:348px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-pop .2s cubic-bezier(.2,.9,.3,1);transition:background .25s ease,border-color .25s ease}
       /* The panel opens away from the launcher's edge. 78px clears the 46px
          launcher plus its 20px inset, and the 160px max-height budget covers
          that offset at either end, so no corner grows off screen. */
@@ -1191,11 +1200,11 @@
       .lp-header{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:14px 14px 12px 17px}
       .lp-title{font-size:15px;font-weight:700;letter-spacing:-.01em}
       .lp-spacer{flex:1}
-      .lp-iconbtn{width:28px;height:28px;border:0;background:transparent;color:var(--text-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+      .lp-iconbtn{width:32px;height:32px;border:0;background:transparent;color:var(--text-mute);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}
       .lp-iconbtn:hover{background:var(--surface-2);color:var(--text)}
       .lp-iconbtn:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
 
-      .lp-context{display:flex;align-items:flex-start;gap:5px;margin-top:6px;font-size:11.5px;line-height:1.4;color:var(--text-mute);white-space:nowrap}
+      .lp-context{display:flex;align-items:flex-start;gap:5px;margin-top:6px;font-size:12px;line-height:1.4;color:var(--text-mute);white-space:nowrap}
       .lp-context svg{flex:0 0 auto;opacity:.75;margin-top:1.5px}
       /* The icon replaced the words "Saves to" on screen. A screen reader would
          otherwise hear a bare card title with nothing saying what it is for. */
@@ -1204,7 +1213,7 @@
          this shadow root, and hardcoding light values put a white panel inside
          the dark widget. */
       .lp-picker{margin-top:8px;border:1px solid var(--border-faint);border-radius:10px;padding:8px;background:var(--surface-2)}
-      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-search::placeholder{color:var(--text-dim)}
       .lp-picker-search:focus{border-color:var(--accent-border);background:var(--field-focus)}
       .lp-picker-list{max-height:min(132px,20vh);overflow:auto;margin-top:6px}
@@ -1214,10 +1223,10 @@
          invisible; every other fill measured under 1.2:1 against the panel in
          light, where the whole palette is pale. The 1px edge is what carries
          light mode: a crisp border reads where a wash does not. */
-      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border);outline:none}
+      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border)}
       .lp-picker-row:hover .n,.lp-picker-row:focus-visible .n{color:var(--accent-ink)}
       .lp-picker-row .n{color:var(--text-mute);margin-right:5px}
-      .lp-picker-note{padding:6px;font-size:11.5px;color:var(--text-mute)}
+      .lp-picker-note{padding:6px;font-size:12px;color:var(--text-mute)}
       .lp-picker-foot{display:flex;align-items:center;gap:8px;margin-top:6px}
       .lp-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
       /* A card title runs to 255 characters and the composer is a fixed height
@@ -1232,12 +1241,12 @@
          runs to two lines at most, so it wraps where a card title ellipses. */
       .lp-context-label[data-wrap]{white-space:normal;overflow:visible}
       .lp-picker-foot .lp-picker-search{flex:1 1 auto}
-      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
       .lp-last-card{margin:6px 0 0}
       .lp-verdict{flex:0 1 auto;min-height:0;overflow:auto;margin:0 14px 12px;font-size:12px;line-height:1.45;color:var(--text)}
       .lp-verdict-row{display:flex;gap:6px}
-      .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:999px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
+      .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:10px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
       .lp-verdict-btn[data-kind="request-changes"]{flex:1.5}
       .lp-verdict-btn:hover{background:var(--accent-fill)}
       .lp-verdict-btn:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
@@ -1248,7 +1257,7 @@
       .lp-verdict-pr{display:flex;align-items:center;gap:6px;margin-top:6px;overflow-wrap:anywhere}
       .lp-verdict-notes{margin:4px 0 0;padding-left:16px;color:var(--text-mute)}
       .lp-verdict-notes li{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-verdict-warn{margin-top:6px;color:var(--accent-ink)}
+      .lp-verdict-warn{margin-top:6px;color:var(--warn)}
       .lp-verdict-error{margin-top:6px;color:var(--status-danger)}
       .lp-verdict-foot{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:10px}
       .lp-verdict-result{margin-top:8px;color:var(--text-mute)}
@@ -1259,9 +1268,9 @@
       /* The composer's height is fixed and it clips, so the chips scroll rather
          than push the textarea and the buttons out of the box. */
       .lp-compose-head{display:flex;align-items:center;gap:7px;margin-bottom:9px;min-height:21px;flex-wrap:wrap;max-height:90px;overflow-y:auto;overscroll-behavior:contain}
-      .lp-compose-general{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-mute)}
+      .lp-compose-general{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mute)}
       .lp-dot{width:7px;height:7px;border-radius:50%;border:1.5px dashed var(--text-dim)}
-      .lp-compose-chip{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;font-size:11px;font-weight:600;overflow:hidden}
+      .lp-compose-chip{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;font-size:11px;font-weight:600;overflow:hidden}
       .lp-compose-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       /* The pill names one anchor, so it is a control: point at it and its
          element is emphasised on the page, click it and the page scrolls to it. */
@@ -1271,17 +1280,17 @@
       .lp-chip-x{flex:0 0 auto;border:0;background:transparent;color:inherit;font-family:inherit;font-size:13px;line-height:1;padding:0;margin-right:-3px;cursor:pointer;opacity:.6}
       .lp-chip-x:hover{opacity:1}
       .lp-chip-x:focus-visible{opacity:1;outline:2px solid var(--accent-ink);outline-offset:2px;border-radius:999px}
-      .lp-compose-hint{flex:0 0 auto;height:21px;line-height:21px;color:var(--text-mute);font-size:11px;font-weight:600}
+      .lp-compose-hint{flex:0 0 auto;height:24px;line-height:24px;color:var(--text-mute);font-size:11px;font-weight:600}
       /* Borderless: the fill is the field, as everywhere else in the app. */
-      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:12px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;outline:none;transition:background .14s ease}
+      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;transition:background .14s ease}
       .lp-textarea:focus{background:var(--field-focus);box-shadow:inset 0 0 0 1px var(--accent-ink),0 0 0 3px var(--accent-soft)}
       .lp-textarea::placeholder{color:var(--text-dim)}
       .lp-compose-foot{display:flex;align-items:center;margin-top:9px}
       .lp-hint{font-size:11px;color:var(--text-dim)}
       .lp-mono{font-family:var(--mono)}
-      .lp-ghost{height:30px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-ghost{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-primary{height:30px;padding:0 15px;margin-left:4px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--ink);border:0;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .14s ease}
+      .lp-primary{height:32px;padding:0 15px;margin-left:4px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--ink);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:background .14s ease}
       .lp-primary:hover{background:var(--accent-hover)}
       .lp-primary[disabled]{opacity:.55;cursor:default}
 
@@ -1289,7 +1298,7 @@
          the keyboard hints moved to the docs. The full name stays the button's
          accessible name, which is what a screen reader and the specs read. */
       .lp-actions{flex:0 0 auto;display:flex;gap:7px;padding:0 14px 12px}
-      .lp-action{flex:1;min-width:0;height:38px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:999px;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;border:0;background:var(--bg-sunken);color:var(--text);transition:background .15s ease,color .15s ease}
+      .lp-action{flex:1;min-width:0;height:40px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;border:0;background:var(--bg-sunken);color:var(--text);transition:background .15s ease,color .15s ease}
       /* An icon is a flex item with a min-content width of zero, so a row one
          pixel too tight silently squashes it instead of overflowing. */
       .lp-action svg{flex:0 0 auto}
@@ -1300,16 +1309,16 @@
       .lp-action[disabled]{opacity:.5;cursor:default}
       .lp-action[disabled]:hover{background:var(--bg-sunken)}
 
-      .lp-error{margin:0 14px 10px;padding:9px 11px;display:flex;align-items:flex-start;gap:8px;background:color-mix(in srgb,var(--status-danger) 10%,transparent);border:1px solid color-mix(in srgb,var(--status-danger) 28%,transparent);border-radius:12px;font-size:12px;line-height:1.45;color:var(--status-danger)}
+      .lp-error{margin:0 14px 10px;padding:9px 11px;display:flex;align-items:flex-start;gap:8px;background:color-mix(in srgb,var(--status-danger) 10%,transparent);border:1px solid color-mix(in srgb,var(--status-danger) 28%,transparent);border-radius:10px;font-size:12px;line-height:1.45;color:var(--status-danger)}
       .lp-error span{flex:1;padding-top:2px}
-      .lp-error button{flex:0 0 auto;background:transparent;border:0;color:var(--status-danger);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:999px;padding:3px 9px}
+      .lp-error button{flex:0 0 auto;background:transparent;border:0;color:var(--status-danger);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:10px;padding:3px 9px}
       .lp-error button:hover{background:color-mix(in srgb,var(--status-danger) 14%,transparent)}
 
       .lp-empty-anim{flex:0 0 auto;overflow:hidden;transition:max-height .27s cubic-bezier(.4,0,.2,1),opacity .2s ease}
       .lp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px 26px 28px;gap:4px}
       .lp-empty-icon{width:42px;height:42px;border-radius:999px;background:var(--bg-sunken);display:flex;align-items:center;justify-content:center;color:var(--text-dim);margin-bottom:8px}
-      .lp-empty-title{font-size:13.5px;font-weight:700;color:var(--text)}
-      .lp-empty-sub{font-size:12.5px;color:var(--text-mute);line-height:1.5;max-width:210px}
+      .lp-empty-title{font-size:13px;font-weight:700;color:var(--text)}
+      .lp-empty-sub{font-size:12px;color:var(--text-mute);line-height:1.5;max-width:210px}
 
       .lp-list-wrap{flex:0 1 auto;display:flex;flex-direction:column;min-height:0}
       .lp-list-anim{overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .2s ease}
@@ -1320,47 +1329,47 @@
       .lp-item-confirm-text{flex:1;font-size:12px;color:var(--text);font-weight:500}
       /* The teardrop is the pin's silhouette, so an anchored comment's badge
          carries the same shape as the marker it points at. */
-      .lp-badge{flex:0 0 auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+      .lp-badge{flex:0 0 auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
       .lp-badge.element{border-radius:50% 50% 50% 2px;background:var(--accent);color:var(--ink)}
       .lp-badge.general{border-radius:50%;border:1.5px dashed var(--text-dim);color:var(--text-dim)}
       .lp-item-body{flex:1;min-width:0}
       .lp-item-text{font-size:13px;line-height:1.5;color:var(--text);word-break:break-word}
-      .lp-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:19px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:10.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
-      .lp-chip.degraded{background:#fef3c7;color:#92400e}
+      .lp-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:24px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:11px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
+      .lp-chip.degraded{background:var(--warn-soft);color:var(--warn)}
       /* Chip-shaped but a real button: it says which page the comment was made on
          and goes there. Only rendered when that page is not the current one. */
-      .lp-item-page{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:19px;padding:0 9px;background:transparent;border:1px solid var(--border-faint);color:var(--text-mute);border-radius:999px;font-family:inherit;font-size:10.5px;font-weight:600;max-width:100%;cursor:pointer}
+      .lp-item-page{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:24px;padding:0 9px;background:transparent;border:1px solid var(--border-faint);color:var(--text-mute);border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;max-width:100%;cursor:pointer}
       .lp-item-page:hover{background:var(--bg-sunken);color:var(--accent-ink)}
       .lp-item-page-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       /* Sits before Edit, because it is the one that finishes a comment. */
-      .lp-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
+      .lp-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
       .lp-resolve:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
+      .lp-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
       .lp-edit:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
+      .lp-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
       .lp-del:hover{opacity:1;background:var(--bg-sunken);color:var(--status-danger)}
-      .lp-danger-sm{flex:0 0 auto;height:25px;padding:0 11px;background:var(--status-danger);color:#fff;border:0;border-radius:999px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
-      .lp-ghost-sm{height:25px;padding:0 9px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:11.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-danger-sm{flex:0 0 auto;height:32px;padding:0 11px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+      .lp-ghost-sm{height:32px;padding:0 9px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost-sm:hover{background:var(--bg-sunken);color:var(--text)}
 
       .lp-footer{flex:0 0 auto;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--border-faint);background:var(--surface-1)}
       .lp-footer-row{display:flex;align-items:center;gap:8px;width:100%}
-      .lp-list-toggle{display:flex;align-items:center;gap:6px;height:32px;padding:0 11px 0 9px;background:transparent;border:0;cursor:pointer;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:999px}
+      .lp-list-toggle{display:flex;align-items:center;gap:6px;height:32px;padding:0 11px 0 9px;background:transparent;border:0;cursor:pointer;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px}
       .lp-list-toggle:hover{background:var(--bg-sunken);color:var(--text)}
       .lp-chev{transition:transform .25s ease}
-      .lp-clear{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-clear{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-clear:hover{background:var(--bg-sunken);color:var(--status-danger)}
       .lp-clear[disabled]{opacity:.55;cursor:default}
       .lp-confirm-text{flex:1;font-size:12px;color:var(--text);font-weight:600;line-height:1.4}
-      .lp-clear-cancel{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-clear-cancel{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-clear-cancel:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-clear-yes{height:32px;padding:0 15px;background:var(--status-danger);color:#fff;border:0;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+      .lp-clear-yes{height:32px;padding:0 15px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
       .lp-spin{width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:lp-spin .6s linear infinite}
 
       .lp-fatal{padding:10px 24px 26px;text-align:center;animation:lp-pop .2s ease}
-      .lp-fatal-disc{width:46px;height:46px;margin:6px auto 13px;border-radius:50%;background:color-mix(in srgb,var(--status-danger) 13%,transparent);display:flex;align-items:center;justify-content:center;color:var(--status-danger)}
-      .lp-fatal-title{font-size:14.5px;font-weight:700;color:var(--text)}
-      .lp-fatal-sub{max-width:252px;margin:6px auto 0;font-size:12.5px;color:var(--text-mute);line-height:1.55}
+      .lp-fatal-disc{width:44px;height:44px;margin:6px auto 13px;border-radius:50%;background:color-mix(in srgb,var(--status-danger) 13%,transparent);display:flex;align-items:center;justify-content:center;color:var(--status-danger)}
+      .lp-fatal-title{font-size:15px;font-weight:700;color:var(--text)}
+      .lp-fatal-sub{max-width:252px;margin:6px auto 0;font-size:12px;color:var(--text-mute);line-height:1.55}
       .lp-signin .lp-fatal-disc{background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)}
       .lp-signin-button{margin:16px 0 0}
     </style>
@@ -1416,7 +1425,7 @@
                 </div>
               </div>
               <div class="lp-compose-foot">
-                <span class="lp-hint"><span class="lp-mono">⌘↵</span> to save</span>
+                <span class="lp-hint"><span class="lp-mono">${MOD_LABEL}↵</span> to save</span>
                 <div class="lp-spacer"></div>
                 <button class="lp-ghost" id="lp-cancel">Cancel</button>
                 <button class="lp-primary" id="lp-save">Save</button>
@@ -1488,6 +1497,8 @@
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-spin{to{transform:rotate(360deg)}}
       .lp-ov{font-family:var(--font)}
+      button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      .lp-toast button:focus-visible{outline-color:var(--accent)}
       .lp-scrim{position:fixed;inset:0;background:var(--scrim);animation:lp-fade .18s ease;pointer-events:none}
       /* Chartreuse alone can vanish against a pale or yellowish host page, so
          every marker the widget paints onto the page carries a near-black edge
@@ -1505,12 +1516,12 @@
       /* The controls live above every box rather than inside one. Two anchors on
          neighbouring elements have overlapping boxes, and a control drawn inside
          its own box would sit under its neighbour and refuse the click. */
-      .lp-hl-x{position:fixed;z-index:5;display:flex;width:22px;height:22px;align-items:center;justify-content:center;padding:0;background:var(--accent);color:var(--ink);border:2px solid var(--pin-ring);border-radius:50%;font-family:inherit;font-size:14px;font-weight:700;line-height:1;cursor:pointer;pointer-events:auto;opacity:0;transition:opacity .12s ease;box-shadow:0 2px 8px var(--pin-shadow)}
+      .lp-hl-x{position:fixed;z-index:5;display:flex;width:24px;height:24px;align-items:center;justify-content:center;padding:0;background:var(--accent);color:var(--ink);border:2px solid var(--pin-ring);border-radius:50%;font-family:inherit;font-size:13px;font-weight:700;line-height:1;cursor:pointer;pointer-events:auto;opacity:0;transition:opacity .12s ease;box-shadow:0 2px 8px var(--pin-shadow)}
       /* :focus reveals it, because a mousedown on it is prevented and cannot
          focus it. The ring is :focus-visible, so only a keyboard user sees one. */
       .lp-hl-x.lit,.lp-hl-x:hover,.lp-hl-x:focus{opacity:1}
       .lp-hl-x:focus-visible{outline:2px solid var(--pin-ring);outline-offset:2px}
-      .lp-hl-label{position:absolute;left:-2px;top:-27px;display:inline-block;max-width:240px;height:21px;line-height:21px;padding:0 9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:600;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px var(--pin-shadow)}
+      .lp-hl-label{position:absolute;left:-2px;top:-30px;display:inline-block;max-width:240px;height:24px;line-height:24px;padding:0 9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:600;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px var(--pin-shadow)}
       /* Above the outlines, below the pins: the drawing is content over the
          page, and a pin still has to be reachable through it. */
       .lp-canvas{position:fixed;left:0;top:0;z-index:3;pointer-events:none}
@@ -1523,24 +1534,24 @@
       .pin{width:24px;height:24px;border-radius:50% 50% 50% 2px;border:2px solid var(--pin-ring);background:var(--accent);color:var(--ink);font-family:inherit;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(15,15,13,.35);animation:lp-pin .22s cubic-bezier(.2,1.3,.5,1)}
       .pin:hover{transform:scale(1.12)}
       .lp-pop{position:absolute;top:16px;right:0;width:240px;padding-top:14px;cursor:default}
-      .lp-pop-card{position:relative;overflow:hidden;min-height:96px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);animation:lp-fade .12s ease;display:flex;flex-direction:column}
-      .lp-pop-body{font-size:12.5px;line-height:1.5;color:var(--text);word-break:break-word}
-      .pin.degraded{border-style:dashed;border-color:#b45309}
-      .lp-pop-degraded{margin-top:6px;font-size:11px;line-height:1.4;color:#b45309;word-break:break-word}
+      .lp-pop-card{position:relative;overflow:hidden;min-height:96px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);animation:lp-fade .12s ease;display:flex;flex-direction:column}
+      .lp-pop-body{font-size:12px;line-height:1.5;color:var(--text);word-break:break-word}
+      .pin.degraded{border-style:dashed;border-color:var(--warn)}
+      .lp-pop-degraded{margin-top:6px;font-size:11px;line-height:1.4;color:var(--warn);word-break:break-word}
       .lp-pop-row{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:10px}
-      .lp-pop-chip{display:inline-flex;align-items:center;height:19px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:10.5px;font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-pop-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
+      .lp-pop-chip{display:inline-flex;align-items:center;height:24px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:11px;font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-pop-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
       .lp-pop-resolve:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-pop-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
+      .lp-pop-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
       .lp-pop-edit:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-pop-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
+      .lp-pop-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
       .lp-pop-del:hover{opacity:1;background:var(--bg-sunken);color:var(--status-danger)}
-      .lp-pop-confirm{position:absolute;inset:0;background:var(--surface-1);border-radius:12px;padding:12px;display:flex;flex-direction:column;justify-content:center;animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
-      .lp-pop-confirm-title{font-size:12.5px;font-weight:700;color:var(--text)}
-      .lp-pop-confirm-sub{font-size:11.5px;color:var(--text-mute);margin-top:3px;line-height:1.45}
+      .lp-pop-confirm{position:absolute;inset:0;background:var(--surface-1);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:center;animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
+      .lp-pop-confirm-title{font-size:12px;font-weight:700;color:var(--text)}
+      .lp-pop-confirm-sub{font-size:12px;color:var(--text-mute);margin-top:3px;line-height:1.45}
       .lp-pop-confirm-row{display:flex;gap:7px;margin-top:11px}
-      .lp-pop-yes{flex:1;height:30px;background:var(--status-danger);color:#fff;border:0;border-radius:999px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
-      .lp-pop-no{flex:1;height:30px;background:var(--bg-sunken);border:0;color:var(--text);border-radius:999px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+      .lp-pop-yes{flex:1;height:32px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+      .lp-pop-no{flex:1;height:32px;background:var(--bg-sunken);border:0;color:var(--text);border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
       .lp-toast{position:fixed;top:18px;left:50%;transform:translate(-50%,0);z-index:6;display:flex;align-items:center;gap:10px;padding:9px 13px 9px 15px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-size:13px;font-weight:600;box-shadow:var(--bar-shadow);animation:lp-fade .18s ease;transition:transform .22s cubic-bezier(.4,0,.2,1);pointer-events:auto}
       .lp-toast-sep{color:var(--chrome-line)}
       .lp-toast-dim{color:var(--chrome-mute);font-size:12px;font-weight:500}
@@ -1551,7 +1562,7 @@
       .lp-toast--saved{padding:9px 15px}
       /* The offer to quote a selection. Same bar furniture as the toasts, so it
          reads as the widget rather than as host-page chrome. */
-      .lp-quote-btn{position:fixed;z-index:6;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-family:var(--font);font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:var(--bar-shadow);animation:lp-fade .12s ease}
+      .lp-quote-btn{position:fixed;z-index:6;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-family:var(--font);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:var(--bar-shadow);animation:lp-fade .12s ease}
       .lp-quote-btn:hover{background:var(--chrome-raised)}
       .lp-quote-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     </style>
@@ -1566,7 +1577,7 @@
         ${ICON.target(15)}
         <span id="lp-toast-text">Click to comment</span>
         <span class="lp-toast-sep">·</span>
-        <span class="lp-toast-dim">⌥ scroll to resize</span>
+        <span class="lp-toast-dim">${ALT_LABEL} scroll to resize</span>
         <span class="lp-toast-key" id="lp-toast-esc">Esc</span>
       </div>
       <div class="lp-toast" id="lp-draw-toast" style="display:none">
@@ -1960,7 +1971,7 @@
     // One remove control per removable anchor, pooled and pinned to the padded
     // box's top-right corner. `lit` follows the box the pointer is over.
     const xNodes = [];
-    const X_SIZE = 22; // matches .lp-hl-x
+    const X_SIZE = 24; // matches .lp-hl-x
     const drawRemoveControls = (entries) => {
         entries.forEach((entry, index) => {
             let node = xNodes[index];
@@ -2000,8 +2011,9 @@
             const clamp = (value, limit) =>
                 Math.min(Math.max(value, 0), limit - X_SIZE);
             node.style.left =
-                clamp(r.left + r.width - 11, window.innerWidth) + 'px';
-            node.style.top = clamp(r.top - 11, window.innerHeight) + 'px';
+                clamp(r.left + r.width - X_SIZE / 2, window.innerWidth) + 'px';
+            node.style.top =
+                clamp(r.top - X_SIZE / 2, window.innerHeight) + 'px';
         });
         for (let index = entries.length; index < xNodes.length; index++) {
             xNodes[index].style.display = 'none';
@@ -2356,7 +2368,7 @@
     // The offer sits just under the selection, flipping above it near the bottom
     // edge and clamped horizontally, on the same reasoning as the pin popover.
     const QUOTE_BTN_GAP = 8;
-    const QUOTE_BTN_HEIGHT = 30; // matches .lp-quote-btn
+    const QUOTE_BTN_HEIGHT = 32; // matches .lp-quote-btn
     const renderQuoteButton = () => {
         const pick = state.quotePick;
         // Hidden while another mode owns the pointer, drawing included: the canvas
