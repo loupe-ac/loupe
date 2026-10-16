@@ -71,6 +71,9 @@
     // The newest list request, and whether it has no answer yet.
     let listReady = Promise.resolve();
     let refreshPending = false;
+    // Whether `comments` can hold a note of a card that left the scope. Only
+    // a scoped read that succeeds clears it, and Delete all waits for one.
+    let scopeUnread = false;
     // Every comment is saved to the API as it is written and is live from that
     // moment — there is no send step. `comments` mirrors the project's Pending
     // comments, the ones this reviewer may still edit or delete; once the agent marks
@@ -519,6 +522,7 @@
             // a deleted comment or drop a new one, not only mislabel the card.
             if (generation !== refreshGeneration) return;
             comments = payload.comments || [];
+            scopeUnread = false;
             drawingEnabled = true === payload.drawingEnabled;
             parentTypes = Array.isArray(payload.parentTypes)
                 ? payload.parentTypes
@@ -4808,7 +4812,10 @@
                         // A card pushed out of the sent ids takes its notes
                         // out of the scope, and the rows hold no card id.
                         const kept = sessionCards.slice(0, SESSION_CARDS_SENT);
-                        stale = stale || sent.some((id) => !kept.includes(id));
+                        if (sent.some((id) => !kept.includes(id))) {
+                            scopeUnread = true;
+                            stale = true;
+                        }
                     }
                     if (stale) refresh().then(sync);
                 }
@@ -4921,6 +4928,15 @@
             await ready; // don't let the boot refresh clobber an early clear
             // A list still loading can hold notes of an old scope.
             while (refreshPending) await listReady;
+            if (scopeUnread) {
+                await refresh();
+                while (refreshPending) await listReady;
+            }
+            if (scopeUnread) {
+                throw new Error(
+                    'Couldn’t reload your notes, so nothing was deleted. Please try again.',
+                );
+            }
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.

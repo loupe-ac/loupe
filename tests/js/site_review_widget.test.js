@@ -1616,6 +1616,59 @@ describe('the scope of the list request', () => {
         expect(deleted).toEqual(['c1']);
     });
 
+    it('deletes nothing until a scoped read follows a failed reload', async () => {
+        const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const old = {
+            id: 'old',
+            body: 'Old note',
+            url: window.location.href,
+            anchors: [],
+        };
+        const fresh = {
+            id: 'c1',
+            body: 'New note',
+            url: window.location.href,
+            anchors: [],
+        };
+        let listFails = true;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [old], context: null }),
+        });
+        await settle();
+        fetchMock.mockImplementation((url, init) => {
+            if (init.method === 'POST') return madeCard('made-new');
+            if (init.method === 'DELETE') return ok({});
+            return listFails
+                ? rejected(500, {})
+                : ok({ comments: [fresh], context: null });
+        });
+        const root = openNote();
+        await write(root, 'New note');
+        root.getElementById('lp-save').click();
+        await settle();
+        expect(listedBodies().join(' ')).toContain('Old note');
+
+        const deletes = () =>
+            fetchMock.mock.calls
+                .filter(([, init]) => init && init.method === 'DELETE')
+                .map(([url]) => url.split('/').pop());
+        root.getElementById('lp-clear').click();
+        root.getElementById('lp-clear-yes').click();
+        await settle();
+        expect(deletes()).toEqual([]);
+        expect(root.getElementById('lp-list-error').textContent).toContain(
+            'nothing was deleted',
+        );
+
+        listFails = false;
+        root.getElementById('lp-clear').click();
+        root.getElementById('lp-clear-yes').click();
+        await settle();
+        expect(deletes()).toEqual(['c1']);
+    });
+
     it('asks again when a save lands while the list still loads', async () => {
         const OTHER = '01a0cafe-0000-7000-8000-000000000002';
         let saved = false;
