@@ -14,8 +14,11 @@ vi.mock('../../assets/lib/live.js', () => ({
     },
 }));
 
-const { default: RunOutputController, DEBOUNCE_MILLISECONDS } =
-    await import('../../assets/controllers/run_output_controller.js');
+const {
+    default: RunOutputController,
+    DEBOUNCE_MILLISECONDS,
+    RETRY_MILLISECONDS,
+} = await import('../../assets/controllers/run_output_controller.js');
 
 const RUN = '0199aaaa-0000-7000-8000-000000000001';
 
@@ -79,10 +82,49 @@ it('listens for output messages and stops on disconnect', async () => {
 });
 
 it('ignores the output of another run', async () => {
+    answer('', 4);
     await mount();
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
     output({ runId: 'another' });
     await settle();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it('reads once on connect, for the output that came before the subscription', async () => {
+    answer('two\n', 8);
+    answer('', 8);
+    await mount();
+    await settle();
+    expect(
+        new URL(fetch.mock.calls[0][0], 'http://x').searchParams.get('from'),
+    ).toBe('4');
+    expect(codeText()).toBe('one\ntwo\n');
+});
+
+it('reads again after a failed read, with a longer wait each time', async () => {
+    answers.push({ ok: false, status: 500 });
+    answers.push({ ok: false, status: 502 });
+    answer('two\n', 8);
+    answer('', 8);
+    await mount();
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(RETRY_MILLISECONDS);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(RETRY_MILLISECONDS);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(RETRY_MILLISECONDS);
+    expect(codeText()).toBe('one\ntwo\n');
+});
+
+it('stops retrying on disconnect', async () => {
+    await mount();
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    document.body.replaceChildren();
+    await vi.advanceTimersByTimeAsync(RETRY_MILLISECONDS * 4);
+    expect(fetch).toHaveBeenCalledTimes(1);
 });
 
 it('reads from the stored length and appends the text after the shown text', async () => {

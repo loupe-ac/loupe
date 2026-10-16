@@ -4,6 +4,15 @@ import { on } from '../lib/live.js';
 /** A burst of output messages makes one read. */
 export const DEBOUNCE_MILLISECONDS = 200;
 
+/** The first wait before a failed read runs again. Each later failure doubles it. */
+export const RETRY_MILLISECONDS = 1000;
+
+const MAX_RETRY_MILLISECONDS = 30000;
+
+const MORE = 'more';
+const DONE = 'done';
+const FAILED = 'failed';
+
 /** The reader counts as at the bottom within this many pixels. */
 const BOTTOM_TOLERANCE = 8;
 
@@ -12,7 +21,8 @@ const BOTTOM_TOLERANCE = 8;
  * `worker_run.output` message of this run starts a read from the stored
  * length, and the read repeats until the server has nothing more. The length
  * lives in a value, so a morph of the page that renders the server's tail
- * also moves the offset to match it.
+ * also moves the offset to match it. Mercure keeps no history, so the
+ * controller also reads once when it connects, and a failed read runs again.
  */
 export default class extends Controller {
     static values = {
@@ -27,6 +37,7 @@ export default class extends Controller {
         this.reading = false;
         this.again = false;
         this.stopped = false;
+        this.retryDelay = RETRY_MILLISECONDS;
         this.scrollToEnd();
         this.unsubscribe = on(
             'worker_run.output',
@@ -37,6 +48,7 @@ export default class extends Controller {
             },
             { onReconnect: () => this.schedule() },
         );
+        this.schedule();
     }
 
     disconnect() {
@@ -59,19 +71,32 @@ export default class extends Controller {
             return;
         }
         this.reading = true;
+        let step = DONE;
         try {
             do {
                 this.again = false;
-                while (await this.readOnce()) {
-                    // Each read moves the offset, so the loop ends when the server has no more text.
-                }
-            } while (this.again && !this.stopped);
+                // Each read moves the offset, so the loop ends when the server has no more text.
+                do {
+                    step = await this.readOnce();
+                } while (step === MORE);
+            } while (this.again && step !== FAILED && !this.stopped);
         } finally {
             this.reading = false;
         }
+        if (step === FAILED && !this.stopped) {
+            this.retry();
+        } else {
+            this.retryDelay = RETRY_MILLISECONDS;
+        }
     }
 
-    /** @returns {Promise<boolean>} whether to read again */
+    retry() {
+        clearTimeout(this.timeout);
+        this.timeout = setTimeout(() => this.catchUp(), this.retryDelay);
+        this.retryDelay = Math.min(this.retryDelay * 2, MAX_RETRY_MILLISECONDS);
+    }
+
+    /** @returns {Promise<string>} MORE to read again, DONE, or FAILED */
     async readOnce() {
         const from = this.lengthValue;
         const url = new URL(this.urlValue, window.location.href);
@@ -86,26 +111,26 @@ export default class extends Controller {
                 signal: this.request.signal,
             });
             if (!response?.ok) {
-                return false;
+                return FAILED;
             }
             answer = await response.json();
         } catch {
-            return false;
+            return FAILED;
         }
         if (this.stopped) {
-            return false;
+            return DONE;
         }
         // A morph of the page moved the offset while the read ran, so the text no longer fits.
         if (from !== this.lengthValue) {
-            return true;
+            return MORE;
         }
         if (!answer.text) {
-            return false;
+            return DONE;
         }
         this.append(answer.text);
         this.lengthValue = answer.length;
 
-        return true;
+        return MORE;
     }
 
     append(text) {
