@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Entity\DocumentReviewFindingAnswer;
 use App\Module\AgentReview\Service\DocumentAgentReviewReader;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Mcp\DocumentGetReviewTool;
 use App\Module\Review\Service\DocumentAgentReviews;
@@ -65,6 +66,27 @@ final class DocumentAgentReviewReaderTest extends KernelTestCase
         self::assertSame([0, 1], array_column($reviews[1]['findings'], 'index'));
         self::assertSame(['important', 'Finding 1', 'Body 1', false], [$reviews[1]['findings'][0]['severity'], $reviews[1]['findings'][0]['title'], $reviews[1]['findings'][0]['body'], $reviews[1]['findings'][0]['needsPerson']]);
         self::assertNotNull($reviews[1]['answeredAt']);
+    }
+
+    public function test_each_review_names_the_card_it_belongs_to_when_two_cards_link_the_document(): void
+    {
+        $document = $this->linkedDocument($this->card);
+        $other = $this->card($this->project, 2);
+        $this->em->persist(new CardDocument($other, $document));
+        $first = $this->documentReview($this->project, $this->card, $document);
+        $second = $this->documentReview($this->project, $other, $document);
+        $third = $this->documentReview($this->project, $this->card, $document);
+        $this->em->flush();
+        $this->em->clear();
+        $document = $this->em->find($document::class, $document->id);
+        self::assertNotNull($document);
+
+        $reader = self::getContainer()->get(DocumentAgentReviews::class);
+        self::assertInstanceOf(DocumentAgentReviews::class, $reader);
+        $reviews = $reader->forDocument($document);
+
+        self::assertSame([(string) $third->id, (string) $second->id, (string) $first->id], array_column($reviews, 'reviewId'));
+        self::assertSame([(string) $this->card->id, (string) $other->id, (string) $this->card->id], array_column($reviews, 'cardId'));
     }
 
     public function test_a_document_with_no_review_lists_none(): void

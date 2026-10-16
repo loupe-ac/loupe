@@ -70,8 +70,9 @@ final readonly class DocumentGetReviewTool
      * changing it in a revision discards the answer keyed to the old one
      *
      * `agentReviews` lists each agent review of the document, newest first. Each carries the
-     * `versionNumber` that the reviewer read, its `conclusion`, its `findings` with their
-     * `index`, and the `answer` of the fix round to each finding, or null before it answers.
+     * `cardId` of the card it reviewed, the `versionNumber` that the reviewer read, its
+     * `conclusion`, its `findings` with their `index`, and the `answer` of the fix round to
+     * each finding, or null before it answers.
      * `answered` says whether the fix round has answered the review
      *
      * @return ReviewPayload

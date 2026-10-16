@@ -276,7 +276,7 @@ Roughly in the order an agent uses them:
 | `document_revise` | Submit a new version, described by what changed |
 | `document_publish` | Send a draft to review, so it reaches the reviewer's inbox |
 | `document_get` / `document_list` | Read a document, or enumerate the project's, with search and filters |
-| `document_get_review` | Verdict, threaded comments, answered decision blocks, and the agent reviews of the document with the answer to each finding |
+| `document_get_review` | Verdict, threaded comments, answered decision blocks, and the agent reviews of the document, each with its card and the answer to each finding |
 | `document_reply_to_comment` | Reply to a reviewer's thread |
 | `document_mark_comment_addressed` | Mark a thread acted on |
 | `document_highlight` | Tint the passages to read first (off by default — see below) |

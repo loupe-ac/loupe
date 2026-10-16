@@ -51,6 +51,7 @@ final readonly class DocumentAgentReviewReader implements DocumentAgentReviews
 
         return [
             'reviewId' => (string) $review->id,
+            'cardId' => (string) $review->card->id,
             'versionNumber' => $review->versionNumber,
             'conclusion' => $review->conclusion->value,
             'summary' => $review->summary,
