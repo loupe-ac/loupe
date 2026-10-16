@@ -358,6 +358,8 @@ The command does not copy icons. A wrapper that needs icons draws them as inline
 1. Write no arbitrary value. Use a token or a named Tailwind scale step. `NoArbitraryValuesCheck` enforces this in `just gamache`.
 2. Snap an off-scale value to the nearest token. A change to a token is a change to the system.
 3. Use a building block from the catalog. Write no raw markup for a block that the catalog lists.
+4. When a building block does not fit, change the block. A change to its look or behaviour goes into the block, as an option, size or state. Its position on the page stays a page rule.
+5. Add no new building block unless a card asks for one.
 
 Read `project-frontend` for the full conventions of CSS, Stimulus and Turbo.
 

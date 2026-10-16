@@ -18,7 +18,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 ## Procedure
 
 1. Load the `loupe-board` and `loupe-documents` instructions.
-2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style and the docs and landing page checks. When the file is missing, write plainly, and ask the owner about docs in P6.
+2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, and the design system entry. When the file is missing, write plainly, and ask the owner about docs in P6.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
 4. Read `references/session-flow.md`, `references/question-rules.md` and `references/claude-design.md`. Follow them for the whole session.
 5. With a card, call `card_get`. Read the tags of each linked document with `document_get`, before any move. The product document has the tag `product-design`, or a title that starts `Product design`.

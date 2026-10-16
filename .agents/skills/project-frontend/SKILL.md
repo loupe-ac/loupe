@@ -168,7 +168,7 @@ Spell out every word in a CSS semantic or utility class name: `.sidebar-item` no
 
 ### Building blocks
 
-Use a component from `src/Module/DesignSystem/Catalog.php` before you write markup for a shared control. Write no hand-made `lp-*` root class for a block the catalog lists, because `just gamache` blocks it once the block is enforced. `/styleguide` draws each one in dev, and `docs/contributing/design-system.md` lists them.
+Use a component from `src/Module/DesignSystem/Catalog.php` before you write markup for a shared control. When a component does not fit, change the component in the same branch, and never write a page-level copy of it. A change to the look or the behaviour of a component goes into the component, as a new option, size or state. The position of a component on the page, such as its margin, its width in a grid or its order, stays a page rule. When the card has a product document with a Design system section, follow its list. When you need a component change that the list lacks, ask the owner through the inbox. Add no new component unless the card asks for one. Write no hand-made `lp-*` root class for a block the catalog lists, because `just gamache` blocks it once the block is enforced. `/styleguide` draws each one in dev, and `docs/contributing/design-system.md` lists them.
 
 1. Button: `<twig:Ds:Button variant="primary" size="sm" href="...">`. Variants are primary, inverse, outline, success, danger, ghost, danger-ghost, icon, compact, open and on-card, and several may be given with a space. A Symfony form button takes `ds_button_class('primary')` in its `attr.class`. The CSS is `assets/styles/components/button.css`.
 2. Flash: `<twig:Ds:Flash severity="error" :dismissLabel="...">message</twig:Ds:Flash>`. Severities are success, error, warning and info.
@@ -203,6 +203,22 @@ Use a component from `src/Module/DesignSystem/Catalog.php` before you write mark
 A pattern check also covers two blocks that have no class of their own. `DesignSystemPatternCheck` in `gamache.php` fails on a hand-written `relative_time` filter call, which belongs in `<twig:Ds:RelativeTime>`. It also fails on a one-button form with a `_csrf_token` input and `method="post"`, which belongs in `<twig:Ds:ActionForm>`. It skips the admin template folders and the component's own template. Where a component cannot go, such as inside a `trans()` placeholder or a component prop, add `{# @design-system-ignore #}` on the same line, or on one of the lines of the form.
 
 A child card that adds a component adds it to this list in the same branch.
+
+#### Change a component
+
+One component change touches these files:
+
+1. The Twig template `templates/components/Ds/<Name>.html.twig`.
+2. The stylesheet `assets/styles/components/<name>.css`.
+3. The entry in `src/Module/DesignSystem/Catalog.php`, with its variants, sizes and states.
+4. The specimen `templates/Module/DesignSystem/specimen/<name>.html.twig`.
+5. The export wrapper under `templates/Module/DesignSystem/export/`, when the component has one.
+6. The component test and the parity test under `tests/Module/DesignSystem/`.
+7. The entry in the list above and the table in `docs/contributing/design-system.md`.
+
+A part that no component covers stays page-level markup. Add no new component for it.
+
+Other pages can carry a page rule that the change makes needless. Search `assets/styles/app.css` for such rules. Update only the pages of your branch. Then send one non-blocking inbox to-do (`loupe-inbox`) that proposes a card for the other pages and names each page. Write no card yourself.
 
 The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".
 
