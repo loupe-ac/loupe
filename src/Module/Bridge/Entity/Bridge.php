@@ -137,6 +137,14 @@ class Bridge
     #[ORM\Column(name: 'capabilities', type: Types::JSON, nullable: true)]
     public ?array $capabilities = null;
 
+    /**
+     * The kinds of work the bridge can run, as its last heartbeat reported them. Empty for a bridge that reports none.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(name: 'work_kinds', type: Types::JSON, options: ['default' => '[]'])]
+    public array $workKinds = [];
+
     /** The name the bridge holds. Null while it asked for none, or while another bridge of the owner holds the one it asked for. */
     #[ORM\Column(name: 'name', length: self::MAX_NAME_LENGTH, nullable: true)]
     public ?string $name = null;

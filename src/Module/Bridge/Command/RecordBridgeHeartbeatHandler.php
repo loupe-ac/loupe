@@ -109,6 +109,7 @@ final readonly class RecordBridgeHeartbeatHandler
             if (null !== $command->capabilities) {
                 $bridge->capabilities = $command->capabilities;
             }
+            $bridge->workKinds = $command->workKinds;
             if (null !== $command->pushLogin) {
                 $bridge->pushLogin = '' === $command->pushLogin ? null : $command->pushLogin;
             }
