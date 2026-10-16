@@ -66,6 +66,36 @@ final class CardCommentScopeResolverTest extends KernelTestCase
         self::assertSame([(string) $note->id], array_map(strval(...), $ids));
     }
 
+    public function test_it_drops_a_closed_card_from_every_scope(): void
+    {
+        [$project, $open, $openNote] = $this->projectWithCard('scope-closed');
+        $epic = new Card($project, $this->column($project, 'next'), 'Epic', 'body', 2, type: 'epic');
+        $this->em->persist($epic);
+        $open->parent = $epic;
+        $closed = $this->cardWithNote($project, 3, 'done');
+        $closed->parent = $epic;
+        $this->em->flush();
+
+        $expected = [(string) $openNote->id];
+        foreach (['epic:'.$epic->id, 'cards:'.$open->id.','.$closed->id] as $scope) {
+            $ids = $this->resolver->resolve($scope, $project);
+            self::assertNotNull($ids);
+            self::assertSame($expected, array_map(strval(...), $ids), $scope);
+        }
+        self::assertSame([], $this->resolver->resolve('card:'.$closed->id, $project));
+    }
+
+    private function cardWithNote(Project $project, int $number, string $column): Card
+    {
+        $card = new Card($project, $this->column($project, $column), 'Closed card', 'body', $number);
+        $this->em->persist($card);
+        $note = new SiteReviewComment($project, $number, 'A closed note', 'https://app/y');
+        $this->em->persist($note);
+        $this->em->persist(new CardSiteReviewComment($card, $note));
+
+        return $card;
+    }
+
     /** @return array{Project, Card, SiteReviewComment} */
     private function projectWithCard(string $slug): array
     {

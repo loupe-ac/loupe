@@ -18,9 +18,9 @@ use Symfony\Component\Uid\Uuid;
  * children of that epic, or to any of those cards.
  *
  * The link table is the source, because a comment made in an open review
- * carries no context of its own. A card of another project, a card that is
- * gone and a malformed id are dropped, since the scope arrives from a page
- * anyone can edit.
+ * carries no context of its own. A card of another project, a closed card, a
+ * card that is gone and a malformed id are dropped, since the scope arrives
+ * from a page anyone can edit.
  */
 final readonly class CardCommentScopeResolver implements CommentScopeResolverInterface
 {
@@ -42,7 +42,7 @@ final readonly class CardCommentScopeResolver implements CommentScopeResolverInt
     public function resolve(string $scope, Project $project): ?array
     {
         if (str_starts_with($scope, self::CARDS)) {
-            return $this->cardSiteReviewComments->findCommentIdsForCards($this->cardsOf($project, substr($scope, \strlen(self::CARDS))));
+            return $this->cardSiteReviewComments->findCommentIdsForCards(self::open($this->cardsOf($project, substr($scope, \strlen(self::CARDS)))));
         }
 
         $epic = str_starts_with($scope, self::EPIC);
@@ -68,7 +68,17 @@ final readonly class CardCommentScopeResolver implements CommentScopeResolverInt
             return [];
         }
 
-        return $this->cardSiteReviewComments->findCommentIdsForCards($this->cards->findChildren($card));
+        return $this->cardSiteReviewComments->findCommentIdsForCards(self::open($this->cards->findChildren($card)));
+    }
+
+    /**
+     * @param list<Card> $cards
+     *
+     * @return list<Card>
+     */
+    private static function open(array $cards): array
+    {
+        return array_values(array_filter($cards, static fn (Card $card): bool => !$card->column->terminal));
     }
 
     /** @return list<Card> */
