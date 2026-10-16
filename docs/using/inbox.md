@@ -372,7 +372,8 @@ Each suggestion names one of the seven actions above and gives a reason. The
 reason shows as the heading of the reply card when that action is the main one.
 A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
-fit is dropped.
+fit is dropped. A `run-command` suggestion is stored, and the inbox does not offer
+it yet.
 
 An agent can also attach `suggestedActions` to an item of `inbox_ask`. Loupe
 stores them, and `inbox_get` returns them. The inbox page does not show them

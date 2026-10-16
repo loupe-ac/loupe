@@ -13,5 +13,6 @@ enum InboxActionKind: string
     case Open = 'open';
     case SendAgent = 'send-agent';
     case StartSession = 'start-session';
+    case RunCommand = 'run-command';
     case Dismiss = 'dismiss';
 }

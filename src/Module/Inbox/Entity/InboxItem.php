@@ -49,7 +49,7 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $closeNote = null;
 
-    /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string}>|null what the asking agent suggests, in the order it sent */
+    /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null}>|null what the asking agent suggests, in the order it sent. A row stored before run-command lacks the last two keys. */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     public ?array $suggestedActions = null;
 

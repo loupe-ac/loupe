@@ -6,11 +6,13 @@ namespace App\Module\Inbox\Mcp;
 
 use App\Mcp\ResolvesBoundProject;
 use App\Module\Inbox\Command\AskInboxItem;
+use App\Module\Inbox\Command\AskInboxRunCommand;
 use App\Module\Inbox\Command\AskInboxSuggestion;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\RunSuggestions;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Security\McpBoundProjectVoter;
@@ -147,10 +149,52 @@ final readonly class InboxSubjectResolver
             if (!\is_bool($recommended) || (null !== $cardId && !\is_string($cardId))) {
                 throw new ToolCallException(\sprintf('items[%d].suggestedActions[%d]: recommended must be true or false, and cardId a string.', $index, $position));
             }
-            $suggestions[] = new AskInboxSuggestion($action, $reason, $recommended, $cardId);
+            $suggestions[] = new AskInboxSuggestion($action, $reason, $recommended, $cardId, $this->runCommand($entry, $index, $position), $this->proposedEntry($entry, $index, $position));
         }
 
         return $suggestions;
+    }
+
+    /** @param array<mixed> $suggestion */
+    private function runCommand(array $suggestion, int $index, int $position): ?AskInboxRunCommand
+    {
+        $where = \sprintf('items[%d].suggestedActions[%d]', $index, $position);
+        $value = $suggestion['command'] ?? null;
+        if (null === $value) {
+            return null;
+        }
+        if (!\is_array($value)) {
+            throw new ToolCallException(\sprintf('%s.command must be an object with an entry, and optionally a branch and params.', $where));
+        }
+        $entry = $value['entry'] ?? null;
+        $branch = $value['branch'] ?? RunSuggestions::DEFAULT_BRANCH;
+        $params = $value['params'] ?? [];
+        if (!\is_string($entry) || !\is_string($branch)) {
+            throw new ToolCallException(\sprintf('%s.command needs a string entry, and branch must be a string.', $where));
+        }
+        if (!\is_array($params) || ([] !== $params && array_is_list($params))) {
+            throw new ToolCallException(\sprintf('%s.command.params must be an object that maps each param name to a string.', $where));
+        }
+        $strings = [];
+        foreach ($params as $name => $param) {
+            if (!\is_string($param)) {
+                throw new ToolCallException(\sprintf('%s.command.params.%s must be a string.', $where, $name));
+            }
+            $strings[(string) $name] = $param;
+        }
+
+        return new AskInboxRunCommand($entry, $branch, $strings);
+    }
+
+    /** @param array<mixed> $suggestion */
+    private function proposedEntry(array $suggestion, int $index, int $position): ?string
+    {
+        $value = $suggestion['proposedEntry'] ?? null;
+        if (null !== $value && !\is_string($value)) {
+            throw new ToolCallException(\sprintf('items[%d].suggestedActions[%d].proposedEntry must be a string of YAML.', $index, $position));
+        }
+
+        return $value;
     }
 
     /** @param array<mixed> $item */

@@ -1182,6 +1182,26 @@ func resultSchema(fields map[string]any) (string, error) {
 					"action":      map[string]any{"type": "string"},
 					"reason":      map[string]any{"type": "string"},
 					"recommended": map[string]any{"type": "boolean"},
+					"command": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"entry":  map[string]any{"type": "string"},
+							"branch": map[string]any{"type": "string"},
+							"params": map[string]any{
+								"type": "array",
+								"items": map[string]any{
+									"type": "object",
+									"properties": map[string]any{
+										"name":  map[string]any{"type": "string"},
+										"value": map[string]any{"type": "string"},
+									},
+									"required": []string{"name", "value"},
+								},
+							},
+						},
+						"required": []string{"entry"},
+					},
+					"proposedEntry": map[string]any{"type": "string"},
 				},
 				"required": []string{"action", "reason"},
 			},

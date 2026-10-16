@@ -69,7 +69,7 @@ final class InboxActionTest extends KernelTestCase
     public function test_every_kind_value_is_spelled_in_full_and_fits_the_column(): void
     {
         self::assertSame(
-            ['resume-run', 'retry-card', 'review', 'open', 'send-agent', 'start-session', 'dismiss'],
+            ['resume-run', 'retry-card', 'review', 'open', 'send-agent', 'start-session', 'run-command', 'dismiss'],
             array_map(static fn (InboxActionKind $kind): string => $kind->value, InboxActionKind::cases()),
         );
         foreach (InboxActionKind::cases() as $kind) {
