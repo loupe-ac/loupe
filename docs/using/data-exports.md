@@ -58,7 +58,7 @@ stays out of the export.
 
 `worker_run_facts.json` holds the metrics row of each worker run of the projects
 the user owns, with its outcome, its duration, its cost, its token sums, its
-timing, its peak context, its harness and its account. It includes the rows whose run the retention sweep deleted.
+timing, its peak context, its harness, its account, its harness version, its CLI version and its plugin version. It includes the rows whose run the retention sweep deleted.
 `worker_run_tool_calls.json` holds each tool call of those runs, with its tool, its kind,
 its timing and its signatures.
 `worker_run_bucket_times.json` holds the time of each run in each bucket of the project rules.

@@ -29,6 +29,9 @@
             {% if run.sessionId is not null and not item.command %}<div><dt>{{ 'bridge.worker_runs.details.session'|trans }}</dt><dd>{{ run.sessionId }}</dd></div>{% endif %}
             {% if run.harness is not null %}<div data-worker-run-harness-detail><dt>{{ 'bridge.worker_runs.details.harness'|trans }}</dt><dd>{{ run.harness }}</dd></div>{% endif %}
             {% if run.account is not null %}<div data-worker-run-account-detail><dt>{{ 'bridge.worker_runs.details.account'|trans }}</dt><dd>{{ run.account }}</dd></div>{% endif %}
+            {% if run.harnessVersion is not null %}<div data-worker-run-harness-version-detail><dt>{{ 'bridge.worker_runs.details.harness_version'|trans }}</dt><dd>{{ run.harnessVersion }}</dd></div>{% endif %}
+            {% if run.cliVersion is not null %}<div data-worker-run-cli-version-detail><dt>{{ 'bridge.worker_runs.details.cli_version'|trans }}</dt><dd>{{ run.cliVersion }}</dd></div>{% endif %}
+            {% if run.skillVersion is not null %}<div data-worker-run-skill-version-detail><dt>{{ 'bridge.worker_runs.details.skill_version'|trans }}</dt><dd>{{ run.skillVersion }}</dd></div>{% endif %}
             {% if run.model is not null %}<div data-worker-run-model-detail><dt>{{ 'bridge.worker_runs.details.model'|trans }}</dt><dd>{{ run.model }}</dd></div>{% endif %}
             {# Claude Code reports Loupe's own session id here, so only a different id earns a row. #}
             {% if run.harnessSessionId is not null and run.harnessSessionId != (run.sessionId ? run.sessionId.toRfc4122() : null) %}<div data-worker-run-harness-session><dt>{{ 'bridge.worker_runs.details.harness_session'|trans }}</dt><dd>{{ run.harnessSessionId }}</dd></div>{% endif %}

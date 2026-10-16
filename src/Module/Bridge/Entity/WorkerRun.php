@@ -101,6 +101,13 @@ class WorkerRun implements ProjectScopedSubject
     /** A model name has no control characters. */
     public const string MODEL_PATTERN = '/^[^\p{C}]+$/uD';
 
+    public const int MAX_HARNESS_VERSION_LENGTH = 100;
+
+    public const int MAX_SKILL_VERSION_LENGTH = 100;
+
+    /** A plugin version such as 5.5.0 or 1.2.0-rc.1+build.7. */
+    public const string SKILL_VERSION_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}$/D';
+
     public const int MAX_HARNESS_SESSION_ID_LENGTH = 100;
 
     public const string HARNESS_SESSION_ID_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/D';
@@ -182,6 +189,18 @@ class WorkerRun implements ProjectScopedSubject
     /** The model the harness ran. Null until the bridge names it. */
     #[ORM\Column(name: 'model', length: self::MAX_MODEL_LENGTH, nullable: true)]
     public ?string $model = null;
+
+    /** The version of the harness binary that ran the run. Null from an older bridge, or before the harness named it. */
+    #[ORM\Column(name: 'harness_version', length: self::MAX_HARNESS_VERSION_LENGTH, nullable: true)]
+    public ?string $harnessVersion = null;
+
+    /** The version of the Loupe CLI that started the run. Null from an older bridge. */
+    #[ORM\Column(name: 'cli_version', length: Bridge::MAX_CLI_VERSION_LENGTH, nullable: true)]
+    public ?string $cliVersion = null;
+
+    /** The version of the Loupe plugin that the worker loaded. Null from an older bridge, or when no plugin loaded. */
+    #[ORM\Column(name: 'skill_version', length: self::MAX_SKILL_VERSION_LENGTH, nullable: true)]
+    public ?string $skillVersion = null;
 
     /** The harness's own id for the session, such as a Codex thread id. Loupe's own id stays in $sessionId. */
     #[ORM\Column(name: 'harness_session_id', length: self::MAX_HARNESS_SESSION_ID_LENGTH, nullable: true)]
@@ -306,15 +325,25 @@ class WorkerRun implements ProjectScopedSubject
     }
 
     /** A null keeps the stored value, because a value can arrive in a later report. Returns whether a field changed. */
-    public function recordHarness(?string $harness, ?string $account, ?string $model, ?string $harnessSessionId): bool
-    {
-        $before = [$this->harness, $this->account, $this->model, $this->harnessSessionId];
+    public function recordHarness(
+        ?string $harness,
+        ?string $account,
+        ?string $model,
+        ?string $harnessSessionId,
+        ?string $harnessVersion = null,
+        ?string $cliVersion = null,
+        ?string $skillVersion = null,
+    ): bool {
+        $before = [$this->harness, $this->account, $this->model, $this->harnessSessionId, $this->harnessVersion, $this->cliVersion, $this->skillVersion];
         $this->harness = $harness ?? $this->harness;
         $this->account = $account ?? $this->account;
         $this->model = $model ?? $this->model;
         $this->harnessSessionId = $harnessSessionId ?? $this->harnessSessionId;
+        $this->harnessVersion = $harnessVersion ?? $this->harnessVersion;
+        $this->cliVersion = $cliVersion ?? $this->cliVersion;
+        $this->skillVersion = $skillVersion ?? $this->skillVersion;
 
-        return $before !== [$this->harness, $this->account, $this->model, $this->harnessSessionId];
+        return $before !== [$this->harness, $this->account, $this->model, $this->harnessSessionId, $this->harnessVersion, $this->cliVersion, $this->skillVersion];
     }
 
     /** A stop carries no exit code. A null output keeps the output the run holds. */

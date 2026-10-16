@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Controller\Api;
 
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -166,6 +167,22 @@ final class ReportWorkerRunStateRequest
         #[Assert\NotBlank(allowNull: true)]
         #[Assert\Regex(pattern: WorkerRun::HARNESS_SESSION_ID_PATTERN)]
         public ?string $harnessSessionId = null,
+
+        /** The three version fields are null from a bridge that predates them. A null keeps the stored value. */
+        #[Assert\Length(max: WorkerRun::MAX_HARNESS_VERSION_LENGTH)]
+        #[Assert\NotBlank(allowNull: true)]
+        #[Assert\Regex(pattern: WorkerRun::MODEL_PATTERN)]
+        public ?string $harnessVersion = null,
+
+        #[Assert\Length(max: Bridge::MAX_CLI_VERSION_LENGTH)]
+        #[Assert\NotBlank(allowNull: true)]
+        #[Assert\Regex(pattern: WorkerRun::MODEL_PATTERN)]
+        public ?string $cliVersion = null,
+
+        #[Assert\Length(max: WorkerRun::MAX_SKILL_VERSION_LENGTH)]
+        #[Assert\NotBlank(allowNull: true)]
+        #[Assert\Regex(pattern: WorkerRun::SKILL_VERSION_PATTERN)]
+        public ?string $skillVersion = null,
     ) {
     }
 

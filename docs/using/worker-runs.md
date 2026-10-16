@@ -54,7 +54,10 @@ from opus`. A run with no experiment shows no line.
 A bridge can run its workers on more than one harness, such as Claude Code
 (`claude-code`) or Codex (`codex`), and on named accounts. Each report of a run
 can name the harness, the account, the model and the id the harness gave the
-session. A value can arrive in a later report, so the row and the drawer show
+session. It can also name the version of the harness, the version of the Loupe
+CLI and the version of the Loupe plugin that the worker loaded. The drawer shows
+each version that the run has. A run from a bridge that sends no version shows
+none. A value can arrive in a later report, so the row and the drawer show
 it from that report on. A run from before this release shows the harness
 `claude-code`. A command run runs no harness and shows none of these.
 
@@ -240,7 +243,7 @@ session and an ended run in a state that can resume. A run with a request that s
 one, and so does a bridge that does not take commands. A refused run gives a
 code and a message, and `worker_run_resume` takes up to 50 runs in one call.
 There is no tool that pauses a bridge, and no tool that runs a command again.
-Each run row carries its `kind`: `worker`, `interactive` or `command`. `worker_run_list` also filters by `harness`, `account` and `model`, and each row carries them with `harnessSessionId`.
+Each run row carries its `kind`: `worker`, `interactive` or `command`. `worker_run_list` also filters by `harness`, `account` and `model`, and each row carries them with `harnessSessionId`, `harnessVersion`, `cliVersion` and `skillVersion`.
 
 ## A warning on the card
 

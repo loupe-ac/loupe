@@ -155,6 +155,9 @@ final readonly class MetricRowSource
             MetricGroup::Bridge => $fact->bridgeId?->toRfc4122(),
             MetricGroup::Harness => $fact->harness,
             MetricGroup::Account => $fact->account,
+            MetricGroup::HarnessVersion => $fact->harnessVersion,
+            MetricGroup::CliVersion => $fact->cliVersion,
+            MetricGroup::SkillVersion => $fact->skillVersion,
             MetricGroup::CardType => 'card' === $fact->subjectType ? $types[(string) $fact->subjectId] ?? null : null,
             MetricGroup::None => null,
         };
