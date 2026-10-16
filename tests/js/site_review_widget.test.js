@@ -1465,6 +1465,60 @@ describe('the scope of the list request', () => {
         expect(window.localStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
     });
 
+    const madeCard = (cardId) =>
+        ok({ commentId: 'c1', cardId, number: 3, label: '#3', url: null });
+
+    it('keeps a save to a locked card out of the per-note list', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            mode: { mode: 'per-note', cardId: null },
+            respond: (url, init) =>
+                init.method === 'POST'
+                    ? madeCard(CARD)
+                    : ok({
+                          comments: [],
+                          context: { label: '#7 Preview', url: null },
+                      }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'A note on the preview');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
+    });
+
+    it('keeps a save out of the list when the scope changed before its answer', async () => {
+        let release;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Saved before the page changed');
+        fetchMock.mockImplementation((url, init) =>
+            init.method === 'POST'
+                ? new Promise((resolve) => (release = resolve))
+                : ok({ comments: [], context: null }),
+        );
+        root.getElementById('lp-save').click();
+        await settle();
+        expect(release).toBeTypeOf('function');
+
+        document
+            .querySelector('script[src*="site-review/widget.js"]')
+            .setAttribute('data-context', `card:${CARD}`);
+        window.history.pushState({}, '', '/preview');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await settle();
+        release(madeCard('made-late'));
+        await settle();
+
+        expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
+    });
+
     it('forgets the cards of a tab when the destination changes', async () => {
         window.sessionStorage.setItem(
             SESSION_CARDS_KEY,

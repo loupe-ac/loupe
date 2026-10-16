@@ -4791,8 +4791,11 @@
                 });
                 if (scopeAtSave === scopeGeneration) {
                     comments.push({ id: saved.commentId, ...comment });
+                    // Only a per-note review lists the cards of this tab.
+                    if (destination.mode === 'per-note') {
+                        rememberSessionCard(saved.cardId);
+                    }
                 }
-                rememberSessionCard(saved.cardId);
                 savedCard =
                     destination.mode === 'per-review'
                         ? null
