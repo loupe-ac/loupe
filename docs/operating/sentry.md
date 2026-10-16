@@ -93,9 +93,28 @@ The *Sentry in the browser* row on `/admin/status` reports a malformed
   with no signed-in user is also left out, because Loupe answers it with a
   redirect to the login page or a 401 response.
 - The errors of scheduled tasks. Scheduled tasks send no traces.
+- The queue metrics of [Queue metrics](#queue-metrics).
 
 Twig and cache spans are off. A render or cache span between two queries hides
 a run of repeated queries, and Sentry's N+1 query detector then misses it.
+
+## Queue metrics
+
+Once a minute, the worker sends two gauges for each message queue to Sentry. They let you graph a queue over time and alert on one that stops moving. With no usable `SENTRY_DSN`, the task does nothing. Run `bin/console app:report-queue-depth` to send the gauges once by hand and print them.
+
+| Gauge | Meaning |
+|---|---|
+| `messenger.queue.pending` | The number of messages that wait for a worker. |
+| `messenger.queue.oldest_age` | How long the oldest waiting message has waited, in seconds. |
+
+A message waits when it is due and no worker holds a live claim on it. A claim stays live for one hour. This is the same rule as the worker check on `/admin/status`.
+
+Each gauge has two attributes. `queue_name` is the queue in the database: `default` for the `async` transport, `workflow`, `async_low` and `failed`. `transport` is the name of the transport in `config/packages/messenger.yaml`. An empty queue reports `0` for both gauges, so a flat line means an empty queue and a blank line means the task did not run.
+
+Create two metric monitors in Sentry once the first points arrive:
+
+1. **Stuck queue.** Monitor `max(messenger.queue.oldest_age)` with the filter `queue_name:!failed`. Alert when it stays above 60 seconds for 5 minutes. The `failed` queue is left out, because its oldest age grows until somebody clears it.
+2. **Failed messages.** Monitor `max(messenger.queue.pending)` with the filter `queue_name:failed`. Alert when it is above 0. [Failed messages](failed-messages.md) says how to retry or remove them.
 
 ## What Sentry never receives
 
