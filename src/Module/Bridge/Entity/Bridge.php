@@ -137,6 +137,14 @@ class Bridge
     #[ORM\Column(name: 'capabilities', type: Types::JSON, nullable: true)]
     public ?array $capabilities = null;
 
+    /**
+     * The kinds of work the bridge said it can run. Null from a bridge that reports none, which Loupe reads as any kind.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(name: 'work_kinds', type: Types::JSON, nullable: true)]
+    public ?array $workKinds = null;
+
     /** The name the bridge holds. Null while it asked for none, or while another bridge of the owner holds the one it asked for. */
     #[ORM\Column(name: 'name', length: self::MAX_NAME_LENGTH, nullable: true)]
     public ?string $name = null;

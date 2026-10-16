@@ -429,6 +429,24 @@ func TestCapabilities(t *testing.T) {
 	}
 }
 
+func TestWorkKindsOn(t *testing.T) {
+	two := claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nwork:\n  fix:\n    prompt: x\n  tech-design:\n    prompt: x\n"
+	for name, tc := range map[string]struct {
+		body string
+		want []string
+	}{
+		"kinds in name order": {two, []string{"fix", "tech-design"}},
+		"app prompts only":    {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nappPrompts: true\n", []string{}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := parse(t, tc.body).WorkKindsOn()
+			if got == nil || !slices.Equal(got, tc.want) {
+				t.Fatalf("WorkKindsOn = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
 // A project rename stops the work of the old slug, and any other event stops
 // nothing.
 func TestARenamedProjectKillsItsWork(t *testing.T) {
