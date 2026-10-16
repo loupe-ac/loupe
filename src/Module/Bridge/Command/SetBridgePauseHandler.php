@@ -6,11 +6,13 @@ namespace App\Module\Bridge\Command;
 
 use App\Exception\DomainErrors;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Project\Repository\ProjectRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
@@ -32,6 +34,7 @@ final readonly class SetBridgePauseHandler
         private EntityManagerInterface $em,
         private ClockInterface $clock,
         private Auditor $auditor,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -77,6 +80,7 @@ final readonly class SetBridgePauseHandler
             foreach ($this->projects->findOwnedBy($command->owner, $bridge->projects) as $project) {
                 $this->runsChanged->runsChanged($project);
             }
+            $this->events->dispatch(new BridgeAvailabilityChanged($bridge->projects));
         }
 
         return $bridge;

@@ -440,6 +440,30 @@ class WorkRequestRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * The ids of the cards that have an open work request in the projects.
+     *
+     * @param list<string> $projectIds RFC 4122 ids
+     *
+     * @return list<string> RFC 4122 ids
+     */
+    public function findCardIdsWithOpenRequestIn(array $projectIds): array
+    {
+        if ([] === $projectIds) {
+            return [];
+        }
+
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT DISTINCT subject_id FROM work_requests
+             WHERE subject_type = :subject AND project_id IN (:projects) AND state = 'open'",
+            ['subject' => WorkSubject::CARD, 'projects' => $projectIds],
+            ['projects' => ArrayParameterType::STRING],
+        )->fetchFirstColumn();
+
+        return $ids;
+    }
+
     /** The newest request of the card that the rule opened for the kind, in any state. */
     public function findLatestOfCardKindRule(Uuid $cardId, string $kind, string $ruleId): ?WorkRequest
     {
