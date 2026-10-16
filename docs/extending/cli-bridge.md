@@ -1355,7 +1355,9 @@ work:
 When a `product-design-revise` or `tech-design-revise` request starts for an
 agent review, the same `loupe-stage-fix-round` skill answers the findings. It
 revises the draft, and records one answer for each finding with the
-`document_review_answer` tool. Its prompt needs no change.
+`document_review_answer` tool. The request carries the reason `agent-review`.
+Put the line `Fix reason: {reason}.` in the prompt of both entries, so the
+worker can choose the agent review path.
 
 The file needs `work:`, or `appPrompts: true`. The bridge reports the
 `work-requests` capability when the map has an entry or `appPrompts` is on,

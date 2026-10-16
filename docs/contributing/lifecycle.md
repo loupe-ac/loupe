@@ -204,6 +204,7 @@ work:
     prompt: |
       Use the loupe-stage-fix-round skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}), column product-design.
+      Fix reason: {reason}.
       Loupe instance https://loupe.ac.
 
   tech-design:
@@ -219,6 +220,7 @@ work:
     prompt: |
       Use the loupe-stage-fix-round skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}), column tech-design.
+      Fix reason: {reason}.
       Loupe instance https://loupe.ac.
 
   design-review:
