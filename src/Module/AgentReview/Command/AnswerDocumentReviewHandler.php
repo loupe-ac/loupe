@@ -60,7 +60,7 @@ final readonly class AnswerDocumentReviewHandler
         if (!array_any($this->cardDocuments->findForDocument($document), static fn ($link): bool => $link->card->id?->equals($cardId) ?? false)) {
             throw new DomainErrors(['documentId' => self::NOT_LINKED]);
         }
-        $review = $this->documentAgentReviews->findLatestOfDocument($document) ?? throw new DomainErrors(['documentId' => self::NO_REVIEW]);
+        $review = $this->documentAgentReviews->findLatestOfDocumentForCard($document, $card) ?? throw new DomainErrors(['documentId' => self::NO_REVIEW]);
         if ($review->isAnswered()) {
             throw new DomainErrors(['documentId' => self::ALREADY_ANSWERED]);
         }

@@ -2670,7 +2670,7 @@
             </trans-unit>
             <trans-unit id="project.connect.tool.document_review_answer">
                 <source>project.connect.tool.document_review_answer</source>
-                <target>Answer each finding of the latest agent review of a draft design document as fixed, not changed with a reason, or for the owner. Only a running design fix worker of the card can call it.</target>
+                <target>Answer each finding of the latest agent review that the card got for a draft design document as fixed, not changed with a reason, or for the owner. Only a running design fix worker of the card can call it.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.card_create">
                 <source>project.connect.tool.card_create</source>

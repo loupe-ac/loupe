@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Mcp\DocumentReviewAnswerTool;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardDocument;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\AgentReview\DocumentReviewScenario;
@@ -89,6 +90,36 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         self::assertSame((string) $newer->id, $result['reviewId']);
     }
 
+    public function test_it_answers_the_review_of_its_own_card_when_two_cards_link_the_document(): void
+    {
+        $other = $this->card($this->project, 2);
+        $this->em->flush();
+        $this->em->persist(new CardDocument($other, $this->document));
+        $this->em->flush();
+        $foreign = $this->documentReview($this->project, $other, $this->document, 1, 2);
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise');
+        $this->sendSession($this->sessionId);
+
+        $result = $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]);
+
+        self::assertSame((string) $this->review->id, $result['reviewId']);
+        self::assertFalse($foreign->isAnswered());
+    }
+
+    public function test_it_refuses_when_only_another_card_has_a_review_of_the_document(): void
+    {
+        $other = $this->card($this->project, 2);
+        $this->em->flush();
+        $shared = $this->linkedDocument($other);
+        $this->em->persist(new CardDocument($this->card, $shared));
+        $this->em->flush();
+        $this->documentReview($this->project, $other, $shared);
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise');
+        $this->sendSession($this->sessionId);
+
+        $this->assertRefused('has no agent review of this card to answer', fn () => ($this->tool)((string) $this->card->id, (string) $shared->id, []));
+    }
+
     public function test_it_refuses_a_second_answer(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise');
@@ -134,7 +165,7 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         $this->em->flush();
         $foreign = $this->linkedDocument($other);
 
-        $this->assertRefused('has no agent review to answer', fn () => ($this->tool)((string) $this->card->id, (string) $bare->id, []));
+        $this->assertRefused('has no agent review of this card to answer', fn () => ($this->tool)((string) $this->card->id, (string) $bare->id, []));
         $this->assertRefused('must name a document that the card links', fn () => ($this->tool)((string) $this->card->id, (string) $foreign->id, []));
     }
 

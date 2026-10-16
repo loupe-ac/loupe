@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\AgentReview\Repository;
 
 use App\Module\AgentReview\Entity\DocumentAgentReview;
+use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -18,9 +19,9 @@ class DocumentAgentReviewRepository extends ServiceEntityRepository
         parent::__construct($registry, DocumentAgentReview::class);
     }
 
-    public function findLatestOfDocument(Document $document): ?DocumentAgentReview
+    public function findLatestOfDocumentForCard(Document $document, Card $card): ?DocumentAgentReview
     {
-        return $this->findOneBy(['document' => $document], ['createdAt' => 'DESC', 'id' => 'DESC']);
+        return $this->findOneBy(['document' => $document, 'card' => $card], ['createdAt' => 'DESC', 'id' => 'DESC']);
     }
 
     /** @return list<DocumentAgentReview> the reviews of the document, newest first */
