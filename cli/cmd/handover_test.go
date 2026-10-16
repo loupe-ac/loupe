@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"os"
@@ -284,6 +285,11 @@ exit $code
 	if len(st.Live) != 2 || len(st.Queue) != 1 {
 		t.Fatalf("live = %+v, queue = %+v", st.Live, st.Queue)
 	}
+	for _, run := range st.Live {
+		if run.CLIVersion != cliVersion() {
+			t.Fatalf("live run cliVersion = %q, want %q", run.CLIVersion, cliVersion())
+		}
+	}
 	path, err := handoverPath("rules.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -425,6 +431,33 @@ func TestAnAdoptedWorkerThatEndedIsReportedAtOnce(t *testing.T) {
 	_, final := adoptInto(t, adoptedRun(dir))
 	if final.State != api.RunSucceeded || time.Since(began) > time.Second {
 		t.Fatalf("the ended worker reported %+v after %s", final, time.Since(began))
+	}
+}
+
+// An adopted run reports the CLI version of the image that started it, and
+// none when that image wrote none.
+func TestAnAdoptedRunKeepsTheCLIVersionThatStartedIt(t *testing.T) {
+	for _, started := range []string{"0.9.0", ""} {
+		t.Run("started by "+cmp.Or(started, "an older image"), func(t *testing.T) {
+			dir := runDir(t)
+			cmd := exec.Command("true")
+			if err := cmd.Run(); err != nil {
+				t.Fatal(err)
+			}
+			if err := writeRunRecord(dir, runRecord{PID: cmd.Process.Pid, StartTime: "gone", RunID: "run-9"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "status.exit"), []byte("0\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			st := adoptedRun(dir)
+			st.Live[0].CLIVersion = started
+
+			_, final := adoptInto(t, st)
+			if final.CLIVersion != started || started == cliVersion() {
+				t.Fatalf("cliVersion = %q, want %q", final.CLIVersion, started)
+			}
+		})
 	}
 }
 
@@ -670,6 +703,10 @@ func TestAHandoverAdoptsARunInItsBeforeCommand(t *testing.T) {
 				t.Fatalf("worker = %+v, want it in %s", calls, res.dir)
 			}
 			wantStates(t, ofRun(rec.states(), run.RunID), api.RunRunning, api.RunSucceeded)
+			// The harness starts under this image, so the run takes its version.
+			if final.CLIVersion != cliVersion() {
+				t.Fatalf("cliVersion = %q, want %q", final.CLIVersion, cliVersion())
+			}
 			if !final.StartedAt.Equal(run.Began) || h2.used() != 0 {
 				t.Fatalf("final = %+v, used = %d", final, h2.used())
 			}

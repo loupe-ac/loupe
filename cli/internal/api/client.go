@@ -11,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -771,6 +772,18 @@ func clip(s string, limit int) string {
 
 // maxModel is the longest model name the server stores.
 const maxModel = 100
+
+// skillVersionPattern is the skill version the server takes.
+var skillVersionPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]{0,99}$`)
+
+// sendableSkillVersion is version, or "" when the server would refuse it.
+func sendableSkillVersion(version string) string {
+	if !skillVersionPattern.MatchString(version) {
+		return ""
+	}
+
+	return version
+}
 
 // sendableModel is model, or "" when the server would refuse it for its
 // length or for a control or format character.

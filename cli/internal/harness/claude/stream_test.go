@@ -490,3 +490,17 @@ func TestTheToolNameGivesTheKind(t *testing.T) {
 		t.Fatalf("kinds = %q, want %q", kinds, want)
 	}
 }
+
+func TestTheStartLineGivesTheClaudeAndLoupePluginVersions(t *testing.T) {
+	out := readFixture(t, "versions.jsonl")
+	if out.HarnessVersion != "2.1.301" || out.SkillVersion != "0.9.4" {
+		t.Fatalf("versions = %q, %q; want 2.1.301, 0.9.4", out.HarnessVersion, out.SkillVersion)
+	}
+}
+
+func TestARunWithoutAStartLineHasNoVersions(t *testing.T) {
+	out := readFixture(t, "peak_context.jsonl")
+	if out.HarnessVersion != "" || out.SkillVersion != "" {
+		t.Fatalf("versions = %q, %q; want none", out.HarnessVersion, out.SkillVersion)
+	}
+}

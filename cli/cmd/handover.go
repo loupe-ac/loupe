@@ -148,6 +148,9 @@ type handoverRun struct {
 	Work       *api.WorkRequest `json:"work,omitempty"`
 	ClaimToken string           `json:"claimToken,omitempty"`
 	Origin     *api.WorkRequest `json:"origin,omitempty"`
+	// CLIVersion is the version of the image that started the run. An older
+	// image writes none.
+	CLIVersion string `json:"cliVersion,omitempty"`
 }
 
 // phaseBefore is the phase of a run whose before command runs, and
@@ -357,7 +360,7 @@ func (r *router) freeze() handoverState {
 			RunID: run.p.runID, Key: run.p.key, Rule: run.p.rule, Event: run.p.event, SessionID: run.p.spec.sessionID,
 			Began: run.began, PID: run.proc.pid, Dir: run.proc.dir, Seq: run.p.seq, Resume: run.p.spec.resume, Fresh: run.p.fresh,
 			Pool: run.p.slot, handoverSeries: seriesOf(run.p), runPin: run.p.pin,
-			Work: workOf(run.p), ClaimToken: run.p.claimToken, Origin: originOf(run.p),
+			Work: workOf(run.p), ClaimToken: run.p.claimToken, Origin: originOf(run.p), CLIVersion: run.p.runCLIVersion(),
 		}
 		switch {
 		case run.p.isCommand():
@@ -479,6 +482,8 @@ func (r *router) adoptLocked(run handoverRun) {
 		Model: run.Model, PermissionMode: run.PermissionMode,
 	})
 	p.spec.effort = run.Effort
+	// The harness of a run in its before phase starts under this image.
+	p.adopted, p.cliVersion = run.Phase != phaseBefore, run.CLIVersion
 	// A command run takes no slot.
 	if run.Phase == phaseCommand {
 		p.action = rules.ActionCommand

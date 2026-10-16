@@ -868,3 +868,12 @@ func TestAProfileThatDoesNotParseFailsTheCheckAndSetsNoProviderExpectation(t *te
 		t.Fatalf("output = %+v", run)
 	}
 }
+
+func TestReadRunGivesTheCodexVersionOfTheSession(t *testing.T) {
+	h := newHarness(t, "openrouter")
+	got := h.ReadRun(runDir(t, "stdout.jsonl", ""), harness.RunInfo{SessionID: runID})
+
+	if got.HarnessVersion != "0.155.1" || got.SkillVersion != "" {
+		t.Fatalf("versions = %q, %q; want 0.155.1 and none", got.HarnessVersion, got.SkillVersion)
+	}
+}

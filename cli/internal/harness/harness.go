@@ -115,5 +115,10 @@ type Output struct {
 	Calls             []stream.Call
 	Timing            stream.Timing
 	PeakContextTokens *int64
-	ReadErr           error
+	// HarnessVersion is the version of the harness binary that ran, and
+	// SkillVersion the version of the Loupe plugin it loaded. Either is empty
+	// when the run did not say.
+	HarnessVersion string
+	SkillVersion   string
+	ReadErr        error
 }

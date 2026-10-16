@@ -68,6 +68,7 @@ func Read(r io.Reader) (stream.Output, error) {
 
 type entry struct {
 	Type            string          `json:"type"`
+	Subtype         string          `json:"subtype"`
 	Timestamp       string          `json:"timestamp"`
 	ParentToolUseID *string         `json:"parent_tool_use_id"`
 	Message         json.RawMessage `json:"message"`
@@ -99,12 +100,19 @@ type reader struct {
 	lastChild map[string]time.Time
 	clock     stream.Clock
 	peak      *int64
+	harness   string
+	skill     string
 }
 
 func (rd *reader) line(raw []byte) {
 	raw = bytes.TrimSpace(raw)
 	var e entry
 	if len(raw) == 0 || raw[0] != '{' || json.Unmarshal(raw, &e) != nil {
+		return
+	}
+	if e.Type == "system" {
+		rd.init(raw)
+
 		return
 	}
 	if e.Type == "result" {
@@ -252,13 +260,37 @@ func (rd *reader) answer(b block, ts time.Time, timed bool, agent string) {
 	rd.calls[i].BackgroundID = backgroundID(text(b.Content))
 }
 
+// init keeps the version of claude and of the Loupe plugin from the start line.
+// A plugin with no version, such as one served from a checkout, gives none.
+func (rd *reader) init(raw []byte) {
+	var l struct {
+		Subtype string `json:"subtype"`
+		Version string `json:"claude_code_version"`
+		Plugins []struct {
+			Source  string `json:"source"`
+			Version string `json:"version"`
+		} `json:"plugins"`
+	}
+	if json.Unmarshal(raw, &l) != nil || l.Subtype != "init" || rd.harness != "" {
+		return
+	}
+	rd.harness = l.Version
+	for _, p := range l.Plugins {
+		if strings.HasPrefix(p.Source, "loupe@") && p.Version != "" {
+			rd.skill = p.Version
+
+			break
+		}
+	}
+}
+
 func (rd *reader) output() stream.Output {
 	for i, id := range rd.ids {
 		rd.ends[i].Last = rd.lastChild[id]
 	}
 	timing := rd.clock.Finish(rd.calls, rd.ends)
 
-	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak}
+	return stream.Output{Result: rd.result, Calls: rd.calls, Timing: timing, PeakContextTokens: rd.peak, HarnessVersion: rd.harness, SkillVersion: rd.skill}
 }
 
 func stamp(s string) (time.Time, bool) {
