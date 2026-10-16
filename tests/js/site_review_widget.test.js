@@ -391,7 +391,7 @@ describe('the delivery id', () => {
 });
 
 describe('the mode picker', () => {
-    it('hands focus back to the draft after a choice and after Back', async () => {
+    it('keeps focus in the visible view after Back and after a choice', async () => {
         bootWidget({ respond: () => ok({ comments: [], context: null }) });
         await settle();
 
@@ -405,7 +405,9 @@ describe('the mode picker', () => {
 
         root.getElementById('lp-picker-back').click();
         await settle();
-        expect(root.activeElement).toBe(textarea);
+        expect(root.activeElement).toBe(
+            root.querySelector('#lp-picker-modes [data-mode]'),
+        );
 
         root.querySelector('[data-mode="per-note"]').click();
         await settle();
@@ -1563,6 +1565,65 @@ describe('the panel views', () => {
             'Open #418 in Loupe',
         );
         expect(root.getElementById('lp-finish')).toBeNull();
+    });
+
+    it('offers to open the card of a one-card review', async () => {
+        bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: () =>
+                ok({
+                    comments: [],
+                    context: {
+                        label: '#420 Tidy the footer',
+                        url: 'https://loupe.example/c420',
+                    },
+                }),
+        });
+        await settle();
+        openPanel();
+        const link = panelRoot().getElementById('lp-open-card');
+
+        expect(link.textContent).toContain('Open #420 in Loupe');
+        expect(link.getAttribute('href')).toBe('https://loupe.example/c420');
+    });
+
+    it('offers no card to open in a review that sends notes to many cards', async () => {
+        bootWidget({
+            mode: { mode: 'epic', cardId: CARD },
+            respond: () =>
+                ok({
+                    comments: [],
+                    context: {
+                        label: '#421 The epic',
+                        url: 'https://loupe.example/c421',
+                    },
+                }),
+        });
+        await settle();
+        openPanel();
+
+        expect(panelRoot().getElementById('lp-open-card')).toBeNull();
+    });
+
+    it('focuses the destination button when the destination closes over the list', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+        const dest = root.getElementById('lp-dest');
+
+        dest.click();
+        expect(viewOf(root)).toBe('destination');
+        root.getElementById('lp-picker-close').click();
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(dest);
+
+        dest.click();
+        root.getElementById('lp-destination-back').click();
+        expect(root.activeElement).toBe(dest);
     });
 
     it('shows the plain sign-in view with three steps', async () => {

@@ -86,7 +86,8 @@ The destination also decides which notes the list shows:
 | A card for each note, under an epic | Every open note on the cards under that epic. |
 
 When you change the destination, the list changes with it. Until you choose a
-destination, the list is empty.
+destination, the list is empty. With **One card for this review**, the footer
+shows **Open #N in Loupe**, which opens that card.
 
 The second and third choices open a card picker. Search the open cards, or
 type a title and create a card. The title starts as `Review: ` and the page

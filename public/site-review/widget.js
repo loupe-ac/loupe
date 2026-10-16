@@ -2687,19 +2687,29 @@
 
         return `${name} · ${last}`;
     };
-    // The footer's one action: finish a pull request review, or open the card
-    // of a preview that has none.
-    const footerAction = () => {
-        if (!lock || lock.state !== 'ok') return null;
-        const data = verdictCurrent() ? verdict.data : null;
-        if (data && data.pullRequests.length) return { kind: 'finish' };
-        if (!lock.url) return null;
-        const number = /^#(\d+)/.exec(lock.label || '');
+    // The footer's one action: finish a pull request review, or open the one
+    // card that the notes go to.
+    const openAction = (card) => {
+        if (!card.url) return null;
+        const number = /^#(\d+)/.exec(card.label || '');
 
         return {
             kind: 'open',
             text: number ? `Open #${number[1]} in Loupe` : 'Open card in Loupe',
+            url: card.url,
         };
+    };
+    const footerAction = () => {
+        if (!lock) {
+            return storedTarget && storedTarget.mode === 'per-review'
+                ? openAction(storedTarget)
+                : null;
+        }
+        if (lock.state !== 'ok') return null;
+        const data = verdictCurrent() ? verdict.data : null;
+        if (data && data.pullRequests.length) return { kind: 'finish' };
+
+        return openAction(lock);
     };
 
     // Pick the view to show from what is true now. A view whose reason is gone
@@ -3127,11 +3137,7 @@
     let footerActionDrawn = null;
     const renderFooterAction = (action) => {
         const key = JSON.stringify(action);
-        if (key === footerActionDrawn) {
-            const link = footAction.querySelector('a');
-            if (link && lock) link.href = lock.url;
-            return;
-        }
+        if (key === footerActionDrawn) return;
         footerActionDrawn = key;
         footAction.textContent = '';
         if (!action) return;
@@ -3151,7 +3157,7 @@
         link.className = 'lp-foot-action secondary';
         link.target = '_blank';
         link.rel = 'noopener';
-        link.href = lock.url;
+        link.href = action.url;
         link.innerHTML = `${escapeHtml(action.text)}${ICON.arrowOut(14)}`;
         footAction.appendChild(link);
     };
@@ -4388,6 +4394,11 @@
         pickerMode = null;
         if (state.view === 'destination') backView();
     };
+    // Focus follows the reviewer back, so it never stays in the hidden view.
+    const focusAfterDestination = () => {
+        if (composing()) focusTextarea();
+        else destNode.focus({ preventScroll: true });
+    };
     const chooseTarget = (target) => {
         const changed = !sameTarget(storedTarget, target);
         storedTarget = target;
@@ -4399,7 +4410,7 @@
             comments = [];
         }
         sync();
-        if (composing()) focusTextarea();
+        focusAfterDestination();
         if (changed) refresh().then(sync);
     };
     const pickMode = (mode) => {
@@ -4595,7 +4606,7 @@
         event.stopPropagation();
         leaveDestination();
         sync();
-        if (composing()) focusTextarea();
+        focusAfterDestination();
     };
     pickerSearchNode.addEventListener('keydown', closePickerOnEscape);
     pickerTitleNode.addEventListener('keydown', closePickerOnEscape);
@@ -4606,6 +4617,7 @@
     $('lp-picker-close').addEventListener('click', () => {
         leaveDestination();
         sync();
+        focusAfterDestination();
     });
     $('lp-destination-back').addEventListener('click', () => {
         // With no destination chosen a note cannot be saved, so backing out of
@@ -4616,13 +4628,13 @@
         }
         leaveDestination();
         sync();
-        if (composing()) focusTextarea();
+        focusAfterDestination();
     });
     destNode.addEventListener('click', openDestination);
     $('lp-picker-back').addEventListener('click', () => {
         pickerMode = null;
         sync();
-        focusTextarea();
+        focusDestination();
     });
 
     const cancelCompose = () => {
