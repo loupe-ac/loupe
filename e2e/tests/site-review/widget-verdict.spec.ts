@@ -132,11 +132,23 @@ const openPanel = async (page: Page): Promise<void> => {
     await expect(panel(page)).toBeVisible();
 };
 
+/** The footer action opens the Finish review view, where the verdicts live. */
+const openFinish = async (page: Page): Promise<void> => {
+    await panel(page).getByRole('button', { name: 'Finish review' }).click();
+    await expect(
+        panel(page).getByRole('group', { name: 'Verdict' }),
+    ).toBeVisible();
+};
+
 test('a locked card with an open pull request offers the three verdicts', async ({
     page,
 }) => {
     await openLockedPage(page, () => answer());
     await openPanel(page);
+    await expect(
+        panel(page).getByText('PR #12 · No verdict yet'),
+    ).toBeVisible();
+    await openFinish(page);
 
     for (const name of ['Approve', 'Request changes', 'Comment']) {
         await expect(verdictButton(page, name)).toBeVisible();
@@ -160,7 +172,12 @@ test('a card with no open pull request offers no verdict', async ({ page }) => {
 
     // The last verdict only renders once the read has landed, so the check
     // below cannot pass before the answer arrived.
-    await expect(panel(page).getByText('Last verdict: Approve')).toBeVisible();
+    await expect(panel(page).locator('#lp-sub')).toContainText(
+        'No pull request yet · 0 notes on this card · Last verdict: Approved',
+    );
+    await expect(
+        panel(page).getByRole('button', { name: 'Finish review' }),
+    ).toHaveCount(0);
     await expect(verdictButton(page, 'Approve')).toHaveCount(0);
 });
 
@@ -169,6 +186,7 @@ test('an approval sends after the confirm panel and says so', async ({
 }) => {
     const posted = await openLockedPage(page, () => answer());
     await openPanel(page);
+    await openFinish(page);
 
     await verdictButton(page, 'Approve').click();
     await expect(
@@ -209,6 +227,7 @@ test('request changes with no open note needs a message and warns about the revi
         }),
     );
     await openPanel(page);
+    await openFinish(page);
 
     await verdictButton(page, 'Request changes').click();
     const send = panel(page).getByRole('button', { name: 'Send', exact: true });
@@ -252,6 +271,7 @@ test('request changes on a card with an open note sends with no message', async 
         }),
     );
     await openPanel(page);
+    await openFinish(page);
 
     await verdictButton(page, 'Request changes').click();
     await expect(
@@ -292,6 +312,7 @@ test('two pull requests ask the reviewer to tick the ones that get the review', 
         }),
     );
     await openPanel(page);
+    await openFinish(page);
 
     await verdictButton(page, 'Approve').click();
     const send = panel(page).getByRole('button', { name: 'Send', exact: true });
@@ -330,6 +351,7 @@ test('connecting GitHub keeps the draft and brings Send back', async ({
         }),
     );
     await openPanel(page);
+    await openFinish(page);
 
     await verdictButton(page, 'Comment').click();
     await panel(page).getByLabel('Message').fill('Needs a second look');
@@ -374,6 +396,7 @@ test('the last verdict shows its result and offers to connect again', async ({
         }),
     );
     await openPanel(page);
+    await openFinish(page);
 
     await expect(
         panel(page).getByText('Last verdict: Request changes'),
