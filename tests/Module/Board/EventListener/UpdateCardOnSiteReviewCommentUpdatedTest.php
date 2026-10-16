@@ -9,6 +9,9 @@ use App\Module\Board\Command\AddFeedbackCommand;
 use App\Module\Board\Command\AddFeedbackHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSiteReviewComment;
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Command\NewAnchor;
 use App\Module\SiteReview\Command\UpdateCommentCommand;
@@ -92,6 +95,44 @@ final class UpdateCardOnSiteReviewCommentUpdatedTest extends KernelTestCase
         $card = $this->fresh($link);
         self::assertSame('Footer overlaps the launcher', $card->title);
         self::assertSame('Repro: resize.', $card->body);
+    }
+
+    public function test_an_edit_leaves_a_card_that_someone_moved_out_of_the_backlog(): void
+    {
+        $project = $this->project('edit-moved');
+        $link = $this->addNote($project, 'Footer overlaps the launcher');
+        $this->em->getConnection()->executeStatement(
+            'UPDATE board_cards SET column_id = ? WHERE id = ?',
+            [(string) $this->column($project, 'next')->id, (string) $link->card->id],
+        );
+
+        $this->edit($project, $link, 'Something else');
+
+        $card = $this->fresh($link);
+        self::assertSame('Footer overlaps the launcher', $card->title);
+        self::assertSame('Footer overlaps the launcher', $card->body);
+    }
+
+    public function test_an_edit_leaves_a_card_that_a_worker_runs_on(): void
+    {
+        $project = $this->project('edit-running');
+        $link = $this->addNote($project, 'Footer overlaps the launcher');
+        $this->em->persist(new WorkerRun(
+            project: $project,
+            bridgeId: null,
+            subjectType: WorkSubject::CARD,
+            subjectId: $link->card->id ?? throw new \LogicException('unsaved card'),
+            cardNumber: $link->card->number,
+            workKind: 'plan',
+            state: WorkerRunState::Running,
+        ));
+        $this->em->flush();
+
+        $this->edit($project, $link, 'Something else');
+
+        $card = $this->fresh($link);
+        self::assertSame('Footer overlaps the launcher', $card->title);
+        self::assertSame('Footer overlaps the launcher', $card->body);
     }
 
     public function test_an_edit_leaves_a_card_that_the_note_only_joined(): void

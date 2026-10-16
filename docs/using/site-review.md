@@ -91,7 +91,7 @@ A card that the widget creates has these values:
 - The source is the site review widget. The card shows a site review badge.
 - A note card takes its title from the start of the note, cut at a word to 80 characters, with "…" at the end when the note is longer.
 - The card body holds the whole note.
-- When you edit the note before anyone works on the card, the title and the body follow the edit. After that the card keeps its own text.
+- When you edit the note while the card sits in Backlog and nobody has changed it, the title and the body follow the edit. After that the card keeps its own text.
 
 After a save that creates a card, the widget names the card and links to it.
 
