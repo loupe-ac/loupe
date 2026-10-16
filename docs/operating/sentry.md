@@ -100,7 +100,7 @@ a run of repeated queries, and Sentry's N+1 query detector then misses it.
 
 ## Queue metrics
 
-Once a minute, the worker sends two gauges for each message queue to Sentry. They let you graph a queue over time and alert on one that stops moving. With no usable `SENTRY_DSN`, the task does nothing.
+Once a minute, the worker sends two gauges for each message queue to Sentry. They let you graph a queue over time and alert on one that stops moving. With no usable `SENTRY_DSN`, the task does nothing. Run `bin/console app:report-queue-depth` to send the gauges once by hand and print them.
 
 | Gauge | Meaning |
 |---|---|
