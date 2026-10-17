@@ -62,20 +62,22 @@ pop-up and the page, and the widget then gets no answer.
 
 ## Where notes go
 
-Every note lands on a card. Before the first note, the widget asks where notes
-go:
+Every note lands on a card. Until you choose where notes go, the panel opens on
+a view named "Where should your notes go?", and so does the first note. Choose
+one option and press **Start reviewing**:
 
 | Choice | What a save does |
 |---|---|
 | A new card for each note | Creates a new card for the note. |
-| One card for this review | Adds the note to one card. Pick an open card, or create one. |
-| A card for each note, under an epic | Creates a new card for the note, as a child of one epic. Pick an open epic, or create one. The widget shows this choice only when the workflow template has a card type with the children capability. |
+| One card for this review | Adds the note to one card. Create a new card, or pick an existing one. |
+| A card for each note, under an epic | Creates a new card for the note, as a child of one epic. Create a new epic, or pick an existing one. The widget shows this choice only when the workflow template has a card type with the children capability. |
 
 The widget keeps the choice in the browser's local storage, for this instance
 and this project. It holds for every later note, and after a reload, until you
 change it. The panel header shows where notes go. Click it to open the
-destination view and choose again. The row under the note field in the composer
-does the same.
+destination view and choose again. The line "Saves to ..." under the title of the
+composer does the same. Once a choice exists, the button of the view reads
+**Save**.
 
 The destination also decides which notes the list shows:
 
@@ -89,13 +91,16 @@ When you change the destination, the list changes with it. Until you choose a
 destination, the list is empty. With **One card for this review**, the footer
 shows **Open #N in Loupe**, which opens that card.
 
-The second and third choices open a card picker. Search the open cards, or
-type a title and create a card. The title starts as `Review: ` and the page
-path, and you can edit it. With **One card for this review**, the title field takes the focus.
-The third choice lists the open cards of every type that has the children
-capability, and it creates a card of one of those types. When the template has
-two or more such types, a type selector shows beside the Create button. The
-first type of the template is chosen at first.
+The first choice opens a switch with **New card** and **Existing card**. The
+third choice puts the epic on a second step: press **Next**, and the view
+shows "Pick or create an epic" with the same switch, as **New epic** and
+**Existing epic**. The back arrow returns to the choices. With **New card**, type a title and the button creates the card. The
+title starts as `Review: ` and the page path, and the view selects it so that
+you can replace it. With **Existing card**, search the open cards, pick one
+row and press the button. The third choice lists the open cards of every type
+that has the children capability, and it creates a card of one of those types.
+When the template has two or more such types, a **Type** selector shows under
+the title. The first type of the template is chosen at first.
 
 A card that the widget creates has these values:
 
@@ -167,16 +172,16 @@ request.
 The view opens with a verdict already chosen. It picks **Request changes** when
 the card has open notes, and **Approve** when it has none. You can pick
 **Approve**, **Request changes** or **Comment** instead. The message field has
-focus, so you can type at once. Loupe records nothing until you press **Send**.
+focus, so you can type at once. Loupe records nothing until you press **Send review**.
 Press **Cancel** or the back arrow to return to the list with no record.
 
 The view shows:
 
-- The name of the card, under the title.
-- The pull request. When the card has two or more, you tick each one that gets
-  the review. Send covers the ticked pull requests.
-- The open notes that go with the verdict. On an approval, the view says how
-  many notes are still open, and you can still send.
+- The name of the card and its pull request, under the title.
+- The pull requests, when the card has two or more. You tick each one that gets
+  the review. Send review covers the ticked pull requests.
+- The open notes, under **Notes in this review**. On an approval, the heading is
+  **Notes still open**, and you can still send.
 - A field for a message.
 - What Loupe does with the verdict. When the workflow writes nothing to GitHub,
   the view says **Recorded in Loupe only**.
@@ -184,22 +189,24 @@ The view shows:
   when you have connected one.
 
 **Request changes** and **Comment** need a message when the card has no open
-note. **Send** stays off until you write one. When notes are open, they go with
+note. **Send review** stays off until you write one. When notes are open, they go with
 the verdict, and the message is optional. **Approve** needs no message.
 
-After a send, the panel returns to the list and shows **Sent to the workflow**.
+After a send, the panel returns to the list and shows **Review sent to GitHub**,
+with the verdict, such as **Review sent to GitHub: changes requested**. When the
+verdict posts no review, it shows **Review sent** instead.
 Loupe then posts the review on GitHub when the project allows it. See
 [Board automation](board.md).
 
-When a send fails and you press **Send** again with the same verdict, Loupe
+When a send fails and you press **Send review** again with the same verdict, Loupe
 keeps one verdict. It does not post the review twice. If you change the
 message or the ticks first, the panel sends a new verdict.
 
 ### Connecting GitHub
 
 Loupe posts a review under your own GitHub account. When you have not
-connected that account, or the connection ended, a **Connect GitHub to send
-this review** button replaces **Send**. The button opens a GitHub window. Allow
+connected that account, or the connection ended, a **Connect GitHub to send**
+button replaces **Send review**. The button opens a GitHub window. Allow
 pop-ups for the page if your browser blocks it.
 
 When you return, the panel reads your connection again. Your message and ticks
@@ -273,7 +280,8 @@ terminal column leaves the notes resolved.
 ## Deleting a note
 
 Open the menu of a note and choose **Delete note**. The widget deletes a pending
-note, and it asks you to confirm first. The confirm slides over the row. The
+note, and it asks you to confirm first. The confirm slides over the row, with
+focus on **Delete**. Press Esc or **Cancel** to keep the note. The
 delete also removes the note's card when all of these are true:
 
 - The note created the card.
@@ -426,7 +434,9 @@ list, where you can edit and delete it, until the agent marks it addressed.
 Then it **disappears from the widget**.
 
 The list is always open. It has no timestamps. Each row has one menu button.
-Its menu holds **Edit text**, **Mark resolved** and **Delete note**. The menu
+Its menu holds **Edit text**, **Mark resolved** and **Delete note**. With **A
+new card for each note**, the menu also starts with **Open #N in Loupe**, which
+opens the card of that note. The menu
 opens upward when the row is near the foot of the list, and it puts focus on
 its first item. The notes made on the page that
 you are looking at come first, under **On this page**. The notes made on other
@@ -444,8 +454,9 @@ Esc closes the menu before it closes anything else.
 
 The panel shows one view at a time. The composer, the destination choice and
 the verdict form slide in over the list, and the back arrow slides them out.
-With the system setting that asks for reduced motion, the views swap with no
-slide. The closed launcher keeps the **Review** button with the count and three
+The panel slides up to open and down to close, and a message slides in from the
+edge of the page and back out. With the system setting that asks for reduced
+motion, the views and the messages swap with no slide. The closed launcher keeps the **Review** button with the count and three
 tool buttons: add a note, pick an element and draw. The tool in use shows with
 the accent fill. When you are signed out, the launcher says **Sign in to
 review**, and the panel explains the three steps with a **Sign in with Loupe**

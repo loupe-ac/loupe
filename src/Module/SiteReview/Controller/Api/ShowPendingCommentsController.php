@@ -8,6 +8,7 @@ use App\Controller\AppController;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\ShowPendingCommentsCommand;
 use App\Module\SiteReview\Command\ShowPendingCommentsHandler;
+use App\Module\SiteReview\Context\CommentLinkResolverInterface;
 use App\Module\SiteReview\Context\CommentScopeResolver;
 use App\Module\SiteReview\Context\ContextLabelResolver;
 use App\Module\SiteReview\Entity\SiteReviewComment;
@@ -39,6 +40,7 @@ final class ShowPendingCommentsController extends AppController
         private readonly ContextLabelResolver $contextLabels,
         private readonly CommentScopeResolver $commentScopes,
         private readonly ParentTypeProviderInterface $parentTypes,
+        private readonly CommentLinkResolverInterface $commentLinks,
     ) {
     }
 
@@ -63,6 +65,7 @@ final class ShowPendingCommentsController extends AppController
         // which tells the widget to ask for the mode again.
         $context = $request->query->get('context');
         $label = $this->contextLabels->resolve(\is_string($context) ? $context : null, $project);
+        $links = $this->commentLinks->resolve(array_values($view->comments), $project);
 
         // The widget carries no flag of its own. Its snippet lives in someone
         // else's page and nobody re-pastes it, so the boot load is the only
@@ -78,9 +81,10 @@ final class ShowPendingCommentsController extends AppController
             ),
             'context' => null === $label ? null : ['label' => $label->label, 'url' => $label->url],
             'comments' => array_values(array_map(
-                static function (SiteReviewComment $c): array {
+                static function (SiteReviewComment $c) use ($links): array {
                     $anchors = array_values($c->anchors->toArray());
                     $first = $anchors[0] ?? null;
+                    $link = $links[(string) $c->id] ?? null;
 
                     // selector/text repeat the first anchor for a widget copy that
                     // predates anchors[]. The script URL carries no version, so a
@@ -103,6 +107,7 @@ final class ShowPendingCommentsController extends AppController
                             $anchors,
                         )),
                         'strokes' => $c->strokes ?? [],
+                        'link' => null === $link ? null : ['label' => $link->label, 'url' => $link->url],
                     ];
                 },
                 $view->comments,
