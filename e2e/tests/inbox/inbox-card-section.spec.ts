@@ -108,11 +108,12 @@ test('card and inbox show linked PRs with readable status and safe actions', asy
         }
     }
 
-    // The ask pane lists each pull request on one line of its Linked panel, with no status badge.
+    // The ask pane lists each pull request on one line of its linked menu, with no status badge.
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
+    await page.getByRole('button', { name: 'Linked items' }).click();
     const panelRows = page.locator(
-        '[data-inbox-linked-panel] [data-linked-pull-request]',
+        '[data-inbox-linked-menu] [data-linked-pull-request]',
     );
     await expect(panelRows).toHaveCount(2);
     await expect(panelRows.first()).toContainText('example/app #42');
@@ -160,8 +161,9 @@ test('an inbox card link reveals its matching request in Conversation', async ({
     for (const width of [1440, 390]) {
         await page.setViewportSize({ width, height: 900 });
         await page.goto(`/projects/${projectId}/inbox?item=${questionNumber}`);
+        await page.getByRole('button', { name: 'Linked items' }).click();
         const panelLink = page
-            .locator('[data-inbox-linked-panel] a[data-linked-card]')
+            .locator('[data-inbox-linked-menu] a[data-linked-card]')
             .filter({ hasText: 'Find the matching request' });
         const cardLink = `${cardUrl}?tab=conversation&inboxItem=${questionNumber}#inbox-item-${questionNumber}`;
         await expect(panelLink).toHaveAttribute('href', cardLink);

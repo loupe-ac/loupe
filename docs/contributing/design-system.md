@@ -70,7 +70,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | RelativeTime | A moment as a short age such as 2h ago, or as a date, in a `time` tag with the full timestamp as its title | modes relative, date, datetime |
 | Icon | The size of a `ux:icon` tag. A class scale, with no component to render | xs (3), sm (3.5), md (4), lg (5), and xl (8) and 2xl (12) for an empty-state icon. Write `class="lp-icon lp-icon--sm"` |
 | DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
-| Menu | A panel of links or actions that opens under a trigger, with headings and dividers | light, chrome |
+| Menu | A panel of links or actions that opens under a trigger, with headings, groups and dividers | light, chrome |
 | ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |
 | BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
 | NavItem | One link of the sidebar. Props `url`, `icon`, `label`, `active` and `count`. Its content adds anything after the label | none |
@@ -196,7 +196,7 @@ Write a menu like this:
 </twig:Ds:Menu>
 ```
 
-The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
+The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. A MenuGroup holds a run of related rows. Its `heading` prop draws a MenuHeading, and its `moreLabel` prop puts the rows of the `more` block behind a "show more" row. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
 
 Write the state of a card like this:
 

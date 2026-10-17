@@ -77,6 +77,25 @@ final class MenuComponentTest extends KernelTestCase
         self::assertStringContainsString('<div class="lp-menu__divider" role="separator"></div>', $this->render('<twig:Ds:MenuDivider />'));
     }
 
+    public function test_a_group_draws_its_heading_and_holds_extra_rows_behind_a_show_more_row(): void
+    {
+        $html = $this->render('<twig:Ds:MenuGroup heading="Cards (4)" moreLabel="Show 1 more" data-kind="card"><twig:block name="content">Shown</twig:block><twig:block name="more">Hidden</twig:block></twig:Ds:MenuGroup>');
+
+        self::assertStringContainsString('<div class="lp-menu__group" data-kind="card">', $html);
+        self::assertStringContainsString('<p class="lp-menu__heading">Cards (4)</p>', $html);
+        self::assertStringContainsString('Shown', $html);
+        self::assertMatchesRegularExpression('#<details class="lp-menu__more">\s*<summary class="lp-menu__more-toggle">Show 1 more</summary>\s*Hidden#', $html);
+    }
+
+    public function test_a_group_without_a_heading_or_a_show_more_label_draws_neither(): void
+    {
+        $html = $this->render('<twig:Ds:MenuGroup><twig:block name="content">Shown</twig:block><twig:block name="more">Hidden</twig:block></twig:Ds:MenuGroup>');
+
+        self::assertStringNotContainsString('lp-menu__heading', $html);
+        self::assertStringNotContainsString('<details', $html);
+        self::assertStringNotContainsString('Hidden', $html);
+    }
+
     public function test_the_catalog_lists_the_menu_with_its_old_classes_enforced(): void
     {
         $entries = [];

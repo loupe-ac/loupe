@@ -754,64 +754,11 @@
         text-decoration: underline;
     }
 
-    /* The links of an ask sit in a quiet column beside it. */
-    .lp-core-inbox .lp-inbox-linked-panel {
-        flex: 1 1 calc(var(--spacing) * 65);
-        max-width: calc(var(--spacing) * 75);
-        padding: calc(var(--spacing) * 2);
-        border-radius: var(--radius-2xl);
-        background: var(--surface-2);
-    }
-
-    .lp-core-inbox .lp-inbox-linked-panel__title {
-        margin: 0;
-        padding: calc(var(--spacing) * 1) calc(var(--spacing) * 2)
-            calc(var(--spacing) * 1.5);
-        font-family: var(--font-display);
-        font-size: var(--text-sm);
-        font-weight: 800;
-        color: var(--ink);
-    }
-
-    .lp-core-inbox .lp-inbox-linked-panel__row {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2.5);
-        padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 2);
-        border-top: 1px solid var(--border);
-        color: var(--ink);
-        font-size: var(--text-sm);
-        text-decoration: none;
-    }
-
-    .lp-core-inbox .lp-inbox-linked-panel__title + .lp-inbox-linked-panel__row {
-        border-top: 0;
-    }
-
-    .lp-core-inbox
-        a.lp-inbox-linked-panel__row:hover
-        .lp-inbox-linked-panel__name {
-        text-decoration: underline;
-    }
-
-    .lp-core-inbox .lp-inbox-linked-panel__icon {
-        grid-row: span 2;
-        align-self: start;
-        width: calc(var(--spacing) * 4.5);
-        height: calc(var(--spacing) * 4.5);
-        margin-top: calc(var(--spacing) * 0.5);
-        color: var(--text-dim);
-    }
-
-    .lp-core-inbox .lp-inbox-linked-panel__name {
-        font-weight: 600;
-        overflow-wrap: anywhere;
-    }
-
-    .lp-core-inbox .lp-inbox-linked-panel__sub {
-        grid-column: 2;
-        color: var(--text-dim);
-        font-size: var(--text-xs);
+    /* The "⋯" menu of the byline sits at its right end. */
+    .lp-core-inbox .lp-inbox-ask__byline-actions {
+        display: inline-flex;
+        align-items: center;
+        margin-left: auto;
     }
 
     .lp-core-inbox [data-inbox-replies] {
@@ -1449,23 +1396,13 @@
 }
 
 /* ── "⋯" page menu ──────────────────────────────────────────────── */
-.lp-review .lp-page-menu__trigger {
+.lp-review .lp-page-menu__trigger,
+.lp-core-inbox .lp-page-menu__trigger {
     @apply px-2;
 }
-.lp-review .lp-page-menu__trigger svg {
+.lp-review .lp-page-menu__trigger svg,
+.lp-core-inbox .lp-page-menu__trigger svg {
     @apply size-4;
-}
-.lp-review .lp-page-menu__group + .lp-page-menu__group {
-    @apply mt-1 border-t border-line-faint pt-1;
-}
-.lp-review .lp-page-menu__more-toggle {
-    @apply cursor-pointer list-none rounded-lg px-2.5 py-2 text-sm font-medium text-fg-mute hover:bg-tint hover:text-ink;
-}
-.lp-review .lp-page-menu__more-toggle::-webkit-details-marker {
-    display: none;
-}
-.lp-review .lp-page-menu__more[open] > .lp-page-menu__more-toggle {
-    @apply hidden;
 }
 
 /* ── Column ─────────────────────────────────────────────────────── */

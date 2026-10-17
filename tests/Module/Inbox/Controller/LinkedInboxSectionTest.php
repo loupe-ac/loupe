@@ -138,7 +138,7 @@ final class LinkedInboxSectionTest extends WebTestCase
         self::assertCount(1, $inbox->filter('[data-inbox-item="1"]'));
         self::assertCount(1, $inbox->filter('[data-inbox-item="2"]'));
 
-        $link = $inbox->filter('[data-inbox-linked-panel] a[data-linked-card]');
+        $link = $inbox->filter('[data-inbox-linked-menu] a[data-linked-card]');
         self::assertCount(1, $link);
         self::assertSame($this->cardUrl().'?tab=conversation&inboxItem=1#inbox-item-1', $link->attr('href'));
         $destination = $this->client->click($link->link());

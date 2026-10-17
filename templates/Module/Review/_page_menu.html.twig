@@ -38,24 +38,22 @@
     <twig:block name="content">
         {% for group in groups %}
         {% set rows = group.rows %}
-        <div class="lp-page-menu__group" data-page-menu-group="{{ group.kind }}">
-            {% if rows|length > 1 %}
-            <twig:Ds:MenuHeading>{{ ('review.document.page_menu.heading.' ~ group.kind)|trans({'%count%': rows|length}) }}</twig:Ds:MenuHeading>
-            {% endif %}
-            {% for row in rows|slice(0, 3) %}
-            {% include '@Review/_page_menu_row.html.twig' with {kind: group.kind, href: row.href, label: row.label, line: row.line} only %}
-            {% endfor %}
-            {% if rows|length > 3 %}
-            <details class="lp-page-menu__more">
-                <summary class="lp-page-menu__more-toggle">{{ 'review.document.page_menu.show_more'|trans({'%count%': rows|length - 3}) }}</summary>
+        <twig:Ds:MenuGroup data-page-menu-group="{{ group.kind }}"
+                :heading="rows|length > 1 ? ('review.document.page_menu.heading.' ~ group.kind)|trans({'%count%': rows|length}) : null"
+                :moreLabel="rows|length > 3 ? 'review.document.page_menu.show_more'|trans({'%count%': rows|length - 3}) : null">
+            <twig:block name="content">
+                {% for row in rows|slice(0, 3) %}
+                {% include '@Review/_page_menu_row.html.twig' with {kind: group.kind, href: row.href, label: row.label, line: row.line} only %}
+                {% endfor %}
+            </twig:block>
+            <twig:block name="more">
                 {% for row in rows|slice(3) %}
                 {% include '@Review/_page_menu_row.html.twig' with {kind: group.kind, href: row.href, label: row.label, line: row.line} only %}
                 {% endfor %}
-            </details>
-            {% endif %}
-        </div>
+            </twig:block>
+        </twig:Ds:MenuGroup>
         {% endfor %}
-        <div class="lp-page-menu__group">
+        <twig:Ds:MenuGroup>
             {% include '@Review/_page_menu_row.html.twig' with {
                 kind: 'history',
                 href: path('app_document_review_history', {projectId: document.project.id, documentId: document.id}),
@@ -72,6 +70,6 @@
                 line: 'review.document.page_menu.compare_line'|trans({'%from%': compareFrom, '%to%': compareTo}),
             } only %}
             {% endif %}
-        </div>
+        </twig:Ds:MenuGroup>
     </twig:block>
 </twig:Ds:Menu>

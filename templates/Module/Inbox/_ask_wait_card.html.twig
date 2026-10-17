@@ -1,0 +1,9 @@
+{# The card that waits on the owner, linked into the card drawer, with its title in a tooltip.
+   Params: card, kindLabel (whether it stands in for the kind label). #}
+<span class="lp-inbox-ask__wait"{% if kindLabel %} data-inbox-kind-label{% endif %}>
+    <a href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id}) }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare" aria-describedby="inbox-wait-card-{{ card.id }}" data-inbox-wait-card>#{{ card.number }}</a>
+    <twig:Ds:Tooltip id="inbox-wait-card-{{ card.id }}">
+        <span class="lp-tooltip__title">{{ 'inbox.wait.byline_tooltip'|trans({'%card%': card.number}) }}</span>
+        <span class="lp-tooltip__line">{{ card.title }}</span>
+    </twig:Ds:Tooltip>
+</span>

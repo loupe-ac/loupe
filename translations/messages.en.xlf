@@ -7397,7 +7397,11 @@
             <trans-unit id="inbox.review.legend"><source>inbox.review.legend</source><target>Your verdict</target></trans-unit>
             <trans-unit id="inbox.from.agent"><source>inbox.from.agent</source><target>From the agent</target></trans-unit>
             <trans-unit id="inbox.from.loupe"><source>inbox.from.loupe</source><target>From Loupe</target></trans-unit>
-            <trans-unit id="inbox.linked.panel"><source>inbox.linked.panel</source><target>Linked</target></trans-unit>
+            <trans-unit id="inbox.linked.menu_label"><source>inbox.linked.menu_label</source><target>Linked items</target></trans-unit>
+            <trans-unit id="inbox.linked.menu_heading.card"><source>inbox.linked.menu_heading.card</source><target>Linked cards (%count%)</target></trans-unit>
+            <trans-unit id="inbox.linked.menu_heading.document"><source>inbox.linked.menu_heading.document</source><target>Linked documents (%count%)</target></trans-unit>
+            <trans-unit id="inbox.linked.menu_heading.pull_request"><source>inbox.linked.menu_heading.pull_request</source><target>Pull requests (%count%)</target></trans-unit>
+            <trans-unit id="inbox.linked.menu_show_more"><source>inbox.linked.menu_show_more</source><target>Show %count% more</target></trans-unit>
             <trans-unit id="inbox.status.verb.answered"><source>inbox.status.verb.answered</source><target>Answer sent</target></trans-unit>
             <trans-unit id="inbox.status.verb.done"><source>inbox.status.verb.done</source><target>Marked done</target></trans-unit>
             <trans-unit id="inbox.status.verb.declined"><source>inbox.status.verb.declined</source><target>Closed</target></trans-unit>

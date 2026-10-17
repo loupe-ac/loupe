@@ -91,4 +91,17 @@
     .lp-menu__divider {
         @apply my-1 h-px shrink-0 bg-line-faint;
     }
+    /* A run of related rows. A group after another one is set off by a rule. */
+    .lp-menu__group + .lp-menu__group {
+        @apply mt-1 border-t border-line-faint pt-1;
+    }
+    .lp-menu__more-toggle {
+        @apply cursor-pointer list-none rounded-lg px-2.5 py-2 text-sm font-medium text-fg-mute hover:bg-tint hover:text-ink;
+    }
+    .lp-menu__more-toggle::-webkit-details-marker {
+        display: none;
+    }
+    .lp-menu__more[open] > .lp-menu__more-toggle {
+        @apply hidden;
+    }
 }

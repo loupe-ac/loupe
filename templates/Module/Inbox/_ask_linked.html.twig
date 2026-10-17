@@ -1,4 +1,4 @@
-{#- The "Linked" panel of an ask: each card, document and pull request it links, once, on one line. Props: items (list of InboxItem). -#}
+{#- The "⋯" menu of an ask: each card, document and pull request it links, once. Props: items (list of InboxItem), menuId (string). -#}
 {% set cards = {} %}
 {% set documents = {} %}
 {% set pullRequests = {} %}
@@ -29,37 +29,35 @@
     {% endfor %}
 {% endfor %}
 {% if cards|length > 0 or documents|length > 0 or pullRequests|length > 0 %}
-<aside class="lp-inbox-linked-panel" aria-label="{{ 'inbox.linked.panel'|trans }}" data-inbox-linked-panel>
-    <h3 class="lp-inbox-linked-panel__title">{{ 'inbox.linked.panel'|trans }}</h3>
-    {% for entry in cards %}
-        {% set card = entry.card %}
-        <a class="lp-inbox-linked-panel__row" data-linked-card="{{ card.id }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare"
-           href="{{ path('app_board_card', {projectId: card.project.id, cardId: card.id, tab: 'conversation', inboxItem: entry.item.number, _fragment: 'inbox-item-' ~ entry.item.number}) }}">
-            <twig:ux:icon name="lucide:square-kanban" class="lp-inbox-linked-panel__icon" />
-            <span class="lp-inbox-linked-panel__name">#{{ card.number }} {{ card.title }}</span>
-            <span class="lp-inbox-linked-panel__sub">{{ card.column.label|trans }}</span>
-        </a>
-    {% endfor %}
-    {% for entry in documents %}
-        {% set document = entry.document %}
-        <a class="lp-inbox-linked-panel__row" data-turbo-frame="_top"{% if (document.id ~ '') == reviewDocumentId %} data-inbox-review-document{% endif %}
-           href="{{ path('app_document_review', {projectId: document.project.id, documentId: document.id}) }}">
-            <twig:ux:icon name="lucide:file-text" class="lp-inbox-linked-panel__icon" />
-            <span class="lp-inbox-linked-panel__name">{{ document.title }}</span>
-            <span class="lp-inbox-linked-panel__sub">
-                {%- if entry.version %}{{ 'inbox.review.version'|trans({'%version%': entry.version}) }} · {% endif -%}
-                {{ document.status.translationKey()|trans }}
-            </span>
-        </a>
-    {% endfor %}
-    {% for pullRequest in pullRequests %}
-        {% set href = safe_pull_request_url(pullRequest.url) %}
-        <{{ href ? 'a' : 'div' }} class="lp-inbox-linked-panel__row" data-linked-pull-request="{{ pullRequest.id }}"
-           {%- if href %} href="{{ href }}" target="_blank" rel="noopener noreferrer"{% endif %}>
-            <twig:ux:icon name="lucide:git-pull-request" class="lp-inbox-linked-panel__icon" />
-            <span class="lp-inbox-linked-panel__name">{{ pullRequest.repository ? pullRequest.repository ~ ' #' ~ pullRequest.number : pullRequest.url }}</span>
-            <span class="lp-inbox-linked-panel__sub">{{ (href ? 'board.card.link.pull_request' : 'board.card.pull_requests.not_linkable')|trans }}</span>
-        </{{ href ? 'a' : 'div' }}>
-    {% endfor %}
-</aside>
+<twig:Ds:Menu id="inbox-linked-menu-{{ menuId }}" size="md" data-inbox-linked-menu>
+    <twig:block name="trigger">
+        <twig:Ds:Button variant="ghost" size="sm" type="button" class="lp-page-menu__trigger"
+                aria-label="{{ 'inbox.linked.menu_label'|trans }}"
+                title="{{ 'inbox.linked.menu_label'|trans }}"
+                aria-expanded="false"
+                aria-controls="inbox-linked-menu-{{ menuId }}"
+                data-popover-target="trigger"
+                data-action="click->popover#toggle">
+            <twig:ux:icon name="lucide:ellipsis" />
+        </twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        {% for kind, entries in {card: cards, document: documents, pull_request: pullRequests}|filter(entries => entries|length > 0) %}
+        <twig:Ds:MenuGroup data-linked-group="{{ kind }}"
+                :heading="entries|length > 1 ? ('inbox.linked.menu_heading.' ~ kind)|trans({'%count%': entries|length}) : null"
+                :moreLabel="entries|length > 3 ? 'inbox.linked.menu_show_more'|trans({'%count%': entries|length - 3}) : null">
+            <twig:block name="content">
+                {% for entry in entries|slice(0, 3) %}
+                {% include '@Inbox/_ask_linked_row.html.twig' with {kind: kind, entry: entry, reviewDocumentId: reviewDocumentId} only %}
+                {% endfor %}
+            </twig:block>
+            <twig:block name="more">
+                {% for entry in entries|slice(3) %}
+                {% include '@Inbox/_ask_linked_row.html.twig' with {kind: kind, entry: entry, reviewDocumentId: reviewDocumentId} only %}
+                {% endfor %}
+            </twig:block>
+        </twig:Ds:MenuGroup>
+        {% endfor %}
+    </twig:block>
+</twig:Ds:Menu>
 {% endif %}
