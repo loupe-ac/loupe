@@ -135,6 +135,35 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(1, $crawler->filter('.lp-inbox-ask__byline > .lp-inbox-ask__byline-actions > [data-inbox-linked-menu]'));
     }
 
+    public function test_the_linked_menu_shows_three_rows_of_a_kind_and_holds_the_rest_behind_show_more(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-linked-more');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $item = $this->question($this->em, $project, 1);
+        foreach ([1, 2, 3, 4] as $number) {
+            $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Linked work '.$number, body: 'Body', number: $number);
+            $this->em->persist($card);
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $this->em->flush();
+        $this->setInboxFlag(true);
+        $projectId = (string) $project->id;
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$projectId.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $group = $crawler->filter('[data-inbox-linked-menu] [data-linked-group="card"]');
+        self::assertCount(1, $group);
+        self::assertSame('Linked cards (4)', trim($group->filter('.lp-menu__heading')->text()));
+        self::assertCount(3, $group->children('[data-linked-card]'));
+        self::assertSame('Show 1 more', trim($group->filter('.lp-menu__more-toggle')->text()));
+        self::assertCount(1, $group->filter('.lp-menu__more [data-linked-card]'));
+        self::assertCount(4, $group->filter('[data-linked-card]'));
+    }
+
     public function test_the_pill_listens_on_the_owner_inbox_topic(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-pill-topic');
