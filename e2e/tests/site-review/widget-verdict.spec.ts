@@ -244,7 +244,9 @@ test('an approval sends from the Finish review view and says so', async ({
             .click(),
     ]);
 
-    await expect(page.getByText('Review sent: approved')).toBeVisible();
+    await expect(
+        page.getByText('Review sent to GitHub: approved'),
+    ).toBeVisible();
     await expect(
         panel(page).getByRole('button', { name: 'Finish review' }),
     ).toBeVisible();

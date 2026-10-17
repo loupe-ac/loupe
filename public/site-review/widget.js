@@ -1239,7 +1239,6 @@
       @keyframes lp-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
       @keyframes lp-slide-left-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
       button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
-      .lp-launcher button:focus-visible{outline-color:var(--accent)}
       .lp-scroll::-webkit-scrollbar{width:10px;height:10px}
       .lp-scroll::-webkit-scrollbar-thumb{background:var(--text-dim);border-radius:6px;border:3px solid transparent;background-clip:content-box}
       .lp-scroll::-webkit-scrollbar-track{background:transparent}
@@ -1334,7 +1333,7 @@
       #lp-picker-modes{display:flex;flex-direction:column;gap:8px}
       .lp-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}
       .lp-opt.is-on{border-color:var(--accent-border);background:var(--accent-soft)}
-      .lp-opt input[type="radio"]{margin:2px 0 0;width:16px;height:16px;accent-color:var(--accent-ink)}
+      .lp-opt input[type="radio"]{margin:2px 0 0;width:16px;height:16px;accent-color:#596313}
       .lp-opt-main{min-width:0}
       .lp-opt-main label{cursor:pointer}
       .lp-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px;color:var(--text)}
@@ -1365,7 +1364,7 @@
       .lp-verdict-label{display:block;padding:0;margin-bottom:8px;line-height:13px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
       .lp-verdict-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
       .lp-verdict-opt.is-on{border-color:var(--accent-border);background:var(--accent-soft)}
-      .lp-verdict-opt input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--accent-ink)}
+      .lp-verdict-opt input{margin:2px 0 0;width:16px;height:16px;accent-color:#596313}
       .lp-verdict-opt input:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
       .lp-verdict-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px}
       .lp-verdict-opt-d{display:block;margin-top:2px;line-height:16px;color:var(--text-mute)}
@@ -1561,7 +1560,7 @@
         <section class="lp-view" id="lp-view-destination" data-view="destination" aria-label="Where notes go">
           <header class="lp-hd" id="lp-destination-head">
             <button class="lp-iconbtn" id="lp-destination-back" aria-label="Back to notes" style="display:none">${ICON.back(18)}</button>
-            <div class="lp-hd-text"><div class="lp-title">Where should your notes go?</div></div>
+            <div class="lp-hd-text"><div class="lp-title" id="lp-destination-title">Where should your notes go?</div></div>
             <button class="lp-iconbtn" id="lp-destination-close" aria-label="Close">${ICON.close(18)}</button>
           </header>
           <div class="lp-error" id="lp-destination-error" style="display:none"></div>
@@ -1584,10 +1583,10 @@
                 <input type="radio" name="lp-dest" id="lp-dest-epic" value="epic">
                 <div class="lp-opt-main">
                   <label for="lp-dest-epic"><span class="lp-opt-t">A card for each note, under an epic</span><span class="lp-opt-d">You pick or create the epic next.</span></label>
-                  <div class="lp-opt-more" id="lp-picker-slot-epic"></div>
                 </div>
               </div>
             </div>
+            <div id="lp-picker-slot-epic"></div>
             <div class="lp-picker-more" id="lp-picker-more" style="display:none">
               <div class="lp-seg" id="lp-picker-seg" role="group" aria-label="Card">
                 <button type="button" data-sub="new" aria-pressed="true"></button>
@@ -1656,7 +1655,6 @@
       @keyframes lp-spin{to{transform:rotate(360deg)}}
       .lp-ov{font-family:var(--font)}
       button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
-      .lp-toast button:focus-visible{outline-color:var(--accent)}
       .lp-scrim{position:fixed;inset:0;background:var(--scrim);animation:lp-fade .18s ease;pointer-events:none}
       /* Chartreuse alone can vanish against a pale or yellowish host page, so
          every marker the widget paints onto the page carries a near-black edge
@@ -1727,7 +1725,7 @@
       .lp-toast-key:hover{background:var(--chrome-line)}
       .lp-toast-key[disabled]{opacity:.45;cursor:default}
       .lp-toast-key[disabled]:hover{background:var(--chrome-raised)}
-      .lp-toast--saved{padding:0 14px 0 10px}
+      .lp-toast--saved{top:72px;padding:0 14px 0 10px}
       .lp-tick{width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:var(--accent);color:var(--ink)}
       #lp-draw-done{background:var(--accent);color:var(--ink)}
       #lp-draw-done:hover{background:var(--accent-hover)}
@@ -2542,8 +2540,12 @@
     const TOAST_DODGE_BAND = 140; // px from the toast's resting edge
     const toastHome = () => (state.corner.startsWith('top') ? 'bottom' : 'top');
     const dockToast = (node, dock) => {
+        // At the bottom it keeps the gap it has from the top edge.
+        const gap = parseFloat(getComputedStyle(node).top) || 0;
         const offset =
-            dock === 'bottom' ? window.innerHeight - node.offsetHeight - 40 : 0;
+            dock === 'bottom'
+                ? window.innerHeight - node.offsetHeight - 2 * gap
+                : 0;
         node.style.setProperty('--lp-dock', `${offset}px`);
         node.style.setProperty(
             '--lp-hide',
@@ -2880,8 +2882,8 @@
         return separator;
     };
     // The menu swaps its items for a question and two buttons, so a delete is
-    // confirmed where it was asked for. Cancel takes focus, because Delete is
-    // the destructive answer and Enter must not reach it by accident.
+    // confirmed where it was asked for. Delete takes focus, as the first
+    // button of the menu, and Escape or Cancel backs out.
     const menuConfirm = (text, onYes, ids = {}) => {
         const question = document.createElement('div');
         question.className = 'lp-menu-conf';
@@ -2909,7 +2911,7 @@
         menuNode.style.width = '200px';
         menuNode.replaceChildren(question, row);
         placeMenu();
-        no.focus({ preventScroll: true });
+        yes.focus({ preventScroll: true });
     };
     // Below the button when it fits, above when it does not and there is more
     // room up. A row near the foot of the list opens upward.
@@ -2967,7 +2969,29 @@
             closeMenu(false);
             if (found !== -1) run(found);
         };
+        // A per-note review files each note as its own card, so the row is
+        // the only place that names it.
+        const link =
+            !lock &&
+            storedTarget &&
+            storedTarget.mode === 'per-note' &&
+            comment.link &&
+            /^https?:\/\//.test(comment.link.url || '')
+                ? comment.link
+                : null;
         openMenu(button, 'row', comment.id, [
+            ...(link
+                ? [
+                      menuItem(
+                          `Open ${link.label} in Loupe`,
+                          () => {
+                              closeMenu(false);
+                              window.open(link.url, '_blank', 'noopener');
+                          },
+                          { name: 'open' },
+                      ),
+                  ]
+                : []),
             menuItem('Edit text', act(openEditComposer), { name: 'edit' }),
             menuItem('Mark resolved', act(resolveComment), {
                 name: 'resolve',
@@ -4036,10 +4060,15 @@
         verdict.message = '';
         verdict.ticked = [];
         verdict.attempt = null;
+        // The review reaches GitHub after the answer, so the toast says where
+        // it goes rather than that it landed.
+        const toGitHub = verdictActions(verdict.data, kind).some(
+            (action) => action.code === VERDICT_CONNECT_WRITE,
+        );
         const focusBack = viewNodes.finish.contains(root.activeElement);
         resetView();
         flashSaved(
-            `Review sent: ${(VERDICT_WORDS[kind] || kind).toLowerCase()}`,
+            `Review sent${toGitHub ? ' to GitHub' : ''}: ${(VERDICT_WORDS[kind] || kind).toLowerCase()}`,
         );
         sync();
         if (focusBack) focusFooterAction();
@@ -4311,6 +4340,9 @@
         // document would close the same gap on every DOM change of somebody
         // else's page.
         recheckMarker();
+        // The panel can open on the destination view. The note goes under it,
+        // so the choice returns to the note rather than to the list.
+        if (state.view === 'destination') resetView();
         showView('compose');
         state.composeTarget = { type: 'general' };
         state.editId = null;
@@ -4747,11 +4779,15 @@
         !!a && !!b && a.mode === b.mode && a.cardId === b.cardId;
     const pickerSubs = { 'per-review': 'new', epic: 'new' };
     let pickerPicked = null;
+    // The epic is picked on a second step, after the reviewer chose the mode.
+    let pickerEpicStep = false;
     const pickerHasCards = () =>
         pickerMode === 'per-review' || pickerMode === 'epic';
+    const pickerShowsCards = () =>
+        pickerHasCards() && (pickerMode !== 'epic' || pickerEpicStep);
     const focusDestination = () => {
         const field =
-            pickerHasCards() &&
+            pickerShowsCards() &&
             (pickerSubs[pickerMode] === 'existing'
                 ? pickerSearchNode
                 : pickerTitleNode);
@@ -4768,6 +4804,7 @@
         pickerMode = stored ? stored.mode : 'per-review';
         pickerSubs['per-review'] = 'new';
         pickerSubs.epic = 'new';
+        pickerEpicStep = false;
         pickerPicked = null;
         pickerError = null;
         pickerSearchNode.value = '';
@@ -4817,6 +4854,7 @@
     const selectMode = (mode) => {
         if (pickerMode === mode) return;
         pickerMode = mode;
+        pickerEpicStep = false;
         pickerPicked = null;
         pickerError = null;
         if (pickerSubs[mode] === 'existing') loadPickerCards('');
@@ -4843,6 +4881,7 @@
     const pickerCanCommit = () => {
         if (!pickerMode || pickerCreating) return false;
         if (pickerMode === 'per-note') return true;
+        if (pickerMode === 'epic' && !pickerEpicStep) return true;
         if (pickerSubs[pickerMode] === 'existing') return !!pickerPicked;
         return !!pickerTitleNode.value.trim();
     };
@@ -4861,9 +4900,13 @@
         root.querySelector(
             '#lp-picker-modes [data-mode="epic"]',
         ).style.display = parentTypes.length ? '' : 'none';
+        $('lp-picker-modes').style.display = pickerEpicStep ? 'none' : '';
+        $('lp-destination-title').textContent = pickerEpicStep
+            ? 'Pick or create an epic'
+            : 'Where should your notes go?';
         const more = $('lp-picker-more');
-        more.style.display = pickerHasCards() ? '' : 'none';
-        const slot = pickerHasCards()
+        more.style.display = pickerShowsCards() ? '' : 'none';
+        const slot = pickerShowsCards()
             ? $(`lp-picker-slot-${pickerMode}`)
             : null;
         if (slot && more.parentNode !== slot) slot.appendChild(more);
@@ -4894,15 +4937,22 @@
         renderParentTypes();
         renderPicker();
         const exists = !!storedTarget;
-        $('lp-destination-head').classList.toggle('lp-hd--back', exists);
-        $('lp-destination-back').style.display = exists ? '' : 'none';
+        const back = exists || pickerEpicStep;
+        $('lp-destination-head').classList.toggle('lp-hd--back', back);
+        $('lp-destination-back').style.display = back ? '' : 'none';
+        $('lp-destination-back').setAttribute(
+            'aria-label',
+            pickerEpicStep ? 'Back' : 'Back to notes',
+        );
         const save = $('lp-destination-save');
         save.disabled = !pickerCanCommit();
         save.innerHTML = pickerCreating
             ? '<span class="lp-spin"></span>Creating…'
-            : exists
-              ? 'Save'
-              : 'Start reviewing';
+            : epic && !pickerEpicStep
+              ? 'Next'
+              : exists
+                ? 'Save'
+                : 'Start reviewing';
     };
     // A new epic needs a type that can have children. The selector shows only
     // for a new epic, and only when the template has more than one.
@@ -5081,6 +5131,16 @@
     // The one action of the view: the choice is made here, not on a row.
     const commitDestination = () => {
         if (!pickerCanCommit()) return;
+        if (pickerMode === 'epic' && !pickerEpicStep) {
+            pickerEpicStep = true;
+            pickerError = null;
+            if (pickerSubs.epic === 'existing') {
+                loadPickerCards(pickerSearchNode.value.trim());
+            }
+            sync();
+            focusDestination();
+            return;
+        }
         if (pickerMode === 'per-note') {
             chooseTarget({ mode: 'per-note', cardId: null });
         } else if (pickerSubs[pickerMode] === 'existing') {
@@ -5133,7 +5193,16 @@
         focusAfterDestination();
     };
     $('lp-picker-cancel').addEventListener('click', cancelDestination);
-    $('lp-destination-back').addEventListener('click', cancelDestination);
+    $('lp-destination-back').addEventListener('click', () => {
+        if (!pickerEpicStep) {
+            cancelDestination();
+            return;
+        }
+        pickerEpicStep = false;
+        pickerError = null;
+        sync();
+        focusDestination();
+    });
     $('lp-destination-close').addEventListener('click', () => togglePanel());
     destNode.addEventListener('click', openDestination);
 
@@ -5263,7 +5332,13 @@
                     target,
                 });
                 if (scopeAtSave === scopeGeneration) {
-                    comments.push({ id: saved.commentId, ...comment });
+                    comments.push({
+                        id: saved.commentId,
+                        ...comment,
+                        link: saved.url
+                            ? { label: `#${saved.number}`, url: saved.url }
+                            : null,
+                    });
                     // A list request still in flight answers with a snapshot
                     // from before this note, so it is asked again.
                     let stale = refreshPending;
@@ -5774,6 +5849,10 @@
             state.draft = '';
             state.strokes = [];
             textareaNode.value = '';
+        } else if (needsMode() && !signedOut()) {
+            // A review with nowhere to put its notes asks where first.
+            openDestination();
+            return;
         }
         sync();
     };

@@ -266,8 +266,22 @@ describe('Finish review view', () => {
                 submissionId: expect.stringMatching(UUID),
             },
         ]);
-        expect(savedNotice()).toBe('Review sent: approved');
+        expect(savedNotice()).toBe('Review sent to GitHub: approved');
         expect(view()).toBe('list');
+    });
+
+    it('names GitHub in the sent notice only when the verdict posts a review', async () => {
+        boot({
+            verdict: verdictAnswer({ preview: { approve: { actions: [] } } }),
+        });
+        await settle();
+        openPanel();
+        press('Approve');
+        await settle();
+        sendButton().click();
+        await settle();
+
+        expect(savedNotice()).toBe('Review sent: approved');
     });
 
     it.each(['Request changes', 'Comment'])(

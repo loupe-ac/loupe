@@ -62,9 +62,9 @@ pop-up and the page, and the widget then gets no answer.
 
 ## Where notes go
 
-Every note lands on a card. Before the first note, the widget opens a view
-named "Where should your notes go?". Choose one option and press **Start
-reviewing**:
+Every note lands on a card. Until you choose where notes go, the panel opens on
+a view named "Where should your notes go?", and so does the first note. Choose
+one option and press **Start reviewing**:
 
 | Choice | What a save does |
 |---|---|
@@ -91,8 +91,10 @@ When you change the destination, the list changes with it. Until you choose a
 destination, the list is empty. With **One card for this review**, the footer
 shows **Open #N in Loupe**, which opens that card.
 
-The first and third choices open a switch with **New card** and **Existing
-card**. With **New card**, type a title and the button creates the card. The
+The first choice opens a switch with **New card** and **Existing card**. The
+third choice puts the epic on a second step: press **Next**, and the view
+shows "Pick or create an epic" with the same switch, as **New epic** and
+**Existing epic**. The back arrow returns to the choices. With **New card**, type a title and the button creates the card. The
 title starts as `Review: ` and the page path, and the view selects it so that
 you can replace it. With **Existing card**, search the open cards, pick one
 row and press the button. The third choice lists the open cards of every type
@@ -190,8 +192,9 @@ The view shows:
 note. **Send review** stays off until you write one. When notes are open, they go with
 the verdict, and the message is optional. **Approve** needs no message.
 
-After a send, the panel returns to the list and shows **Review sent**, with the
-verdict, such as **Review sent: changes requested**.
+After a send, the panel returns to the list and shows **Review sent to GitHub**,
+with the verdict, such as **Review sent to GitHub: changes requested**. When the
+verdict posts no review, it shows **Review sent** instead.
 Loupe then posts the review on GitHub when the project allows it. See
 [Board automation](board.md).
 
@@ -277,7 +280,8 @@ terminal column leaves the notes resolved.
 ## Deleting a note
 
 Open the menu of a note and choose **Delete note**. The widget deletes a pending
-note, and it asks you to confirm first. The confirm slides over the row. The
+note, and it asks you to confirm first. The confirm slides over the row, with
+focus on **Delete**. Press Esc or **Cancel** to keep the note. The
 delete also removes the note's card when all of these are true:
 
 - The note created the card.
@@ -430,7 +434,9 @@ list, where you can edit and delete it, until the agent marks it addressed.
 Then it **disappears from the widget**.
 
 The list is always open. It has no timestamps. Each row has one menu button.
-Its menu holds **Edit text**, **Mark resolved** and **Delete note**. The menu
+Its menu holds **Edit text**, **Mark resolved** and **Delete note**. With **A
+new card for each note**, the menu also starts with **Open #N in Loupe**, which
+opens the card of that note. The menu
 opens upward when the row is near the foot of the list, and it puts focus on
 its first item. The notes made on the page that
 you are looking at come first, under **On this page**. The notes made on other

@@ -444,11 +444,9 @@ const startNote = async (page: Page, body: string): Promise<void> => {
  * With no destination chosen, the destination view opens over the new note,
  * so the text can only be typed after the choice.
  */
+/** Start a note from the closed launcher, which asks where notes go first. */
 const openNoteOverDestination = async (page: Page): Promise<void> => {
-    await page
-        .locator('#lp-panel')
-        .getByRole('button', { name: 'Add note' })
-        .click();
+    await page.locator('#lp-launch-note').click();
     await expect(page.locator('#lp-picker')).toBeVisible();
     await siteReviewPanelSettled(page);
 };
@@ -460,11 +458,30 @@ const fillNote = async (page: Page, body: string): Promise<void> => {
 
 const HARNESS_REVIEW_TITLE = 'Review: /dev/site-review-harness';
 
-test('one card per review is chosen once and remembered after a reload', async ({
+test('a review with no destination opens on the destination view', async ({
     page,
 }) => {
     await openHarness(page, null);
     await page.getByRole('button', { name: 'Review' }).click();
+    const picker = page.locator('#lp-picker');
+    await expect(picker).toBeVisible();
+    await expect(picker.getByLabel('Card title')).toBeFocused();
+    await siteReviewPanelSettled(page);
+
+    await picker
+        .getByRole('radio', { name: 'A new card for each note' })
+        .click();
+    await page.locator('#lp-destination-save').click();
+    await expect(picker).toBeHidden();
+    await expect(
+        page.locator('#lp-panel').getByRole('button', { name: 'Add note' }),
+    ).toBeVisible();
+});
+
+test('one card per review is chosen once and remembered after a reload', async ({
+    page,
+}) => {
+    await openHarness(page, null);
     // No choice yet, so the modes come before the first note can be written.
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
@@ -519,7 +536,6 @@ test('one card per review is chosen once and remembered after a reload', async (
 
 test('a card per note names the card each note became', async ({ page }) => {
     await openHarness(page, null);
-    await page.getByRole('button', { name: 'Review' }).click();
     await openNoteOverDestination(page);
     await page
         .locator('#lp-picker')
@@ -540,10 +556,9 @@ test('a card per note names the card each note became', async ({ page }) => {
 
 test('the mode comes before the first pick', async ({ page }) => {
     await openHarness(page, null);
-    await page.getByRole('button', { name: 'Review' }).click();
     const panel = page.locator('#lp-panel');
     const pickToast = page.locator('#lp-toast');
-    await panel.getByRole('button', { name: 'Pick element' }).click();
+    await page.locator('#lp-launch-target').click();
 
     // Pick mode waits for the choice of where notes go.
     const picker = page.locator('#lp-picker');
@@ -565,12 +580,32 @@ test('the mode comes before the first pick', async ({ page }) => {
 
 test('epic mode files each note as a card under the epic', async ({ page }) => {
     await openHarness(page, null);
-    await page.getByRole('button', { name: 'Review' }).click();
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
     await picker
         .getByRole('radio', { name: 'A card for each note, under an epic' })
         .click();
+    // The epic is the next step, so the modes view holds no epic controls.
+    await expect(picker.getByLabel('Epic title')).toBeHidden();
+    const save = page.locator('#lp-destination-save');
+    await expect(save).toHaveText('Next');
+    await save.click();
+    await expect(page.locator('#lp-destination-title')).toHaveText(
+        'Pick or create an epic',
+    );
+    await expect(
+        picker.getByRole('radio', { name: 'A new card for each note' }),
+    ).toBeHidden();
+    await expect(picker.getByLabel('Epic title')).toBeFocused();
+
+    // Back returns to the modes with the epic choice kept.
+    await page.locator('#lp-destination-back').click();
+    await expect(
+        picker.getByRole('radio', {
+            name: 'A card for each note, under an epic',
+        }),
+    ).toBeChecked();
+    await save.click();
     await expect(picker.getByLabel('Epic title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
     );
@@ -611,12 +646,12 @@ test('epic mode shows a type selector when the template has two grouping types',
         await route.fulfill({ response, json: payload });
     });
     await openHarness(page, null);
-    await page.getByRole('button', { name: 'Review' }).click();
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
     await picker
         .getByRole('radio', { name: 'A card for each note, under an epic' })
         .click();
+    await page.locator('#lp-destination-save').click();
 
     const selector = picker.getByLabel('Type', { exact: true });
     await expect(selector.locator('option')).toHaveText(['Initiative', 'Epic']);
@@ -1059,6 +1094,9 @@ test('deleting a list comment confirms inside its menu', async ({ page }) => {
     const confirm = page.locator('#lp-menu');
     await expect(confirm).toBeVisible();
     await expect(confirm).toContainText('Delete this note?');
+    await expect(
+        confirm.getByRole('button', { name: 'Delete', exact: true }),
+    ).toBeFocused();
     expect(await row.evaluate((el: HTMLElement) => el.dataset.tag)).toBe(
         'orig',
     );
@@ -1103,7 +1141,9 @@ test('a note row has one menu button, whose menu opens on its first item', async
     await row.getByRole('button', { name: 'Note actions' }).click();
     await expect(menu).toBeVisible();
     await expect(menu).toHaveAttribute('role', 'menu');
+    // A per-note save made the note its own card, so the menu links to it.
     await expect(menu.getByRole('menuitem')).toHaveText([
+        /^Open #\d+ in Loupe$/,
         'Edit text',
         'Mark resolved',
         'Delete note…',
@@ -1112,6 +1152,24 @@ test('a note row has one menu button, whose menu opens on its first item', async
     await expect(
         row.getByRole('button', { name: 'Note actions' }),
     ).toHaveAttribute('aria-expanded', 'true');
+
+    // The link outlives a reload, because the list names each note's card.
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await page.getByRole('button', { name: 'Review' }).click();
+    await page
+        .locator('#lp-list .lp-item')
+        .first()
+        .getByRole('button', { name: 'Note actions' })
+        .click();
+    const open = menu.getByRole('menuitem').first();
+    await expect(open).toHaveText(/^Open #\d+ in Loupe$/);
+    const [popup] = await Promise.all([
+        page.waitForEvent('popup'),
+        open.click(),
+    ]);
+    expect(popup.url()).toMatch(/\/projects\/[^/]+\/board\/cards\/[^/]+$/);
+    await popup.close();
 });
 
 test('Mark resolved in the row menu resolves the note', async ({ page }) => {

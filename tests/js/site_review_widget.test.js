@@ -572,6 +572,9 @@ describe('the mode picker', () => {
             const root = openNote();
             root.querySelector(EPIC_ROW).click();
             await settle();
+            // The epic is the next step of the view.
+            root.getElementById('lp-destination-save').click();
+            await settle();
 
             return { root, fetchMock };
         }
