@@ -12,37 +12,37 @@ use Symfony\Component\Uid\Uuid;
 
 final class EvaluateCardRoutingTest extends KernelTestCase
 {
-    public function test_a_card_check_goes_to_the_workflow_transport_and_not_to_the_shared_one(): void
+    public function test_a_card_check_goes_to_the_card_eval_transport_and_not_to_the_shared_one(): void
     {
         self::bootKernel();
-        $workflow = $this->transport('workflow');
-        $async = $this->transport('async');
-        $workflow->reset();
-        $async->reset();
+        $cardEval = $this->transport('card_eval');
+        $jobs = $this->transport('jobs');
+        $cardEval->reset();
+        $jobs->reset();
         $trigger = self::getContainer()->get(EvaluationTrigger::class);
         self::assertInstanceOf(EvaluationTrigger::class, $trigger);
         $cardId = Uuid::v7();
 
         $trigger->forCards([$cardId]);
 
-        self::assertEquals([new EvaluateCard($cardId->toRfc4122())], array_map(static fn ($envelope): object => $envelope->getMessage(), $workflow->getSent()));
-        self::assertSame([], $async->getSent());
+        self::assertEquals([new EvaluateCard($cardId->toRfc4122())], array_map(static fn ($envelope): object => $envelope->getMessage(), $cardEval->getSent()));
+        self::assertSame([], $jobs->getSent());
     }
 
     public function test_the_sweep_keeps_its_own_low_priority_transport(): void
     {
         self::bootKernel();
-        $workflow = $this->transport('workflow');
-        $low = $this->transport('async_low');
-        $workflow->reset();
-        $low->reset();
+        $cardEval = $this->transport('card_eval');
+        $cardSweep = $this->transport('card_sweep');
+        $cardEval->reset();
+        $cardSweep->reset();
         $trigger = self::getContainer()->get(EvaluationTrigger::class);
         self::assertInstanceOf(EvaluationTrigger::class, $trigger);
 
         $trigger->inBackground([Uuid::v7()]);
 
-        self::assertCount(1, $low->getSent());
-        self::assertSame([], $workflow->getSent());
+        self::assertCount(1, $cardSweep->getSent());
+        self::assertSame([], $cardEval->getSent());
     }
 
     private function transport(string $name): InMemoryTransport

@@ -202,8 +202,8 @@ final class AuditChannelBusTest extends TestCase
      */
     private function bus(array $handlers): MessageBus
     {
-        $senders = new ServiceLocator(['async' => fn (): InMemoryTransport => $this->transport]);
-        $sendersMap = array_fill_keys(array_keys($handlers), ['async']);
+        $senders = new ServiceLocator(['jobs' => fn (): InMemoryTransport => $this->transport]);
+        $sendersMap = array_fill_keys(array_keys($handlers), ['jobs']);
 
         return new MessageBus([
             new AuditChannelMiddleware($this->auditContext, $this->provider()),
@@ -212,15 +212,15 @@ final class AuditChannelBusTest extends TestCase
         ]);
     }
 
-    private function runWorker(MessageBusInterface $bus, int $messages, bool $retrying = false, string $receiver = 'async'): void
+    private function runWorker(MessageBusInterface $bus, int $messages, bool $retrying = false, string $receiver = 'jobs'): void
     {
         $dispatcher = new EventDispatcher();
         $dispatcher->addSubscriber(new StopWorkerOnMessageLimitListener($messages));
 
         if ($retrying) {
             $dispatcher->addSubscriber(new SendFailedMessageForRetryListener(
-                new ServiceLocator(['async' => fn (): InMemoryTransport => $this->transport]),
-                new ServiceLocator(['async' => static fn (): MultiplierRetryStrategy => new MultiplierRetryStrategy(1, 0, 1, 0, 0)]),
+                new ServiceLocator(['jobs' => fn (): InMemoryTransport => $this->transport]),
+                new ServiceLocator(['jobs' => static fn (): MultiplierRetryStrategy => new MultiplierRetryStrategy(1, 0, 1, 0, 0)]),
             ));
         }
 

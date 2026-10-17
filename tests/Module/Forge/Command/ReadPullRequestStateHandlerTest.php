@@ -959,7 +959,7 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
     /** @return list<Envelope> */
     private function sent(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return array_values([...$transport->getSent()]);

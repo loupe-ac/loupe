@@ -72,7 +72,7 @@ final class RecomputeBucketTimesHandlerTest extends KernelTestCase
         self::bootKernel();
         $bus = self::getContainer()->get('messenger.default_bus');
         self::assertInstanceOf(MessageBusInterface::class, $bus);
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         $bus->dispatch(new RecomputeBucketTimes((string) Uuid::v7()));

@@ -13,7 +13,7 @@ use Symfony\Component\Uid\Uuid;
 /** Queues one evaluation per card. The Doctrine transport commits the message with the caller's transaction, so a caller may dispatch inside one. */
 final readonly class EvaluationTrigger implements CardEvaluations
 {
-    public const string LOW_PRIORITY_TRANSPORT = 'async_low';
+    public const string LOW_PRIORITY_TRANSPORT = 'card_sweep';
 
     public function __construct(
         private MessageBusInterface $bus,

@@ -99,14 +99,14 @@ module "app" {
   enable_predeploy_migrations = var.enable_predeploy_migrations
 
   # Background worker, from the same image as the web service. Without it
-  # nothing consumes the async or scheduler transports: queued mail is never
+  # nothing consumes the jobs or scheduler transports: queued mail is never
   # delivered, data exports never build, the trial-end sweep never runs, and the
   # site-review outbox never drains.
   #
   # Supervisord runs two consumers (docker/prod/worker-supervisord.conf):
-  # scheduler_default workflow async, and async_low for the workflow sweep, so the sweep
+  # scheduler_default card_eval jobs, and card_sweep for the workflow sweep, so the sweep
   # never delays a job that a person waits for. scheduler_default is first
-  # deliberately — a deep async backlog must not delay schedule ticks.
+  # deliberately — a deep jobs backlog must not delay schedule ticks.
   enable_worker  = true
   worker_command = "/usr/bin/supervisord -c /etc/worker-supervisord.conf"
 

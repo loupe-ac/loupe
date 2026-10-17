@@ -200,7 +200,7 @@ final class CardPullRequestTrackingTest extends KernelTestCase
         ($this->handler(DeleteCardHandler::class))(new DeleteCardCommand($card, Actor::Human));
 
         $neutralized = array_values(array_filter(
-            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport('async')->getSent()),
+            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport('jobs')->getSent()),
             static fn (object $message): bool => $message instanceof NeutralizeSiteReviewCheck,
         ));
         self::assertCount(1, $neutralized);
@@ -218,12 +218,12 @@ final class CardPullRequestTrackingTest extends KernelTestCase
         $this->update($card, []);
 
         self::assertSame([], array_filter(
-            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport('async')->getSent()),
+            array_map(static fn ($envelope) => $envelope->getMessage(), $this->transport('jobs')->getSent()),
             static fn (object $message): bool => $message instanceof NeutralizeSiteReviewCheck,
         ));
     }
 
-    private function transport(string $name = 'workflow'): InMemoryTransport
+    private function transport(string $name = 'card_eval'): InMemoryTransport
     {
         $transport = self::getContainer()->get('messenger.transport.'.$name);
         self::assertInstanceOf(InMemoryTransport::class, $transport);

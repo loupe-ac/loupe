@@ -36,7 +36,7 @@ final class DataExportDispatchTest extends WebTestCase
         self::assertResponseRedirects('/account/data');
 
         /** @var InMemoryTransport $transport */
-        $transport = static::getContainer()->get('messenger.transport.async');
+        $transport = static::getContainer()->get('messenger.transport.jobs');
         $sent = $transport->getSent();
         self::assertCount(1, $sent);
         self::assertInstanceOf(GenerateDataExportMessage::class, $sent[0]->getMessage());

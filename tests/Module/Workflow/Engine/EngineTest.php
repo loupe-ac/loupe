@@ -3264,7 +3264,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([self::requestRule('provided', self::PROVIDED_READY)]);
         $this->provider()->facts = new ProvidedFacts(ready: true);
-        $transport = self::getContainer()->get('messenger.transport.workflow');
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 
@@ -4205,7 +4205,7 @@ final class EngineTest extends KernelTestCase
     /** Runs the queued evaluations of the card, then empties the queue. Answers how many ran. */
     private function evaluateQueued(Card $card, string $at): int
     {
-        $transport = self::getContainer()->get('messenger.transport.workflow');
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
         $evaluations = 0;
