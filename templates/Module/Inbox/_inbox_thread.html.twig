@@ -13,6 +13,8 @@
 {% set commandRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.runCommand)|first : null %}
 {% set runCommand = commandRow ? commandRow.action.runCommand : null %}
 {% set actionForm = reply ? inbox_action_form(item, refusedForm) : null %}
+{# The start-session row that carries a prompt of the asking agent. The owner reads and edits it before the click. #}
+{% set sessionRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.sessionPrompt is not null)|first : null %}
 {# The dialog posts the reply form, so it needs the reply card on the page. #}
 {% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
 {# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
@@ -102,6 +104,9 @@
                 {% if not todoButtons %}
                     {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
                     <twig:Ds:FieldErrors :fieldView="actionForm.note" />
+                {% endif %}
+                {% if sessionRow %}
+                    <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
                 {% endif %}
                 <twig:Ds:FieldErrors :fieldView="actionForm" />
                 {{ form_widget(actionForm._token) }}

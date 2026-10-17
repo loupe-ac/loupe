@@ -117,6 +117,7 @@ final readonly class ProjectShowcaseSeeder
             $documents = $this->seedDocuments($owner, $project, $cards['onboarding']);
             $this->seedInbox($project, $owner, $reviewer, $cards, $documents);
             $this->seedCommandRuns($project, $owner, $cards['onboarding']);
+            $this->seedSessionPromptTodo($project, $cards['onboarding']);
             $this->seedEpicLane($project);
             $this->seedBlockedRun($project);
             $this->seedSiteFeedback($project, $cards['checkout']);
@@ -147,6 +148,17 @@ final readonly class ProjectShowcaseSeeder
             \count($this->inboxCardWatches->findOpenCardIds($project)),
             $outdatedCard,
         );
+    }
+
+    /** A to-do that suggests a session with a prompt, so the preview shows the field the owner edits. */
+    private function seedSessionPromptTodo(Project $project, Card $card): void
+    {
+        $now = new \DateTimeImmutable();
+        $item = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Todo, title: 'Rebuild the Claude Design project', blocking: false, createdAt: $now->modify('-5 minutes'));
+        $item->suggestedActions = [['action' => 'start-session', 'reason' => 'The rebuild needs a session on your machine.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the loupe-design-rebuild skill in this checkout. First check that the branch is main, and run git pull --ff-only.']];
+        $item->cards->add(new InboxItemCard($item, $card));
+        $this->ask($project, [$item], $now->modify('-5 minutes'), 'The rebuild needs a session.', null);
+        $this->em->flush();
     }
 
     /** Two to-dos with a command run: one still running, one that succeeded. Each holds a stored output log. */
