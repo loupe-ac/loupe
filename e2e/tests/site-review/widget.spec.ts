@@ -488,6 +488,15 @@ test('one card per review is chosen once and remembered after a reload', async (
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
+    // Delete all names the count and the card, also for a single note.
+    const clearConfirm = page.locator('#lp-clear-confirm-text');
+    await chooseHeadMenuItem(page, 'Delete all…');
+    await expect(clearConfirm).toHaveText(
+        `Delete 1 note on ${card.label}? Your agent may have it already.`,
+    );
+    await page.locator('#lp-clear-cancel').click();
+    await expect(clearConfirm).toBeHidden();
+
     // The choice outlives the page, and the boot load names the card again.
     await gotoHarness(page, keepHarnessUrl());
     await page.getByRole('button', { name: 'Review' }).click();
@@ -496,6 +505,10 @@ test('one card per review is chosen once and remembered after a reload', async (
     await expect(target).toHaveText(card.label);
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('2');
+    await chooseHeadMenuItem(page, 'Delete all…');
+    await expect(clearConfirm).toHaveText(
+        `Delete all 2 notes on ${card.label}? Your agent may have them already.`,
+    );
 });
 
 test('a card per note names the card each note became', async ({ page }) => {

@@ -3363,12 +3363,14 @@
         // These are live comments the agent may already be acting on, not a private
         // draft, so the confirmation says what is actually at stake.
         const cardTitle = deleteAllCardTitle();
-        $('lp-clear-confirm-text').textContent =
-            n === 1
-                ? 'Delete this comment? Your agent may have it already.'
-                : cardTitle
-                  ? `Delete all ${n} notes on ${cardTitle}? Your agent may have them already.`
-                  : `Delete all ${n} comments? Your agent may have them already.`;
+        const confirmText = cardTitle
+            ? n === 1
+                ? `Delete 1 note on ${cardTitle}? Your agent may have it already.`
+                : `Delete all ${n} notes on ${cardTitle}? Your agent may have them already.`
+            : n === 1
+              ? 'Delete this comment? Your agent may have it already.'
+              : `Delete all ${n} comments? Your agent may have them already.`;
+        $('lp-clear-confirm-text').textContent = confirmText;
 
         fitPanel(opening);
     };
