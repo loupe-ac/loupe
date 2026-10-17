@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Module\Inbox\Workflow\Condition;
 
+use App\Module\Inbox\Workflow\OpenQuestion;
 use App\Module\Inbox\Workflow\OpenQuestionFacts;
 use App\Module\Workflow\Contract\Condition;
 use App\Module\Workflow\Contract\Evidence;
 use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\MarkerEvidence;
+use App\Module\Workflow\Contract\Parameter;
+use App\Module\Workflow\Contract\ParameterType;
+use App\Module\Workflow\Contract\ParameterValue;
 use Symfony\Component\Translation\TranslatableMessage;
 
-/** An open inbox item asks a person something about the card. */
+/** An open inbox item asks a person something about the card. With no `blocking`, any open ask matches. */
 final readonly class CardHasOpenQuestion implements Condition, MarkerEvidence
 {
     #[\Override]
@@ -29,7 +33,7 @@ final readonly class CardHasOpenQuestion implements Condition, MarkerEvidence
     #[\Override]
     public static function parameters(): array
     {
-        return [];
+        return [new Parameter('blocking', ParameterType::Bool, required: false)];
     }
 
     #[\Override]
@@ -41,20 +45,32 @@ final readonly class CardHasOpenQuestion implements Condition, MarkerEvidence
     #[\Override]
     public function evaluate(Facts $facts, array $params): bool
     {
-        return null !== $facts->get(OpenQuestionFacts::class)->question;
+        return null !== self::question($facts, $params);
     }
 
     #[\Override]
     public function waitingFor(array $params, bool $negated = false): TranslatableMessage
     {
-        return new TranslatableMessage($negated ? 'workflow.waiting.not.card_inbox_open_question' : 'workflow.waiting.card_inbox_open_question');
+        $suffix = match (ParameterValue::optionalBool($params, 'blocking')) {
+            true => 'card_inbox_open_question_blocking',
+            false => 'card_inbox_open_question_non_blocking',
+            null => 'card_inbox_open_question',
+        };
+
+        return new TranslatableMessage(($negated ? 'workflow.waiting.not.' : 'workflow.waiting.').$suffix);
     }
 
     #[\Override]
     public function evidence(Facts $facts, array $params): ?Evidence
     {
-        $question = $facts->get(OpenQuestionFacts::class)->question;
+        $question = self::question($facts, $params);
 
         return null === $question ? null : new Evidence($question->since, ['%number%' => $question->number, '%title%' => $question->title]);
+    }
+
+    /** @param array<string, mixed> $params */
+    private static function question(Facts $facts, array $params): ?OpenQuestion
+    {
+        return $facts->get(OpenQuestionFacts::class)->oldest(ParameterValue::optionalBool($params, 'blocking'));
     }
 }

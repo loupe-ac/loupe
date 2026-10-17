@@ -8,6 +8,8 @@ enum ParameterType: string
 {
     case String = 'string';
     case Int = 'int';
+    /** A condition parameter alone. */
+    case Bool = 'bool';
     case Slot = 'slot';
     /** An expression over conditions, such as the release of a pause. */
     case Expression = 'expression';

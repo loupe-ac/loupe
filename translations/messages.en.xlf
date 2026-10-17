@@ -8484,6 +8484,10 @@
             <trans-unit id="workflow.waiting.not.card_held"><source>workflow.waiting.not.card_held</source><target>Waiting: a person held the agents of the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_inbox_open_question"><source>workflow.waiting.card_inbox_open_question</source><target>Waiting: no open inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_inbox_open_question"><source>workflow.waiting.not.card_inbox_open_question</source><target>Waiting: an open inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_inbox_open_question_blocking"><source>workflow.waiting.card_inbox_open_question_blocking</source><target>Waiting: no open blocking inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_inbox_open_question_blocking"><source>workflow.waiting.not.card_inbox_open_question_blocking</source><target>Waiting: an open blocking inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_inbox_open_question_non_blocking"><source>workflow.waiting.card_inbox_open_question_non_blocking</source><target>Waiting: no open non-blocking inbox question names the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_inbox_open_question_non_blocking"><source>workflow.waiting.not.card_inbox_open_question_non_blocking</source><target>Waiting: an open non-blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_all_finished_one_merged"><source>workflow.waiting.pr_all_finished_one_merged</source><target>Waiting: a pull request is still open, or none is merged.</target></trans-unit>
