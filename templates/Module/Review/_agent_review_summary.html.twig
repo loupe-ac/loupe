@@ -1,0 +1,71 @@
+{#
+  Props:  @comment-budget-ignore
+    summary   array|null   The view of AgentReviewSummary. Null draws nothing.
+#}
+{% if summary is not null %}
+{% set stateModifier = {passed: 'ok', failed: 'failed', skipped: 'neutral'}[summary.state] %}
+{% set meta = [] %}
+{% if summary.state == 'skipped' %}
+    {% set meta = meta|merge(['review.document.agent_review.meta.skipped'|trans({'%round%': summary.rounds})]) %}
+{% else %}
+    {% set meta = meta|merge(['review.document.agent_review.meta.rounds'|trans({'%count%': summary.rounds})]) %}
+    {% if summary.fixed > 0 %}{% set meta = meta|merge(['review.document.agent_review.meta.fixed'|trans({'%count%': summary.fixed})]) %}{% endif %}
+    {% if summary.notChanged > 0 %}{% set meta = meta|merge(['review.document.agent_review.meta.not_changed'|trans({'%count%': summary.notChanged})]) %}{% endif %}
+{% endif %}
+{% for severity, count in summary.open %}
+    {% set meta = meta|merge([('review.document.agent_review.meta.open.' ~ (severity|replace({'-': '_'})))|trans({'%count%': count})]) %}
+{% endfor %}
+<section class="lp-agent-review" aria-label="{{ 'review.document.agent_review.label'|trans }}" data-testid="agent-review-summary" data-state="{{ summary.state }}">
+    <details class="lp-agent-review__details">
+        <summary class="lp-agent-review__line">
+            <twig:Ds:StatusChip :modifier="stateModifier" :label="('review.document.agent_review.state.' ~ summary.state)|trans" class="lp-agent-review__chip" />
+            <span class="lp-agent-review__meta">{{ meta|join(' · ') }}</span>
+            <span class="{{ ds_button_class('ghost', 'sm') }} lp-agent-review__toggle">{{ 'review.document.agent_review.show_rounds'|trans }} <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-agent-review__chevron" aria-hidden="true" /></span>
+        </summary>
+        <div class="lp-agent-review__rounds">
+            {% for round in summary.roundList %}
+                <h3 class="lp-agent-review__round-title">
+                    {%- if round.passed -%}
+                        {{ 'review.document.agent_review.round.passed'|trans({'%round%': round.number, '%version%': round.version}) }}
+                    {%- elseif round.importantCount > 0 -%}
+                        {{ 'review.document.agent_review.round.failed_important'|trans({'%round%': round.number, '%version%': round.version, '%count%': round.importantCount}) }}
+                    {%- else -%}
+                        {{ 'review.document.agent_review.round.failed'|trans({'%round%': round.number, '%version%': round.version}) }}
+                    {%- endif -%}
+                </h3>
+                {% if round.listed %}
+                    <ol class="lp-agent-review__findings">
+                        {% for finding in round.findings %}
+                            <li class="lp-agent-review__finding">
+                                <div class="lp-agent-review__finding-head">
+                                    <twig:Ds:Tag :tone="finding.severity == 'important' ? 'red' : 'neutral'">{{ ('review.document.agent_review.severity.' ~ (finding.severity|replace({'-': '_'})))|trans }}</twig:Ds:Tag>
+                                    <span class="lp-agent-review__finding-title">{{ finding.title }}</span>
+                                </div>
+                                <p class="lp-agent-review__finding-body">{{ finding.body }}</p>
+                                <p class="lp-agent-review__answer{{ finding.status == 'fixed' ? '' : (finding.status == 'not-changed' ? ' lp-agent-review__answer--kept' : ' lp-agent-review__answer--open') }}">
+                                    {%- if finding.status == 'fixed' -%}
+                                        {{ (finding.fixedInVersion is null ? 'review.document.agent_review.answer.fixed' : 'review.document.agent_review.answer.fixed_in')|trans({'%version%': finding.fixedInVersion}) }}
+                                    {%- elseif finding.status == 'not-changed' -%}
+                                        <twig:Ds:Tag tone="amber">{{ 'review.document.agent_review.answer.not_changed'|trans }}</twig:Ds:Tag>
+                                    {%- elseif finding.status == 'to-owner' -%}
+                                        {{ 'review.document.agent_review.answer.to_owner'|trans }}
+                                    {%- elseif summary.state == 'skipped' -%}
+                                        {{ 'review.document.agent_review.answer.open_skipped'|trans }}
+                                    {%- elseif finding.severity == 'important' -%}
+                                        {{ 'review.document.agent_review.answer.open'|trans }}
+                                    {%- else -%}
+                                        {{ 'review.document.agent_review.answer.open_minor'|trans }}
+                                    {%- endif -%}
+                                    {%- if finding.reason %} {{ finding.reason }}{% endif -%}
+                                </p>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <p class="lp-agent-review__more">{{ 'review.document.agent_review.round.summary'|trans({'%count%': round.findingCount, '%fixed%': round.fixedCount, '%version%': round.fixedInVersion}) }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </details>
+</section>
+{% endif %}

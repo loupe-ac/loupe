@@ -51,6 +51,14 @@ final readonly class ActionContext
         return $value;
     }
 
+    /** @return list<string> the strings of a list parameter, and none when the rule gives no such list */
+    public function stringList(string $name): array
+    {
+        $value = $this->params[$name] ?? [];
+
+        return \is_array($value) ? array_values(array_filter($value, \is_string(...))) : [];
+    }
+
     /** @return list<string> the labels of the options of an ask, in template order */
     public function options(): array
     {

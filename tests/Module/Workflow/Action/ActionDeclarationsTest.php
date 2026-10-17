@@ -8,6 +8,7 @@ use App\Module\Board\Workflow\Detach;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\LinkDocument;
 use App\Module\Board\Workflow\MoveCard;
+use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Workflow\Action\Ask;
 use App\Module\Workflow\Action\EvaluateChildren;
@@ -35,6 +36,7 @@ final class ActionDeclarationsTest extends TestCase
         yield 'evaluate' => [EvaluateChildren::class, 'evaluate', 'workflow.source.board', new ActionTraits()];
         yield 'ask' => [Ask::class, 'ask', 'workflow.source.board', new ActionTraits()];
         yield 'link-document' => [LinkDocument::class, 'link-document', 'workflow.source.board', new ActionTraits(option: true, childChoice: true)];
+        yield 'publish-documents' => [PublishDocuments::class, 'publish-documents', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
     }
 
@@ -54,7 +56,7 @@ final class ActionDeclarationsTest extends TestCase
         self::assertSame('fix', self::action(RequestWork::class)->workKind(['kind' => 'fix', 'limit' => 3]));
         self::assertSame('merge', self::action(ForgeWrite::class)->workKind(['write' => 'merge', 'fallback' => 'merge']));
         self::assertNull(self::action(ForgeWrite::class)->workKind(['write' => 'draft']));
-        foreach ([MoveCard::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class] as $class) {
+        foreach ([MoveCard::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class] as $class) {
             self::assertNull(self::action($class)->workKind(['to' => 'build', 'reason' => 'r']), $class);
         }
     }
@@ -95,6 +97,7 @@ final class ActionDeclarationsTest extends TestCase
             EvaluateChildren::class => 'evaluate',
             Ask::class => 'ask',
             LinkDocument::class => 'link_document',
+            PublishDocuments::class => 'publish_documents',
             Detach::class => 'detach',
         ];
         foreach ($texts as $class => $name) {

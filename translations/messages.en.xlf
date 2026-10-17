@@ -1398,6 +1398,32 @@
             <trans-unit id="review.document.comment.marker"><source>review.document.comment.marker</source><target>Comments on this passage: %count%</target></trans-unit>
             <trans-unit id="review.document.panels.decisions_count"><source>review.document.panels.decisions_count</source><target>%answered% of %total% answered</target></trans-unit>
             <trans-unit id="review.document.decisions.note"><source>review.document.decisions.note</source><target>Note: %note%</target></trans-unit>
+            <trans-unit id="review.document.agent_review.label"><source>review.document.agent_review.label</source><target>Agent review</target></trans-unit>
+            <trans-unit id="review.document.agent_review.state.passed"><source>review.document.agent_review.state.passed</source><target>Agent review passed</target></trans-unit>
+            <trans-unit id="review.document.agent_review.state.failed"><source>review.document.agent_review.state.failed</source><target>Agent review did not pass</target></trans-unit>
+            <trans-unit id="review.document.agent_review.state.skipped"><source>review.document.agent_review.state.skipped</source><target>Agent review skipped</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.rounds"><source>review.document.agent_review.meta.rounds</source><target>{0}No rounds|{1}%count% round|]1,Inf[%count% rounds</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.fixed"><source>review.document.agent_review.meta.fixed</source><target>%count% fixed</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.not_changed"><source>review.document.agent_review.meta.not_changed</source><target>%count% not changed</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.skipped"><source>review.document.agent_review.meta.skipped</source><target>You published after round %round%</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.open.important"><source>review.document.agent_review.meta.open.important</source><target>%count% important open</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.open.nit"><source>review.document.agent_review.meta.open.nit</source><target>%count% nit open</target></trans-unit>
+            <trans-unit id="review.document.agent_review.meta.open.pre_existing"><source>review.document.agent_review.meta.open.pre_existing</source><target>%count% pre-existing open</target></trans-unit>
+            <trans-unit id="review.document.agent_review.show_rounds"><source>review.document.agent_review.show_rounds</source><target>Show rounds</target></trans-unit>
+            <trans-unit id="review.document.agent_review.round.passed"><source>review.document.agent_review.round.passed</source><target>Round %round% · v%version% · passed</target></trans-unit>
+            <trans-unit id="review.document.agent_review.round.failed"><source>review.document.agent_review.round.failed</source><target>Round %round% · v%version% · failed</target></trans-unit>
+            <trans-unit id="review.document.agent_review.round.failed_important"><source>review.document.agent_review.round.failed_important</source><target>Round %round% · v%version% · failed, %count% important</target></trans-unit>
+            <trans-unit id="review.document.agent_review.round.summary"><source>review.document.agent_review.round.summary</source><target>{0}No findings.|{1}%count% finding, %fixed% fixed in v%version%.|]1,Inf[%count% findings, %fixed% fixed in v%version%.</target></trans-unit>
+            <trans-unit id="review.document.agent_review.severity.important"><source>review.document.agent_review.severity.important</source><target>important</target></trans-unit>
+            <trans-unit id="review.document.agent_review.severity.nit"><source>review.document.agent_review.severity.nit</source><target>nit</target></trans-unit>
+            <trans-unit id="review.document.agent_review.severity.pre_existing"><source>review.document.agent_review.severity.pre_existing</source><target>pre-existing</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.fixed"><source>review.document.agent_review.answer.fixed</source><target>Fixed.</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.fixed_in"><source>review.document.agent_review.answer.fixed_in</source><target>Fixed in v%version%.</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.not_changed"><source>review.document.agent_review.answer.not_changed</source><target>Not changed</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.to_owner"><source>review.document.agent_review.answer.to_owner</source><target>For you.</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.open"><source>review.document.agent_review.answer.open</source><target>Open.</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.open_minor"><source>review.document.agent_review.answer.open_minor</source><target>Open. It does not fail the review.</target></trans-unit>
+            <trans-unit id="review.document.agent_review.answer.open_skipped"><source>review.document.agent_review.answer.open_skipped</source><target>Open. You published before the fix round ran.</target></trans-unit>
             <trans-unit id="review.document.page_menu.label"><source>review.document.page_menu.label</source><target>More about this document</target></trans-unit>
             <trans-unit id="review.document.page_menu.heading.card"><source>review.document.page_menu.heading.card</source><target>Linked cards (%count%)</target></trans-unit>
             <trans-unit id="review.document.page_menu.heading.artifact"><source>review.document.page_menu.heading.artifact</source><target>Artifacts (%count%)</target></trans-unit>
@@ -2663,6 +2689,14 @@
             <trans-unit id="project.connect.tool.agent_review_submit">
                 <source>project.connect.tool.agent_review_submit</source>
                 <target>Submit the review of a pull request of a card, with its findings on file lines. Only a running review worker of the card can call it. Loupe shows the review as a check on the pull request when the agent review is on.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.document_review_submit">
+                <source>project.connect.tool.document_review_submit</source>
+                <target>Submit the review of a draft design document of a card, with its findings. Only a running design review worker of the card can call it.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.document_review_answer">
+                <source>project.connect.tool.document_review_answer</source>
+                <target>Answer each finding of the latest agent review that the card got for a draft design document as fixed, not changed with a reason, or for the owner. Only a running design fix worker of the card can call it.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.card_create">
                 <source>project.connect.tool.card_create</source>
@@ -4450,7 +4484,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.product_design.text">
                 <source>landing.workflow.step.product_design.text</source>
-                <target>An agent drafts the product document and a clickable prototype, or you shape them together in a session. You review them before any code.</target>
+                <target>An agent drafts the product document and a clickable prototype, or you shape them together in a session. A second agent reviews the draft first. You review it before any code.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.tech_design.title">
                 <source>landing.workflow.step.tech_design.title</source>
@@ -4458,7 +4492,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.tech_design.text">
                 <source>landing.workflow.step.tech_design.text</source>
-                <target>An agent writes the technical design from the approved product. You comment, then approve.</target>
+                <target>An agent writes the technical design from the approved product. A second agent reviews the draft first. You comment, then approve.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.implementation.title">
                 <source>landing.workflow.step.implementation.title</source>
@@ -4474,7 +4508,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.agent_review.text">
                 <source>landing.workflow.step.agent_review.text</source>
-                <target>A second agent reviews the change against the design. Fix rounds run until it passes.</target>
+                <target>A second agent reviews the change against the approved design. Fix rounds run until it passes.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.site_review.title">
                 <source>landing.workflow.step.site_review.title</source>
@@ -4550,7 +4584,7 @@
             </trans-unit>
             <trans-unit id="landing.features.document_review.text">
                 <source>landing.features.document_review.text</source>
-                <target>Product and tech designs arrive rendered. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
+                <target>Product and tech designs arrive rendered, after a second agent has reviewed them. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
             </trans-unit>
             <trans-unit id="landing.features.document_review.caption">
                 <source>landing.features.document_review.caption</source>
@@ -4574,7 +4608,7 @@
             </trans-unit>
             <trans-unit id="landing.features.agent_review.text">
                 <source>landing.features.agent_review.text</source>
-                <target>A second agent reviews every pull request against the approved design, and sends it back for fixes before you see it.</target>
+                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design.</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.caption">
                 <source>landing.features.agent_review.caption</source>
@@ -8368,6 +8402,14 @@
             <trans-unit id="workflow.waiting.not.agent_review_overridden"><source>workflow.waiting.not.agent_review_overridden</source><target>Waiting: an approval overrides a failed agent review of an open pull request head.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_unposted"><source>workflow.waiting.agent_review_unposted</source><target>Waiting: every agent review has its check on the forge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.agent_review_unposted"><source>workflow.waiting.not.agent_review_unposted</source><target>Waiting: an agent review has no check on the forge yet.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_due"><source>workflow.waiting.design_review_due</source><target>Waiting: no draft %tag% document needs a design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_due"><source>workflow.waiting.not.design_review_due</source><target>Waiting: a draft %tag% document needs a design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_fix_due"><source>workflow.waiting.design_review_fix_due</source><target>Waiting: no review of a draft %tag% document asks for a fix round.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_fix_due"><source>workflow.waiting.not.design_review_fix_due</source><target>Waiting: the review of a draft %tag% document asks for a fix round.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_finished"><source>workflow.waiting.design_review_finished</source><target>Waiting: a draft %tag% document has no finished design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_finished"><source>workflow.waiting.not.design_review_finished</source><target>Waiting: every draft %tag% document has a finished design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_running"><source>workflow.waiting.design_review_running</source><target>Waiting: no draft %tag% document has a design review in progress.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_running"><source>workflow.waiting.not.design_review_running</source><target>Waiting: a draft %tag% document has a design review in progress.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_uncommented"><source>workflow.waiting.agent_review_uncommented</source><target>Waiting: an agent review with findings and a new check needs its summary comment.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.agent_review_uncommented"><source>workflow.waiting.not.agent_review_uncommented</source><target>Waiting: every recent agent review with findings has its summary comment.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_child_merged_into_epic_branch"><source>workflow.waiting.card_child_merged_into_epic_branch</source><target>Waiting: no child pull request merged into the epic branch.</target></trans-unit>
@@ -8525,6 +8567,7 @@
             <trans-unit id="workflow.settings.rules.not"><source>workflow.settings.rules.not</source><target>not</target></trans-unit>
             <trans-unit id="workflow.settings.rules.until"><source>workflow.settings.rules.until</source><target>Until:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.refill"><source>workflow.settings.rules.refill</source><target>Starts the limit again while:</target></trans-unit>
+            <trans-unit id="workflow.settings.rules.cancel_when"><source>workflow.settings.rules.cancel_when</source><target>Cancels the work while:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_condition"><source>workflow.settings.rules.missing_condition</source><target>Condition no longer exists: %condition%</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_action"><source>workflow.settings.rules.missing_action</source><target>Action not known to this version: %action%</target></trans-unit>
             <trans-unit id="workflow.settings.app_rules.heading"><source>workflow.settings.app_rules.heading</source><target>Rules the app adds</target></trans-unit>
@@ -8534,6 +8577,7 @@
             <trans-unit id="workflow.settings.where.any"><source>workflow.settings.where.any</source><target>any column</target></trans-unit>
             <trans-unit id="workflow.settings.action.move"><source>workflow.settings.action.move</source><target>Move the card to %target%</target></trans-unit>
             <trans-unit id="workflow.settings.action.request"><source>workflow.settings.action.request</source><target>Request work: %kind%</target></trans-unit>
+            <trans-unit id="workflow.settings.action.publish_documents"><source>workflow.settings.action.publish_documents</source><target>Publish the draft documents</target></trans-unit>
             <trans-unit id="workflow.settings.action.forge_write"><source>workflow.settings.action.forge_write</source><target>Forge write: %kind%</target></trans-unit>
             <trans-unit id="workflow.settings.action.pause"><source>workflow.settings.action.pause</source><target>Pause the card</target></trans-unit>
             <trans-unit id="workflow.settings.action.release"><source>workflow.settings.action.release</source><target>Release the pause</target></trans-unit>
@@ -8595,6 +8639,7 @@
             <trans-unit id="workflow.panel.action.move_backlog"><source>workflow.panel.action.move_backlog</source><target>Move the card to the Backlog</target></trans-unit>
             <trans-unit id="workflow.panel.action.move_terminal"><source>workflow.panel.action.move_terminal</source><target>Move the card to a terminal column</target></trans-unit>
             <trans-unit id="workflow.panel.action.request"><source>workflow.panel.action.request</source><target>Request %kind% work from a bridge</target></trans-unit>
+            <trans-unit id="workflow.panel.action.publish_documents"><source>workflow.panel.action.publish_documents</source><target>Publish the draft documents of the card for review</target></trans-unit>
             <trans-unit id="workflow.panel.action.forge_write"><source>workflow.panel.action.forge_write</source><target>Write %write% to the pull request</target></trans-unit>
             <trans-unit id="workflow.panel.action.pause"><source>workflow.panel.action.pause</source><target>Pause the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.release"><source>workflow.panel.action.release</source><target>End the pause of the card</target></trans-unit>
@@ -8624,6 +8669,7 @@
             <trans-unit id="workflow.refusal.document-ambiguous"><source>workflow.refusal.document-ambiguous</source><target>The card has more than one document with the tag that the rule names.</target></trans-unit>
             <trans-unit id="workflow.refusal.no-parent-document"><source>workflow.refusal.no-parent-document</source><target>The parent of the card has no document with the tag that the rule names.</target></trans-unit>
             <trans-unit id="workflow.refusal.document-link-refused"><source>workflow.refusal.document-link-refused</source><target>The board refused the document link.</target></trans-unit>
+            <trans-unit id="workflow.refusal.document-publish-refused"><source>workflow.refusal.document-publish-refused</source><target>The app refused to publish a draft document of the card.</target></trans-unit>
             <trans-unit id="workflow.refusal.detach-refused"><source>workflow.refusal.detach-refused</source><target>The board refused to remove the parent of the card.</target></trans-unit>
             <trans-unit id="project.edit.nav.readiness"><source>project.edit.nav.readiness</source><target>Agent readiness</target></trans-unit>
             <trans-unit id="readiness.guide.title"><source>readiness.guide.title</source><target>Ready for agents</target></trans-unit>
@@ -8831,6 +8877,8 @@
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
             <trans-unit id="marker.session_open.remedy"><source>marker.session_open.remedy</source><target>Nothing. The card moves on when the session ends.</target></trans-unit>
+            <trans-unit id="marker.design_review_running"><source>marker.design_review_running</source><target>Agent review running, round %round% of %limit%.</target></trans-unit>
+            <trans-unit id="marker.design_review_running.remedy"><source>marker.design_review_running.remedy</source><target>Nothing. The app publishes the document for your review when the agent review ends.</target></trans-unit>
             <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
