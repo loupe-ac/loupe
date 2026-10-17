@@ -238,6 +238,36 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertSame([], $this->listedIds($client, $raw, '?scope='.urlencode('card:'.$closed->id)));
     }
 
+    public function test_each_listed_comment_links_to_its_card(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        [$raw, $project] = $this->projectWithToken($client, 'api-link@example.com');
+        $em = $this->em();
+
+        $card = new Card($project, $this->column($project, 'backlog'), 'Linked', '', 7);
+        $em->persist($card);
+        $linked = new SiteReviewComment($project, 0, 'linked', 'https://app/x');
+        $unlinked = new SiteReviewComment($project, 1, 'unlinked', 'https://app/x');
+        $em->persist($linked);
+        $em->persist($unlinked);
+        $em->persist(new CardSiteReviewComment($card, $linked));
+        $em->flush();
+
+        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+        $links = array_column($data['comments'], 'link', 'id');
+
+        self::assertSame('#7', $links[(string) $linked->id]['label']);
+        self::assertStringEndsWith(
+            \sprintf('/projects/%s/board/cards/%s', $project->id, $card->id),
+            $links[(string) $linked->id]['url'],
+        );
+        self::assertNull($links[(string) $unlinked->id]);
+    }
+
     /** @return list<string> */
     private function listedIds(KernelBrowser $client, string $raw, string $query): array
     {

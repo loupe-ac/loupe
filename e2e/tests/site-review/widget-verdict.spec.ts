@@ -211,7 +211,7 @@ test('a card with no open pull request offers no verdict', async ({ page }) => {
     // The last verdict only renders once the read has landed, so the check
     // below cannot pass before the answer arrived.
     await expect(panel(page).locator('#lp-sub')).toContainText(
-        'No pull request yet · 0 notes on this card · Last verdict: Approved',
+        'No pull request yet · Last verdict: Approved',
     );
     await expect(
         panel(page).getByRole('button', { name: 'Finish review' }),
@@ -228,9 +228,8 @@ test('an approval sends from the Finish review view and says so', async ({
 
     await expect(verdictOption(page, 'Approve')).toBeChecked();
     await expect(panel(page).locator('#lp-finish-sub')).toHaveText(
-        '#7 Preview card',
+        '#7 Preview card · PR #12',
     );
-    await expect(panel(page).getByText('acme/site#12')).toBeVisible();
     await expect(
         panel(page).getByText('Posts your verdict as a review.'),
     ).toBeVisible();
@@ -240,10 +239,14 @@ test('an approval sends from the Finish review view and says so', async ({
         page.waitForResponse((response) =>
             response.url().endsWith('/verdicts'),
         ),
-        panel(page).getByRole('button', { name: 'Send', exact: true }).click(),
+        panel(page)
+            .getByRole('button', { name: 'Send review', exact: true })
+            .click(),
     ]);
 
-    await expect(page.getByText('Sent to the workflow')).toBeVisible();
+    await expect(
+        page.getByText('Review sent to GitHub: approved'),
+    ).toBeVisible();
     await expect(
         panel(page).getByRole('button', { name: 'Finish review' }),
     ).toBeVisible();
@@ -271,7 +274,10 @@ test('request changes with no open note needs a message and warns about the revi
     await openFinish(page);
 
     await verdictOption(page, 'Request changes').check();
-    const send = panel(page).getByRole('button', { name: 'Send', exact: true });
+    const send = panel(page).getByRole('button', {
+        name: 'Send review',
+        exact: true,
+    });
     await expect(
         panel(page).getByText(/You opened this pull request/),
     ).toBeVisible();
@@ -316,10 +322,13 @@ test('request changes on a card with an open note sends with no message', async 
 
     await expect(verdictOption(page, 'Request changes')).toBeChecked();
     await expect(
-        panel(page).getByText('1 note goes with this review'),
+        panel(page).getByText('Notes in this review · 1'),
     ).toBeVisible();
     await expect(panel(page).getByText('Message (optional)')).toBeVisible();
-    const send = panel(page).getByRole('button', { name: 'Send', exact: true });
+    const send = panel(page).getByRole('button', {
+        name: 'Send review',
+        exact: true,
+    });
     await expect(send).toBeEnabled();
     await Promise.all([
         page.waitForResponse((response) =>
@@ -353,7 +362,10 @@ test('two pull requests ask the reviewer to tick the ones that get the review', 
     await openFinish(page);
 
     await verdictOption(page, 'Approve').check();
-    const send = panel(page).getByRole('button', { name: 'Send', exact: true });
+    const send = panel(page).getByRole('button', {
+        name: 'Send review',
+        exact: true,
+    });
     await expect(send).toBeDisabled();
     await panel(page).getByLabel('acme/api#40').check();
     await expect(send).toBeEnabled();
@@ -394,7 +406,7 @@ test('connecting GitHub keeps the draft and brings Send back', async ({
     await verdictOption(page, 'Comment').check();
     await panel(page).getByLabel('Message').fill('Needs a second look');
     const connect = panel(page).getByRole('button', {
-        name: 'Connect GitHub to send this review',
+        name: 'Connect GitHub to send',
     });
     await expect(connect).toBeVisible();
 
@@ -404,7 +416,7 @@ test('connecting GitHub keeps the draft and brings Send back', async ({
     expect((await popup).url()).toContain('/account/github/connect');
 
     await expect(
-        panel(page).getByRole('button', { name: 'Send', exact: true }),
+        panel(page).getByRole('button', { name: 'Send review', exact: true }),
     ).toBeEnabled();
     await expect(panel(page).getByLabel('Message')).toHaveValue(
         'Needs a second look',
