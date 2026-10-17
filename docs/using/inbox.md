@@ -112,9 +112,9 @@ green while the bridge sends heartbeats, amber when it is quiet, and grey when
 no bridge started the session. Hover over or focus the avatar to read the
 details and the session id.
 
-A blocking ask that links a card also shows an hourglass and the card number
-in the byline. The number opens the card, and its tooltip reads **Card #N waits
-on you**. A card wait shows the card number in place of its type.
+A blocking ask shows an hourglass and a card number in the byline. The card is
+the first card that an open blocking item of the ask links. The number opens
+the card, and its tooltip reads **Card #N waits on you**. A card wait shows the card number in place of its type.
 
 A **⋯** menu sits at the right end of the byline, when the ask links
 anything. The menu shows each card, document and pull request that the ask

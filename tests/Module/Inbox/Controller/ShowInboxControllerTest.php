@@ -629,6 +629,39 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]'));
     }
 
+    public function test_the_byline_of_a_mixed_ask_names_the_card_of_its_blocking_item(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-byline-mixed');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $todoCard = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Checkout', body: 'Body', number: 7);
+        $questionCard = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Billing', body: 'Body', number: 8);
+        $this->em->persist($todoCard);
+        $this->em->persist($questionCard);
+        $todo = $this->todo($this->em, $project, 1);
+        $question = $this->question($this->em, $project, 2);
+        $todo->cards->add(new InboxItemCard($todo, $todoCard));
+        $question->cards->add(new InboxItemCard($question, $questionCard));
+        $bareTodo = $this->todo($this->em, $project, 3);
+        $bareQuestion = $this->question($this->em, $project, 4);
+        $bareTodo->cards->add(new InboxItemCard($bareTodo, $todoCard));
+        $this->em->flush();
+        $mixedAsk = $this->askHolding($this->em, $project, [$todo, $question]);
+        $bareAsk = $this->askHolding($this->em, $project, [$bareTodo, $bareQuestion]);
+        $this->setInboxFlag(true);
+        $this->client->loginUser($owner);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$mixedAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['#8'], $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]')->each(static fn ($link): string => $link->text()));
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$bareAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]'));
+    }
+
     public function test_the_row_icon_is_the_first_open_item_of_an_open_ask_and_the_first_item_of_a_closed_one(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-row-icon');
