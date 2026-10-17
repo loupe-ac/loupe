@@ -159,32 +159,36 @@ allowed sites of the project do not limit where a token works.
 ## Sending a verdict
 
 On a page that locks a card, the panel footer shows **Finish review** when the
-card has at least one open GitHub pull request. It opens a view with three
-buttons: **Approve**, **Request changes** and **Comment**. The footer action
-stays hidden on every other page. That includes a page that names no card and a
-card without an open pull request.
+card has at least one open GitHub pull request. It opens one view that holds
+the whole verdict form. The footer action stays hidden on every other page.
+That includes a page that names no card and a card without an open pull
+request.
 
-A button opens a confirm panel. Loupe records nothing until you press **Send**.
-Press **Cancel** to close the panel without a record. The back arrow returns to
-the list.
+The view opens with a verdict already chosen. It picks **Request changes** when
+the card has open notes, and **Approve** when it has none. You can pick
+**Approve**, **Request changes** or **Comment** instead. The message field has
+focus, so you can type at once. Loupe records nothing until you press **Send**.
+Press **Cancel** or the back arrow to return to the list with no record.
 
-The confirm panel shows:
+The view shows:
 
-- The name of the card.
+- The name of the card, under the title.
 - The pull request. When the card has two or more, you tick each one that gets
   the review. Send covers the ticked pull requests.
-- The open notes that go with the verdict. On an approval, the panel says how
+- The open notes that go with the verdict. On an approval, the view says how
   many notes are still open, and you can still send.
 - A field for a message.
 - What Loupe does with the verdict. When the workflow writes nothing to GitHub,
-  the panel says **Recorded in Loupe only**.
+  the view says **Recorded in Loupe only**.
+- The GitHub account that posts the review, as **Posts to GitHub as @name**,
+  when you have connected one.
 
 **Request changes** and **Comment** need a message when the card has no open
 note. **Send** stays off until you write one. When notes are open, they go with
 the verdict, and the message is optional. **Approve** needs no message.
 
-After a send, the panel says **Sent to the workflow**. Loupe then posts the
-review on GitHub when the project allows it. See
+After a send, the panel returns to the list and shows **Sent to the workflow**.
+Loupe then posts the review on GitHub when the project allows it. See
 [Board automation](board.md).
 
 When a send fails and you press **Send** again with the same verdict, Loupe
