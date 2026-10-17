@@ -241,12 +241,12 @@
     // usually still in flight: a shared flag made Create do nothing at all.
     let pickerCreating = false;
     const MAX_ANCHORS = 10; // AddCommentRequest's cap — over it the API 422s
-    const AT_CAP_MESSAGE = `A comment can point at ${MAX_ANCHORS} elements at most.`;
+    const AT_CAP_MESSAGE = `A note can point at ${MAX_ANCHORS} elements at most.`;
     // AddCommentRequest's caps for the drawing. A stroke past the point cap stops
     // growing rather than 422ing the save the reviewer already committed to.
     const MAX_STROKES = 50;
     const MAX_STROKE_POINTS = 500;
-    const AT_STROKE_CAP_MESSAGE = `A comment can carry ${MAX_STROKES} strokes at most.`;
+    const AT_STROKE_CAP_MESSAGE = `A note can carry ${MAX_STROKES} strokes at most.`;
     const MIN_POINT_GAP = 2; // px of pointer travel before another point is kept
     // SiteReviewAnchorInput caps quote, quotePrefix and quoteSuffix at 2000 each. The
     // widget refuses well under that, because a quote long enough to approach it is a
@@ -1174,7 +1174,6 @@
         saving: false,
         deleting: false,
         savedNotice: null, // brief "it is live now" toast text, cleared on a timer
-        lastCard: null, // { label, url } of the card the last per-note save made
         actionError: null, // failed mutation (network/5xx/429/404): a dismissible inline banner
         fatal: null, // { status } once the token is rejected (401/403) — replaces the panel
     };
@@ -1364,7 +1363,6 @@
       .lp-picker-foot .lp-picker-search{flex:1 1 auto}
       .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
-      .lp-last-card{margin:6px 0 0}
       .lp-verdict{flex:1 1 auto;min-height:0;overflow:auto;margin:12px 14px;font-size:12px;line-height:1.45;color:var(--text)}
       .lp-verdict-row{display:flex;gap:6px}
       .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:10px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
@@ -1499,7 +1497,7 @@
       .lp-signin-body .lp-foot-action{margin-top:6px}
     </style>
     <div class="lp-launcher" id="lp-launcher">
-      ${LOCAL ? '<span class="lp-local" id="lp-local" data-tip="Comments save to this local build">Local</span>' : ''}
+      ${LOCAL ? '<span class="lp-local" id="lp-local" data-tip="Notes save to this local build">Local</span>' : ''}
       <div class="lp-launch-quick" id="lp-launch-quick">
         <button class="lp-launch-action" id="lp-launch-note" aria-label="Add note" aria-pressed="false" data-tip="Add note">${ICON.comment(16)}</button>
         <button class="lp-launch-action" id="lp-launch-target" aria-label="Pick element" aria-pressed="false" data-tip="Pick element">${ICON.target(16)}</button>
@@ -1530,12 +1528,11 @@
             <button class="lp-action" id="target" aria-pressed="false" aria-label="Pick element">${ICON.target(15)}<span>Element</span></button>
             <button class="lp-action" id="draw" aria-pressed="false" aria-label="Draw">${ICON.pen(15)}<span>Draw</span></button>
           </div>
-          <div class="lp-context lp-last-card" id="lp-last-card" style="display:none"></div>
           <div class="lp-error" id="lp-list-error" style="display:none"></div>
           <div class="lp-body lp-scroll" id="lp-body">
             <div class="lp-empty" id="lp-empty" style="display:none">
               <div class="lp-empty-icon">${ICON.comment(20)}</div>
-              <div class="lp-empty-title">No comments yet</div>
+              <div class="lp-empty-title">No notes yet</div>
               <div class="lp-empty-sub">Select text, pick an element, or add a note.</div>
             </div>
             <div id="lp-list"></div>
@@ -1726,7 +1723,7 @@
       <div id="lp-pins"></div>
       <div class="lp-toast" id="lp-toast" style="display:none">
         ${ICON.target(15)}
-        <span id="lp-toast-text">Click to comment</span>
+        <span id="lp-toast-text">Click to add a note</span>
         <span class="lp-toast-sep">·</span>
         <span class="lp-toast-dim">${ALT_LABEL} scroll to resize</span>
         <span class="lp-toast-key" id="lp-toast-esc">Esc</span>
@@ -1744,7 +1741,7 @@
         <span id="lp-saved-text"></span>
       </div>
       <button class="lp-quote-btn" id="lp-quote-btn" type="button" style="display:none">
-        ${ICON.quote(13)}<span>Comment on this text</span>
+        ${ICON.quote(13)}<span>Note on this text</span>
       </button>
     </div>`;
 
@@ -1782,7 +1779,6 @@
     const pickerListNode = $('lp-picker-list');
     const pickerTitleNode = $('lp-picker-title');
     const pickerTypeNode = $('lp-picker-type');
-    const lastCardNode = $('lp-last-card');
     const verdictNode = $('lp-verdict');
     const composeHead = $('lp-compose-head');
     let composeHeadHtml = null;
@@ -2582,7 +2578,7 @@
         toastNode.style.display = state.target ? 'flex' : 'none';
         toastText.textContent = state.addAnchor
             ? 'Click to add another element'
-            : 'Click to comment';
+            : 'Click to add a note';
         // offsetHeight only reads correctly once the toast is shown, so position after.
         if (state.target) positionToast();
         // Every toast shares one resting edge, so the mode the reviewer is in wins.
@@ -2631,7 +2627,7 @@
             return 'That card is closed or gone. Choose where your notes go, then save again.';
         }
         if (error && error.status === 404) {
-            return 'Your agent has already picked that comment up, so it can’t be changed now.';
+            return 'Your agent has already picked that note up, so it can’t be changed now.';
         }
         // A widget-side refusal carries its own wording and no HTTP status.
         if (error && !error.status && error.message) return error.message;
@@ -3100,29 +3096,16 @@
 
         // composer
         // A new note shows where it goes, and this row is how the reviewer
-        // changes that. An edit changes the body alone, so it hides the row.
+        // changes that. An edit changes the body alone, and the row says so.
         const newNote = composing() && state.editId == null;
-        contextNode.style.display = newNote ? 'flex' : 'none';
+        contextNode.style.display = composing() ? 'flex' : 'none';
         if (state.view === 'destination') renderPickerMode();
-        // A per-note save makes a card nobody chose, so the panel names it
-        // and links to it until the next note starts.
-        const lastCard = composing() ? null : state.lastCard;
-        lastCardNode.style.display = lastCard ? 'flex' : 'none';
-        if (lastCard) {
-            lastCardNode.textContent = 'Saved as ';
-            const link = document.createElement(lastCard.url ? 'a' : 'span');
-            link.className = 'lp-context-label';
-            link.textContent = lastCard.label;
-            link.title = lastCard.label;
-            if (lastCard.url) {
-                link.href = lastCard.url;
-                link.target = '_blank';
-                link.rel = 'noopener';
-            }
-            lastCardNode.appendChild(link);
-        }
         renderVerdict();
-        if (newNote) {
+        if (composing() && !newNote) {
+            contextNode.textContent = 'Only the text of a note can change.';
+            contextNode.dataset.role = 'edit-hint';
+        } else if (newNote) {
+            delete contextNode.dataset.role;
             // The icon carries "which board thing", so the words that said it
             // are gone: two rows of muted prose under the textarea read as
             // clutter, and the card is context rather than an instruction.
@@ -3190,7 +3173,7 @@
                 // The hold points a page note at an element and keeps the draft, so the
                 // note says the key does something rather than changing type in silence.
                 headHtml =
-                    `<span class="lp-compose-general"><span class="lp-dot"></span>General comment</span>` +
+                    `<span class="lp-compose-general"><span class="lp-dot"></span>General note</span>` +
                     strokeChip +
                     (state.editId == null
                         ? `<span class="lp-compose-hint">Hold ${MOD_LABEL} to point at an element</span>`
@@ -3368,8 +3351,8 @@
                 ? `Delete 1 note on ${cardTitle}? Your agent may have it already.`
                 : `Delete all ${n} notes on ${cardTitle}? Your agent may have them already.`
             : n === 1
-              ? 'Delete this comment? Your agent may have it already.'
-              : `Delete all ${n} comments? Your agent may have them already.`;
+              ? 'Delete this note? Your agent may have it already.'
+              : `Delete all ${n} notes? Your agent may have them already.`;
         $('lp-clear-confirm-text').textContent = confirmText;
 
         fitPanel(opening);
@@ -3420,7 +3403,7 @@
     };
     const buildItemConfirm = (index) =>
         `<div class="lp-item-confirm">
-       <span class="lp-item-confirm-text">Delete this comment?</span>
+       <span class="lp-item-confirm-text">Delete this note?</span>
        <button class="lp-danger-sm" data-del-yes="${index}">Delete</button>
        <button class="lp-ghost-sm" data-del-no="${index}">Cancel</button>
      </div>`;
@@ -3449,7 +3432,7 @@
                 row.innerHTML =
                     `<span class="lp-badge"></span>` +
                     `<div class="lp-item-body"><div class="lp-item-text"></div><span class="lp-chip" style="display:none"></span>` +
-                    `<button class="lp-item-page" style="display:none" aria-label="Go to the page this comment was made on">` +
+                    `<button class="lp-item-page" style="display:none" aria-label="Go to the page this note was made on">` +
                     `<span class="lp-item-page-label"></span>${ICON.arrowOut(11)}</button></div>` +
                     `<button class="lp-row-menu-btn" aria-label="Note actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(14)}</button>`;
                 row.addEventListener('mouseenter', () => {
@@ -3504,7 +3487,7 @@
             chipEl.style.display = showChip ? '' : 'none';
             chipEl.classList.toggle('degraded', isElement && degraded);
             if (showChip)
-                chipEl.textContent = isElement ? label : 'General comment';
+                chipEl.textContent = isElement ? label : 'General note';
             // Only cross-page comments get the affordance: on the current page the row
             // already highlights its element, and a label saying "here" is noise.
             const pageEl = row.querySelector('.lp-item-page');
@@ -3646,7 +3629,7 @@
         if (typeof data.code !== 'string' || data.error) {
             showSignedOut(
                 'access_denied' === data.error
-                    ? 'Sign-in was cancelled. Your comments go to the Loupe project of this site.'
+                    ? 'Sign-in was cancelled. Your notes go to the Loupe project of this site.'
                     : 'Sign-in failed. Try again.',
             );
             return;
@@ -4665,7 +4648,15 @@
         pickerTitleNode.value = `Review: ${location.pathname}`;
         sync();
         loadPickerCards('');
-        pickerSearchNode.focus({ preventScroll: true });
+        // The title is the one field the common case needs, so it takes the
+        // focus; an epic or an existing card starts from the search.
+        if (mode === 'per-review') {
+            pickerTitleNode.focus({ preventScroll: true });
+            const end = pickerTitleNode.value.length;
+            pickerTitleNode.setSelectionRange(end, end);
+        } else {
+            pickerSearchNode.focus({ preventScroll: true });
+        }
     };
     root.querySelectorAll('#lp-picker-modes [data-mode]').forEach((button) =>
         button.addEventListener('click', () => pickMode(button.dataset.mode)),
@@ -4917,7 +4908,7 @@
         const body = state.draft.trim();
         if (!body || state.saving) return;
         const editing = state.editId != null;
-        let savedCard = null;
+        let savedLabel;
         state.saving = true;
         state.actionError = null;
         updatePanel();
@@ -4930,10 +4921,13 @@
                 const target = comments.find((c) => c.id === state.editId);
                 if (!target)
                     throw Object.assign(new Error('HTTP 404'), { status: 404 });
-                await api('PATCH', `/api/site-review/comments/${target.id}`, {
-                    body,
-                });
+                const updated = await api(
+                    'PATCH',
+                    `/api/site-review/comments/${target.id}`,
+                    { body },
+                );
                 target.body = body;
+                savedLabel = (updated && updated.label) || null;
             } else {
                 // Read after the boot load, which may have refused the stored card.
                 const destination = activeTarget();
@@ -5023,10 +5017,7 @@
                     }
                     if (stale) refresh().then(sync);
                 }
-                savedCard =
-                    destination.mode === 'per-review'
-                        ? null
-                        : { label: saved.label, url: saved.url };
+                savedLabel = saved.label || targetLabel(destination);
             }
             state.deliveryId = null;
             resetView();
@@ -5040,13 +5031,10 @@
             state.strokes = [];
             textareaNode.value = '';
             setDrawing(false);
-            state.lastCard = savedCard;
             flashSaved(
-                editing
-                    ? 'Comment updated'
-                    : savedCard
-                      ? `Comment saved as ${savedCard.label}`
-                      : 'Comment saved',
+                savedLabel
+                    ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
+                    : 'Note updated',
             );
         } catch (error) {
             // A rejected token is fatal; anything else keeps the composer open with the text

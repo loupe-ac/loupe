@@ -751,6 +751,8 @@ final class SiteReviewApiTest extends WebTestCase
 
         $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/'.$id, $raw, ['body' => 'edited']);
         self::assertResponseIsSuccessful();
+        // The edit answers with the card, so the widget names it in its notice.
+        self::assertMatchesRegularExpression('/^#\d+ /', json_decode((string) $client->getResponse()->getContent(), true)['label']);
 
         $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
         self::assertSame('edited', json_decode((string) $client->getResponse()->getContent(), true)['comments'][0]['body']);
