@@ -63,7 +63,9 @@ test.describe('home page', () => {
         await documentReview.click();
         await expect(documentReview).toHaveAttribute('aria-pressed', 'true');
         await expect(
-            page.getByText('Product and tech designs arrive rendered.'),
+            page.getByText(
+                'Product and tech designs arrive rendered, after a second agent has reviewed them.',
+            ),
         ).toBeVisible();
         await expect(
             page.locator('.lp-home-slide[aria-hidden="false"]'),

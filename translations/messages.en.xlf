@@ -4484,7 +4484,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.product_design.text">
                 <source>landing.workflow.step.product_design.text</source>
-                <target>An agent drafts the product document and a clickable prototype, or you shape them together in a session. You review them before any code.</target>
+                <target>An agent drafts the product document and a clickable prototype, or you shape them together in a session. A second agent reviews the draft first. You review it before any code.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.tech_design.title">
                 <source>landing.workflow.step.tech_design.title</source>
@@ -4492,7 +4492,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.tech_design.text">
                 <source>landing.workflow.step.tech_design.text</source>
-                <target>An agent writes the technical design from the approved product. You comment, then approve.</target>
+                <target>An agent writes the technical design from the approved product. A second agent reviews the draft first. You comment, then approve.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.implementation.title">
                 <source>landing.workflow.step.implementation.title</source>
@@ -4508,7 +4508,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.agent_review.text">
                 <source>landing.workflow.step.agent_review.text</source>
-                <target>A second agent reviews the change against the design. Fix rounds run until it passes.</target>
+                <target>A second agent reviews the change against the approved design. Fix rounds run until it passes.</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.site_review.title">
                 <source>landing.workflow.step.site_review.title</source>
@@ -4584,7 +4584,7 @@
             </trans-unit>
             <trans-unit id="landing.features.document_review.text">
                 <source>landing.features.document_review.text</source>
-                <target>Product and tech designs arrive rendered. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
+                <target>Product and tech designs arrive rendered, after a second agent has reviewed them. Comment on any line, suggest a rewrite, then approve. The agent revises with your notes in place.</target>
             </trans-unit>
             <trans-unit id="landing.features.document_review.caption">
                 <source>landing.features.document_review.caption</source>
@@ -4608,7 +4608,7 @@
             </trans-unit>
             <trans-unit id="landing.features.agent_review.text">
                 <source>landing.features.agent_review.text</source>
-                <target>A second agent reviews every pull request against the approved design, and sends it back for fixes before you see it.</target>
+                <target>A second agent reviews every design and every pull request, and sends it back for fixes before you see it. A pull request is checked against the approved design.</target>
             </trans-unit>
             <trans-unit id="landing.features.agent_review.caption">
                 <source>landing.features.agent_review.caption</source>
