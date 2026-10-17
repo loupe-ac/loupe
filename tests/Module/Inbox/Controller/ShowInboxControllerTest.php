@@ -596,6 +596,39 @@ final class ShowInboxControllerTest extends WebTestCase
         self::assertCount(0, $source->filter('[data-inbox-card]'));
     }
 
+    public function test_the_byline_of_a_blocking_ask_names_the_card_that_waits_and_a_non_blocking_one_does_not(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-byline-wait');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Checkout', body: 'Body', number: 7);
+        $this->em->persist($card);
+        $question = $this->question($this->em, $project, 1, title: 'Which format?');
+        $todo = $this->todo($this->em, $project, 2);
+        foreach ([$question, $todo] as $item) {
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $this->em->flush();
+        $questionAsk = $this->askHolding($this->em, $project, [$question]);
+        $todoAsk = $this->askHolding($this->em, $project, [$todo]);
+        $this->setInboxFlag(true);
+        $this->client->loginUser($owner);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$questionAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-inbox-ask__byline [data-inbox-kind-label]', 'Question');
+        $link = $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]');
+        self::assertSame('#7', $link->text());
+        self::assertSame('/projects/'.$project->id.'/board/cards/'.$card->id, $link->attr('href'));
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$todoAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Review pull request 482');
+        self::assertCount(0, $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]'));
+    }
+
     public function test_the_row_icon_is_the_first_open_item_of_an_open_ask_and_the_first_item_of_a_closed_one(): void
     {
         $owner = $this->signedUpUser($this->em, 'inbox-row-icon');
