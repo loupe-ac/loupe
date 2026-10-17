@@ -68,6 +68,13 @@
             : '';
     let lastSeenPreviewToken = PREVIEW_TOKEN;
     let refreshGeneration = 0;
+    // The newest list request, and whether it has no answer yet.
+    let listReady = Promise.resolve();
+    let refreshPending = false;
+    // Whether `comments` can miss notes of the scope, after a save pushed a
+    // card out. Only a scoped read that succeeds clears it, and Delete all
+    // waits for one.
+    let scopeUnread = false;
     // Every comment is saved to the API as it is written and is live from that
     // moment — there is no send step. `comments` mirrors the project's Pending
     // comments, the ones this reviewer may still edit or delete; once the agent marks
@@ -76,6 +83,9 @@
     // how elements relate, none for a page note, and quoting when it points at a run of
     // text inside its element rather than at the whole element.
     let comments = [];
+    // Counts the scope switches. A save that began under an older scope
+    // keeps its note out of the new list.
+    let scopeGeneration = 0;
     // Whether this instance offers freehand drawing. The boot load carries it,
     // because the embed snippet lives in someone else's page and nobody re-pastes
     // it. Off until the server says otherwise: a widget that offered a control
@@ -126,6 +136,49 @@
     // { mode, cardId, label, url }. The label arrives when the boot load
     // confirms the card, or from the picker that chose it.
     let storedTarget = readStoredTarget();
+    // The cards this tab made for its notes, newest first. A per-note review
+    // lists them and nothing else, and the list lives in session storage so a
+    // reload keeps it while a new tab starts empty.
+    const SESSION_CARDS_KEY = `loupe-site-review:session-cards:${BACKEND}:${PROJECT}`;
+    const SESSION_CARDS_SENT = 50; // the server reads this many ids at most
+    const SESSION_CARDS_KEPT = 200;
+    const readSessionCards = () => {
+        try {
+            const stored = JSON.parse(
+                window.sessionStorage.getItem(SESSION_CARDS_KEY) || '[]',
+            );
+            return Array.isArray(stored)
+                ? stored.filter((id) => typeof id === 'string' && id)
+                : [];
+        } catch {
+            return [];
+        }
+    };
+    let sessionCards = readSessionCards();
+    const writeSessionCards = (ids) => {
+        sessionCards = ids;
+        try {
+            if (ids.length) {
+                window.sessionStorage.setItem(
+                    SESSION_CARDS_KEY,
+                    JSON.stringify(ids),
+                );
+            } else {
+                window.sessionStorage.removeItem(SESSION_CARDS_KEY);
+            }
+        } catch {
+            /* storage unavailable — the list still holds for this page */
+        }
+    };
+    const rememberSessionCard = (cardId) => {
+        if (typeof cardId !== 'string' || !cardId) return;
+        writeSessionCards(
+            [cardId, ...sessionCards.filter((id) => id !== cardId)].slice(
+                0,
+                SESSION_CARDS_KEPT,
+            ),
+        );
+    };
     // The card a preview page names. It wins over the stored mode and never
     // changes it. A broken lock refuses notes rather than filing them elsewhere.
     const lockFor = (marker) => {
@@ -142,6 +195,19 @@
     };
     const bootMarker = () =>
         lock ? `card:${lock.cardId}` : markerOf(storedTarget);
+    // The notes the list shows. An open review with no destination yet asks
+    // for no cards, so it lists nothing. A broken lock still asks, because the
+    // answer is how the widget learns the card is gone.
+    const scopeOf = () => {
+        if (lock) return `card:${lock.cardId}`;
+        const target = storedTarget;
+        if (target && target.mode === 'per-review') {
+            return `card:${target.cardId}`;
+        }
+        if (target && target.mode === 'epic') return `epic:${target.cardId}`;
+
+        return `cards:${sessionCards.slice(0, SESSION_CARDS_SENT).join(',')}`;
+    };
     // What a save sends notes to, or null while the reviewer must choose.
     const activeTarget = () => {
         if (!lock) return storedTarget;
@@ -175,12 +241,12 @@
     // usually still in flight: a shared flag made Create do nothing at all.
     let pickerCreating = false;
     const MAX_ANCHORS = 10; // AddCommentRequest's cap — over it the API 422s
-    const AT_CAP_MESSAGE = `A comment can point at ${MAX_ANCHORS} elements at most.`;
+    const AT_CAP_MESSAGE = `A note can point at ${MAX_ANCHORS} elements at most.`;
     // AddCommentRequest's caps for the drawing. A stroke past the point cap stops
     // growing rather than 422ing the save the reviewer already committed to.
     const MAX_STROKES = 50;
     const MAX_STROKE_POINTS = 500;
-    const AT_STROKE_CAP_MESSAGE = `A comment can carry ${MAX_STROKES} strokes at most.`;
+    const AT_STROKE_CAP_MESSAGE = `A note can carry ${MAX_STROKES} strokes at most.`;
     const MIN_POINT_GAP = 2; // px of pointer travel before another point is kept
     // SiteReviewAnchorInput caps quote, quotePrefix and quoteSuffix at 2000 each. The
     // widget refuses well under that, because a quote long enough to approach it is a
@@ -198,6 +264,7 @@
     );
     const MOD_KEY = IS_MAC ? 'Meta' : 'Control';
     const MOD_LABEL = IS_MAC ? '⌘' : 'Ctrl';
+    const ALT_LABEL = IS_MAC ? '⌥' : 'Alt';
     const modHeld = (event) => (IS_MAC ? event.metaKey : event.ctrlKey);
 
     // Anchors of a comment, tolerating a pre-anchors server that sends only the
@@ -421,10 +488,11 @@
         setTargeting(false);
         setDrawing(false);
         state.strokes = [];
-        state.composing = false;
         state.composeTarget = null;
         state.editId = null;
-        state.picking = false;
+        // A signed-out reviewer gets the sign-in view, and any other refusal
+        // replaces the views with the error panel.
+        resetView('signed_out' === state.fatal.code ? 'signin' : 'list');
         pickerMode = null;
         state.draft = '';
         state.actionError = null;
@@ -434,23 +502,28 @@
     };
 
     // Rehydrate the list from the project's Pending comments.
-    const refresh = async ({ firstLoad = false } = {}) => {
+    const refresh = (options) => (listReady = loadList(options));
+    const loadList = async ({ firstLoad = false } = {}) => {
         // The marker this answer will describe, read once. Navigation or a new
         // choice can change it while the request is in flight, and an answer
         // about one card must not label another.
         const asked = bootMarker();
+        const scope = scopeOf();
         const generation = ++refreshGeneration;
+        refreshPending = true;
         try {
             const payload = await api(
                 'GET',
-                '/api/site-review/review' +
-                    (asked ? '?context=' + encodeURIComponent(asked) : ''),
+                '/api/site-review/review?scope=' +
+                    encodeURIComponent(scope) +
+                    (asked ? '&context=' + encodeURIComponent(asked) : ''),
             );
             // Before anything is written. A superseded answer is a snapshot
             // from before the newer one, so letting it through would resurrect
             // a deleted comment or drop a new one, not only mislabel the card.
             if (generation !== refreshGeneration) return;
             comments = payload.comments || [];
+            scopeUnread = false;
             drawingEnabled = true === payload.drawingEnabled;
             parentTypes = Array.isArray(payload.parentTypes)
                 ? payload.parentTypes
@@ -491,6 +564,8 @@
                 // load has nothing to keep.
                 comments = [];
             }
+        } finally {
+            if (generation === refreshGeneration) refreshPending = false;
         }
     };
 
@@ -913,6 +988,9 @@
         '--scrim': 'rgba(24,29,24,.28)',
         '--status-ok': '#2f9e5c',
         '--status-danger': '#c2372b',
+        '--on-danger': '#ffffff',
+        '--warn': '#7a4f00',
+        '--warn-soft': '#fbf1d9',
     };
     // The app itself is light-only. These values exist in the widget alone, built
     // from the dark shell rungs, so a widget on a dark host page still reads as Loupe.
@@ -935,6 +1013,9 @@
         '--scrim': 'rgba(0,0,0,.45)',
         '--status-ok': '#4ab97a',
         '--status-danger': '#e4685c',
+        '--on-danger': '#20241f',
+        '--warn': '#f0b54a',
+        '--warn-soft': '#3a3016',
     };
 
     // Inline SVG icons — this widget is embedded on third-party sites with no access
@@ -980,6 +1061,7 @@
                 2,
             ),
         chevron: (s) => svg(s, '<polyline points="6 9 12 15 18 9"/>', 2.2),
+        back: (s) => svg(s, '<polyline points="15 18 9 12 15 6"/>', 2),
         trash: (s) =>
             svg(
                 s,
@@ -1010,11 +1092,11 @@
                 '<path d="M9 7H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v1a3 3 0 0 1-3 3"/><path d="M19 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v1a3 3 0 0 1-3 3"/>',
                 1.9,
             ),
-        corners: (s) =>
+        more: (s) =>
             svg(
                 s,
-                '<path d="M4 9V4h5"/><path d="M15 4h5v5"/><path d="M20 15v5h-5"/><path d="M9 20H4v-5"/>',
-                1.9,
+                '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
+                2,
             ),
         alert: (s) =>
             svg(
@@ -1066,10 +1148,10 @@
         // pixels. They become fractions at save time, never before, because the
         // page can scroll or the anchor can change between the drag and the save.
         strokes: [],
-        composing: false,
-        // The card picker is open. Composer state, so cancelling a comment
-        // closes it too.
-        picking: false,
+        // The panel shows one view at a time. `stack` holds the views beneath
+        // it, so Back returns to whichever view opened the current one.
+        view: 'list', // 'list' | 'compose' | 'finish' | 'destination' | 'signin'
+        stack: [],
         // { type:'general' } | { type:'element', anchors: [{ el, selector, text, label }] }
         composeTarget: null,
         draft: '',
@@ -1078,7 +1160,6 @@
         addAnchor: false, // the add-another-element modifier is held down
         modCancelled: false, // another key went down during this hold, so it adds nothing
         editId: null, // server id of the comment being edited in place, or null for a new one
-        listExpanded: false,
         expandLevel: 0,
         corner: readCorner(), // which corner the launcher and the panel are pinned to
         toastDock: 'top', // 'top' | 'bottom' — the pick-mode toast dodges away from the cursor
@@ -1093,13 +1174,35 @@
         saving: false,
         deleting: false,
         savedNotice: null, // brief "it is live now" toast text, cleared on a timer
-        lastCard: null, // { label, url } of the card the last per-note save made
         actionError: null, // failed mutation (network/5xx/429/404): a dismissible inline banner
         fatal: null, // { status } once the token is rejected (401/403) — replaces the panel
     };
     let moveBase = null; // deepest element under the cursor while picking
     let pinCloseTimer = 0;
     let liveStroke = null; // the stroke under the pointer right now, or null
+
+    // A note is being written whenever the composer holds a target, whichever
+    // view is on top of it: the destination view opens over a half-written note.
+    const composing = () => state.composeTarget !== null;
+    // Showing a view that is already beneath the current one returns to it, so
+    // two views are never open at once and the stack never holds a repeat.
+    const showView = (view) => {
+        if (state.view === view) return;
+        const at = state.stack.lastIndexOf(view);
+        if (at !== -1) {
+            state.stack = state.stack.slice(0, at);
+        } else {
+            state.stack = [...state.stack, state.view];
+        }
+        state.view = view;
+    };
+    const backView = () => {
+        state.view = state.stack.length ? state.stack.pop() : 'list';
+    };
+    const resetView = (view = 'list') => {
+        state.view = view;
+        state.stack = [];
+    };
 
     // --- Shadow-DOM UI host (launcher + panel), isolated from host-page CSS. ---
     const host = document.createElement('div');
@@ -1133,15 +1236,18 @@
          a resize back into view on its own. */
       @media (max-width:639px),(hover:none) and (pointer:coarse){:host{display:none}}
       @keyframes lp-spin{to{transform:rotate(360deg)}}
+      @keyframes lp-fade{from{opacity:0}to{opacity:1}}
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-pop-down{from{transform:translateY(-8px) scale(.985)}to{transform:none}}
       @keyframes lp-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
       @keyframes lp-slide-left-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+      button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      .lp-launcher button:focus-visible{outline-color:var(--accent)}
       .lp-scroll::-webkit-scrollbar{width:10px;height:10px}
-      .lp-scroll::-webkit-scrollbar-thumb{background:var(--text-dim);border-radius:9px;border:3px solid transparent;background-clip:content-box}
+      .lp-scroll::-webkit-scrollbar-thumb{background:var(--text-dim);border-radius:6px;border:3px solid transparent;background-clip:content-box}
       .lp-scroll::-webkit-scrollbar-track{background:transparent}
 
-      .lp-launcher{position:fixed;right:20px;bottom:20px;height:46px;padding:0 7px;display:flex;align-items:center;gap:0;background:var(--chrome);border:1px solid var(--chrome-line);border-radius:999px;box-shadow:var(--bar-shadow);font-family:var(--font);pointer-events:auto;cursor:grab;user-select:none;-webkit-user-select:none;transition:box-shadow .14s ease,background .25s ease}
+      .lp-launcher{position:fixed;right:20px;bottom:20px;height:44px;padding:0 7px;display:flex;align-items:center;gap:0;background:var(--chrome);border:1px solid var(--chrome-line);border-radius:999px;box-shadow:var(--bar-shadow);font-family:var(--font);pointer-events:auto;cursor:grab;user-select:none;-webkit-user-select:none;transition:box-shadow .14s ease,background .25s ease}
       /* Corner placement. Only the two offsets move: the launcher keeps one
          shape in every corner, so the open/close collapse is untouched. */
       .lp-launcher.at-left{right:auto;left:20px}
@@ -1155,47 +1261,70 @@
          .24s delay) so the buttons are genuinely non-interactive once gone, and back
          immediately on expand. */
       /* max-width is the collapse animation's start, so it has to clear the row
-         and stay near it. Three actions and the divider measure 118px, and the
+         and stay near it. Three actions and the divider measure 124px, and the
          travel above that is time the collapse spends going nowhere. */
       .lp-launch-quick{display:flex;align-items:center;gap:3px;overflow:hidden;max-width:130px;opacity:1;visibility:visible;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s 0s}
       .lp-launcher.open .lp-launch-quick{max-width:0;opacity:0;visibility:hidden;transition:max-width .24s cubic-bezier(.4,0,.2,1),opacity .18s ease,visibility 0s .24s}
-      .lp-launch-action{flex:0 0 auto;width:34px;height:34px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
+      .lp-launch-action{flex:0 0 auto;width:36px;height:36px;border:0;background:transparent;color:var(--chrome-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s ease,color .14s ease}
       .lp-launch-action:hover{background:var(--chrome-raised);color:var(--accent)}
-      .lp-launch-div{flex:0 0 auto;width:1px;height:22px;background:var(--chrome-line);margin:0 3px}
+      .lp-launch-action.on,.lp-launch-action.on:hover{padding:5px;background:var(--accent);background-clip:content-box;color:var(--ink)}
+      .lp-launch-dot{flex:0 0 auto;width:8px;height:8px;border-radius:999px;background:var(--chrome-mute)}
+      .lp-launch-div{flex:0 0 auto;width:1px;height:24px;background:var(--chrome-line);margin:0 3px}
       /* A label and not a control: the launcher's chrome weight, no hover state
          and no pointer target of its own, so a press still drags the bar. */
-      .lp-local{flex:0 0 auto;height:22px;margin:0 5px 0 3px;padding:0 8px;display:inline-flex;align-items:center;background:var(--chrome-raised);border:1px solid var(--chrome-line);border-radius:999px;color:var(--chrome-mute);font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-      .lp-launch-main{display:flex;align-items:center;gap:9px;height:38px;padding:0 10px 0 9px;background:transparent;border:0;color:var(--chrome-fg);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border-radius:999px;transition:background .14s ease}
+      .lp-local{flex:0 0 auto;height:24px;margin:0 5px 0 3px;padding:0 8px;display:inline-flex;align-items:center;background:var(--chrome-raised);border:1px solid var(--chrome-line);border-radius:999px;color:var(--chrome-mute);font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+      .lp-launch-main{display:flex;align-items:center;gap:9px;height:32px;padding:0 10px 0 9px;background:transparent;border:0;color:var(--chrome-fg);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border-radius:999px;transition:background .14s ease}
       .lp-launch-main:hover{background:var(--chrome-raised)}
       /* Styled tooltips for the launcher buttons, above each on hover. */
       [data-tip]{position:relative}
-      [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(3px);padding:5px 10px;background:var(--chrome-raised);border:1px solid var(--chrome-line);color:var(--chrome-fg);font-size:11.5px;font-weight:500;line-height:1.4;white-space:nowrap;border-radius:999px;box-shadow:var(--bar-shadow);opacity:0;pointer-events:none;transition:opacity .12s ease,transform .12s ease}
+      [data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(3px);padding:5px 10px;background:var(--chrome-raised);border:1px solid var(--chrome-line);color:var(--chrome-fg);font-size:12px;font-weight:500;line-height:1.4;white-space:nowrap;border-radius:999px;box-shadow:var(--bar-shadow);opacity:0;pointer-events:none;transition:opacity .12s ease,transform .12s ease}
       [data-tip]:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
       /* A tooltip above a launcher docked at the top would sit off screen, so
          it hangs below instead. The hover rule is restated because the corner
          selector outranks the plain one. */
       .lp-launcher.at-top [data-tip]::after{bottom:auto;top:calc(100% + 8px);transform:translateX(-50%) translateY(-3px)}
       .lp-launcher.at-top [data-tip]:hover::after{transform:translateX(-50%) translateY(0)}
-      .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 7px;border-radius:999px;font-size:11.5px;font-weight:700}
+      .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;font-size:12px;font-weight:700}
       .lp-count.solid{background:var(--accent);color:var(--ink)}
       .lp-count.soft{background:var(--accent-soft);color:var(--accent-ink)}
-      .lp-count.danger{background:var(--status-danger);color:#fff}
+      .lp-count.danger{background:var(--status-danger);color:var(--on-danger)}
 
-      .lp-panel{position:fixed;right:20px;bottom:78px;width:348px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-pop .2s cubic-bezier(.2,.9,.3,1);transition:background .25s ease,border-color .25s ease}
+      .lp-panel{position:fixed;right:20px;bottom:78px;width:360px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-pop .2s cubic-bezier(.2,.9,.3,1);transition:height .3s cubic-bezier(.2,.9,.3,1),background .25s ease,border-color .25s ease}
       /* The panel opens away from the launcher's edge. 78px clears the 46px
          launcher plus its 20px inset, and the 160px max-height budget covers
          that offset at either end, so no corner grows off screen. */
       .lp-panel.at-left{right:auto;left:20px}
       .lp-panel.at-top{bottom:auto;top:78px;animation-name:lp-pop-down}
-      .lp-main{display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
-      .lp-header{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:14px 14px 12px 17px}
-      .lp-title{font-size:15px;font-weight:700;letter-spacing:-.01em}
+      /* Every view stays mounted and sits over the panel's box. The panel's
+         height follows the current view, which JS measures. A view that is
+         not current hides with visibility after its slide, so Tab and the
+         accessibility tree skip it, and takes it back at once when it returns:
+         a focus call right after a switch never waits on the animation. */
+      .lp-views{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;overflow:clip}
+      .lp-view{position:absolute;left:0;top:0;width:100%;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear 0s}
+      .lp-view.is-under{transform:translateX(-28%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear .34s}
+      .lp-view.is-away{transform:translateX(100%);visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),visibility 0s linear .34s}
+      @media (prefers-reduced-motion:reduce){.lp-panel,.lp-view,.lp-view.is-under,.lp-view.is-away,.lp-menu{transition:none;animation:none}}
+      .lp-hd{flex:0 0 auto;display:flex;align-items:flex-start;gap:4px;padding:12px 10px 12px 16px;border-bottom:1px solid var(--border-faint)}
+      .lp-hd--back{align-items:center;padding-left:8px}
+      .lp-hd-text{flex:1 1 auto;min-width:0}
+      .lp-title{min-height:32px;display:flex;align-items:center;font-size:15px;font-weight:600;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-hd-text .lp-title{display:block;min-height:0;margin-top:6px}
+      .lp-hd--back .lp-hd-text .lp-title{margin-top:0}
+      .lp-sub{margin-top:2px;font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-dest{max-width:100%;height:32px;margin-left:-8px;padding:0 6px 0 8px;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;background:transparent;color:var(--text);font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+      .lp-dest:hover{background:var(--bg-sunken)}
+      .lp-dest span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-dest svg{flex:0 0 auto}
+      .lp-body{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:6px}
+      .lp-section{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+      .lp-view-body{flex:1 1 auto;min-height:0;overflow:auto;padding:0 16px 16px}
       .lp-spacer{flex:1}
-      .lp-iconbtn{width:28px;height:28px;border:0;background:transparent;color:var(--text-mute);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+      .lp-iconbtn{width:32px;height:32px;border:0;background:transparent;color:var(--text-mute);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}
       .lp-iconbtn:hover{background:var(--surface-2);color:var(--text)}
       .lp-iconbtn:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
 
-      .lp-context{display:flex;align-items:flex-start;gap:5px;margin-top:6px;font-size:11.5px;line-height:1.4;color:var(--text-mute);white-space:nowrap}
+      .lp-context{display:flex;align-items:flex-start;gap:5px;margin-top:6px;font-size:12px;line-height:1.4;color:var(--text-mute);white-space:nowrap}
       .lp-context svg{flex:0 0 auto;opacity:.75;margin-top:1.5px}
       /* The icon replaced the words "Saves to" on screen. A screen reader would
          otherwise hear a bare card title with nothing saying what it is for. */
@@ -1204,7 +1333,7 @@
          this shadow root, and hardcoding light values put a white panel inside
          the dark widget. */
       .lp-picker{margin-top:8px;border:1px solid var(--border-faint);border-radius:10px;padding:8px;background:var(--surface-2)}
-      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-search::placeholder{color:var(--text-dim)}
       .lp-picker-search:focus{border-color:var(--accent-border);background:var(--field-focus)}
       .lp-picker-list{max-height:min(132px,20vh);overflow:auto;margin-top:6px}
@@ -1214,10 +1343,10 @@
          invisible; every other fill measured under 1.2:1 against the panel in
          light, where the whole palette is pale. The 1px edge is what carries
          light mode: a crisp border reads where a wash does not. */
-      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border);outline:none}
+      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border)}
       .lp-picker-row:hover .n,.lp-picker-row:focus-visible .n{color:var(--accent-ink)}
       .lp-picker-row .n{color:var(--text-mute);margin-right:5px}
-      .lp-picker-note{padding:6px;font-size:11.5px;color:var(--text-mute)}
+      .lp-picker-note{padding:6px;font-size:12px;color:var(--text-mute)}
       .lp-picker-foot{display:flex;align-items:center;gap:8px;margin-top:6px}
       .lp-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
       /* A card title runs to 255 characters and the composer is a fixed height
@@ -1232,36 +1361,40 @@
          runs to two lines at most, so it wraps where a card title ellipses. */
       .lp-context-label[data-wrap]{white-space:normal;overflow:visible}
       .lp-picker-foot .lp-picker-search{flex:1 1 auto}
-      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:8px;padding:6px 8px;font:inherit;font-size:12px;outline:none}
+      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
-      .lp-last-card{margin:6px 0 0}
-      .lp-verdict{flex:0 1 auto;min-height:0;overflow:auto;margin:0 14px 12px;font-size:12px;line-height:1.45;color:var(--text)}
-      .lp-verdict-row{display:flex;gap:6px}
-      .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:999px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
-      .lp-verdict-btn[data-kind="request-changes"]{flex:1.5}
-      .lp-verdict-btn:hover{background:var(--accent-fill)}
-      .lp-verdict-btn:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
-      .lp-verdict-form{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--bg-sunken)}
-      .lp-verdict-title{font-size:13px;font-weight:700;overflow-wrap:anywhere}
-      .lp-verdict-form .lp-textarea{min-height:56px;margin-top:8px;background:var(--surface-1)}
-      .lp-verdict-line{margin-top:6px;color:var(--text-mute)}
-      .lp-verdict-pr{display:flex;align-items:center;gap:6px;margin-top:6px;overflow-wrap:anywhere}
-      .lp-verdict-notes{margin:4px 0 0;padding-left:16px;color:var(--text-mute)}
-      .lp-verdict-notes li{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-verdict-warn{margin-top:6px;color:var(--accent-ink)}
-      .lp-verdict-error{margin-top:6px;color:var(--status-danger)}
-      .lp-verdict-foot{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:10px}
-      .lp-verdict-result{margin-top:8px;color:var(--text-mute)}
+      .lp-verdict{flex:1 1 auto;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px;font-size:12px;line-height:1.45;color:var(--text)}
+      .lp-verdict-set{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+      .lp-verdict-label{display:block;padding:0;margin-bottom:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+      .lp-verdict-set .lp-verdict-label{margin-bottom:0}
+      .lp-verdict-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+      .lp-verdict-opt.is-on{border-color:var(--accent-border);background:var(--accent-fill)}
+      .lp-verdict-opt input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--accent-ink)}
+      .lp-verdict-opt input:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      .lp-verdict-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px}
+      .lp-verdict-opt-d{display:block;margin-top:2px;color:var(--text-mute)}
+      .lp-verdict-pr{display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}
+      .lp-verdict-notes{display:flex;flex-direction:column;gap:8px}
+      .lp-verdict-note{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;align-items:start;color:var(--text-mute);overflow-wrap:anywhere}
+      .lp-verdict-n{width:20px;height:20px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--accent);color:var(--ink)}
+      .lp-verdict .lp-textarea{min-height:72px;border:1px solid var(--border);background:var(--field)}
+      .lp-verdict-line{color:var(--text-mute)}
+      .lp-verdict-warn{color:var(--warn)}
+      .lp-verdict-error{color:var(--status-danger)}
+      .lp-verdict-foot{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--border-faint);background:var(--surface-2)}
+      .lp-verdict-foot .lp-foot-action{flex:1 1 auto;width:auto}
+      .lp-verdict-foot .lp-ghost{height:40px;font-size:13px}
+      .lp-verdict-foot .lp-foot-action:disabled{opacity:.5;cursor:default}
+      .lp-verdict-result{color:var(--text-mute)}
       .lp-verdict-result a{color:var(--accent-ink)}
-      .lp-verdict-ok{margin-bottom:6px;color:var(--status-ok);font-weight:600}
-      .lp-composer{flex:0 0 auto;overflow:hidden;transition:max-height .27s cubic-bezier(.4,0,.2,1),opacity .2s ease}
-      .lp-composer-inner{padding:2px 16px 14px}
+      .lp-composer{flex:1 1 auto;min-height:0;overflow:auto}
+      .lp-composer-inner{padding:14px 16px 14px}
       /* The composer's height is fixed and it clips, so the chips scroll rather
          than push the textarea and the buttons out of the box. */
       .lp-compose-head{display:flex;align-items:center;gap:7px;margin-bottom:9px;min-height:21px;flex-wrap:wrap;max-height:90px;overflow-y:auto;overscroll-behavior:contain}
-      .lp-compose-general{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-mute)}
+      .lp-compose-general{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mute)}
       .lp-dot{width:7px;height:7px;border-radius:50%;border:1.5px dashed var(--text-dim)}
-      .lp-compose-chip{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;font-size:11px;font-weight:600;overflow:hidden}
+      .lp-compose-chip{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;font-size:11px;font-weight:600;overflow:hidden}
       .lp-compose-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       /* The pill names one anchor, so it is a control: point at it and its
          element is emphasised on the page, click it and the page scrolls to it. */
@@ -1271,25 +1404,26 @@
       .lp-chip-x{flex:0 0 auto;border:0;background:transparent;color:inherit;font-family:inherit;font-size:13px;line-height:1;padding:0;margin-right:-3px;cursor:pointer;opacity:.6}
       .lp-chip-x:hover{opacity:1}
       .lp-chip-x:focus-visible{opacity:1;outline:2px solid var(--accent-ink);outline-offset:2px;border-radius:999px}
-      .lp-compose-hint{flex:0 0 auto;height:21px;line-height:21px;color:var(--text-mute);font-size:11px;font-weight:600}
+      .lp-compose-hint{flex:0 0 auto;height:24px;line-height:24px;color:var(--text-mute);font-size:11px;font-weight:600}
       /* Borderless: the fill is the field, as everywhere else in the app. */
-      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:12px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;outline:none;transition:background .14s ease}
+      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;transition:background .14s ease}
       .lp-textarea:focus{background:var(--field-focus);box-shadow:inset 0 0 0 1px var(--accent-ink),0 0 0 3px var(--accent-soft)}
       .lp-textarea::placeholder{color:var(--text-dim)}
-      .lp-compose-foot{display:flex;align-items:center;margin-top:9px}
+      .lp-compose-foot{display:flex;align-items:center;gap:2px;margin-top:9px}
+      .lp-compose-foot .lp-iconbtn.on{background:var(--accent-soft);color:var(--accent-ink)}
       .lp-hint{font-size:11px;color:var(--text-dim)}
       .lp-mono{font-family:var(--mono)}
-      .lp-ghost{height:30px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-ghost{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-primary{height:30px;padding:0 15px;margin-left:4px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--ink);border:0;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .14s ease}
+      .lp-primary{height:32px;padding:0 15px;margin-left:4px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--ink);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:background .14s ease}
       .lp-primary:hover{background:var(--accent-hover)}
       .lp-primary[disabled]{opacity:.55;cursor:default}
 
       /* Three capture modes share one 320px row, so each label is one word and
          the keyboard hints moved to the docs. The full name stays the button's
          accessible name, which is what a screen reader and the specs read. */
-      .lp-actions{flex:0 0 auto;display:flex;gap:7px;padding:0 14px 12px}
-      .lp-action{flex:1;min-width:0;height:38px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:999px;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;border:0;background:var(--bg-sunken);color:var(--text);transition:background .15s ease,color .15s ease}
+      .lp-actions{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px}
+      .lp-action{flex:1;min-width:0;height:32px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;border:0;background:var(--bg-sunken);color:var(--text);transition:background .15s ease,color .15s ease}
       /* An icon is a flex item with a min-content width of zero, so a row one
          pixel too tight silently squashes it instead of overflowing. */
       .lp-action svg{flex:0 0 auto}
@@ -1300,175 +1434,204 @@
       .lp-action[disabled]{opacity:.5;cursor:default}
       .lp-action[disabled]:hover{background:var(--bg-sunken)}
 
-      .lp-error{margin:0 14px 10px;padding:9px 11px;display:flex;align-items:flex-start;gap:8px;background:color-mix(in srgb,var(--status-danger) 10%,transparent);border:1px solid color-mix(in srgb,var(--status-danger) 28%,transparent);border-radius:12px;font-size:12px;line-height:1.45;color:var(--status-danger)}
+      .lp-error{margin:0 14px 10px;padding:9px 11px;display:flex;align-items:flex-start;gap:8px;background:color-mix(in srgb,var(--status-danger) 10%,transparent);border:1px solid color-mix(in srgb,var(--status-danger) 28%,transparent);border-radius:10px;font-size:12px;line-height:1.45;color:var(--status-danger)}
       .lp-error span{flex:1;padding-top:2px}
-      .lp-error button{flex:0 0 auto;background:transparent;border:0;color:var(--status-danger);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:999px;padding:3px 9px}
+      .lp-error button{flex:0 0 auto;background:transparent;border:0;color:var(--status-danger);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-radius:10px;padding:3px 9px}
       .lp-error button:hover{background:color-mix(in srgb,var(--status-danger) 14%,transparent)}
 
-      .lp-empty-anim{flex:0 0 auto;overflow:hidden;transition:max-height .27s cubic-bezier(.4,0,.2,1),opacity .2s ease}
       .lp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px 26px 28px;gap:4px}
       .lp-empty-icon{width:42px;height:42px;border-radius:999px;background:var(--bg-sunken);display:flex;align-items:center;justify-content:center;color:var(--text-dim);margin-bottom:8px}
-      .lp-empty-title{font-size:13.5px;font-weight:700;color:var(--text)}
-      .lp-empty-sub{font-size:12.5px;color:var(--text-mute);line-height:1.5;max-width:210px}
+      .lp-empty-title{font-size:13px;font-weight:700;color:var(--text)}
+      .lp-empty-sub{font-size:12px;color:var(--text-mute);line-height:1.5;max-width:210px}
 
-      .lp-list-wrap{flex:0 1 auto;display:flex;flex-direction:column;min-height:0}
-      .lp-list-anim{overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1),opacity .2s ease}
-      .lp-list{max-height:248px;overflow:auto;border-top:1px solid var(--border-faint)}
       .lp-item{position:relative;overflow:hidden;display:flex;gap:11px;padding:12px 15px;border-bottom:1px solid var(--border-faint);cursor:default}
       .lp-item:hover{background:var(--surface-2)}
       .lp-item-confirm{position:absolute;inset:0;display:flex;align-items:center;gap:8px;padding:0 15px;background:var(--surface-1);animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
       .lp-item-confirm-text{flex:1;font-size:12px;color:var(--text);font-weight:500}
       /* The teardrop is the pin's silhouette, so an anchored comment's badge
          carries the same shape as the marker it points at. */
-      .lp-badge{flex:0 0 auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+      .lp-badge{flex:0 0 auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
       .lp-badge.element{border-radius:50% 50% 50% 2px;background:var(--accent);color:var(--ink)}
       .lp-badge.general{border-radius:50%;border:1.5px dashed var(--text-dim);color:var(--text-dim)}
+      .lp-badge.off{border-radius:50%;background:var(--bg-sunken);color:var(--text-mute)}
       .lp-item-body{flex:1;min-width:0}
       .lp-item-text{font-size:13px;line-height:1.5;color:var(--text);word-break:break-word}
-      .lp-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:19px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:10.5px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
-      .lp-chip.degraded{background:#fef3c7;color:#92400e}
+      .lp-chip{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:24px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:11px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
+      .lp-chip.degraded{background:var(--warn-soft);color:var(--warn)}
       /* Chip-shaped but a real button: it says which page the comment was made on
          and goes there. Only rendered when that page is not the current one. */
-      .lp-item-page{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:19px;padding:0 9px;background:transparent;border:1px solid var(--border-faint);color:var(--text-mute);border-radius:999px;font-family:inherit;font-size:10.5px;font-weight:600;max-width:100%;cursor:pointer}
-      .lp-item-page:hover{background:var(--bg-sunken);color:var(--accent-ink)}
+      .lp-item-page{display:inline-flex;align-items:center;gap:4px;margin-top:6px;height:24px;padding:0 9px;background:transparent;border:1px solid var(--border);color:var(--accent-ink);border-radius:6px;font-family:inherit;font-size:11px;font-weight:600;max-width:100%;cursor:pointer}
+      .lp-item-page:hover{background:var(--bg-sunken)}
       .lp-item-page-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      /* Sits before Edit, because it is the one that finishes a comment. */
-      .lp-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
-      .lp-resolve:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
-      .lp-edit:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;transition:opacity .12s ease}
-      .lp-del:hover{opacity:1;background:var(--bg-sunken);color:var(--status-danger)}
-      .lp-danger-sm{flex:0 0 auto;height:25px;padding:0 11px;background:var(--status-danger);color:#fff;border:0;border-radius:999px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
-      .lp-ghost-sm{height:25px;padding:0 9px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:11.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-row-menu-btn{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+      .lp-row-menu-btn:hover,.lp-row-menu-btn[aria-expanded="true"]{background:var(--bg-sunken);color:var(--text)}
+      .lp-menu{position:fixed;z-index:2;width:200px;padding:4px;display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);font-family:var(--font);pointer-events:auto;animation:lp-fade .12s ease}
+      .lp-menu-item{height:32px;padding:0 10px;display:flex;align-items:center;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
+      .lp-menu-item:hover,.lp-menu-item:focus-visible{background:var(--bg-sunken)}
+      .lp-menu-item[disabled]{opacity:.55;cursor:default}
+      .lp-menu-item.danger{color:var(--status-danger)}
+      .lp-menu-sep{height:1px;margin:4px 6px;background:var(--border-faint)}
+      .lp-danger-sm{flex:0 0 auto;height:32px;padding:0 11px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+      .lp-ghost-sm{height:32px;padding:0 9px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost-sm:hover{background:var(--bg-sunken);color:var(--text)}
 
-      .lp-footer{flex:0 0 auto;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--border-faint);background:var(--surface-1)}
+      .lp-footer{flex:0 0 auto;gap:0;padding:12px 16px 12px;border-top:1px solid var(--border-faint)}
       .lp-footer-row{display:flex;align-items:center;gap:8px;width:100%}
-      .lp-list-toggle{display:flex;align-items:center;gap:6px;height:32px;padding:0 11px 0 9px;background:transparent;border:0;cursor:pointer;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:999px}
-      .lp-list-toggle:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-chev{transition:transform .25s ease}
-      .lp-clear{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:999px;cursor:pointer}
-      .lp-clear:hover{background:var(--bg-sunken);color:var(--status-danger)}
-      .lp-clear[disabled]{opacity:.55;cursor:default}
+      .lp-footer{display:flex;flex-direction:column;background:var(--surface-2)}
+      .lp-foot-action{width:100%;height:40px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;box-sizing:border-box}
+      .lp-foot-action.primary{background:var(--accent);color:var(--ink)}
+      .lp-foot-action.primary:hover{background:var(--accent-hover)}
+      .lp-foot-action.secondary{background:var(--bg-sunken);color:var(--text)}
+      .lp-foot-action.secondary:hover{background:var(--field-focus)}
       .lp-confirm-text{flex:1;font-size:12px;color:var(--text);font-weight:600;line-height:1.4}
-      .lp-clear-cancel{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12.5px;font-weight:600;border-radius:999px;cursor:pointer}
+      .lp-clear-cancel{height:32px;padding:0 13px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-clear-cancel:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-clear-yes{height:32px;padding:0 15px;background:var(--status-danger);color:#fff;border:0;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+      .lp-clear-yes{height:32px;padding:0 15px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
       .lp-spin{width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:lp-spin .6s linear infinite}
 
       .lp-fatal{padding:10px 24px 26px;text-align:center;animation:lp-pop .2s ease}
-      .lp-fatal-disc{width:46px;height:46px;margin:6px auto 13px;border-radius:50%;background:color-mix(in srgb,var(--status-danger) 13%,transparent);display:flex;align-items:center;justify-content:center;color:var(--status-danger)}
-      .lp-fatal-title{font-size:14.5px;font-weight:700;color:var(--text)}
-      .lp-fatal-sub{max-width:252px;margin:6px auto 0;font-size:12.5px;color:var(--text-mute);line-height:1.55}
+      .lp-fatal-disc{width:44px;height:44px;margin:6px auto 13px;border-radius:50%;background:color-mix(in srgb,var(--status-danger) 13%,transparent);display:flex;align-items:center;justify-content:center;color:var(--status-danger)}
+      .lp-fatal-title{font-size:15px;font-weight:700;color:var(--text)}
+      .lp-fatal-sub{max-width:252px;margin:6px auto 0;font-size:12px;color:var(--text-mute);line-height:1.55}
       .lp-signin .lp-fatal-disc{background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)}
-      .lp-signin-button{margin:16px 0 0}
+      .lp-hd--center{align-items:center}
+      .lp-signin-body{display:flex;flex-direction:column;gap:14px;padding:20px 16px 16px}
+      .lp-step{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;font-size:13px;line-height:18px;color:var(--text-mute)}
+      .lp-step-n{width:24px;height:24px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+      .lp-signin-note{font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-signin-body .lp-foot-action{margin-top:6px}
     </style>
     <div class="lp-launcher" id="lp-launcher">
-      ${LOCAL ? '<span class="lp-local" id="lp-local" data-tip="Comments save to this local build">Local</span>' : ''}
+      ${LOCAL ? '<span class="lp-local" id="lp-local" data-tip="Notes save to this local build">Local</span>' : ''}
       <div class="lp-launch-quick" id="lp-launch-quick">
-        <button class="lp-launch-action" id="lp-launch-note" aria-label="Add note" data-tip="Add note">${ICON.comment(16)}</button>
-        <button class="lp-launch-action" id="lp-launch-target" aria-label="Pick element" data-tip="Pick element">${ICON.target(16)}</button>
-        <button class="lp-launch-action" id="lp-launch-draw" aria-label="Draw" data-tip="Draw">${ICON.pen(16)}</button>
+        <button class="lp-launch-action" id="lp-launch-note" aria-label="Add note" aria-pressed="false" data-tip="Add note">${ICON.comment(16)}</button>
+        <button class="lp-launch-action" id="lp-launch-target" aria-label="Pick element" aria-pressed="false" data-tip="Pick element">${ICON.target(16)}</button>
+        <button class="lp-launch-action" id="lp-launch-draw" aria-label="Draw" aria-pressed="false" data-tip="Draw">${ICON.pen(16)}</button>
         <span class="lp-launch-div"></span>
       </div>
       <button class="lp-launch-main" id="lp-launch-main" aria-label="Review">
-        <span>Review</span>
+        <span class="lp-launch-dot" id="lp-launch-dot" style="display:none"></span>
+        <span id="lp-launch-label">Review</span>
         <span class="lp-count solid" id="lp-launch-count" style="display:none">0</span>
         <span class="lp-count danger" id="lp-launch-alert" style="display:none" aria-label="Widget error" title="This review widget can’t connect">!</span>
       </button>
     </div>
     <div class="lp-panel" id="lp-panel" style="display:none">
-      <div class="lp-header">
-        <span class="lp-title">Review</span>
-        <span class="lp-count soft" id="lp-head-count" style="display:none">0</span>
-        <div class="lp-spacer"></div>
-        <button class="lp-iconbtn" id="lp-move">${ICON.corners(15)}</button>
-        <button class="lp-iconbtn" id="lp-close" aria-label="Close">${ICON.close(15)}</button>
-      </div>
-      <div class="lp-main" id="lp-main">
-        <div class="lp-composer" id="lp-composer" style="max-height:0;opacity:0;pointer-events:none">
-          <div style="overflow:hidden;min-height:0">
+      <div class="lp-views" id="lp-views">
+        <section class="lp-view" id="lp-view-list" data-view="list" aria-label="Review">
+          <header class="lp-hd">
+            <div class="lp-hd-text">
+              <div class="lp-title" id="lp-title">Review</div>
+              <button type="button" class="lp-dest" id="lp-dest" style="display:none"><span id="lp-dest-text"></span>${ICON.chevron(13)}</button>
+              <div class="lp-sub" id="lp-sub" style="display:none"></div>
+            </div>
+            <button class="lp-iconbtn" id="lp-head-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Widget menu" title="Widget menu">${ICON.more(15)}</button>
+            <button class="lp-iconbtn" id="lp-close" aria-label="Close">${ICON.close(15)}</button>
+          </header>
+          <div class="lp-actions">
+            <button class="lp-action" id="general" aria-pressed="false" aria-label="Add note">${ICON.comment(15)}<span>Note</span></button>
+            <button class="lp-action" id="target" aria-pressed="false" aria-label="Pick element">${ICON.target(15)}<span>Element</span></button>
+            <button class="lp-action" id="draw" aria-pressed="false" aria-label="Draw">${ICON.pen(15)}<span>Draw</span></button>
+          </div>
+          <div class="lp-error" id="lp-list-error" style="display:none"></div>
+          <div class="lp-body lp-scroll" id="lp-body">
+            <div class="lp-empty" id="lp-empty" style="display:none">
+              <div class="lp-empty-icon">${ICON.comment(20)}</div>
+              <div class="lp-empty-title">No notes yet</div>
+              <div class="lp-empty-sub">Select text, pick an element, or add a note.</div>
+            </div>
+            <div id="lp-list"></div>
+          </div>
+          <div class="lp-footer" id="lp-footer" style="display:none">
+            <div id="lp-footer-main">
+              <div id="lp-foot-action"></div>
+            </div>
+            <div class="lp-footer-row" id="lp-footer-confirm" style="display:none">
+              <span class="lp-confirm-text" id="lp-clear-confirm-text"></span>
+              <div class="lp-spacer"></div>
+              <button class="lp-clear-cancel" id="lp-clear-cancel">Cancel</button>
+              <button class="lp-clear-yes" id="lp-clear-yes">Delete</button>
+            </div>
+          </div>
+        </section>
+        <section class="lp-view" id="lp-view-compose" data-view="compose" aria-label="Note">
+          <header class="lp-hd lp-hd--back">
+            <button class="lp-iconbtn" id="lp-compose-back" aria-label="Back to notes">${ICON.back(18)}</button>
+            <div class="lp-hd-text"><div class="lp-title" id="lp-compose-title">New note</div></div>
+          </header>
+          <div class="lp-composer" id="lp-composer">
             <div class="lp-composer-inner">
               <div class="lp-compose-head" id="lp-compose-head"></div>
               <textarea class="lp-textarea" id="lp-textarea" placeholder="Describe the issue or idea…"></textarea>
               <div class="lp-context" id="lp-context" style="display:none"></div>
-              <div class="lp-picker" id="lp-picker" style="display:none">
-                <div id="lp-picker-modes" role="group" aria-label="Where notes go">
-                  <div class="lp-picker-note">Where should your notes go?</div>
-                  <button type="button" class="lp-picker-row" data-mode="per-note">A new card for each note</button>
-                  <button type="button" class="lp-picker-row" data-mode="per-review">One card for this review</button>
-                  <button type="button" class="lp-picker-row" data-mode="epic">A card for each note, under an epic</button>
-                </div>
-                <div id="lp-picker-cards" style="display:none">
-                  <input class="lp-picker-search" id="lp-picker-search" placeholder="Search cards…" aria-label="Search cards" autocomplete="off">
-                  <div class="lp-picker-list" id="lp-picker-list"></div>
-                  <div class="lp-picker-foot">
-                    <input class="lp-picker-search" id="lp-picker-title" aria-label="New card title" autocomplete="off">
-                    <select class="lp-picker-type" id="lp-picker-type" aria-label="New card type" style="display:none"></select>
-                    <button type="button" class="lp-ghost" id="lp-picker-create">Create</button>
-                  </div>
-                </div>
-                <div class="lp-picker-foot">
-                  <button type="button" class="lp-ghost" id="lp-picker-back" style="display:none">Back</button>
-                  <div class="lp-spacer"></div>
-                  <button type="button" class="lp-ghost" id="lp-picker-close">Close</button>
-                </div>
-              </div>
+              <div class="lp-error" id="lp-error" style="display:none"></div>
               <div class="lp-compose-foot">
-                <span class="lp-hint"><span class="lp-mono">⌘↵</span> to save</span>
+                <button class="lp-iconbtn" id="lp-compose-target" aria-pressed="false" aria-label="Pick element" title="Pick element">${ICON.target(15)}</button>
+                <button class="lp-iconbtn" id="lp-compose-draw" aria-pressed="false" aria-label="Draw" title="Draw">${ICON.pen(15)}</button>
+                <span class="lp-hint"><span class="lp-mono">${MOD_LABEL}↵</span> to save</span>
                 <div class="lp-spacer"></div>
                 <button class="lp-ghost" id="lp-cancel">Cancel</button>
                 <button class="lp-primary" id="lp-save">Save</button>
               </div>
             </div>
           </div>
-        </div>
-        <div class="lp-empty-anim" id="lp-empty-anim" style="max-height:0;opacity:0">
-          <div style="overflow:hidden;min-height:0">
-            <div class="lp-empty" id="lp-empty">
-              <div class="lp-empty-icon">${ICON.comment(20)}</div>
-              <div class="lp-empty-title">No comments yet</div>
-              <div class="lp-empty-sub">Select text, pick an element, or add a note.</div>
-            </div>
-          </div>
-        </div>
-        <div class="lp-actions">
-          <button class="lp-action" id="general" aria-pressed="false" aria-label="Add note">${ICON.comment(15)}<span>Note</span></button>
-          <button class="lp-action" id="target" aria-pressed="false" aria-label="Pick element">${ICON.target(15)}<span>Element</span></button>
-          <button class="lp-action" id="draw" aria-pressed="false" aria-label="Draw">${ICON.pen(15)}<span>Draw</span></button>
-        </div>
-        <div class="lp-context lp-last-card" id="lp-last-card" style="display:none"></div>
-        <div class="lp-verdict lp-scroll" id="lp-verdict" style="display:none"></div>
-        <div class="lp-error" id="lp-error" style="display:none"></div>
-        <div id="lp-body">
-          <div class="lp-list-wrap" id="lp-list-wrap" style="display:none">
-            <div class="lp-list-anim" id="lp-list-anim" style="max-height:0;opacity:0">
-              <div style="overflow:hidden;min-height:0">
-                <div class="lp-list lp-scroll" id="lp-list"></div>
+        </section>
+        <section class="lp-view" id="lp-view-destination" data-view="destination" aria-label="Where notes go">
+          <header class="lp-hd lp-hd--back">
+            <button class="lp-iconbtn" id="lp-destination-back" aria-label="Back">${ICON.back(18)}</button>
+            <div class="lp-hd-text"><div class="lp-title">Where notes go</div></div>
+          </header>
+          <div class="lp-error" id="lp-destination-error" style="display:none"></div>
+          <div class="lp-view-body lp-scroll">
+            <div class="lp-picker" id="lp-picker">
+              <div id="lp-picker-modes" role="group" aria-label="Where notes go">
+                <div class="lp-picker-note">Where should your notes go?</div>
+                <button type="button" class="lp-picker-row" data-mode="per-note">A new card for each note</button>
+                <button type="button" class="lp-picker-row" data-mode="per-review">One card for this review</button>
+                <button type="button" class="lp-picker-row" data-mode="epic">A card for each note, under an epic</button>
+              </div>
+              <div id="lp-picker-cards" style="display:none">
+                <input class="lp-picker-search" id="lp-picker-search" placeholder="Search cards…" aria-label="Search cards" autocomplete="off">
+                <div class="lp-picker-list" id="lp-picker-list"></div>
+                <div class="lp-picker-foot">
+                  <input class="lp-picker-search" id="lp-picker-title" aria-label="New card title" autocomplete="off">
+                  <select class="lp-picker-type" id="lp-picker-type" aria-label="New card type" style="display:none"></select>
+                  <button type="button" class="lp-ghost" id="lp-picker-create">Create</button>
+                </div>
+              </div>
+              <div class="lp-picker-foot">
+                <button type="button" class="lp-ghost" id="lp-picker-back" style="display:none">Back</button>
+                <div class="lp-spacer"></div>
+                <button type="button" class="lp-ghost" id="lp-picker-close">Close</button>
               </div>
             </div>
           </div>
-        </div>
-        <div class="lp-footer" id="lp-footer" style="display:none">
-          <div class="lp-footer-row" id="lp-footer-main">
-            <button class="lp-list-toggle" id="lp-list-toggle">
-              <span class="lp-chev" id="lp-chev" style="display:inline-flex">${ICON.chevron(13)}</span>
-              <span id="lp-list-toggle-text">Show comments</span>
-            </button>
-            <div class="lp-spacer"></div>
-            <button class="lp-clear" id="lp-clear">Delete all</button>
+        </section>
+        <section class="lp-view" id="lp-view-finish" data-view="finish" aria-label="Finish review">
+          <header class="lp-hd lp-hd--back">
+            <button class="lp-iconbtn" id="lp-finish-back" aria-label="Back to notes">${ICON.back(18)}</button>
+            <div class="lp-hd-text"><div class="lp-title">Finish review</div><div class="lp-sub" id="lp-finish-sub"></div></div>
+          </header>
+          <div class="lp-verdict lp-scroll" id="lp-verdict"></div>
+          <footer class="lp-verdict-foot" id="lp-verdict-foot"></footer>
+        </section>
+        <section class="lp-view" id="lp-view-signin" data-view="signin" aria-label="Sign in">
+          <header class="lp-hd lp-hd--center">
+            <div class="lp-hd-text"><div class="lp-title">Review this page</div></div>
+            <button class="lp-iconbtn" id="lp-signin-close" aria-label="Close">${ICON.close(15)}</button>
+          </header>
+          <div class="lp-signin-body">
+            <div class="lp-step"><span class="lp-step-n">1</span><span>Point at anything on the page and write a note.</span></div>
+            <div class="lp-step"><span class="lp-step-n">2</span><span>Each note saves at once to a card on your Loupe board.</span></div>
+            <div class="lp-step"><span class="lp-step-n">3</span><span>Your agent picks the notes up and fixes them.</span></div>
+            <div class="lp-signin-note" id="lp-signin-note" role="status" style="display:none"></div>
+            <button class="lp-foot-action primary" id="lp-sign-in" type="button">Sign in with Loupe</button>
           </div>
-          <div class="lp-footer-row" id="lp-footer-confirm" style="display:none">
-            <span class="lp-confirm-text" id="lp-clear-confirm-text"></span>
-            <div class="lp-spacer"></div>
-            <button class="lp-clear-cancel" id="lp-clear-cancel">Cancel</button>
-            <button class="lp-clear-yes" id="lp-clear-yes">Delete</button>
-          </div>
-        </div>
+        </section>
       </div>
       <div id="lp-fatal" style="display:none"></div>
-    </div>`;
+    </div>
+    <div class="lp-menu" id="lp-menu" role="menu" style="display:none"></div>`;
 
     overlayRoot.innerHTML = `
     <style>
@@ -1488,6 +1651,8 @@
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-spin{to{transform:rotate(360deg)}}
       .lp-ov{font-family:var(--font)}
+      button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      .lp-toast button:focus-visible{outline-color:var(--accent)}
       .lp-scrim{position:fixed;inset:0;background:var(--scrim);animation:lp-fade .18s ease;pointer-events:none}
       /* Chartreuse alone can vanish against a pale or yellowish host page, so
          every marker the widget paints onto the page carries a near-black edge
@@ -1505,12 +1670,12 @@
       /* The controls live above every box rather than inside one. Two anchors on
          neighbouring elements have overlapping boxes, and a control drawn inside
          its own box would sit under its neighbour and refuse the click. */
-      .lp-hl-x{position:fixed;z-index:5;display:flex;width:22px;height:22px;align-items:center;justify-content:center;padding:0;background:var(--accent);color:var(--ink);border:2px solid var(--pin-ring);border-radius:50%;font-family:inherit;font-size:14px;font-weight:700;line-height:1;cursor:pointer;pointer-events:auto;opacity:0;transition:opacity .12s ease;box-shadow:0 2px 8px var(--pin-shadow)}
+      .lp-hl-x{position:fixed;z-index:5;display:flex;width:24px;height:24px;align-items:center;justify-content:center;padding:0;background:var(--accent);color:var(--ink);border:2px solid var(--pin-ring);border-radius:50%;font-family:inherit;font-size:13px;font-weight:700;line-height:1;cursor:pointer;pointer-events:auto;opacity:0;transition:opacity .12s ease;box-shadow:0 2px 8px var(--pin-shadow)}
       /* :focus reveals it, because a mousedown on it is prevented and cannot
          focus it. The ring is :focus-visible, so only a keyboard user sees one. */
       .lp-hl-x.lit,.lp-hl-x:hover,.lp-hl-x:focus{opacity:1}
       .lp-hl-x:focus-visible{outline:2px solid var(--pin-ring);outline-offset:2px}
-      .lp-hl-label{position:absolute;left:-2px;top:-27px;display:inline-block;max-width:240px;height:21px;line-height:21px;padding:0 9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:600;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px var(--pin-shadow)}
+      .lp-hl-label{position:absolute;left:-2px;top:-30px;display:inline-block;max-width:240px;height:24px;line-height:24px;padding:0 9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:600;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px var(--pin-shadow)}
       /* Above the outlines, below the pins: the drawing is content over the
          page, and a pin still has to be reachable through it. */
       .lp-canvas{position:fixed;left:0;top:0;z-index:3;pointer-events:none}
@@ -1523,24 +1688,24 @@
       .pin{width:24px;height:24px;border-radius:50% 50% 50% 2px;border:2px solid var(--pin-ring);background:var(--accent);color:var(--ink);font-family:inherit;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(15,15,13,.35);animation:lp-pin .22s cubic-bezier(.2,1.3,.5,1)}
       .pin:hover{transform:scale(1.12)}
       .lp-pop{position:absolute;top:16px;right:0;width:240px;padding-top:14px;cursor:default}
-      .lp-pop-card{position:relative;overflow:hidden;min-height:96px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);animation:lp-fade .12s ease;display:flex;flex-direction:column}
-      .lp-pop-body{font-size:12.5px;line-height:1.5;color:var(--text);word-break:break-word}
-      .pin.degraded{border-style:dashed;border-color:#b45309}
-      .lp-pop-degraded{margin-top:6px;font-size:11px;line-height:1.4;color:#b45309;word-break:break-word}
+      .lp-pop-card{position:relative;overflow:hidden;min-height:96px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);animation:lp-fade .12s ease;display:flex;flex-direction:column}
+      .lp-pop-body{font-size:12px;line-height:1.5;color:var(--text);word-break:break-word}
+      .pin.degraded{border-style:dashed;border-color:var(--warn)}
+      .lp-pop-degraded{margin-top:6px;font-size:11px;line-height:1.4;color:var(--warn);word-break:break-word}
       .lp-pop-row{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:10px}
-      .lp-pop-chip{display:inline-flex;align-items:center;height:19px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:10.5px;font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-pop-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
+      .lp-pop-chip{display:inline-flex;align-items:center;height:24px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:11px;font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-pop-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
       .lp-pop-resolve:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-pop-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
+      .lp-pop-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
       .lp-pop-edit:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-pop-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
+      .lp-pop-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
       .lp-pop-del:hover{opacity:1;background:var(--bg-sunken);color:var(--status-danger)}
-      .lp-pop-confirm{position:absolute;inset:0;background:var(--surface-1);border-radius:12px;padding:12px;display:flex;flex-direction:column;justify-content:center;animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
-      .lp-pop-confirm-title{font-size:12.5px;font-weight:700;color:var(--text)}
-      .lp-pop-confirm-sub{font-size:11.5px;color:var(--text-mute);margin-top:3px;line-height:1.45}
+      .lp-pop-confirm{position:absolute;inset:0;background:var(--surface-1);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:center;animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
+      .lp-pop-confirm-title{font-size:12px;font-weight:700;color:var(--text)}
+      .lp-pop-confirm-sub{font-size:12px;color:var(--text-mute);margin-top:3px;line-height:1.45}
       .lp-pop-confirm-row{display:flex;gap:7px;margin-top:11px}
-      .lp-pop-yes{flex:1;height:30px;background:var(--status-danger);color:#fff;border:0;border-radius:999px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
-      .lp-pop-no{flex:1;height:30px;background:var(--bg-sunken);border:0;color:var(--text);border-radius:999px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+      .lp-pop-yes{flex:1;height:32px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+      .lp-pop-no{flex:1;height:32px;background:var(--bg-sunken);border:0;color:var(--text);border-radius:10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
       .lp-toast{position:fixed;top:18px;left:50%;transform:translate(-50%,0);z-index:6;display:flex;align-items:center;gap:10px;padding:9px 13px 9px 15px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-size:13px;font-weight:600;box-shadow:var(--bar-shadow);animation:lp-fade .18s ease;transition:transform .22s cubic-bezier(.4,0,.2,1);pointer-events:auto}
       .lp-toast-sep{color:var(--chrome-line)}
       .lp-toast-dim{color:var(--chrome-mute);font-size:12px;font-weight:500}
@@ -1551,7 +1716,7 @@
       .lp-toast--saved{padding:9px 15px}
       /* The offer to quote a selection. Same bar furniture as the toasts, so it
          reads as the widget rather than as host-page chrome. */
-      .lp-quote-btn{position:fixed;z-index:6;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-family:var(--font);font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:var(--bar-shadow);animation:lp-fade .12s ease}
+      .lp-quote-btn{position:fixed;z-index:6;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-family:var(--font);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;pointer-events:auto;box-shadow:var(--bar-shadow);animation:lp-fade .12s ease}
       .lp-quote-btn:hover{background:var(--chrome-raised)}
       .lp-quote-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     </style>
@@ -1564,9 +1729,9 @@
       <div id="lp-pins"></div>
       <div class="lp-toast" id="lp-toast" style="display:none">
         ${ICON.target(15)}
-        <span id="lp-toast-text">Click to comment</span>
+        <span id="lp-toast-text">Click to add a note</span>
         <span class="lp-toast-sep">·</span>
-        <span class="lp-toast-dim">⌥ scroll to resize</span>
+        <span class="lp-toast-dim">${ALT_LABEL} scroll to resize</span>
         <span class="lp-toast-key" id="lp-toast-esc">Esc</span>
       </div>
       <div class="lp-toast" id="lp-draw-toast" style="display:none">
@@ -1582,7 +1747,7 @@
         <span id="lp-saved-text"></span>
       </div>
       <button class="lp-quote-btn" id="lp-quote-btn" type="button" style="display:none">
-        ${ICON.quote(13)}<span>Comment on this text</span>
+        ${ICON.quote(13)}<span>Note on this text</span>
       </button>
     </div>`;
 
@@ -1603,35 +1768,48 @@
     const savedToastNode = $$('lp-saved');
     const quoteBtn = $$('lp-quote-btn');
     const panelNode = $('lp-panel');
-    const mainNode = $('lp-main');
+    const viewsNode = $('lp-views');
+    const viewNodes = {
+        list: $('lp-view-list'),
+        compose: $('lp-view-compose'),
+        destination: $('lp-view-destination'),
+        finish: $('lp-view-finish'),
+        signin: $('lp-view-signin'),
+    };
     const fatalNode = $('lp-fatal');
-    const composerNode = $('lp-composer');
+    const titleNode = $('lp-title');
+    const destNode = $('lp-dest');
+    const subNode = $('lp-sub');
     const contextNode = $('lp-context');
-    const pickerNode = $('lp-picker');
     const pickerSearchNode = $('lp-picker-search');
     const pickerListNode = $('lp-picker-list');
     const pickerTitleNode = $('lp-picker-title');
     const pickerTypeNode = $('lp-picker-type');
-    const lastCardNode = $('lp-last-card');
     const verdictNode = $('lp-verdict');
+    const verdictFoot = $('lp-verdict-foot');
+    const finishSub = $('lp-finish-sub');
     const composeHead = $('lp-compose-head');
     let composeHeadHtml = null;
     const textareaNode = $('lp-textarea');
-    const errorNode = $('lp-error');
-    const emptyAnim = $('lp-empty-anim');
+    const errorNodes = {
+        list: $('lp-list-error'),
+        compose: $('lp-error'),
+        destination: $('lp-destination-error'),
+    };
+    const emptyNode = $('lp-empty');
     const launchQuick = $('lp-launch-quick');
     const launchDrawBtn = $('lp-launch-draw');
-    const listWrap = $('lp-list-wrap');
-    const listAnim = $('lp-list-anim');
     const listNode = $('lp-list');
     const footerNode = $('lp-footer');
     const footerMain = $('lp-footer-main');
     const footerConfirm = $('lp-footer-confirm');
-    const clearBtn = $('lp-clear');
+    const footAction = $('lp-foot-action');
+    const menuNode = $('lp-menu');
+    const headMenuBtn = $('lp-head-menu');
     const saveBtn = $('lp-save');
     const generalBtn = $('general');
-    const targetBtn = $('target');
-    const drawBtn = $('draw');
+    const targetBtns = [$('target'), $('lp-compose-target')];
+    const drawBtns = [$('draw'), $('lp-compose-draw')];
 
     // --- theming: follow the host's color scheme and live-update on change. ---
     const applyTheme = (dark) => {
@@ -1832,7 +2010,7 @@
                 if (points) paintStroke(ctx, points);
             });
         });
-        if (!state.composing) return;
+        if (!composing()) return;
         state.strokes.forEach((points) => paintStroke(ctx, points));
         if (liveStroke && liveStroke.length > 1) paintStroke(ctx, liveStroke);
     };
@@ -1845,7 +2023,7 @@
     // comment being composed stays outlined, and hovering one anchor of a saved
     // comment lights its siblings.
     const highlightTargets = () => {
-        const composed = state.composing
+        const composed = composing()
             ? composeAnchors()
                   .map((entry, anchorIndex) => ({
                       el: entry.el,
@@ -1960,7 +2138,7 @@
     // One remove control per removable anchor, pooled and pinned to the padded
     // box's top-right corner. `lit` follows the box the pointer is over.
     const xNodes = [];
-    const X_SIZE = 22; // matches .lp-hl-x
+    const X_SIZE = 24; // matches .lp-hl-x
     const drawRemoveControls = (entries) => {
         entries.forEach((entry, index) => {
             let node = xNodes[index];
@@ -2000,8 +2178,9 @@
             const clamp = (value, limit) =>
                 Math.min(Math.max(value, 0), limit - X_SIZE);
             node.style.left =
-                clamp(r.left + r.width - 11, window.innerWidth) + 'px';
-            node.style.top = clamp(r.top - 11, window.innerHeight) + 'px';
+                clamp(r.left + r.width - X_SIZE / 2, window.innerWidth) + 'px';
+            node.style.top =
+                clamp(r.top - X_SIZE / 2, window.innerHeight) + 'px';
         });
         for (let index = entries.length; index < xNodes.length; index++) {
             xNodes[index].style.display = 'none';
@@ -2226,6 +2405,7 @@
         // several elements gets a pin on each. Every pin of one comment carries that
         // comment's number, which is what shows they belong together.
         const wanted = new Map();
+        const ranked = displayOrder().all;
         comments.forEach((comment, index) => {
             const { found, total, degraded } = anchorHealth(comment);
             found.forEach((entry) => {
@@ -2240,6 +2420,7 @@
                 wanted.set(`${index}:${entry.anchorIndex}`, {
                     comment,
                     index,
+                    rank: ranked.indexOf(index),
                     anchor: entry.anchor,
                     kind: anchorKind(entry),
                     total,
@@ -2268,7 +2449,6 @@
                     `<div class="lp-pop-holder"></div>`;
                 wrap.querySelector('.pin').addEventListener('click', () => {
                     state.open = true;
-                    state.listExpanded = true;
                     sync();
                 });
                 wrap.addEventListener('mouseenter', () => hoverPin(key));
@@ -2280,7 +2460,7 @@
             wrap.style.top = info.top + 'px';
             wrap.style.display = info.onScreen ? '' : 'none';
             const pin = wrap.querySelector('.pin');
-            pin.textContent = String(info.index + 1);
+            pin.textContent = String(info.rank + 1);
             pin.dataset.anchorKind = info.kind;
             pin.classList.toggle('degraded', info.degraded);
             // Build the card once on hover; toggle the confirm overlay in place. Neither
@@ -2356,7 +2536,7 @@
     // The offer sits just under the selection, flipping above it near the bottom
     // edge and clamped horizontally, on the same reasoning as the pin popover.
     const QUOTE_BTN_GAP = 8;
-    const QUOTE_BTN_HEIGHT = 30; // matches .lp-quote-btn
+    const QUOTE_BTN_HEIGHT = 32; // matches .lp-quote-btn
     const renderQuoteButton = () => {
         const pick = state.quotePick;
         // Hidden while another mode owns the pointer, drawing included: the canvas
@@ -2406,7 +2586,7 @@
         toastNode.style.display = state.target ? 'flex' : 'none';
         toastText.textContent = state.addAnchor
             ? 'Click to add another element'
-            : 'Click to comment';
+            : 'Click to add a note';
         // offsetHeight only reads correctly once the toast is shown, so position after.
         if (state.target) positionToast();
         // Every toast shares one resting edge, so the mode the reviewer is in wins.
@@ -2455,7 +2635,7 @@
             return 'That card is closed or gone. Choose where your notes go, then save again.';
         }
         if (error && error.status === 404) {
-            return 'Your agent has already picked that comment up, so it can’t be changed now.';
+            return 'Your agent has already picked that note up, so it can’t be changed now.';
         }
         // A widget-side refusal carries its own wording and no HTTP status.
         if (error && !error.status && error.message) return error.message;
@@ -2479,16 +2659,366 @@
     };
 
     // ---- panel render ----
+    // A note is "here" when it was made on the page the reviewer is on. The
+    // list shows those first, and pins number the notes in the same order.
+    const isHere = (comment) => !comment.url || comment.url === location.href;
+    const displayOrder = () => {
+        const here = [];
+        const other = [];
+        comments.forEach((comment, index) =>
+            (isHere(comment) ? here : other).push(index),
+        );
+
+        return { here, other, all: [...here, ...other] };
+    };
+    const noteCount = (count) => (count === 1 ? '1 note' : `${count} notes`);
+
+    const VERDICT_WORDS = {
+        approve: 'Approved',
+        'request-changes': 'Changes requested',
+        comment: 'Commented',
+    };
+    // The second header line of a locked card: its pull request and the last
+    // verdict, or what the card holds while it has no pull request.
+    const cardLine = (count) => {
+        const data = verdictCurrent() ? verdict.data : null;
+        if (!data) return `${noteCount(count)} on this card`;
+        const prs = data.pullRequests;
+        if (!prs.length) {
+            const last = data.latestVerdict
+                ? ` · Last verdict: ${VERDICT_WORDS[data.latestVerdict.kind] || data.latestVerdict.kind}`
+                : '';
+
+            return `No pull request yet · ${noteCount(count)} on this card${last}`;
+        }
+        const number =
+            prs.length === 1 ? /#(\d+)\s*$/.exec(prs[0].label) : null;
+        const name =
+            prs.length > 1
+                ? `${prs.length} pull requests`
+                : number
+                  ? `PR #${number[1]}`
+                  : 'Pull request';
+        const last = data.latestVerdict
+            ? VERDICT_WORDS[data.latestVerdict.kind] || data.latestVerdict.kind
+            : 'No verdict yet';
+
+        return `${name} · ${last}`;
+    };
+    // The footer's one action: finish a pull request review, or open the one
+    // card that the notes go to.
+    const openAction = (card) => {
+        if (!card.url) return null;
+        const number = /^#(\d+)/.exec(card.label || '');
+
+        return {
+            kind: 'open',
+            text: number ? `Open #${number[1]} in Loupe` : 'Open card in Loupe',
+            url: card.url,
+        };
+    };
+    const deleteAllCardTitle = () => {
+        if (lock) return lock.state === 'ok' ? lock.label || '' : '';
+        const target = storedTarget;
+
+        return target && target.mode === 'per-review' ? target.label || '' : '';
+    };
+    const footerAction = () => {
+        if (!lock) {
+            return storedTarget && storedTarget.mode === 'per-review'
+                ? openAction(storedTarget)
+                : null;
+        }
+        if (lock.state !== 'ok') return null;
+        const data = verdictCurrent() ? verdict.data : null;
+        if (data && data.pullRequests.length) return { kind: 'finish' };
+
+        return openAction(lock);
+    };
+
+    // Pick the view to show from what is true now. A view whose reason is gone
+    // closes, so a stale flag can never leave an empty view on screen.
+    const normalizeView = () => {
+        if (signedOut()) {
+            if (state.view !== 'signin') resetView('signin');
+            return;
+        }
+        if (state.view === 'signin') resetView();
+        if (state.view === 'compose' && !composing()) resetView();
+        if (state.view === 'destination' && lock) {
+            if (composing()) showView('compose');
+            else resetView();
+        }
+        if (state.view === 'finish' && !verdictCurrent()) resetView();
+    };
+    const focusFirstControl = (node) =>
+        [
+            ...node.querySelectorAll(
+                'button:not([disabled]), a[href], input, textarea, select',
+            ),
+        ].some((control) => {
+            control.focus({ preventScroll: true });
+
+            return root.activeElement === control;
+        });
+    const applyViewClasses = () => {
+        viewsNode.dataset.view = state.view;
+        const focused = root.activeElement;
+        const stranded =
+            !!focused &&
+            Object.entries(viewNodes).some(
+                ([name, node]) => name !== state.view && node.contains(focused),
+            );
+        Object.entries(viewNodes).forEach(([name, node]) => {
+            const current = name === state.view;
+            node.classList.toggle(
+                'is-under',
+                !current && state.stack.includes(name),
+            );
+            node.classList.toggle(
+                'is-away',
+                !current && !state.stack.includes(name),
+            );
+            // Inert at once, so Tab and the accessibility tree skip a view
+            // that is sliding out, and the current view takes focus calls
+            // the moment it becomes current.
+            node.toggleAttribute('inert', !current);
+            node.setAttribute('aria-hidden', current ? 'false' : 'true');
+        });
+        // Focus left in a view that turned inert lands on the first control
+        // of the current view.
+        if (stranded) focusFirstControl(viewNodes[state.view]);
+    };
+    // The panel is as tall as its current view, up to the viewport budget.
+    const fitPanel = (instant) => {
+        if (panelNode.style.display === 'none') return;
+        const height = viewNodes[state.view].offsetHeight;
+        if (!height) return;
+        if (instant) panelNode.style.transition = 'none';
+        panelNode.style.height = `${height + 2}px`;
+        if (instant) {
+            void panelNode.offsetHeight;
+            panelNode.style.transition = '';
+        }
+    };
+    if (typeof ResizeObserver === 'function') {
+        const watcher = new ResizeObserver(() => fitPanel(false));
+        Object.values(viewNodes).forEach((node) => watcher.observe(node));
+    }
+
+    // ---- menus: one floating menu, owned by the button that opened it ----
+    let menu = null; // { button, kind: 'row' | 'head', id, count }
+    const MENU_GAP = 4;
+    const closeMenu = (restoreFocus) => {
+        if (!menu) return;
+        const { button } = menu;
+        menu = null;
+        menuNode.style.display = 'none';
+        menuNode.textContent = '';
+        button.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) button.focus({ preventScroll: true });
+    };
+    const menuItem = (label, action, options = {}) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'lp-menu-item' + (options.danger ? ' danger' : '');
+        item.setAttribute('role', 'menuitem');
+        item.dataset.menuAction = options.name;
+        item.textContent = label;
+        item.disabled = !!options.disabled;
+        item.addEventListener('click', action);
+
+        return item;
+    };
+    const menuSeparator = () => {
+        const separator = document.createElement('div');
+        separator.className = 'lp-menu-sep';
+        separator.setAttribute('role', 'separator');
+
+        return separator;
+    };
+    // Below the button when it fits, above when it does not and there is more
+    // room up. A row near the foot of the list opens upward.
+    const placeMenu = () => {
+        const rect = menu.button.getBoundingClientRect();
+        const height = menuNode.offsetHeight;
+        const width = menuNode.offsetWidth;
+        const limit =
+            menu.kind === 'row'
+                ? Math.min(
+                      window.innerHeight,
+                      $('lp-body').getBoundingClientRect().bottom,
+                  )
+                : window.innerHeight;
+        const below = limit - rect.bottom;
+        const up = below < height + MENU_GAP && rect.top > below;
+        const left = Math.min(
+            Math.max(rect.right - width, MENU_GAP),
+            Math.max(MENU_GAP, window.innerWidth - width - MENU_GAP),
+        );
+        menuNode.classList.toggle('up', up);
+        menuNode.style.left = `${left}px`;
+        menuNode.style.top = `${
+            up ? rect.top - height - MENU_GAP : rect.bottom + MENU_GAP
+        }px`;
+    };
+    const openMenu = (button, kind, id, items) => {
+        const toggledOff = !!menu && menu.button === button;
+        closeMenu(false);
+        if (toggledOff) return;
+        menu = { button, kind, id, count: comments.length };
+        menuNode.replaceChildren(...items);
+        menuNode.style.display = 'flex';
+        placeMenu();
+        button.setAttribute('aria-expanded', 'true');
+        const first = items.find((node) =>
+            node.matches('button:not([disabled])'),
+        );
+        if (first) first.focus({ preventScroll: true });
+    };
+    const openRowMenu = (button, index) => {
+        const comment = comments[index];
+        if (!comment) return;
+        const at = () => comments.findIndex((row) => row.id === comment.id);
+        const act = (run) => () => {
+            const found = at();
+            closeMenu(false);
+            if (found !== -1) run(found);
+        };
+        openMenu(button, 'row', comment.id, [
+            menuItem('Edit text', act(openEditComposer), { name: 'edit' }),
+            menuItem('Mark resolved', act(resolveComment), {
+                name: 'resolve',
+            }),
+            menuSeparator(),
+            menuItem(
+                'Delete note',
+                () => {
+                    const found = at();
+                    closeMenu(true);
+                    if (found === -1) return;
+                    state.confirmDeleteId = found;
+                    renderList();
+                },
+                { name: 'delete', danger: true },
+            ),
+        ]);
+    };
+    const openHeadMenu = () => {
+        const items = [
+            menuItem(
+                `Move launcher to the ${CORNER_LABEL[nextCorner()]}`,
+                () => {
+                    closeMenu(true);
+                    setCorner(nextCorner());
+                },
+                { name: 'move' },
+            ),
+        ];
+        if (OAUTH && grant) {
+            items.push(
+                menuItem(
+                    'Sign out',
+                    () => {
+                        closeMenu(false);
+                        setGrant(null);
+                        showSignedOut();
+                    },
+                    { name: 'sign-out' },
+                ),
+            );
+        }
+        if (comments.length > 0) {
+            items.push(
+                menuSeparator(),
+                menuItem(
+                    'Delete all…',
+                    () => {
+                        closeMenu(false);
+                        armClear();
+                        $('lp-clear-cancel').focus({ preventScroll: true });
+                    },
+                    {
+                        name: 'delete-all',
+                        danger: true,
+                        disabled: state.saving || state.deleting,
+                    },
+                ),
+            );
+        }
+        openMenu(headMenuBtn, 'head', null, items);
+    };
+    // A menu closes with the reason it was opened: another view, a closed
+    // panel, a note that is gone or a list that changed.
+    const normalizeMenu = () => {
+        if (!menu) return;
+        const rowGone =
+            menu.kind === 'row' &&
+            !comments.some((comment) => comment.id === menu.id);
+        const countMoved =
+            menu.kind === 'head' && menu.count !== comments.length;
+        if (
+            !state.open ||
+            state.fatal ||
+            state.view !== 'list' ||
+            (state.target && !state.addAnchor) ||
+            rowGone ||
+            countMoved
+        ) {
+            closeMenu(false);
+        }
+    };
+    menuNode.addEventListener('keydown', (event) => {
+        const items = [
+            ...menuNode.querySelectorAll('[role="menuitem"]:not([disabled])'),
+        ];
+        const at = items.indexOf(root.activeElement);
+        let next = null;
+        if (event.key === 'ArrowDown') next = items[(at + 1) % items.length];
+        else if (event.key === 'ArrowUp')
+            next = items[(at - 1 + items.length) % items.length];
+        else if (event.key === 'Home') next = items[0];
+        else if (event.key === 'End') next = items[items.length - 1];
+        else if (event.key === 'Tab') {
+            event.preventDefault();
+            closeMenu(true);
+            return;
+        }
+        if (!next) return;
+        event.preventDefault();
+        next.focus({ preventScroll: true });
+    });
+    headMenuBtn.addEventListener('click', openHeadMenu);
+    document.addEventListener(
+        'pointerdown',
+        (event) => {
+            if (!menu) return;
+            const path = event.composedPath();
+            if (path.includes(menuNode) || path.includes(menu.button)) return;
+            closeMenu(false);
+        },
+        true,
+    );
+    $('lp-body').addEventListener('scroll', () => closeMenu(false));
+    window.addEventListener('resize', () => closeMenu(false));
+
     const updatePanel = () => {
+        normalizeView();
+        normalizeMenu();
         const fatal = null !== state.fatal;
+        const outage = fatal && !signedOut();
         const n = comments.length;
         const launchCount = $('lp-launch-count');
         launchCount.style.display = !fatal && n > 0 ? 'inline-flex' : 'none';
         launchCount.textContent = String(n);
         // A rejected token surfaces on the collapsed launcher too — a danger "!" badge — so
         // the problem is visible before the panel is ever opened.
-        $('lp-launch-alert').style.display =
-            fatal && !signedOut() ? 'inline-flex' : 'none';
+        $('lp-launch-alert').style.display = outage ? 'inline-flex' : 'none';
+        // A signed-out reviewer is told what to do rather than shown an error.
+        $('lp-launch-dot').style.display = signedOut() ? '' : 'none';
+        $('lp-launch-label').textContent = signedOut()
+            ? 'Sign in to review'
+            : 'Review';
 
         // While picking an element, hide the whole widget (launcher + panel) so it does
         // not obscure the page; the scrim + toast are the only pick-mode UI. Add-anchor
@@ -2501,6 +3031,17 @@
         // same as the in-panel control. The collapsed launcher has no room to
         // explain a control that does nothing.
         launchDrawBtn.style.display = drawingEnabled ? '' : 'none';
+        // The tool in use takes the accent fill, wherever the launcher shows it.
+        const noteActive =
+            composing() && (state.composeTarget || {}).type === 'general';
+        [
+            ['lp-launch-note', noteActive],
+            ['lp-launch-target', state.target],
+            ['lp-launch-draw', state.drawing],
+        ].forEach(([id, on]) => {
+            $(id).classList.toggle('on', on);
+            $(id).setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
         // The launcher's quick actions duplicate the in-panel ones, so hide them (keeping only
         // the Review toggle) whenever the panel is open — or fatal, where they'd only launch a
         // composer the critical state immediately hides.
@@ -2514,51 +3055,65 @@
         // Clip the quick actions while they collapse, or they slide over Review and take
         // its click. Once expanded and idle, the transitionend handler lets tooltips out.
         if (state.open || fatal) launchQuick.style.overflow = 'hidden';
-        panelNode.style.display = state.open && !picking ? 'flex' : 'none';
-        if (!state.open || picking) return;
+        const showing = state.open && !picking;
+        const opening = showing && panelNode.style.display === 'none';
+        panelNode.style.display = showing ? 'flex' : 'none';
+        if (!showing) return;
 
-        const headCount = $('lp-head-count');
-        headCount.style.display = n > 0 && !fatal ? 'inline-flex' : 'none';
-        headCount.textContent = String(n);
-
-        // A rejected token takes precedence over every other panel state.
-        fatalNode.style.display = fatal ? 'block' : 'none';
-        mainNode.style.display = fatal ? 'none' : 'flex';
-
-        if (fatal) {
+        // An outage replaces the views with the error panel. Sign-in is a
+        // view of its own.
+        fatalNode.style.display = outage ? 'block' : 'none';
+        viewsNode.style.display = outage ? 'none' : 'block';
+        if (outage) {
+            panelNode.style.height = '';
             renderFatal();
             return;
         }
+        applyViewClasses();
+        if (state.view === 'signin') renderSignIn();
+
+        // header
+        const count = n;
+        if (lock) {
+            const broken = lock.state === 'broken';
+            const title = broken
+                ? 'Review'
+                : lock.label || 'This preview’s card';
+            titleNode.style.display = '';
+            destNode.style.display = 'none';
+            titleNode.textContent = title;
+            titleNode.title = title;
+            const sub = broken
+                ? 'This preview’s card is closed or gone, so notes cannot be saved here.'
+                : lock.state === 'ok'
+                  ? cardLine(count)
+                  : '';
+            subNode.textContent = sub;
+            subNode.style.display = sub ? '' : 'none';
+        } else {
+            const target = activeTarget();
+            const text = target ? targetLabel(target) : 'Choose where notes go';
+            titleNode.style.display = 'none';
+            destNode.style.display = '';
+            $('lp-dest-text').textContent = text;
+            destNode.title = `${text}. Change where notes go.`;
+            subNode.style.display = 'none';
+        }
+        $('lp-compose-title').textContent =
+            state.editId != null ? 'Edit note' : 'New note';
 
         // composer
         // A new note shows where it goes, and this row is how the reviewer
-        // changes that. An edit changes the body alone, so it hides the row.
-        const newNote = state.composing && state.editId == null;
-        // No stored mode means the reviewer has not chosen yet, so the modes
-        // are on screen before the first note rather than after a failed save.
-        const showPicker = newNote && !lock && (state.picking || !storedTarget);
-        contextNode.style.display = newNote ? 'flex' : 'none';
-        pickerNode.style.display = showPicker ? 'block' : 'none';
-        if (showPicker) renderPickerMode();
-        // A per-note save makes a card nobody chose, so the panel names it
-        // and links to it until the next note starts.
-        const lastCard = state.composing ? null : state.lastCard;
-        lastCardNode.style.display = lastCard ? 'flex' : 'none';
-        if (lastCard) {
-            lastCardNode.textContent = 'Saved as ';
-            const link = document.createElement(lastCard.url ? 'a' : 'span');
-            link.className = 'lp-context-label';
-            link.textContent = lastCard.label;
-            link.title = lastCard.label;
-            if (lastCard.url) {
-                link.href = lastCard.url;
-                link.target = '_blank';
-                link.rel = 'noopener';
-            }
-            lastCardNode.appendChild(link);
-        }
+        // changes that. An edit changes the body alone, and the row says so.
+        const newNote = composing() && state.editId == null;
+        contextNode.style.display = composing() ? 'flex' : 'none';
+        if (state.view === 'destination') renderPickerMode();
         renderVerdict();
-        if (newNote) {
+        if (composing() && !newNote) {
+            contextNode.textContent = 'Only the text of a note can change.';
+            contextNode.dataset.role = 'edit-hint';
+        } else if (newNote) {
+            delete contextNode.dataset.role;
             // The icon carries "which board thing", so the words that said it
             // are gone: two rows of muted prose under the textarea read as
             // clutter, and the card is context rather than an instruction.
@@ -2580,8 +3135,15 @@
                     true,
                 );
             } else if (lock) say(lock.label || 'This preview’s card');
-            else if (!target) say('Choose where your notes go.', true);
-            else {
+            else if (!target) {
+                const choose = document.createElement('button');
+                choose.type = 'button';
+                choose.className = 'lp-context-label';
+                choose.dataset.role = 'picker';
+                choose.textContent = 'Choose where your notes go.';
+                choose.addEventListener('click', openDestination);
+                contextNode.appendChild(choose);
+            } else {
                 const said = document.createElement('span');
                 said.className = 'lp-sr-only';
                 said.textContent = 'Saves to ';
@@ -2595,31 +3157,16 @@
                 label.textContent = targetLabel(target);
                 // The full title on hover, since the visible one may be cut.
                 label.title = `${targetLabel(target)}. Change where notes go.`;
-                label.addEventListener('click', () => {
-                    state.picking = !state.picking;
-                    pickerMode = null;
-                    sync();
-                });
+                label.addEventListener('click', openDestination);
                 contextNode.appendChild(label);
             }
         }
-        // The panel is capped at calc(100vh - 160px) and both it and the
-        // composer hide their overflow, so a fixed 470px put Create and Save
-        // out of reach on anything shorter than about 630px, with nothing to
-        // scroll. The list shrinks with the viewport as well.
-        composerNode.style.maxHeight = state.composing
-            ? showPicker
-                ? 'min(470px, calc(100vh - 300px))'
-                : '264px'
-            : '0px';
-        composerNode.style.opacity = state.composing ? '1' : '0';
-        composerNode.style.pointerEvents = state.composing ? 'auto' : 'none';
         // The save is the composer's own action, so its progress belongs on the Save button.
         saveBtn.disabled = state.saving || (newNote && !activeTarget());
         saveBtn.innerHTML = state.saving
             ? `<span class="lp-spin"></span>Saving…`
             : 'Save';
-        if (state.composing) {
+        if (composing()) {
             const ct = state.composeTarget || { type: 'general' };
             // The drawing gets a pill of its own, so it stays visible and removable
             // after the reviewer leaves draw mode and goes back to typing.
@@ -2634,7 +3181,7 @@
                 // The hold points a page note at an element and keeps the draft, so the
                 // note says the key does something rather than changing type in silence.
                 headHtml =
-                    `<span class="lp-compose-general"><span class="lp-dot"></span>General comment</span>` +
+                    `<span class="lp-compose-general"><span class="lp-dot"></span>General note</span>` +
                     strokeChip +
                     (state.editId == null
                         ? `<span class="lp-compose-hint">Hold ${MOD_LABEL} to point at an element</span>`
@@ -2686,7 +3233,7 @@
                             removeComposeAnchor(
                                 Number(button.dataset.anchorRemove),
                             );
-                            if (state.composing) focusTextarea();
+                            if (composing()) focusTextarea();
                         });
                     });
                 // Pointing at a pill emphasises the one element it names, and the rest
@@ -2737,82 +3284,134 @@
         }
         // Composer just closed but the textarea kept focus would keep isTyping() true and
         // trap the single-key shortcuts (t/c). Blur it once the composer is hidden.
-        if (!state.composing && root.activeElement === textareaNode)
+        if (state.view !== 'compose' && root.activeElement === textareaNode)
             textareaNode.blur();
 
-        // action buttons
-        const noteActive =
-            state.composing && (state.composeTarget || {}).type === 'general';
+        // tool buttons
         generalBtn.classList.toggle('active', noteActive);
         generalBtn.setAttribute('aria-pressed', noteActive ? 'true' : 'false');
-        targetBtn.classList.toggle('active', state.target);
-        targetBtn.setAttribute('aria-pressed', state.target ? 'true' : 'false');
-        // Hidden rather than disabled when the instance offers no drawing: the two
-        // remaining modes then split the row, and there is nothing to explain.
-        drawBtn.style.display = drawingEnabled ? '' : 'none';
-        drawBtn.classList.toggle('active', state.drawing);
-        drawBtn.setAttribute('aria-pressed', state.drawing ? 'true' : 'false');
-        // An edit PATCHes the body alone, so a drawing added here would be dropped
-        // by the save, the same way an anchor change is.
-        drawBtn.disabled = state.editId != null;
+        targetBtns.forEach((button) => {
+            button.classList.toggle('active', state.target);
+            button.classList.toggle('on', state.target);
+            button.setAttribute(
+                'aria-pressed',
+                state.target ? 'true' : 'false',
+            );
+        });
+        drawBtns.forEach((button) => {
+            // Hidden rather than disabled when the instance offers no drawing: the
+            // two remaining modes then split the row, and there is nothing to explain.
+            button.style.display = drawingEnabled ? '' : 'none';
+            button.classList.toggle('active', state.drawing);
+            button.classList.toggle('on', state.drawing);
+            button.setAttribute(
+                'aria-pressed',
+                state.drawing ? 'true' : 'false',
+            );
+            // An edit PATCHes the body alone, so a drawing added here would be dropped
+            // by the save, the same way an anchor change is.
+            button.disabled = state.editId != null;
+        });
 
-        if (state.actionError) {
-            errorNode.style.display = 'flex';
-            errorNode.innerHTML =
-                `<span>${escapeHtml(errorText(state.actionError))}</span>` +
-                `<button id="lp-error-dismiss">Dismiss</button>`;
-            root.getElementById('lp-error-dismiss').addEventListener(
-                'click',
-                () => {
+        // The error shows in the view the reviewer is looking at. A note
+        // refused for its destination keeps its error in the note view too,
+        // for when the destination view closes.
+        const errorShown = {
+            list: state.view === 'list',
+            compose:
+                state.view === 'compose' ||
+                (state.view === 'destination' && composing()),
+            destination: state.view === 'destination',
+        };
+        Object.entries(errorNodes).forEach(([name, node]) => {
+            if (state.actionError && errorShown[name]) {
+                node.style.display = 'flex';
+                node.innerHTML =
+                    `<span>${escapeHtml(errorText(state.actionError))}</span>` +
+                    `<button${name === 'compose' ? ' id="lp-error-dismiss"' : ''}>Dismiss</button>`;
+                node.querySelector('button').addEventListener('click', () => {
                     state.actionError = null;
                     updatePanel();
-                },
-            );
-        } else {
-            errorNode.style.display = 'none';
-        }
+                });
+            } else {
+                node.style.display = 'none';
+                node.textContent = '';
+            }
+        });
 
         // empty vs list
-        // Animate the empty state the same way the composer/list do, so cancelling a compose
-        // on an empty panel cross-fades (composer slides out as this slides in) instead of
-        // the empty state popping back instantly mid-animation.
-        const showEmpty = n === 0 && !state.composing;
-        emptyAnim.style.maxHeight = showEmpty ? '220px' : '0px';
-        emptyAnim.style.opacity = showEmpty ? '1' : '0';
-        listWrap.style.display = n > 0 ? 'flex' : 'none';
-        listAnim.style.maxHeight = state.listExpanded ? '260px' : '0px';
-        listAnim.style.opacity = state.listExpanded ? '1' : '0';
+        emptyNode.style.display = n === 0 ? 'flex' : 'none';
         renderList();
 
         // footer
-        footerNode.style.display = n > 0 ? 'flex' : 'none';
-        if (n > 0) {
-            footerMain.style.display = state.confirmClear ? 'none' : 'flex';
-            footerConfirm.style.display = state.confirmClear ? 'flex' : 'none';
-            $('lp-chev').style.transform =
-                `rotate(${state.listExpanded ? '0deg' : '180deg'})`;
-            $('lp-list-toggle-text').textContent = state.listExpanded
-                ? 'Hide comments'
-                : n === 1
-                  ? 'Show 1 comment'
-                  : `Show ${n} comments`;
-            // These are live comments the agent may already be acting on, not a private
-            // draft, so the confirmation says what is actually at stake.
-            $('lp-clear-confirm-text').textContent =
-                n === 1
-                    ? 'Delete this comment? Your agent may have it already.'
-                    : `Delete all ${n} comments? Your agent may have them already.`;
-            clearBtn.disabled = state.saving || state.deleting;
+        const action = footerAction();
+        if (n === 0) state.confirmClear = false;
+        footerNode.style.display =
+            state.confirmClear || action ? 'flex' : 'none';
+        footerMain.style.display = state.confirmClear ? 'none' : 'block';
+        footerConfirm.style.display = state.confirmClear ? 'flex' : 'none';
+        renderFooterAction(action);
+        // These are live comments the agent may already be acting on, not a private
+        // draft, so the confirmation says what is actually at stake.
+        const cardTitle = deleteAllCardTitle();
+        const confirmText = cardTitle
+            ? n === 1
+                ? `Delete 1 note on ${cardTitle}? Your agent may have it already.`
+                : `Delete all ${n} notes on ${cardTitle}? Your agent may have them already.`
+            : n === 1
+              ? 'Delete this note? Your agent may have it already.'
+              : `Delete all ${n} notes? Your agent may have them already.`;
+        $('lp-clear-confirm-text').textContent = confirmText;
+
+        fitPanel(opening);
+    };
+
+    let footerActionDrawn = null;
+    const renderFooterAction = (action) => {
+        const key = JSON.stringify(action);
+        if (key === footerActionDrawn) return;
+        footerActionDrawn = key;
+        footAction.textContent = '';
+        if (!action) return;
+        if (action.kind === 'finish') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.id = 'lp-finish';
+            button.className = 'lp-foot-action primary';
+            button.textContent = 'Finish review';
+            button.addEventListener('click', openFinish);
+            footAction.appendChild(button);
+
+            return;
         }
+        const link = document.createElement('a');
+        link.id = 'lp-open-card';
+        link.className = 'lp-foot-action secondary';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.href = action.url;
+        link.innerHTML = `${escapeHtml(action.text)}${ICON.arrowOut(14)}`;
+        footAction.appendChild(link);
     };
 
     // List rows are reconciled (not rebuilt) so arming/cancelling a delete only toggles
     // that row's confirm overlay in place — it slides in, and Cancel slides it back out
     // — without re-rendering the row (which would interrupt the animation).
     const rowNodes = new Map();
+    const buildSection = (label) => {
+        const node = document.createElement('div');
+        node.className = 'lp-section';
+        node.innerHTML = `<span>${label}</span><span></span>`;
+
+        return node;
+    };
+    const sectionNodes = {
+        here: buildSection('On this page'),
+        other: buildSection('Other pages'),
+    };
     const buildItemConfirm = (index) =>
         `<div class="lp-item-confirm">
-       <span class="lp-item-confirm-text">Delete this comment?</span>
+       <span class="lp-item-confirm-text">Delete this note?</span>
        <button class="lp-danger-sm" data-del-yes="${index}">Delete</button>
        <button class="lp-ghost-sm" data-del-no="${index}">Cancel</button>
      </div>`;
@@ -2832,6 +3431,7 @@
                 rowNodes.delete(index);
             }
         });
+        const order = displayOrder();
         comments.forEach((comment, index) => {
             let row = rowNodes.get(index);
             if (!row) {
@@ -2840,11 +3440,9 @@
                 row.innerHTML =
                     `<span class="lp-badge"></span>` +
                     `<div class="lp-item-body"><div class="lp-item-text"></div><span class="lp-chip" style="display:none"></span>` +
-                    `<button class="lp-item-page" style="display:none" aria-label="Go to the page this comment was made on">` +
-                    `${ICON.arrowOut(11)}<span class="lp-item-page-label"></span></button></div>` +
-                    `<button class="lp-resolve" aria-label="Resolve comment">${ICON.check(14, 2.2)}</button>` +
-                    `<button class="lp-edit" aria-label="Edit comment">${ICON.edit(14)}</button>` +
-                    `<button class="lp-del" aria-label="Delete comment">${ICON.trash(14)}</button>`;
+                    `<button class="lp-item-page" style="display:none" aria-label="Go to the page this note was made on">` +
+                    `<span class="lp-item-page-label"></span>${ICON.arrowOut(11)}</button></div>` +
+                    `<button class="lp-row-menu-btn" aria-label="Note actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(14)}</button>`;
                 row.addEventListener('mouseenter', () => {
                     if (
                         state.target ||
@@ -2866,24 +3464,20 @@
                         if (target && target.url) location.href = target.url;
                     },
                 );
-                row.querySelector('.lp-resolve').addEventListener('click', () =>
-                    resolveComment(index),
+                row.querySelector('.lp-row-menu-btn').addEventListener(
+                    'click',
+                    (event) => openRowMenu(event.currentTarget, index),
                 );
-                row.querySelector('.lp-edit').addEventListener('click', () =>
-                    openEditComposer(index),
-                );
-                row.querySelector('.lp-del').addEventListener('click', () => {
-                    state.confirmDeleteId = index;
-                    renderList();
-                });
-                listNode.appendChild(row);
                 rowNodes.set(index, row);
             }
             const anchors = anchorsOf(comment);
             const isElement = anchors.length > 0;
+            const here = isHere(comment);
             const badge = row.querySelector('.lp-badge');
-            badge.className = 'lp-badge ' + (isElement ? 'element' : 'general');
-            badge.textContent = String(index + 1);
+            badge.className =
+                'lp-badge ' +
+                (!here ? 'off' : isElement ? 'element' : 'general');
+            badge.textContent = String(order.all.indexOf(index) + 1);
             row.querySelector('.lp-item-text').textContent = comment.body;
             const chipEl = row.querySelector('.lp-chip');
             // A multi-anchor row names its count, and says so when some of its
@@ -2901,13 +3495,12 @@
             chipEl.style.display = showChip ? '' : 'none';
             chipEl.classList.toggle('degraded', isElement && degraded);
             if (showChip)
-                chipEl.textContent = isElement ? label : 'General comment';
+                chipEl.textContent = isElement ? label : 'General note';
             // Only cross-page comments get the affordance: on the current page the row
             // already highlights its element, and a label saying "here" is noise.
             const pageEl = row.querySelector('.lp-item-page');
-            const offPage = !!comment.url && comment.url !== location.href;
-            pageEl.style.display = offPage ? '' : 'none';
-            if (offPage)
+            pageEl.style.display = here ? 'none' : '';
+            if (!here)
                 pageEl.querySelector('.lp-item-page-label').textContent =
                     pageLabel(comment.url);
             // Toggle the confirm overlay in place (slide in on arm, slide out on cancel).
@@ -2925,32 +3518,51 @@
                 slideOut(liveConfirm);
             }
         });
+        // Reordered only when the sequence changed, so a repaint that changes
+        // nothing keeps focus and the animation of a row's confirm overlay.
+        sectionNodes.here.lastChild.textContent = String(order.here.length);
+        sectionNodes.other.lastChild.textContent = String(order.other.length);
+        const wanted = [];
+        if (order.here.length) {
+            wanted.push(
+                sectionNodes.here,
+                ...order.here.map((index) => rowNodes.get(index)),
+            );
+        }
+        if (order.other.length) {
+            wanted.push(
+                sectionNodes.other,
+                ...order.other.map((index) => rowNodes.get(index)),
+            );
+        }
+        const current = Array.from(listNode.children);
+        if (
+            current.length !== wanted.length ||
+            current.some((node, at) => node !== wanted[at])
+        ) {
+            listNode.replaceChildren(...wanted);
+        }
     };
 
     // The critical state for a rejected token. Built once and sticky — a bad token cannot
     // recover without a fresh page load (with a corrected embed), so there is nothing to
-    // retry or dismiss; the copy tells the embedder how to fix it.
+    // retry or dismiss; the copy tells the embedder how to fix it. A signed-out
+    // reviewer sees the sign-in view instead, which renderSignIn fills in.
     const renderFatal = () => {
         const shown = JSON.stringify(state.fatal || {});
         if (fatalNode.dataset.shown === shown) return;
         fatalNode.dataset.shown = shown;
-        if (signedOut()) {
-            fatalNode.innerHTML = `<div class="lp-fatal lp-signin">
-        <div class="lp-fatal-disc">${ICON.comment(22)}</div>
-        <div class="lp-fatal-title">Sign in to review this page</div>
-        <div class="lp-fatal-sub">${escapeHtml(state.fatal.message || 'Your comments go to the Loupe project of this site. Only the project owner can sign in for now.')}</div>
-        <button class="lp-primary lp-signin-button" id="lp-sign-in" type="button">Sign in with Loupe</button>
-      </div>`;
-            fatalNode
-                .querySelector('#lp-sign-in')
-                .addEventListener('click', signIn);
-            return;
-        }
         fatalNode.innerHTML = `<div class="lp-fatal">
         <div class="lp-fatal-disc">${ICON.alert(22)}</div>
         <div class="lp-fatal-title">This review widget can’t connect</div>
         <div class="lp-fatal-sub">${fatalDetail(state.fatal || {})}</div>
       </div>`;
+    };
+    const renderSignIn = () => {
+        const note = $('lp-signin-note');
+        const message = (state.fatal && state.fatal.message) || '';
+        note.textContent = message;
+        note.style.display = message ? '' : 'none';
     };
 
     const signedOut = () => !!state.fatal && state.fatal.code === 'signed_out';
@@ -3025,7 +3637,7 @@
         if (typeof data.code !== 'string' || data.error) {
             showSignedOut(
                 'access_denied' === data.error
-                    ? 'Sign-in was cancelled. Your comments go to the Loupe project of this site.'
+                    ? 'Sign-in was cancelled. Your notes go to the Loupe project of this site.'
                     : 'Sign-in failed. Try again.',
             );
             return;
@@ -3044,6 +3656,7 @@
             return;
         }
         state.fatal = null;
+        resetView();
         await refresh({ firstLoad: true });
         sync();
     };
@@ -3087,13 +3700,12 @@
     const verdict = {
         cardId: null,
         data: null,
-        open: null,
+        kind: null, // the verdict being written, or null while none is picked
         ticked: [],
         message: '',
         sending: false,
         connecting: false,
         error: null,
-        notice: null,
         attempt: null,
     };
     let verdictGeneration = 0;
@@ -3103,13 +3715,12 @@
         Object.assign(verdict, {
             cardId: null,
             data: null,
-            open: null,
+            kind: null,
             ticked: [],
             message: '',
             sending: false,
             connecting: false,
             error: null,
-            notice: null,
             attempt: null,
         });
     };
@@ -3142,6 +3753,12 @@
         return verdict.attempt.id;
     };
 
+    // Request changes when notes are open, and Approve when none is.
+    const currentKind = () =>
+        verdict.kind ||
+        (verdict.data && verdict.data.notes.length > 0
+            ? 'request-changes'
+            : 'approve');
     const verdictActions = (data, kind) =>
         ((data.preview || {})[kind] || {}).actions || [];
     // The review write needs the reviewer's own GitHub account.
@@ -3228,26 +3845,33 @@
         } else if (verdict.cardId !== lock.cardId) loadVerdict();
     };
 
-    const openVerdict = (kind) => {
-        verdict.open = kind;
+    // The footer action opens the view with the verdict that the open notes
+    // suggest. The reviewer's own pick, once made, stays.
+    const openFinish = () => {
+        if (!verdictCurrent()) return;
+        verdict.kind = null;
         verdict.error = null;
-        verdict.notice = null;
         tidyTicks();
+        showView('finish');
         sync();
+        focusVerdictMessage();
         // The notes may have changed since the page loaded.
         loadVerdict();
     };
-    const closeVerdict = () => {
-        verdict.open = null;
-        verdict.message = '';
-        verdict.ticked = [];
-        verdict.attempt = null;
-        verdict.error = null;
+    const focusVerdictMessage = () => {
+        const message = $('lp-verdict-message');
+        if (message) message.focus({ preventScroll: true });
+    };
+    // Focus goes back to the footer action that opened the view.
+    const leaveFinish = () => {
+        resetView();
         sync();
+        const action = footAction.querySelector('button, a');
+        if (action) action.focus({ preventScroll: true });
     };
     const verdictSendable = () =>
         verdictCanSend({
-            kind: verdict.open,
+            kind: currentKind(),
             noteCount: verdict.data.notes.length,
             message: verdict.message,
             ticked: verdict.ticked.length,
@@ -3255,9 +3879,9 @@
         });
 
     const sendVerdict = async () => {
-        if (!verdict.open || !verdictCurrent() || !verdictSendable()) return;
+        if (!verdictCurrent() || !verdictSendable()) return;
         const cardId = verdict.cardId;
-        const kind = verdict.open;
+        const kind = currentKind();
         const content = {
             cardId,
             kind,
@@ -3298,11 +3922,12 @@
         }
         if (verdict.cardId !== cardId) return;
         verdict.sending = false;
-        verdict.open = null;
+        verdict.kind = null;
         verdict.message = '';
         verdict.ticked = [];
         verdict.attempt = null;
-        verdict.notice = 'Sent to the workflow';
+        resetView();
+        flashSaved('Sent to the workflow');
         sync();
         await loadVerdict();
     };
@@ -3355,10 +3980,24 @@
         });
     }
 
-    const renderVerdictForm = (data) => {
-        const kind = verdict.open;
-        const label = lock && lock.label ? lock.label : 'this card';
+    const VERDICT_HINTS = {
+        approve: 'The change is ready from your side.',
+        'request-changes': 'The agent works through your notes next.',
+        comment: 'Send the notes with no verdict.',
+    };
+
+    const renderVerdictBody = (data) => {
+        if (!data.pullRequests.length) return renderVerdictResult(data);
+        const kind = currentKind();
         const single = data.pullRequests.length === 1;
+        const options = Object.entries(VERDICT_KINDS)
+            .map(
+                ([value, text]) =>
+                    `<label class="lp-verdict-opt${value === kind ? ' is-on' : ''}"><input type="radio" name="lp-verdict-kind" data-kind="${value}"${
+                        value === kind ? ' checked' : ''
+                    }><span><span class="lp-verdict-opt-t">${text}</span><span class="lp-verdict-opt-d">${VERDICT_HINTS[value]}</span></span></label>`,
+            )
+            .join('');
         const prs = data.pullRequests
             .map((pr) =>
                 single
@@ -3371,10 +4010,14 @@
         const own = data.pullRequests.some(
             (pr) => pr.ownPullRequest && verdict.ticked.includes(pr.id),
         );
+        const optional = kind === 'approve' || data.notes.length > 0;
         const notes = data.notes.length
-            ? `<div class="lp-verdict-line">${notesOpenText(kind, data.notes.length)}</div><ul class="lp-verdict-notes">${data.notes
-                  .map((note) => `<li>${escapeHtml(note.body)}</li>`)
-                  .join('')}</ul>`
+            ? `<div><div class="lp-verdict-label">${notesOpenText(kind, data.notes.length)}</div><div class="lp-verdict-notes">${data.notes
+                  .map(
+                      (note, index) =>
+                          `<div class="lp-verdict-note"><span class="lp-verdict-n">${index + 1}</span><span>${escapeHtml(note.body)}</span></div>`,
+                  )
+                  .join('')}</div></div>`
             : '';
         const actions = verdictActions(data, kind);
         const does = actions.length
@@ -3385,31 +4028,44 @@
                   )
                   .join('')
             : '<div class="lp-verdict-line">Recorded in Loupe only</div>';
-        const connect = verdictNeedsConnect(data, kind);
+        const login = data.connection.login;
+        const account =
+            data.connection.state === 'connected' && login
+                ? `<div class="lp-verdict-line">Posts to GitHub as @${escapeHtml(login)}</div>`
+                : '';
+
+        return `<fieldset class="lp-verdict-set" aria-label="Verdict" role="group">
+          <legend class="lp-verdict-label">Your verdict</legend>
+          ${options}
+        </fieldset>
+        ${prs ? `<div>${prs}</div>` : ''}
+        ${own ? '<div class="lp-verdict-warn">You opened this pull request, so GitHub accepts no verdict from you. The review goes as a comment.</div>' : ''}
+        <div>
+          <label class="lp-verdict-label" for="lp-verdict-message">${optional ? 'Message (optional)' : 'Message'}</label>
+          <textarea class="lp-textarea" id="lp-verdict-message" placeholder="${
+              optional
+                  ? 'Your notes can stand on their own.'
+                  : 'Say what needs to change.'
+          }"></textarea>
+        </div>
+        ${notes}
+        <div>${does}${account}</div>
+        ${verdict.error ? `<div class="lp-verdict-error" role="alert">${escapeHtml(verdict.error)}</div>` : ''}
+        ${renderVerdictResult(data)}`;
+    };
+
+    const renderVerdictFoot = (data) => {
+        if (!data.pullRequests.length) return '';
+        const connect = verdictNeedsConnect(data, currentKind());
         const send = connect
-            ? `<button class="lp-primary" id="lp-verdict-connect" type="button"${
+            ? `<button class="lp-foot-action primary" id="lp-verdict-connect" type="button"${
                   verdict.connecting ? ' disabled' : ''
               }>${verdict.connecting ? 'Waiting for GitHub…' : 'Connect GitHub to send this review'}</button>`
-            : `<button class="lp-primary" id="lp-verdict-send" type="button"${
+            : `<button class="lp-foot-action primary" id="lp-verdict-send" type="button"${
                   verdictSendable() ? '' : ' disabled'
               }>${verdict.sending ? '<span class="lp-spin"></span>Sending…' : 'Send'}</button>`;
-        return `<div class="lp-verdict-form" id="lp-verdict-form" role="group" aria-label="${escapeHtml(VERDICT_KINDS[kind])}">
-          <div class="lp-verdict-title">${escapeHtml(VERDICT_KINDS[kind])} for ${escapeHtml(label)}</div>
-          ${prs}
-          ${own ? '<div class="lp-verdict-warn">You opened this pull request, so GitHub accepts no verdict from you. The review goes as a comment.</div>' : ''}
-          ${notes}
-          <textarea class="lp-textarea" id="lp-verdict-message" aria-label="Message" placeholder="${
-              kind === 'approve' || data.notes.length > 0
-                  ? 'Message (optional)'
-                  : 'Message'
-          }"></textarea>
-          ${does}
-          ${verdict.error ? `<div class="lp-verdict-error" role="alert">${escapeHtml(verdict.error)}</div>` : ''}
-          <div class="lp-verdict-foot">
-            <button class="lp-ghost" id="lp-verdict-cancel" type="button">Cancel</button>
-            ${send}
-          </div>
-        </div>`;
+
+        return `<button class="lp-ghost" id="lp-verdict-cancel" type="button">Cancel</button>${send}`;
     };
 
     const renderVerdictResult = (data) => {
@@ -3440,42 +4096,28 @@
     const renderVerdict = () => {
         const data = verdictCurrent() ? verdict.data : null;
         if (!data) {
-            verdictNode.style.display = 'none';
             verdictDrawn = null;
             return;
         }
-        verdictNode.style.display = 'block';
-        const html = [
-            verdict.notice
-                ? `<div class="lp-verdict-ok" role="status">${escapeHtml(verdict.notice)}</div>`
-                : '',
-            verdict.open
-                ? renderVerdictForm(data)
-                : (data.pullRequests.length
-                      ? `<div class="lp-verdict-row" role="group" aria-label="Verdict">${Object.entries(
-                            VERDICT_KINDS,
-                        )
-                            .map(
-                                ([kind, text]) =>
-                                    `<button class="lp-verdict-btn" type="button" data-kind="${kind}">${text}</button>`,
-                            )
-                            .join('')}</div>`
-                      : '') + renderVerdictResult(data),
-        ].join('');
+        finishSub.textContent = lock && lock.label ? lock.label : 'This card';
+        const body = renderVerdictBody(data);
+        const foot = renderVerdictFoot(data);
         // The typed message is not part of the markup, so typing never repaints.
-        if (html === verdictDrawn) return;
-        verdictDrawn = html;
+        if (body + foot === verdictDrawn) return;
+        verdictDrawn = body + foot;
         const focused = root.activeElement;
         const typing = focused?.id === 'lp-verdict-message';
+        const pickedKind = focused?.dataset?.kind;
         const tickedBox = focused?.dataset?.pr;
-        verdictNode.innerHTML = html;
-        verdictNode
-            .querySelectorAll('[data-kind]')
-            .forEach((button) =>
-                button.addEventListener('click', () =>
-                    openVerdict(button.dataset.kind),
-                ),
-            );
+        verdictNode.innerHTML = body;
+        verdictFoot.innerHTML = foot;
+        verdictNode.querySelectorAll('[data-kind]').forEach((radio) =>
+            radio.addEventListener('change', () => {
+                verdict.kind = radio.dataset.kind;
+                verdict.error = null;
+                sync();
+            }),
+        );
         verdictNode.querySelectorAll('[data-pr]').forEach((box) =>
             box.addEventListener('change', () => {
                 verdict.ticked = box.checked
@@ -3492,19 +4134,25 @@
                 const sendButton = $('lp-verdict-send');
                 if (sendButton) sendButton.disabled = !verdictSendable();
             });
-            if (typing) message.focus();
+            if (typing) message.focus({ preventScroll: true });
+        }
+        if (pickedKind) {
+            const radio = verdictNode.querySelector(
+                `[data-kind="${CSS.escape(pickedKind)}"]`,
+            );
+            if (radio) radio.focus({ preventScroll: true });
         }
         if (tickedBox) {
             const box = verdictNode.querySelector(
                 `[data-pr="${CSS.escape(tickedBox)}"]`,
             );
-            if (box) box.focus();
+            if (box) box.focus({ preventScroll: true });
         }
         const on = (id, handler) => {
             const node = $(id);
             if (node) node.addEventListener('click', handler);
         };
-        on('lp-verdict-cancel', closeVerdict);
+        on('lp-verdict-cancel', leaveFinish);
         on('lp-verdict-send', sendVerdict);
         on('lp-verdict-connect', connectGitHub);
         on('lp-verdict-again', connectGitHub);
@@ -3529,9 +4177,11 @@
     };
 
     // ---- composer / focus ----
+    // preventScroll, because a view that is still sliding in sits outside the
+    // panel's box, and a focus that scrolled to it would shift the whole panel.
     const focusTextarea = () => {
         const t = textareaNode;
-        t.focus();
+        t.focus({ preventScroll: true });
         const end = t.value.length;
         t.setSelectionRange(end, end);
     };
@@ -3544,7 +4194,7 @@
         // document would close the same gap on every DOM change of somebody
         // else's page.
         recheckMarker();
-        state.composing = true;
+        showView('compose');
         state.composeTarget = { type: 'general' };
         state.editId = null;
         state.draft = '';
@@ -3553,19 +4203,26 @@
         state.open = true;
         setTargeting(false);
         setDrawing(false);
+        // Where notes go is the first choice of a review, so the destination
+        // view opens over the new note until the reviewer has made it.
+        const asking = needsMode();
+        if (asking) showView('destination');
         sync();
-        focusTextarea();
+        if (asking) focusDestination();
+        else focusTextarea();
     };
     // Where notes go is the first choice of a review, so a start that would
     // pick or draw opens the composer and its mode picker instead.
     const needsMode = () => !lock && !storedTarget;
     const askModeFirst = () => {
         if (!needsMode()) return false;
-        if (state.composing && state.editId == null) {
+        if (composing() && state.editId == null) {
             state.open = true;
             setTargeting(false);
             setDrawing(false);
+            showView('destination');
             sync();
+            focusDestination();
         } else {
             openNoteComposer();
         }
@@ -3573,8 +4230,8 @@
     };
     const toggleNote = () => {
         const ct = state.composeTarget || {};
-        if (state.composing && ct.type === 'general') {
-            state.composing = false;
+        if (composing() && ct.type === 'general') {
+            resetView();
             state.composeTarget = null;
             state.editId = null;
             state.draft = '';
@@ -3666,7 +4323,7 @@
     // several things. `keepPicking` holds pick mode open for the next one, which
     // is what the add-another modifier does.
     const addComposeAnchor = (anchor, keepPicking) => {
-        if (state.composing && state.editId == null) {
+        if (composing() && state.editId == null) {
             const existing = composeAnchors();
             let stayed = keepPicking;
             if (existing.length >= MAX_ANCHORS) {
@@ -3693,7 +4350,7 @@
         // document would close the same gap on every DOM change of somebody
         // else's page.
         recheckMarker();
-        state.composing = true;
+        showView('compose');
         state.composeTarget = { type: 'element', anchors: [anchor] };
         state.editId = null;
         state.draft = '';
@@ -3799,16 +4456,16 @@
         if (state.drawing) {
             setDrawing(false);
             sync();
-            if (state.composing) focusKeepingPick();
+            if (composing()) focusKeepingPick();
             return;
         }
         if (state.editId != null) return;
         if (askModeFirst()) return;
-        if (!state.composing) {
+        if (!composing()) {
             // Same reason as the other two entry points: a new comment must be
             // attached to the card this page names, not the last one.
             recheckMarker();
-            state.composing = true;
+            showView('compose');
             state.composeTarget = { type: 'general' };
             state.strokes = [];
             state.draft = '';
@@ -3897,7 +4554,7 @@
         if (state.modCancelled || state.addAnchor) return;
         if (
             state.fatal ||
-            !state.composing ||
+            !composing() ||
             state.editId != null ||
             hidden.matches ||
             needsMode()
@@ -3918,7 +4575,7 @@
         state.addAnchor = false;
         setTargeting(false);
         sync();
-        if (state.composing && root.activeElement !== textareaNode)
+        if (composing() && root.activeElement !== textareaNode)
             focusKeepingPick();
     };
     // Re-open the composer pre-filled to edit an existing comment in place. The anchors
@@ -3931,7 +4588,7 @@
         // it to a page note.
         const stored = anchorsOf(comment).filter((anchor) => anchor.selector);
         const onThisPage = comment.url === location.href;
-        state.composing = true;
+        showView('compose');
         state.editId = comment.id;
         state.composeTarget = stored.length
             ? {
@@ -3969,13 +4626,43 @@
     // The mode picker. The card list loads only once a mode needs a card.
     // A choice holds for every later note until the reviewer changes it, and
     // it outlives a reload.
+    const sameTarget = (a, b) =>
+        !!a && !!b && a.mode === b.mode && a.cardId === b.cardId;
+    const focusDestination = () => {
+        const first = root.querySelector('#lp-picker-modes [data-mode]');
+        if (first) first.focus({ preventScroll: true });
+    };
+    const openDestination = () => {
+        pickerMode = null;
+        showView('destination');
+        sync();
+        focusDestination();
+    };
+    // Back to whatever opened the destination view: the note being written,
+    // or the list.
+    const leaveDestination = () => {
+        pickerMode = null;
+        if (state.view === 'destination') backView();
+    };
+    // Focus follows the reviewer back, so it never stays in the hidden view.
+    const focusAfterDestination = () => {
+        if (composing()) focusTextarea();
+        else destNode.focus({ preventScroll: true });
+    };
     const chooseTarget = (target) => {
+        const changed = !sameTarget(storedTarget, target);
         storedTarget = target;
         writeStoredTarget(target);
-        state.picking = false;
-        pickerMode = null;
+        leaveDestination();
+        if (changed) {
+            // The notes of the old destination are not part of the new one.
+            writeSessionCards([]);
+            comments = [];
+            scopeGeneration++;
+        }
         sync();
-        focusTextarea();
+        focusAfterDestination();
+        if (changed) refresh().then(sync);
     };
     const pickMode = (mode) => {
         if (mode === 'per-note') {
@@ -3988,7 +4675,15 @@
         pickerTitleNode.value = `Review: ${location.pathname}`;
         sync();
         loadPickerCards('');
-        pickerSearchNode.focus();
+        // The title is the one field the common case needs, so it takes the
+        // focus; an epic or an existing card starts from the search.
+        if (mode === 'per-review') {
+            pickerTitleNode.focus({ preventScroll: true });
+            const end = pickerTitleNode.value.length;
+            pickerTitleNode.setSelectionRange(end, end);
+        } else {
+            pickerSearchNode.focus({ preventScroll: true });
+        }
     };
     root.querySelectorAll('#lp-picker-modes [data-mode]').forEach((button) =>
         button.addEventListener('click', () => pickMode(button.dataset.mode)),
@@ -4168,10 +4863,9 @@
     const closePickerOnEscape = (event) => {
         if (event.key !== 'Escape') return;
         event.stopPropagation();
-        state.picking = false;
-        pickerMode = null;
+        leaveDestination();
         sync();
-        focusTextarea();
+        focusAfterDestination();
     };
     pickerSearchNode.addEventListener('keydown', closePickerOnEscape);
     pickerTitleNode.addEventListener('keydown', closePickerOnEscape);
@@ -4180,22 +4874,33 @@
     });
     $('lp-picker-create').addEventListener('click', createCardFromPicker);
     $('lp-picker-close').addEventListener('click', () => {
-        state.picking = false;
-        pickerMode = null;
+        leaveDestination();
         sync();
+        focusAfterDestination();
     });
+    $('lp-destination-back').addEventListener('click', () => {
+        // With no destination chosen a note cannot be saved, so backing out of
+        // the choice backs out of the note too.
+        if (needsMode() && composing()) {
+            cancelCompose();
+            return;
+        }
+        leaveDestination();
+        sync();
+        focusAfterDestination();
+    });
+    destNode.addEventListener('click', openDestination);
     $('lp-picker-back').addEventListener('click', () => {
         pickerMode = null;
         sync();
-        focusTextarea();
+        focusDestination();
     });
 
     const cancelCompose = () => {
         state.deliveryId = null;
-        state.composing = false;
+        resetView();
         state.composeTarget = null;
         state.editId = null;
-        state.picking = false;
         pickerMode = null;
         state.draft = '';
         state.strokes = [];
@@ -4222,13 +4927,15 @@
             storedTarget = null;
             writeStoredTarget(null);
             pickerMode = null;
+            // The reviewer chooses again, with the note still in the view below.
+            showView('destination');
         }
     };
     const saveComment = async () => {
         const body = state.draft.trim();
         if (!body || state.saving) return;
         const editing = state.editId != null;
-        let savedCard = null;
+        let savedLabel;
         state.saving = true;
         state.actionError = null;
         updatePanel();
@@ -4241,10 +4948,13 @@
                 const target = comments.find((c) => c.id === state.editId);
                 if (!target)
                     throw Object.assign(new Error('HTTP 404'), { status: 404 });
-                await api('PATCH', `/api/site-review/comments/${target.id}`, {
-                    body,
-                });
+                const updated = await api(
+                    'PATCH',
+                    `/api/site-review/comments/${target.id}`,
+                    { body },
+                );
                 target.body = body;
+                savedLabel = (updated && updated.label) || null;
             } else {
                 // Read after the boot load, which may have refused the stored card.
                 const destination = activeTarget();
@@ -4296,6 +5006,7 @@
                     state.deliveryId = newDeliveryId();
                     state.deliveryTarget = targetKey;
                 }
+                const scopeAtSave = scopeGeneration;
                 const comment = {
                     deliveryId: state.deliveryId,
                     body,
@@ -4310,17 +5021,35 @@
                     ...comment,
                     target,
                 });
-                comments.push({ id: saved.commentId, ...comment });
-                savedCard =
-                    destination.mode === 'per-review'
-                        ? null
-                        : { label: saved.label, url: saved.url };
+                if (scopeAtSave === scopeGeneration) {
+                    comments.push({ id: saved.commentId, ...comment });
+                    // A list request still in flight answers with a snapshot
+                    // from before this note, so it is asked again.
+                    let stale = refreshPending;
+                    // Only a per-note review lists the cards of this tab.
+                    if (destination.mode === 'per-note') {
+                        const sent = sessionCards.slice(0, SESSION_CARDS_SENT);
+                        rememberSessionCard(saved.cardId);
+                        // A card pushed out of the sent ids takes its notes
+                        // out of the scope. The rows hold no card id, so the
+                        // list keeps only the new note until the reload.
+                        const kept = sessionCards.slice(0, SESSION_CARDS_SENT);
+                        if (sent.some((id) => !kept.includes(id))) {
+                            comments = comments.filter(
+                                (row) => row.id === saved.commentId,
+                            );
+                            scopeUnread = true;
+                            stale = true;
+                        }
+                    }
+                    if (stale) refresh().then(sync);
+                }
+                savedLabel = saved.label || targetLabel(destination);
             }
             state.deliveryId = null;
-            state.composing = false;
+            resetView();
             state.composeTarget = null;
             state.editId = null;
-            state.picking = false;
             // A saved draft ends the same way a cancelled one does. This block
             // is indented one level deeper than the other two, which is why it
             // was missed.
@@ -4329,13 +5058,10 @@
             state.strokes = [];
             textareaNode.value = '';
             setDrawing(false);
-            state.lastCard = savedCard;
             flashSaved(
-                editing
-                    ? 'Comment updated'
-                    : savedCard
-                      ? `Comment saved as ${savedCard.label}`
-                      : 'Comment saved',
+                savedLabel
+                    ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
+                    : 'Note updated',
             );
         } catch (error) {
             // A rejected token is fatal; anything else keeps the composer open with the text
@@ -4364,7 +5090,8 @@
         try {
             await ready;
             await api('POST', `/api/site-review/comments/${target.id}/resolve`);
-            comments.splice(index, 1);
+            // By id: the list can change while the request runs.
+            comments = comments.filter((comment) => comment.id !== target.id);
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
             else {
@@ -4377,7 +5104,6 @@
         state.pinConfirmId = null;
         state.hoverId = null;
         state.hoverPinId = null;
-        if (!comments.length) state.listExpanded = false;
         sync();
     };
 
@@ -4391,7 +5117,7 @@
         try {
             await ready; // don't let the boot refresh clobber an early delete
             await api('DELETE', `/api/board/feedback/${target.id}`);
-            comments.splice(index, 1);
+            comments = comments.filter((comment) => comment.id !== target.id);
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
             else {
@@ -4404,7 +5130,6 @@
         state.pinConfirmId = null;
         state.hoverId = null;
         state.hoverPinId = null;
-        if (!comments.length) state.listExpanded = false;
         sync();
     };
     const armClear = () => {
@@ -4420,19 +5145,31 @@
         state.deleting = true;
         try {
             await ready; // don't let the boot refresh clobber an early clear
+            // A list still loading can hold notes of an old scope.
+            while (refreshPending) await listReady;
+            if (scopeUnread) {
+                await refresh();
+                while (refreshPending) await listReady;
+            }
+            if (scopeUnread) {
+                throw new Error(
+                    'Couldn’t reload your notes, so nothing was deleted. Please try again.',
+                );
+            }
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.
+            const doomed = comments.map((comment) => comment.id);
             const results = await Promise.allSettled(
-                comments.map((comment) =>
-                    api('DELETE', `/api/board/feedback/${comment.id}`),
-                ),
+                doomed.map((id) => api('DELETE', `/api/board/feedback/${id}`)),
             );
             const failure = results.find(
                 (result) => 'rejected' === result.status,
             );
             if (!failure) {
-                comments = [];
+                comments = comments.filter(
+                    (comment) => !doomed.includes(comment.id),
+                );
             } else if (authFailed(failure.reason)) {
                 enterFatal(failure.reason);
             } else {
@@ -4451,8 +5188,7 @@
         }
         state.deleting = false;
         state.confirmClear = false;
-        state.listExpanded = false;
-        state.composing = false;
+        resetView();
         state.composeTarget = null;
         state.editId = null;
         state.strokes = [];
@@ -4535,13 +5271,13 @@
         // Picking while a new comment is open adds to it. Discarding the draft
         // there would lose the body, the anchors already chosen and the drawing.
         const extending =
-            state.composing &&
+            composing() &&
             state.editId == null &&
             (composeAnchors().length > 0 ||
                 state.strokes.length > 0 ||
                 state.draft.trim() !== '');
         if (on && !extending) {
-            state.composing = false;
+            resetView();
             state.composeTarget = null;
             state.editId = null;
             state.draft = '';
@@ -4653,7 +5389,6 @@
 
     // ---- moving the launcher ----
     const launcherNode = $('lp-launcher');
-    const moveBtn = $('lp-move');
     const nextCorner = () =>
         CORNERS[(CORNERS.indexOf(state.corner) + 1) % CORNERS.length];
 
@@ -4670,11 +5405,6 @@
             'data-loupe-review-corner',
             state.corner,
         );
-        // "Review" stays out of this name: it is the launcher's own accessible name,
-        // and a label containing it makes every by-name lookup ambiguous.
-        const label = `Move the launcher to the ${CORNER_LABEL[nextCorner()]}`;
-        moveBtn.setAttribute('aria-label', label);
-        moveBtn.setAttribute('title', label);
     };
     const setCorner = (corner) => {
         if (!CORNERS.includes(corner)) return;
@@ -4796,21 +5526,13 @@
     // armed for, so a stale one can never reach an unrelated gesture.
     document.addEventListener('pointerdown', disarmClickSwallow, true);
 
-    // A press must not take the caret out of the draft. The button stays
-    // focusable, so only the keyboard reaches it and only it sees a ring.
-    moveBtn.addEventListener('mousedown', (event) => event.preventDefault());
-    moveBtn.addEventListener('click', () => {
-        setCorner(nextCorner());
-        if (state.composing && root.activeElement !== moveBtn) focusTextarea();
-    });
-
     // ---- panel open/close ----
     const togglePanel = () => {
         state.open = !state.open;
         if (!state.open) {
             setTargeting(false);
             setDrawing(false);
-            state.composing = false;
+            resetView();
             state.composeTarget = null;
             state.editId = null;
             state.draft = '';
@@ -4838,8 +5560,14 @@
     });
     $('lp-close').addEventListener('click', togglePanel);
     generalBtn.addEventListener('click', toggleNote);
-    targetBtn.addEventListener('click', toggleTarget);
-    drawBtn.addEventListener('click', toggleDraw);
+    targetBtns.forEach((button) =>
+        button.addEventListener('click', toggleTarget),
+    );
+    drawBtns.forEach((button) => button.addEventListener('click', toggleDraw));
+    $('lp-compose-back').addEventListener('click', cancelCompose);
+    $('lp-finish-back').addEventListener('click', leaveFinish);
+    $('lp-signin-close').addEventListener('click', togglePanel);
+    $('lp-sign-in').addEventListener('click', signIn);
     canvasNode.addEventListener('pointerdown', beginStroke);
     canvasNode.addEventListener('pointermove', extendStroke);
     canvasNode.addEventListener('pointerup', () => endStroke(true));
@@ -4849,11 +5577,6 @@
     $$('lp-draw-done').addEventListener('click', toggleDraw);
     $('lp-cancel').addEventListener('click', cancelCompose);
     $('lp-save').addEventListener('click', saveComment);
-    $('lp-list-toggle').addEventListener('click', () => {
-        state.listExpanded = !state.listExpanded;
-        sync();
-    });
-    $('lp-clear').addEventListener('click', armClear);
     $('lp-clear-cancel').addEventListener('click', cancelClear);
     $('lp-clear-yes').addEventListener('click', confirmClearYes);
     $$('lp-toast-esc').addEventListener('click', () => {
@@ -4872,7 +5595,7 @@
         removeComposeAnchor(Number(button.dataset.anchorRemove));
         // The reviewer types next, and the removed control is gone, so the caret
         // goes back to the draft rather than falling to the document.
-        if (state.composing) focusTextarea();
+        if (composing()) focusTextarea();
     });
     // A mouse press must not focus the control. It stays focusable for the
     // keyboard, and :focus-visible is what draws the ring.
@@ -5056,6 +5779,10 @@
             return;
         }
         if (event.key === 'Escape') {
+            if (menu) {
+                closeMenu(true);
+                return;
+            }
             if (state.target) {
                 setTargeting(false);
                 sync();
@@ -5066,10 +5793,20 @@
             if (state.drawing) {
                 setDrawing(false);
                 sync();
-                if (state.composing) focusKeepingPick();
+                if (composing()) focusKeepingPick();
                 return;
             }
-            if (state.composing) {
+            if (state.view === 'destination') {
+                leaveDestination();
+                sync();
+                focusAfterDestination();
+                return;
+            }
+            if (state.view === 'finish') {
+                leaveFinish();
+                return;
+            }
+            if (composing()) {
                 cancelCompose();
                 return;
             }
@@ -5118,6 +5855,9 @@
     // appear to "follow" onto the new page. History methods are wrapped (and popstate /
     // hashchange listened to) to catch every same-document navigation across browsers.
     const rerenderAnchors = () => {
+        // The list groups notes by the page they were made on, so a new
+        // location changes it too.
+        updatePanel();
         renderPins();
         updateHighlight();
         renderStrokes();
@@ -5132,6 +5872,7 @@
         lastSeenPreviewToken = token;
         if (grant || !state.fatal || !livePreviewToken()) return;
         state.fatal = null;
+        resetView();
         refresh({ firstLoad: true }).then(sync);
     };
     const recheckMarker = () => {
@@ -5139,10 +5880,16 @@
         const marker = pageMarker();
         if (marker === lastSeenMarker) return;
         lastSeenMarker = marker;
+        const scope = scopeOf();
         // Changed now, not when the answer lands. Keeping the old card would
         // attach a comment saved during the request, or after it failed, to
         // the page the reviewer has already left.
         lock = lockFor(marker);
+        if (scopeOf() !== scope) {
+            // The old card's notes are not part of the new scope.
+            comments = [];
+            scopeGeneration++;
+        }
         sync();
         refresh();
     };

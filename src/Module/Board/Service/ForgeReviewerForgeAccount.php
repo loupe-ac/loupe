@@ -31,6 +31,12 @@ final readonly class ForgeReviewerForgeAccount implements ReviewerForgeAccount
         return $this->accountOf($reviewer)->forgeUserId;
     }
 
+    #[\Override]
+    public function loginOf(User $reviewer): ?string
+    {
+        return $this->accountOf($reviewer)->login;
+    }
+
     private function accountOf(User $reviewer): ForgeUserAccount
     {
         return $this->readers->for(Forge::GitHub->value)?->accountOf($reviewer->id ?? throw new \LogicException('A signed-in reviewer is stored'))

@@ -56,7 +56,7 @@ final class ShowCardVerdictController extends AppController
 
         return $this->json([
             'cardId' => (string) $view->card->id,
-            'connection' => ['state' => $view->connection],
+            'connection' => ['state' => $view->connection, 'login' => $view->login],
             'pullRequests' => array_map(
                 static fn (VerdictPullRequestOption $option): array => [
                     'id' => (string) $option->id,

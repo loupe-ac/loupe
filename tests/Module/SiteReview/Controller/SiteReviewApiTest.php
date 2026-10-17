@@ -6,6 +6,7 @@ namespace App\Tests\Module\SiteReview\Controller;
 
 use App\Module\Account\Entity\User;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
@@ -170,6 +171,82 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertIsArray($plain);
         self::assertArrayHasKey('context', $plain);
         self::assertNull($plain['context']);
+    }
+
+    public function test_the_list_scope_keeps_the_notes_of_the_scope_and_nothing_else(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        [$raw, $project] = $this->projectWithToken($client, 'api-scope@example.com');
+        $em = $this->em();
+
+        $first = new Card($project, $this->column($project, 'backlog'), 'First', '', 1);
+        $second = new Card($project, $this->column($project, 'backlog'), 'Second', '', 2);
+        $epic = new Card($project, $this->column($project, 'backlog'), 'Epic', '', 3, type: 'epic');
+        $em->persist($first);
+        $em->persist($second);
+        $em->persist($epic);
+        $second->parent = $epic;
+        $unlinked = new SiteReviewComment($project, 3, 'Unlinked', 'https://app/x');
+        $em->persist($unlinked);
+        $one = new SiteReviewComment($project, 0, 'one', 'https://app/x');
+        $two = new SiteReviewComment($project, 1, 'two', 'https://app/x');
+        $em->persist($one);
+        $em->persist($two);
+        $em->persist(new CardSiteReviewComment($first, $one));
+        $em->persist(new CardSiteReviewComment($second, $two));
+        $em->flush();
+
+        $ids = fn (string $query): array => $this->listedIds($client, $raw, $query);
+
+        self::assertEqualsCanonicalizing(
+            [(string) $one->id, (string) $two->id, (string) $unlinked->id],
+            $ids(''),
+        );
+        self::assertSame([(string) $one->id], $ids('?scope='.urlencode('card:'.$first->id)));
+        self::assertSame([(string) $two->id], $ids('?scope='.urlencode('epic:'.$epic->id)));
+        self::assertEqualsCanonicalizing(
+            [(string) $one->id, (string) $two->id],
+            $ids('?scope='.urlencode('cards:'.$first->id.','.$second->id.',not-a-uuid')),
+        );
+        self::assertSame([], $ids('?scope='.urlencode('card:'.$epic->id)));
+        self::assertSame([], $ids('?scope='.urlencode('branch:feat/x')));
+        self::assertSame([], $ids('?scope='.urlencode('card:not-a-uuid')));
+        self::assertSame([], $ids('?scope='));
+        self::assertSame([], $ids('?scope='.urlencode('  ')));
+    }
+
+    public function test_the_list_scope_drops_a_card_of_another_project_and_a_closed_one(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        [$raw, $project] = $this->projectWithToken($client, 'api-scope-own@example.com');
+        [, $other] = $this->projectWithToken($client, 'api-scope-other@example.com', 'other-site');
+        $em = $this->em();
+
+        $foreign = new Card($other, $this->column($other, 'backlog'), 'Foreign', '', 1);
+        $closed = new Card($project, $this->column($project, 'done'), 'Closed', '', 1);
+        $em->persist($foreign);
+        $em->persist($closed);
+        $note = new SiteReviewComment($other, 0, 'Foreign note', 'https://app/x');
+        $em->persist($note);
+        $em->persist(new CardSiteReviewComment($foreign, $note));
+        $em->flush();
+
+        self::assertSame([], $this->listedIds($client, $raw, '?scope='.urlencode('card:'.$foreign->id)));
+        self::assertSame([], $this->listedIds($client, $raw, '?scope='.urlencode('cards:'.$foreign->id)));
+        self::assertSame([], $this->listedIds($client, $raw, '?scope='.urlencode('card:'.$closed->id)));
+    }
+
+    /** @return list<string> */
+    private function listedIds(KernelBrowser $client, string $raw, string $query): array
+    {
+        $this->api($client, Request::METHOD_GET, '/api/site-review/review'.$query, $raw);
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+        self::assertIsArray($data);
+
+        return array_column($data['comments'], 'id');
     }
 
     public function test_the_boot_load_lists_the_types_that_can_have_children(): void
@@ -674,6 +751,8 @@ final class SiteReviewApiTest extends WebTestCase
 
         $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/'.$id, $raw, ['body' => 'edited']);
         self::assertResponseIsSuccessful();
+        // The edit answers with the card, so the widget names it in its notice.
+        self::assertMatchesRegularExpression('/^#\d+ /', json_decode((string) $client->getResponse()->getContent(), true)['label']);
 
         $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
         self::assertSame('edited', json_decode((string) $client->getResponse()->getContent(), true)['comments'][0]['body']);

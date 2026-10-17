@@ -21,6 +21,7 @@ final readonly class ShowCardVerdictView
         public array $pullRequests,
         public array $notes,
         public string $connection,
+        public ?string $login,
         public ?CardVerdict $latest,
         public array $latestDeliveries,
         public array $actions,

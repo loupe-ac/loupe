@@ -36,6 +36,7 @@ final readonly class GitHubUserAccountReader implements ForgeUserAccountReader
         return new ForgeUserAccount(
             $summary->isExpired($this->clock->now()) ? ForgeUserConnectionState::Expired : ForgeUserConnectionState::Connected,
             (string) $summary->githubUserId,
+            $summary->login,
         );
     }
 }

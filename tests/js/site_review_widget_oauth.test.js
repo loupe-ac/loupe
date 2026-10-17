@@ -63,7 +63,7 @@ const signInButton = () => panelRoot().getElementById('lp-sign-in');
 
 /** Whether the panel shows the sign-in card rather than the comment list. */
 const signInShown = () =>
-    panelRoot().getElementById('lp-fatal').style.display !== 'none' &&
+    panelRoot().getElementById('lp-views').dataset.view === 'signin' &&
     signInButton() !== null;
 
 /**
@@ -234,9 +234,9 @@ describe('an embed with a project and no token', () => {
         await settle();
 
         expect(fetchMock).not.toHaveBeenCalled();
-        expect(panelRoot().getElementById('lp-fatal').textContent).toContain(
-            'unexpected server',
-        );
+        expect(
+            panelRoot().getElementById('lp-signin-note').textContent,
+        ).toContain('unexpected server');
     });
 
     it('says so when the reviewer denies the sign-in', async () => {
@@ -248,9 +248,9 @@ describe('an embed with a project and no token', () => {
         post(answer({ code: undefined, error: 'access_denied' }));
         await settle();
 
-        expect(panelRoot().getElementById('lp-fatal').textContent).toContain(
-            'cancelled',
-        );
+        expect(
+            panelRoot().getElementById('lp-signin-note').textContent,
+        ).toContain('cancelled');
         expect(signInShown()).toBe(true);
     });
 });

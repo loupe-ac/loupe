@@ -10,6 +10,7 @@ final readonly class ForgeUserAccount
     public function __construct(
         public ForgeUserConnectionState $state,
         public ?string $forgeUserId = null,
+        public ?string $login = null,
     ) {
     }
 }

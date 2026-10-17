@@ -16,7 +16,7 @@ final readonly class ShowPendingCommentsHandler
     public function __invoke(ShowPendingCommentsCommand $command): ShowPendingCommentsView
     {
         return new ShowPendingCommentsView(
-            comments: $this->siteReviewComments->findPendingForProject($command->project),
+            comments: $this->siteReviewComments->findPendingForProject($command->project, $command->commentIds),
         );
     }
 }

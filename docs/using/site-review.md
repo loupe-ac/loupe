@@ -73,12 +73,26 @@ go:
 
 The widget keeps the choice in the browser's local storage, for this instance
 and this project. It holds for every later note, and after a reload, until you
-change it. The row under the composer shows where notes go. Click it to choose
-again.
+change it. The panel header shows where notes go. Click it to open the
+destination view and choose again. The row under the note field in the composer
+does the same.
+
+The destination also decides which notes the list shows:
+
+| Choice | What the list shows |
+|---|---|
+| A new card for each note | The notes that you saved on the cards this browser tab made. A new tab starts with an empty list. |
+| One card for this review | Every open note on that card. |
+| A card for each note, under an epic | Every open note on the cards under that epic. |
+
+When you change the destination, the list changes with it. Until you choose a
+destination, the list is empty. With **One card for this review**, the footer
+shows **Open #N in Loupe**, which opens that card.
 
 The second and third choices open a card picker. Search the open cards, or
 type a title and create a card. The title starts as `Review: ` and the page
-path, and you can edit it. The third choice lists the open cards of every type that has the children
+path, and you can edit it. With **One card for this review**, the title field takes the focus.
+The third choice lists the open cards of every type that has the children
 capability, and it creates a card of one of those types. When the template has
 two or more such types, a type selector shows beside the Create button. The
 first type of the template is chosen at first.
@@ -93,7 +107,7 @@ A card that the widget creates has these values:
 - The card body holds the whole note.
 - When you edit the note while the card sits in Backlog and nobody has changed it, the title and the body follow the edit. After that the card keeps its own text.
 
-After a save that creates a card, the widget names the card and links to it.
+Each save shows one short notice that names the card, such as "Note saved to #12 Review: /pricing". An edit names the card too, such as "Note updated in #12 Review: /pricing". When you edit a note, the composer says that only the text can change.
 
 When the card or the epic you chose is closed or deleted, the widget forgets the
 choice and asks again. A card in a terminal column is closed. Your draft stays.
@@ -108,6 +122,12 @@ carries that value in `data-context`. See
 On such a page, every note goes to that card. The widget does not ask for a
 choice, and it does not change the choice you keep for other pages. When the
 card is closed or deleted, the widget refuses notes and says so.
+
+The list shows only the open notes on that card. The panel header names the
+card. The second line gives the pull request and its last verdict, for example
+**PR #88 · Changes requested**, or **No pull request yet** with the number of
+notes on the card. The footer has one action. It is **Finish review** when the
+card has an open pull request, and **Open #N in Loupe** when it has none.
 
 ## Preview sign-in
 
@@ -138,31 +158,37 @@ allowed sites of the project do not limit where a token works.
 
 ## Sending a verdict
 
-On a page that locks a card, the panel shows three buttons when the card has at
-least one open GitHub pull request: **Approve**, **Request changes** and
-**Comment**. The buttons stay hidden on every other page. That includes a page
-that names no card and a card without an open pull request.
+On a page that locks a card, the panel footer shows **Finish review** when the
+card has at least one open GitHub pull request. It opens one view that holds
+the whole verdict form. The footer action stays hidden on every other page.
+That includes a page that names no card and a card without an open pull
+request.
 
-A button opens a confirm panel. Loupe records nothing until you press **Send**.
-Press **Cancel** to close the panel without a record.
+The view opens with a verdict already chosen. It picks **Request changes** when
+the card has open notes, and **Approve** when it has none. You can pick
+**Approve**, **Request changes** or **Comment** instead. The message field has
+focus, so you can type at once. Loupe records nothing until you press **Send**.
+Press **Cancel** or the back arrow to return to the list with no record.
 
-The confirm panel shows:
+The view shows:
 
-- The name of the card.
+- The name of the card, under the title.
 - The pull request. When the card has two or more, you tick each one that gets
   the review. Send covers the ticked pull requests.
-- The open notes that go with the verdict. On an approval, the panel says how
+- The open notes that go with the verdict. On an approval, the view says how
   many notes are still open, and you can still send.
 - A field for a message.
 - What Loupe does with the verdict. When the workflow writes nothing to GitHub,
-  the panel says **Recorded in Loupe only**.
+  the view says **Recorded in Loupe only**.
+- The GitHub account that posts the review, as **Posts to GitHub as @name**,
+  when you have connected one.
 
 **Request changes** and **Comment** need a message when the card has no open
 note. **Send** stays off until you write one. When notes are open, they go with
 the verdict, and the message is optional. **Approve** needs no message.
 
-After a send, the panel says **Sent to the workflow**. Loupe then posts the
-review on GitHub when the project allows it. See
+After a send, the panel returns to the list and shows **Sent to the workflow**.
+Loupe then posts the review on GitHub when the project allows it. See
 [Board automation](board.md).
 
 When a send fails and you press **Send** again with the same verdict, Loupe
@@ -228,9 +254,10 @@ That route now answers HTTP 410 with `widget_outdated`, and the widget tells the
 
 ## Resolving a note
 
-Press the tick on a note, either in the widget's list or on the popover that
-opens from its pin. The note leaves the widget, because the widget lists the
-notes that are still open.
+Open the menu of a note and choose **Mark resolved**. The menu button is the
+three dots at the end of the row in the widget's list. The popover that opens
+from the pin of a note also has a tick. The note leaves the widget, because the
+widget lists the notes that are still open.
 
 Resolving keeps the note. It shows as **Resolved** on the Feedback tab of its
 card, where you can read it again and reopen it. The Feedback tab also has
@@ -245,8 +272,9 @@ terminal column leaves the notes resolved.
 
 ## Deleting a note
 
-The widget deletes a pending note, and it asks you to confirm first. The delete
-also removes the note's card when all of these are true:
+Open the menu of a note and choose **Delete note**. The widget deletes a pending
+note, and it asks you to confirm first. The confirm slides over the row. The
+delete also removes the note's card when all of these are true:
 
 - The note created the card.
 - The card is still in Backlog.
@@ -360,9 +388,9 @@ work.
 The launcher sits in the bottom-right corner, where many pages pin their own
 controls. Move it to another corner in one of two ways:
 
-- Open the panel and press the corner button in its header. Each press moves the
-  launcher to the next corner. Tab reaches the button, and Enter or Space
-  presses it.
+- Open the panel, open the menu in its header and choose **Move launcher**. Each
+  choice moves the launcher to the next corner, and the item names that corner.
+  Tab reaches the menu button, and Enter or Space opens the menu.
 - Drag the launcher. It follows the pointer, and on release it snaps to the
   nearest corner. A drag never opens the panel.
 
@@ -392,9 +420,36 @@ private-network rules can still block the request. Nobody tested that case. See
 
 ## What the reviewer sees, and for how long
 
-The widget lists the notes that still wait on the agent. A note stays in that
+The widget lists the notes that still wait on the agent, in the context of the
+panel: the locked card, or the destination of your review. A note stays in that
 list, where you can edit and delete it, until the agent marks it addressed.
 Then it **disappears from the widget**.
+
+The list is always open. It has no timestamps. Each row has one menu button.
+Its menu holds **Edit text**, **Mark resolved** and **Delete note**. The menu
+opens upward when the row is near the foot of the list, and it puts focus on
+its first item. The notes made on the page that
+you are looking at come first, under **On this page**. The notes made on other
+pages follow under **Other pages**, and each of those rows has a link with the
+path of its page. Pins on the page carry the same numbers as the list. The
+count on the launcher, the pins and **Delete all** read this one list, so
+**Delete all** never reaches a note outside the context.
+
+The menu in the header holds **Move launcher**, **Sign out** and **Delete all**.
+**Sign out** shows only when you signed in with the Loupe pop-up. It ends the
+sign-in of this tab and shows the sign-in view. **Delete all** asks you to
+confirm in the footer. The question names the number of notes and, when the
+panel has one card, the card. Click outside a menu, or press Esc, to close it.
+Esc closes the menu before it closes anything else.
+
+The panel shows one view at a time. The composer, the destination choice and
+the verdict form slide in over the list, and the back arrow slides them out.
+With the system setting that asks for reduced motion, the views swap with no
+slide. The closed launcher keeps the **Review** button with the count and three
+tool buttons: add a note, pick an element and draw. The tool in use shows with
+the accent fill. When you are signed out, the launcher says **Sign in to
+review**, and the panel explains the three steps with a **Sign in with Loupe**
+button.
 
 That is the intended lifecycle. The note is still on the Feedback tab of its
 card, where you check the fix and resolve it. So the widget is a list of open

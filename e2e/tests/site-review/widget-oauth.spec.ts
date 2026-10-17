@@ -70,15 +70,16 @@ test('a reviewer signs in through the popup and saves a comment', async ({
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page
-        .getByPlaceholder(/Describe the issue/)
-        .fill('Signed in with OAuth');
-    // A first note asks where notes go.
+    // A first note asks where notes go, before it takes any text.
     await siteReviewPanelSettled(page);
     await page
         .locator('#lp-picker')
         .getByRole('button', { name: 'A new card for each note' })
         .click();
+    await page
+        .getByPlaceholder(/Describe the issue/)
+        .fill('Signed in with OAuth');
+    await siteReviewPanelSettled(page);
     const saved = page.waitForResponse(
         (response) =>
             response.url().includes('/api/board/feedback') &&
@@ -88,7 +89,7 @@ test('a reviewer signs in through the popup and saves a comment', async ({
     const response = await saved;
     expect(response.status()).toBe(201);
     expect(response.request().headers()['authorization']).toMatch(/^Bearer ey/);
-    await expect(page.locator('#lp-head-count')).toHaveText('1');
+    await expect(page.locator('#lp-launch-count')).toHaveText('1');
 });
 
 type CollapseFrame = { width: number; onReview: boolean };
