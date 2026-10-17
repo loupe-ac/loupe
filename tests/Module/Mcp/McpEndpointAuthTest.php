@@ -124,6 +124,8 @@ final class McpEndpointAuthTest extends WebTestCase
             'document_publish',
             'document_rename',
             'document_reply_to_comment',
+            'document_review_answer',
+            'document_review_submit',
             'document_revise',
             'document_set_references',
             'document_set_series',

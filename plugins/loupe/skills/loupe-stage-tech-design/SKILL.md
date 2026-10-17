@@ -39,11 +39,11 @@ The workflow asks for a recheck when an approved design waited for a blocker, an
 ### Revise, when step 9 or 10 finds the design
 
 1. When its `status` is `approved` and the prompt names no recheck, stop with `STAGE RESULT: tech design already approved`.
-2. When its `status` is `draft`, an earlier run stopped before it published the design. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Publish the design, and the linked deploy notes when they are a draft, as "Publish the drafts" says. Record each new dependency, as Revise step 7 says. Stop with `STAGE RESULT: tech design created <id>`.
+2. When its `status` is `draft`, an earlier run left it for the agent review, or stopped before it finished. Read the code and those design inputs, and check the design against them. Revise it once when the check finds a gap. Check the linked deploy notes the same way. Leave the design and the linked deploy notes as drafts, as "Leave the drafts" says. Record each new dependency, as Revise step 7 says. Stop with `STAGE RESULT: tech design created <id>`.
 3. Read the code and those design inputs.
 4. Judge the size again, as "Judge the size" says. A revision never changes the ID of an entry.
 5. Before the `document_revise` of the round, read each decision section that the round changes alone, as Create step 6 says, and fix each one that leans on another section. Follow `../loupe-stage-product-design/references/review-round.md`. The document is `tech design`, and the requirement source is the one step 7 chose. Run Revise steps 6 and 7 below before the round stops.
-6. When the round adds, changes or removes a deploy item, update the deploy notes after the `document_revise` of the design. Do this before the replies. Revise the linked notes with `document_revise`, or create and link them as "Deploy notes" says. Publish new notes before the final reply, as "Publish the drafts" says. Keep the deploy line of the design true. When the Solution section is approved, keep its text. In a design that predates it, the same goes for Architecture. The linked notes are then the record.
+6. When the round adds, changes or removes a deploy item, update the deploy notes after the `document_revise` of the design. Do this before the replies. Revise the linked notes with `document_revise`, or create and link them as "Deploy notes" says. When the design is a draft, leave new notes as a draft, as "Leave the drafts" says. When the design is in review, publish new notes with `document_publish` before the final reply, so the owner reads them with the design. Keep the deploy line of the design true. When the Solution section is approved, keep its text. In a design that predates it, the same goes for Architecture. The linked notes are then the record.
 7. When the round finds a new dependency, record it after the `document_revise` of the design, as "Record a dependency" says. Call `card_get` again, and send its `relatedCards` unchanged, plus the new entry, in one `card_update`.
 
 ### Create, when neither step finds a design
@@ -53,12 +53,12 @@ The workflow asks for a recheck when an approved design waited for a blocker, an
 3. Call `document_create` with the title `Tech design: <card title>`. Pass `draft: true` only when `document_publish` is among the tools, as `loupe-documents` rule 17 says. Set `references` to the product document id, or leave it empty when the requirement source is the card body. Use the tags `tech-design` and `decisions`, or the spelling `tag_list` already has for them.
 4. When the feature adds, changes or removes a deploy item, create the deploy notes, as "Deploy notes" says. Their `references` hold the new design id.
 5. Link the new ids to the card in one `card_update` (contract rule 5).
-6. Run your last checks. Read each decision section alone, and fix each one that leans on another section, a card or a term that the design defines elsewhere. Revise the drafts when a check finds a gap. Then publish them, as "Publish the drafts" says. Stop with `STAGE RESULT: tech design created <id>`, with the id of the design.
+6. Run your last checks. Read each decision section alone, and fix each one that leans on another section, a card or a term that the design defines elsewhere. Revise the drafts when a check finds a gap. Leave them as drafts, as "Leave the drafts" says. Stop with `STAGE RESULT: tech design created <id>`, with the id of the design.
 
-### Publish the drafts
+### Leave the drafts
 
-1. Call `document_publish` for each draft that the run created or found: the design, then the deploy notes. Do this before the final reply.
-2. When `document_publish` is not among the tools, the documents are not drafts, as `loupe-documents` rule 17 says. Skip this step.
+1. Never call `document_publish` in this stage. The design and its deploy notes stay drafts, whatever the workflow template. An agent reviews the design, and the app publishes both documents when the review ends, as `loupe-documents` rule 17 says.
+2. When `document_publish` is not among the tools, the documents are not drafts, and the owner reads them at once. Nothing else changes.
 
 ### Record a dependency
 
@@ -118,7 +118,7 @@ Write the notes as follows:
 1. Read the profile `Instruction files` for the deploy items of the project. Add them to the list above. A profile that names none uses the list above alone, and never blocks the stage.
 2. List each deploy item that the feature adds, changes or removes, and what the deploy must do for it.
 3. Search `document_list` for the title `Deploy notes: <card title>`, as the contract "Find a linked document" says. Revise a single match with `document_revise`, and create no second document.
-4. When no match exists, call `document_create` with the title `Deploy notes: <card title>`. Pass `draft: true` only when `document_publish` is among the tools. Set `references` to the tech design id. Publish the notes before the final reply, as "Publish the drafts" says.
+4. When no match exists, call `document_create` with the title `Deploy notes: <card title>`. Pass `draft: true` only when `document_publish` is among the tools. Set `references` to the tech design id. Leave the notes as a draft, as "Leave the drafts" says.
 5. Use the tag `deploy-notes` only, or the spelling `tag_list` already has for it. Never add `tech-design`, `product-design` or `decisions`, because workflow rules match those tags and can move the card.
 6. Link the notes to the card (contract rule 5). Send the `card_get` ids plus each new id. On the Create path, Create step 5 makes this link.
 

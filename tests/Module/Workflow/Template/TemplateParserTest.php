@@ -15,6 +15,7 @@ use App\Module\Board\Workflow\Detach;
 use App\Module\Board\Workflow\ForgeWrite;
 use App\Module\Board\Workflow\LinkDocument;
 use App\Module\Board\Workflow\MoveCard;
+use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
 use App\Module\Workflow\Action\Actions;
@@ -61,7 +62,7 @@ final class TemplateParserTest extends TestCase
     {
         $this->actions = new Actions(array_map(
             static fn (string $class): Action => new \ReflectionClass($class)->newInstanceWithoutConstructor(),
-            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, MissingAction::class],
+            [MoveCard::class, RequestWork::class, ForgeWrite::class, PauseCard::class, ReleasePause::class, EvaluateChildren::class, Ask::class, LinkDocument::class, Detach::class, PublishDocuments::class, MissingAction::class],
         ));
         $this->parser = new TemplateParser(new Conditions([
             new CardChildrenFinished(),
@@ -495,6 +496,34 @@ final class TemplateParserTest extends TestCase
         }
     }
 
+    public function test_a_request_carries_its_cancel_when_apart_from_its_params(): void
+    {
+        $template = self::valid();
+        $template['rules'][0]['then']['request']['cancelWhen'] = ['pr.open' => []];
+
+        foreach ([$this->parser->parse(...), $this->parser->parseStored(...)] as $parse) {
+            $then = $parse($template)->rulesFor('build')[0]->then;
+            self::assertNotNull($then->cancelWhen);
+            self::assertSame(['kind' => 'implement', 'capability' => 'interactive', 'limit' => 3], $then->params);
+        }
+    }
+
+    public function test_a_request_without_cancel_when_has_none(): void
+    {
+        self::assertNull($this->parser->parse(self::valid())->rulesFor('build')[0]->then->cancelWhen);
+    }
+
+    public function test_publish_documents_keeps_its_tags_as_a_list_param(): void
+    {
+        $template = self::valid();
+        $template['rules'][] = ['id' => 'publish', 'when' => ['pr.open' => []], 'then' => ['publish-documents' => ['tags' => ['tech-design', 'deploy-notes']]]];
+
+        $then = array_find($this->parser->parse($template)->rules, static fn ($rule): bool => 'publish' === $rule->id)?->then;
+
+        self::assertSame(['tags' => ['tech-design', 'deploy-notes']], $then?->lists);
+        self::assertSame([], $then->params);
+    }
+
     public function test_a_request_with_no_checks_has_an_empty_list(): void
     {
         self::assertSame([], $this->parser->parse(self::valid())->rulesFor('build')[0]->then->checks);
@@ -685,6 +714,21 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[0] (start) then.request.refill: card.type: unknown type "chore"'];
+        yield 'request cancel when naming an undeclared type' => [static function (array $t): array {
+            $t['rules'][0]['then']['request']['cancelWhen'] = ['card.type' => ['type' => 'chore']];
+
+            return $t;
+        }, 'rules[0] (start) then.request.cancelWhen: card.type: unknown type "chore"'];
+        yield 'publish-documents with an empty tags list' => [static function (array $t): array {
+            $t['rules'][] = ['id' => 'publish', 'when' => ['pr.open' => []], 'then' => ['publish-documents' => ['tags' => []]]];
+
+            return $t;
+        }, 'rules[5] (publish) then.publish-documents: parameter "tags" must be a non-empty list of non-empty strings'];
+        yield 'publish-documents with no tags' => [static function (array $t): array {
+            $t['rules'][] = ['id' => 'publish', 'when' => ['pr.open' => []], 'then' => ['publish-documents' => []]];
+
+            return $t;
+        }, 'rules[5] (publish) then.publish-documents: missing parameter "tags"'];
         yield 'rule reading the children of a type without children' => [static function (array $t): array {
             $t['rules'][0]['when'] = ['all' => [['card.type' => ['type' => 'bug']], ['card.children.finished' => []]]];
 

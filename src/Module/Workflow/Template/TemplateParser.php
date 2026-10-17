@@ -46,7 +46,7 @@ final readonly class TemplateParser
     private const array MARKER_KEYS = ['key', 'kind', 'label', 'remedy', 'slots', 'when', 'fallback', 'link'];
 
     /** The names an action call keeps for the parameter types that have a field of their own. */
-    private const array KEPT_PARAMETERS = ['expression' => ['until', 'refill'], 'list' => ['checks'], 'options' => ['options']];
+    private const array KEPT_PARAMETERS = ['expression' => ['until', 'refill', 'cancelWhen'], 'list' => ['checks', 'tags'], 'options' => ['options']];
 
     /** The parameters that hold the tag and the status of a request's `document` map. A template cannot write them. */
     public const string DOCUMENT_TAG = ParameterNames::DOCUMENT_TAG;
@@ -156,7 +156,7 @@ final readonly class TemplateParser
             if (!\is_string($prompt) || 1 !== preg_match(self::PROMPT_PATTERN, $prompt)) {
                 $errors[] = $where.': parameter "prompt" must match [a-z][a-z0-9-], at most 40 characters';
             }
-            $checks = self::checks($entry['checks'] ?? null, $where, $errors);
+            $checks = self::checks($entry['checks'] ?? null, $where, 'checks', $errors);
             foreach (array_keys($entry) as $name) {
                 if (!\in_array($name, ['id', 'kind', 'prompt', 'checks'], true)) {
                     $errors[] = \sprintf('%s: unknown key "%s"', $where, $name);
@@ -311,9 +311,9 @@ final readonly class TemplateParser
     private static function childlessTypesReadingChildren(Rule $rule, array $types): array
     {
         $evaluatesChildren = EvaluateChildren::KEY === $rule->then->key && 'children' === ($rule->then->params['cards'] ?? null);
-        // The engine reads a pause `until` and a request `refill` on a card that the `when` matched.
+        // The engine reads a pause `until`, a request `refill` and a request `cancelWhen` on a card that the `when` matched.
         $ways = self::typeReads($rule->when);
-        foreach (array_filter([$rule->then->until, $rule->then->refill]) as $expression) {
+        foreach (array_filter([$rule->then->until, $rule->then->refill, $rule->then->cancelWhen]) as $expression) {
             $ways += self::typeReads(new AllOf([$rule->when, $expression]));
         }
         $found = [];
@@ -770,6 +770,7 @@ final readonly class TemplateParser
         $params = [];
         $expressions = [];
         $checks = [];
+        $lists = [];
         $options = [];
         $declared = array_values(array_filter($action::parameters(), static fn (Parameter $parameter): bool => $app || !$parameter->appOnly));
         foreach ($declared as $parameter) {
@@ -802,7 +803,12 @@ final readonly class TemplateParser
                     $params += self::document($given, $where, $errors);
                     continue 2;
                 case ParameterType::List:
-                    $checks = self::checks($given, $where, $errors);
+                    $list = self::checks($given, $where, $param, $errors);
+                    if ('checks' === $param) {
+                        $checks = $list;
+                    } else {
+                        $lists[$param] = $list;
+                    }
                     continue 2;
                 default:
                     break;
@@ -828,7 +834,7 @@ final readonly class TemplateParser
             }
         }
 
-        return \count($errors) === $errorCount ? $this->actions->call($name, $params, $expressions['until'] ?? null, $checks, $expressions['refill'] ?? null, $options) : null;
+        return \count($errors) === $errorCount ? $this->actions->call($name, $params, $expressions['until'] ?? null, $checks, $expressions['refill'] ?? null, $options, $expressions['cancelWhen'] ?? null, $lists) : null;
     }
 
     /** @return ?string what is wrong with the value of a string, int or slot parameter, or null when nothing is */
@@ -996,17 +1002,17 @@ final readonly class TemplateParser
      *
      * @return list<string>
      */
-    private static function checks(mixed $given, string $where, array &$errors): array
+    private static function checks(mixed $given, string $where, string $param, array &$errors): array
     {
         if (!\is_array($given) || [] === $given || !array_is_list($given)) {
-            $errors[] = $where.': parameter "checks" must be a non-empty list of non-empty strings';
+            $errors[] = $where.': parameter "'.$param.'" must be a non-empty list of non-empty strings';
 
             return [];
         }
         $checks = [];
         foreach ($given as $check) {
             if (!\is_string($check) || '' === $check) {
-                $errors[] = $where.': parameter "checks" must be a non-empty list of non-empty strings';
+                $errors[] = $where.': parameter "'.$param.'" must be a non-empty list of non-empty strings';
 
                 return [];
             }

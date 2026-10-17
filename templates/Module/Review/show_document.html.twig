@@ -341,6 +341,10 @@
             {% endif %}
             {% endblock %}
 
+            {% if not diffMode %}
+            {% include '@Review/_agent_review_summary.html.twig' with {summary: agent_review_summary(document)} only %}
+            {% endif %}
+
             {# Outside the prose for the same reason as below. The controller clones
                these into a shadow root beside each diagram, which no anchor walk enters. #}
             {% if hasMermaid %}

@@ -6,6 +6,12 @@ namespace App\Tests\Module\Review\Mcp;
 
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
+use App\Module\Board\Mcp\AgentRunCause;
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
@@ -16,7 +22,11 @@ use App\Tests\Support\McpRefusalMessages;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Uid\Uuid;
 
 final class DocumentReviseToolTest extends KernelTestCase
 {
@@ -117,6 +127,83 @@ final class DocumentReviseToolTest extends KernelTestCase
         ($this->tool)((string) $document->id, '# Revised', '  Replaced the rollout section.  ');
 
         self::assertSame('Replaced the rollout section.', $document->currentVersion()->description);
+    }
+
+    /** @return iterable<string, array{WorkRequestState}> */
+    public static function withdrawnStates(): iterable
+    {
+        yield 'cancelled' => [WorkRequestState::Cancelled];
+        yield 'expired' => [WorkRequestState::Expired];
+    }
+
+    #[DataProvider('withdrawnStates')]
+    public function test_it_refuses_a_revision_from_a_session_whose_work_was_withdrawn(WorkRequestState $state): void
+    {
+        $document = $this->documentInNewProject($this->user('revise-withdrawn-'.$state->value.'@example.com'), 'Draft');
+        $this->actAsMcpTokenBoundTo($document->project);
+        $this->workerSession($document, $state);
+
+        try {
+            ($this->tool)((string) $document->id, '# Late', 'A late revision.');
+            self::fail('The revision was not refused.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString('This work was withdrawn.', $e->getMessage());
+        }
+        self::assertCount(1, $document->versions);
+    }
+
+    public function test_it_takes_a_revision_from_a_session_whose_work_is_live(): void
+    {
+        $document = $this->documentInNewProject($this->user('revise-live@example.com'), 'Draft');
+        $this->actAsMcpTokenBoundTo($document->project);
+        $this->workerSession($document, WorkRequestState::Claimed);
+
+        ($this->tool)((string) $document->id, '# Revised', 'A live revision.');
+
+        self::assertCount(2, $document->versions);
+    }
+
+    public function test_it_takes_a_revision_from_a_session_with_no_worker_run(): void
+    {
+        $document = $this->documentInNewProject($this->user('revise-no-run@example.com'), 'Draft');
+        $this->actAsMcpTokenBoundTo($document->project);
+        $this->sendSession(Uuid::v4());
+
+        ($this->tool)((string) $document->id, '# Revised', 'The owner revised it.');
+
+        self::assertCount(2, $document->versions);
+    }
+
+    private function workerSession(Document $document, WorkRequestState $state): void
+    {
+        $session = Uuid::v4();
+        $subject = Uuid::v7();
+        $request = new WorkRequest($document->project, WorkSubject::CARD, $subject, 1, 'tech-design-revise', null, 'rule', new \DateTimeImmutable());
+        $request->state = $state;
+        $this->em->persist($request);
+        $this->em->flush();
+        $this->em->persist(new WorkerRun(
+            project: $document->project,
+            bridgeId: Uuid::v4(),
+            subjectType: WorkSubject::CARD,
+            subjectId: $subject,
+            cardNumber: 1,
+            workKind: 'tech-design-revise',
+            state: WorkerRunState::Running,
+            sessionId: $session,
+            workRequestId: $request->id,
+        ));
+        $this->em->flush();
+        $this->sendSession($session);
+    }
+
+    private function sendSession(Uuid $session): void
+    {
+        $request = Request::create('/mcp', Request::METHOD_POST);
+        $request->headers->set(AgentRunCause::SESSION_HEADER, (string) $session);
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+        $requests->push($request);
     }
 
     public function test_a_blank_description_keeps_its_own_message(): void

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Engine;
 
+use App\Module\AgentReview\Workflow\DocumentReviewFacts;
+use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Bridge\ValueObject\WorkerRunState;
@@ -52,7 +54,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'open-question', 'session-open', 'run-open', 'no-bridge-online', 'bridge-paused', 'work-requested',
+        'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks', 'unmanaged',
     ];
 
@@ -61,11 +63,11 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(self::LIFECYCLE_KEYS, array_map(static fn ($marker): string => $marker->key, $this->template('lifecycle')->markers));
     }
 
-    public function test_the_simple_template_ships_the_same_markers_without_slots_and_without_the_three_that_need_them(): void
+    public function test_the_simple_template_ships_the_same_markers_without_slots_and_without_the_ones_that_need_them(): void
     {
         $markers = $this->template('simple')->markers;
 
-        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review'])), array_map(static fn ($marker): string => $marker->key, $markers));
+        self::assertSame(array_values(array_diff(self::LIFECYCLE_KEYS, ['pull-request-idle', 'nothing-happened', 'document-in-review', 'design-review-running'])), array_map(static fn ($marker): string => $marker->key, $markers));
         foreach ($markers as $marker) {
             self::assertSame([], $marker->slots, $marker->key);
         }
@@ -286,6 +288,22 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['document-in-review'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'product-design', documents: $review('product-design')))));
         self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design', documents: $review('product-design')))));
         self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', documents: $review('tech-design')))));
+    }
+
+    public function test_a_draft_design_in_its_agent_review_shows_the_round_in_its_slot_only(): void
+    {
+        $facts = static fn (string $slot, string $tag): Facts => FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            provided: [DocumentReviewFacts::class => new DocumentReviewFacts([new DocumentReviewState('doc', [$tag], 2, null, null, null, false, false, 1)])],
+        );
+
+        $this->pass($this->template('lifecycle'), $facts('tech-design', 'tech-design'));
+        self::assertSame(['design-review-running'], $this->writtenKeys());
+        self::assertSame(['%round%' => 2, '%limit%' => 3], $this->written('design-review-running')->params);
+
+        self::assertSame(['design-review-running'], $this->keys($facts('product-design', 'product-design')));
+        self::assertSame([], $this->keys($facts('product-design', 'tech-design')));
+        self::assertSame([], $this->keys($facts('implementation', 'tech-design')));
     }
 
     public function test_a_pull_request_that_waits_for_approval_and_an_open_question_need_the_person(): void
