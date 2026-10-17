@@ -6,6 +6,7 @@ namespace App\Module\Board\Service;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\StoredMarker;
 
 /** The markers the engine stored on one card, in display order. A read runs no query. */
@@ -27,6 +28,7 @@ final readonly class StoredCardMarkers
                 $entry['remedy'],
                 $entry['params'],
                 new \DateTimeImmutable($entry['since']),
+                null === ($entry['link'] ?? null) ? null : MarkerLink::from($entry['link']),
             ),
             $card->markers ?? [],
         ));
@@ -58,7 +60,7 @@ final readonly class StoredCardMarkers
             $params = $marker->params;
             ksort($params);
 
-            return [$marker->key, $marker->kind->value, $marker->label, $marker->remedy, $params, $marker->since->format('U')];
+            return [$marker->key, $marker->kind->value, $marker->label, $marker->remedy, $params, $marker->since->format('U'), $marker->link?->value];
         }, $this->markers), \JSON_THROW_ON_ERROR)), 0, 12);
     }
 }

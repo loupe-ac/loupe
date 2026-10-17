@@ -297,6 +297,10 @@ func TestTheRenderFunctionDrawsWhatTheBuildDraws(t *testing.T) {
 			`<img src="{{ s }}" alt=""><br><input disabled value="{{ v }}"><hr/><p>after</p>`,
 			[]string{`{"s":"a.png","v":"x\"y"}`},
 		},
+		"on/off attributes with a hole": {
+			`<button disabled="{{ x }}" hidden="{{ o.k }}" class="{{ c }}">b</button><input type="radio" checked="{{ x }}" readonly="a{{ c }}"><details open="{{ x }}"></details>`,
+			[]string{`{"x":true,"o":{"k":1},"c":"k"}`, `{"x":false,"c":"z"}`, `{"x":null}`, `{"x":0}`, `{"x":""}`, `{}`, `{"x":"no","o":{"k":[]}}`, `{"x":{"a":1},"o":{"k":{}}}`},
+		},
 		"loops and nested scopes": {
 			`<sc-for list="{{ rows }}" as="row"><div>{{ row.name }}<sc-for list="{{ row.tags }}" as="tag"><i>{{ row.name }}-{{ tag }}</i><sc-for list="{{ row.tags }}" as="row"><b>{{ row }}</b></sc-for></sc-for>{{ row.name }}</div></sc-for>`,
 			[]string{`{"rows":[{"name":"a","tags":["x","y"]},{"name":"b","tags":[]}]}`, `{"rows":[]}`, `{"rows":"no"}`, `{}`},

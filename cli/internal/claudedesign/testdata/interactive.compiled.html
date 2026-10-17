@@ -8,6 +8,8 @@
 <button id="inc">Count: 0</button>
 
 <label><input id="agree" type="checkbox"/> I agree</label>
+<button id="save" disabled="">Save</button>
+<label><input type="radio" name="size" value="a"/> a</label><label><input type="radio" name="size" value="b" checked=""/> b</label><label><input type="radio" name="size" value="c"/> c</label>
 <p id="status">Please agree</p>
 <p id="kind">dclogic &lt;!--</p>
 <ul>
@@ -37,19 +39,31 @@ class LoupeView {
         this._base = null;
         this._blobs = {};
         this._queued = false;
+        this._prev = null;
     }
 
     setState(patch) {
         const next =
             typeof patch === 'function' ? patch(this.state, this.props) : patch;
+        const before = this.state;
         this.state = Object.assign({}, this.state, next);
         if (!this._render || this._queued) {
             return;
         }
         this._queued = true;
+        this._prev = before;
         queueMicrotask(() => {
+            const prev = this._prev;
             this._queued = false;
+            this._prev = null;
             this._draw();
+            if (typeof this.componentDidUpdate === 'function') {
+                try {
+                    this.componentDidUpdate(this.props, prev);
+                } catch (err) {
+                    console.error(err);
+                }
+            }
         });
     }
 
@@ -564,12 +578,15 @@ class LoupeView {
 const \u0044CLogic = LoupeView;
 
 class Component extends \u0044CLogic {
-  state = { query: '', count: 0, agreed: false, tick: 0, done: {} };
+  state = { query: '', count: 0, agreed: false, tick: 0, done: {}, size: 'b' };
   items = [
     { id: 1, name: 'Apple', tags: ['red', 'sweet'] },
     { id: 2, name: 'Banana', tags: ['yellow'] },
     { id: 3, name: 'Cherry', tags: [] },
   ];
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.size !== this.state.size) document.getElementById('q').focus();
+  }
   componentDidMount() {
     this.timer = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 1000);
   }
@@ -587,6 +604,12 @@ class Component extends \u0044CLogic {
       title: this.props.label,
       query: this.state.query,
       onQuery: e => this.setState({ query: e.target.value }),
+      locked: this.state.query === '',
+      sizes: ['a', 'b', 'c'].map(id => ({
+        id,
+        checked: this.state.size === id,
+        pick: () => this.setState({ size: id }),
+      })),
       count: this.state.count,
       onInc: () => this.setState(s => ({ count: s.count + 1 })),
       agreed: this.state.agreed,
@@ -627,6 +650,25 @@ if (R.T(R.g(s0,"notAgreed"))) {
 o+="\u003clabel\u003e\u003cinput id=\"agree\" type=\"checkbox\" data-on-change=\"";
 o+=h(R.g(s0,"onAgree"));
 o+="\"/\u003e I agree\u003c/label\u003e";
+}
+o+="\n\u003cbutton id=\"save\"";
+if(R.T(R.g(s0,"locked"))){
+o+=" disabled=\"\"";
+}
+o+="\u003eSave\u003c/button\u003e\n";
+for (const x1 of R.A(R.g(s0,"sizes"))) {
+const s1 = Object.assign({}, s0, {["v"]: x1});
+o+="\u003clabel\u003e\u003cinput type=\"radio\" name=\"size\" value=\"";
+o+=R.q(t(R.g(s1,"v.id")));
+o+="\"";
+if(R.T(R.g(s1,"v.checked"))){
+o+=" checked=\"\"";
+}
+o+=" data-on-change=\"";
+o+=h(R.g(s1,"v.pick"));
+o+="\"/\u003e ";
+o+=R.e(t(R.g(s1,"v.id")));
+o+="\u003c/label\u003e";
 }
 o+="\n\u003cp id=\"status\"\u003e";
 o+=R.e(t(R.g(s0,"status")));

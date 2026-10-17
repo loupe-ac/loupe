@@ -38,7 +38,12 @@ const refreshTimeout = 15 * time.Second
 func apiClient(cfg config.Config) *api.Client {
 	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
 
-	return api.NewWithSource(cfg.BaseURL, tokenSource(cfg, hc), hc)
+	var tokens api.TokenSource = tokenSource(cfg, hc)
+	if g := currentBridgeGate(); g != nil {
+		tokens = gatedSource{inner: tokens, gate: g}
+	}
+
+	return api.NewWithSource(cfg.BaseURL, tokens, hc)
 }
 
 func newBridgeCmd() *cobra.Command {
@@ -402,6 +407,8 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	defer stop()
 	r.ctx = ctx
 	go r.priceLoop(ctx)
+	startLoginGate(ctx, r.log, cfg)
+	defer setBridgeGate(nil)
 
 	// The queue closes after the workers, so it sees every report a dying worker
 	// still makes, and its grace window can send them.
@@ -586,7 +593,7 @@ func startEvents(ctx context.Context, cfg config.Config, bridgeID string, set *r
 }
 
 // heartbeatBody names the projects the rule file maps, by id, the CLI
-// version, the capabilities of the work map, the bridge name, the login that
+// version, the capabilities and the kinds of the work map, the bridge name, the login that
 // workers push as, and the state of each account.
 func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
 	ids := []string{}
@@ -596,7 +603,7 @@ func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
 
 	name := set.Name()
 
-	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: set.Capabilities(), Name: &name, PushLogin: &pushLogin, Accounts: accountReports(set)}
+	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: set.Capabilities(), WorkKinds: set.WorkKindsOn(), Name: &name, PushLogin: &pushLogin, Accounts: accountReports(set)}
 }
 
 // missingProjects names the mapped projects that GET /api/events does not list:

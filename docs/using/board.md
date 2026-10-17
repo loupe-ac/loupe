@@ -189,10 +189,10 @@ is in a state. The mark says what the card needs now:
 
 | State | Means |
 |---|---|
-| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card for longer than the stuck delay and no other reason applies. The remedy line on the card page says what to do |
+| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card for longer than the stuck delay and no other reason applies. The remedy line on the card page says what to do |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
 | **Working** | Work waits for a bridge to take it, a worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
-| **Waiting** | A card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
+| **Waiting** | The only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
 
 When several states apply, the tile shows the first in the order **Stuck**,
 **Needs you**, **Working**, **Waiting**. Inside one state, the marker that comes
@@ -208,7 +208,9 @@ Hover the mark, or focus it, to read the tooltip. The tooltip gives these items:
 - The reason the card has the state.
 - The time the reason began.
 - Every other marker of the card, chips included.
-- On a board tile, an **Open card** link. A list row leaves the link out,
+- On a board tile, an **Open the Agents page** link when no bridge can take
+  the work of the card, or the only bridge that can is paused.
+- On a board tile, an **Open card** link. A list row leaves both links out,
   because the row itself opens the card.
 
 The card page shows the remedy line, which says what clears the state.
@@ -223,7 +225,7 @@ A card in a terminal column shows no mark. A card in Next with no blocker and no
 parent shows no mark, because no marker applies to it.
 
 The **List** view shows the same state mark as the tile, with the same
-tooltip less the **Open card** link. The list keeps the warning of the last worker run. See
+tooltip less its links. The list keeps the warning of the last worker run. See
 [A warning on the card](worker-runs.md#a-warning-on-the-card).
 
 The marks come from the markers that the workflow template defines. The engine

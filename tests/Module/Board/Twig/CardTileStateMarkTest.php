@@ -9,6 +9,7 @@ use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerLink;
 use App\Tests\Module\Board\Controller\BoardScenario;
 use App\Tests\Support\MarkerMother;
 use Doctrine\ORM\EntityManagerInterface;
@@ -55,6 +56,29 @@ final class CardTileStateMarkTest extends KernelTestCase
         self::assertSame('click->card-drawer#prepare', $link->attr('data-action'));
         self::assertSame('false', $link->attr('draggable'));
         self::assertStringEndsWith('/board/cards/'.$tile->attr('data-card-id'), (string) $link->attr('href'));
+    }
+
+    public function test_a_state_marker_with_a_link_adds_it_to_the_tile_tooltip_and_not_to_a_row(): void
+    {
+        $card = $this->storedCard();
+        $markers = MarkerMother::markers(MarkerMother::marker('no_bridge_online', MarkerKind::Stuck, link: MarkerLink::Agents));
+
+        $links = $this->renderTile($card, $markers)->filter('.lp-tooltip a');
+        self::assertSame(['Open the Agents page', 'Open card'], $links->each(static fn (Crawler $link): string => trim($link->text())));
+        self::assertStringEndsWith('/projects/'.$card->project->id.'/agents', (string) $links->first()->attr('href'));
+        self::assertSame('_top', $links->first()->attr('data-turbo-frame'));
+        self::assertStringContainsString('No bridge is online to take this work.', $this->renderTile($card, $markers)->filter('.lp-tooltip')->text());
+        self::assertCount(0, $this->renderRow($card, $markers)->filter('.lp-state-mark a'));
+    }
+
+    public function test_a_link_on_another_marker_stays_off_the_tile_tooltip(): void
+    {
+        $tile = $this->tile(MarkerMother::markers(
+            MarkerMother::marker('checks_failed', MarkerKind::Stuck, ['%number%' => 5]),
+            MarkerMother::marker('bridge_paused', MarkerKind::Waiting, link: MarkerLink::Agents),
+        ));
+
+        self::assertSame(['Open card'], $tile->filter('.lp-tooltip a')->each(static fn (Crawler $link): string => trim($link->text())));
     }
 
     public function test_the_mark_icon_follows_the_kind(): void

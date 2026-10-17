@@ -34,6 +34,9 @@ final class RecordBridgeHeartbeatRequest
     /** Far above the features one bridge reports, and small enough to bound the JSON column. */
     public const int MAX_CAPABILITIES = 20;
 
+    /** Far above the kinds of work one bridge runs, and small enough to bound the JSON column. */
+    public const int MAX_WORK_KINDS = 50;
+
     /** Far above the work one bridge runs at a time, and small enough to bound the renewal statement. */
     public const int MAX_WORK_CLAIMS = 200;
 
@@ -51,6 +54,7 @@ final class RecordBridgeHeartbeatRequest
      * @param list<BridgeHostSampleInput>|null $hostSamples  null from a bridge that predates host samples
      * @param string|null                      $pushLogin    null from a bridge that predates push logins; empty clears the login
      * @param list<BridgeAccountInput>|null    $accounts     null from a bridge that predates account checks
+     * @param list<string>|null                $workKinds    null from a bridge that predates work kinds
      */
     public function __construct(
         #[Assert\All([new Assert\NotBlank(), new Assert\Uuid()])]
@@ -109,6 +113,11 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $accounts = null,
+
+        #[Assert\All([new Assert\Type('string'), new Assert\Regex(pattern: Bridge::WORK_KIND_PATTERN)])]
+        #[Assert\Count(max: self::MAX_WORK_KINDS)]
+        #[Assert\Type('list')]
+        public ?array $workKinds = null,
     ) {
     }
 
@@ -152,6 +161,16 @@ final class RecordBridgeHeartbeatRequest
         }
 
         return array_values(array_unique($this->capabilities));
+    }
+
+    /**
+     * The work kinds once each. Empty when the bridge sent no report.
+     *
+     * @return list<string>
+     */
+    public function workKinds(): array
+    {
+        return array_values(array_unique($this->workKinds ?? []));
     }
 
     /**

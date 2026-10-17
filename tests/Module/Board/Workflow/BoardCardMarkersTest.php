@@ -9,6 +9,7 @@ use App\Module\Board\Event\CardChanged;
 use App\Module\Board\Workflow\BoardCardMarkers;
 use App\Module\Workflow\Contract\CardMarkerStore;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\StoredMarker;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -54,6 +55,17 @@ final class BoardCardMarkersTest extends KernelTestCase
         self::assertFalse($this->changes[0]->contentChanged);
         self::assertEquals($card->id, $this->changes[0]->cardId);
         self::assertEquals($card->project->id, $this->changes[0]->projectId);
+    }
+
+    public function test_a_link_is_stored_with_the_marker_and_read_back(): void
+    {
+        $card = $this->storedCard();
+        $marker = new StoredMarker('no-bridge-online', MarkerKind::Stuck, 'marker.no_bridge_online', 'marker.no_bridge_online.remedy', [], new \DateTimeImmutable('2026-10-01 11:00:00'), MarkerLink::Agents);
+
+        $this->write($card, [$marker]);
+
+        self::assertSame('agents', $card->markers[0]['link'] ?? null);
+        self::assertEquals([$marker], $this->store()->read($card->id ?? throw new \LogicException('A flushed card has an id.')));
     }
 
     public function test_the_same_set_tells_no_board_but_the_due_time_is_always_stored(): void

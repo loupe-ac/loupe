@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Bridge\ValueObject;
+
+/** The answer of the work takers check for one open work request. */
+final readonly class WorkTakerReading
+{
+    /**
+     * @param \DateTimeImmutable  $noTakerSince the latest of the start of the wait, the moment the last able bridge went quiet, and the last beat at which a bridge dropped what it takes
+     * @param ?\DateTimeImmutable $quietAt      the moment the answer next changes because an online bridge turns quiet, or null when it cannot
+     */
+    public function __construct(
+        public WorkTakerState $state,
+        public \DateTimeImmutable $noTakerSince,
+        public ?\DateTimeImmutable $quietAt,
+    ) {
+    }
+}

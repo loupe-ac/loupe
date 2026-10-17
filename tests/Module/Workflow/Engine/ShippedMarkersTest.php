@@ -9,10 +9,13 @@ use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkTakerReading;
+use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Bridge\View\CardRunWarning;
 use App\Module\Bridge\Workflow\HoldFacts;
 use App\Module\Bridge\Workflow\RunStoppedFacts;
 use App\Module\Bridge\Workflow\SessionFacts;
+use App\Module\Bridge\Workflow\WorkTakerFacts;
 use App\Module\Inbox\Workflow\OpenQuestion;
 use App\Module\Inbox\Workflow\OpenQuestionFacts;
 use App\Module\Review\Entity\DocumentStatus;
@@ -24,6 +27,7 @@ use App\Module\Workflow\Contract\Facts;
 use App\Module\Workflow\Contract\ForgeRequest;
 use App\Module\Workflow\Contract\MarkerEvidence;
 use App\Module\Workflow\Contract\MarkerKind;
+use App\Module\Workflow\Contract\MarkerLink;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PauseView;
 use App\Module\Workflow\Contract\PullRequestFacts;
@@ -50,7 +54,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'work-requested',
+        'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks', 'unmanaged',
     ];
 
@@ -156,6 +160,49 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['work-requested'], $this->passKeys($template, $this->stoppedFacts(['implement'])), 'queued work waits for a bridge');
         self::assertSame(['run-open'], $this->passKeys($template, $this->stoppedFacts([], ['implement'])));
         self::assertSame(['run-stopped'], $this->passKeys($template, $this->stoppedFacts()), 'the work ended with the card still where the run stopped');
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_queued_work_with_no_online_bridge_is_stuck_and_links_to_the_agents_page(string $key): void
+    {
+        $template = $this->template($key);
+
+        self::assertSame(['no-bridge-online'], $this->passKeys($template, $this->takerFacts(WorkTakerState::None, ['implement'])));
+        self::assertSame(MarkerKind::Stuck, $this->written('no-bridge-online')->kind);
+        self::assertSame(MarkerLink::Agents, $this->written('no-bridge-online')->link);
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 11:00:00'), $this->written('no-bridge-online')->since);
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_queued_work_with_only_a_paused_bridge_waits_and_links_to_the_agents_page(string $key): void
+    {
+        $template = $this->template($key);
+
+        self::assertSame(['bridge-paused'], $this->passKeys($template, $this->takerFacts(WorkTakerState::Paused, ['implement'])));
+        self::assertSame(MarkerKind::Waiting, $this->written('bridge-paused')->kind);
+        self::assertSame(MarkerLink::Agents, $this->written('bridge-paused')->link);
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_queued_work_that_a_bridge_could_take_still_shows_the_working_marker(string $key): void
+    {
+        self::assertSame(['work-requested'], $this->passKeys($this->template($key), $this->takerFacts(WorkTakerState::Available, ['implement'])));
+        self::assertNull($this->written('work-requested')->link);
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_queued_work_never_shows_two_waiting_lines(string $key): void
+    {
+        $facts = FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: ['implement', 'fix']),
+            provided: [WorkTakerFacts::class => new WorkTakerFacts([
+                'implement' => new WorkTakerReading(WorkTakerState::Paused, new \DateTimeImmutable('2026-10-01 11:00:00'), null),
+                'fix' => new WorkTakerReading(WorkTakerState::None, new \DateTimeImmutable('2026-10-01 11:00:00'), null),
+            ])],
+        );
+
+        self::assertSame(['no-bridge-online'], $this->passKeys($this->template($key), $facts));
     }
 
     public function test_failing_checks_are_stuck_until_a_fix_is_under_way(): void
@@ -345,6 +392,16 @@ final class ShippedMarkersTest extends KernelTestCase
             card: FactsMother::card(slot: 'implementation'),
             run: FactsMother::run(activeWorkKinds: $work, activeWorkerKinds: $workers),
             provided: [RunStoppedFacts::class => new RunStoppedFacts(new CardRunWarning('run', WorkerRunState::GaveUp, 'summary', new \DateTimeImmutable('2026-10-01 10:00:00')), null)],
+        );
+    }
+
+    /** @param list<string> $work the kinds of the open work requests */
+    private function takerFacts(WorkTakerState $state, array $work): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: 'implementation'),
+            run: FactsMother::run(activeWorkKinds: $work),
+            provided: [WorkTakerFacts::class => new WorkTakerFacts(array_fill_keys($work, new WorkTakerReading($state, new \DateTimeImmutable('2026-10-01 11:00:00'), null)))],
         );
     }
 

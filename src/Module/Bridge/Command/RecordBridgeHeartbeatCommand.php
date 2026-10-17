@@ -29,6 +29,7 @@ final readonly class RecordBridgeHeartbeatCommand
      * @param list<BridgeHostSampleReport> $hostSamples  stored only while host sampling is on
      * @param string|null                  $pushLogin    null keeps the stored login, because a bridge that predates push logins sends none; '' clears it
      * @param list<AccountRow>|null        $accounts     null keeps the stored rows, because a bridge that predates account checks sends none
+     * @param list<string>                 $workKinds    empty from a bridge that predates work kinds, which then runs no kind
      */
     public function __construct(
         public User $owner,
@@ -47,6 +48,7 @@ final readonly class RecordBridgeHeartbeatCommand
         public array $hostSamples = [],
         public ?string $pushLogin = null,
         public ?array $accounts = null,
+        public array $workKinds = [],
     ) {
     }
 }

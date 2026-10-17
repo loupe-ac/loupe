@@ -9,10 +9,13 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Command\SetBridgePauseCommand;
 use App\Module\Bridge\Command\SetBridgePauseHandler;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RecordedEvents;
 use App\Tests\Support\RecordingAuditor;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class SetBridgePauseHandlerTest extends KernelTestCase
@@ -39,6 +42,26 @@ final class SetBridgePauseHandlerTest extends KernelTestCase
         $record = $audit->record('bridge.pause_changed');
         self::assertTrue($record->context['paused']);
         self::assertSame((string) $bridge->id, $record->subject?->id);
+    }
+
+    public function test_a_change_of_the_pause_announces_a_change_of_availability_and_a_repeat_announces_none(): void
+    {
+        $this->boot();
+        $owner = $this->user($this->em(), 'pause-availability@example.com');
+        $projects = [(string) Uuid::v4()];
+        $bridge = $this->seedBridge($this->em(), $owner, projects: $projects);
+        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS];
+        $this->em()->flush();
+        $announced = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeAvailabilityChanged::class, $announced);
+
+        $this->pause($owner, $bridge->id, true);
+        $this->pause($owner, $bridge->id, true);
+        $this->pause($owner, $bridge->id, false);
+
+        self::assertEquals([new BridgeAvailabilityChanged($projects), new BridgeAvailabilityChanged($projects)], $announced->of(BridgeAvailabilityChanged::class));
     }
 
     public function test_a_resume_clears_the_pause_and_records_the_change(): void

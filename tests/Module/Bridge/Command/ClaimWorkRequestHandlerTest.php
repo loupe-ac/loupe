@@ -39,7 +39,7 @@ final class ClaimWorkRequestHandlerTest extends KernelTestCase
         self::assertNull($result->refusal);
         self::assertSame(WorkRequestState::Claimed, $result->request?->state);
         self::assertSame(1, $result->request->claims);
-        self::assertSame('2026-10-01T12:32:00+00:00', $result->request->leaseUntil?->format(\DateTimeInterface::ATOM));
+        self::assertSame('2026-10-01T13:00:00+00:00', $result->request->leaseUntil?->format(\DateTimeInterface::ATOM));
         self::assertNotNull($result->request->claimToken);
 
         self::assertCount(1, $changes->events());

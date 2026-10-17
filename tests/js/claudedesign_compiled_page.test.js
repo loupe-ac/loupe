@@ -98,3 +98,26 @@ it('keeps a canvas string that names the base class after a redraw', async () =>
     expect($('#inc').textContent).toBe('Count: 1');
     expect($('#kind').textContent).toBe('dclogic <!--');
 });
+
+it('turns the Save button on after typing, and leaves it off before', async () => {
+    expect($('#save').hasAttribute('disabled')).toBe(true);
+    const input = $('#q');
+    input.value = 'an';
+    input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    await settle();
+    expect($('#save').hasAttribute('disabled')).toBe(false);
+});
+
+it('checks the selected radio and moves focus in componentDidUpdate', async () => {
+    const radios = () => [
+        ...dom.window.document.querySelectorAll('[name=size]'),
+    ];
+    expect(radios().map((r) => r.checked)).toEqual([false, true, false]);
+    radios()[2].checked = true;
+    radios()[2].dispatchEvent(
+        new dom.window.Event('change', { bubbles: true }),
+    );
+    await settle();
+    expect(radios().map((r) => r.checked)).toEqual([false, false, true]);
+    expect(dom.window.document.activeElement).toBe($('#q'));
+});
