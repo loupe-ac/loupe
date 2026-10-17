@@ -112,11 +112,16 @@ green while the bridge sends heartbeats, amber when it is quiet, and grey when
 no bridge started the session. Hover over or focus the avatar to read the
 details and the session id.
 
-A **Linked** panel sits beside the ask, or under it on a narrow screen. The
-panel shows each card, document and pull request that the ask links, once, on
-one line with its type icon. A review shows the version under review on the
-document line. Select a line to open the card, the document or the pull
-request.
+A blocking ask shows an hourglass and a card number in the byline. The card is
+the first card that an open blocking item of the ask links. The number opens
+the card, and its tooltip reads **Card #N waits on you**. A card wait shows the card number in place of its type.
+
+A **⋯** menu sits at the right end of the byline, when the ask links
+anything. The menu shows each card, document and pull request that the ask
+links, once, with its type icon. A kind with more than one link gets a heading,
+and the rows after the third wait behind **Show N more**. A review shows the
+version under review on the document line. Select a row to open the card, the
+document or the pull request.
 
 When no ask is open, the **Open** side shows **Nothing needs you**, a line on
 what agents ask here, and a link to the closed asks.
@@ -729,7 +734,7 @@ review**, or **Cards #N and #M wait on this review** for two or more cards. The
 item is absent while the flag is off, and when no card waits on the document.
 Answer the item in the inbox.
 
-The **Linked** panel of the project inbox lists linked cards, documents, and the pull requests attached to those cards.
+The **⋯** menu of an ask in the project inbox lists linked cards, documents, and the pull requests attached to those cards.
 Each card, document and pull request URL appears once per ask, even when several items or cards share it.
 Web links open on the code host. Loupe does not fetch code-host status.
 Other stored addresses show a note that they are not web addresses, and have no link.

@@ -10,5 +10,13 @@
         <twig:Ds:MenuItem :current="true">The current one</twig:Ds:MenuItem>
         <twig:Ds:MenuDivider />
         <twig:Ds:MenuItem disabled>Not available</twig:Ds:MenuItem>
+        <twig:Ds:MenuGroup heading="A group (2)" moreLabel="Show 1 more">
+            <twig:block name="content">
+                <twig:Ds:MenuItem href="#components">First row</twig:Ds:MenuItem>
+            </twig:block>
+            <twig:block name="more">
+                <twig:Ds:MenuItem href="#components">Second row</twig:Ds:MenuItem>
+            </twig:block>
+        </twig:Ds:MenuGroup>
     </twig:block>
 </twig:Ds:Menu>

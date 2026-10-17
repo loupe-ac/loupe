@@ -102,7 +102,7 @@ final class WaitItemPageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextSame('.lp-inbox-ask__title', 'Document version 1 waits for your review');
         self::assertCount(0, $crawler->filter('.lp-inbox-ask__context'));
-        self::assertCount(1, $crawler->filter('[data-inbox-linked-panel] [data-linked-card="'.$this->card->id.'"]'));
+        self::assertCount(1, $crawler->filter('[data-inbox-linked-menu] [data-linked-card="'.$this->card->id.'"]'));
     }
 
     /** @return iterable<string, array{string}> */

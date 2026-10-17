@@ -106,6 +106,19 @@ final readonly class InboxRow
         return $this->cards[0] ?? null;
     }
 
+    /** The first card of the first open blocking item that links one: the card that waits on the owner. */
+    public function blockingCard(): ?Card
+    {
+        foreach ($this->items as $item) {
+            $link = $item->cards->first();
+            if ($item->blocking && InboxItemState::Open === $item->state && false !== $link) {
+                return $link->card;
+            }
+        }
+
+        return null;
+    }
+
     public function moreCards(): int
     {
         return max(0, \count($this->cards) - 1);
