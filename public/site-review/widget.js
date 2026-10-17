@@ -71,8 +71,9 @@
     // The newest list request, and whether it has no answer yet.
     let listReady = Promise.resolve();
     let refreshPending = false;
-    // Whether `comments` can hold a note of a card that left the scope. Only
-    // a scoped read that succeeds clears it, and Delete all waits for one.
+    // Whether `comments` can miss notes of the scope, after a save pushed a
+    // card out. Only a scoped read that succeeds clears it, and Delete all
+    // waits for one.
     let scopeUnread = false;
     // Every comment is saved to the API as it is written and is live from that
     // moment — there is no send step. `comments` mirrors the project's Pending
@@ -4370,20 +4371,9 @@
     };
     // Re-open the composer pre-filled to edit an existing comment in place. The anchors
     // are preserved and rebuilt from storage; only the body is editable.
-    const openEditComposer = async (index) => {
-        let comment = comments[index];
+    const openEditComposer = (index) => {
+        const comment = comments[index];
         if (!comment) return;
-        if (scopeUnread) {
-            try {
-                await requireScopeRead('nothing was opened');
-            } catch (error) {
-                state.actionError = error;
-                sync();
-                return;
-            }
-            comment = comments.find((kept) => kept.id === comment.id);
-            if (!comment) return sync();
-        }
         // Read the stored anchors rather than the resolved ones: a comment made on
         // another page still has its anchors, and editing must not silently demote
         // it to a page note.
@@ -4821,9 +4811,13 @@
                         const sent = sessionCards.slice(0, SESSION_CARDS_SENT);
                         rememberSessionCard(saved.cardId);
                         // A card pushed out of the sent ids takes its notes
-                        // out of the scope, and the rows hold no card id.
+                        // out of the scope. The rows hold no card id, so the
+                        // list keeps only the new note until the reload.
                         const kept = sessionCards.slice(0, SESSION_CARDS_SENT);
                         if (sent.some((id) => !kept.includes(id))) {
+                            comments = comments.filter(
+                                (row) => row.id === saved.commentId,
+                            );
                             scopeUnread = true;
                             stale = true;
                         }
@@ -4881,11 +4875,7 @@
         sync();
         try {
             await ready;
-            if (await requireScopeRead('nothing was resolved', target))
-                await api(
-                    'POST',
-                    `/api/site-review/comments/${target.id}/resolve`,
-                );
+            await api('POST', `/api/site-review/comments/${target.id}/resolve`);
             // By id: the list can change while the request runs.
             comments = comments.filter((comment) => comment.id !== target.id);
         } catch (error) {
@@ -4903,22 +4893,6 @@
         sync();
     };
 
-    // A note of a card that left the scope stays in `comments` until a scoped
-    // read succeeds, so an action on a row reads first. False when the note
-    // left the scope, and a throw when the read fails.
-    const requireScopeRead = async (outcome, target = null) => {
-        if (scopeUnread) {
-            await refresh();
-            while (refreshPending) await listReady;
-        }
-        if (scopeUnread) {
-            throw new Error(
-                `Couldn’t reload your notes, so ${outcome}. Please try again.`,
-            );
-        }
-        return !target || comments.some((kept) => kept.id === target.id);
-    };
-
     // ---- destructive actions (every one is confirmed) ----
     const removeComment = async (index) => {
         const target = comments[index];
@@ -4928,8 +4902,7 @@
         sync(); // paint the disabled footer now, or the click below is silently dropped
         try {
             await ready; // don't let the boot refresh clobber an early delete
-            if (await requireScopeRead('nothing was deleted', target))
-                await api('DELETE', `/api/board/feedback/${target.id}`);
+            await api('DELETE', `/api/board/feedback/${target.id}`);
             comments = comments.filter((comment) => comment.id !== target.id);
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
@@ -4960,7 +4933,15 @@
             await ready; // don't let the boot refresh clobber an early clear
             // A list still loading can hold notes of an old scope.
             while (refreshPending) await listReady;
-            await requireScopeRead('nothing was deleted');
+            if (scopeUnread) {
+                await refresh();
+                while (refreshPending) await listReady;
+            }
+            if (scopeUnread) {
+                throw new Error(
+                    'Couldn’t reload your notes, so nothing was deleted. Please try again.',
+                );
+            }
             // allSettled, not all: a rejection from one delete must not send us to
             // refresh() while the rest are still in flight, or the rehydrate races
             // them and restores rows that are about to disappear.
