@@ -49,7 +49,7 @@ final class WidgetFileTest extends TestCase
         self::assertStringContainsString('/\\.local$/.test(BACKEND_HOST)', $src);
         // A false LOCAL emits no node at all, so the launcher keeps its width.
         self::assertStringContainsString(
-            '${LOCAL ? \'<span class="lp-local" id="lp-local" data-tip="Comments save to this local build">Local</span>\' : \'\'}',
+            '${LOCAL ? \'<span class="lp-local" id="lp-local" data-tip="Notes save to this local build">Local</span>\' : \'\'}',
             $src,
         );
 

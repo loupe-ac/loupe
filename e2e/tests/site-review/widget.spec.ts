@@ -402,7 +402,7 @@ test('saving a comment confirms it is live', async ({ page }) => {
     const saved = page.locator('#lp-saved');
     await clickSave(page);
     await expect(saved).toBeVisible();
-    await expect(saved).toContainText('Comment saved');
+    await expect(saved).toContainText('Note saved to');
 
     const persisted = await fetchReviewComments(page);
     expect(persisted.map((comment) => comment.body)).toEqual([
@@ -471,6 +471,7 @@ test('one card per review is chosen once and remembered after a reload', async (
     await expect(picker.getByLabel('New card title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
     );
+    await expect(picker.getByLabel('New card title')).toBeFocused();
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -525,12 +526,10 @@ test('a card per note names the card each note became', async ({ page }) => {
     );
 
     expect(await nextSaveTarget(page)).toEqual({ newCard: {} });
-    const lastCard = page.locator('#lp-last-card');
-    await expect(lastCard).toContainText(/^Saved as #\d+ The logo is cut off$/);
-    await expect(lastCard.getByRole('link')).toHaveAttribute(
-        'href',
-        /\/board\/cards\//,
+    await expect(page.locator('#lp-saved')).toContainText(
+        /^Note saved to #\d+ The logo is cut off$/,
     );
+    await expect(page.locator('#lp-last-card')).toHaveCount(0);
 });
 
 test('the mode comes before the first pick', async ({ page }) => {
@@ -585,7 +584,7 @@ test('epic mode files each note as a card under the epic', async ({ page }) => {
     expect(await nextSaveTarget(page)).toEqual({
         newCard: { parentCardId: epic.cardId },
     });
-    await expect(page.locator('#lp-last-card')).toContainText(
+    await expect(page.locator('#lp-saved')).toContainText(
         'The pricing table overflows',
     );
 });
@@ -1058,7 +1057,7 @@ test('deleting a list comment uses a sliding confirm overlay', async ({
     await chooseRowMenuItem(page, row, 'Delete note');
     const confirm = row.locator('.lp-item-confirm');
     await expect(confirm).toBeVisible();
-    await expect(confirm).toContainText('Delete this comment?');
+    await expect(confirm).toContainText('Delete this note?');
     expect(await row.evaluate((el: HTMLElement) => el.dataset.tag)).toBe(
         'orig',
     );
@@ -1250,7 +1249,7 @@ test('Delete all from the header menu confirms, names the count, then deletes', 
 
     await chooseHeadMenuItem(page, 'Delete all…');
     const confirm = page.locator('#lp-clear-confirm-text');
-    await expect(confirm).toContainText('Delete all 2 comments?');
+    await expect(confirm).toContainText('Delete all 2 notes?');
 
     await page.locator('#lp-clear-cancel').click();
     await expect(confirm).toBeHidden();
@@ -1350,6 +1349,9 @@ test('editing an anchored comment updates its body in place', async ({
     await expect(page.locator('#lp-compose-head')).toContainText(
         'A button to comment on',
     );
+    await expect(page.locator('#lp-context')).toHaveText(
+        'Only the text of a note can change.',
+    );
 
     await textarea.fill('Edited note');
     await clickSave(page);
@@ -1417,7 +1419,7 @@ test('the launcher exposes icon-only quick actions for note and pick', async ({
     await expect(page.locator('#lp-panel')).toBeVisible();
     await expect(page.getByPlaceholder(/Describe the issue/)).toBeVisible();
     await expect(page.locator('#lp-compose-head')).toContainText(
-        'General comment',
+        'General note',
     );
 
     // With the panel open the launcher's quick actions are hidden (they duplicate the
@@ -2051,7 +2053,7 @@ test('dropping the last anchor leaves a page note with the draft intact', async 
 
     // The comment becomes a page note and keeps what was typed.
     await expect(page.locator('#lp-compose-head')).toContainText(
-        'General comment',
+        'General note',
     );
     await expect(page.locator('.highlight.removable')).toHaveCount(0);
     await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
@@ -2113,7 +2115,7 @@ test('the composer keeps Save reachable at the anchor cap', async ({
     );
     await page.locator('#long-11').click();
     await expect(page.locator('#lp-error')).toContainText(
-        'A comment can point at 10 elements at most.',
+        'A note can point at 10 elements at most.',
     );
     await expect(page.locator('#lp-compose-head .lp-compose-chip')).toHaveCount(
         10,
@@ -2126,7 +2128,7 @@ test('the composer keeps Save reachable at the anchor cap', async ({
     // The picker shows itself on the pointer, not on the keydown alone.
     await page.mouse.move(2, 2);
     await expect(page.locator('#lp-error')).toContainText(
-        'A comment can point at 10 elements at most.',
+        'A note can point at 10 elements at most.',
     );
     await expect(page.locator('#lp-toast')).toBeHidden();
     await page.keyboard.up(modifier);

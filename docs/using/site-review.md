@@ -91,7 +91,8 @@ shows **Open #N in Loupe**, which opens that card.
 
 The second and third choices open a card picker. Search the open cards, or
 type a title and create a card. The title starts as `Review: ` and the page
-path, and you can edit it. The third choice lists the open cards of every type that has the children
+path, and you can edit it. With **One card for this review**, the title field takes the focus.
+The third choice lists the open cards of every type that has the children
 capability, and it creates a card of one of those types. When the template has
 two or more such types, a type selector shows beside the Create button. The
 first type of the template is chosen at first.
@@ -106,7 +107,7 @@ A card that the widget creates has these values:
 - The card body holds the whole note.
 - When you edit the note while the card sits in Backlog and nobody has changed it, the title and the body follow the edit. After that the card keeps its own text.
 
-After a save that creates a card, the widget names the card and links to it.
+Each save shows one short notice that names the card, such as "Note saved to #12 Review: /pricing". When you edit a note, the composer says that only the text can change.
 
 When the card or the epic you chose is closed or deleted, the widget forgets the
 choice and asks again. A card in a terminal column is closed. Your draft stays.
