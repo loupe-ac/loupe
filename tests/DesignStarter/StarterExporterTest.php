@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\DesignStarter;
 
 use App\DesignStarter\StarterExporter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 
@@ -78,6 +79,28 @@ final class StarterExporterTest extends KernelTestCase
 
             self::assertSame(1, substr_count($html, 'data-starter-slot'), $shell);
             self::assertSame(1, preg_match('~<(\w+)\s[^>]*data-starter-slot[^>]*></\1>~', $html), $shell);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, list<string>}>
+     */
+    public static function frameControls(): iterable
+    {
+        yield 'board' => ['Board', ['lp-board-toolbar', 'lp-board-backlog']];
+        yield 'inbox' => ['Inbox', ['lp-inbox-list-head', 'lp-filter-search', 'lp-inbox-filter', 'lp-inbox-rows']];
+    }
+
+    /**
+     * @param list<string> $classes
+     */
+    #[DataProvider('frameControls')]
+    public function test_a_shell_keeps_the_visible_controls_of_its_page(string $shell, array $classes): void
+    {
+        $html = $this->read($shell.'.dc.html');
+
+        foreach ($classes as $class) {
+            self::assertMatchesRegularExpression('~class="[^"]*\b'.preg_quote($class, '~').'\b~', $html, $class);
         }
     }
 
