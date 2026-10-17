@@ -748,3 +748,34 @@ it('points the links of markup from a value as the build does', () => {
     );
     expect(still.raw('<b>x</b>')).toBe('<b>x</b>');
 });
+
+it('calls componentDidUpdate with the old state after the redraw', async () => {
+    const calls = [];
+    const View = counter({
+        componentDidUpdate(props, prev) {
+            calls.push([prev.n, this.state.n, document.body.textContent]);
+        },
+    });
+    const view = View.mount(View, counterRender, {}, ['click']);
+    expect(calls).toEqual([]);
+    view.setState({ n: 1 });
+    view.setState({ n: 2 });
+    await settle();
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]).toBe(0);
+    expect(calls[0][1]).toBe(2);
+    expect(calls[0][2]).toContain('2');
+});
+
+it('logs an error from componentDidUpdate and goes on', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const View = counter({
+        componentDidUpdate() {
+            throw new Error('boom');
+        },
+    });
+    const view = View.mount(View, counterRender, {}, ['click']);
+    view.setState({ n: 1 });
+    await settle();
+    expect(error).toHaveBeenCalled();
+});

@@ -48,9 +48,9 @@ Put each item in its section of the product document.
 ## P10: write and link
 
 1. When a Claude Design session ran, add the recap of the picks to its project (C6).
-2. With no existing document, call `document_create` with the title `Product design: <card title>`.
+2. With no existing document, call `document_create` with the title `Product design: <card title>`. Pass `draft: true` when `document_publish` is among the tools. The draft stays out of the owner's inbox while an agent reviews it, and the app publishes it when the review ends. Never call `document_publish` yourself. When `document_publish` is not among the tools, create the document without `draft`, as `loupe-documents` rule 17 says.
 3. Use the tag `product-design`, or the spelling `tag_list` already has for it. Without it, an approval moves nothing and shows no error.
 4. With an existing document, call `document_revise` on it instead. When the document lacks the tag `product-design`, or has one of the tags `design`, `product`, `tech-design` and `decisions`, call `document_set_tags`. Send its current tags without those four, plus `product-design`. A document with both `product-design` and `tech-design` moves no card on approval. Keep each section with a standing approval unchanged, as `../loupe-stage-product-design/references/review-round.md` "An approved section wins" says. When the document has open review comments, answer them as "Answer every open comment" in that file says.
 5. Call `card_get` again. When the card does not link the document yet, call `card_update` with the existing `documentIds` plus the new id. The field replaces the whole set.
 6. Call `card_run_close` with the card and the `sessionId` of P0.
-7. Never move the card after P0. Give the owner the review URL, and stop. The owner reviews the `R` entries and the scenarios there.
+7. Never move the card after P0. Give the owner the review URL, and stop. With a draft, tell the owner that an agent reviews the document first, and that **Publish** on the draft skips the review. The owner reviews the `R` entries and the scenarios in the document once the review ends.

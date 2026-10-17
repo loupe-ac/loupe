@@ -13,17 +13,21 @@ use App\Module\Review\Repository\DecisionSelectionRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Review\Repository\ReviewRepository;
 use App\Module\Review\Service\DecisionBlockService;
+use App\Module\Review\Service\DocumentAgentReviews;
 use App\Module\Review\ValueObject\Anchor;
 use App\Module\Review\ValueObject\DecisionType;
 
 /**
+ * @phpstan-import-type DocumentAgentReviewSummary from DocumentAgentReviews
+ *
  * @phpstan-type ReviewPayload array{
  *     status: string,
  *     verdict: string|null,
  *     note: string|null,
  *     version: int,
  *     comments: list<array{id: string, quote: string, body: string, replacement: string|null, author: 'agent'|'human', status: string, orphaned: bool, thread: list<array{id: string, quote: string, body: string, author: 'agent'|'human', orphaned: bool}>}>,
- *     decisions: list<array{id: string, type: string, options: list<string>, selected: string|null, selected_index: int|null, answered_at: string|null, answered_at_version: int|null, note: string|null, updated_at: string|null, selections: list<array{option: string, index: int|null, answered_at: string, answered_at_version: int}>}>
+ *     decisions: list<array{id: string, type: string, options: list<string>, selected: string|null, selected_index: int|null, answered_at: string|null, answered_at_version: int|null, note: string|null, updated_at: string|null, selections: list<array{option: string, index: int|null, answered_at: string, answered_at_version: int}>}>,
+ *     agentReviews: list<DocumentAgentReviewSummary>
  * }
  */
 final readonly class ShowReviewHandler
@@ -35,6 +39,7 @@ final readonly class ShowReviewHandler
         private DecisionSelectionRepository $decisionSelections,
         private DecisionAnswerRepository $decisionAnswers,
         private DecisionBlockService $decisionBlocks,
+        private DocumentAgentReviews $agentReviews,
     ) {
     }
 
@@ -186,6 +191,7 @@ final readonly class ShowReviewHandler
             'version' => $currentVersion->versionNumber,
             'comments' => $threadedComments,
             'decisions' => $decisions,
+            'agentReviews' => $this->agentReviews->forDocument($document),
         ];
     }
 

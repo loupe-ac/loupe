@@ -5,20 +5,23 @@ declare(strict_types=1);
 namespace App\Module\AgentReview\EventListener;
 
 use App\Module\AgentReview\Repository\AgentReviewRepository;
+use App\Module\AgentReview\Repository\DocumentAgentReviewRepository;
 use App\Module\Project\Event\ProjectDeleting;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-/** Bulk-deletes the agent reviews of a project, inside ProjectDeleter's transaction. */
+/** Bulk-deletes the agent reviews of a project, those of its pull requests and those of its documents, inside ProjectDeleter's transaction. */
 #[AsEventListener]
 final readonly class DeleteAgentReviewsOnProjectDeleting
 {
     public function __construct(
         private AgentReviewRepository $agentReviews,
+        private DocumentAgentReviewRepository $documentAgentReviews,
     ) {
     }
 
     public function __invoke(ProjectDeleting $event): void
     {
         $this->agentReviews->deleteByProject($event->project);
+        $this->documentAgentReviews->deleteByProject($event->project);
     }
 }

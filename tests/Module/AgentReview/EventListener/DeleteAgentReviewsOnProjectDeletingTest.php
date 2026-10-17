@@ -8,14 +8,14 @@ use App\Module\AgentReview\Entity\AgentReviewPost;
 use App\Module\AgentReview\EventListener\DeleteAgentReviewsOnProjectDeleting;
 use App\Module\Project\Event\ProjectDeleting;
 use App\Module\Project\Service\ProjectDeleter;
-use App\Tests\Module\AgentReview\AgentReviewScenario;
+use App\Tests\Module\AgentReview\DocumentReviewScenario;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class DeleteAgentReviewsOnProjectDeletingTest extends KernelTestCase
 {
-    use AgentReviewScenario;
+    use DocumentReviewScenario;
 
     private EntityManagerInterface $em;
 
@@ -40,6 +40,9 @@ final class DeleteAgentReviewsOnProjectDeletingTest extends KernelTestCase
         $this->em->persist(new AgentReviewPost($doomedReview, str_repeat('e', 40), true));
         $this->em->persist(new AgentReviewPost($sparedReview, str_repeat('e', 40), true));
         $this->em->flush();
+        $this->documentReview($doomed, $doomedReview->card, $this->linkedDocument($doomedReview->card));
+        $this->documentReview($spared, $sparedReview->card, $this->linkedDocument($sparedReview->card));
+        self::assertSame(1, $this->documentReviewsFor((string) $doomed->id));
 
         self::assertSame(1, $this->countFor((string) $doomed->id));
         self::assertSame(1, $this->postsOf((string) $doomedReview->id));
@@ -50,6 +53,8 @@ final class DeleteAgentReviewsOnProjectDeletingTest extends KernelTestCase
 
         self::assertSame(0, $this->countFor((string) $doomed->id));
         self::assertSame(1, $this->countFor((string) $spared->id));
+        self::assertSame(0, $this->documentReviewsFor((string) $doomed->id));
+        self::assertSame(1, $this->documentReviewsFor((string) $spared->id));
         self::assertSame(0, $this->postsOf((string) $doomedReview->id), 'The foreign key deletes the posts of a review that a DQL delete removes.');
         self::assertSame(1, $this->postsOf((string) $sparedReview->id));
         self::assertSame(1, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM board_cards WHERE project_id = :id', ['id' => (string) $doomed->id]));
@@ -72,6 +77,11 @@ final class DeleteAgentReviewsOnProjectDeletingTest extends KernelTestCase
         self::assertSame(0, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM projects WHERE id = :id', ['id' => $doomedId]));
         self::assertSame(0, $this->countFor($doomedId));
         self::assertSame(1, $this->countFor((string) $spared->id));
+    }
+
+    private function documentReviewsFor(string $projectId): int
+    {
+        return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM document_agent_reviews WHERE project_id = :id', ['id' => $projectId]);
     }
 
     private function postsOf(string $reviewId): int

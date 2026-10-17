@@ -427,7 +427,7 @@ final readonly class Engine
     }
 
     /**
-     * Cancels the live requests of rules that no longer apply, and expires the open ones no bridge took in time.
+     * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds, and expires the open ones no bridge took in time.
      * An expiry pauses the card, unless the rule expires its work with no pause.
      * A baseline pauses nothing, so it leaves an overdue request to the next pass.
      */
@@ -442,6 +442,10 @@ final readonly class Engine
             }
             $rule = $run->rule($request->ruleId);
             if (null === $rule || !$run->applies($rule)) {
+                $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled) || $withdrawn;
+                continue;
+            }
+            if (null !== $rule->then->cancelWhen && $this->ruleSubject->bindWhen($rule->then->cancelWhen, $run->facts)->truth) {
                 $withdrawn = $this->ledger->withdraw($requestId, WithdrawKind::Cancelled) || $withdrawn;
                 continue;
             }
@@ -835,7 +839,7 @@ final readonly class Engine
             if (!$run->applies($rule)) {
                 continue;
             }
-            foreach ([...$rule->when->reads(), ...($rule->then->until?->reads() ?? []), ...($rule->then->refill?->reads() ?? [])] as $key) {
+            foreach ([...$rule->when->reads(), ...($rule->then->until?->reads() ?? []), ...($rule->then->refill?->reads() ?? []), ...($rule->then->cancelWhen?->reads() ?? [])] as $key) {
                 if (\is_string($key) && !\array_key_exists($key, $run->facts->provided)) {
                     $missing[$key] = true;
                 }

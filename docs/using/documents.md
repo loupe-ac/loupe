@@ -541,6 +541,25 @@ Highlights tint the passages a reviewer should read first. They carry no body
 and cannot be replied to — they steer attention, nothing more. They belong to
 the version current when they are set, and a new version drops them.
 
+## Agent review summary
+
+A design that went through the agent review shows a summary below its last section.
+The summary has three states:
+
+1. **Agent review passed.** The newest review passed. When it left a question for you, its fix round also wrote that question into the draft.
+2. **Agent review did not pass.** Three reviews failed, so the document reached you anyway.
+3. **Agent review skipped.** You published the draft while the loop still ran. This includes a publish before the fix round wrote the question of a passed review into the draft.
+
+A document with no agent review shows no summary. A draft shows none either, also after its loop ends. The summary appears when the draft is published.
+
+The line next to the state counts the rounds, the findings that the fix round fixed, the findings it did not change, and the findings still open.
+A skipped summary says after which round you published.
+
+Select **Show rounds** to read each round.
+The newest round lists every finding with its severity, its text and the answer of the fix round.
+A finding that the fix round kept carries the label **Not changed** and the reason it gave.
+An earlier round with nothing left to explain shows one line, such as "3 findings, 2 fixed in v3".
+
 ## The search language
 
 Search stems words, so it must know the language a document is written in. Every

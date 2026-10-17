@@ -30,7 +30,7 @@ final readonly class Rule
      */
     public function context(CardSnapshot $card, Facts $facts, int $fires, array $columns = [], ?string $prompt = null): ActionContext
     {
-        $params = $this->then->params;
+        $params = [...$this->then->params, ...$this->then->lists];
         if ([] !== $this->then->options) {
             $params['options'] = array_map(static fn (AskOption $option): string => $option->label, $this->then->options);
         }

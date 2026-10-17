@@ -81,9 +81,9 @@ return static function (Config $config): void {
 
     $config->add($src,
         Rule::allClasses()
-            ->that(new ResideInOneOfTheseNamespaces('App\Module\Board', 'App\Module\Forge'))
+            ->that(new ResideInOneOfTheseNamespaces('App\Module\Board', 'App\Module\Forge', 'App\Module\Review'))
             ->should(new NotDependsOnTheseNamespaces(['App\Module\AgentReview']))
-            ->because('AgentReview depends on Board and Forge to read a card and its pull requests, so an import back closes a cycle. Board reaches the agent review through a port'),
+            ->because('AgentReview depends on Board and Forge to read a card and its pull requests, and on Review to read a document, so an import back closes a cycle. Board and Review reach the agent review through a port'),
     );
 
     $config->add($src,
