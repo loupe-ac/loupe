@@ -4,7 +4,7 @@ Read this before you send, build or test an email.
 
 ## Delivery is asynchronous
 
-`MailerInterface::send()` enqueues a `Symfony\Component\Mailer\Messenger\SendEmailMessage` on the `async` transport, routed in `messenger.yaml`. The messenger worker (`messenger:consume scheduler_default workflow async`) performs the delivery. The dev `worker` compose service already consumes both transports. In production the worker runs as its own container from the same image with the command overridden. Never run it inside the web container's supervisord. A failed delivery retries 3 times, then lands in the `failed` transport.
+`MailerInterface::send()` enqueues a `Symfony\Component\Mailer\Messenger\SendEmailMessage` on the `jobs` transport, routed in `messenger.yaml`. The messenger worker (`messenger:consume scheduler_default card_eval jobs`) performs the delivery. The dev `worker` compose service already consumes both transports. In production the worker runs as its own container from the same image with the command overridden. Never run it inside the web container's supervisord. A failed delivery retries 3 times, then lands in the `failed` transport.
 
 ## Sender parameters
 
@@ -20,7 +20,7 @@ A request enqueues mail instead of sending it. Use `assertQueuedEmailCount()` in
 
 ## Worktrees
 
-The shared dev `worker` service consumes only the main checkout's database, so a worktree's own `app_wt_<slug>` queue has no consumer. This affects manual mail testing against a worktree. Start a consumer from the worktree with `bin/worktrees/compose-exec.sh bin/console messenger:consume scheduler_default workflow async`, and stop it when you are done. This does not affect e2e: `PlaywrightSyncMiddleware` handles every message dispatched under `X-Playwright` inline, so the suite has no queue to drain.
+The shared dev `worker` service consumes only the main checkout's database, so a worktree's own `app_wt_<slug>` queue has no consumer. This affects manual mail testing against a worktree. Start a consumer from the worktree with `bin/worktrees/compose-exec.sh bin/console messenger:consume scheduler_default card_eval jobs`, and stop it when you are done. This does not affect e2e: `PlaywrightSyncMiddleware` handles every message dispatched under `X-Playwright` inline, so the suite has no queue to drain.
 
 ## Worker staleness
 

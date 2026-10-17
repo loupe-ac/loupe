@@ -71,9 +71,9 @@ services:
     build:
       dockerfile: ./docker/dev/php-fpm/Dockerfile
     restart: unless-stopped
-    # scheduler_default listed first deliberately — a deep async backlog must
-    # not delay schedule ticks. async_low (the workflow sweep) comes last.
-    command: php bin/console messenger:consume scheduler_default workflow async async_low --time-limit=3600 --memory-limit=128M
+    # scheduler_default listed first deliberately — a deep jobs backlog must
+    # not delay schedule ticks. card_sweep (the workflow sweep) comes last.
+    command: php bin/console messenger:consume scheduler_default card_eval jobs card_sweep --time-limit=3600 --memory-limit=128M
     volumes:
       - .:/var/www/html
     environment:

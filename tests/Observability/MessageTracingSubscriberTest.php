@@ -64,13 +64,13 @@ final class MessageTracingSubscriberTest extends TestCase
 
     public function test_a_received_message_starts_a_queue_transaction_named_after_its_class(): void
     {
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent(new Envelope(new \stdClass()), 'async'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent(new Envelope(new \stdClass()), 'jobs'));
 
         $span = $this->hub->getSpan();
         self::assertInstanceOf(Transaction::class, $span);
         self::assertSame('queue.process', $span->getOp());
         self::assertSame(\stdClass::class, $span->getName());
-        self::assertSame(['messenger.receiver_name' => 'async'], $span->getTags());
+        self::assertSame(['messenger.receiver_name' => 'jobs'], $span->getTags());
         self::assertTrue($span->getSampled());
     }
 
@@ -80,8 +80,8 @@ final class MessageTracingSubscriberTest extends TestCase
         $this->hub->setSpan($previous);
         $envelope = new Envelope(new \stdClass());
 
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($envelope, 'async'));
-        $this->subscriber->onHandled(new WorkerMessageHandledEvent($envelope, 'async'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($envelope, 'jobs'));
+        $this->subscriber->onHandled(new WorkerMessageHandledEvent($envelope, 'jobs'));
 
         $sent = $this->onlySent();
         $trace = $sent->getContexts()['trace'] ?? [];
@@ -95,8 +95,8 @@ final class MessageTracingSubscriberTest extends TestCase
     {
         $envelope = new Envelope(new \stdClass());
 
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($envelope, 'async'));
-        $failed = new WorkerMessageFailedEvent($envelope, 'async', new \RuntimeException('boom'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($envelope, 'jobs'));
+        $failed = new WorkerMessageFailedEvent($envelope, 'jobs', new \RuntimeException('boom'));
         $this->subscriber->onFailed($failed);
 
         self::assertSame('internal_error', $this->onlySent()->getContexts()['trace']['status'] ?? null);
@@ -113,8 +113,8 @@ final class MessageTracingSubscriberTest extends TestCase
         $dispatcher->addListener(WorkerMessageFailedEvent::class, [new MessengerListener($this->hub), 'handleWorkerMessageFailedEvent'], 50);
         $envelope = new Envelope(new \stdClass());
 
-        $dispatcher->dispatch(new WorkerMessageReceivedEvent($envelope, 'async'));
-        $dispatcher->dispatch(new WorkerMessageFailedEvent($envelope, 'async', new \RuntimeException('boom')));
+        $dispatcher->dispatch(new WorkerMessageReceivedEvent($envelope, 'jobs'));
+        $dispatcher->dispatch(new WorkerMessageFailedEvent($envelope, 'jobs', new \RuntimeException('boom')));
 
         $byType = [];
         foreach ($this->sent as $event) {
@@ -136,15 +136,15 @@ final class MessageTracingSubscriberTest extends TestCase
         self::assertCount(0, $this->sent);
 
         $queued = new Envelope(new \stdClass());
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($queued, 'async'));
-        $this->subscriber->onHandled(new WorkerMessageHandledEvent($queued, 'async'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($queued, 'jobs'));
+        $this->subscriber->onHandled(new WorkerMessageHandledEvent($queued, 'jobs'));
         self::assertCount(1, $this->sent);
     }
 
     public function test_a_handled_event_for_another_message_finishes_nothing(): void
     {
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent(new Envelope(new \stdClass()), 'async'));
-        $this->subscriber->onHandled(new WorkerMessageHandledEvent(new Envelope(new \stdClass()), 'async'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent(new Envelope(new \stdClass()), 'jobs'));
+        $this->subscriber->onHandled(new WorkerMessageHandledEvent(new Envelope(new \stdClass()), 'jobs'));
 
         self::assertCount(0, $this->sent);
         self::assertInstanceOf(Transaction::class, $this->hub->getSpan());
@@ -154,12 +154,12 @@ final class MessageTracingSubscriberTest extends TestCase
     {
         $previous = new Span();
         $this->hub->setSpan($previous);
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent(new Envelope(new \stdClass()), 'async'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent(new Envelope(new \stdClass()), 'jobs'));
         $skipped = $this->hub->getSpan();
         self::assertInstanceOf(Transaction::class, $skipped);
 
         $next = new Envelope(new \ArrayObject());
-        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($next, 'async'));
+        $this->subscriber->onReceived(new WorkerMessageReceivedEvent($next, 'jobs'));
         $current = $this->hub->getSpan();
         self::assertInstanceOf(Transaction::class, $current);
         self::assertNotSame($skipped, $current);
@@ -167,7 +167,7 @@ final class MessageTracingSubscriberTest extends TestCase
         self::assertNotNull($skipped->getEndTimestamp());
         self::assertFalse($skipped->getSampled());
 
-        $this->subscriber->onHandled(new WorkerMessageHandledEvent($next, 'async'));
+        $this->subscriber->onHandled(new WorkerMessageHandledEvent($next, 'jobs'));
         self::assertSame(\ArrayObject::class, $this->onlySent()->getTransaction());
         self::assertSame($previous, $this->hub->getSpan());
     }
@@ -178,12 +178,12 @@ final class MessageTracingSubscriberTest extends TestCase
         $subscriber = new MessageTracingSubscriber($hub);
         $envelope = new Envelope(new \stdClass());
 
-        $subscriber->onReceived(new WorkerMessageReceivedEvent($envelope, 'async'));
+        $subscriber->onReceived(new WorkerMessageReceivedEvent($envelope, 'jobs'));
         $span = $hub->getSpan();
         self::assertInstanceOf(Transaction::class, $span);
         self::assertFalse($span->getSampled());
 
-        $subscriber->onHandled(new WorkerMessageHandledEvent($envelope, 'async'));
+        $subscriber->onHandled(new WorkerMessageHandledEvent($envelope, 'jobs'));
         self::assertCount(0, $this->sent);
         self::assertNull($hub->getSpan());
     }

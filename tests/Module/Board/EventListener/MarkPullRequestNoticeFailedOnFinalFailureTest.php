@@ -75,7 +75,7 @@ final class MarkPullRequestNoticeFailedOnFinalFailureTest extends KernelTestCase
     {
         return new WorkerMessageFailedEvent(
             new Envelope(new PostPullRequestNotice($notice->id ?? throw new \LogicException('A flushed notice has an id.'))),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
     }

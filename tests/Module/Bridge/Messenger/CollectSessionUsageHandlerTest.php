@@ -60,7 +60,7 @@ final class CollectSessionUsageHandlerTest extends KernelTestCase
         self::bootKernel();
         $run = $this->closedRun('collect-message-inline');
         $this->em()->persist(new Document($run->project->owner, $run->project, 'Not flushed yet'));
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
         $message = $this->messageOf($run);

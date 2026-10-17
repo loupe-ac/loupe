@@ -276,7 +276,7 @@ final class DeleteAccountHandlerTest extends KernelTestCase
         // worker only once that transaction commits. Actual Stripe
         // cancellation is exercised by CancelSubscriptionHandlerTest.
         /** @var InMemoryTransport $transport */
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         $sent = $transport->getSent();
         $cancelMessages = array_values(array_filter(
             array_map(static fn ($e) => $e->getMessage(), $sent),

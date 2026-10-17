@@ -65,7 +65,7 @@ final class WaitItemResponsesTest extends KernelTestCase
     public function test_a_dismissal_declines_the_item_and_stamps_the_watch_and_its_waits(): void
     {
         $watch = $this->openWatch();
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 

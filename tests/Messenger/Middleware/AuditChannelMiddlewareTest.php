@@ -66,7 +66,7 @@ final class AuditChannelMiddlewareTest extends TestCase
     {
         $envelope = new Envelope(new \stdClass(), [
             new AuditChannelStamp(AuditChannel::Session),
-            new ReceivedStamp('async'),
+            new ReceivedStamp('jobs'),
             new ConsumedByWorkerStamp(),
         ]);
 
@@ -93,7 +93,7 @@ final class AuditChannelMiddlewareTest extends TestCase
      */
     public function test_an_unstamped_message_off_any_other_transport_has_unknown_provenance(): void
     {
-        $envelope = new Envelope(new \stdClass(), [new ReceivedStamp('async'), new ConsumedByWorkerStamp()]);
+        $envelope = new Envelope(new \stdClass(), [new ReceivedStamp('jobs'), new ConsumedByWorkerStamp()]);
 
         $this->middleware->handle($envelope, $this->stackRunning(fn () => $this->auditor->record('export.generated', AuditOutcome::Success)));
 
@@ -103,7 +103,7 @@ final class AuditChannelMiddlewareTest extends TestCase
 
     public function test_the_callers_own_context_key_wins_over_the_async_marker(): void
     {
-        $envelope = new Envelope(new \stdClass(), [new ReceivedStamp('async'), new ConsumedByWorkerStamp()]);
+        $envelope = new Envelope(new \stdClass(), [new ReceivedStamp('jobs'), new ConsumedByWorkerStamp()]);
 
         $this->middleware->handle($envelope, $this->stackRunning(fn () => $this->auditor->record('test.synthetic', AuditOutcome::Success, ['async' => false])));
 
@@ -115,7 +115,7 @@ final class AuditChannelMiddlewareTest extends TestCase
         $this->auditContext->channel = AuditChannel::Console;
         $envelope = new Envelope(new \stdClass(), [
             new AuditChannelStamp(AuditChannel::Session),
-            new ReceivedStamp('async'),
+            new ReceivedStamp('jobs'),
             new ConsumedByWorkerStamp(),
         ]);
 

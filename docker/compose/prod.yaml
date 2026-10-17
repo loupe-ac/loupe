@@ -180,7 +180,7 @@ services:
         condition: service_healthy
 
   # Its own container from the same image, so worker restarts never recycle
-  # php-fpm. Supervisord runs two consumers, the second for async_low. su-exec
+  # php-fpm. Supervisord runs two consumers, the second for card_sweep. su-exec
   # keeps the shared export volume written by one user: the local adapter writes
   # archives 0600, so a root-written one 404s for every download.
   worker:

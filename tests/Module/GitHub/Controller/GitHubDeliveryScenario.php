@@ -106,7 +106,7 @@ trait GitHubDeliveryScenario
     /** @return list<array{string, bool}> the pull request id of each queued refresh, and whether it waits */
     private function queuedRefreshes(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         $refreshes = [];
@@ -123,7 +123,7 @@ trait GitHubDeliveryScenario
     /** @return list<array{?PullRequestReview, ?string}> the verdict and the review id of each queued refresh */
     private function queuedVerdicts(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         $verdicts = [];
@@ -140,7 +140,7 @@ trait GitHubDeliveryScenario
     /** Runs each queued refresh through its handler, as the worker would. */
     private function drainRefreshes(): void
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $handler = self::getContainer()->get(RefreshPullRequestStateHandler::class);
         self::assertInstanceOf(RefreshPullRequestStateHandler::class, $handler);

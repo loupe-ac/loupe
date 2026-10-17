@@ -432,7 +432,7 @@ final class BucketRuleControllersTest extends WebTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = static::getContainer()->get('messenger.transport.async');
+        $transport = static::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

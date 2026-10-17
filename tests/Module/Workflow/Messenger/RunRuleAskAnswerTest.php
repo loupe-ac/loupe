@@ -16,7 +16,7 @@ final class RunRuleAskAnswerTest extends KernelTestCase
     public function test_the_answer_goes_to_the_async_transport(): void
     {
         self::bootKernel();
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
         $bus = self::getContainer()->get(MessageBusInterface::class);
@@ -35,7 +35,7 @@ final class RunRuleAskAnswerTest extends KernelTestCase
         $handler = self::getContainer()->get(RunRuleAskAnswerHandler::class);
         self::assertInstanceOf(RunRuleAskAnswerHandler::class, $handler);
 
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 

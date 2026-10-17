@@ -17,7 +17,7 @@ final readonly class SweepWorkflowCardsHandler
         private WorkflowBindingRepository $workflowBindings,
         private EvaluationTrigger $trigger,
 
-        #[Autowire(service: 'messenger.transport.async_low')]
+        #[Autowire(service: 'messenger.transport.card_sweep')]
         private TransportInterface $lowPriorityTransport,
     ) {
     }

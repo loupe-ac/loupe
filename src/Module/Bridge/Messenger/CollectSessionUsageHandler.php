@@ -32,7 +32,7 @@ final readonly class CollectSessionUsageHandler
         // Handled inline in the middle of a close, the request would take the
         // bridge locks under the project lock. The queue runs it afterwards.
         if ($this->em->getUnitOfWork()->hasPendingInsertions()) {
-            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['async'])]));
+            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['jobs'])]));
 
             return;
         }
