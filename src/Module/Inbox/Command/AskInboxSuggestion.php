@@ -12,6 +12,8 @@ final readonly class AskInboxSuggestion
         public string $reason,
         public bool $recommended = false,
         public ?string $cardId = null,
+        public ?AskInboxRunCommand $command = null,
+        public ?string $proposedEntry = null,
     ) {
     }
 }

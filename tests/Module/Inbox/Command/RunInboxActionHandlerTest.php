@@ -10,6 +10,8 @@ use App\Module\Board\Command\CreateCardHandler;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
 use App\Module\Board\Workflow\WorkRequestContexts;
@@ -35,6 +37,8 @@ use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\View\WorkerRunControls;
+use App\Module\Forge\Entity\ForgePullRequest;
+use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Inbox\Command\CancelInboxActionCommand;
 use App\Module\Inbox\Command\CancelInboxActionHandler;
 use App\Module\Inbox\Command\DeclineInboxItemHandler;
@@ -42,6 +46,8 @@ use App\Module\Inbox\Command\RunInboxActionCommand;
 use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxCardWait;
 use App\Module\Inbox\Entity\InboxCardWaitReason;
 use App\Module\Inbox\Entity\InboxCardWaitTrigger;
@@ -53,7 +59,10 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\ItemActions;
+use App\Module\Inbox\Service\RunCommandResolver;
+use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\Workflow\InboxRetryNotes;
 use App\Module\Project\Entity\Project;
@@ -71,6 +80,7 @@ use App\Tests\Module\Workflow\Fact\FactsMother;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\RecordingAuditor;
 use Doctrine\Persistence\ManagerRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -394,6 +404,28 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertNull($this->itemActions()->sendAgentFor($none));
     }
 
+    public function test_a_todo_acts_on_the_linked_card_that_its_suggestion_names(): void
+    {
+        $other = $this->cardIn('in-progress');
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export it', blocking: false);
+        $this->em()->persist($item);
+        $item->cards->add(new InboxItemCard($item, $other));
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $cardId = (string) $this->card->id;
+        $item->suggestedActions = [
+            ['action' => 'send-agent', 'reason' => 'Let an agent do it.', 'recommended' => true, 'cardId' => $cardId],
+            ['action' => 'open', 'reason' => 'Read the card.', 'recommended' => false, 'cardId' => $cardId],
+            ['action' => 'start-session', 'reason' => 'Pair on it.', 'recommended' => false, 'cardId' => $cardId],
+        ];
+        $this->em()->flush();
+
+        self::assertContains(InboxActionKind::SendAgent, array_map(static fn ($action): InboxActionKind => $action->kind, $this->itemActions()->forItem($item)));
+        self::assertSame($cardId, (string) $this->itemActions()->sendAgentFor($item)?->cardId);
+        self::assertSame($cardId, (string) $this->itemActions()->cardIdOf($item, InboxActionKind::Open));
+        self::assertSame($cardId, (string) $this->itemActions()->cardIdOf($item, InboxActionKind::StartSession));
+        self::assertSame((string) $other->id, (string) $this->itemActions()->cardIdOf($item, InboxActionKind::Review), 'A kind with no suggestion falls back to the first linked card.');
+    }
+
     public function test_a_card_with_no_wait_item_fits_send_agent_as_a_question_on_it_does(): void
     {
         $cardId = $this->card->id ?? throw new \LogicException('Stored.');
@@ -712,6 +744,452 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->assertCancelRefused($action, $item, CancelInboxActionHandler::NOT_CANCELLABLE);
     }
 
+    public function test_a_run_command_opens_a_request_for_the_asking_bridge_on_the_only_card(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+
+        $action = $this->runAction($item, InboxActionKind::RunCommand, ' Run it. ') ?? throw new \LogicException('A command records a row.');
+
+        self::assertSame('Run it.', $action->note);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame([WorkSubject::CARD, (string) $this->card->id, $this->card->number], [$request->subjectType, (string) $request->subjectId, $request->cardNumber]);
+        self::assertSame(['design-export', 'run-command', 'inbox:run-command', WorkRequestState::Open], [$request->kind, $request->capability, $request->ruleId, $request->state]);
+        self::assertSame([(string) $this->bridge->id, 'epic/42', ['out' => 'var/out']], [(string) $request->targetBridgeId, $request->branch, $request->params]);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [(string) $request->inboxActionId, $request->inboxItemNumber, (string) $request->inboxItemId]);
+        self::assertNull($action->waitId);
+        self::assertSame($this->project->owner, $action->requestedBy);
+        $record = $this->audit->record('inbox.action_requested');
+        self::assertSame([$action->id?->toRfc4122(), 'run-command'], [$record->context['actionId'], $record->context['kind']]);
+    }
+
+    public function test_a_todo_with_no_card_runs_on_the_item_itself(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo(cards: 0);
+
+        $action = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id, null], [$request->subjectType, (string) $request->subjectId, $request->cardNumber]);
+    }
+
+    public function test_a_todo_with_two_cards_runs_on_the_item_itself(): void
+    {
+        $this->commandBridge();
+        $other = $this->service(CreateCardHandler::class)(new CreateCardCommand(project: $this->project, title: 'Other', body: 'Body', type: 'feature', column: $this->column($this->project, 'tech-design'), reporter: Actor::Human));
+        $item = $this->commandTodo(cards: 0);
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $item->cards->add(new InboxItemCard($item, $other));
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        self::assertSame(InboxItem::SUBJECT_TYPE, $this->em()->find(WorkRequest::class, $action->workRequestId)?->subjectType);
+    }
+
+    public function test_a_wait_item_runs_on_the_watched_card_and_records_the_wait(): void
+    {
+        $this->commandBridge();
+        $item = $this->runItem();
+        $run = $this->em()->find(WorkerRun::class, $this->waitOf($item)->runId) ?? throw new \LogicException('Stored.');
+        $run->resultFields = ['suggestedActions' => [['action' => 'run-command', 'reason' => 'Export first.', 'recommended' => true, 'command' => ['entry' => 'design-export', 'branch' => 'main', 'params' => [['name' => 'out', 'value' => 'var/out']]]]]];
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame([WorkSubject::CARD, (string) $this->card->id, 'main'], [$request->subjectType, (string) $request->subjectId, $request->branch]);
+        self::assertSame((string) $this->waitOf($item)->id, (string) $action->waitId);
+    }
+
+    public function test_the_values_the_owner_confirmed_are_the_ones_the_request_carries(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+
+        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, 'main', ['out' => 'other/folder'], self::shownDigest())) ?? throw new \LogicException('A command records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame(['main', ['out' => 'other/folder'], ['bin/console', 'app:export', '{out}']], [$request->branch, $request->params, $request->run]);
+    }
+
+    /** @return iterable<string, array{?string}> */
+    public static function staleDigests(): iterable
+    {
+        $before = ['bin/console', 'app:export', '--force', '{out}'];
+        yield 'the run list before an edit' => [hash('sha256', json_encode([$before, $before], \JSON_THROW_ON_ERROR))];
+        yield 'the run list alone, with no filled values' => [hash('sha256', json_encode(['bin/console', 'app:export', '{out}'], \JSON_THROW_ON_ERROR))];
+        yield 'no digest' => [null];
+    }
+
+    #[DataProvider('staleDigests')]
+    public function test_a_run_list_other_than_the_one_the_dialog_showed_is_refused_and_leaves_no_request(?string $digest): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $digest));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::COMMAND_CHANGED], $e->errors);
+        }
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
+    public function test_a_pull_request_head_that_moved_after_the_dialog_opened_is_refused_and_the_request_carries_the_head_shown(): void
+    {
+        $this->commandBridge();
+        $this->bridge->commandEntries = [[
+            'name' => 'design-export',
+            'description' => null,
+            'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]],
+            'run' => ['bin/deploy', '{headSha}', '{out}'],
+            'timeout' => '10m',
+        ]];
+        $this->em()->persist(new CardPullRequest($this->card, 'https://github.com/Acme/Widgets/pull/7', Forge::GitHub, 'Acme/Widgets', 7));
+        $pullRequest = new ForgePullRequest($this->project, 'github', 'acme/widgets', 7);
+        $pullRequest->state = PullRequestState::Open;
+        $pullRequest->headSha = str_repeat('a', 40);
+        $this->em()->persist($pullRequest);
+        $this->em()->flush();
+        $item = $this->commandTodo();
+        $shown = $this->itemActions()->runCommandFor($item) ?? throw new \LogicException('The item has a command.');
+        self::assertSame(['bin/deploy', str_repeat('a', 40), 'var/out'], $shown->argv);
+
+        $pullRequest->headSha = str_repeat('b', 40);
+        $this->em()->flush();
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $shown->runDigest()));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::COMMAND_CHANGED], $e->errors);
+        }
+
+        $reread = $this->itemActions()->runCommandFor($item) ?? throw new \LogicException('The item has a command.');
+        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $reread->runDigest())) ?? throw new \LogicException('A command records a row.');
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame(str_repeat('b', 40), $request->context->headSha);
+    }
+
+    public function test_a_quiet_bridge_takes_the_run_as_a_request_that_waits_for_it(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $this->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->em()->flush();
+
+        $action = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame([(string) $this->bridge->id, WorkRequestState::Open], [(string) $request->targetBridgeId, $request->state]);
+    }
+
+    /** @return iterable<string, array{?string, ?array<string, string>, callable(self): void, string}> */
+    public static function refusedCommands(): iterable
+    {
+        yield 'a value that fails its pattern' => [null, ['out' => 'Var/Out'], static function (self $test): void {}, 'inbox.action.run-command.disabled.param_invalid'];
+        yield 'a value for a param the entry lacks' => [null, ['out' => 'x', 'extra' => 'y'], static function (self $test): void {}, 'inbox.action.run-command.disabled.param_invalid'];
+        yield 'a branch with no worktree' => ['no-such-branch', null, static function (self $test): void {}, 'inbox.action.run-command.disabled.no_worktree'];
+        yield 'a branch that is no git branch name' => ['--upload-pack=x', null, static function (self $test): void {}, 'inbox.action.run-command.disabled.no_worktree'];
+        yield 'an entry the bridge no longer lists' => [null, null, static function (self $test): void {
+            $test->bridge->commandEntries = [];
+        }, 'inbox.action.run-command.disabled.entry_missing'];
+        yield 'a bridge that lost the capability' => [null, null, static function (self $test): void {
+            $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS];
+        }, 'inbox.action.run-command.disabled.unsupported'];
+    }
+
+    /**
+     * @param ?array<string, string> $params
+     * @param callable(self): void   $change
+     */
+    #[DataProvider('refusedCommands')]
+    public function test_a_command_that_fails_a_check_again_is_refused_and_leaves_no_row_and_no_request(?string $branch, ?array $params, callable $change, string $key): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $change($this);
+        $this->em()->flush();
+
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, $branch, $params, self::shownDigest()));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => $key], $e->errors);
+        }
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+        self::assertSame([], $this->audit->records('inbox.action_requested'));
+    }
+
+    public function test_a_todo_without_a_run_command_suggestion_refuses_the_action(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo(cards: 1, suggestions: [['action' => 'open', 'reason' => 'Read it.', 'recommended' => true, 'cardId' => null]]);
+
+        $this->assertRefused($item, InboxActionKind::RunCommand, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    public function test_a_closed_item_refuses_the_action(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $item->state = InboxItemState::Done;
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::RunCommand, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    public function test_a_second_run_while_the_first_is_queued_is_refused_and_keeps_the_first(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $first = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        $this->assertRefused($item, InboxActionKind::RunCommand, ['action' => 'inbox.action.run-command.disabled.running']);
+
+        self::assertSame([$first], $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    public function test_a_run_again_after_a_refused_request_opens_a_new_request(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $first = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+        $request = $this->em()->find(WorkRequest::class, $first->workRequestId) ?? throw new \LogicException('Stored.');
+        $request->state = WorkRequestState::Refused;
+        $request->reason = 'worktree-missing';
+        $this->em()->flush();
+
+        $second = $this->runAction($item, InboxActionKind::RunCommand);
+
+        self::assertInstanceOf(InboxAction::class, $second);
+        self::assertNotSame((string) $first->workRequestId, (string) $second->workRequestId);
+        self::assertCount(2, $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    public function test_the_workflow_request_of_the_same_kind_on_the_card_blocks_the_run_and_leaves_no_row(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $live = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, 'design-export', null, 'teardown-on-done', new \DateTimeImmutable());
+        $this->em()->persist($live);
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::RunCommand, ['action' => RunInboxActionHandler::COMMAND_LIVE]);
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    public function test_a_queued_command_request_can_be_cancelled(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $action = $this->runAction($item, InboxActionKind::RunCommand) ?? throw new \LogicException('A command records a row.');
+
+        ($this->cancelHandler())(new CancelInboxActionCommand($action, $item, $this->project->owner));
+
+        self::assertNotNull($action->cancelledAt);
+        self::assertSame(WorkRequestState::Cancelled, $this->em()->find(WorkRequest::class, $action->workRequestId)?->state);
+    }
+
+    public function test_an_add_entry_opens_a_request_for_the_asking_bridge_on_the_item_even_with_a_card(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+
+        $action = $this->runAction($item, InboxActionKind::AddEntry, ' Add it. ') ?? throw new \LogicException('An add records a row.');
+
+        self::assertSame('Add it.', $action->note);
+        self::assertNull($action->waitId);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        self::assertSame([InboxItem::SUBJECT_TYPE, (string) $item->id, null], [$request->subjectType, (string) $request->subjectId, $request->cardNumber]);
+        self::assertSame(['add-entry', 'add-entry', 'inbox:add-entry', WorkRequestState::Open], [$request->kind, $request->capability, $request->ruleId, $request->state]);
+        self::assertSame((string) $this->bridge->id, (string) $request->targetBridgeId);
+        self::assertSame("design-export:\n  action: command\n  params:\n    out: { pattern: '[a-z/]+' }\n  run:\n    - make\n    - export\n", $request->prompt);
+        self::assertSame([(string) $action->id, $item->number, (string) $item->id], [(string) $request->inboxActionId, $request->inboxItemNumber, (string) $request->inboxItemId]);
+        self::assertNull($request->branch);
+        self::assertNull($request->params);
+        $record = $this->audit->record('inbox.action_requested');
+        self::assertSame([$action->id?->toRfc4122(), 'add-entry'], [$record->context['actionId'], $record->context['kind']]);
+    }
+
+    /** @return iterable<string, array{\Closure(self): void}> */
+    public static function refusedAdds(): iterable
+    {
+        yield 'an entry the bridge already has' => [static function (self $test): void {
+            $test->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [], 'run' => ['make'], 'timeout' => '10m']];
+        }];
+        yield 'a bridge that did not opt in' => [static function (self $test): void {
+            $test->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        }];
+    }
+
+    #[DataProvider('refusedAdds')]
+    public function test_an_add_the_view_does_not_offer_is_refused_and_leaves_no_row_and_no_request(\Closure $change): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $change($this);
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    public function test_an_add_without_a_proposed_entry_is_refused(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo();
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    public function test_an_add_of_an_item_with_no_run_command_suggestion_is_refused(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [['action' => 'open', 'reason' => 'See it.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null]]);
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    public function test_an_add_of_a_closed_item_is_refused(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $item->state = InboxItemState::Done;
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+    }
+
+    public function test_a_second_add_while_the_first_is_live_is_refused_and_keeps_the_first(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $first = $this->runAction($item, InboxActionKind::AddEntry) ?? throw new \LogicException('An add records a row.');
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+
+        self::assertSame([$first->id?->toRfc4122()], array_map(static fn (InboxAction $action): ?string => $action->id?->toRfc4122(), $this->service(InboxActionRepository::class)->findByItem($item)));
+    }
+
+    public function test_a_request_that_loses_the_race_leaves_no_add_row(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $live = new WorkRequest(
+            project: $this->project,
+            subjectType: InboxItem::SUBJECT_TYPE,
+            subjectId: $item->id ?? throw new \LogicException('The item is stored.'),
+            cardNumber: null,
+            kind: 'add-entry',
+            capability: Bridge::CAPABILITY_ADD_ENTRY,
+            ruleId: 'inbox:add-entry',
+            createdAt: new \DateTimeImmutable(),
+        );
+        $this->em()->persist($live);
+        $this->em()->flush();
+
+        $this->assertRefused($item, InboxActionKind::AddEntry, ['action' => RunInboxActionHandler::NOT_AVAILABLE]);
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+    }
+
+    public function test_a_queued_add_can_be_cancelled(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $action = $this->runAction($item, InboxActionKind::AddEntry) ?? throw new \LogicException('An add records a row.');
+
+        ($this->cancelHandler())(new CancelInboxActionCommand($action, $item, $this->project->owner));
+
+        self::assertNotNull($action->cancelledAt);
+        self::assertSame(WorkRequestState::Cancelled, $this->em()->find(WorkRequest::class, $action->workRequestId)?->state);
+    }
+
+    public function test_a_claimed_add_is_not_cancelled(): void
+    {
+        $this->addBridge();
+        $item = $this->commandTodo(suggestions: [self::proposalSuggestion()]);
+        $action = $this->runAction($item, InboxActionKind::AddEntry) ?? throw new \LogicException('An add records a row.');
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
+        $request->state = WorkRequestState::Claimed;
+        $this->em()->flush();
+
+        $this->assertCancelRefused($action, $item, CancelInboxActionHandler::NOT_CANCELLABLE);
+    }
+
+    private function addBridge(): void
+    {
+        $this->commandBridge();
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em()->flush();
+    }
+
+    /** @return array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}, proposedEntry: string} */
+    private static function proposalSuggestion(): array
+    {
+        return [
+            'action' => 'run-command',
+            'reason' => 'Export it.',
+            'recommended' => true,
+            'cardId' => null,
+            'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']],
+            'proposedEntry' => "action: command\nparams:\n  out: { pattern: '[a-z/]+' }\nrun: [make, export]",
+        ];
+    }
+
+    private function commandBridge(): void
+    {
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $this->bridge->projects = [(string) $this->project->id];
+        $this->bridge->lastSeenAt = new \DateTimeImmutable();
+        $this->bridge->commandEntries = [[
+            'name' => 'design-export',
+            'description' => null,
+            'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]],
+            'run' => ['bin/console', 'app:export', '{out}'],
+            'timeout' => '10m',
+        ]];
+        $this->bridge->worktrees = [
+            ['projectId' => (string) $this->project->id, 'branch' => 'main', 'path' => '/work/loupe'],
+            ['projectId' => (string) $this->project->id, 'branch' => 'epic/42', 'path' => '/work/loupe/.worktrees/card-42'],
+        ];
+        $this->em()->flush();
+    }
+
+    /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null}>|null $suggestions */
+    private function commandTodo(int $cards = 1, ?array $suggestions = null): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item->suggestedActions = $suggestions ?? [[
+            'action' => 'run-command',
+            'reason' => 'Export it.',
+            'recommended' => true,
+            'cardId' => null,
+            'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']],
+            'proposedEntry' => null,
+        ]];
+        if ($cards > 0) {
+            $item->cards->add(new InboxItemCard($item, $this->card));
+        }
+        $this->em()->persist($item);
+        $ask = new InboxAsk(project: $this->project, sessionId: Uuid::v4(), bridgeId: $this->bridge->id);
+        $this->em()->persist($ask);
+        $this->em()->persist(new InboxAskItem($ask, $item));
+        $this->em()->flush();
+
+        return $item;
+    }
+
     private function sessionBridge(): void
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
@@ -742,7 +1220,15 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     private function runAction(InboxItem $item, InboxActionKind $kind, string $note = ''): ?InboxAction
     {
-        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner));
+        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner, runDigest: InboxActionKind::RunCommand === $kind ? self::shownDigest() : null));
+    }
+
+    /** The digest of the run list of the entry that commandBridge() reports, as the dialog shows it. */
+    private static function shownDigest(): string
+    {
+        $run = ['bin/console', 'app:export', '{out}'];
+
+        return hash('sha256', json_encode([$run, $run], \JSON_THROW_ON_ERROR));
     }
 
     /** Built by hand, because nothing injects the handlers yet and the compiler drops an unused private service. */
@@ -773,6 +1259,9 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             new SessionBridges($this->service(BridgeRepository::class), $this->service(BridgeLiveness::class)),
             $workRequests ?? $this->service(WorkRequestRepository::class),
             $this->service(TemplateStageWorks::class),
+            $this->service(AskingBridge::class),
+            $this->service(RunCommandResolver::class),
+            $this->service(RunCommandRuns::class),
         );
     }
 

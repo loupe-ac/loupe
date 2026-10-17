@@ -13,10 +13,10 @@ use App\Module\Review\Entity\Document;
 final readonly class AskInboxDraft
 {
     /**
-     * @param list<string>                                                                    $options
-     * @param list<Card>                                                                      $cards
-     * @param list<Document>                                                                  $documents
-     * @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}> $suggestedActions
+     * @param list<string>                                                                                                                                                                               $options
+     * @param list<Card>                                                                                                                                                                                 $cards
+     * @param list<Document>                                                                                                                                                                             $documents
+     * @param list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry: ?string}> $suggestedActions
      */
     public function __construct(
         public InboxItemKind $kind,

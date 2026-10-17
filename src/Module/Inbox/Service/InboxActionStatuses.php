@@ -61,14 +61,20 @@ final readonly class InboxActionStatuses
         $quiet = $this->quietBridges($commands);
         $continuations = $this->continuations($commands);
         $agentRequestIds = [];
+        $entryRequestIds = [];
         foreach ($byItem as $actions) {
             foreach ($actions as $action) {
-                if (InboxActionKind::SendAgent === $action->kind && null !== $action->workRequestId) {
+                if (null === $action->workRequestId) {
+                    continue;
+                }
+                if (InboxActionKind::SendAgent === $action->kind) {
                     $agentRequestIds[] = $action->workRequestId;
+                } elseif (InboxActionKind::AddEntry === $action->kind) {
+                    $entryRequestIds[] = $action->workRequestId;
                 }
             }
         }
-        $agentRequests = $this->workRequests->findByIds($agentRequestIds);
+        $agentRequests = $this->workRequests->findByIds([...$agentRequestIds, ...$entryRequestIds]);
         $agentRuns = $this->workerRuns->findNewestOfWorkRequests($agentRequestIds);
         $offlineProjects = $this->offlineProjects($agentRequests);
         [$requests, $requestRuns, $sessionOnline] = $this->sessionReads($byItem);
@@ -81,6 +87,7 @@ final readonly class InboxActionStatuses
                     InboxActionKind::RetryCard => new InboxActionStatus($action, InboxActionState::Retried, 'inbox.action.status.retried', at: $action->requestedAt),
                     InboxActionKind::ResumeRun => $this->resumeStatus($action, $commands, $quiet, $continuations),
                     InboxActionKind::SendAgent => $this->sendAgentStatus($action, $agentRequests, $agentRuns, $offlineProjects),
+                    InboxActionKind::AddEntry => $this->addEntryStatus($action, $agentRequests, $offlineProjects),
                     InboxActionKind::StartSession => $this->sessionStatus($action, $requests, $requestRuns, $sessionOnline),
                     default => null,
                 };
@@ -214,6 +221,35 @@ final readonly class InboxActionStatuses
                 ? new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused_no_reason', at: $settledAt)
                 : new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused', ['%reason%' => $request->reason], at: $settledAt),
             default => new InboxActionStatus($action, InboxActionState::Preparing, 'inbox.action.status.preparing', at: $request->settledAt ?? $action->requestedAt),
+        };
+    }
+
+    /**
+     * The bridge starts no run for an added entry, so the status follows the work request alone.
+     *
+     * @param array<string, WorkRequest> $requests        keyed by the RFC 4122 request id
+     * @param array<string, bool>        $offlineProjects keyed by the RFC 4122 project id
+     */
+    private function addEntryStatus(InboxAction $action, array $requests, array $offlineProjects): ?InboxActionStatus
+    {
+        $request = null === $action->workRequestId ? null : ($requests[(string) $action->workRequestId] ?? null);
+        if (null === $request) {
+            return null;
+        }
+        $settledAt = $request->settledAt ?? $action->requestedAt;
+
+        if (null !== $action->cancelledAt || WorkRequestState::Cancelled === $request->state) {
+            return new InboxActionStatus($action, InboxActionState::Cancelled, 'inbox.action.status.cancelled', at: $action->cancelledAt ?? $settledAt);
+        }
+
+        return match ($request->state) {
+            WorkRequestState::Open => new InboxActionStatus($action, InboxActionState::Queued, 'inbox.action.status.queued', cancellable: true, offline: $offlineProjects[(string) $request->project->id] ?? true, at: $action->requestedAt),
+            WorkRequestState::Done => new InboxActionStatus($action, InboxActionState::Added, 'inbox.action.status.added', at: $settledAt),
+            WorkRequestState::Expired => new InboxActionStatus($action, InboxActionState::Expired, 'inbox.action.status.expired', at: $settledAt),
+            WorkRequestState::Refused => null === $request->reason
+                ? new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused_no_reason', at: $settledAt)
+                : new InboxActionStatus($action, InboxActionState::Refused, 'inbox.action.status.refused', ['%reason%' => $request->reason], at: $settledAt),
+            default => new InboxActionStatus($action, InboxActionState::Preparing, 'inbox.action.status.preparing', at: $settledAt),
         };
     }
 

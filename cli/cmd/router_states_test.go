@@ -24,6 +24,38 @@ type stateSent struct {
 type stateRecorder struct {
 	mu   sync.Mutex
 	sent []any
+	// held is the output Loupe stores per run.
+	held map[string]string
+}
+
+// outputSent is one chunk of run output the router sent.
+type outputSent struct {
+	handle, runID, bridgeID string
+	offset                  int64
+	text                    string
+}
+
+// PutRunOutput stores a chunk as the server does: only at the length it holds.
+func (s *stateRecorder) PutRunOutput(_ context.Context, handle, runID, bridgeID string, offset int64, text string) (api.RunOutputAnswer, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sent = append(s.sent, outputSent{handle, runID, bridgeID, offset, text})
+	if s.held == nil {
+		s.held = map[string]string{}
+	}
+	if offset == int64(len(s.held[runID])) {
+		s.held[runID] += text
+	}
+
+	return api.RunOutputAnswer{Length: int64(len(s.held[runID]))}, nil
+}
+
+// output is the output Loupe stores for the run.
+func (s *stateRecorder) output(runID string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.held[runID]
 }
 
 func (s *stateRecorder) ReportRunState(_ context.Context, handle, runID string, report api.RunStateReport) (bool, error) {
@@ -122,6 +154,8 @@ func (s *stateRecorder) names() []string {
 			out[i] = "launch"
 		case toolCallsSent:
 			out[i] = "tool-calls"
+		case outputSent:
+			out[i] = "output"
 		default:
 			out[i] = "inventory"
 		}

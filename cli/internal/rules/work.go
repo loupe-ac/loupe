@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,6 +25,10 @@ const (
 	CapabilityInteractive  = "interactive"
 	CapabilityAppPrompts   = "app-prompts"
 	CapabilitySession      = "session"
+	// CapabilityRunCommand and CapabilityAddEntry are not part of Capabilities.
+	// The first is always on, and the second needs acceptEntries.
+	CapabilityRunCommand = "run-command"
+	CapabilityAddEntry   = "add-entry"
 )
 
 // SessionKind is the work kind that starts an interactive session from an
@@ -67,6 +72,10 @@ type WorkEntry struct {
 	// Subject is the subject type the entry runs. The check fills card when
 	// it is empty.
 	Subject string `yaml:"subject"`
+	// Description and Params belong to a command entry. The bridge reports
+	// them, so a worker can name the entry and fill its parameters.
+	Description string           `yaml:"description"`
+	Params      map[string]Param `yaml:"params"`
 
 	schema string
 	// run holds the settings of an agent run, and an experiment holds those
@@ -76,6 +85,90 @@ type WorkEntry struct {
 	beforeTimeout  time.Duration
 	commandTimeout time.Duration
 }
+
+// Param is one parameter of a command entry. A value must match the whole
+// Pattern, which is RE2 syntax.
+type Param struct {
+	Pattern     string `yaml:"pattern"`
+	Description string `yaml:"description"`
+}
+
+// paramRegexp wraps a pattern so it must match a whole value.
+func paramRegexp(pattern string) (*regexp.Regexp, error) {
+	return regexp.Compile(`^(?:` + pattern + `)$`)
+}
+
+// Match reports whether value matches the whole pattern. A pattern that does
+// not compile matches nothing, and the check refuses such a pattern at load.
+func (p Param) Match(value string) bool {
+	re, err := paramRegexp(p.Pattern)
+
+	return err == nil && re.MatchString(value)
+}
+
+// checkParams checks the parameters of a command entry.
+func checkParams(params map[string]Param) []error {
+	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(params)) {
+		p := params[name]
+		switch {
+		case !paramName.MatchString(name):
+			errs = append(errs, fmt.Errorf("params: name %q is not letters only, such as out", name))
+		case slices.Contains(workPlaceholders, name):
+			errs = append(errs, fmt.Errorf("params: %q is a built-in placeholder, so name the parameter differently", name))
+		}
+		if p.Pattern == "" {
+			errs = append(errs, fmt.Errorf("params.%s: pattern is required", name))
+
+			continue
+		}
+		if _, err := paramRegexp(p.Pattern); err != nil {
+			errs = append(errs, fmt.Errorf("params.%s: pattern does not compile as RE2: %w", name, err))
+		}
+	}
+
+	return errs
+}
+
+// The sizes the server takes in a heartbeat. An entry over them would make the
+// server refuse the whole heartbeat.
+const (
+	maxReportText    = 500
+	maxReportParams  = 20
+	maxReportRun     = 50
+	maxReportRunItem = 1000
+)
+
+// checkReportSizes refuses a command entry that the heartbeat cannot carry.
+func checkReportSizes(w *WorkEntry) []error {
+	var errs []error
+	if len(w.Description) > maxReportText {
+		errs = append(errs, fmt.Errorf("description is longer than %d characters", maxReportText))
+	}
+	if len(w.Params) > maxReportParams {
+		errs = append(errs, fmt.Errorf("params has more than %d parameters", maxReportParams))
+	}
+	for name, p := range w.Params {
+		if len(p.Pattern) > maxReportText || len(p.Description) > maxReportText || len(name) > 100 {
+			errs = append(errs, fmt.Errorf("params.%s: name, pattern or description is too long, and the limit is %d characters", name, maxReportText))
+		}
+	}
+	if len(w.Run) > maxReportRun {
+		errs = append(errs, fmt.Errorf("run has more than %d elements", maxReportRun))
+	}
+	for _, item := range w.Run {
+		if len(item) > maxReportRunItem {
+			errs = append(errs, fmt.Errorf("a run element is longer than %d characters", maxReportRunItem))
+
+			break
+		}
+	}
+
+	return errs
+}
+
+// paramName is the shape of a placeholder name.
+var paramName = regexp.MustCompile(`^[A-Za-z]+$`)
 
 // runs are the settings of each agent run the entry can start, its variants
 // included, and nil for a command entry.
@@ -95,10 +188,12 @@ func (w WorkEntry) runs() []RunSettings {
 var workRefusals = map[string][]refusal{
 	"": {
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry runs a worker"},
+		{[]string{"params", "description"}, "%s belongs to action command, and this entry runs a worker"},
 	},
 	ActionInteractive: {
 		{[]string{"before", "metrics", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry launches an interactive session"},
+		{[]string{"params", "description"}, "%s belongs to action command, and this entry launches an interactive session"},
 	},
 	ActionCommand: {
 		{[]string{"account", "before", "metrics", "model", "permissionMode", "permissions", "prompt", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
@@ -125,6 +220,8 @@ func checkWork(kind string, w *WorkEntry) error {
 			"run":            w.Run != nil,
 			"timeout":        w.Timeout != "",
 			"variants":       w.Variants != nil,
+			"params":         w.Params != nil,
+			"description":    w.Description != "",
 			"workerPool":     w.WorkerPool != "",
 		})...)
 	} else {
@@ -141,7 +238,10 @@ func checkWork(kind string, w *WorkEntry) error {
 	}
 
 	if w.Action == ActionCommand {
-		timeout, runErrs := checkRun("", w.Run, w.Timeout, DefaultCommandTimeout, MaxCommandTimeout, event.WorkRequestType, workPlaceholders)
+		errs = append(errs, checkParams(w.Params)...)
+		errs = append(errs, checkReportSizes(w)...)
+		allowed := slices.Concat(workPlaceholders, slices.Sorted(maps.Keys(w.Params)))
+		timeout, runErrs := checkRun("", w.Run, w.Timeout, DefaultCommandTimeout, MaxCommandTimeout, event.WorkRequestType, allowed)
 		errs = append(errs, runErrs...)
 		w.commandTimeout = timeout
 	} else if strings.TrimSpace(w.Prompt) == "" {
@@ -222,6 +322,9 @@ func (s *Set) MatchWork(w api.WorkRequest) Match {
 		return Match{Skip: NoRule}
 	}
 	m := s.MatchKind(w)
+	if m.Skip == Run && s.RunCommandRefusal(w) != "" {
+		return Match{Skip: NoRule, Project: m.Project}
+	}
 	if _, mapped := s.entry(w); m.Skip == Run && !mapped && !validAppPrompt(w.Prompt) {
 		return Match{Skip: NoRule, Project: m.Project}
 	}
@@ -239,7 +342,7 @@ func validAppPrompt(prompt string) bool {
 // another subject type counts as no entry, so the app prompt runs.
 func (s *Set) entry(w api.WorkRequest) (WorkEntry, bool) {
 	entry, ok := s.work[w.Kind]
-	if ok && s.appPrompts && entry.Subject != w.SubjectType {
+	if ok && s.appPrompts && entry.Subject != w.SubjectType && !runsCommand(w) {
 		return WorkEntry{}, false
 	}
 
@@ -259,6 +362,10 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 		return Match{Skip: Unmapped}
 	}
 	entry, ok := s.entry(w)
+	runCommand := runsCommand(w)
+	if runCommand && (!ok || entry.Action != ActionCommand) {
+		return Match{Skip: NoRule, Project: slug}
+	}
 	runs := entry.runs()
 	if !ok {
 		runs = []RunSettings{s.appRun}
@@ -268,11 +375,18 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	off := s.offLocked(runs)
 	s.mu.RUnlock()
 	off = off || s.agentsOff != "" && (!ok || entry.Action != ActionCommand)
-	if (!ok && !s.appPrompts) || dead || off || (ok && entry.Subject != w.SubjectType) {
+	if (!ok && !s.appPrompts) || dead || off || (ok && entry.Subject != w.SubjectType && !runCommand) {
 		return Match{Skip: NoRule, Project: slug}
 	}
 
 	v := workValues(w, slug)
+	if runCommand {
+		for name := range entry.Params {
+			if value, given := w.Params[name]; given {
+				v[name] = value
+			}
+		}
+	}
 	if !ok {
 		// A nil map of fields always builds.
 		schema, _ := resultSchema(nil)
@@ -366,6 +480,76 @@ func workValues(w api.WorkRequest, slug string) map[string]string {
 	}
 }
 
+// The reasons a bridge refuses a run-command request.
+const (
+	RefuseEntryMissing       = "entry-missing"
+	RefuseEntryChanged       = "entry-changed"
+	RefuseParamInvalid       = "param-invalid"
+	RefuseWorktreeMissing    = "worktree-missing"
+	RefusePlaceholderMissing = "placeholder-missing"
+)
+
+// The reasons a bridge refuses an add-entry request.
+const (
+	RefuseEntryInvalid = "entry-invalid"
+	RefuseEntryExists  = "entry-exists"
+	RefuseNotAccepted  = "not-accepted"
+	RefuseWriteFailed  = "write-failed"
+	RefuseFileChanged  = "file-changed"
+	RefuseReloadFailed = "reload-failed"
+)
+
+// runsCommand reports whether w asks for the run of a command entry by name,
+// whatever its subject is.
+func runsCommand(w api.WorkRequest) bool {
+	return w.Capability == CapabilityRunCommand
+}
+
+// RunCommandRefusal is the reason code for which the bridge refuses a
+// run-command request, and "" when the rules accept it or when it is no
+// valid run-command request of a mapped project. The worktree is no part of
+// it, because the rules cannot read it. The entry must exist and be a command
+// entry. Its run list must be the one the owner confirmed, when the request
+// carries that list. The request must hold a value for each parameter, each value must
+// match the whole pattern, and the request must hold no other parameter. Each
+// placeholder of the argv must have a value.
+func (s *Set) RunCommandRefusal(w api.WorkRequest) string {
+	if !runsCommand(w) || event.CheckWorkRequest(&w) != nil {
+		return ""
+	}
+	slug, mapped := s.slugs[w.ProjectID]
+	if !mapped {
+		return ""
+	}
+	entry, ok := s.work[w.Kind]
+	if !ok || entry.Action != ActionCommand {
+		return RefuseEntryMissing
+	}
+	if w.Run != nil && !slices.Equal(w.Run, entry.Run) {
+		return RefuseEntryChanged
+	}
+	for name := range w.Params {
+		if _, declared := entry.Params[name]; !declared {
+			return RefuseParamInvalid
+		}
+	}
+	for name, p := range entry.Params {
+		if value, given := w.Params[name]; !given || !p.Match(value) {
+			return RefuseParamInvalid
+		}
+	}
+	v := workValues(w, slug)
+	for _, arg := range entry.Run {
+		for _, name := range directive.Placeholders(arg) {
+			if _, param := entry.Params[name]; !param && v[name] == "" && !slices.Contains(contextPlaceholders, name) {
+				return RefusePlaceholderMissing
+			}
+		}
+	}
+
+	return ""
+}
+
 // WorkGaps lists the placeholders of the command of the kind that w leaves
 // empty. A run of a migrated rule names no work request, so its rerun would
 // run a command that differs from the first. A context placeholder never
@@ -386,6 +570,24 @@ func (s *Set) WorkGaps(w api.WorkRequest) []string {
 	}
 
 	return gaps
+}
+
+// CommandEntry is a command entry as the bridge reports it.
+type CommandEntry struct {
+	Name  string
+	Entry WorkEntry
+}
+
+// CommandEntries lists the command entries of the work map, in name order.
+func (s *Set) CommandEntries() []CommandEntry {
+	var out []CommandEntry
+	for _, kind := range s.WorkKinds() {
+		if e := s.work[kind]; e.Action == ActionCommand {
+			out = append(out, CommandEntry{Name: kind, Entry: e})
+		}
+	}
+
+	return out
 }
 
 // WorkKinds lists the kinds of the work map, in name order.

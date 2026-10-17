@@ -18,6 +18,8 @@ final readonly class WorkerRunChangedPublisher
 {
     public const string TYPE = 'worker_run.changed';
 
+    public const string OUTPUT_TYPE = 'worker_run.output';
+
     public const string CARD_WARNING_CHANGED = 'worker_run.card_warning_changed';
 
     public function __construct(
@@ -31,6 +33,13 @@ final readonly class WorkerRunChangedPublisher
     {
         $projectId = $project->id ?? throw new \LogicException('Project has no id.');
         $this->publisher->queue($this->topics->forWorkerRuns($projectId), ['type' => self::TYPE]);
+    }
+
+    /** Tells the open run pages that the output log of one run grew to $length bytes. Call it after the change commits. */
+    public function outputAppended(Project $project, Uuid $runId, int $length): void
+    {
+        $projectId = $project->id ?? throw new \LogicException('Project has no id.');
+        $this->publisher->queue($this->topics->forWorkerRuns($projectId), ['type' => self::OUTPUT_TYPE, 'runId' => (string) $runId, 'length' => $length]);
     }
 
     /** Tells the open boards to place the card again. Call it after the change commits. */

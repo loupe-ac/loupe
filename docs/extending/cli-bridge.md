@@ -192,8 +192,15 @@ The core schema also takes an optional `title` and an optional list
 of the wait item, and falls back to the first sentence of the report when it is absent. Each
 suggested action has an `action` key, a one-line `reason` and an optional `recommended` flag.
 The bridge sends both fields in `resultFields`. The app keeps the built-in action keys it
-knows, drops the other keys, and keeps three suggestions at most. The [inbox](../using/inbox.md#titles-and-suggestions-from-the-agent)
+knows, drops the other keys, and keeps three suggestions at most.
+The [inbox](../using/inbox.md#titles-and-suggestions-from-the-agent)
 shows the title, and uses a recommended suggestion as the main action.
+A `run-command` suggestion also carries a `command` and an optional `proposedEntry`. The `command`
+has the `entry` name, an optional `branch` and `params`. In the result schema, `params` is a list of
+`name` and `value` objects, because the strict schema of Codex cannot hold a map with free keys.
+The app also reads a map of names to values. The `proposedEntry` is the YAML of one command entry
+without its name, at most 4,000 characters. The app drops a `run-command` suggestion with a
+malformed `command`.
 
 A worker reports `waiting` when its work waits on the forge, such as checks on
 a pushed pull request. The bridge reports that run as `waiting-on-forge`. The
@@ -1253,7 +1260,114 @@ placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
 `permissions`, `variants`, `metrics`, `workerPool` and `before` on a command
-entry.
+entry. A worker or interactive entry cannot set `params` or `description`.
+
+### Command parameters
+
+A command entry can set `description`, and `params`. `run` names a parameter
+as a placeholder, such as `{out}`:
+
+```yaml
+work:
+  design-export:
+    action: command
+    description: Export the design system for Claude Design
+    params:
+      out: { pattern: "var/[a-z-]+", description: The export folder }
+    run: ["bin/console", "app:design-system:export", "{out}"]
+```
+
+Each parameter needs a `pattern` in RE2 syntax, with no lookahead and no
+backreference. The bridge wraps it as `^(?:pattern)$`, so a value must match
+whole. The value fills one element of `run` and never splits. The check refuses
+a parameter with no pattern, a pattern that does not compile, and a name that is
+a built-in placeholder. A pattern is only as strict as the operator writes it,
+so write the narrowest pattern that fits. A loose pattern lets a value such as
+`--exec=...` through.
+
+The heartbeat lists each command entry with its parameters, and each worktree of
+the followed projects. The bridge always reports the capability `run-command`.
+
+### Running an entry from the inbox
+
+When the owner confirms a "Run a command" action in the [inbox](../using/inbox.md#running-a-command),
+Loupe opens a work request for this bridge only. The request names the entry, a
+branch, a value for each parameter, and the `run` list that the owner confirmed. The bridge checks the request again
+against its own `rules.yaml`, and settles it as refused, with a reason code,
+when a check fails:
+
+- `entry-missing`: the work map has no command entry of that name.
+- `entry-changed`: the `run` list of the entry is not the one the owner
+  confirmed.
+- `param-invalid`: a value is missing, undeclared, or does not match the whole
+  pattern.
+- `worktree-missing`: `git worktree list` shows no folder with that branch.
+- `placeholder-missing`: `run` uses a placeholder with no value.
+
+The bridge runs the command in the folder of the branch. The run reports
+`queued`, `running`, then `succeeded` or `failed`, with the end of the output,
+as [Command runs](../reference/worker-runs.md#command-runs) says. The inbox
+shows that state and output. A success closes the to-do or resumes the waiting
+worker. A failure keeps the item open, with **Run again**.
+
+While the command runs, the bridge merges its standard output and standard error
+into one stream. About once a second it sends the new bytes to
+`PUT /api/projects/{handle}/worker-runs/{runId}/output`, with the byte `offset`
+of the first byte. Loupe stores the text only when `offset` equals the number of
+bytes it holds, and answers with that number as `length`. The bridge sends again
+from `length` after a lost answer or a refused offset. The last piece goes out
+before the report that ends the run. A stream that fails never fails the run.
+[Appending the output of a run](../reference/worker-runs.md#appending-the-output-of-a-run)
+has the request and the 1 MiB limit. The inbox page reads the stored log, so it
+shows the output as it arrives and keeps it after the run.
+
+Update the CLI before you add `params` to `rules.yaml`. A CLI from before this
+change refuses the key, and the whole file fails to load. The output can
+contain secrets that the command prints.
+
+### Accept entries from Loupe
+
+`acceptEntries: true` at the top of `rules.yaml` lets Loupe add a command entry
+to the file, after the owner confirms. The bridge then reports the capability
+`add-entry`. The key is off when it is absent.
+
+You must set the key by hand. The bridge never sets it.
+
+A compromised server could then add and run any command entry. It could run any
+program as the bridge user. Turn the key on only when you accept that risk.
+
+When the owner chooses **Add to rules.yaml**, the server sends the bridge a work
+request with the capability `add-entry`. The `prompt` field holds the entry
+text: one YAML mapping with one key, the entry name. The bridge starts no agent
+and takes no worker slot. It checks that the file still sets
+`acceptEntries: true`, adds the entry under `work`, and checks the new file as a
+normal load does. It writes the file only when the checks pass. It then reloads, as
+`loupe bridge reload` does, and settles the request as `done` only when the
+reload runs the entry. An add waits for a reload that already runs.
+
+The bridge rewrites the whole file from its parsed YAML tree. Comments and
+layout can change. Keep a copy of the file if the layout matters.
+
+The bridge refuses a request with one of these reason codes, and leaves the
+file as it was:
+
+- `entry-invalid`: the text does not parse, holds more or less than one key,
+  has a body that is no mapping, has an action other than `command`, or the
+  new file fails its checks.
+- `entry-exists`: the `work` map holds an entry with this name already.
+- `not-accepted`: the file does not set `acceptEntries: true`.
+- `write-failed`: the bridge could not read or write the file.
+- `file-changed`: the file changed while the bridge added the entry. The
+  bridge keeps the other edit and writes nothing. Try the add again.
+- `reload-failed`: the bridge wrote the entry, and the reload after it failed.
+  The bridge then puts the old file back, so the entry never shows as added
+  while the bridge does not run it. When the file changed again after the
+  write, the bridge keeps it, and the log line `entry_reload_failed` says so.
+
+The bridge acts only on a request that names its own bridge id.
+
+Update the CLI first. A CLI from before this change refuses `params` and
+`acceptEntries` as unknown keys, and the whole file fails to load.
 
 A command takes no worker slot. It holds its card, so it waits for a worker of
 the card that runs, and a worker that arrives later waits for it. Commands on

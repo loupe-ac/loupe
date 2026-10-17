@@ -32,6 +32,7 @@
 {# A live refresh reads the view again for a page that already shows a status line, and the refresh leaves the flash for the next full visit. #}
 {% set liveRefresh = app.request.headers.has('X-Loupe-Live-Refresh') %}
 {% do mercure_subscribe(inbox_page_topic(inbox.project)) %}
+{% do mercure_subscribe(worker_runs_topic(inbox.project)) %}
 <twig:Ds:SplitView width="full" class="lp-needs-you lp-core-prototype-page lp-core-inbox" data-controller="inbox-anchor inbox-live inbox-navigation card-drawer">
     <h1 class="sr-only">{{ 'inbox.page.title'|trans }}</h1>
 

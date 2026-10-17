@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkerRunUsage;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
@@ -166,6 +167,18 @@ trait BridgeScenario
         )]);
     }
 
+    /** Stores one chunk at the end of the log of the run. */
+    private function seedOutputChunk(WorkerRun $run, string $text, bool $cut = false): WorkerRunOutputChunk
+    {
+        $em = $this->em();
+        $start = (int) $em->getConnection()->fetchOne('SELECT COALESCE(MAX(start_offset + length), 0) FROM bridge_worker_run_output_chunks WHERE run_id = :run', ['run' => (string) $run->id]);
+        $chunk = new WorkerRunOutputChunk($run, $start, \strlen($text), $text, $cut);
+        $em->persist($chunk);
+        $em->flush();
+
+        return $chunk;
+    }
+
     /** @param list<float> $cpuPct */
     private function seedHostSample(
         Bridge $bridge,
@@ -254,6 +267,7 @@ trait BridgeScenario
         return (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM bridge_commands');
     }
 
+    /** @param array<string, string>|null $params */
     private function seedWorkRequest(
         EntityManagerInterface $em,
         Project $project,
@@ -269,6 +283,9 @@ trait BridgeScenario
         ?WorkSubject $subject = null,
         ?\DateTimeImmutable $reopenedAt = null,
         ?string $prompt = null,
+        ?Uuid $targetBridgeId = null,
+        ?string $branch = null,
+        ?array $params = null,
     ): WorkRequest {
         $subject ??= WorkSubject::card($cardId ?? Uuid::v7());
         $request = new WorkRequest(
@@ -287,6 +304,9 @@ trait BridgeScenario
         $request->leaseUntil = $leaseUntil;
         $request->reopenedAt = $reopenedAt;
         $request->prompt = $prompt;
+        $request->targetBridgeId = $targetBridgeId;
+        $request->branch = $branch;
+        $request->params = $params;
         $em->persist($request);
         $em->flush();
 

@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Inbox\Mcp;
 
+use App\Module\Account\Entity\User;
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Mcp\InboxAskTool;
 use App\Module\Inbox\Repository\InboxReviewRepository;
+use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -393,8 +399,8 @@ final class InboxAskToolTest extends KernelTestCase
         $item = $this->em->find(InboxItem::class, Uuid::fromString($result['items'][0]['itemId']));
         self::assertInstanceOf(InboxItem::class, $item);
         self::assertSame([
-            ['action' => 'start-session', 'reason' => 'Talk it through', 'recommended' => true, 'cardId' => (string) $card->id],
-            ['action' => 'open', 'reason' => 'See the card', 'recommended' => false, 'cardId' => null],
+            ['action' => 'start-session', 'reason' => 'Talk it through', 'recommended' => true, 'cardId' => (string) $card->id, 'command' => null, 'proposedEntry' => null],
+            ['action' => 'open', 'reason' => 'See the card', 'recommended' => false, 'cardId' => null, 'command' => null, 'proposedEntry' => null],
         ], $item->suggestedActions);
     }
 
@@ -426,7 +432,8 @@ final class InboxAskToolTest extends KernelTestCase
     /** @return iterable<string, array{array<string, mixed>, string}> */
     public static function refusedSuggestions(): iterable
     {
-        yield 'an unknown action' => [['suggestedActions' => [['action' => 'explode', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, dismiss.'];
+        yield 'an unknown action' => [['suggestedActions' => [['action' => 'explode', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, run-command, dismiss.'];
+        yield 'the owner-only add-entry action' => [['suggestedActions' => [['action' => 'add-entry', 'reason' => 'Why not']]], 'items[0].suggestedActions: A suggested action must be one of: resume-run, retry-card, review, open, send-agent, start-session, run-command, dismiss.'];
         yield 'a duplicate action' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a'], ['action' => 'open', 'reason' => 'b']]], 'items[0].suggestedActions: Suggest each action once.'];
         yield 'two recommended actions' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'recommended' => true], ['action' => 'review', 'reason' => 'b', 'recommended' => true]]], 'items[0].suggestedActions: Mark at most one suggested action as recommended.'];
         yield 'a blank reason' => [['suggestedActions' => [['action' => 'open', 'reason' => '  ']]], 'items[0].suggestedActions: A suggested action needs a reason the owner reads.'];
@@ -534,5 +541,211 @@ final class InboxAskToolTest extends KernelTestCase
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('items: Pass at least one item.');
         ($this->tool)(sessionId: (string) Uuid::v4(), items: []);
+    }
+
+    public function test_a_run_command_suggestion_on_a_to_do_is_stored_with_a_default_branch(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command');
+        $bridge = $this->bridgeWithEntry($project->owner, $project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->askTodo($bridge, ['action' => 'run-command', 'reason' => 'Run the tests', 'command' => ['entry' => ' test ', 'params' => ['filter' => 'abc']]]);
+
+        self::assertSame([[
+            'action' => 'run-command',
+            'reason' => 'Run the tests',
+            'recommended' => false,
+            'cardId' => null,
+            'command' => ['entry' => 'test', 'branch' => 'main', 'params' => ['filter' => 'abc']],
+            'proposedEntry' => null,
+        ]], $this->storedSuggestions($result));
+    }
+
+    public function test_a_run_command_suggestion_keeps_its_proposed_entry_and_is_checked_by_it_without_a_bridge_entry(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-proposed');
+        $this->actAsMcpTokenBoundTo($project);
+        $proposed = "action: command\nrun: [make, test]\nparams:\n  filter:\n    pattern: '[a-z]+'\n";
+
+        $result = $this->askTodo(null, ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'lint', 'branch' => 'feature/x', 'params' => ['filter' => 'abc']], 'proposedEntry' => $proposed]);
+
+        self::assertSame($proposed, $this->storedSuggestions($result)[0]['proposedEntry'] ?? null);
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('each value must match the pattern of its param whole');
+        $this->askTodo(null, ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'lint', 'params' => ['filter' => 'ABC']], 'proposedEntry' => $proposed]);
+    }
+
+    public function test_a_run_command_suggestion_with_no_pattern_source_is_accepted_unchecked(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-unchecked');
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->askTodo(null, ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'anything', 'params' => ['x' => 'any value']]]);
+
+        self::assertSame(['x' => 'any value'], $this->storedSuggestions($result)[0]['command']['params'] ?? null);
+    }
+
+    public function test_a_bridge_of_another_owner_gives_no_patterns(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-foreign');
+        $other = $this->makeProject('inbox-ask-run-command-foreign-other');
+        $foreign = $this->bridgeWithEntry($other->owner, $project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = $this->askTodo($foreign, ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test', 'params' => ['filter' => 'NOT-LOWER-CASE']]]);
+
+        self::assertCount(1, $this->storedSuggestions($result));
+    }
+
+    public function test_the_patterns_come_from_the_bridge_of_the_open_ask_of_the_session(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-open-ask');
+        $bridge = $this->bridgeWithEntry($project->owner, $project);
+        $this->actAsMcpTokenBoundTo($project);
+        $sessionId = (string) Uuid::v4();
+        ($this->tool)(sessionId: $sessionId, items: [['kind' => 'question', 'title' => 'First', 'freeText' => true]], bridgeId: (string) $bridge->id);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('each value must match the pattern of its param whole');
+        ($this->tool)(sessionId: $sessionId, items: [['kind' => 'todo', 'title' => 'Run it', 'suggestedActions' => [
+            ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test', 'params' => ['filter' => 'ABC']]],
+        ]]]);
+    }
+
+    public function test_the_patterns_come_from_the_bridge_of_the_first_run_of_the_session(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-first-run');
+        $bridge = $this->bridgeWithEntry($project->owner, $project);
+        $card = $this->card($this->em, $project);
+        $sessionId = Uuid::v4();
+        $this->em->persist(new WorkerRun(
+            project: $project,
+            bridgeId: $bridge->id,
+            subjectType: WorkSubject::CARD,
+            subjectId: $card->id ?? throw new \LogicException('The card has no id.'),
+            cardNumber: $card->number,
+            workKind: 'plan',
+            state: WorkerRunState::Running,
+            sessionId: $sessionId,
+            startedAt: new \DateTimeImmutable(),
+        ));
+        $this->em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('each value must match the pattern of its param whole');
+        ($this->tool)(sessionId: (string) $sessionId, items: [['kind' => 'todo', 'title' => 'Run it', 'suggestedActions' => [
+            ['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test', 'params' => ['filter' => 'ABC']]],
+        ]]]);
+    }
+
+    /** @param array<string, mixed> $item */
+    #[DataProvider('refusedRunCommands')]
+    public function test_a_wrong_run_command_suggestion_is_refused(array $item, string $message): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-bad');
+        $bridge = $this->bridgeWithEntry($project->owner, $project);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage($message);
+        ($this->tool)(sessionId: (string) Uuid::v4(), items: [['kind' => 'todo', 'title' => 'Run it', ...$item]], bridgeId: (string) $bridge->id);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function refusedRunCommands(): iterable
+    {
+        $suggest = static fn (array $extra): array => ['suggestedActions' => [['action' => 'run-command', 'reason' => 'Run', ...$extra]]];
+        $command = ['entry' => 'test', 'params' => ['filter' => 'abc']];
+
+        yield 'no command' => [$suggest([]), 'items[0].suggestedActions: A run-command suggestion needs a command with the name of the entry.'];
+        yield 'a blank entry' => [$suggest(['command' => ['entry' => ' ']]), 'items[0].suggestedActions: A run-command suggestion needs a command with the name of the entry.'];
+        yield 'a branch that is no git branch' => [$suggest(['command' => [...$command, 'branch' => 'a..b']]), 'items[0].suggestedActions: The branch of a command must be a git branch name of at most 200 characters.'];
+        yield 'a value that fails its pattern' => [$suggest(['command' => ['entry' => 'test', 'params' => ['filter' => 'ABC']]]), 'items[0].suggestedActions: The params of a command must name each param of the entry once'];
+        yield 'a param the entry does not declare' => [$suggest(['command' => ['entry' => 'test', 'params' => ['filter' => 'abc', 'other' => 'x']]]), 'items[0].suggestedActions: The params of a command must name each param of the entry once'];
+        yield 'a declared param with no value' => [$suggest(['command' => ['entry' => 'test']]), 'items[0].suggestedActions: The params of a command must name each param of the entry once'];
+        yield 'a proposed entry that is no YAML mapping' => [$suggest(['command' => $command, 'proposedEntry' => 'just text']), 'items[0].suggestedActions: proposedEntry must be YAML of at most 4000 characters'];
+        yield 'a command on another action' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'command' => $command]]], 'items[0].suggestedActions: Only a run-command suggestion takes command and proposedEntry.'];
+        yield 'a proposed entry on another action' => [['suggestedActions' => [['action' => 'open', 'reason' => 'a', 'proposedEntry' => 'action: command']]], 'items[0].suggestedActions: Only a run-command suggestion takes command and proposedEntry.'];
+        yield 'a command that is no object' => [$suggest(['command' => 'test']), 'items[0].suggestedActions[0].command must be an object'];
+        yield 'an entry that is no string' => [$suggest(['command' => ['entry' => 5]]), 'items[0].suggestedActions[0].command needs a string entry, and branch must be a string.'];
+        yield 'params that are a list' => [$suggest(['command' => ['entry' => 'test', 'params' => ['abc']]]), 'items[0].suggestedActions[0].command.params must be an object'];
+        yield 'a param value that is no string' => [$suggest(['command' => ['entry' => 'test', 'params' => ['filter' => 5]]]), 'items[0].suggestedActions[0].command.params.filter must be a string.'];
+        yield 'a proposed entry that is no string' => [$suggest(['command' => $command, 'proposedEntry' => 5]), 'items[0].suggestedActions[0].proposedEntry must be a string of YAML.'];
+    }
+
+    public function test_a_question_cannot_suggest_run_command(): void
+    {
+        $this->enableInbox();
+        $this->actAsMcpTokenBoundTo($this->makeProject('inbox-ask-run-command-question'));
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('items[0].suggestedActions: Only a todo can suggest run-command.');
+        $this->askQuestion('Which column?', ['suggestedActions' => [['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test']]]]);
+    }
+
+    public function test_a_review_cannot_suggest_run_command(): void
+    {
+        $this->enableInbox();
+        $project = $this->makeProject('inbox-ask-run-command-review');
+        $document = new Document($project->owner, $project, 'Review the design');
+        $document->addVersion('# Design', '<h1>Design</h1>');
+        $this->em->persist($document);
+        $this->em->flush();
+        $this->actAsMcpTokenBoundTo($project);
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('items[0].suggestedActions: Only a todo can suggest run-command.');
+        ($this->tool)(sessionId: (string) Uuid::v4(), items: [[
+            'kind' => 'review',
+            'title' => 'Review the design',
+            'reviewDocumentId' => (string) $document->id,
+            'suggestedActions' => [['action' => 'run-command', 'reason' => 'Run', 'command' => ['entry' => 'test']]],
+        ]]);
+    }
+
+    /**
+     * @param array<string, mixed> $suggestion
+     *
+     * @return array{askId: string, extended: bool, closed: bool, items: list<array{itemId: string, number: int, kind: string, origin: string, title: string, state: string, blocking: bool, createdAt: string, updatedAt: string, closedAt: ?string}>}
+     */
+    private function askTodo(?Bridge $bridge, array $suggestion): array
+    {
+        return ($this->tool)(
+            sessionId: (string) Uuid::v4(),
+            items: [['kind' => 'todo', 'title' => 'Run it', 'suggestedActions' => [$suggestion]]],
+            bridgeId: null === $bridge ? null : (string) $bridge->id,
+        );
+    }
+
+    private function bridgeWithEntry(User $owner, Project $project): Bridge
+    {
+        $bridge = new Bridge($owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->commandEntries = [['name' => 'test', 'description' => null, 'params' => [['name' => 'filter', 'pattern' => '[a-z]+', 'description' => null]], 'run' => ['make', 'test'], 'timeout' => '5m']];
+        $this->em->persist($bridge);
+        $this->em->flush();
+
+        return $bridge;
+    }
+
+    /**
+     * @param array{items: list<array{itemId: string}>} $result
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function storedSuggestions(array $result): array
+    {
+        $this->em->clear();
+        $item = $this->em->find(InboxItem::class, Uuid::fromString($result['items'][0]['itemId']));
+        self::assertInstanceOf(InboxItem::class, $item);
+
+        return $item->suggestedActions ?? [];
     }
 }

@@ -19,15 +19,22 @@ use App\Module\Board\Repository\BoardColumnRepository;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\PullRequestUrlResolver;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunOutputChunk;
 use App\Module\Bridge\Entity\WorkerRunStateChange;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Repository\ForgePullRequestRepository;
+use App\Module\Inbox\Entity\InboxAction;
+use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
@@ -109,6 +116,7 @@ final readonly class ProjectShowcaseSeeder
             $this->seedHistory($project, $owner, $cards['history']);
             $documents = $this->seedDocuments($owner, $project, $cards['onboarding']);
             $this->seedInbox($project, $owner, $reviewer, $cards, $documents);
+            $this->seedCommandRuns($project, $owner, $cards['onboarding']);
             $this->seedEpicLane($project);
             $this->seedBlockedRun($project);
             $this->seedSiteFeedback($project, $cards['checkout']);
@@ -139,6 +147,70 @@ final readonly class ProjectShowcaseSeeder
             \count($this->inboxCardWatches->findOpenCardIds($project)),
             $outdatedCard,
         );
+    }
+
+    /** Two to-dos with a command run: one still running, one that succeeded. Each holds a stored output log. */
+    private function seedCommandRuns(Project $project, User $owner, Card $card): void
+    {
+        $now = new \DateTimeImmutable();
+        $bridge = new Bridge($owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7', $now);
+        $bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $bridge->lastSeenAt = $now;
+        $bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/-]+', 'description' => null]], 'run' => ['bin/console', 'app:design-system:export', '{out}'], 'timeout' => '10m']];
+        $bridge->worktrees = [['projectId' => (string) $project->id, 'branch' => 'main', 'path' => '/work/loupe']];
+        $this->em->persist($bridge);
+
+        $number = $this->inboxItems->nextNumber($project);
+        foreach ([
+            [WorkerRunState::Running, 'Export the design system for the rebuild', 12, 20],
+            [WorkerRunState::Succeeded, 'Export the design system again', 40, 14],
+        ] as $index => [$state, $title, $lines, $seconds]) {
+            $item = new InboxItem(project: $project, number: $number + $index, kind: InboxItemKind::Todo, title: $title, blocking: false, createdAt: $now->modify('-10 minutes'));
+            $item->suggestedActions = [['action' => 'run-command', 'reason' => 'The canvas needs the new tokens.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'main', 'params' => ['out' => 'var/design-system']], 'proposedEntry' => null]];
+            $item->cards->add(new InboxItemCard($item, $card));
+            $this->ask($project, [$item], $now->modify('-10 minutes'), 'The export needs a run on your machine.', $bridge->id);
+
+            $request = new WorkRequest(
+                project: $project,
+                subjectType: WorkSubject::CARD,
+                subjectId: $card->id ?? throw new \LogicException('A stored card has an id.'),
+                cardNumber: $card->number,
+                kind: 'design-export',
+                capability: Bridge::CAPABILITY_RUN_COMMAND,
+                ruleId: 'inbox:run-command',
+                createdAt: $now->modify('-1 minute'),
+            );
+            $request->state = WorkerRunState::Running === $state ? WorkRequestState::Claimed : WorkRequestState::Done;
+            $request->settledAt = WorkerRunState::Running === $state ? null : $now;
+            $this->em->persist($request);
+            $this->em->flush();
+
+            $action = new InboxAction($item, InboxActionKind::RunCommand, $owner, '', $now->modify('-1 minute'));
+            $action->workRequestId = $request->id;
+            $this->em->persist($action);
+
+            $startedAt = $now->modify('-'.$seconds.' seconds');
+            $run = new WorkerRun(
+                project: $project,
+                bridgeId: $bridge->id,
+                subjectType: WorkSubject::CARD,
+                subjectId: $card->id,
+                cardNumber: $card->number,
+                workKind: 'design-export',
+                state: $state,
+                runKey: Uuid::v4(),
+                startedAt: $startedAt,
+                endedAt: WorkerRunState::Running === $state ? null : $now,
+                exitCode: WorkerRunState::Running === $state ? null : 0,
+                kind: WorkerRunKind::Command,
+                workRequestId: $request->id,
+            );
+            $this->em->persist($run);
+
+            $log = implode('', array_map(static fn (int $line): string => \sprintf("Exporting components %d/%d\n", $line, $lines), range(1, $lines)));
+            $this->em->persist(new WorkerRunOutputChunk($run, 0, \strlen($log), $log));
+        }
+        $this->em->flush();
     }
 
     /** A pull request that passes every check, with an approval of a head before the last push. */

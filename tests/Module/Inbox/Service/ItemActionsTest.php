@@ -7,11 +7,14 @@ namespace App\Tests\Module\Inbox\Service;
 use App\Module\Board\Command\PauseCardCommand;
 use App\Module\Board\Command\PauseCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Workflow\WorkRequestContexts;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\BridgeRepository;
+use App\Module\Bridge\Repository\WorkerRunOutputChunkRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
@@ -29,8 +32,13 @@ use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
+use App\Module\Inbox\Repository\InboxActionRepository;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
+use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\ItemActions;
+use App\Module\Inbox\Service\RunCommandResolver;
+use App\Module\Inbox\Service\RunCommandRuns;
 use App\Module\Inbox\Service\SessionBridges;
 use App\Module\Inbox\View\ItemAction;
 use App\Module\Project\Entity\Project;
@@ -297,7 +305,7 @@ final class ItemActionsTest extends KernelTestCase
         $this->em->flush();
 
         self::assertNull($this->startSession($item)->disabledReasonKey);
-        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
+        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item, InboxActionKind::Open)?->toRfc4122());
     }
 
     /** @return iterable<string, array{string, WorkRequestState, bool}> */
@@ -331,8 +339,8 @@ final class ItemActionsTest extends KernelTestCase
     {
         $item = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
 
-        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item)?->toRfc4122());
-        self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98)));
+        self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item, InboxActionKind::Open)?->toRfc4122());
+        self::assertNull($this->actions()->cardIdOf($this->item($this->em, $this->project, 98), InboxActionKind::Open));
     }
 
     private function startSession(InboxItem $item): ItemAction
@@ -426,6 +434,44 @@ final class ItemActionsTest extends KernelTestCase
             [[InboxActionKind::ResumeRun, false, null], [InboxActionKind::Review, true, null], [InboxActionKind::Open, false, null], [InboxActionKind::StartSession, false, null], [InboxActionKind::Dismiss, false, null]],
             array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $actions),
         );
+    }
+
+    public function test_a_todo_offers_only_the_suggestions_that_fit_and_defaults_to_the_recommended_one(): void
+    {
+        $todo = $this->todo([
+            ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null],
+            ['action' => 'retry-card', 'reason' => 'Retry it.', 'recommended' => false, 'cardId' => null],
+            ['action' => 'dismiss', 'reason' => 'Nothing to do.', 'recommended' => false, 'cardId' => null],
+        ]);
+
+        self::assertSame(
+            [[InboxActionKind::Open, true, 'Read the card first.']],
+            array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($todo)),
+        );
+    }
+
+    public function test_a_todo_with_no_suggestions_offers_no_action(): void
+    {
+        self::assertSame([], $this->actions()->forItem($this->todo(null)));
+    }
+
+    public function test_a_todo_without_a_recommendation_has_no_default(): void
+    {
+        $todo = $this->todo([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
+
+        self::assertSame([], $this->defaults($todo));
+    }
+
+    /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}>|null $suggestions */
+    private function todo(?array $suggestions): InboxItem
+    {
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item->suggestedActions = $suggestions;
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em->persist($item);
+        $this->em->flush();
+
+        return $item;
     }
 
     /** @param list<InboxCardWait> $waits */
@@ -548,6 +594,35 @@ final class ItemActionsTest extends KernelTestCase
         self::assertInstanceOf(StageWorks::class, $stageWorks);
         self::assertInstanceOf(WorkRequestRepository::class, $workRequests);
 
-        return new ItemActions($watches, $runs, $controls, $pauses, $sessionBridges, $workRequests, $stageWorks);
+        $inboxActions = $container->get(InboxActionRepository::class);
+        $inboxAsks = $container->get(InboxAskRepository::class);
+        self::assertInstanceOf(InboxActionRepository::class, $inboxActions);
+        self::assertInstanceOf(InboxAskRepository::class, $inboxAsks);
+
+        $chunks = self::getContainer()->get(WorkerRunOutputChunkRepository::class);
+        self::assertInstanceOf(WorkerRunOutputChunkRepository::class, $chunks);
+
+        return new ItemActions(
+            $watches,
+            $runs,
+            $controls,
+            $pauses,
+            $sessionBridges,
+            $workRequests,
+            $stageWorks,
+            new AskingBridge($bridges, $inboxAsks, $runs),
+            $this->resolver($liveness),
+            new RunCommandRuns($inboxActions, $workRequests, $runs, $chunks),
+        );
+    }
+
+    private function resolver(BridgeLiveness $liveness): RunCommandResolver
+    {
+        $cards = self::getContainer()->get(CardRepository::class);
+        $contexts = self::getContainer()->get(WorkRequestContexts::class);
+        self::assertInstanceOf(CardRepository::class, $cards);
+        self::assertInstanceOf(WorkRequestContexts::class, $contexts);
+
+        return new RunCommandResolver($liveness, $cards, $contexts);
     }
 }

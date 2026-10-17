@@ -385,6 +385,82 @@ final class InboxActionStatusesTest extends KernelTestCase
         self::assertSame([], $this->statuses());
     }
 
+    public function test_an_open_add_reads_queued_and_cancellable_while_a_bridge_follows_the_project(): void
+    {
+        $this->followingBridge();
+        $this->addEntry(WorkRequestState::Open);
+
+        $status = $this->onlyStatus();
+
+        self::assertSame([InboxActionState::Queued, 'inbox.action.status.queued', true, false], [$status->state, $status->labelKey, $status->cancellable, $status->offline]);
+    }
+
+    public function test_an_open_add_reads_offline_when_no_bridge_is_online(): void
+    {
+        $this->followingBridge()->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->addEntry(WorkRequestState::Open);
+
+        self::assertTrue($this->onlyStatus()->offline);
+    }
+
+    public function test_a_claimed_add_reads_preparing(): void
+    {
+        $this->addEntry(WorkRequestState::Claimed);
+
+        self::assertSame([InboxActionState::Preparing, false], [$this->onlyStatus()->state, $this->onlyStatus()->cancellable]);
+    }
+
+    public function test_a_done_add_reads_added_and_answers_nothing(): void
+    {
+        $this->addEntry(WorkRequestState::Done, settledAt: '2026-10-13 12:03:00');
+
+        $status = $this->onlyStatus();
+
+        self::assertSame([InboxActionState::Added, 'inbox.action.status.added', false], [$status->state, $status->labelKey, $status->cancellable]);
+        self::assertSame('2026-10-13 12:03:00', $status->at?->format('Y-m-d H:i:s'));
+        self::assertFalse($status->state->inProgress());
+    }
+
+    public function test_a_refused_add_carries_its_reason_code(): void
+    {
+        $this->addEntry(WorkRequestState::Refused, reason: 'entry-exists');
+        $this->addEntry(WorkRequestState::Refused);
+
+        $statuses = $this->statuses();
+
+        self::assertSame([InboxActionState::Refused, 'inbox.action.status.refused', ['%reason%' => 'entry-exists']], [$statuses[0]->state, $statuses[0]->labelKey, $statuses[0]->labelParameters]);
+        self::assertSame('inbox.action.status.refused_no_reason', $statuses[1]->labelKey);
+    }
+
+    public function test_an_expired_or_cancelled_add_reads_as_such_and_a_marked_one_reads_cancelled(): void
+    {
+        $this->addEntry(WorkRequestState::Expired, settledAt: '2026-10-13 14:00:00');
+        $this->addEntry(WorkRequestState::Cancelled);
+        $this->addEntry(WorkRequestState::Open, cancelledAt: '2026-10-13 12:05:00');
+
+        self::assertSame(
+            [InboxActionState::Expired, InboxActionState::Cancelled, InboxActionState::Cancelled],
+            array_map(static fn (InboxActionStatus $s): InboxActionState => $s->state, $this->statuses()),
+        );
+    }
+
+    public function test_an_add_that_never_got_its_request_has_no_line(): void
+    {
+        $this->em->persist(new InboxAction($this->item, InboxActionKind::AddEntry, $this->owner));
+        $this->em->flush();
+
+        self::assertSame([], $this->statuses());
+    }
+
+    public function test_a_send_agent_and_an_add_on_one_item_each_read_their_own_request(): void
+    {
+        $this->followingBridge();
+        $this->sendAgent(WorkRequestState::Open);
+        $this->addEntry(WorkRequestState::Done);
+
+        self::assertSame([InboxActionKind::SendAgent, InboxActionKind::AddEntry], array_map(static fn (InboxActionStatus $s): InboxActionKind => $s->action->kind, $this->statuses()));
+    }
+
     private function onlyStatus(): InboxActionStatus
     {
         $statuses = $this->statuses();
@@ -449,6 +525,25 @@ final class InboxActionStatusesTest extends KernelTestCase
         $this->em->flush();
 
         $action = new InboxAction($this->item, InboxActionKind::SendAgent, $this->owner, '', $requestedAt);
+        $action->workRequestId = $request->id;
+        $action->cancelledAt = null === $cancelledAt ? null : new \DateTimeImmutable($cancelledAt);
+        $this->em->persist($action);
+        $this->em->flush();
+
+        return $request;
+    }
+
+    private function addEntry(WorkRequestState $state, ?string $reason = null, ?string $settledAt = null, ?string $cancelledAt = null): WorkRequest
+    {
+        $requestedAt = new \DateTimeImmutable(self::CLICK)->modify(\sprintf('+%d minutes', ++$this->sessions));
+        $request = new WorkRequest($this->project, InboxItem::SUBJECT_TYPE, $this->item->id ?? throw new \LogicException('Stored.'), null, 'add-entry', Bridge::CAPABILITY_ADD_ENTRY, 'inbox:add-entry', $requestedAt);
+        $request->state = $state;
+        $request->reason = $reason;
+        $request->settledAt = null === $settledAt ? null : new \DateTimeImmutable($settledAt);
+        $this->em->persist($request);
+        $this->em->flush();
+
+        $action = new InboxAction($this->item, InboxActionKind::AddEntry, $this->owner, '', $requestedAt);
         $action->workRequestId = $request->id;
         $action->cancelledAt = null === $cancelledAt ? null : new \DateTimeImmutable($cancelledAt);
         $this->em->persist($action);
