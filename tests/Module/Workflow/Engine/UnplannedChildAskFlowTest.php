@@ -48,7 +48,7 @@ final class UnplannedChildAskFlowTest extends KernelTestCase
         self::assertCount(3, $item->options);
         self::assertStringContainsString('#'.$child->number, $item->title);
 
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
         $this->service(AnswerInboxItemHandler::class)(new AnswerInboxItemCommand($item, '2', ''));

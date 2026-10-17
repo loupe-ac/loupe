@@ -84,7 +84,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
 
@@ -126,7 +126,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $listener(new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         ));
 
@@ -166,7 +166,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
 
@@ -191,7 +191,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
         $event->setForRetry();
@@ -216,7 +216,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $listener(new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) Uuid::v7())),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         ));
 
@@ -240,7 +240,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $listener(new WorkerMessageFailedEvent(
             new Envelope(new GenerateDataExportMessage((string) $export->id)),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         ));
 
@@ -260,7 +260,7 @@ final class MarkExportFailedOnFinalFailureTest extends TestCase
 
         $event = new WorkerMessageFailedEvent(
             new Envelope(new \stdClass()),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
 

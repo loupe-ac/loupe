@@ -4,24 +4,27 @@ framework:
 
         transports:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
-            async:
+            # Email, notifier messages, pull request refreshes and every other background job. Same DSN, own queue name.
+            jobs:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    queue_name: jobs
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
-            # Card checks, read before `async`: a backlog of mail or refreshes must not delay a marker. Same DSN, own queue name.
-            workflow:
+            # Card checks that an event starts, read before `jobs`: a backlog of mail or refreshes must not delay a marker. Same DSN, own queue name.
+            card_eval:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
-                    queue_name: workflow
+                    queue_name: card_eval
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
-            # The sweep's evaluations, read after `async` is empty. Same DSN, own queue name.
-            async_low:
+            # The sweep's card checks, read after `jobs` is empty. Same DSN, own queue name.
+            card_sweep:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
-                    queue_name: async_low
+                    queue_name: card_sweep
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
@@ -35,24 +38,24 @@ framework:
                     - App\Messenger\Middleware\AuditChannelMiddleware
 
         routing:
-            Symfony\Component\Mailer\Messenger\SendEmailMessage: async
-            Symfony\Component\Notifier\Message\ChatMessage: async
-            Symfony\Component\Notifier\Message\SmsMessage: async
-            App\Module\Account\Messenger\GenerateDataExportMessage: async
-            App\Module\Billing\Messenger\CancelSubscriptionMessage: async
-            App\Module\Board\Messenger\NeutralizeSiteReviewCheck: async
-            App\Module\Board\Messenger\PostFixRunComment: async
-            App\Module\Board\Messenger\PostPullRequestNotice: async
-            App\Module\Bridge\Messenger\CollectSessionUsage: async
-            App\Module\Bridge\Messenger\RecomputeBucketTimes: async
-            App\Module\Bridge\Messenger\ResumeAskingSession: async
-            App\Module\Forge\Messenger\RefreshPullRequestState: async
-            App\Module\Inbox\Messenger\ReconcileCardWaits: async
-            App\Module\Workflow\Messenger\EvaluateCard: workflow
-            App\Module\Workflow\Messenger\RunRuleAskAnswer: async
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: jobs
+            Symfony\Component\Notifier\Message\ChatMessage: jobs
+            Symfony\Component\Notifier\Message\SmsMessage: jobs
+            App\Module\Account\Messenger\GenerateDataExportMessage: jobs
+            App\Module\Billing\Messenger\CancelSubscriptionMessage: jobs
+            App\Module\Board\Messenger\NeutralizeSiteReviewCheck: jobs
+            App\Module\Board\Messenger\PostFixRunComment: jobs
+            App\Module\Board\Messenger\PostPullRequestNotice: jobs
+            App\Module\Bridge\Messenger\CollectSessionUsage: jobs
+            App\Module\Bridge\Messenger\RecomputeBucketTimes: jobs
+            App\Module\Bridge\Messenger\ResumeAskingSession: jobs
+            App\Module\Forge\Messenger\RefreshPullRequestState: jobs
+            App\Module\Inbox\Messenger\ReconcileCardWaits: jobs
+            App\Module\Workflow\Messenger\EvaluateCard: card_eval
+            App\Module\Workflow\Messenger\RunRuleAskAnswer: jobs
 
             # Route your messages to the transports
-            # 'App\Message\YourMessage': async
+            # 'App\Message\YourMessage': jobs
 
 # Registered only here: the override is keyed on a client-supplied header, so in
 # production any caller could force queued work inline.
@@ -74,7 +77,7 @@ when@test:
     framework:
         messenger:
             transports:
-                async:
+                jobs:
                     dsn: 'in-memory://'
                     retry_strategy:
                         # Same retry budget as prod so retry-flow tests exercise
@@ -83,13 +86,13 @@ when@test:
                         max_retries: 3
                         multiplier: 2
                         delay: 0
-                workflow:
+                card_eval:
                     dsn: 'in-memory://'
                     retry_strategy:
                         max_retries: 3
                         multiplier: 2
                         delay: 0
-                async_low:
+                card_sweep:
                     dsn: 'in-memory://'
                     retry_strategy:
                         max_retries: 3

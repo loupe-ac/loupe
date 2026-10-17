@@ -28,7 +28,7 @@ final readonly class ReconcileCardWaitsHandler
         // Handled inline in the middle of another write, the reconcile would
         // flush that write before it is complete. The queue runs it afterwards.
         if ($this->em->getUnitOfWork()->hasPendingInsertions()) {
-            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['async'])]));
+            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['jobs'])]));
 
             return;
         }

@@ -91,7 +91,7 @@ final class MarkFixRunCommentFailedOnFinalFailureTest extends KernelTestCase
     {
         $comment = $this->pending(null);
 
-        $this->listener()(new WorkerMessageFailedEvent(new Envelope(new \stdClass()), 'async', new \RuntimeException('boom')));
+        $this->listener()(new WorkerMessageFailedEvent(new Envelope(new \stdClass()), 'jobs', new \RuntimeException('boom')));
 
         $this->em->refresh($comment);
         self::assertSame(PullRequestCommentState::Pending, $comment->state);
@@ -153,7 +153,7 @@ final class MarkFixRunCommentFailedOnFinalFailureTest extends KernelTestCase
     {
         return new WorkerMessageFailedEvent(
             new Envelope(new PostFixRunComment($comment->id ?? throw new \LogicException('A flushed comment has an id.'))),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
     }

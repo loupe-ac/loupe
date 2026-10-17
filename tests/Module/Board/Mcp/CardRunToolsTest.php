@@ -229,7 +229,7 @@ final class CardRunToolsTest extends KernelTestCase
     /** @return list<CollectSessionUsage> */
     private function usageRequests(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return array_values(array_filter(

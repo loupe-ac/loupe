@@ -66,19 +66,19 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
         $bound = $this->workflowProject('sweep-low');
         $this->bindLifecycle($bound);
         $this->card($bound, 'next');
-        $async = self::getContainer()->get('messenger.transport.async');
-        self::assertInstanceOf(InMemoryTransport::class, $async);
-        $workflow = self::getContainer()->get('messenger.transport.workflow');
-        self::assertInstanceOf(InMemoryTransport::class, $workflow);
-        $async->reset();
-        $workflow->reset();
+        $jobs = self::getContainer()->get('messenger.transport.jobs');
+        self::assertInstanceOf(InMemoryTransport::class, $jobs);
+        $cardEval = self::getContainer()->get('messenger.transport.card_eval');
+        self::assertInstanceOf(InMemoryTransport::class, $cardEval);
+        $jobs->reset();
+        $cardEval->reset();
         $this->transport()->reset();
 
         $this->task(new RecordingLogger())();
 
         self::assertNotSame([], $this->sent());
-        self::assertSame([], $async->getSent());
-        self::assertSame([], $workflow->getSent());
+        self::assertSame([], $jobs->getSent());
+        self::assertSame([], $cardEval->getSent());
     }
 
     public function test_the_sweep_queues_nothing_while_the_previous_sweep_still_waits(): void
@@ -140,7 +140,7 @@ final class SweepWorkflowCardsTaskTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async_low');
+        $transport = self::getContainer()->get('messenger.transport.card_sweep');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;
