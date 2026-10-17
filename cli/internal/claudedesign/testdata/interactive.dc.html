@@ -17,6 +17,8 @@
 <button id="inc" onClick="{{ onInc }}">Count: {{ count }}</button>
 <sc-if value="{{ agreed }}"><label><input id="agree" type="checkbox" checked onChange="{{ onAgree }}"> I agree</label></sc-if>
 <sc-if value="{{ notAgreed }}"><label><input id="agree" type="checkbox" onChange="{{ onAgree }}"> I agree</label></sc-if>
+<button id="save" disabled="{{ locked }}">Save</button>
+<sc-for list="{{ sizes }}" as="v"><label><input type="radio" name="size" value="{{ v.id }}" checked="{{ v.checked }}" onChange="{{ v.pick }}"> {{ v.id }}</label></sc-for>
 <p id="status">{{ status }}</p>
 <p id="kind">{{ kind }}</p>
 <ul>
@@ -32,12 +34,15 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;label&quot;:{&quot;editor&quot;:&quot;string&quot;,&quot;default&quot;:&quot;Fruit &lt;list&gt; &amp; more&quot;}}">
 class Component extends DCLogic {
-  state = { query: '', count: 0, agreed: false, tick: 0, done: {} };
+  state = { query: '', count: 0, agreed: false, tick: 0, done: {}, size: 'b' };
   items = [
     { id: 1, name: 'Apple', tags: ['red', 'sweet'] },
     { id: 2, name: 'Banana', tags: ['yellow'] },
     { id: 3, name: 'Cherry', tags: [] },
   ];
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.size !== this.state.size) document.getElementById('q').focus();
+  }
   componentDidMount() {
     this.timer = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 1000);
   }
@@ -55,6 +60,12 @@ class Component extends DCLogic {
       title: this.props.label,
       query: this.state.query,
       onQuery: e => this.setState({ query: e.target.value }),
+      locked: this.state.query === '',
+      sizes: ['a', 'b', 'c'].map(id => ({
+        id,
+        checked: this.state.size === id,
+        pick: () => this.setState({ size: id }),
+      })),
       count: this.state.count,
       onInc: () => this.setState(s => ({ count: s.count + 1 })),
       agreed: this.state.agreed,

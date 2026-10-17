@@ -8,19 +8,31 @@ class LoupeView {
         this._base = null;
         this._blobs = {};
         this._queued = false;
+        this._prev = null;
     }
 
     setState(patch) {
         const next =
             typeof patch === 'function' ? patch(this.state, this.props) : patch;
+        const before = this.state;
         this.state = Object.assign({}, this.state, next);
         if (!this._render || this._queued) {
             return;
         }
         this._queued = true;
+        this._prev = before;
         queueMicrotask(() => {
+            const prev = this._prev;
             this._queued = false;
+            this._prev = null;
             this._draw();
+            if (typeof this.componentDidUpdate === 'function') {
+                try {
+                    this.componentDidUpdate(this.props, prev);
+                } catch (err) {
+                    console.error(err);
+                }
+            }
         });
     }
 
