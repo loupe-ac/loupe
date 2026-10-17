@@ -40,7 +40,7 @@ class InboxItemRepository extends ServiceEntityRepository
      *
      * @param list<string> $cardIds RFC 4122 ids
      *
-     * @return list<array{card_id: string, number: int, title: string, created_at: string}>
+     * @return list<array{card_id: string, number: int, title: string, created_at: string, blocking: bool}>
      */
     public function findOpenAsksOfCards(Project $project, array $cardIds): array
     {
@@ -48,9 +48,9 @@ class InboxItemRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<array{card_id: string, number: int, title: string, created_at: string}> $rows */
+        /** @var list<array{card_id: string, number: int, title: string, created_at: string, blocking: bool}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
-            "SELECT ic.card_id, i.number, i.title, i.created_at
+            "SELECT ic.card_id, i.number, i.title, i.created_at, i.blocking
              FROM inbox_item_cards ic
              JOIN inbox_items i ON i.id = ic.item_id
              WHERE i.project_id = :project AND i.state = 'open' AND i.kind NOT IN ('wait', 'notice') AND ic.card_id IN (:cards)

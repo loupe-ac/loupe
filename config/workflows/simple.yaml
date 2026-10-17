@@ -1,5 +1,5 @@
 key: simple
-version: 3
+version: 4
 defaultType: feature
 epicBranch: 'epic/{number}'
 types:
@@ -99,7 +99,7 @@ markers:
       kind: needs-you
       label: marker.open_question
       remedy: marker.open_question.remedy
-      when: { card.inbox.open_question: {} }
+      when: { card.inbox.open_question: { blocking: true } }
     - key: session-open
       kind: working
       label: marker.session_open

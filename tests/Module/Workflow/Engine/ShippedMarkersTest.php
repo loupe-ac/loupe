@@ -309,12 +309,24 @@ final class ShippedMarkersTest extends KernelTestCase
     public function test_a_pull_request_that_waits_for_approval_and_an_open_question_need_the_person(): void
     {
         $pullRequest = FactsMother::pullRequest(checks: ChecksState::Passed, number: 4, waitsForApproval: true, waitsForApprovalSince: new \DateTimeImmutable('2026-10-01 10:30:00'));
-        $question = new OpenQuestionFacts(new OpenQuestion(6, 'Which way?', new \DateTimeImmutable('2026-10-01 10:00:00')));
+        $question = new OpenQuestionFacts([new OpenQuestion(6, 'Which way?', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: true)]);
 
         $this->pass($this->template('lifecycle'), FactsMother::facts(card: FactsMother::card(slot: 'in-review'), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: [OpenQuestionFacts::class => $question]));
 
         self::assertSame(['waits-for-approval', 'open-question'], $this->writtenKeys());
         self::assertSame(['%number%' => 6, '%title%' => 'Which way?'], $this->written('open-question')->params);
+    }
+
+    public function test_a_non_blocking_to_do_alone_needs_nobody_in_either_shipped_template(): void
+    {
+        $todo = new OpenQuestionFacts([new OpenQuestion(929, 'Rebuild the Claude Design project', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: false)]);
+        $both = new OpenQuestionFacts([...$todo->questions, new OpenQuestion(931, 'Which way?', new \DateTimeImmutable('2026-10-01 11:00:00'), blocking: true)]);
+
+        foreach (['lifecycle', 'simple'] as $key) {
+            self::assertNotContains('open-question', $this->passKeys($this->template($key), FactsMother::facts(provided: [OpenQuestionFacts::class => $todo])), $key);
+            $this->pass($this->template($key), FactsMother::facts(provided: [OpenQuestionFacts::class => $both]));
+            self::assertSame(['%number%' => 931, '%title%' => 'Which way?'], $this->written('open-question')->params, $key);
+        }
     }
 
     public function test_work_shows_as_working_with_the_session_first(): void

@@ -36,9 +36,9 @@ final readonly class OpenQuestionFactProvider implements FactProvider
     public function build(CardSnapshot $card): object
     {
         $project = $this->em->getReference(Project::class, $card->projectId) ?? throw new \LogicException('The project is stored.');
-        $row = $this->inboxItems->findOpenAsksOfCards($project, [$card->id->toRfc4122()])[0] ?? null;
+        $rows = $this->inboxItems->findOpenAsksOfCards($project, [$card->id->toRfc4122()]);
 
-        return new OpenQuestionFacts(null === $row ? null : new OpenQuestion((int) $row['number'], $row['title'], new \DateTimeImmutable($row['created_at'])));
+        return new OpenQuestionFacts(array_map(static fn (array $row): OpenQuestion => new OpenQuestion((int) $row['number'], $row['title'], new \DateTimeImmutable($row['created_at']), $row['blocking']), $rows));
     }
 
     #[\Override]
@@ -46,7 +46,7 @@ final readonly class OpenQuestionFactProvider implements FactProvider
     {
         $facts instanceof OpenQuestionFacts || throw new \LogicException('The provider fingerprints its own facts.');
 
-        return $facts->question?->number;
+        return array_map(static fn (OpenQuestion $question): array => [$question->number, $question->blocking], $facts->questions);
     }
 
     #[\Override]

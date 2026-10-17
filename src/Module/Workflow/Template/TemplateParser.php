@@ -705,6 +705,7 @@ final readonly class TemplateParser
             $param = $value[$parameter->name];
             $error = match ($parameter->type) {
                 ParameterType::Int => \is_int($param) && $param >= 1 ? null : \sprintf('parameter "%s" must be a positive integer', $parameter->name),
+                ParameterType::Bool => \is_bool($param) ? null : \sprintf('parameter "%s" must be true or false', $parameter->name),
                 ParameterType::String => match (true) {
                     !\is_string($param) || '' === $param => \sprintf('parameter "%s" must be a non-empty string', $parameter->name),
                     null !== $parameter->choices && !\in_array($param, $parameter->choices, true) => \sprintf('parameter "%s" must be one of: %s', $parameter->name, implode(', ', $parameter->choices)),
@@ -810,6 +811,8 @@ final readonly class TemplateParser
                         $lists[$param] = $list;
                     }
                     continue 2;
+                case ParameterType::Bool:
+                    throw new \LogicException(\sprintf('The action "%s" declares the parameter "%s" with a type that only a condition takes.', $name, $param));
                 default:
                     break;
             }

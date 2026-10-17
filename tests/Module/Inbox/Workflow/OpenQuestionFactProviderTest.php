@@ -31,12 +31,50 @@ final class OpenQuestionFactProviderTest extends KernelTestCase
         $this->askOwner($this->card, at: '2026-10-02 09:30:00');
         $oldest = $this->askOwner($this->card, at: '2026-10-02 09:15:00');
 
-        $question = $this->build()->question;
+        $question = $this->build()->oldest();
 
         self::assertNotNull($question);
-        self::assertSame([$oldest->number, 'Which option?'], [$question->number, $question->title]);
+        self::assertSame([$oldest->number, 'Which option?', true], [$question->number, $question->title, $question->blocking]);
         self::assertEquals(new \DateTimeImmutable('2026-10-02 09:15:00'), $question->since);
-        self::assertSame($oldest->number, $this->provider()->fingerprint($this->build()));
+        self::assertSame([[$oldest->number, true], [$oldest->number - 1, true]], $this->provider()->fingerprint($this->build()));
+    }
+
+    public function test_a_non_blocking_to_do_alone_gives_no_blocking_question(): void
+    {
+        $todo = $this->askOwner($this->card, InboxItemKind::Todo);
+        $todo->blocking = false;
+        $this->em()->flush();
+
+        $facts = $this->build();
+
+        self::assertSame($todo->number, $facts->oldest()?->number);
+        self::assertFalse($facts->oldest()->blocking);
+        self::assertNull($facts->oldest(blocking: true));
+        self::assertSame([[$todo->number, false]], $this->provider()->fingerprint($facts));
+    }
+
+    public function test_a_blocking_ask_after_a_non_blocking_to_do_is_the_blocking_question(): void
+    {
+        $todo = $this->askOwner($this->card, InboxItemKind::Todo, at: '2026-10-02 09:00:00');
+        $todo->blocking = false;
+        $this->em()->flush();
+        $question = $this->askOwner($this->card, at: '2026-10-02 09:30:00');
+
+        $facts = $this->build();
+
+        self::assertSame($todo->number, $facts->oldest()?->number);
+        self::assertSame($question->number, $facts->oldest(blocking: true)?->number);
+        self::assertSame($todo->number, $facts->oldest(blocking: false)?->number);
+    }
+
+    public function test_a_change_of_the_blocking_flag_changes_the_fingerprint(): void
+    {
+        $item = $this->askOwner($this->card);
+        $before = $this->provider()->fingerprint($this->build());
+        $item->blocking = false;
+        $this->em()->flush();
+
+        self::assertNotSame($before, $this->provider()->fingerprint($this->build()));
     }
 
     public function test_an_answered_question_a_wait_and_a_notice_are_not_open_questions(): void
@@ -46,8 +84,8 @@ final class OpenQuestionFactProviderTest extends KernelTestCase
         $this->askOwner($this->card, InboxItemKind::Wait);
         $this->askOwner($this->card, InboxItemKind::Notice);
 
-        self::assertNull($this->build()->question);
-        self::assertNull($this->provider()->fingerprint($this->build()));
+        self::assertSame([], $this->build()->questions);
+        self::assertSame([], $this->provider()->fingerprint($this->build()));
     }
 
     public function test_the_provider_is_on_while_the_inbox_is_on(): void

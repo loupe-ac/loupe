@@ -32,7 +32,7 @@ final class ShippedMarkersMigrationTest extends KernelTestCase
 
         $row = $this->row($connection, $projectId);
         self::assertEquals([...$this->service(ShippedTemplates::class)->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $row['definition']);
-        self::assertSame(3, $row['version']);
+        self::assertSame($this->service(ShippedTemplates::class)->source('lifecycle')['version'], $row['version']);
         self::assertNotEmpty($row['definition']['markers']);
     }
 
@@ -49,7 +49,7 @@ final class ShippedMarkersMigrationTest extends KernelTestCase
 
         $row = $this->row($connection, $projectId);
         self::assertEquals($this->service(ShippedTemplates::class)->source('simple'), $row['definition']);
-        self::assertSame(3, $row['version']);
+        self::assertSame($this->service(ShippedTemplates::class)->source('simple')['version'], $row['version']);
         self::assertNotEmpty($row['definition']['markers']);
     }
 
