@@ -52,6 +52,9 @@ function openNote() {
     return root;
 }
 
+/** The view the panel shows now: list, compose, destination, finish or signin. */
+const viewOf = (root) => root.getElementById('lp-views').dataset.view;
+
 async function write(root, text) {
     const textarea = root.getElementById('lp-textarea');
     textarea.value = text;
@@ -104,18 +107,18 @@ describe('the mode', () => {
         const root = openNote();
         await write(root, 'The hero image is blurry');
 
-        expect(root.getElementById('lp-picker').style.display).toBe('block');
+        expect(viewOf(root)).toBe('destination');
         expect(root.getElementById('lp-save').disabled).toBe(true);
         root.querySelector('[data-mode="per-note"]').click();
         await settle();
 
         expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
         expect(root.getElementById('lp-textarea').value).toBe(
             'The hero image is blurry',
         );
         expect(fetchMock.mock.calls[0][0]).toBe(
-            `${BACKEND}/api/site-review/review`,
+            `${BACKEND}/api/site-review/review?scope=${encodeURIComponent('cards:')}`,
         );
     });
 
@@ -132,9 +135,7 @@ describe('the mode', () => {
             root.getElementById(action).click();
             await settle();
 
-            expect(root.getElementById('lp-picker').style.display).toBe(
-                'block',
-            );
+            expect(viewOf(root)).toBe('destination');
             expect(picking()).toBe(false);
             expect(drawing()).toBe(false);
         }
@@ -179,7 +180,7 @@ describe('the mode', () => {
         const root = panelRoot();
 
         expect(await pickStarts(root)).toBe(true);
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
     });
 
     it('is not asked on a preview page that names its card', async () => {
@@ -195,7 +196,7 @@ describe('the mode', () => {
         const root = panelRoot();
 
         expect(await pickStarts(root)).toBe(true);
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
     });
 
     it('per note sends a new card and names the card it became', async () => {
@@ -248,11 +249,11 @@ describe('the mode', () => {
         await settle();
 
         expect(fetchMock.mock.calls[0][0]).toBe(
-            `${BACKEND}/api/site-review/review?context=${encodeURIComponent(`card:${CARD}`)}`,
+            `${BACKEND}/api/site-review/review?scope=${encodeURIComponent(`card:${CARD}`)}&context=${encodeURIComponent(`card:${CARD}`)}`,
         );
         const root = openNote();
         expect(targetText(root)).toBe('#3 Review: /');
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
         await write(root, 'Spacing is off');
         root.getElementById('lp-save').click();
         await settle();
@@ -303,7 +304,7 @@ describe('the mode', () => {
 
         expect(storedMode()).toBeNull();
         const root = openNote();
-        expect(root.getElementById('lp-picker').style.display).toBe('block');
+        expect(viewOf(root)).toBe('destination');
     });
 
     it('is asked for again, with the draft kept, when a save names a closed card', async () => {
@@ -326,7 +327,7 @@ describe('the mode', () => {
         await settle();
 
         expect(storedMode()).toBeNull();
-        expect(root.getElementById('lp-picker').style.display).toBe('block');
+        expect(viewOf(root)).toBe('destination');
         expect(root.getElementById('lp-textarea').value).toBe('Keep this text');
         expect(root.getElementById('lp-error').textContent).toContain(
             'Choose where your notes go',
@@ -390,7 +391,7 @@ describe('the delivery id', () => {
 });
 
 describe('the mode picker', () => {
-    it('hands focus back to the draft after a choice and after Back', async () => {
+    it('keeps focus in the visible view after Back and after a choice', async () => {
         bootWidget({ respond: () => ok({ comments: [], context: null }) });
         await settle();
 
@@ -404,7 +405,9 @@ describe('the mode picker', () => {
 
         root.getElementById('lp-picker-back').click();
         await settle();
-        expect(root.activeElement).toBe(textarea);
+        expect(root.activeElement).toBe(
+            root.querySelector('#lp-picker-modes [data-mode]'),
+        );
 
         root.querySelector('[data-mode="per-note"]').click();
         await settle();
@@ -434,8 +437,8 @@ describe('the mode picker', () => {
         );
         await settle();
 
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
-        expect(root.getElementById('lp-composer').style.opacity).toBe('1');
+        expect(viewOf(root)).not.toBe('destination');
+        expect(viewOf(root)).toBe('compose');
         expect(root.getElementById('lp-textarea').value).toBe(
             'Do not lose this',
         );
@@ -470,7 +473,7 @@ describe('the mode picker', () => {
 
         expect(storedMode()).toEqual({ mode: 'per-note', cardId: null });
         expect(targetText(root)).toBe('A new card for each note');
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
     });
 
     describe('the mode under a card that can have children', () => {
@@ -617,7 +620,7 @@ describe('a preview page that names its card', () => {
         expect(
             root.getElementById('lp-context').querySelector('button'),
         ).toBeNull();
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
         await write(root, 'On the preview');
         root.getElementById('lp-save').click();
         await settle();
@@ -645,7 +648,7 @@ describe('a preview page that names its card', () => {
                 .querySelector('.lp-context-label')
                 .hasAttribute('data-wrap'),
         ).toBe(true);
-        expect(root.getElementById('lp-picker').style.display).toBe('none');
+        expect(viewOf(root)).not.toBe('destination');
         expect(root.getElementById('lp-save').disabled).toBe(true);
     });
 });
@@ -701,7 +704,6 @@ describe('deleting a note', () => {
 
         const root = panelRoot();
         root.getElementById('lp-launch-main').click();
-        root.getElementById('lp-list-toggle').click();
         const row = root.querySelector('#lp-list .lp-item');
         row.querySelector('.lp-del').click();
         row.querySelector('[data-del-no]').click();
@@ -799,6 +801,72 @@ describe('navigating to a page that names a different card', () => {
         expect(feedbackSave(fetchMock).target).toEqual({ cardId: 'second' });
     });
 
+    it('clears the old card notes the moment the marker changes', async () => {
+        const fetchMock = bootWidget({
+            context: 'card:first',
+            respond: () =>
+                ok({
+                    comments: [
+                        {
+                            id: 'c1',
+                            body: 'On the first card',
+                            url: 'about:blank',
+                            anchors: [],
+                        },
+                    ],
+                    context: { label: '#1 First page card', url: null },
+                }),
+        });
+        await settle();
+        const count = panelRoot().getElementById('lp-launch-count');
+        expect(count.textContent).toBe('1');
+
+        // The new card's list never arrives, which is the window under test.
+        fetchMock.mockImplementation(() => new Promise(() => {}));
+        await navigate('/second', 'card:second');
+
+        expect(count.textContent).toBe('0');
+    });
+
+    it('keeps a save from the old card out of the new list', async () => {
+        let release;
+        const fetchMock = bootWidget({
+            context: 'card:first',
+            respond: () =>
+                ok({
+                    comments: [],
+                    context: { label: '#1 First page card', url: null },
+                }),
+        });
+        await settle();
+
+        const root = openNote();
+        await write(root, 'Saved on the first page');
+        fetchMock.mockImplementation((url, init) =>
+            init && init.method === 'POST'
+                ? new Promise((resolve) => (release = resolve))
+                : ok({
+                      comments: [],
+                      context: { label: '#2 Second page card', url: null },
+                  }),
+        );
+        root.getElementById('lp-save').click();
+        await settle();
+        await navigate('/second', 'card:second');
+        release(
+            await ok({
+                commentId: 'c9',
+                cardId: 'first',
+                number: 1,
+                label: '#1',
+                url: null,
+            }),
+        );
+        await settle();
+
+        expect(root.getElementById('lp-launch-count').textContent).toBe('0');
+    });
+
     it('drops the lock when the new page names no card', async () => {
         const fetchMock = bootWidget({
             context: 'card:first',
@@ -812,9 +880,7 @@ describe('navigating to a page that names a different card', () => {
         const asked = fetchMock.mock.calls.map(([url]) => url);
         expect(asked.length).toBeGreaterThan(0);
         expect(asked.every((url) => !url.includes('context='))).toBe(true);
-        expect(openNote().getElementById('lp-picker').style.display).toBe(
-            'block',
-        );
+        expect(viewOf(openNote())).toBe('destination');
     });
 });
 
@@ -824,7 +890,9 @@ describe('boot', () => {
         await settle();
 
         const [url, options] = fetchMock.mock.calls[0];
-        expect(url).toBe(`${BACKEND}/api/site-review/review`);
+        expect(url).toBe(
+            `${BACKEND}/api/site-review/review?scope=${encodeURIComponent('cards:')}`,
+        );
         expect(options.method).toBe('GET');
         expect(options.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
     });
@@ -909,7 +977,8 @@ describe('a preview token', () => {
         openPanel();
 
         const root = panelRoot();
-        expect(root.getElementById('lp-fatal').textContent).toContain(
+        expect(viewOf(root)).toBe('signin');
+        expect(root.getElementById('lp-signin-note').textContent).toContain(
             'The preview sign-in for this page ended. Sign in, or restart the preview.',
         );
         expect(root.getElementById('lp-sign-in')).not.toBeNull();
@@ -1022,9 +1091,7 @@ describe('a refused credential', () => {
         await settle();
         openPanel();
 
-        expect(panelRoot().getElementById('lp-fatal').style.display).toBe(
-            'block',
-        );
+        expect(viewOf(panelRoot())).toBe('signin');
         expect(panelRoot().getElementById('lp-sign-in')).not.toBeNull();
     });
 
@@ -1049,7 +1116,7 @@ describe('a refused credential', () => {
         await settle();
         openPanel();
 
-        expect(panelRoot().getElementById('lp-main').style.display).toBe(
+        expect(panelRoot().getElementById('lp-views').style.display).toBe(
             'none',
         );
         expect(panelRoot().getElementById('lp-fatal').style.display).toBe(
@@ -1300,4 +1367,711 @@ describe('style sheet colour tokens', () => {
             expect(used.filter((name) => !defined.has(name))).toEqual([]);
         },
     );
+});
+
+/** The scope and context of the nth list request the widget sent. */
+const listRequest = (fetchMock, index = 0) => {
+    const url = new URL(
+        fetchMock.mock.calls.filter(([target]) =>
+            target.includes('/api/site-review/review'),
+        )[index][0],
+    );
+
+    return {
+        scope: url.searchParams.get('scope'),
+        context: url.searchParams.get('context'),
+    };
+};
+
+const SESSION_CARDS_KEY = `loupe-site-review:session-cards:${BACKEND}:${PROJECT}`;
+
+describe('the scope of the list request', () => {
+    it('names the locked card, and still asks when that card is gone', async () => {
+        const fetchMock = bootWidget({
+            context: `card:${CARD}`,
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+
+        expect(listRequest(fetchMock)).toEqual({
+            scope: `card:${CARD}`,
+            context: `card:${CARD}`,
+        });
+        // A card the server does not know reads as a broken lock.
+        expect(openNote().getElementById('lp-sub').textContent).toContain(
+            'closed or gone',
+        );
+    });
+
+    it('names the card of a one-card review', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+
+        expect(listRequest(fetchMock).scope).toBe(`card:${CARD}`);
+    });
+
+    it('names the epic of an epic review', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'epic', cardId: CARD },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+
+        expect(listRequest(fetchMock).scope).toBe(`epic:${CARD}`);
+    });
+
+    it('lists the newest 50 cards of a tab in a per-note review', async () => {
+        const ids = Array.from({ length: 60 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+
+        expect(listRequest(fetchMock)).toEqual({
+            scope: `cards:${ids.slice(0, 50).join(',')}`,
+            context: null,
+        });
+    });
+
+    it('keeps the card of each save in session storage, never in local storage', async () => {
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: (url, init) =>
+                init.method === 'POST'
+                    ? ok({
+                          commentId: 'c1',
+                          cardId: 'made-1',
+                          number: 3,
+                          label: '#3 A note',
+                          url: null,
+                      })
+                    : ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'A note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(feedbackSave(fetchMock)).not.toBeNull();
+        expect(
+            JSON.parse(window.sessionStorage.getItem(SESSION_CARDS_KEY)),
+        ).toEqual(['made-1']);
+        expect(window.localStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
+    });
+
+    const madeCard = (cardId) =>
+        ok({ commentId: 'c1', cardId, number: 3, label: '#3', url: null });
+
+    it('keeps a save to a locked card out of the per-note list', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            mode: { mode: 'per-note', cardId: null },
+            respond: (url, init) =>
+                init.method === 'POST'
+                    ? madeCard(CARD)
+                    : ok({
+                          comments: [],
+                          context: { label: '#7 Preview', url: null },
+                      }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'A note on the preview');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
+    });
+
+    it('keeps a save out of the list when the scope changed before its answer', async () => {
+        let release;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Saved before the page changed');
+        fetchMock.mockImplementation((url, init) =>
+            init.method === 'POST'
+                ? new Promise((resolve) => (release = resolve))
+                : ok({ comments: [], context: null }),
+        );
+        root.getElementById('lp-save').click();
+        await settle();
+        expect(release).toBeTypeOf('function');
+
+        document
+            .querySelector('script[src*="site-review/widget.js"]')
+            .setAttribute('data-context', `card:${CARD}`);
+        window.history.pushState({}, '', '/preview');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await settle();
+        release(madeCard('made-late'));
+        await settle();
+
+        expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
+    });
+
+    const listedBodies = () =>
+        [...panelRoot().querySelectorAll('#lp-list .lp-item')].map(
+            (node) =>
+                node.querySelector('.lp-item-body, p')?.textContent ??
+                node.textContent,
+        );
+
+    it('asks again when a save pushes a card out of the 50 it sends', async () => {
+        const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: (url, init) => {
+                if (init.method === 'POST') return madeCard('made-new');
+                // card-49 holds the old note, and made-new holds the new one.
+                const scope = new URL(url).searchParams.get('scope');
+                const rows = [];
+                if (scope.includes('card-49,') || scope.endsWith('card-49')) {
+                    rows.push({
+                        id: 'old',
+                        body: 'Old note',
+                        url: window.location.href,
+                        anchors: [],
+                    });
+                }
+                if (scope.includes('made-new')) {
+                    rows.push({
+                        id: 'c1',
+                        body: 'New note',
+                        url: window.location.href,
+                        anchors: [],
+                    });
+                }
+                return ok({ comments: rows, context: null });
+            },
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'New note');
+        root.getElementById('lp-save').click();
+        await settle();
+
+        expect(listRequest(fetchMock, 1).scope).toBe(
+            `cards:${['made-new', ...ids.slice(0, 49)].join(',')}`,
+        );
+        const listed = listedBodies().join(' ');
+        expect(listed).toContain('New note');
+        expect(listed).not.toContain('Old note');
+    });
+
+    it('deletes only the notes of the scope while the list reloads', async () => {
+        const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const old = {
+            id: 'old',
+            body: 'Old note',
+            url: window.location.href,
+            anchors: [],
+        };
+        const fresh = {
+            id: 'c1',
+            body: 'New note',
+            url: window.location.href,
+            anchors: [],
+        };
+        let release = null;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [old], context: null }),
+        });
+        await settle();
+        fetchMock.mockImplementation((url, init) => {
+            if (init.method === 'POST') return madeCard('made-new');
+            if (init.method === 'DELETE') return ok({});
+            return new Promise((resolve) => {
+                release = () =>
+                    resolve(ok({ comments: [fresh], context: null }));
+            });
+        });
+        const root = openNote();
+        await write(root, 'New note');
+        root.getElementById('lp-save').click();
+        await settle();
+        expect(release).toBeTypeOf('function');
+
+        root.getElementById('lp-clear').click();
+        root.getElementById('lp-clear-yes').click();
+        await settle();
+        release();
+        await settle();
+
+        const deleted = fetchMock.mock.calls
+            .filter(([, init]) => init && init.method === 'DELETE')
+            .map(([url]) => url.split('/').pop());
+        expect(deleted).toEqual(['c1']);
+    });
+
+    it('deletes nothing until a scoped read follows a failed reload', async () => {
+        const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+        window.sessionStorage.setItem(SESSION_CARDS_KEY, JSON.stringify(ids));
+        const old = {
+            id: 'old',
+            body: 'Old note',
+            url: window.location.href,
+            anchors: [],
+        };
+        const fresh = {
+            id: 'c1',
+            body: 'New note',
+            url: window.location.href,
+            anchors: [],
+        };
+        let listFails = true;
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [old], context: null }),
+        });
+        await settle();
+        fetchMock.mockImplementation((url, init) => {
+            if (init.method === 'POST') return madeCard('made-new');
+            if (init.method === 'DELETE') return ok({});
+            return listFails
+                ? rejected(500, {})
+                : ok({ comments: [fresh], context: null });
+        });
+        const root = openNote();
+        await write(root, 'New note');
+        root.getElementById('lp-save').click();
+        await settle();
+        expect(listedBodies().join(' ')).not.toContain('Old note');
+        expect(listedBodies().join(' ')).toContain('New note');
+        expect(panelRoot().getElementById('lp-launch-count').textContent).toBe(
+            '1',
+        );
+
+        const deletes = () =>
+            fetchMock.mock.calls
+                .filter(([, init]) => init && init.method === 'DELETE')
+                .map(([url]) => url.split('/').pop());
+        root.getElementById('lp-clear').click();
+        root.getElementById('lp-clear-yes').click();
+        await settle();
+        expect(deletes()).toEqual([]);
+        expect(root.getElementById('lp-list-error').textContent).toContain(
+            'nothing was deleted',
+        );
+
+        listFails = false;
+        root.getElementById('lp-clear').click();
+        root.getElementById('lp-clear-yes').click();
+        await settle();
+        expect(deletes()).toEqual(['c1']);
+    });
+
+    it('asks again when a save lands while the list still loads', async () => {
+        const OTHER = '01a0cafe-0000-7000-8000-000000000002';
+        let saved = false;
+        let release = null;
+        const row = {
+            id: 'c1',
+            body: 'Saved while loading',
+            url: window.location.href,
+            anchors: [],
+        };
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        await write(root, 'Saved while loading');
+        fetchMock.mockImplementation((url, init) => {
+            if (init.method === 'POST') {
+                saved = true;
+                return madeCard(OTHER);
+            }
+            if (!url.includes('/api/site-review/review')) {
+                return ok({ comments: [], context: null });
+            }
+            // The first list request of the new page answers last, with a
+            // snapshot from before the save.
+            if (release === null) {
+                return new Promise((resolve) => {
+                    release = () =>
+                        resolve(
+                            ok({
+                                comments: [],
+                                context: { label: '#8', url: null },
+                            }),
+                        );
+                });
+            }
+            return ok({
+                comments: saved ? [row] : [],
+                context: { label: '#8', url: null },
+            });
+        });
+        document
+            .querySelector('script[src*="site-review/widget.js"]')
+            .setAttribute('data-context', `card:${OTHER}`);
+        window.history.pushState({}, '', '/preview');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await settle();
+        expect(release).toBeTypeOf('function');
+
+        root.getElementById('lp-save').click();
+        await settle();
+        release();
+        await settle();
+
+        expect(listedBodies().join(' ')).toContain('Saved while loading');
+    });
+
+    it('forgets the cards of a tab when the destination changes', async () => {
+        window.sessionStorage.setItem(
+            SESSION_CARDS_KEY,
+            JSON.stringify(['old-1']),
+        );
+        const fetchMock = bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        root.getElementById('lp-context').querySelector('button').click();
+        root.querySelector('[data-mode="per-note"]').click();
+        await settle();
+        // The same destination keeps the list.
+        expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).not.toBeNull();
+
+        root.getElementById('lp-context').querySelector('button').click();
+        root.querySelector('[data-mode="per-review"]').click();
+        await settle();
+        root.getElementById('lp-picker-title').value = 'Review: /';
+        root.getElementById('lp-picker-create').click();
+        await settle();
+
+        expect(window.sessionStorage.getItem(SESSION_CARDS_KEY)).toBeNull();
+        expect(fetchMock).toHaveBeenCalled();
+    });
+});
+
+describe('the panel views', () => {
+    const row = (id, body, url) => ({ id, body, url, anchors: [] });
+
+    it('opens the destination over the note and returns to it', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        expect(viewOf(root)).toBe('compose');
+
+        root.getElementById('lp-context').querySelector('button').click();
+        expect(viewOf(root)).toBe('destination');
+        // Only the current view takes focus and the accessibility tree.
+        expect(
+            root.getElementById('lp-view-compose').hasAttribute('inert'),
+        ).toBe(true);
+        expect(
+            root.getElementById('lp-view-destination').hasAttribute('inert'),
+        ).toBe(false);
+
+        root.getElementById('lp-destination-back').click();
+        expect(viewOf(root)).toBe('compose');
+        root.getElementById('lp-compose-back').click();
+        expect(viewOf(root)).toBe('list');
+    });
+
+    it('groups the list by page, current page first, and numbers it so', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () =>
+                ok({
+                    comments: [
+                        row('c1', 'Elsewhere', 'https://elsewhere.test/a'),
+                        row('c2', 'Here', window.location.href),
+                    ],
+                    context: null,
+                }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+
+        const rows = [...root.querySelectorAll('#lp-list .lp-item')];
+        expect(rows.map((node) => node.textContent)).toEqual([
+            expect.stringContaining('Here'),
+            expect.stringContaining('Elsewhere'),
+        ]);
+        expect(
+            rows.map((node) => node.querySelector('.lp-badge').textContent),
+        ).toEqual(['1', '2']);
+        expect(
+            [...root.querySelectorAll('#lp-list .lp-section')].map(
+                (node) => node.textContent,
+            ),
+        ).toEqual(['On this page1', 'Other pages1']);
+    });
+
+    it('names the card and its pull request in the header of a lock', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            respond: (url) =>
+                url.includes('/verdict')
+                    ? ok({
+                          connection: { state: 'connected' },
+                          pullRequests: [
+                              {
+                                  id: 'p1',
+                                  label: 'acme/site#88',
+                                  ownPullRequest: false,
+                              },
+                          ],
+                          notes: [],
+                          preview: {},
+                          latestVerdict: {
+                              id: 'v1',
+                              kind: 'request-changes',
+                              message: '',
+                              createdAt: '2026-10-08T10:00:00+00:00',
+                              deliveries: [],
+                          },
+                      })
+                    : ok({
+                          comments: [],
+                          context: {
+                              label: '#412 Fix the redirect',
+                              url: 'https://loupe.example/c',
+                          },
+                      }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+
+        expect(root.getElementById('lp-title').textContent).toBe(
+            '#412 Fix the redirect',
+        );
+        expect(root.getElementById('lp-sub').textContent).toBe(
+            'PR #88 · Changes requested',
+        );
+        expect(root.getElementById('lp-finish').textContent).toBe(
+            'Finish review',
+        );
+    });
+
+    it('offers to open a card that has no pull request', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            respond: (url) =>
+                url.includes('/verdict')
+                    ? ok({
+                          connection: { state: 'none' },
+                          pullRequests: [],
+                          notes: [],
+                          preview: {},
+                          latestVerdict: null,
+                      })
+                    : ok({
+                          comments: [row('c1', 'A note', window.location.href)],
+                          context: {
+                              label: '#418 Group the board',
+                              url: 'https://loupe.example/c',
+                          },
+                      }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+
+        expect(root.getElementById('lp-sub').textContent).toBe(
+            'No pull request yet · 1 note on this card',
+        );
+        expect(root.getElementById('lp-open-card').textContent).toContain(
+            'Open #418 in Loupe',
+        );
+        expect(root.getElementById('lp-finish')).toBeNull();
+    });
+
+    it('offers to open the card of a one-card review', async () => {
+        bootWidget({
+            mode: { mode: 'per-review', cardId: CARD },
+            respond: () =>
+                ok({
+                    comments: [],
+                    context: {
+                        label: '#420 Tidy the footer',
+                        url: 'https://loupe.example/c420',
+                    },
+                }),
+        });
+        await settle();
+        openPanel();
+        const link = panelRoot().getElementById('lp-open-card');
+
+        expect(link.textContent).toContain('Open #420 in Loupe');
+        expect(link.getAttribute('href')).toBe('https://loupe.example/c420');
+    });
+
+    it('offers no card to open in a review that sends notes to many cards', async () => {
+        bootWidget({
+            mode: { mode: 'epic', cardId: CARD },
+            respond: () =>
+                ok({
+                    comments: [],
+                    context: {
+                        label: '#421 The epic',
+                        url: 'https://loupe.example/c421',
+                    },
+                }),
+        });
+        await settle();
+        openPanel();
+
+        expect(panelRoot().getElementById('lp-open-card')).toBeNull();
+    });
+
+    it('focuses the destination button when the destination closes over the list', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+        const dest = root.getElementById('lp-dest');
+
+        dest.click();
+        expect(viewOf(root)).toBe('destination');
+        root.getElementById('lp-picker-close').click();
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(dest);
+
+        dest.click();
+        root.getElementById('lp-destination-back').click();
+        expect(root.activeElement).toBe(dest);
+    });
+
+    const escape = (node) =>
+        node.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                composed: true,
+            }),
+        );
+
+    it('focuses the destination button when Escape closes the destination over the list', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+        const dest = root.getElementById('lp-dest');
+
+        dest.click();
+        const choice = root.querySelector('#lp-picker-modes [data-mode]');
+        expect(root.activeElement).toBe(choice);
+        escape(choice);
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(dest);
+    });
+
+    it('focuses Finish review when Back or Escape closes its view', async () => {
+        bootWidget({
+            context: `card:${CARD}`,
+            respond: (url) =>
+                url.includes('/verdict')
+                    ? ok({
+                          connection: { state: 'connected' },
+                          pullRequests: [
+                              {
+                                  id: 'p1',
+                                  label: 'acme/site#88',
+                                  ownPullRequest: false,
+                              },
+                          ],
+                          notes: [],
+                          preview: {},
+                          latestVerdict: null,
+                      })
+                    : ok({
+                          comments: [],
+                          context: {
+                              label: '#412 Fix the redirect',
+                              url: 'https://loupe.example/c',
+                          },
+                      }),
+        });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+
+        root.getElementById('lp-finish').click();
+        await settle();
+        expect(viewOf(root)).toBe('finish');
+        root.getElementById('lp-finish-back').focus();
+        root.getElementById('lp-finish-back').click();
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(root.getElementById('lp-finish'));
+
+        root.getElementById('lp-finish').click();
+        await settle();
+        const back = root.getElementById('lp-finish-back');
+        back.focus();
+        escape(back);
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).toBe(root.getElementById('lp-finish'));
+    });
+
+    it('never leaves focus in a view that turned inert', async () => {
+        bootWidget({
+            mode: { mode: 'per-note', cardId: null },
+            respond: () => ok({ comments: [], context: null }),
+        });
+        await settle();
+        const root = openNote();
+        expect(root.activeElement).toBe(root.getElementById('lp-textarea'));
+
+        root.getElementById('lp-compose-back').focus();
+        root.getElementById('lp-compose-back').click();
+        expect(viewOf(root)).toBe('list');
+        expect(root.activeElement).not.toBeNull();
+        expect(
+            root.getElementById('lp-view-list').contains(root.activeElement),
+        ).toBe(true);
+    });
+
+    it('shows the plain sign-in view with three steps', async () => {
+        bootWidget({ signedIn: false, respond: () => ok({ comments: [] }) });
+        await settle();
+        openPanel();
+        const root = panelRoot();
+
+        expect(viewOf(root)).toBe('signin');
+        expect(
+            [...root.querySelectorAll('.lp-step')].map(
+                (node) => node.textContent,
+            ),
+        ).toEqual([
+            '1Point at anything on the page and write a note.',
+            '2Each note saves at once to a card on your Loupe board.',
+            '3Your agent picks the notes up and fixes them.',
+        ]);
+        expect(root.getElementById('lp-sign-in').textContent).toBe(
+            'Sign in with Loupe',
+        );
+        expect(root.getElementById('lp-launch-label').textContent).toBe(
+            'Sign in to review',
+        );
+    });
 });

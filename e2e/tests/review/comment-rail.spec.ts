@@ -339,7 +339,8 @@ test('the comment filter stays within narrow viewports', async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
         await filter.locator('summary').click();
         const menu = filter.locator('.lp-review-filter__menu');
-        await expect(menu).toBeVisible();
+        // The toggle event places the menu after the click returns.
+        await expect(menu).toHaveAttribute('data-placed', '');
         const bounds = await menu.boundingBox();
         expect(bounds).not.toBeNull();
         expect(bounds!.x).toBeGreaterThanOrEqual(0);
@@ -357,12 +358,14 @@ test('the comment filter stays within narrow viewports', async ({ page }) => {
         ).toBe(true);
         await page.keyboard.press('Escape');
         await expect(filter.locator('summary')).toBeFocused();
+        // A stale placement from this pass must not satisfy the next one.
+        await expect(menu).not.toHaveAttribute('data-placed');
     }
     await page.addStyleTag({ content: 'html { font-size: 200%; }' });
     await filter.locator('summary').click();
-    const enlargedBounds = (await filter
-        .locator('.lp-review-filter__menu')
-        .boundingBox())!;
+    const enlarged = filter.locator('.lp-review-filter__menu');
+    await expect(enlarged).toHaveAttribute('data-placed', '');
+    const enlargedBounds = (await enlarged.boundingBox())!;
     expect(enlargedBounds.x).toBeGreaterThanOrEqual(0);
     expect(enlargedBounds.x + enlargedBounds.width).toBeLessThanOrEqual(390);
 });

@@ -61,6 +61,55 @@ final class WidgetFileTest extends TestCase
         self::assertSame(2, substr_count($src, 'localStorage.setItem'));
     }
 
+    public function test_list_request_carries_the_scope_of_the_review(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        // The scope rides next to the context marker on every list request.
+        self::assertStringContainsString('encodeURIComponent(scope)', $src);
+        self::assertStringContainsString('const scope = scopeOf();', $src);
+        self::assertStringContainsString('return `card:${lock.cardId}`;', $src);
+        self::assertStringContainsString('return `epic:${target.cardId}`;', $src);
+        self::assertStringContainsString('return `cards:${sessionCards.slice(0, SESSION_CARDS_SENT).join(\',\')}`;', $src);
+
+        // The cards a tab made live in session storage, so a new tab starts
+        // empty. Local storage keeps its budget of two writes.
+        self::assertStringContainsString('`loupe-site-review:session-cards:${BACKEND}:${PROJECT}`', $src);
+        self::assertSame(2, substr_count($src, 'sessionStorage.setItem'));
+    }
+
+    public function test_panel_views_replace_the_old_flags(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        foreach (['state.composing', 'state.picking', 'state.listExpanded', 'verdict.open'] as $flag) {
+            self::assertStringNotContainsString($flag, $src, $flag);
+        }
+        foreach (['list', 'compose', 'finish', 'destination', 'signin'] as $view) {
+            self::assertStringContainsString('data-view="'.$view.'"', $src, $view);
+        }
+        // Views slide with transform and stay mounted, and reduced motion
+        // swaps them with no slide.
+        self::assertStringContainsString('transform:translateX(100%)', $src);
+        self::assertStringContainsString('prefers-reduced-motion:reduce', $src);
+    }
+
+    public function test_active_launcher_tool_shows_an_accent_disc_inside_the_button(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        // The padding insets the accent, so the disc sits inside the button
+        // and the click target keeps its full size.
+        self::assertMatchesRegularExpression('/^\s*\.lp-launch-action\.on,[^{]*\{[^}]*padding:[1-9]\d*px;[^}]*background-clip:content-box/m', $src);
+    }
+
+    public function test_launcher_tools_keep_the_prototype_click_target(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        self::assertMatchesRegularExpression('/^\s*\.lp-launch-action\{[^}]*width:36px;height:36px;/m', $src);
+    }
+
     public function test_every_widget_control_keeps_its_focus_ring(): void
     {
         $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');

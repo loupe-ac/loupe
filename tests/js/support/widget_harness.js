@@ -195,6 +195,7 @@ export function resetWidget(history) {
     cancelTimers();
     delete window.__loupeSiteReviewLoaded;
     window.localStorage.clear();
+    window.sessionStorage.clear();
     // jsdom keeps the URL between tests in a file, and the widget only reacts
     // to a change. A navigation test landing where a previous one left off saw
     // no change at all and passed or failed on test order.
