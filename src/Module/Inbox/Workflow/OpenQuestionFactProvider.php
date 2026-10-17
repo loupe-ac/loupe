@@ -11,6 +11,7 @@ use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\FactProvider;
 use Doctrine\ORM\EntityManagerInterface;
 
+/** An inbox that is off holds no open question, so a marker that waits on its absence still reads the card. */
 final readonly class OpenQuestionFactProvider implements FactProvider
 {
     public function __construct(
@@ -29,12 +30,15 @@ final readonly class OpenQuestionFactProvider implements FactProvider
     #[\Override]
     public function isOn(): bool
     {
-        return $this->availability->isEnabled();
+        return true;
     }
 
     #[\Override]
     public function build(CardSnapshot $card): object
     {
+        if (!$this->availability->isEnabled()) {
+            return new OpenQuestionFacts([]);
+        }
         $project = $this->em->getReference(Project::class, $card->projectId) ?? throw new \LogicException('The project is stored.');
         $rows = $this->inboxItems->findOpenAsksOfCards($project, [$card->id->toRfc4122()]);
 
