@@ -681,8 +681,9 @@ returns the suggestions. A `start-session` suggestion takes an optional
 blank one or one longer than the flag `inbox.session_prompt_max_length`, 2000
 characters by default. No other action takes a `prompt`. The owner reads the
 prompt in an editable field and can change it before the session starts. A
-to-do shows them in the split button of its reply
-card, as [the inbox page](inbox.md) says.
+to-do or a question shows them in the split button of its reply
+card, as [the inbox page](inbox.md) says. An item with no card can offer only
+`open`, and only when it links a document.
 Call `inbox_actions` for the list, with one line on each action. With a `cardId`
 it also says, for each action, whether it fits that card now.
 

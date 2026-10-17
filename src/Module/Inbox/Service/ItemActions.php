@@ -342,10 +342,10 @@ final readonly class ItemActions
         );
     }
 
-    /** The prompt that the asking agent suggested for the session of a to-do, or null. */
+    /** The prompt that the asking agent suggested for the session of a to-do or a question, or null. */
     public static function suggestedSessionPrompt(InboxItem $item): ?string
     {
-        return self::todoSuggestions($item)[InboxActionKind::StartSession->value]->prompt ?? null;
+        return self::askedSuggestions($item)[InboxActionKind::StartSession->value]->prompt ?? null;
     }
 
     /** The linked card that the stored suggestion of the kind names, or null. */
@@ -433,11 +433,11 @@ final readonly class ItemActions
     }
 
     /**
-     * The suggestions that the asking agent stored on a to-do, keyed by action. The to-do offers only these.
+     * The suggestions that the asking agent stored on a to-do or a question, keyed by action.
      *
      * @return array<string, SuggestedAction>
      */
-    private static function todoSuggestions(InboxItem $item): array
+    private static function askedSuggestions(InboxItem $item): array
     {
         $suggestions = [];
         foreach ($item->suggestedActions ?? [] as $stored) {
@@ -457,7 +457,7 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
-        if (!\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Todo], true)) {
+        if (InboxItemKind::Wait !== $item->kind && !self::carriesAsked($item)) {
             return null;
         }
 
@@ -467,7 +467,7 @@ final readonly class ItemActions
             }
         }
 
-        if (InboxItemKind::Todo === $item->kind) {
+        if (InboxItemKind::Wait !== $item->kind) {
             return null;
         }
 
@@ -494,7 +494,13 @@ final readonly class ItemActions
      */
     private function suggestionsOf(InboxItem $item, array $waits, array $runs): array
     {
-        return InboxItemKind::Todo === $item->kind ? self::todoSuggestions($item) : self::suggestions($waits, $runs);
+        return self::carriesAsked($item) ? self::askedSuggestions($item) : self::suggestions($waits, $runs);
+    }
+
+    /** A to-do or a question carries the suggestions of its asking agent. A to-do offers only those, and never Dismiss. */
+    private static function carriesAsked(InboxItem $item): bool
+    {
+        return \in_array($item->kind, [InboxItemKind::Todo, InboxItemKind::Question], true);
     }
 
     /**
