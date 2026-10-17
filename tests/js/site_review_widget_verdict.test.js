@@ -174,9 +174,8 @@ describe('Finish review view', () => {
         await settle();
 
         expect(panelRoot().getElementById('lp-finish-sub').textContent).toBe(
-            '#7 Preview card',
+            '#7 Preview card · PR #12',
         );
-        expect(form().textContent).toContain('acme/site#12');
         expect(form().textContent).toContain('Posts your verdict.');
         expect(sent(fetchMock)).toEqual([]);
     });
@@ -267,8 +266,22 @@ describe('Finish review view', () => {
                 submissionId: expect.stringMatching(UUID),
             },
         ]);
-        expect(savedNotice()).toBe('Sent to the workflow');
+        expect(savedNotice()).toBe('Review sent to GitHub: approved');
         expect(view()).toBe('list');
+    });
+
+    it('names GitHub in the sent notice only when the verdict posts a review', async () => {
+        boot({
+            verdict: verdictAnswer({ preview: { approve: { actions: [] } } }),
+        });
+        await settle();
+        openPanel();
+        press('Approve');
+        await settle();
+        sendButton().click();
+        await settle();
+
+        expect(savedNotice()).toBe('Review sent: approved');
     });
 
     it.each(['Request changes', 'Comment'])(
@@ -310,7 +323,7 @@ describe('Finish review view', () => {
         press(name);
         await settle();
 
-        expect(form().textContent).toContain('1 note goes with this review');
+        expect(form().textContent).toContain('Notes in this review · 1');
         expect(form().textContent).toContain('Heading is cut off');
         expect(
             panelRoot().querySelector('label[for="lp-verdict-message"]')
@@ -374,7 +387,7 @@ describe('Finish review view', () => {
         press('Approve');
         await settle();
 
-        expect(form().textContent).toContain('2 notes are still open');
+        expect(form().textContent).toContain('Notes still open · 2');
         expect(sendButton().disabled).toBe(false);
     });
 
@@ -532,7 +545,7 @@ describe('connecting GitHub', () => {
         expect(sendButton()).toBeNull();
         expect(
             panelRoot().getElementById('lp-verdict-connect').textContent,
-        ).toBe('Connect GitHub to send this review');
+        ).toBe('Connect GitHub to send');
     });
 
     it('keeps Send when the verdict writes nothing to GitHub', async () => {
