@@ -1248,7 +1248,7 @@ test('Delete all from the header menu confirms, names the count, then deletes', 
     await chooseHeadMenuItem(page, 'Delete all 2 notes…');
     const confirm = page.locator('#lp-clear-confirm-text');
     await expect(confirm).toHaveText(
-        'Delete all 2 notes? Notes on other cards stay.',
+        'Delete all 2 notes? This deletes them on every card they belong to.',
     );
 
     await page.locator('#lp-clear-cancel').click();
