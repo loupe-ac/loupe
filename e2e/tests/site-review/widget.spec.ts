@@ -2959,7 +2959,7 @@ const waitForInk = async (page: Page): Promise<Ink> => {
 };
 
 /**
- * The draw toast animates from its `top: 18px` home down to the bottom dock over
+ * The draw toast animates from its `top: 20px` home down to the bottom dock over
  * 220ms when draw mode opens, because a launcher in a top corner makes
  * `toastHome()` return 'bottom'. A press that lands while it crosses the
  * stroke's start point hits the toast, so the canvas gets no pointerdown,
