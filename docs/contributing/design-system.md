@@ -354,6 +354,27 @@ The command never writes `_ds_bundle.js`, `_ds_manifest.json`, `_adherence.oxlin
 
 The command does not copy icons. A wrapper that needs icons draws them as inline SVG, as the AppShell wrapper does.
 
+### The starter canvas
+
+A second Claude Design project, "Loupe Starter Canvas", is the starting point of a product design session. The `.loupe/lifecycle.md` file names it. The design system project mirrors the design system, and the starter project holds the full app stylesheet and the page shells.
+
+Run this command to write the starter into a directory:
+
+```bash
+bin/console app:design-system:export-starter <dir>
+```
+
+| Path | What it holds |
+|---|---|
+| `styles/app.css` | The Tailwind build of the app stylesheet. It imports `styles/app-1.css` and the parts after it, each 200 KB or less |
+| `assets/fonts/` | The font files |
+| `App frame.dc.html`, `Document review.dc.html`, `Board.dc.html`, `Card page.dc.html`, `Inbox.dc.html` and `Settings.dc.html` | One shell for each main page, with one empty element that carries `data-starter-slot` |
+| `starter.json` | The SHA-256 hash of each file, so a rebuild writes only the files that changed |
+
+A person writes the shells by hand as Twig templates from the design system components. The export does not capture real pages. When a page changes, edit its shell too.
+
+The `loupe-design-rebuild` skill writes the starter in its second part. A session copies the files it needs on the Claude Design server and builds each option in the slot.
+
 ## The rules
 
 1. Write no arbitrary value. Use a token or a named Tailwind scale step. `NoArbitraryValuesCheck` enforces this in `just gamache`.

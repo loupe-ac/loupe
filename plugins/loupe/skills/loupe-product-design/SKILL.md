@@ -13,12 +13,12 @@ Move the card only in P0. Never move it when you stop, and never move it after P
 
 P0 opens an interactive run on the card with `card_run_open`. Close the run with `card_run_close` in P10. When you stop at any other point after P0, call `card_run_close` before you stop.
 
-`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Claude Design rules C1 to C9.
+`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Claude Design rules C1 to C10.
 
 ## Procedure
 
 1. Load the `loupe-board` and `loupe-documents` instructions.
-2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, and the design system entry. When the file is missing, write plainly, and ask the owner about docs in P6.
+2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, the design system entry, and the name of the Claude Design starter project. When the profile names no starter, read the name from the agent instructions, such as `AGENTS.md`. C10 uses that name. When the file is missing, write plainly, and ask the owner about docs in P6.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
 4. Read `references/session-flow.md`, `references/question-rules.md` and `references/claude-design.md`. Follow them for the whole session.
 5. With a card, call `card_get`. Read the tags of each linked document with `document_get`, before any move. The product document has the tag `product-design`, or a title that starts `Product design`.

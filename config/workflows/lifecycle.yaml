@@ -50,6 +50,7 @@ rules:
                   - The Loupe plugin skills are installed for the agent
                   - When the project has a user interface, a design system that an agent can read, such as design tokens, a component catalog, a styleguide page, or a Claude Design project that the agent instructions name as its home
                   - When the project has a user interface, a Claude Design project that holds or mirrors the design system, named in .loupe/lifecycle.md or the agent instructions
+                  - When the project has a Claude Design project that mirrors its design system, a starter Claude Design project for product design sessions, named in .loupe/lifecycle.md or the agent instructions
 
     - id: product-design-revise
       slot: product-design

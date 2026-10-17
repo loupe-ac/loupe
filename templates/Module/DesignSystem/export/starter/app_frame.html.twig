@@ -1,0 +1,7 @@
+{# twig-cs-fixer-disable #}{% extends '@DesignSystem/export/starter/_shell.html.twig' %}
+
+{% block active_nav 'board' %}
+
+{% block topbar_lead %}<twig:Ds:Breadcrumbs :items="[{label: 'Board'}]" />{% endblock %}
+
+{% block main %}<main id="main-content" class="lp-main lp-main--app" tabindex="-1" data-starter-slot></main>{% endblock %}
