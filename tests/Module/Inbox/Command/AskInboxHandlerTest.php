@@ -152,6 +152,18 @@ final class AskInboxHandlerTest extends KernelTestCase
         self::assertNull($this->em->find(WorkerRun::class, $run->id)?->waitsOnAskId);
     }
 
+    public function test_an_ask_of_another_session_on_the_same_bridge_records_nothing(): void
+    {
+        [$project, $card, $run, , $bridgeId] = $this->runningWorker('ask-handler-other-session');
+
+        $this->handler($this->em)(new AskInboxCommand($project, Uuid::v4(), [
+            new AskInboxItem(InboxItemKind::Question, 'Which column?', freeText: true, cardIds: [(string) $card->id]),
+        ], $bridgeId));
+
+        $this->em->clear();
+        self::assertNull($this->em->find(WorkerRun::class, $run->id)?->waitsOnAskId);
+    }
+
     public function test_a_run_that_has_stopped_records_no_ask(): void
     {
         [$project, $card, $run, $sessionId, $bridgeId] = $this->runningWorker('ask-handler-stopped');
