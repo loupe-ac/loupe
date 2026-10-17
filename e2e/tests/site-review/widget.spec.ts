@@ -829,9 +829,7 @@ test('a comment the agent already addressed can no longer be edited', async ({
     const panel = page.locator('#lp-panel');
     await clickSave(page);
 
-    await expect(
-        panel.getByText(/already picked that comment up/i),
-    ).toBeVisible();
+    await expect(panel.getByText(/already picked that note up/i)).toBeVisible();
     await expect(page.locator('#lp-launch-count')).toBeHidden();
 
     // Pressing Save again must repeat the refusal. The reconcile already dropped
@@ -839,9 +837,7 @@ test('a comment the agent already addressed can no longer be edited', async ({
     // exactly where a blanket "saved" toast would lie. Nothing goes out, so this
     // is the one Save that cannot wait for a response.
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(
-        panel.getByText(/already picked that comment up/i),
-    ).toBeVisible();
+    await expect(panel.getByText(/already picked that note up/i)).toBeVisible();
     await expect(page.locator('#lp-saved')).toBeHidden();
     await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
         'Too late',
