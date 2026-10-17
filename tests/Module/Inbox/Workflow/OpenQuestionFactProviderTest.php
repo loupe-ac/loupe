@@ -24,6 +24,7 @@ final class OpenQuestionFactProviderTest extends KernelTestCase
     {
         self::bootKernel();
         $this->card = $this->stateCard($this->stateProject('inbox-question'));
+        $this->setInboxFlag(true);
     }
 
     public function test_the_oldest_open_question_that_names_the_card_is_the_fact(): void
@@ -88,18 +89,13 @@ final class OpenQuestionFactProviderTest extends KernelTestCase
         self::assertSame([], $this->provider()->fingerprint($this->build()));
     }
 
-    public function test_the_provider_is_on_while_the_inbox_is_on(): void
+    public function test_an_inbox_that_is_off_gives_no_open_question_so_the_markers_that_read_it_still_show(): void
     {
-        $this->setInboxFlag(true);
-
-        self::assertTrue($this->provider()->isOn());
-    }
-
-    public function test_the_provider_is_off_while_the_inbox_is_off(): void
-    {
+        $this->askOwner($this->card);
         $this->setInboxFlag(false);
 
-        self::assertFalse($this->provider()->isOn());
+        self::assertTrue($this->provider()->isOn());
+        self::assertSame([], $this->build()->questions);
     }
 
     private function setInboxFlag(bool $enabled): void

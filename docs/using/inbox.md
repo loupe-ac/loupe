@@ -286,6 +286,18 @@ these cases:
 - The workflow paused the card. The wait names the reason code of the pause,
   and it ends when the pause is released. A new pause starts a new wait.
 
+A worker can ask a blocking question about its own card and then stop. The
+question is the item that you act on, and your answer resumes the worker. Loupe
+therefore opens no wait item for that stop or for its pause. It holds the wait
+item back while the question is open, and for 10 minutes after your answer, so
+that the bridge can resume the worker. The 10 minutes count from your answer, or
+from the end of the run when the worker was still running at your answer. When
+the bridge cannot resume the worker, Loupe opens the wait item at once. When no
+new run starts within the 10 minutes, Loupe opens it at its next card check,
+which runs every 15 minutes. The item can therefore show up to 25 minutes after
+your answer or the end of the run, whichever comes later. A question on another
+card, a question that does not block, and a to-do hold nothing back.
+
 With these templates, the app publishes the draft after its agent review, so the
 item for a design opens then, and not when the writer ends. A draft that you
 publish or review yourself opens it at once. See
@@ -389,7 +401,10 @@ An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
 that carries suggestions shows a reply card with a split button, beside Decline
 and Mark done. The button offers the suggested actions that fit the to-do now,
 and the recommended one is the main action. A to-do with no suggestion that
-fits shows no split button. See [MCP](mcp.md#what-the-tools-do).
+fits shows no split button. A question works the same way, with its split button
+under the answer form. A question offers only the actions that its agent
+suggested, because a worker waits for the answer. An action on a question does not
+answer it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to

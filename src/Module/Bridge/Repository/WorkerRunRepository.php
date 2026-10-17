@@ -1187,7 +1187,7 @@ class WorkerRunRepository extends ServiceEntityRepository
      *
      * @param list<Uuid>|null $cardIds
      *
-     * @return list<array{id: string, card_id: string, state: string, output: string}>
+     * @return list<array{id: string, card_id: string, state: string, output: string, waits_on_ask_id: ?string, ended_at: ?string}>
      */
     public function findLatestRunRows(Project $project, ?array $cardIds): array
     {
@@ -1204,10 +1204,10 @@ class WorkerRunRepository extends ServiceEntityRepository
             $types['cards'] = ArrayParameterType::STRING;
         }
 
-        /** @var list<array{id: string, card_id: string, state: string, output: string}> $rows */
+        /** @var list<array{id: string, card_id: string, state: string, output: string, waits_on_ask_id: ?string, ended_at: ?string}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
             <<<SQL
-                SELECT DISTINCT ON (r.subject_id) r.id, r.subject_id AS card_id, r.state, r.output
+                SELECT DISTINCT ON (r.subject_id) r.id, r.subject_id AS card_id, r.state, r.output, r.waits_on_ask_id, r.ended_at
                 FROM bridge_worker_runs r
                 WHERE r.project_id = :project AND r.subject_type = 'card' {$cardFilter}
                 ORDER BY r.subject_id, r.received_at DESC, r.id DESC

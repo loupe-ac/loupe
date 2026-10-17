@@ -394,6 +394,11 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         foreach ([$one, $two, $none] as $item) {
             $this->em()->persist($item);
         }
+        $one->suggestedActions = [
+            ['action' => 'send-agent', 'reason' => 'Fix it.', 'recommended' => false, 'cardId' => null],
+            ['action' => 'open', 'reason' => 'Read it.', 'recommended' => false, 'cardId' => null],
+            ['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null],
+        ];
         $one->cards->add(new InboxItemCard($one, $this->card));
         $two->cards->add(new InboxItemCard($two, $this->card));
         $two->cards->add(new InboxItemCard($two, $other));

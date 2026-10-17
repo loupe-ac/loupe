@@ -12,7 +12,11 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
 use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
+use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\ValueObject\BridgeCommandCause;
+use App\Module\Bridge\ValueObject\BridgeCommandKind;
+use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
@@ -1256,6 +1260,160 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $watch = $this->onlyWatch();
         self::assertSame(InboxItemState::Obsolete, $watch->item->state);
         self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($watch)->endReason);
+    }
+
+    public function test_a_stopped_run_whose_open_question_stands_for_the_stop_opens_no_wait(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(null));
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_the_stop_waits_again_when_the_run_no_longer_names_its_question(): void
+    {
+        $run = $this->stoppedRunAsking($this->waitedOnAsk(null));
+        $run->waitsOnAskId = null;
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertCount(2, $this->openWaits($this->onlyWatch()));
+    }
+
+    public function test_a_question_that_closed_lately_still_stands_for_the_stop_while_the_bridge_resumes(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-9 minutes')));
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_the_stop_waits_when_no_resume_came_ten_minutes_after_the_answer(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-11 minutes')));
+
+        $this->reconcile();
+
+        self::assertCount(2, $this->openWaits($this->onlyWatch()));
+    }
+
+    /** @return iterable<string, array{BridgeCommandState, string, bool}> */
+    public static function resumeCommandPhases(): iterable
+    {
+        yield 'a pending resume inside the ten minutes' => [BridgeCommandState::Pending, '-5 minutes', false];
+        yield 'a done resume before the new run reports' => [BridgeCommandState::Done, '-5 minutes', false];
+        yield 'a pending resume after the ten minutes' => [BridgeCommandState::Pending, '-11 minutes', true];
+        yield 'a done resume after the ten minutes with no new run' => [BridgeCommandState::Done, '-11 minutes', true];
+    }
+
+    #[DataProvider('resumeCommandPhases')]
+    public function test_the_resume_command_does_not_move_the_ten_minutes(BridgeCommandState $state, string $answeredAt, bool $waits): void
+    {
+        $closedAt = new \DateTimeImmutable($answeredAt);
+        $run = $this->stoppedRunAsking($this->waitedOnAsk($closedAt));
+        $command = new BridgeCommand($this->project->owner, $run->bridgeId ?? throw new \LogicException('Has a bridge.'), $this->project, $run, BridgeCommandKind::ResumeRun, null, $closedAt, $closedAt->modify('+15 minutes'), cause: BridgeCommandCause::AskClosed);
+        if (BridgeCommandState::Pending !== $state) {
+            $command->settle($state, null, $closedAt->modify('+1 minute'));
+        }
+        $this->em->persist($command);
+        $this->em->flush();
+
+        $this->reconcile();
+
+        if ($waits) {
+            self::assertCount(2, $this->openWaits($this->onlyWatch()));
+        } else {
+            self::assertSame([], $this->watches());
+        }
+    }
+
+    public function test_the_ten_minutes_count_from_the_end_of_a_run_that_ended_after_the_answer(): void
+    {
+        $run = $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-30 minutes')));
+        $run->endedAt = new \DateTimeImmutable('-1 minute');
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_pause_of_another_kind_still_waits_while_the_question_stands_for_the_stop(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(null), PauseKind::Rule);
+
+        $this->reconcile();
+
+        $wait = $this->onlyWait($this->onlyWatch());
+        self::assertSame(InboxCardWaitTrigger::CardPaused, $wait->trigger);
+    }
+
+    public function test_a_run_end_reported_before_the_pause_opens_no_wait_at_either_report(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Running, '');
+        $run->waitsOnAskId = $this->waitedOnAsk(null)->id;
+        $this->em->flush();
+
+        $this->endRun($run);
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+
+        $this->pauseCard();
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_pause_reported_before_the_run_end_opens_no_wait_at_either_report(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Running, '');
+        $run->waitsOnAskId = $this->waitedOnAsk(null)->id;
+        $this->em->flush();
+
+        $this->pauseCard();
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+
+        $this->endRun($run);
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+    }
+
+    private function endRun(WorkerRun $run): void
+    {
+        $run->moveTo(WorkerRunState::Blocked);
+        $run->endedAt = new \DateTimeImmutable();
+        $this->em->flush();
+    }
+
+    private function pauseCard(PauseKind $pause = PauseKind::WorkStopped): void
+    {
+        $handler = self::getContainer()->get(PauseCardHandler::class);
+        self::assertInstanceOf(PauseCardHandler::class, $handler);
+        $handler(new PauseCardCommand($this->card, 'stopped', 'review', $pause));
+    }
+
+    /** A blocked run that records the ask, and the work-stopped pause the engine opens for it. */
+    private function stoppedRunAsking(InboxAsk $ask, PauseKind $pause = PauseKind::WorkStopped): WorkerRun
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, 'Asked the owner');
+        $run->waitsOnAskId = $ask->id;
+        $this->em->flush();
+        $this->pauseCard($pause);
+
+        return $run;
+    }
+
+    private function waitedOnAsk(?\DateTimeImmutable $closedAt): InboxAsk
+    {
+        $ask = new InboxAsk($this->project, Uuid::v7(), Uuid::v7());
+        $ask->closedAt = $closedAt;
+        $this->em->persist($ask);
+        $this->em->flush();
+
+        return $ask;
     }
 
     private function reconcile(): void

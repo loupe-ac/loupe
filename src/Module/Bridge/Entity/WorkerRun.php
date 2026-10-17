@@ -218,6 +218,13 @@ class WorkerRun implements ProjectScopedSubject
     #[ORM\Column(name: 'peak_context_tokens', type: Types::BIGINT, nullable: true)]
     public ?int $peakContextTokens = null;
 
+    /**
+     * The inbox ask whose blocking question about this run's card the worker asked. A plain id, because Bridge imports
+     * nothing from Inbox. The inbox opens no stop item for the run while the ask stands in for it.
+     */
+    #[ORM\Column(name: 'waits_on_ask_id', type: UuidType::NAME, nullable: true)]
+    public ?Uuid $waitsOnAskId = null;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false)]
         #[ORM\ManyToOne(targetEntity: Project::class)]

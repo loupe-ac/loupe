@@ -33,6 +33,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Entity\InboxProjectSettings;
 use App\Module\Inbox\InboxEventType;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Inbox\Repository\InboxReviewRepository;
@@ -41,6 +42,7 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\Tag;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\EpicBranches;
+use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Module\Workflow\Service\FactsBuilder;
 use App\Module\Workflow\Service\VerdictWouldFire;
@@ -58,6 +60,9 @@ use Symfony\Component\Uid\Uuid;
  */
 final readonly class CardWaitReconciler
 {
+    /** The time after an answer that the bridge has to resume the worker, before the stop opens its own item. */
+    private const string RESUME_GRACE = '+10 minutes';
+
     public function __construct(
         private EntityManagerInterface $em,
         private CardRepository $cards,
@@ -80,6 +85,7 @@ final readonly class CardWaitReconciler
         private CardDirectory $cardDirectory,
         private VerdictWouldFire $verdictWouldFire,
         private EpicBranches $epicBranches,
+        private InboxAskRepository $inboxAsks,
     ) {
     }
 
@@ -196,7 +202,9 @@ final readonly class CardWaitReconciler
     {
         $open = array_filter($cards, static fn (Card $card): bool => !$card->column->terminal);
         $cardIds = array_values(array_map(static fn (Card $card): Uuid => $card->id ?? throw new \LogicException('A stored card has an id.'), $open));
-        $candidates = [...$this->documentWaits($project, $cardIds), ...$this->runWaits($project, $cardIds), ...$this->pullRequestWaits($project, $cardIds), ...$this->pauseWaits($cardIds)];
+        $runRows = $this->workerRuns->findLatestRunRows($project, $cardIds);
+        $asking = $this->askingCards($runRows);
+        $candidates = [...$this->documentWaits($project, $cardIds), ...$this->runWaits($runRows, $asking), ...$this->pullRequestWaits($project, $cardIds), ...$this->pauseWaits($cardIds, $asking)];
         if ([] === $candidates) {
             return [];
         }
@@ -324,19 +332,54 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * The newest run of a card opens a wait when it needs a person.
+     * The cards whose newest run waits on its own question: the ask is open, or it closed lately and the bridge resumes the worker.
+     * The question is then the item the owner acts on, so the stop of the run opens no second one.
      *
-     * @param list<Uuid> $cardIds
+     * @param list<array{id: string, card_id: string, state: string, output: string, waits_on_ask_id: ?string, ended_at: ?string}> $runRows
+     *
+     * @return array<string, true> RFC 4122 card id => true
+     */
+    private function askingCards(array $runRows): array
+    {
+        $askIds = array_values(array_filter(array_column($runRows, 'waits_on_ask_id')));
+        if ([] === $askIds) {
+            return [];
+        }
+
+        $closedAt = $this->inboxAsks->findClosedAtByIds($askIds);
+        $now = self::now();
+        $asking = [];
+        foreach ($runRows as $row) {
+            $askId = null === $row['waits_on_ask_id'] ? null : Uuid::fromString($row['waits_on_ask_id'])->toRfc4122();
+            if (null === $askId || !\array_key_exists($askId, $closedAt)) {
+                continue;
+            }
+            $closed = $closedAt[$askId];
+            // The resume queues at the close, or at the end of a run that still ran then, whichever came last.
+            $since = null === $closed || null === $row['ended_at'] ? $closed : max($closed, new \DateTimeImmutable($row['ended_at']));
+            if (null === $since || $since->modify(self::RESUME_GRACE) > $now) {
+                $asking[Uuid::fromString($row['card_id'])->toRfc4122()] = true;
+            }
+        }
+
+        return $asking;
+    }
+
+    /**
+     * The newest run of a card opens a wait when it needs a person, unless its question stands for the stop.
+     *
+     * @param list<array{id: string, card_id: string, state: string, output: string, waits_on_ask_id: ?string, ended_at: ?string}> $runRows
+     * @param array<string, true>                                                                                                  $asking
      *
      * @return list<array{string, WantedCardWait}>
      */
-    private function runWaits(Project $project, array $cardIds): array
+    private function runWaits(array $runRows, array $asking): array
     {
         $waits = [];
-        foreach ($this->workerRuns->findLatestRunRows($project, $cardIds) as $row) {
+        foreach ($runRows as $row) {
             $cardId = Uuid::fromString($row['card_id'])->toRfc4122();
             $trigger = self::runTrigger($row['state']);
-            if (null === $trigger) {
+            if (null === $trigger || isset($asking[$cardId])) {
                 continue;
             }
             $waits[] = [$cardId, WantedCardWait::forRun($trigger, Uuid::fromString($row['id']))];
@@ -398,14 +441,18 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * @param list<Uuid> $cardIds
+     * @param list<Uuid>          $cardIds
+     * @param array<string, true> $asking  cards whose stopped worker waits on its own question, which holds back the pause of that stop
      *
      * @return list<array{string, WantedCardWait}>
      */
-    private function pauseWaits(array $cardIds): array
+    private function pauseWaits(array $cardIds, array $asking): array
     {
         $waits = [];
         foreach ($this->cardPauses->findActiveForCardIds($cardIds) as $cardId => $pause) {
+            if (PauseKind::WorkStopped === $pause->kind && isset($asking[Uuid::fromString($cardId)->toRfc4122()])) {
+                continue;
+            }
             $waits[] = [$cardId, WantedCardWait::forPause($pause)];
         }
 

@@ -676,8 +676,8 @@ actions are `resume-run`, `retry-card`, `review`, `open`, `send-agent`,
 repeated action, a second `recommended` action, or a `cardId` that the item
 does not link. It never checks that
 the action fits, because the fit changes while the item is open. `inbox_get`
-returns the suggestions. A to-do shows them in the split button of its reply
-card, as [the inbox page](inbox.md) says.
+returns the suggestions. A to-do or a question shows them in a split button,
+as [the inbox page](inbox.md) says. A question shows no other action.
 Call `inbox_actions` for the list, with one line on each action. With a `cardId`
 it also says, for each action, whether it fits that card now.
 
