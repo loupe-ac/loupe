@@ -26,7 +26,7 @@ final class AgentReviewSummaryTest extends TestCase
      *
      * @return DocumentAgentReviewSummary
      */
-    private function review(int $version, string $conclusion, array $findings = []): array
+    private function review(int $version, string $conclusion, array $findings = [], bool $needsPerson = false, bool $answered = true): array
     {
         return [
             'reviewId' => 'review-'.$version,
@@ -39,10 +39,10 @@ final class AgentReviewSummaryTest extends TestCase
                 'severity' => $finding[0],
                 'title' => 'Finding '.$index,
                 'body' => 'Body '.$index,
-                'needsPerson' => false,
+                'needsPerson' => $needsPerson,
                 'answer' => null === $finding[1] ? null : ['answer' => $finding[1], 'reason' => $finding[2] ?? null],
             ], $findings, array_keys($findings)),
-            'answered' => true,
+            'answered' => $answered,
             'answeredAt' => null,
             'createdAt' => '2026-10-16T10:00:00+00:00',
         ];
@@ -136,5 +136,30 @@ final class AgentReviewSummaryTest extends TestCase
         self::assertSame('passed', $result['state']);
         self::assertSame(['nit' => 1], $result['open']);
         self::assertSame('to-owner', $result['roundList'][0]['findings'][0]['status']);
+    }
+
+    public function test_a_publish_before_the_fix_round_answers_a_question_for_the_owner_is_skipped(): void
+    {
+        $result = $this->summary->summarize([$this->review(1, 'success', [['important', null]], needsPerson: true, answered: false)], DocumentStatus::InReview);
+
+        self::assertNotNull($result);
+        self::assertSame('skipped', $result['state']);
+        self::assertSame(['important' => 1], $result['open']);
+    }
+
+    public function test_a_passed_review_whose_question_for_the_owner_is_answered_passed(): void
+    {
+        $result = $this->summary->summarize([$this->review(1, 'success', [['important', 'to-owner']], needsPerson: true)], DocumentStatus::InReview);
+
+        self::assertNotNull($result);
+        self::assertSame('passed', $result['state']);
+    }
+
+    public function test_an_unanswered_passed_review_with_no_question_for_the_owner_passed(): void
+    {
+        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', null]], answered: false)], DocumentStatus::InReview);
+
+        self::assertNotNull($result);
+        self::assertSame('passed', $result['state']);
     }
 }

@@ -47,7 +47,7 @@ final readonly class AgentReviewSummary
 
         $failed = \count(array_filter($newestFirst, static fn (array $review): bool => 'success' !== $review['conclusion']));
         $state = match (true) {
-            'success' === $newestFirst[0]['conclusion'] => 'passed',
+            $this->loopPassed($newestFirst[0]) => 'passed',
             $failed >= self::FAILED_ROUND_LIMIT => 'failed',
             default => 'skipped',
         };
@@ -117,6 +117,21 @@ final readonly class AgentReviewSummary
             'open' => $this->orderedBySeverity($open),
             'roundList' => $roundList,
         ];
+    }
+
+    /**
+     * A passed review with a finding for the owner ends the loop only once its fix round
+     * answers. A publish before that answer skipped the loop.
+     *
+     * @param DocumentAgentReviewSummary $review
+     */
+    private function loopPassed(array $review): bool
+    {
+        if ('success' !== $review['conclusion']) {
+            return false;
+        }
+
+        return $review['answered'] || [] === array_filter($review['findings'], static fn (array $finding): bool => $finding['needsPerson']);
     }
 
     /**
