@@ -1432,6 +1432,32 @@ test('editing an anchored comment updates its body in place', async ({
     expect(persisted.map((comment) => comment.body)).toEqual(['Edited note']);
 });
 
+/**
+ * A new row slides in from the side. If the list could scroll sideways, a click
+ * that scrolled to the row menu would leave a scroll offset, and the clamp at the
+ * end of the slide fires the scroll that closes the menu just opened.
+ */
+test('a row sliding in never makes the list scroll sideways', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'A note that slides in', '1');
+
+    const row = page.locator('#lp-list .lp-item').first();
+    await row.evaluate((node) =>
+        node.getAnimations().forEach((animation) => {
+            animation.pause();
+            animation.currentTime = 0;
+        }),
+    );
+    const body = page.locator('#lp-body');
+    const overflow = await body.evaluate(
+        (node) => node.scrollWidth - node.clientWidth,
+    );
+    expect(overflow).toBe(0);
+});
+
 test('the pick-mode toast dodges away from the top edge', async ({ page }) => {
     await openHarness(page);
 
