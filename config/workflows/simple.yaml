@@ -1,5 +1,5 @@
 key: simple
-version: 4
+version: 5
 defaultType: feature
 epicBranch: 'epic/{number}'
 types:
@@ -39,7 +39,10 @@ markers:
       kind: stuck
       label: marker.paused
       remedy: marker.paused.remedy
-      when: { card.paused: {} }
+      when:
+          all:
+              - card.paused: {}
+              - not: { card.inbox.open_question: { blocking: true } }
     - key: run-stopped
       kind: stuck
       label: marker.run_stopped
@@ -51,6 +54,7 @@ markers:
                     any:
                         - card.run.work_active: {}
                         - card.run.worker_active: {}
+                        - card.inbox.open_question: { blocking: true }
     - key: checks-failed
       kind: stuck
       label: marker.checks_failed

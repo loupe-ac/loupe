@@ -140,6 +140,10 @@
                         </twig:Ds:Button>
                     </div>
                 {{ form_end(answerForm, {render_rest: false}) }}
+                {# An action does not answer the question, so the item stays open. #}
+                {% if item.kind.value == 'question' and open and item.suggestedActions is not empty and not inbox_actions(item, hostCardId ?? null).isEmpty %}
+                    {% include '@Inbox/_inbox_thread.html.twig' with {item: item, watch: null, inbox: inbox, refusedForm: refusedForm ?? null, actionParams: actionParams, responseFrame: responseFrame, hostCardId: hostCardId ?? null, cardDrawer: cardDrawer ?? false, reply: true} only %}
+                {% endif %}
             {% elseif item.kind.value == 'review' %}
                 {% if review and review.targetKind.value == 'pull-request' and review.pullRequest and safe_pull_request_url(review.pullRequest.url) %}
                     {% set reviewFormShown = true %}

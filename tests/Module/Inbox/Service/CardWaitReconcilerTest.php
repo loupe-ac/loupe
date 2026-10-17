@@ -1258,6 +1258,88 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxCardWaitEndReason::SwitchedOff, $this->onlyWait($watch)->endReason);
     }
 
+    public function test_a_stopped_run_whose_open_question_stands_for_the_stop_opens_no_wait(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(null));
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_the_stop_waits_again_when_the_run_no_longer_names_its_question(): void
+    {
+        $run = $this->stoppedRunAsking($this->waitedOnAsk(null));
+        $run->waitsOnAskId = null;
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertCount(2, $this->openWaits($this->onlyWatch()));
+    }
+
+    public function test_a_question_that_closed_lately_still_stands_for_the_stop_while_the_bridge_resumes(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-9 minutes')));
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_the_stop_waits_when_no_resume_came_ten_minutes_after_the_answer(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-11 minutes')));
+
+        $this->reconcile();
+
+        self::assertCount(2, $this->openWaits($this->onlyWatch()));
+    }
+
+    public function test_the_ten_minutes_count_from_the_end_of_a_run_that_ended_after_the_answer(): void
+    {
+        $run = $this->stoppedRunAsking($this->waitedOnAsk(new \DateTimeImmutable('-30 minutes')));
+        $run->endedAt = new \DateTimeImmutable('-1 minute');
+        $this->em->flush();
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_pause_of_another_kind_still_waits_while_the_question_stands_for_the_stop(): void
+    {
+        $this->stoppedRunAsking($this->waitedOnAsk(null), PauseKind::Rule);
+
+        $this->reconcile();
+
+        $wait = $this->onlyWait($this->onlyWatch());
+        self::assertSame(InboxCardWaitTrigger::CardPaused, $wait->trigger);
+    }
+
+    /** A blocked run that records the ask, and the work-stopped pause the engine opens for it. */
+    private function stoppedRunAsking(InboxAsk $ask, PauseKind $pause = PauseKind::WorkStopped): WorkerRun
+    {
+        $run = $this->workerRun(WorkerRunState::Blocked, 'Asked the owner');
+        $run->waitsOnAskId = $ask->id;
+        $this->em->flush();
+        $handler = self::getContainer()->get(PauseCardHandler::class);
+        self::assertInstanceOf(PauseCardHandler::class, $handler);
+        $handler(new PauseCardCommand($this->card, 'stopped', 'review', $pause));
+
+        return $run;
+    }
+
+    private function waitedOnAsk(?\DateTimeImmutable $closedAt): InboxAsk
+    {
+        $ask = new InboxAsk($this->project, Uuid::v7(), Uuid::v7());
+        $ask->closedAt = $closedAt;
+        $this->em->persist($ask);
+        $this->em->flush();
+
+        return $ask;
+    }
+
     private function reconcile(): void
     {
         $this->reconciler->reconcile($this->project, [(string) $this->card->id]);

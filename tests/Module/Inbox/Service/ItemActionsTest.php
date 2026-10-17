@@ -252,14 +252,34 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame([InboxActionKind::RetryCard], $this->defaults($item));
     }
 
-    public function test_a_question_that_links_a_card_offers_open_and_no_default(): void
+    public function test_a_question_that_links_a_card_offers_no_action_the_agent_did_not_suggest(): void
     {
         $item = $this->item($this->em, $this->project);
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em->flush();
 
-        self::assertSame([[InboxActionKind::Open, false]], $this->summary($item));
-        self::assertSame([InboxActionKind::Open, InboxActionKind::StartSession], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item)));
+        self::assertSame([], $this->actions()->forItem($item));
+    }
+
+    public function test_a_question_offers_only_the_suggestions_that_fit_and_defaults_to_the_recommended_one(): void
+    {
+        $item = $this->questionSuggesting([
+            ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null],
+            ['action' => 'retry-card', 'reason' => 'Retry it.', 'recommended' => false, 'cardId' => null],
+        ]);
+
+        self::assertSame(
+            [[InboxActionKind::Open, true, 'Read the card first.']],
+            array_map(static fn (ItemAction $action): array => [$action->kind, $action->default, $action->reason], $this->actions()->forItem($item)),
+        );
+    }
+
+    public function test_a_question_without_a_recommendation_has_no_default(): void
+    {
+        $item = $this->questionSuggesting([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
+
+        self::assertSame([], $this->defaults($item));
+        self::assertSame([InboxActionKind::Open], array_map(static fn (ItemAction $action): InboxActionKind => $action->kind, $this->actions()->forItem($item)));
     }
 
     public function test_start_session_is_disabled_while_no_bridge_reports_the_session_capability(): void
@@ -297,12 +317,10 @@ final class ItemActionsTest extends KernelTestCase
         self::assertSame('inbox.action.start-session.disabled', $this->startSession($item)->disabledReasonKey);
     }
 
-    public function test_a_question_that_links_a_card_offers_an_enabled_start_session_with_a_live_bridge(): void
+    public function test_a_question_that_suggests_start_session_offers_it_enabled_with_a_live_bridge(): void
     {
         $this->sessionBridge();
-        $item = $this->item($this->em, $this->project);
-        $item->cards->add(new InboxItemCard($item, $this->card));
-        $this->em->flush();
+        $item = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null]]);
 
         self::assertNull($this->startSession($item)->disabledReasonKey);
         self::assertSame($this->card->id?->toRfc4122(), $this->actions()->cardIdOf($item, InboxActionKind::Open)?->toRfc4122());
@@ -323,8 +341,7 @@ final class ItemActionsTest extends KernelTestCase
     {
         $this->sessionBridge();
         $wait = $this->waitItem([$this->runWait($this->workerRun(WorkerRunState::Blocked))]);
-        $question = $this->item($this->em, $this->project, 98);
-        $question->cards->add(new InboxItemCard($question, $this->card));
+        $question = $this->questionSuggesting([['action' => 'start-session', 'reason' => 'Look into it.', 'recommended' => false, 'cardId' => null]], 98);
         $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, $kind, null, 'inbox:start-session', new \DateTimeImmutable());
         $request->state = $state;
         $this->em->persist($request);
@@ -460,6 +477,17 @@ final class ItemActionsTest extends KernelTestCase
         $todo = $this->todo([['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
 
         self::assertSame([], $this->defaults($todo));
+    }
+
+    /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}> $suggestions */
+    private function questionSuggesting(array $suggestions, int $number = 1): InboxItem
+    {
+        $item = $this->item($this->em, $this->project, $number);
+        $item->suggestedActions = $suggestions;
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em->flush();
+
+        return $item;
     }
 
     /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string}>|null $suggestions */
