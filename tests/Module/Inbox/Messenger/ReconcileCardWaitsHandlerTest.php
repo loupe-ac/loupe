@@ -60,7 +60,7 @@ final class ReconcileCardWaitsHandlerTest extends KernelTestCase
         $this->em->flush();
         $pending = new Document($project->owner, $project, 'Not flushed yet');
         $this->em->persist($pending);
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
         $message = new ReconcileCardWaits((string) $project->id, [(string) $card->id]);

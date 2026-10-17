@@ -150,7 +150,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
 
     private function drainAsync(): void
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $bus = self::getContainer()->get(MessageBusInterface::class);
         self::assertInstanceOf(MessageBusInterface::class, $bus);
@@ -158,7 +158,7 @@ final class CardWaitItemFromTriggerTest extends KernelTestCase
         $handled = 0;
         while ([] !== $envelopes = [...$transport->get()]) {
             foreach ($envelopes as $envelope) {
-                $bus->dispatch($envelope->with(new ReceivedStamp('async')));
+                $bus->dispatch($envelope->with(new ReceivedStamp('jobs')));
                 $transport->ack($envelope);
                 ++$handled;
             }

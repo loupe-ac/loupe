@@ -125,7 +125,7 @@ final class RetryVerdictDeliveriesOnForgeUserConnectedTest extends KernelTestCas
     /** @return list<EvaluateCard> */
     private function evaluations(): array
     {
-        $transport = self::getContainer()->get('messenger.transport.workflow');
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return array_values(array_filter(
