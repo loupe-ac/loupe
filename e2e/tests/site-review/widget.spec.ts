@@ -526,7 +526,7 @@ test('a card per note names the card each note became', async ({ page }) => {
     );
 
     expect(await nextSaveTarget(page)).toEqual({ newCard: {} });
-    await expect(page.locator('#lp-saved')).toContainText(
+    await expect(page.locator('#lp-saved-text')).toHaveText(
         /^Note saved to #\d+ The logo is cut off$/,
     );
     await expect(page.locator('#lp-last-card')).toHaveCount(0);
@@ -1355,6 +1355,10 @@ test('editing an anchored comment updates its body in place', async ({
 
     await textarea.fill('Edited note');
     await clickSave(page);
+    // An edit names its card, as a new note does.
+    await expect(page.locator('#lp-saved-text')).toHaveText(
+        /^Note updated in #\d+ Edited note$/,
+    );
 
     // The row shows the new body, no comment was added (still one), and the anchor (pin)
     // is preserved — editing changes the body only.

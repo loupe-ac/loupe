@@ -107,7 +107,7 @@ A card that the widget creates has these values:
 - The card body holds the whole note.
 - When you edit the note while the card sits in Backlog and nobody has changed it, the title and the body follow the edit. After that the card keeps its own text.
 
-Each save shows one short notice that names the card, such as "Note saved to #12 Review: /pricing". When you edit a note, the composer says that only the text can change.
+Each save shows one short notice that names the card, such as "Note saved to #12 Review: /pricing". An edit names the card too, such as "Note updated in #12 Review: /pricing". When you edit a note, the composer says that only the text can change.
 
 When the card or the epic you chose is closed or deleted, the widget forgets the
 choice and asks again. A card in a terminal column is closed. Your draft stays.

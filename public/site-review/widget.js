@@ -4908,7 +4908,7 @@
         const body = state.draft.trim();
         if (!body || state.saving) return;
         const editing = state.editId != null;
-        let savedLabel = null;
+        let savedLabel;
         state.saving = true;
         state.actionError = null;
         updatePanel();
@@ -4921,10 +4921,13 @@
                 const target = comments.find((c) => c.id === state.editId);
                 if (!target)
                     throw Object.assign(new Error('HTTP 404'), { status: 404 });
-                await api('PATCH', `/api/site-review/comments/${target.id}`, {
-                    body,
-                });
+                const updated = await api(
+                    'PATCH',
+                    `/api/site-review/comments/${target.id}`,
+                    { body },
+                );
                 target.body = body;
+                savedLabel = (updated && updated.label) || null;
             } else {
                 // Read after the boot load, which may have refused the stored card.
                 const destination = activeTarget();
@@ -5029,7 +5032,9 @@
             textareaNode.value = '';
             setDrawing(false);
             flashSaved(
-                editing ? 'Note updated' : `Note saved to ${savedLabel}`,
+                savedLabel
+                    ? `Note ${editing ? 'updated in' : 'saved to'} ${savedLabel}`
+                    : 'Note updated',
             );
         } catch (error) {
             // A rejected token is fatal; anything else keeps the composer open with the text

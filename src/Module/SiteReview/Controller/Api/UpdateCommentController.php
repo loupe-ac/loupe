@@ -9,6 +9,7 @@ use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\CommentNotFound;
 use App\Module\SiteReview\Command\UpdateCommentCommand;
 use App\Module\SiteReview\Command\UpdateCommentHandler;
+use App\Module\SiteReview\Context\CommentLabelResolverInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
@@ -24,6 +25,7 @@ final class UpdateCommentController extends AppController
     public function __construct(
         private readonly UpdateCommentHandler $handler,
         private readonly AuthenticatedProjectResolver $projectResolver,
+        private readonly CommentLabelResolverInterface $labels,
     ) {
     }
 
@@ -55,6 +57,10 @@ final class UpdateCommentController extends AppController
             return $this->json(['error' => 'not_found'], JsonResponse::HTTP_NOT_FOUND);
         }
 
-        return $this->json(['commentId' => (string) $comment->id]);
+        // The widget names the card in its save notice, as it does for a new note.
+        return $this->json([
+            'commentId' => (string) $comment->id,
+            'label' => $this->labels->resolve($commentId, $project),
+        ]);
     }
 }
