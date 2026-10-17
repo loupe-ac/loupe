@@ -3589,7 +3589,7 @@
             // elements are missing, rather than showing one element's text.
             const { degraded, found } = anchorHealth(comment);
             const strokeCount = strokesOf(comment).length;
-            let label = '';
+            let label;
             if (anchors.length > 1) {
                 label = degraded
                     ? `${found.length} of ${anchors.length} elements found`
