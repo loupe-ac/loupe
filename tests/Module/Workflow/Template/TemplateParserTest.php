@@ -18,6 +18,7 @@ use App\Module\Board\Workflow\MoveCard;
 use App\Module\Board\Workflow\PublishDocuments;
 use App\Module\Board\Workflow\RequestWork;
 use App\Module\Bridge\Workflow\Condition\RunWorkActive;
+use App\Module\Inbox\Workflow\Condition\CardHasOpenQuestion;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Action\Ask;
 use App\Module\Workflow\Action\EvaluateChildren;
@@ -69,6 +70,7 @@ final class TemplateParserTest extends TestCase
             new CardDocument(),
             new CardDocumentApproved(),
             new CardHasOpenBlocker(),
+            new CardHasOpenQuestion(),
             new CardHasType(),
             new CardInSlot(),
             new PullRequestApprovalCoversHead(),
@@ -922,6 +924,11 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[2] (merge) when: pr.approval_covers_head: parameter "min" must be a positive integer'];
+        yield 'wrongly typed boolean parameter' => [static function (array $t): array {
+            $t['rules'][2]['when'] = ['card.inbox.open_question' => ['blocking' => 'yes']];
+
+            return $t;
+        }, 'rules[2] (merge) when: card.inbox.open_question: parameter "blocking" must be true or false'];
         yield 'zero integer parameter' => [static function (array $t): array {
             $t['rules'][2]['when'] = ['pr.approval_covers_head' => ['min' => 0]];
 

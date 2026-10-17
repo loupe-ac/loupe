@@ -34,4 +34,12 @@ final class ParameterValue
     {
         return null === ($params[$name] ?? null) ? null : self::int($params, $name);
     }
+
+    /** @param array<string, mixed> $params */
+    public static function optionalBool(array $params, string $name): ?bool
+    {
+        $value = $params[$name] ?? null;
+
+        return null === $value || \is_bool($value) ? $value : throw new \LogicException(\sprintf('Parameter "%s" must be a boolean.', $name));
+    }
 }

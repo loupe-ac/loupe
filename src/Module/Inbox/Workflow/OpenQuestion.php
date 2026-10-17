@@ -11,6 +11,7 @@ final readonly class OpenQuestion
         public int $number,
         public string $title,
         public \DateTimeImmutable $since,
+        public bool $blocking,
     ) {
     }
 }

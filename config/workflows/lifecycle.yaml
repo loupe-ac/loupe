@@ -1,5 +1,5 @@
 key: lifecycle
-version: 3
+version: 4
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -751,7 +751,7 @@ markers:
       kind: needs-you
       label: marker.open_question
       remedy: marker.open_question.remedy
-      when: { card.inbox.open_question: {} }
+      when: { card.inbox.open_question: { blocking: true } }
     - key: design-review-running
       kind: working
       label: marker.design_review_running

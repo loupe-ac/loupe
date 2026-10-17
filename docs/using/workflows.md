@@ -154,7 +154,11 @@ markers:
 - `card.run.work_taker_paused`: a work request of the card waits, and every
   online bridge that could take it is paused. A bridge counts as paused while
   you paused it, or while its last heartbeat said so.
-- `card.inbox.open_question`: an open inbox question names the card.
+- `card.inbox.open_question`: an open inbox question names the card. The
+  optional `blocking` is `true` to match only a blocking ask, or `false` to
+  match only a non-blocking one, such as a to-do. With no `blocking`, any open
+  ask matches. Lifecycle and Simple set `blocking: true`, so a non-blocking
+  to-do does not show "Needs you".
 - `pr.checks_pending`: the pull request is open, and its checks run.
 - `pr.waits_for_approval`: the pull request is open, not a draft, green and
   into the default branch, and no current approval covers its head.
