@@ -123,14 +123,16 @@ final class ShowInboxControllerTest extends WebTestCase
         $rows = $crawler->filter('[data-linked-pull-request]');
         self::assertCount(2, $rows);
         self::assertStringContainsString('example/app #42', $rows->text());
-        self::assertSame('Pull request', $rows->first()->filter('.lp-inbox-linked-panel__sub')->text());
+        self::assertSame('Pull request', $rows->first()->filter('.lp-menu__line')->text());
         self::assertSame('a', $rows->first()->nodeName());
         self::assertSame('https://github.com/example/app/pull/42', $rows->first()->attr('href'));
         self::assertSame('_blank', $rows->first()->attr('target'));
         self::assertSame('noopener noreferrer', $rows->first()->attr('rel'));
         self::assertStringContainsString('Not a web address', $rows->last()->text());
-        self::assertSame('div', $rows->last()->nodeName());
+        self::assertSame('button', $rows->last()->nodeName());
+        self::assertNotNull($rows->last()->attr('disabled'));
         self::assertNull($rows->last()->attr('href'));
+        self::assertCount(1, $crawler->filter('.lp-inbox-ask__byline > .lp-inbox-ask__byline-actions > [data-inbox-linked-menu]'));
     }
 
     public function test_the_pill_listens_on_the_owner_inbox_topic(): void

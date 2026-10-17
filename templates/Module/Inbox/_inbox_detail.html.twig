@@ -1,4 +1,4 @@
-{# The selected request: its title and byline, the message of its source, its items and the panel of what it links.
+{# The selected request: its title and byline, the message of its source, its items. The byline holds the menu of what it links.
    The list row beside it carries Blocking, so an item head here leaves it out.
    Params: row (InboxRow), inbox (InboxPageView), refusedForm, cardDrawer (whether the page hosts the card drawer). #}
 {% set ask = row.ask %}
@@ -11,7 +11,7 @@
         <header class="lp-inbox-ask__summary">
             {# An ask stores no title. Its first item names it, as the request list does. #}
             <h2 class="lp-inbox-ask__title">{{ row.title }}</h2>
-            <p class="lp-inbox-ask__byline">
+            <div class="lp-inbox-ask__byline">
                 {# Who and when, then what it is, in the order of the document review byline. #}
                 <span class="lp-inbox-ask__head">
                     {% include '@Inbox/_agent_presence.html.twig' with {ask: ask, bridge: ask ? inbox.bridgeStatus(ask) : null, origin: origin} only %}
@@ -39,7 +39,10 @@
                 {% if ask and ask.closedAt %}
                     <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>{# @design-system-ignore #}
                 {% endif %}
-            </p>
+                <div class="lp-inbox-ask__byline-actions">
+                    {% include '@Inbox/_ask_linked.html.twig' with {items: items, menuId: ask ? ask.id : items|first.id} only %}
+                </div>
+            </div>
         </header>
         {% if ask and ask.context|trim is not empty %}
             <div class="lp-inbox-ask__message">
@@ -53,5 +56,4 @@
             {% endfor %}
         </div>
     </div>
-    {% include '@Inbox/_ask_linked.html.twig' with {items: items} only %}
 </section>
