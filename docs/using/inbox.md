@@ -281,6 +281,11 @@ these cases:
 - The workflow paused the card. The wait names the reason code of the pause,
   and it ends when the pause is released. A new pause starts a new wait.
 
+With these templates, the app publishes the draft after its agent review, so the
+item for a design opens then, and not when the writer ends. A draft that you
+publish or review yourself opens it at once. See
+[Agent review of a design](workflows.md#agent-review-of-a-design).
+
 Other linked documents, such as a plan, open no wait. A change to the tags of
 a document makes Loupe check each card that links it again.
 

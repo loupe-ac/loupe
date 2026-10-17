@@ -101,6 +101,7 @@ The shipped markers are:
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | An inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
+| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 3 |
 | `run-open` | Working | A worker runs on the card |
 | `work-requested` | Working | Work waits for a bridge to take it |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
@@ -111,7 +112,7 @@ The shipped markers are:
 | `unmanaged` | Chip | A person or an agent made the card unmanaged |
 
 The Simple template declares all of these markers except `pull-request-idle`,
-`nothing-happened` and `document-in-review`, because Simple has no slots.
+`nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
 
 The engine checks the markers of a card on every evaluation. This includes a held
 card and a board with the automation off. It stores the result on the card, with
@@ -139,6 +140,9 @@ markers:
 - `card.run.stopped`: the latest run of the card ended with a warning, and the
   card did not move after it ended.
 - `card.run.session_open`: a person has an interactive session open on the card.
+- `design_review.running` with a `tag` and `rounds`: a draft document with that
+  tag has an agent review that is not finished. The label of the marker shows
+  the round and the `rounds` limit.
 - `card.held`: a person held the agents of the card.
 - `card.inbox.open_question`: an open inbox question names the card.
 - `pr.checks_pending`: the pull request is open, and its checks run.
@@ -335,8 +339,8 @@ back to Implementation at once when it has no open blocker.
 
 | Slot | The workflow |
 |---|---|
-| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Claude Design project that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes |
-| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design) |
+| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Claude Design project that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
+| Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
@@ -482,7 +486,7 @@ worker pushes only after you answer. A finding where the code simply does not
 build what the design says goes to the fix worker alone. It creates no document
 and no inbox item.
 
-Six conditions of the **Agent review** group read the reviews:
+Six conditions of the **Agent review** group read the reviews of pull requests:
 
 | Condition | True when |
 |---|---|
@@ -594,6 +598,63 @@ on does neither, so turn the write on in a separate save.
 A new open child moves it back to Implementation. With the epic writes on, the
 pull request of an epic is a draft in Implementation, turns ready in In review,
 and closes when the epic returns to the Backlog.
+
+### Agent review of a design
+
+An agent reviews a design before the app sends it to you. This covers the
+product document and the tech design. The writer leaves the document a draft.
+A draft stays out of the inbox, and `document_revise` keeps it a draft. Then
+this loop runs:
+
+1. The app asks for work of kind `design-review`. A review worker reads the
+   draft and sends its findings with the `document_review_submit` tool.
+2. When the review fails, the app asks for a revision of kind
+   `product-design-revise` or `tech-design-revise`, with the reason
+   `agent-review`. The revise worker changes the draft and answers each
+   finding with `document_review_answer`. A finding can be fixed, not changed
+   with a reason, or sent to you. The new version gets a new review.
+3. The loop ends when a review passes, or after 3 failed reviews. The app then
+   publishes the draft with the `publish-documents` action. The document
+   reaches your inbox in review.
+
+A review that passes but has a finding for you waits for the revise worker.
+The worker writes that finding into the draft as a decision for you, and the
+loop ends on the new version. The app publishes the drafts only when
+the loop of each draft with the tag ended.
+
+You can skip the loop. When you publish or review the draft yourself, no
+draft with the tag remains. The `cancelWhen` condition of the rule is then
+true, so Loupe withdraws the live review or revision request. The publish rule waits while any work or worker is
+active on the card, so it never cancels the worker that is ending.
+
+Four conditions of the **Agent review** group read the loop of a draft with a
+`tag`. Each takes the `tag` and `rounds`, the number of failed reviews that
+ends the loop:
+
+| Condition | True when |
+|---|---|
+| `design_review.due` | a draft with the tag has a version that no review read, or a review that a revision answered, and its loop is not finished |
+| `design_review.fix_due` | the review of the current version of a draft with the tag failed, has no answers, and asks for a revision |
+| `design_review.finished` | each draft with the tag has a finished loop, and at least one such draft exists. A loop is finished when the review of the current version passed, or a fix round answered a passed review with a question for the owner and revised the draft when an answer is fixed or for the owner, or the draft used all its failed reviews |
+| `design_review.running` | a draft with the tag has a loop that is not finished. The marker `design-review-running` reads it |
+
+Lifecycle uses them in these rules, for the slots Product design and Tech
+design. Each name starts with the slot key, `product-design` or `tech-design`:
+
+| Rule | Does |
+|---|---|
+| `<slot>-review` | When `design_review.due` holds, asks for work of kind `design-review` on the draft. It waits while work or a worker of the design kind or its revise kind is active. In Product design it also waits while an interactive session is open. A failed run that ends with no review is tried again |
+| `<slot>-review-fix` | When `design_review.fix_due` holds, asks for the revise kind with the reason `agent-review`. The limit is 3 rounds |
+| `<slot>-review-publish` | When `design_review.finished` holds and no work or worker is active on the card, runs `publish-documents`. Product design publishes the documents with the tag `product-design`. Tech design publishes the tag `tech-design` and the tag `deploy-notes` |
+
+The action `publish-documents` takes a `tags` list. It publishes each draft
+document of the card that has one of the tags. A document that is not a draft
+stays as it is. When the app refuses to publish a document, the action is
+refused with `document-publish-refused`, and the pause rules apply.
+
+To turn the design review off, remove the six rules and the marker
+`design-review-running` from the template. The writer then has to publish its
+own draft.
 
 ### Asking about an unplanned child
 
@@ -712,6 +773,7 @@ A rule that asks for work names its kind. A bridge runs a kind only when its
 | `product-design-revise` | A revision of the product document |
 | `tech-design` | The tech design |
 | `tech-design-revise` | A revision of the tech design |
+| `design-review` | An agent review of a draft product document or tech design |
 | `tech-design-recheck` | A check of an approved tech design against the code, after a card that blocked it is done |
 | `implement` | The implementation and its pull request |
 | `breakdown` | The child cards of an epic |
@@ -761,6 +823,12 @@ holds the same reason. A request rule can set the reason with the optional
 `reason` parameter. The parameter replaces the reason that the state of the
 pull request gives, in the context and in the event. The fix rules for the
 [agent review](#agent-review) use `reason: agent-review`.
+
+A request rule can set the optional `cancelWhen` parameter. It holds a
+condition. While the condition is true, the engine withdraws the live request
+of the rule. The design review
+rules use it, so that a person who publishes or reviews the draft cancels the
+agent work on it.
 
 A request rule names its document with the optional `document` parameter. It is
 a map with the key `tag`, and an optional `status`: `in-review`, `approved`,

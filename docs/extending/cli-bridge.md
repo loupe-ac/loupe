@@ -1337,10 +1337,11 @@ The `design-review` kind runs the `loupe-stage-design-review` skill. The
 worker reads a draft product design or a draft tech design, with its product
 document, the code and the prototype, and sends its findings with the
 `document_review_submit` tool. It changes no file and no document. Give the
-entry its own `model`, as for `review`. The entry needs no worktree, so it has
-no `before` command. A bridge with no `design-review` entry takes no design
-review: the card pauses with "no bridge took the work", and the draft stays
-hidden until the owner publishes it.
+entry its own `model`, and a `workerPool` apart from the design entries, as for
+`review`. The entry needs no worktree, so it has no `before` command. A bridge
+with no `design-review` entry takes no design review: after the work timeout
+the card pauses with "no bridge took the work", and the draft stays hidden
+until the owner publishes it.
 
 ```yaml
 work:
@@ -1357,7 +1358,8 @@ agent review, the same `loupe-stage-fix-round` skill answers the findings. It
 revises the draft, and records one answer for each finding with the
 `document_review_answer` tool. The request carries the reason `agent-review`.
 Put the line `Fix reason: {reason}.` in the prompt of both entries, so the
-worker can choose the agent review path.
+worker can choose the agent review path. See
+[Agent review of a design](../using/workflows.md#agent-review-of-a-design).
 
 The file needs `work:`, or `appPrompts: true`. The bridge reports the
 `work-requests` capability when the map has an entry or `appPrompts` is on,

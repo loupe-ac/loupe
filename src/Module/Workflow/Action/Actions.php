@@ -46,11 +46,12 @@ final class Actions
     /**
      * Builds the call of an action with the traits and the `from` slot its declarations give.
      *
-     * @param array<string, int|string> $params
-     * @param list<string>              $checks
-     * @param list<AskOption>           $options
+     * @param array<string, int|string>   $params
+     * @param list<string>                $checks
+     * @param list<AskOption>             $options
+     * @param array<string, list<string>> $lists
      */
-    public function call(string $key, array $params, ?Expression $until = null, array $checks = [], ?Expression $refill = null, array $options = []): ActionCall
+    public function call(string $key, array $params, ?Expression $until = null, array $checks = [], ?Expression $refill = null, array $options = [], ?Expression $cancelWhen = null, array $lists = []): ActionCall
     {
         $action = $this->get($key);
         $from = null;
@@ -60,7 +61,7 @@ final class Actions
             }
         }
 
-        return new ActionCall($key, $params, $until, $checks, $refill, $options, $action::traits(), $from);
+        return new ActionCall($key, $params, $until, $checks, $refill, $options, $action::traits(), $from, $cancelWhen, $lists);
     }
 
     /** @return array<string, Action> */

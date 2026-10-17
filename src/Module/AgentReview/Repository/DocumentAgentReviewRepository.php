@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\AgentReview\Repository;
 
+use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\Board\Entity\Card;
 use App\Module\Project\Entity\Project;
@@ -22,6 +23,27 @@ class DocumentAgentReviewRepository extends ServiceEntityRepository
     public function findLatestOfDocumentForCard(Document $document, Card $card): ?DocumentAgentReview
     {
         return $this->findOneBy(['document' => $document, 'card' => $card], ['createdAt' => 'DESC', 'id' => 'DESC']);
+    }
+
+    /** @return array<string, int> the number of failed reviews of each document for the card, keyed by document id */
+    public function countFailedByDocumentForCard(Card $card): array
+    {
+        $rows = $this->createQueryBuilder('r')
+            ->select('IDENTITY(r.document) AS documentId', 'COUNT(r.id) AS failed')
+            ->andWhere('r.card = :card')
+            ->andWhere('r.conclusion = :conclusion')
+            ->groupBy('r.document')
+            ->setParameter('card', $card)
+            ->setParameter('conclusion', AgentReviewConclusion::Failure)
+            ->getQuery()
+            ->getArrayResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(string) $row['documentId']] = (int) $row['failed'];
+        }
+
+        return $counts;
     }
 
     /** @return list<DocumentAgentReview> the reviews of the document, newest first */

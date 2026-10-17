@@ -6,11 +6,14 @@ namespace App\Tests\Module\Workflow\Template;
 
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\AgentReview\Workflow\AgentReviewFacts;
+use App\Module\AgentReview\Workflow\DocumentReviewFacts;
+use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\AgentReview\Workflow\ReviewedHead;
 use App\Module\Board\Workflow\EpicBranchSyncFacts;
 use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\Workflow\SessionFacts;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
@@ -19,6 +22,7 @@ use App\Module\Workflow\Contract\PullRequestState;
 use App\Module\Workflow\Engine\RuleSubject;
 use App\Module\Workflow\Template\ActionCall;
 use App\Module\Workflow\Template\ManualMoveActor;
+use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\ShippedTemplates;
 use App\Module\Workflow\Template\Template;
 use App\Module\Workflow\Template\TemplateParser;
@@ -180,6 +184,116 @@ final class ShippedTemplatesTest extends KernelTestCase
     {
         yield 'implementation' => ['implementation'];
         yield 'in review' => ['in-review'];
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function designSlots(): iterable
+    {
+        yield 'product design' => ['product-design', 'product-design'];
+        yield 'tech design' => ['tech-design', 'tech-design'];
+    }
+
+    /** @return iterable<string, array{string, string, list<string>}> */
+    public static function publishedTags(): iterable
+    {
+        yield 'product design' => ['product-design', 'product-design', ['product-design']];
+        yield 'tech design' => ['tech-design', 'tech-design', ['tech-design', 'deploy-notes']];
+    }
+
+    #[DataProvider('designSlots')]
+    public function test_a_draft_design_with_no_review_asks_for_one_that_only_an_owner_action_cancels(string $slot, string $tag): void
+    {
+        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, null, null, null, false, false, 0));
+        $rule = $this->ruleOf($slot, $slot.'-review');
+
+        self::assertTrue($rule->when->evaluate($facts));
+        self::assertSame(['kind' => 'design-review'], \array_slice($rule->then->params, 0, 1));
+        self::assertSame('retry', $rule->then->params['stillTrue']);
+        self::assertSame($tag, $rule->then->params['document.tag']);
+        self::assertSame('draft', $rule->then->params['document.status']);
+        self::assertNotNull($rule->then->cancelWhen);
+        self::assertFalse($rule->then->cancelWhen->evaluate($facts));
+        self::assertTrue($rule->then->cancelWhen->evaluate(FactsMother::facts(card: FactsMother::card(slot: $slot, documents: [new DocumentFacts([$tag], 'in-review', 'doc')]))));
+    }
+
+    /** @return iterable<string, array{string, string, list<string>, bool}> */
+    public static function reviewWaits(): iterable
+    {
+        yield 'product design, session open' => ['product-design', 'product-design', ['session'], false];
+        yield 'tech design, session open' => ['tech-design', 'tech-design', ['session'], true];
+        yield 'design work runs' => ['tech-design', 'tech-design', ['tech-design'], false];
+        yield 'revise work runs' => ['tech-design', 'tech-design', ['tech-design-revise'], false];
+        yield 'revise worker runs' => ['product-design', 'product-design', ['worker:product-design-revise'], false];
+        yield 'review work runs' => ['product-design', 'product-design', ['design-review'], true];
+    }
+
+    /** @param list<string> $active */
+    #[DataProvider('reviewWaits')]
+    public function test_the_design_review_waits_while_the_writer_or_a_session_is_active(string $slot, string $tag, array $active, bool $asks): void
+    {
+        $work = [];
+        $workers = [];
+        foreach ($active as $kind) {
+            str_starts_with($kind, 'worker:') ? $workers[] = substr($kind, 7) : $work[] = $kind;
+        }
+        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, null, null, null, false, false, 0), $work, $workers, \in_array('session', $active, true));
+
+        self::assertSame($asks, $this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
+    }
+
+    #[DataProvider('designSlots')]
+    public function test_a_failed_design_review_asks_for_a_revision_with_its_reason_and_limit(string $slot, string $tag): void
+    {
+        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, 'review', 1, AgentReviewConclusion::Failure, false, false, 1));
+        $rule = $this->ruleOf($slot, $slot.'-review-fix');
+
+        self::assertTrue($rule->when->evaluate($facts));
+        self::assertFalse($this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
+        self::assertSame(['kind' => $tag.'-revise', 'reason' => 'agent-review', 'limit' => 3], \array_slice($rule->then->params, 0, 3));
+        self::assertNotNull($rule->then->cancelWhen);
+    }
+
+    /** @param list<string> $tags */
+    #[DataProvider('publishedTags')]
+    public function test_a_finished_design_review_publishes_the_drafts_once_nothing_runs(string $slot, string $tag, array $tags): void
+    {
+        $finished = new DocumentReviewState('doc', [$tag], 1, 'review', 1, AgentReviewConclusion::Success, false, false, 0);
+        $rule = $this->ruleOf($slot, $slot.'-review-publish');
+
+        self::assertTrue($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished)));
+        self::assertFalse($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished, ['fix'])));
+        self::assertFalse($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished, [], ['fix'])));
+        self::assertSame('publish-documents', $rule->then->key);
+        self::assertSame(['tags' => $tags], $rule->then->lists);
+    }
+
+    public function test_the_design_review_rules_come_before_the_move_of_their_slot(): void
+    {
+        foreach (['product-design' => 'product-design-approved', 'tech-design' => 'tech-design-recheck'] as $slot => $next) {
+            $ids = array_map(static fn ($rule): string => $rule->id, $this->lifecycle()->rulesFor($slot));
+
+            foreach (['-review', '-review-fix', '-review-publish'] as $suffix) {
+                self::assertLessThan(array_search($next, $ids, true), array_search($slot.$suffix, $ids, true));
+            }
+        }
+    }
+
+    /**
+     * @param list<string> $activeWorkKinds
+     * @param list<string> $activeWorkerKinds
+     */
+    private static function withDesignReview(string $slot, string $tag, DocumentReviewState $state, array $activeWorkKinds = [], array $activeWorkerKinds = [], bool $session = false): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: $slot, documents: [new DocumentFacts([$tag], 'draft', 'doc')]),
+            run: FactsMother::run(activeWorkKinds: $activeWorkKinds, activeWorkerKinds: $activeWorkerKinds),
+            provided: [DocumentReviewFacts::class => new DocumentReviewFacts([$state]), SessionFacts::class => new SessionFacts($session ? new \DateTimeImmutable('2026-10-01 11:00:00') : null, null)],
+        );
+    }
+
+    private function ruleOf(string $slot, string $id): Rule
+    {
+        return array_find($this->lifecycle()->rulesFor($slot), static fn ($rule): bool => $id === $rule->id) ?? throw new \LogicException($id);
     }
 
     #[DataProvider('reviewSlots')]

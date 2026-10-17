@@ -7,6 +7,7 @@ namespace App\Module\Review\Mcp;
 use App\Exception\DomainErrors;
 use App\Module\Review\Command\ReviseDocumentCommand;
 use App\Module\Review\Command\ReviseDocumentHandler;
+use App\Module\Review\Service\WithdrawnWork;
 use App\Security\McpBoundProjectVoter;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
@@ -24,6 +25,7 @@ final readonly class DocumentReviseTool
         private ReviseDocumentHandler $handler,
         private ReviewSubjectResolver $subjects,
         private ToolCallErrorMessages $errorMessages,
+        private WithdrawnWork $withdrawnWork,
     ) {
     }
 
@@ -42,6 +44,10 @@ final readonly class DocumentReviseTool
     {
         try {
             $document = $this->subjects->requireDocument($documentId, McpBoundProjectVoter::DOCUMENT_WRITE);
+
+            if ($this->withdrawnWork->currentCallIsWithdrawn($document->project)) {
+                throw $this->errorMessages->forArgument('session', 'This work was withdrawn.');
+            }
 
             // The size cap is a transport concern — it protects this endpoint
             // from a payload it should never parse, which is not a rule about

@@ -122,10 +122,13 @@ trait ActionScenario
         return $card;
     }
 
-    /** @param array<string, int|string> $params */
-    private function rule(string $key, array $params, string $id = 'test-rule', RuleOrigin $origin = RuleOrigin::Template): Rule
+    /**
+     * @param array<string, int|string>   $params
+     * @param array<string, list<string>> $lists
+     */
+    private function rule(string $key, array $params, string $id = 'test-rule', RuleOrigin $origin = RuleOrigin::Template, array $lists = []): Rule
     {
-        return new Rule($id, null, new AllOf([]), $this->service(Actions::class)->call($key, $params), $origin);
+        return new Rule($id, null, new AllOf([]), $this->service(Actions::class)->call($key, $params, lists: $lists), $origin);
     }
 
     private function runAction(Action $action, Rule $rule, CardSnapshot $snapshot, Facts $facts, WorkflowRuleState $state): ActionOutcome

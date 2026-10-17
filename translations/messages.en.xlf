@@ -8303,6 +8303,14 @@
             <trans-unit id="workflow.waiting.not.agent_review_overridden"><source>workflow.waiting.not.agent_review_overridden</source><target>Waiting: an approval overrides a failed agent review of an open pull request head.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_unposted"><source>workflow.waiting.agent_review_unposted</source><target>Waiting: every agent review has its check on the forge.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.agent_review_unposted"><source>workflow.waiting.not.agent_review_unposted</source><target>Waiting: an agent review has no check on the forge yet.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_due"><source>workflow.waiting.design_review_due</source><target>Waiting: no draft %tag% document needs a design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_due"><source>workflow.waiting.not.design_review_due</source><target>Waiting: a draft %tag% document needs a design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_fix_due"><source>workflow.waiting.design_review_fix_due</source><target>Waiting: no review of a draft %tag% document asks for a fix round.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_fix_due"><source>workflow.waiting.not.design_review_fix_due</source><target>Waiting: the review of a draft %tag% document asks for a fix round.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_finished"><source>workflow.waiting.design_review_finished</source><target>Waiting: a draft %tag% document has no finished design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_finished"><source>workflow.waiting.not.design_review_finished</source><target>Waiting: every draft %tag% document has a finished design review.</target></trans-unit>
+            <trans-unit id="workflow.waiting.design_review_running"><source>workflow.waiting.design_review_running</source><target>Waiting: no draft %tag% document has a design review in progress.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.design_review_running"><source>workflow.waiting.not.design_review_running</source><target>Waiting: a draft %tag% document has a design review in progress.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_uncommented"><source>workflow.waiting.agent_review_uncommented</source><target>Waiting: an agent review with findings and a new check needs its summary comment.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.agent_review_uncommented"><source>workflow.waiting.not.agent_review_uncommented</source><target>Waiting: every recent agent review with findings has its summary comment.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_child_merged_into_epic_branch"><source>workflow.waiting.card_child_merged_into_epic_branch</source><target>Waiting: no child pull request merged into the epic branch.</target></trans-unit>
@@ -8456,6 +8464,7 @@
             <trans-unit id="workflow.settings.rules.not"><source>workflow.settings.rules.not</source><target>not</target></trans-unit>
             <trans-unit id="workflow.settings.rules.until"><source>workflow.settings.rules.until</source><target>Until:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.refill"><source>workflow.settings.rules.refill</source><target>Starts the limit again while:</target></trans-unit>
+            <trans-unit id="workflow.settings.rules.cancel_when"><source>workflow.settings.rules.cancel_when</source><target>Cancels the work while:</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_condition"><source>workflow.settings.rules.missing_condition</source><target>Condition no longer exists: %condition%</target></trans-unit>
             <trans-unit id="workflow.settings.rules.missing_action"><source>workflow.settings.rules.missing_action</source><target>Action not known to this version: %action%</target></trans-unit>
             <trans-unit id="workflow.settings.app_rules.heading"><source>workflow.settings.app_rules.heading</source><target>Rules the app adds</target></trans-unit>
@@ -8465,6 +8474,7 @@
             <trans-unit id="workflow.settings.where.any"><source>workflow.settings.where.any</source><target>any column</target></trans-unit>
             <trans-unit id="workflow.settings.action.move"><source>workflow.settings.action.move</source><target>Move the card to %target%</target></trans-unit>
             <trans-unit id="workflow.settings.action.request"><source>workflow.settings.action.request</source><target>Request work: %kind%</target></trans-unit>
+            <trans-unit id="workflow.settings.action.publish_documents"><source>workflow.settings.action.publish_documents</source><target>Publish the draft documents</target></trans-unit>
             <trans-unit id="workflow.settings.action.forge_write"><source>workflow.settings.action.forge_write</source><target>Forge write: %kind%</target></trans-unit>
             <trans-unit id="workflow.settings.action.pause"><source>workflow.settings.action.pause</source><target>Pause the card</target></trans-unit>
             <trans-unit id="workflow.settings.action.release"><source>workflow.settings.action.release</source><target>Release the pause</target></trans-unit>
@@ -8526,6 +8536,7 @@
             <trans-unit id="workflow.panel.action.move_backlog"><source>workflow.panel.action.move_backlog</source><target>Move the card to the Backlog</target></trans-unit>
             <trans-unit id="workflow.panel.action.move_terminal"><source>workflow.panel.action.move_terminal</source><target>Move the card to a terminal column</target></trans-unit>
             <trans-unit id="workflow.panel.action.request"><source>workflow.panel.action.request</source><target>Request %kind% work from a bridge</target></trans-unit>
+            <trans-unit id="workflow.panel.action.publish_documents"><source>workflow.panel.action.publish_documents</source><target>Publish the draft documents of the card for review</target></trans-unit>
             <trans-unit id="workflow.panel.action.forge_write"><source>workflow.panel.action.forge_write</source><target>Write %write% to the pull request</target></trans-unit>
             <trans-unit id="workflow.panel.action.pause"><source>workflow.panel.action.pause</source><target>Pause the card</target></trans-unit>
             <trans-unit id="workflow.panel.action.release"><source>workflow.panel.action.release</source><target>End the pause of the card</target></trans-unit>
@@ -8555,6 +8566,7 @@
             <trans-unit id="workflow.refusal.document-ambiguous"><source>workflow.refusal.document-ambiguous</source><target>The card has more than one document with the tag that the rule names.</target></trans-unit>
             <trans-unit id="workflow.refusal.no-parent-document"><source>workflow.refusal.no-parent-document</source><target>The parent of the card has no document with the tag that the rule names.</target></trans-unit>
             <trans-unit id="workflow.refusal.document-link-refused"><source>workflow.refusal.document-link-refused</source><target>The board refused the document link.</target></trans-unit>
+            <trans-unit id="workflow.refusal.document-publish-refused"><source>workflow.refusal.document-publish-refused</source><target>The app refused to publish a draft document of the card.</target></trans-unit>
             <trans-unit id="workflow.refusal.detach-refused"><source>workflow.refusal.detach-refused</source><target>The board refused to remove the parent of the card.</target></trans-unit>
             <trans-unit id="project.edit.nav.readiness"><source>project.edit.nav.readiness</source><target>Agent readiness</target></trans-unit>
             <trans-unit id="readiness.guide.title"><source>readiness.guide.title</source><target>Ready for agents</target></trans-unit>
@@ -8762,6 +8774,8 @@
             <trans-unit id="marker.open_question.remedy"><source>marker.open_question.remedy</source><target>Answer the question in Needs you.</target></trans-unit>
             <trans-unit id="marker.session_open"><source>marker.session_open</source><target>An interactive session is open on this card.</target></trans-unit>
             <trans-unit id="marker.session_open.remedy"><source>marker.session_open.remedy</source><target>Nothing. The card moves on when the session ends.</target></trans-unit>
+            <trans-unit id="marker.design_review_running"><source>marker.design_review_running</source><target>Agent review running, round %round% of %limit%.</target></trans-unit>
+            <trans-unit id="marker.design_review_running.remedy"><source>marker.design_review_running.remedy</source><target>Nothing. The app publishes the document for your review when the agent review ends.</target></trans-unit>
             <trans-unit id="marker.run_open"><source>marker.run_open</source><target>A worker runs on this card.</target></trans-unit>
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
             <trans-unit id="marker.work_requested"><source>marker.work_requested</source><target>Work waits for a bridge to take it.</target></trans-unit>

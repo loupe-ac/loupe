@@ -10,6 +10,7 @@ use App\Module\AgentReview\Mcp\DocumentReviewSubmitTool;
 use App\Module\AgentReview\Repository\DocumentAgentReviewRepository;
 use App\Module\Board\Entity\Card;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
@@ -17,6 +18,7 @@ use App\Tests\Module\AgentReview\DocumentReviewScenario;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -112,6 +114,31 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
         $this->sendSession($this->sessionId);
 
         $this->assertRefused('takes a review only from a running design review worker', fn () => $this->submit(2, []));
+    }
+
+    /** @return iterable<string, array{WorkRequestState}> */
+    public static function withdrawnStates(): iterable
+    {
+        yield 'cancelled' => [WorkRequestState::Cancelled];
+        yield 'expired' => [WorkRequestState::Expired];
+    }
+
+    #[DataProvider('withdrawnStates')]
+    public function test_it_refuses_a_review_from_a_run_whose_work_was_withdrawn(WorkRequestState $state): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', requestState: $state);
+        $this->sendSession($this->sessionId);
+
+        $this->assertRefused('This work was withdrawn.', fn () => $this->submit(2, []));
+        self::assertSame([], self::getContainer()->get(DocumentAgentReviewRepository::class)->findOfDocument($this->document));
+    }
+
+    public function test_it_takes_a_review_from_a_run_whose_work_is_live(): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', requestState: WorkRequestState::Claimed);
+        $this->sendSession($this->sessionId);
+
+        self::assertSame('success', $this->submit(2, [])['conclusion']);
     }
 
     public function test_it_refuses_a_run_that_has_ended(): void

@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\AgentReview\Mcp;
 
+use App\Module\AgentReview\Entity\AgentReviewCategory;
+use App\Module\AgentReview\Entity\AgentReviewConclusion;
+use App\Module\AgentReview\Entity\AgentReviewFinding;
+use App\Module\AgentReview\Entity\AgentReviewSeverity;
 use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Mcp\DocumentReviewAnswerTool;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardDocument;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Tests\Module\AgentReview\DocumentReviewScenario;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -69,6 +75,31 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         self::assertSame([0, 1], array_map(static fn ($answer) => $answer->index, $answers));
         self::assertSame([DocumentReviewAnswer::Fixed, DocumentReviewAnswer::NotChanged], array_map(static fn ($answer) => $answer->answer, $answers));
         self::assertSame([null, 'The query already filters by project.'], array_map(static fn ($answer) => $answer->reason, $answers));
+    }
+
+    /** @return iterable<string, array{WorkRequestState}> */
+    public static function withdrawnStates(): iterable
+    {
+        yield 'cancelled' => [WorkRequestState::Cancelled];
+        yield 'expired' => [WorkRequestState::Expired];
+    }
+
+    #[DataProvider('withdrawnStates')]
+    public function test_it_refuses_answers_from_a_run_whose_work_was_withdrawn(WorkRequestState $state): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', requestState: $state);
+        $this->sendSession($this->sessionId);
+
+        $this->assertRefused('This work was withdrawn.', fn () => $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']]));
+        self::assertFalse($this->review->isAnswered());
+    }
+
+    public function test_it_takes_answers_from_a_run_whose_work_is_live(): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', requestState: WorkRequestState::Claimed);
+        $this->sendSession($this->sessionId);
+
+        self::assertSame(2, $this->answer([['index' => 0, 'answer' => 'fixed'], ['index' => 1, 'answer' => 'fixed']])['answered']);
     }
 
     public function test_a_product_design_fix_worker_may_answer(): void
@@ -154,6 +185,25 @@ final class DocumentReviewAnswerToolTest extends KernelTestCase
         $stored = $this->em->find(DocumentAgentReview::class, $reviewId);
         self::assertInstanceOf(DocumentAgentReview::class, $stored);
         self::assertFalse($stored->isAnswered());
+    }
+
+    public function test_a_finding_that_needs_a_person_takes_only_to_owner(): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise');
+        $this->sendSession($this->sessionId);
+        $document = $this->linkedDocument($this->card);
+        $review = new DocumentAgentReview($this->project, $this->card, $document, 1, 'Passed.', AgentReviewConclusion::Success, [
+            new AgentReviewFinding(null, null, null, AgentReviewSeverity::Important, 'Ask', 'Body', AgentReviewCategory::Spec, true),
+        ]);
+        $this->em->persist($review);
+        $this->em->flush();
+
+        $this->assertRefused('takes the answer to-owner', fn () => ($this->tool)((string) $this->card->id, (string) $document->id, [['index' => 0, 'answer' => 'not-changed', 'reason' => 'The design is right.']]));
+        $this->assertRefused('takes the answer to-owner', fn () => ($this->tool)((string) $this->card->id, (string) $document->id, [['index' => 0, 'answer' => 'fixed']]));
+        self::assertFalse($review->isAnswered());
+
+        ($this->tool)((string) $this->card->id, (string) $document->id, [['index' => 0, 'answer' => 'to-owner']]);
+        self::assertTrue($review->isAnswered());
     }
 
     public function test_it_refuses_a_document_with_no_review_and_one_the_card_does_not_link(): void
