@@ -3023,12 +3023,18 @@
                     () => {
                         const cardNumber = /^#(\d+)/.exec(deleteAllCardTitle());
                         const count = comments.length;
+                        // Only a one-card scope leaves the notes of other cards.
+                        const oneCard = scopeOf().startsWith('card:');
                         menuConfirm(
                             `${
                                 count === 1
                                     ? 'Delete 1 note'
                                     : `Delete all ${count} notes`
-                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? Notes on other cards stay.`,
+                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? ${
+                                oneCard
+                                    ? 'Notes on other cards stay.'
+                                    : 'This deletes them on every card they belong to.'
+                            }`,
                             confirmClearYes,
                             {
                                 text: 'lp-clear-confirm-text',

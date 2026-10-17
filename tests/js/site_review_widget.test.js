@@ -759,6 +759,49 @@ describe('deleting a note', () => {
         expect(deleted[0]).toBe(`${BACKEND}/api/board/feedback/c1`);
     });
 
+    const listOf = (count) =>
+        ok({
+            comments: Array.from({ length: count }, (_, index) => ({
+                id: `c${index}`,
+                body: 'a note',
+                url: 'about:blank',
+                anchors: [],
+            })),
+            context: { label: '#2 Launch review', url: null },
+        });
+    const clearConfirmText = async (mode) => {
+        bootWidget({ mode, respond: () => listOf(2) });
+        await settle();
+        const root = panelRoot();
+        root.getElementById('lp-launch-main').click();
+        armDeleteAll(root);
+
+        return root.getElementById('lp-clear-confirm-text').textContent;
+    };
+
+    it('promises that other cards keep their notes only for one card', async () => {
+        expect(
+            await clearConfirmText({
+                mode: 'per-review',
+                cardId: CARD,
+                label: '#2 Launch review',
+                url: null,
+            }),
+        ).toBe('Delete all 2 notes on #2? Notes on other cards stay.');
+    });
+
+    it.each([
+        ['epic', { mode: 'epic', cardId: CARD }],
+        ['per-note', { mode: 'per-note', cardId: null }],
+    ])(
+        'says that %s mode deletes the notes of every listed card',
+        async (_, mode) => {
+            expect(await clearConfirmText(mode)).toBe(
+                'Delete all 2 notes? This deletes them on every card they belong to.',
+            );
+        },
+    );
+
     it('asks inside the row menu and closes it on Cancel', async () => {
         bootWidget({
             respond: () =>
