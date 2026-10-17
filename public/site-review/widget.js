@@ -5849,7 +5849,7 @@
             state.draft = '';
             state.strokes = [];
             textareaNode.value = '';
-        } else if (needsMode() && !signedOut()) {
+        } else if (needsMode() && !state.fatal) {
             // A review with nowhere to put its notes asks where first.
             openDestination();
             return;
