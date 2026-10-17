@@ -286,7 +286,10 @@ question is the item that you act on, and your answer resumes the worker. Loupe
 therefore opens no wait item for that stop or for its pause. It holds the wait
 item back while the question is open, and for 10 minutes after your answer, so
 that the bridge can resume the worker. When the bridge cannot resume the worker,
-or no new run starts within 10 minutes, Loupe opens the wait item. A question on
+Loupe opens the wait item at once. When no new run starts within 10 minutes,
+Loupe opens it at its next card check, which runs every 15 minutes. The item can
+therefore show up to 25 minutes after your answer. The 10 minutes count from your
+answer, or from the end of the run when the worker was still running. A question on
 another card, a question that does not block, and a to-do hold nothing back.
 
 With these templates, the app publishes the draft after its agent review, so the

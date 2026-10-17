@@ -1317,15 +1317,57 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxCardWaitTrigger::CardPaused, $wait->trigger);
     }
 
+    public function test_a_run_end_reported_before_the_pause_opens_no_wait_at_either_report(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Running, '');
+        $run->waitsOnAskId = $this->waitedOnAsk(null)->id;
+        $this->em->flush();
+
+        $this->endRun($run);
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+
+        $this->pauseCard();
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+    }
+
+    public function test_a_pause_reported_before_the_run_end_opens_no_wait_at_either_report(): void
+    {
+        $run = $this->workerRun(WorkerRunState::Running, '');
+        $run->waitsOnAskId = $this->waitedOnAsk(null)->id;
+        $this->em->flush();
+
+        $this->pauseCard();
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+
+        $this->endRun($run);
+        $this->reconcile();
+        self::assertSame([], $this->watches());
+    }
+
+    private function endRun(WorkerRun $run): void
+    {
+        $run->moveTo(WorkerRunState::Blocked);
+        $run->endedAt = new \DateTimeImmutable();
+        $this->em->flush();
+    }
+
+    private function pauseCard(PauseKind $pause = PauseKind::WorkStopped): void
+    {
+        $handler = self::getContainer()->get(PauseCardHandler::class);
+        self::assertInstanceOf(PauseCardHandler::class, $handler);
+        $handler(new PauseCardCommand($this->card, 'stopped', 'review', $pause));
+    }
+
     /** A blocked run that records the ask, and the work-stopped pause the engine opens for it. */
     private function stoppedRunAsking(InboxAsk $ask, PauseKind $pause = PauseKind::WorkStopped): WorkerRun
     {
         $run = $this->workerRun(WorkerRunState::Blocked, 'Asked the owner');
         $run->waitsOnAskId = $ask->id;
         $this->em->flush();
-        $handler = self::getContainer()->get(PauseCardHandler::class);
-        self::assertInstanceOf(PauseCardHandler::class, $handler);
-        $handler(new PauseCardCommand($this->card, 'stopped', 'review', $pause));
+        $this->pauseCard($pause);
 
         return $run;
     }
