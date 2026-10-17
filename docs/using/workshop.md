@@ -92,6 +92,10 @@ The [Lifecycle workflow](workflows.md) asks for product design work, so it adds 
 The first check looks for a design system that an agent can read.
 The second check looks for a Claude Design project that holds or mirrors it.
 A project with no user interface, such as a library or a CLI, gets no finding for these two checks.
+A third check applies to a project that has a Claude Design mirror.
+It looks for a starter Claude Design project for product design sessions, named in `.loupe/lifecycle.md` or the agent instructions.
+A starter holds the full stylesheet, the fonts, one shell for each main page with one empty slot, and no hidden element that shows.
+A gap becomes a proposed card that leaves the method open.
 
 Discovery needs a running bridge that serves the project.
 The project must also have a workflow, and **Run the workflow of the board** must be on, on the [Automation](board.md#automation) tab.
