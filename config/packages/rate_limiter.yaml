@@ -50,6 +50,12 @@ framework:
             <<: *agent_per_token
             limit: 240
 
+        # Bounds the live output appends of the bridge. A running worker sends
+        # a request each, so the budget is separate from the run reports.
+        agent_run_output:
+            <<: *agent_per_token
+            limit: 240
+
         # Bounds the bridge's ask checks, a GET. A bridge checks once before
         # each resume, and a resume follows a finished worker.
         agent_inbox_ask_checks:
@@ -227,6 +233,10 @@ when@test:
                 limit: 100000
                 interval: '1 minute'
             agent_event_replay:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            agent_run_output:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'

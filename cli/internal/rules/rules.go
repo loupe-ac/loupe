@@ -168,6 +168,9 @@ type File struct {
 	WorkerPools map[string]WorkerPool `yaml:"workerPools"`
 	// Work maps each work request kind the bridge claims to what it runs.
 	Work map[string]WorkEntry `yaml:"work"`
+	// AcceptEntries lets the server add a command entry to this file. It is off
+	// when the key is absent.
+	AcceptEntries bool `yaml:"acceptEntries"`
 	// AppPrompts runs the prompt a request carries for a kind that Work does
 	// not hold. It is off when the key is absent.
 	AppPrompts *bool `yaml:"appPrompts"`
@@ -335,6 +338,7 @@ type Set struct {
 
 	autoUpdate    bool
 	autoUpdateSet bool
+	acceptEntries bool
 	// noCollect is the inverse of collect, so a zero Set collects.
 	noCollect bool
 	// openRouterPrices lets the bridge fetch model prices from openrouter.ai.
@@ -402,7 +406,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		return nil, err
 	}
 
-	s := &Set{dirs: map[string]string{}, work: map[string]WorkEntry{}, autoUpdate: f.AutoUpdate != nil && *f.AutoUpdate, autoUpdateSet: f.AutoUpdate != nil, noCollect: f.Collect != nil && !*f.Collect, openRouterPrices: f.OpenRouterPrices != nil && *f.OpenRouterPrices}
+	s := &Set{dirs: map[string]string{}, work: map[string]WorkEntry{}, autoUpdate: f.AutoUpdate != nil && *f.AutoUpdate, autoUpdateSet: f.AutoUpdate != nil, acceptEntries: f.AcceptEntries, noCollect: f.Collect != nil && !*f.Collect, openRouterPrices: f.OpenRouterPrices != nil && *f.OpenRouterPrices}
 	s.appPrompts, s.defaults, s.fileDefaults = f.AppPrompts != nil && *f.AppPrompts, defaults, f.Defaults
 	if keyNode(root, "accounts") == nil {
 		s.agentsOff = agentsOffNoAccounts
@@ -1106,6 +1110,11 @@ func (s *Set) AutoUpdate() bool {
 	return s.autoUpdate
 }
 
+// AcceptEntries reports whether the file lets the server add command entries.
+func (s *Set) AcceptEntries() bool {
+	return s.acceptEntries
+}
+
 // AutoUpdateSet reports whether the file holds a value for autoUpdate.
 func (s *Set) AutoUpdateSet() bool {
 	return s.autoUpdateSet
@@ -1173,6 +1182,26 @@ func resultSchema(fields map[string]any) (string, error) {
 					"action":      map[string]any{"type": "string"},
 					"reason":      map[string]any{"type": "string"},
 					"recommended": map[string]any{"type": "boolean"},
+					"command": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"entry":  map[string]any{"type": "string"},
+							"branch": map[string]any{"type": "string"},
+							"params": map[string]any{
+								"type": "array",
+								"items": map[string]any{
+									"type": "object",
+									"properties": map[string]any{
+										"name":  map[string]any{"type": "string"},
+										"value": map[string]any{"type": "string"},
+									},
+									"required": []string{"name", "value"},
+								},
+							},
+						},
+						"required": []string{"entry"},
+					},
+					"proposedEntry": map[string]any{"type": "string"},
 				},
 				"required": []string{"action", "reason"},
 			},

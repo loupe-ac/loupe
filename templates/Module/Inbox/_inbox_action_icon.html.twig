@@ -1,3 +1,3 @@
 {#- The icon of an inbox action. Props: kind (InboxActionKind value). -#}
-{% set icons = {'resume-run': 'lucide:circle-play', 'retry-card': 'lucide:rotate-ccw', review: 'lucide:file-text', open: 'lucide:square-kanban', 'send-agent': 'lucide:bot', 'start-session': 'lucide:terminal', dismiss: 'lucide:x'} %}
+{% set icons = {'resume-run': 'lucide:circle-play', 'retry-card': 'lucide:rotate-ccw', review: 'lucide:file-text', open: 'lucide:square-kanban', 'send-agent': 'lucide:bot', 'start-session': 'lucide:terminal', 'run-command': 'lucide:terminal', dismiss: 'lucide:x'} %}
 {{ ux_icon(icons[kind] ?? 'lucide:circle-play', {'aria-hidden': 'true'}) }}

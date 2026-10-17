@@ -12,8 +12,12 @@ use App\Module\Board\Entity\Card;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkerRunOutputChunk;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxActionKind;
@@ -366,6 +370,536 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertCount(0, $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread]'));
     }
 
+    public function test_a_run_command_posts_the_confirmed_branch_and_values_and_queues_the_request(): void
+    {
+        $item = $this->commandTodo();
+
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'branch' => 'main', 'params' => ['out' => 'other/folder'], 'runDigest' => self::shownDigest()]);
+
+        self::assertStringStartsWith($this->pageUrl().'?ask=', (string) $this->client->getResponse()->headers->get('Location'));
+        $action = $this->onlyAction($item);
+        self::assertSame(InboxActionKind::RunCommand, $action->kind);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
+        self::assertSame(['design-export', (string) $this->bridge->id, 'main', ['out' => 'other/folder'], ['bin/console', 'app:export', '{out}'], WorkRequestState::Open], [$request->kind, (string) $request->targetBridgeId, $request->branch, $request->params, $request->run, $request->state]);
+    }
+
+    public function test_a_run_command_whose_entry_changed_since_the_dialog_is_refused_in_place_and_queues_nothing(): void
+    {
+        $item = $this->commandTodo();
+        $this->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '--force', '{out}'], 'timeout' => '10m']];
+        $this->em()->flush();
+
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => self::shownDigest()]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-'.$item->number, 'The command changed on the bridge since you opened this dialog.');
+        self::assertSame([], $this->actionsOf($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
+    public function test_a_run_command_without_confirmed_values_runs_the_values_of_the_suggestion(): void
+    {
+        $item = $this->commandTodo();
+
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => self::shownDigest()]);
+
+        $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId);
+        self::assertSame(['epic/42', ['out' => 'var/out']], [$request?->branch, $request?->params]);
+    }
+
+    public function test_a_run_command_with_a_bad_value_is_refused_in_place_and_queues_nothing(): void
+    {
+        $item = $this->commandTodo();
+
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'params' => ['out' => '--exec=1'], 'runDigest' => self::shownDigest()]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-'.$item->number, 'A value does not fit its pattern.');
+        self::assertSame([], $this->actionsOf($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
+    public function test_a_command_todo_shows_the_split_button_and_the_confirm_dialog(): void
+    {
+        $item = $this->commandTodo();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $main = $crawler->filter('.inbox-split__main');
+        self::assertSame('Run design-export on epic/42', trim($main->text()));
+        self::assertSame('button', $main->attr('type'));
+        self::assertNull($main->attr('formaction'));
+        self::assertStringContainsString('modal#open', (string) $main->attr('data-action'));
+        self::assertCount(1, $crawler->filter('[data-inbox-done]'));
+        $formId = 'inbox_action_'.$item->id;
+        $dialog = $crawler->filter('[data-inbox-run-command-dialog]');
+        self::assertCount(1, $dialog);
+        self::assertSame('Run design-export?', trim($dialog->filter('.lp-dialog-title')->text()));
+        self::assertStringContainsString('the bridge that sent the to-do', $dialog->filter('.lp-run-command__facts')->text());
+        $options = $dialog->filter('select[name="'.$formId.'[branch]"] option');
+        self::assertSame(['epic/42', 'main'], $options->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        self::assertSame('epic/42', $dialog->filter('select option[selected]')->attr('value'));
+        self::assertSame('/work/loupe/.worktrees/card-42', $options->first()->attr('data-folder'));
+        self::assertSame('var/out', $dialog->filter('input[name="'.$formId.'[params][out]"]')->attr('value'));
+        $digest = $dialog->filter('input[name="'.$formId.'[runDigest]"]');
+        self::assertSame([self::shownDigest(), $formId], [$digest->attr('value'), $digest->attr('form')]);
+        self::assertSame('bin/console app:export var/out', trim($dialog->filter('[data-testid="run-command-argv"]')->text()));
+        self::assertSame('Command, in /work/loupe/.worktrees/card-42', trim($dialog->filter('.lp-code-dark__label')->text()));
+        self::assertStringContainsString('A success marks the to-do done.', $dialog->text());
+        $run = $dialog->filter('[data-inbox-action="run-command-confirm"]');
+        self::assertSame($this->actionPath($item, 'run-command'), parse_url((string) $run->attr('formaction'), \PHP_URL_PATH));
+        self::assertSame($formId, $run->attr('form'));
+        self::assertNull($run->attr('disabled'));
+        self::assertCount(1, $crawler->filter('form#'.$formId));
+    }
+
+    public function test_a_failed_command_shows_its_last_lines_with_run_again_and_mark_done(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Done, WorkerRunState::Failed, 2, "Starting\nSQLSTATE[08006] could not connect");
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $block = $crawler->filter('[data-inbox-run-command="failed"]');
+        self::assertCount(1, $block);
+        self::assertStringContainsString('Failed, exit 2', $block->filter('.lp-status-chip')->text());
+        self::assertStringContainsString('SQLSTATE[08006] could not connect', $block->filter('[data-inbox-run-command-output]')->text());
+        self::assertSame('Run again', trim($block->filter('[data-inbox-action="run-command-again"]')->text()));
+        self::assertNull($block->filter('[data-inbox-action="run-command-again"]')->attr('disabled'));
+        self::assertSame('inbox_done_'.$item->id, $block->filter('[data-inbox-run-command-done]')->attr('form'));
+        self::assertCount(1, $crawler->filter('[data-inbox-run-command-dialog]'));
+    }
+
+    public function test_a_running_command_streams_its_stored_log_into_a_live_block(): void
+    {
+        $item = $this->commandTodo();
+        $run = $this->commandRunOf($item, WorkRequestState::Claimed, WorkerRunState::Running);
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->storeLog($run, "Reading tokens\nExporting 12/38 ");
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="running"]');
+        $output = $block->filter('[data-inbox-run-command-live]');
+        self::assertCount(1, $output);
+        self::assertSame('run-output', $output->attr('data-controller'));
+        self::assertSame('/projects/'.$this->project->id.'/worker-runs/'.$run->id.'/output', $output->attr('data-run-output-url-value'));
+        self::assertSame((string) $run->id, $output->attr('data-run-output-run-id-value'));
+        self::assertSame((string) \strlen("Reading tokens\nExporting 12/38 "), $output->attr('data-run-output-length-value'));
+        self::assertSame('Output', trim($output->filter('.lp-code-dark__label')->text()));
+        self::assertSame('Live', trim($output->filter('.lp-run-output__live')->text()));
+        self::assertSame("Reading tokens\nExporting 12/38 ", $output->filter('pre code')->html());
+        self::assertCount(1, $output->filter('pre .lp-run-output__cursor'));
+        self::assertCount(0, $block->filter('[data-inbox-run-command-log]'));
+    }
+
+    public function test_a_running_command_with_no_output_yet_shows_an_empty_live_block(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Claimed, WorkerRunState::Running);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $output = $crawler->filter('[data-inbox-run-command-live]');
+        self::assertCount(1, $output);
+        self::assertSame('0', $output->attr('data-run-output-length-value'));
+        self::assertSame('', $output->filter('pre code')->text());
+    }
+
+    public function test_a_succeeded_command_shows_its_time_its_last_lines_and_a_link_to_the_full_log(): void
+    {
+        $item = $this->commandTodo();
+        $run = $this->commandRunOf(
+            $item,
+            WorkRequestState::Done,
+            WorkerRunState::Succeeded,
+            0,
+            startedAt: new \DateTimeImmutable('2026-10-16 10:00:00'),
+            endedAt: new \DateTimeImmutable('2026-10-16 10:00:14'),
+        );
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->storeLog($run, implode('', array_map(static fn (int $line): string => 'line '.$line."\n", range(1, 12))));
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="succeeded"]');
+        self::assertStringContainsString('Succeeded in 14 s', $block->filter('.lp-status-chip')->text());
+        $output = $block->filter('[data-inbox-run-command-output]');
+        self::assertSame('Output, last lines', trim($output->filter('.lp-code-dark__label')->text()));
+        self::assertSame('line 3', explode("\n", $output->filter('pre code')->html())[0]);
+        self::assertCount(0, $block->filter('[data-controller="run-output"]'));
+        $link = $block->filter('[data-inbox-run-command-log]');
+        self::assertSame('Open the full log (12 lines)', trim($link->text()));
+        self::assertSame('/projects/'.$this->project->id.'/worker-runs/'.$run->id.'/log', $link->attr('href'));
+        self::assertSame('_blank', $link->attr('target'));
+        self::assertStringContainsString('noopener', (string) $link->attr('rel'));
+    }
+
+    public function test_a_failed_command_puts_the_log_link_left_of_its_buttons(): void
+    {
+        $item = $this->commandTodo();
+        $run = $this->commandRunOf($item, WorkRequestState::Done, WorkerRunState::Failed, 1);
+        self::assertInstanceOf(WorkerRun::class, $run);
+        $this->storeLog($run, "one\ntwo\n");
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $row = $crawler->filter('[data-inbox-run-command="failed"] .lp-form-actions');
+        self::assertCount(1, $row->filter('.lp-form-actions--between'));
+        self::assertSame('Open the full log (2 lines)', trim($row->filter('[data-inbox-run-command-log]')->text()));
+        self::assertSame('a', $row->children()->first()->nodeName());
+        self::assertCount(1, $row->filter('[data-inbox-run-command-done]'));
+        self::assertCount(1, $row->filter('[data-inbox-action="run-command-again"]'));
+    }
+
+    public function test_a_command_with_no_stored_log_offers_no_log_link(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Done, WorkerRunState::Failed, 1, 'boom');
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="failed"]');
+        self::assertStringContainsString('boom', $block->filter('[data-inbox-run-command-output]')->text());
+        self::assertCount(0, $block->filter('[data-inbox-run-command-log]'));
+    }
+
+    public function test_a_queued_command_shows_the_chip_and_a_cancel_button_and_no_output(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Open);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="queued"]');
+        self::assertCount(1, $block);
+        self::assertStringContainsString('Queued', $block->filter('.lp-status-chip')->text());
+        self::assertCount(1, $block->filter('form.lp-inbox-thread__cancel'));
+        self::assertCount(0, $block->filter('[data-inbox-action="run-command-again"]'));
+        self::assertNotNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertCount(0, $block->filter('[data-inbox-run-command-offline]'));
+    }
+
+    public function test_a_command_queued_for_a_quiet_bridge_says_no_bridge_is_online(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Open);
+        $this->bridge->lastSeenAt = new \DateTimeImmutable('-1 day');
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="queued"]');
+        self::assertSame('No bridge is online.', trim($block->filter('[data-inbox-run-command-offline]')->text()));
+        self::assertCount(1, $block->filter('form.lp-inbox-thread__cancel'));
+    }
+
+    public function test_a_refused_command_shows_the_refusal_and_run_again(): void
+    {
+        $item = $this->commandTodo();
+        $this->commandRunOf($item, WorkRequestState::Refused, reason: 'worktree-missing');
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $block = $crawler->filter('[data-inbox-run-command="refused"]');
+        self::assertSame('The bridge found no worktree for this branch.', trim($block->filter('[data-inbox-run-command-reason]')->text()));
+        self::assertCount(1, $block->filter('[data-inbox-action="run-command-again"]'));
+        self::assertCount(0, $block->filter('[data-inbox-run-command-done]'));
+    }
+
+    public function test_a_missing_entry_of_a_bridge_that_did_not_opt_in_shows_the_named_entry_with_copy_and_a_disabled_run_button(): void
+    {
+        $this->proposalTodo(optIn: false);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $proposed = $crawler->filter('[data-inbox-run-command-proposed]');
+        self::assertCount(1, $proposed);
+        self::assertStringContainsString('design-export: action: command', $proposed->filter('pre')->text());
+        self::assertSame('Proposed entry, add it under work:', trim($proposed->filter('.lp-code-dark__label')->text()));
+        self::assertSame('Copy', trim($proposed->filter('.lp-copy-button__chip')->text()));
+        self::assertSame('design-export is not in the rules.yaml of '.$this->bridge->label.', and that bridge does not accept added entries.', trim($crawler->filter('[data-inbox-run-command-off]')->text()));
+        self::assertStringContainsString('loupe bridge reload', $crawler->filter('.lp-comment-composer')->text());
+        self::assertNotNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertCount(0, $crawler->filter('[data-inbox-run-command-dialog]'));
+        self::assertCount(0, $crawler->filter('[data-inbox-add-entry-dialog]'));
+        self::assertCount(0, $crawler->filter('[data-inbox-action="add-entry"]'));
+    }
+
+    public function test_a_missing_entry_with_no_proposal_keeps_the_plain_reason(): void
+    {
+        $this->commandTodo();
+        $this->bridge->commandEntries = [];
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertSame('The rule file of the bridge has no such command.', trim($crawler->filter('[data-inbox-run-command-off]')->text()));
+        self::assertCount(0, $crawler->filter('[data-inbox-run-command-proposed]'));
+    }
+
+    public function test_a_missing_entry_of_a_bridge_that_opted_in_offers_add_to_rules_yaml_and_its_confirm_dialog(): void
+    {
+        $item = $this->proposalTodo(optIn: true);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $main = $crawler->filter('.inbox-split__main');
+        self::assertSame('Add to rules.yaml', trim($main->text()));
+        self::assertSame(['button', 'add-entry'], [$main->attr('type'), $main->attr('data-inbox-action')]);
+        self::assertNull($main->attr('disabled'));
+        self::assertStringContainsString('modal#open', (string) $main->attr('data-action'));
+        self::assertSame('design-export is not in the rules.yaml of '.$this->bridge->label.'. The agent proposes this entry.', trim($crawler->filter('[data-inbox-run-command-off]')->text()));
+        $proposed = $crawler->filter('[data-inbox-run-command-proposed]');
+        self::assertSame('Proposed entry', trim($proposed->filter('.lp-code-dark__label')->text()));
+        self::assertCount(0, $proposed->filter('.lp-copy-button__chip'));
+        self::assertSame('modal', $crawler->filter('[data-inbox-thread]')->attr('data-controller'));
+        self::assertCount(0, $crawler->filter('[data-inbox-run-command-dialog]'));
+
+        $formId = 'inbox_action_'.$item->id;
+        $dialog = $crawler->filter('[data-inbox-add-entry-dialog]');
+        self::assertCount(1, $dialog);
+        self::assertSame('Add design-export to rules.yaml?', trim($dialog->filter('.lp-dialog-title')->text()));
+        self::assertStringContainsString($this->bridge->label.' adds it to its rules.yaml and reloads. Nothing runs yet.', $dialog->filter('.lp-dialog-desc')->text());
+        self::assertStringContainsString('design-export: action: command', $dialog->filter('[data-testid="add-entry-yaml"]')->text());
+        self::assertCount(0, $dialog->filter('.lp-copy-button__chip'));
+        $confirm = $dialog->filter('[data-inbox-action="add-entry-confirm"]');
+        self::assertSame('Add the entry', trim($confirm->text()));
+        self::assertSame($this->actionPath($item, 'add-entry'), parse_url((string) $confirm->attr('formaction'), \PHP_URL_PATH));
+        self::assertSame($formId, $confirm->attr('form'));
+        self::assertCount(1, $crawler->filter('form#'.$formId));
+    }
+
+    public function test_the_menu_offers_add_to_rules_yaml_when_another_action_is_the_main_button(): void
+    {
+        $this->proposalTodo(optIn: true, recommendRun: false);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertSame('Open', trim($crawler->filter('.inbox-split__main')->text()));
+        $row = $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="add-entry"]');
+        self::assertCount(1, $row);
+        self::assertSame('Add to rules.yaml', trim($row->filter('.lp-menu__label')->text()));
+        self::assertStringContainsString('modal#open', (string) $row->attr('data-action'));
+        self::assertCount(1, $crawler->filter('[data-inbox-add-entry-dialog]'));
+    }
+
+    public function test_adding_an_entry_queues_a_request_for_the_bridge_and_the_thread_shows_it(): void
+    {
+        $item = $this->proposalTodo(optIn: true);
+
+        $this->post($this->actionPath($item, 'add-entry'), $item, ['note' => '']);
+
+        self::assertStringStartsWith($this->pageUrl().'?ask=', (string) $this->client->getResponse()->headers->get('Location'));
+        $action = $this->onlyAction($item);
+        self::assertSame(InboxActionKind::AddEntry, $action->kind);
+        $request = $this->em()->find(WorkRequest::class, $action->workRequestId);
+        self::assertInstanceOf(WorkRequest::class, $request);
+        self::assertSame(['add-entry', 'add-entry', 'inbox:add-entry', InboxItem::SUBJECT_TYPE, (string) $this->bridge->id, WorkRequestState::Open], [$request->kind, $request->capability, $request->ruleId, $request->subjectType, (string) $request->targetBridgeId, $request->state]);
+        self::assertSame("design-export:\n  action: command\n", $request->prompt);
+
+        $crawler = $this->client->followRedirect();
+        $you = $crawler->filter('#inbox-item-'.$item->number.' [data-inbox-action-status="queued"]');
+        self::assertCount(1, $you);
+        self::assertStringContainsString('added an entry at', $you->filter('.lp-form-hint')->text());
+        self::assertCount(1, $you->filter('form.lp-inbox-thread__cancel'));
+        self::assertCount(0, $crawler->filter('[data-inbox-action="add-entry"]'));
+        self::assertCount(0, $crawler->filter('[data-inbox-add-entry-dialog]'));
+        self::assertSame($this->bridge->label.' is adding design-export to its rules.yaml.', trim($crawler->filter('[data-inbox-run-command-off]')->text()));
+        self::assertSelectorTextContains('body', 'Entry queued');
+    }
+
+    public function test_a_done_add_reads_added_and_the_run_button_waits_for_the_next_heartbeat(): void
+    {
+        $item = $this->proposalTodo(optIn: true);
+        $this->post($this->actionPath($item, 'add-entry'), $item, ['note' => '']);
+        $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId) ?? throw new \LogicException('Stored.');
+        $request->state = WorkRequestState::Done;
+        $request->settledAt = new \DateTimeImmutable();
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        $status = $crawler->filter('#inbox-item-'.$item->number.' [data-inbox-action-status="added"]');
+        self::assertCount(1, $status);
+        self::assertStringContainsString('Added to rules.yaml', $status->filter('.lp-status-chip')->text());
+        self::assertStringContainsString('lp-status-chip--ok', (string) $status->filter('.lp-status-chip')->attr('class'));
+
+        $bridge = $this->service(BridgeRepository::class)->findOneBy(['id' => $this->bridge->id]) ?? throw new \LogicException('Stored.');
+        $bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '{out}'], 'timeout' => '10m']];
+        $this->em()->flush();
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertSame('Run design-export on epic/42', trim($crawler->filter('.inbox-split__main')->text()));
+        self::assertNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        self::assertCount(1, $crawler->filter('[data-inbox-run-command-dialog]'));
+    }
+
+    public function test_a_refused_add_shows_the_reason_and_offers_the_add_again(): void
+    {
+        $item = $this->proposalTodo(optIn: true);
+        $this->post($this->actionPath($item, 'add-entry'), $item, ['note' => '']);
+        $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId) ?? throw new \LogicException('Stored.');
+        $request->state = WorkRequestState::Refused;
+        $request->reason = 'write-failed';
+        $request->settledAt = new \DateTimeImmutable();
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertStringContainsString('Refused: write-failed', $crawler->filter('[data-inbox-action-status="refused"] .lp-status-chip')->text());
+        self::assertSame('Add to rules.yaml', trim($crawler->filter('.inbox-split__main')->text()));
+    }
+
+    public function test_cancelling_a_queued_add_withdraws_its_request(): void
+    {
+        $item = $this->proposalTodo(optIn: true);
+        $this->post($this->actionPath($item, 'add-entry'), $item, ['note' => '']);
+        $action = $this->onlyAction($item);
+
+        $this->post($this->cancelPath($item, $action), $item, [], 'inbox_action_cancel_'.$action->id);
+
+        self::assertNotNull($this->onlyAction($item)->cancelledAt);
+        self::assertSame(WorkRequestState::Cancelled, $this->em()->find(WorkRequest::class, $action->workRequestId)?->state);
+    }
+
+    public function test_adding_an_entry_the_page_does_not_offer_is_refused_in_place(): void
+    {
+        $item = $this->proposalTodo(optIn: false);
+
+        $this->post($this->actionPath($item, 'add-entry'), $item, ['note' => '']);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-'.$item->number, 'This action no longer fits the item.');
+        self::assertSame([], $this->actionsOf($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
+    public function test_a_stranger_cannot_add_an_entry(): void
+    {
+        $item = $this->proposalTodo(optIn: true);
+        $this->client->loginUser($this->signedUpUser($this->em(), 'inbox-stranger'));
+
+        $this->post($this->actionPath($item, 'add-entry'), $item, ['note' => '']);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame([], $this->actionsOf($item));
+    }
+
+    public function test_a_branch_without_a_worktree_opens_the_dialog_with_run_off(): void
+    {
+        $this->commandTodo();
+        $this->bridge->worktrees = [['projectId' => (string) $this->project->id, 'branch' => 'main', 'path' => '/work/loupe']];
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertNull($crawler->filter('.inbox-split__main')->attr('disabled'));
+        $dialog = $crawler->filter('[data-inbox-run-command-dialog]');
+        self::assertNotNull($dialog->filter('[data-inbox-action="run-command-confirm"]')->attr('disabled'));
+        self::assertSame('No worktree for epic/42 on '.$this->bridge->label, trim($dialog->filter('[data-inbox-run-command-no-worktree]')->text()));
+        self::assertNull($dialog->filter('[data-inbox-run-command-no-worktree]')->attr('hidden'));
+        self::assertSame(['epic/42', 'main'], $dialog->filter('select option')->each(static fn (Crawler $option): string => (string) $option->attr('value')));
+        $off = $dialog->filter('[data-inbox-run-command-branch-off]');
+        self::assertSame('epic/42, no worktree on '.$this->bridge->label, trim($off->text()));
+        self::assertNotNull($off->attr('disabled'));
+        self::assertNotNull($off->attr('selected'));
+        self::assertSame('', $off->attr('data-folder'));
+    }
+
+    private function commandRunOf(InboxItem $item, WorkRequestState $state, ?WorkerRunState $runState = null, ?int $exitCode = null, string $output = '', ?string $reason = null, ?\DateTimeImmutable $startedAt = null, ?\DateTimeImmutable $endedAt = null): ?WorkerRun
+    {
+        $request = new WorkRequest(
+            project: $this->project,
+            subjectType: WorkSubject::CARD,
+            subjectId: $this->card->id ?? throw new \LogicException('Stored.'),
+            cardNumber: $this->card->number,
+            kind: 'design-export',
+            capability: Bridge::CAPABILITY_RUN_COMMAND,
+            ruleId: 'inbox:run-command',
+            createdAt: new \DateTimeImmutable(),
+        );
+        $request->state = $state;
+        $request->reason = $reason;
+        $request->settledAt = WorkRequestState::Open === $state ? null : new \DateTimeImmutable();
+        $this->em()->persist($request);
+        $this->em()->flush();
+        $action = new InboxAction($item, InboxActionKind::RunCommand, $this->project->owner, '', new \DateTimeImmutable());
+        $action->workRequestId = $request->id;
+        $this->em()->persist($action);
+        $run = null;
+        if (null !== $runState) {
+            $this->em()->persist($run = new WorkerRun(
+                project: $this->project,
+                bridgeId: $this->bridge->id,
+                subjectType: WorkSubject::CARD,
+                subjectId: $this->card->id,
+                cardNumber: $this->card->number,
+                workKind: 'design-export',
+                state: $runState,
+                runKey: Uuid::v7(),
+                startedAt: $startedAt,
+                endedAt: $endedAt,
+                exitCode: $exitCode,
+                output: $output,
+                workRequestId: $request->id,
+            ));
+        }
+        $this->em()->flush();
+
+        return $run;
+    }
+
+    private function storeLog(WorkerRun $run, string $text): void
+    {
+        $this->em()->persist(new WorkerRunOutputChunk($run, 0, \strlen($text), $text));
+        $this->em()->flush();
+    }
+
+    /** A to-do whose bridge lacks the entry that the agent proposes, with or without the opt-in to add entries. */
+    private function proposalTodo(bool $optIn, bool $recommendRun = true): InboxItem
+    {
+        $item = $this->commandTodo();
+        $this->bridge->commandEntries = [];
+        if ($optIn) {
+            $this->bridge->capabilities = [...($this->bridge->capabilities ?? []), Bridge::CAPABILITY_ADD_ENTRY];
+        }
+        $item->suggestedActions = [
+            ['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => $recommendRun, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => 'action: command'],
+            ['action' => 'open', 'reason' => 'See the card.', 'recommended' => !$recommendRun, 'cardId' => null, 'command' => null, 'proposedEntry' => null],
+        ];
+        $this->em()->flush();
+
+        return $item;
+    }
+
+    private function commandTodo(): InboxItem
+    {
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
+        $this->bridge->projects = [(string) $this->project->id];
+        $this->bridge->lastSeenAt = new \DateTimeImmutable();
+        $this->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '{out}'], 'timeout' => '10m']];
+        $this->bridge->worktrees = [
+            ['projectId' => (string) $this->project->id, 'branch' => 'main', 'path' => '/work/loupe'],
+            ['projectId' => (string) $this->project->id, 'branch' => 'epic/42', 'path' => '/work/loupe/.worktrees/card-42'],
+        ];
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
+        $item->suggestedActions = [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => null]];
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em()->persist($item);
+        $this->em()->flush();
+        $ask = $this->askHolding($this->em(), $this->project, [$item]);
+        $ask->bridgeId = $this->bridge->id;
+        $this->em()->flush();
+
+        return $item;
+    }
+
     private function runItem(string $report = 'Needs the API key.', WorkerRunState $state = WorkerRunState::Blocked, bool $linkCard = false): InboxItem
     {
         $run = new WorkerRun(
@@ -411,7 +945,15 @@ final class InboxActionControllersTest extends WebTestCase
         return $item;
     }
 
-    /** @param array<string, string> $fields */
+    /** The digest of the run list of the design-export entry that the dialog shows. */
+    private static function shownDigest(): string
+    {
+        $run = ['bin/console', 'app:export', '{out}'];
+
+        return hash('sha256', json_encode([$run, $run], \JSON_THROW_ON_ERROR));
+    }
+
+    /** @param array<string, string|array<string, string>> $fields */
     private function post(string $url, InboxItem $item, array $fields, ?string $formName = null): Crawler
     {
         // 'csrf-token' is the SameOriginCsrfTokenManager sentinel, which a same-origin Referer lets stand in for a signed token.

@@ -69,6 +69,8 @@ final class RecordBridgeHeartbeatController extends AppController
             hostSamples: $payload->hostSamples(),
             pushLogin: $payload->pushLogin,
             accounts: $payload->accounts(),
+            commandEntries: $payload->commandEntries(),
+            worktrees: $payload->worktrees(),
             workKinds: $payload->workKinds(),
         ));
 

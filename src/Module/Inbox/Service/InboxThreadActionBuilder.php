@@ -46,7 +46,8 @@ final readonly class InboxThreadActionBuilder
             } else {
                 $rows[] = $row;
             }
-            if ($action->default && InboxActionKind::Dismiss !== $action->kind && null === $action->disabledReasonKey) {
+            // A run-command action stays the main button when it is off, because its reason and its dialog belong beside the button.
+            if ($action->default && InboxActionKind::Dismiss !== $action->kind && (null === $action->disabledReasonKey || InboxActionKind::RunCommand === $action->kind)) {
                 $default = $row;
             }
         }
@@ -68,9 +69,7 @@ final readonly class InboxThreadActionBuilder
 
     private function openRow(InboxItem $item, ItemAction $action, ?string $hostCardId): ?ThreadAction
     {
-        $watch = $this->inboxCardWatches->findOneForItem($item);
-        $firstCard = $item->cards->first();
-        $cardId = null !== $watch ? $watch->cardId : (false === $firstCard ? null : $firstCard->card->id);
+        $cardId = $this->itemActions->cardIdOf($item, InboxActionKind::Open);
         if (null !== $cardId) {
             if ($cardId->toRfc4122() === $hostCardId) {
                 return null;

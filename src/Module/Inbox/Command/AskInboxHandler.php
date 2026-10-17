@@ -7,6 +7,7 @@ namespace App\Module\Inbox\Command;
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Bridge\Entity\Bridge;
 use App\Module\Inbox\Entity\InboxActionKind;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
@@ -15,6 +16,7 @@ use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxReview;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
@@ -23,6 +25,7 @@ use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
 use App\Module\Inbox\Service\RunSuggestions;
+use App\Module\Inbox\Service\SuggestedCommandCheck;
 use App\Module\Review\Entity\Document;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
@@ -61,10 +64,17 @@ final readonly class AskInboxHandler
     public const string SUGGESTION_REASON_TOO_LONG = 'inbox.item.error.suggestion_reason_too_long';
     public const string SUGGESTION_CARD_NOT_LINKED = 'inbox.item.error.suggestion_card_not_linked';
     public const string TOO_MANY_SUGGESTIONS = 'inbox.item.error.too_many_suggestions';
+    public const string SUGGESTION_RUN_COMMAND_KIND = 'inbox.item.error.suggestion_run_command_kind';
+    public const string SUGGESTION_COMMAND_REQUIRED = 'inbox.item.error.suggestion_command_required';
+    public const string SUGGESTION_COMMAND_UNEXPECTED = 'inbox.item.error.suggestion_command_unexpected';
+    public const string SUGGESTION_BRANCH_INVALID = 'inbox.item.error.suggestion_branch_invalid';
+    public const string SUGGESTION_PARAM_INVALID = 'inbox.item.error.suggestion_param_invalid';
+    public const string SUGGESTION_ENTRY_INVALID = 'inbox.item.error.suggestion_entry_invalid';
 
     public function __construct(
         private InboxItemRepository $inboxItems,
         private InboxSessionAsks $sessionAsks,
+        private AskingBridge $askingBridge,
         private InboxLinkResolver $links,
         private InboxSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
@@ -86,9 +96,12 @@ final readonly class AskInboxHandler
 
         // Every refusal it can decide alone comes before the transaction, for the
         // reason in InboxLinkResolver.
+        $bridge = array_any($command->items, static fn (AskInboxItem $input): bool => array_any($input->suggestedActions, static fn (AskInboxSuggestion $suggestion): bool => InboxActionKind::RunCommand->value === $suggestion->action))
+            ? $this->askingBridge->find($command->project, $command->sessionId, $command->bridgeId)
+            : null;
         $drafts = [];
         foreach ($command->items as $index => $input) {
-            $drafts[] = $this->draft($command, $index, $input);
+            $drafts[] = $this->draft($command, $index, $input, $bridge);
         }
         if (null !== $command->context && mb_strlen($command->context) > InboxLimits::MAX_CONTEXT_LENGTH) {
             throw new DomainErrors(['context' => InboxSessionAsks::CONTEXT_TOO_LONG]);
@@ -195,7 +208,7 @@ final readonly class AskInboxHandler
         return $view;
     }
 
-    private function draft(AskInboxCommand $command, int $index, AskInboxItem $input): AskInboxDraft
+    private function draft(AskInboxCommand $command, int $index, AskInboxItem $input, ?Bridge $bridge): AskInboxDraft
     {
         $field = static fn (string $name): string => \sprintf('items[%d].%s', $index, $name);
 
@@ -289,7 +302,7 @@ final readonly class AskInboxHandler
             cards: $cards,
             documents: $documents,
             reviewTarget: $reviewTarget,
-            suggestedActions: $this->suggestions($input->suggestedActions, $linkedCardIds, $field('suggestedActions')),
+            suggestedActions: $this->suggestions($input->suggestedActions, $input->kind, $linkedCardIds, $field('suggestedActions'), $bridge),
         );
     }
 
@@ -299,9 +312,9 @@ final readonly class AskInboxHandler
      * @param list<AskInboxSuggestion> $suggestions
      * @param list<string>             $linkedCardIds
      *
-     * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string}>
+     * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry: ?string}>
      */
-    private function suggestions(array $suggestions, array $linkedCardIds, string $field): array
+    private function suggestions(array $suggestions, InboxItemKind $kind, array $linkedCardIds, string $field, ?Bridge $bridge): array
     {
         if (\count($suggestions) > RunSuggestions::MAX_SUGGESTIONS) {
             throw new DomainErrors([$field => self::TOO_MANY_SUGGESTIONS]);
@@ -309,7 +322,7 @@ final readonly class AskInboxHandler
 
         $checked = [];
         foreach ($suggestions as $suggestion) {
-            if (null === InboxActionKind::tryFrom($suggestion->action)) {
+            if (!(InboxActionKind::tryFrom($suggestion->action)?->isSuggestable() ?? false)) {
                 throw new DomainErrors([$field => self::SUGGESTION_UNKNOWN_ACTION]);
             }
             if (isset($checked[$suggestion->action])) {
@@ -328,11 +341,31 @@ final readonly class AskInboxHandler
             if (null !== $suggestion->cardId && !\in_array(strtolower($suggestion->cardId), $linkedCardIds, true)) {
                 throw new DomainErrors([$field => self::SUGGESTION_CARD_NOT_LINKED]);
             }
+            $command = null;
+            if (InboxActionKind::RunCommand->value !== $suggestion->action) {
+                if (null !== $suggestion->command || null !== $suggestion->proposedEntry) {
+                    throw new DomainErrors([$field => self::SUGGESTION_COMMAND_UNEXPECTED]);
+                }
+            } else {
+                if (InboxItemKind::Todo !== $kind) {
+                    throw new DomainErrors([$field => self::SUGGESTION_RUN_COMMAND_KIND]);
+                }
+                if (null === $suggestion->command || '' === trim($suggestion->command->entry)) {
+                    throw new DomainErrors([$field => self::SUGGESTION_COMMAND_REQUIRED]);
+                }
+                $command = new AskInboxRunCommand(trim($suggestion->command->entry), $suggestion->command->branch, $suggestion->command->params);
+                $error = SuggestedCommandCheck::error($command, $suggestion->proposedEntry, $bridge);
+                if (null !== $error) {
+                    throw new DomainErrors([$field => $error]);
+                }
+            }
             $checked[$suggestion->action] = [
                 'action' => $suggestion->action,
                 'reason' => $reason,
                 'recommended' => $suggestion->recommended,
                 'cardId' => null === $suggestion->cardId ? null : strtolower($suggestion->cardId),
+                'command' => null === $command ? null : ['entry' => $command->entry, 'branch' => $command->branch, 'params' => $command->params],
+                'proposedEntry' => null === $command ? null : $suggestion->proposedEntry,
             ];
         }
 

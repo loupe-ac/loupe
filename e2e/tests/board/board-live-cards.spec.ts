@@ -106,7 +106,10 @@ test('a card moved in one browser moves in another, marked, with the filter and 
         .selectOption({ label: 'Done' });
     await Promise.all([
         flashed,
-        expect(mover).toHaveURL(new RegExp(`${boardUrl}$`)),
+        // A loaded runner takes over 5 s for the move and the board load.
+        expect(mover).toHaveURL(new RegExp(`${boardUrl}$`), {
+            timeout: 15000,
+        }),
     ]);
     await expect(group(watcher, 'in-progress').locator(CARD)).toHaveCount(0);
     await expect(

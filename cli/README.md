@@ -750,6 +750,8 @@ Each entry takes these fields:
 | `variants` | no | The variants of an experiment that the kind names. Only a worker entry can set it. See below |
 | `run` | for `action: command` | The argv list of the command, with placeholders. Only a command entry can set it |
 | `timeout` | no | How long the command can run. Defaults to `10m`, and is at most `60m`. Only a command entry can set it |
+| `description` | no | A short text that says what the command does. The bridge reports it to Loupe. Only a command entry can set it |
+| `params` | no | The parameters of the command, as [Command parameters](#command-parameters) says. Only a command entry can set it |
 
 An interactive entry needs the top-level `launch` block, and works on macOS and
 Linux only. The prompt of a worker entry gets the [prompt footer](#prompt-footer).
@@ -981,6 +983,132 @@ and the bridge refuses more than `60m`. The check refuses `prompt`, `model`,
 entry. The accounts, the `defaults:` block and the bridge flags do not reach
 it.
 
+### Command parameters
+
+A command entry can declare `params`. `run` names a parameter as a placeholder,
+such as `{out}`. Each parameter has a `pattern`, and an optional `description`.
+
+```yaml
+work:
+  design-export:
+    action: command
+    description: Export the design system for Claude Design
+    params:
+      out: { pattern: "var/[a-z-]+", description: The export folder }
+    run: [bin/console, app:design-system:export, "{out}"]
+```
+
+The pattern is RE2 syntax, as Go reads it. It has no lookahead and no
+backreference. The bridge wraps it as `^(?:pattern)$`, so a value must match
+whole. The value fills one element of `run`, and never splits.
+
+The check refuses a parameter with no pattern, a pattern that RE2 cannot
+compile, a name that is not letters only, and a name that is a built-in
+placeholder such as `kind`. A placeholder that is neither built in nor declared
+stays an error.
+
+A pattern is only as strict as the operator writes it. A loose pattern such as
+`.*` lets a value like `--exec=...` or `../..` through. Write the narrowest
+pattern that fits.
+
+### Command entries in the heartbeat
+
+The heartbeat lists every command entry: `name`, `description`, `params`, `run`
+and `timeout`. It lists at most 50 entries, in name order. It also lists, for
+each followed project, the branch and the folder of each worktree that
+`git worktree list --porcelain` shows in the project `dir`. It lists at most 200
+worktrees. A detached or bare worktree has no branch and is left out. The bridge
+reads the worktrees at each heartbeat. When git fails or runs past five
+seconds, the heartbeat leaves the list out, and Loupe keeps the rows it holds.
+A reload sends a heartbeat at once, so a new entry shows with no wait.
+
+The bridge always reports the capability `run-command`.
+
+### Running an entry from the inbox
+
+A work request with the capability `run-command` runs the command entry named
+by its kind, whatever the subject is. It carries a `branch`, which defaults to
+`main`, `params`, one string for each parameter, and `run`, the `run` list of
+the entry as the owner confirmed it. The bridge checks the
+request again before it runs. It settles the request as refused, with a reason
+code, and starts no run, when a check fails:
+
+- `entry-missing`: the work map has no command entry of that name.
+- `entry-changed`: the `run` list of the entry differs from the one in the
+  request, because the rule file changed after the owner confirmed it.
+- `param-invalid`: a parameter is missing, undeclared, or does not match its
+  whole pattern.
+- `placeholder-missing`: the `run` list uses a placeholder with no value, such
+  as `{cardNumber}` for a request that names no card.
+- `worktree-missing`: `git worktree list --porcelain` shows no folder with the
+  branch checked out.
+
+The bridge reads the worktrees again when the command starts, and runs the
+command in the folder of the branch. A value fills one element of the `run`
+list and never reaches a shell. A pattern must exclude a value such as
+`--exec=...` if the command reads it as an option.
+
+While the command runs, the bridge streams its output to Loupe, about once a
+second. It merges stderr into stdout, so the lines keep the order in which they
+arrived. Loupe keeps up to 1 MiB of it. The last
+chunk reaches Loupe before the run shows as succeeded or failed. A failed
+stream never fails or slows the command.
+
+### Accepting entries from Loupe
+
+`acceptEntries: true` at the top of the file lets Loupe add a command entry to
+this file, after the owner confirms. The bridge then reports the capability
+`add-entry`. The key is off when it is absent.
+
+```yaml
+acceptEntries: true
+```
+
+You must set the key by hand. The bridge never sets it.
+
+The cost: a compromised server could then add any command entry and run it. It
+could run any program as the bridge user. Turn the key on only when you accept
+that risk.
+
+When the owner chooses **Add to rules.yaml** in Loupe, the server sends a work
+request with the capability `add-entry` to this bridge. The entry text is in
+the `prompt` field of the request. It is one YAML mapping with one key, the
+entry name. The bridge starts no agent and takes no worker slot. It does this:
+
+1. It checks that the file still sets `acceptEntries: true`.
+2. It adds the entry to the `work` map. It creates the map when the file has
+   none.
+3. It loads the new text through the checks of a normal load. It writes the
+   file only when the checks pass.
+4. It reloads, as `loupe bridge reload` does, and settles the request as
+   `done` only when the reload runs the entry. An add waits for a reload
+   that already runs.
+
+The bridge rewrites the whole file from its parsed YAML tree. Comments and
+layout can change. Keep a copy of the file if the layout matters.
+
+The bridge refuses a request with one of these reason codes, and leaves the
+file as it was:
+
+- `entry-invalid`: the text does not parse, holds more or less than one key,
+  has a body that is no mapping, has an action other than `command`, or the
+  new file fails its checks. A parameter with no `pattern`, a pattern that RE2
+  refuses, and a parameter named like a built-in placeholder are examples.
+- `entry-exists`: the `work` map holds an entry with this name already.
+- `not-accepted`: the file does not set `acceptEntries: true`.
+- `write-failed`: the bridge could not read or write the file.
+- `file-changed`: the file changed while the bridge added the entry. The
+  bridge keeps the other edit and writes nothing. Try the add again.
+- `reload-failed`: the bridge wrote the entry, and the reload after it failed.
+  The bridge then puts the old file back, so the entry never shows as added
+  while the bridge does not run it. When the file changed again after the
+  write, the bridge keeps it, and the log line `entry_reload_failed` says so.
+
+The bridge acts only on a request that names its own bridge id.
+
+Update the CLI before you use `params` or `acceptEntries`. A CLI from before
+this change refuses both as unknown keys, and the whole file fails to load.
+
 A command takes no worker slot, so it starts while every pool is full. It still
 holds its card. A command that arrives while a worker of the card runs waits for
 that worker, and a worker that arrives while the command runs waits for the
@@ -1184,7 +1312,9 @@ or another server holds no pause for this bridge. The first reply that carries
 missing cache heals. When the bridge cannot find its config directory, it runs
 with no cache. An update hands the pause to the new version directly. Each
 heartbeat sends `paused` with the state the bridge applies, and
-`capabilities: ["commands", "rerun-command", "session-usage"]`.
+`capabilities: ["commands", "rerun-command", "session-usage", "run-command"]`,
+with `add-entry` when `acceptEntries` is on, and with the capabilities of the
+work map.
 
 The project owner sends a stop, a resume, a rerun or a pause from the web UI.
 Stop, Resume and Run again are in the runs section of a card page and in the

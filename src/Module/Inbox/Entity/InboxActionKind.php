@@ -13,5 +13,13 @@ enum InboxActionKind: string
     case Open = 'open';
     case SendAgent = 'send-agent';
     case StartSession = 'start-session';
+    case RunCommand = 'run-command';
     case Dismiss = 'dismiss';
+    case AddEntry = 'add-entry';
+
+    /** A worker can suggest the kind. Add entry is the owner's own step after a run-command suggestion, so no suggestion names it. */
+    public function isSuggestable(): bool
+    {
+        return self::AddEntry !== $this;
+    }
 }

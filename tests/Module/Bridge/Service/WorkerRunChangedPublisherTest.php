@@ -142,6 +142,19 @@ final class WorkerRunChangedPublisherTest extends KernelTestCase
         self::assertSame('{"type":"worker_run.card_warning_changed","cardId":"'.$cardId.'","origin":null}', $this->published[0]->getData());
     }
 
+    public function test_an_output_append_signals_the_run_pages_with_the_run_and_the_length(): void
+    {
+        $runId = Uuid::v7();
+
+        $this->service(WorkerRunChangedPublisher::class)->outputAppended($this->project, $runId, 1234);
+
+        self::assertCount(0, $this->published);
+        $this->assertPublishedAtTerminate(1);
+        self::assertSame([$this->runTopic($this->project)], $this->published[0]->getTopics());
+        self::assertTrue($this->published[0]->isPrivate());
+        self::assertSame('{"type":"worker_run.output","runId":"'.$runId.'","length":1234,"origin":null}', $this->published[0]->getData());
+    }
+
     public function test_a_state_report_that_gives_up_signals_the_card_once(): void
     {
         $cardId = Uuid::v7();

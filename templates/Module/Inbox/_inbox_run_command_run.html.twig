@@ -1,0 +1,63 @@
+{#- The newest command run of an item, in the thread of the owner: the state, the output (live while it runs) and a link to the full log.
+   Params: item, command (RunCommandView with a run), actionParams, responseFrame, refusedForm, rerun (whether the dialog is on the page), doneFormId (the to-do's done form, or null). -#}
+{% set run = command.run %}
+{% set chips = {queued: 'pending', running: 'active', succeeded: 'ok', failed: 'failed', refused: 'failed', expired: 'failed', cancelled: 'neutral'} %}
+{% set outputText = run.outputLines|join("\n") %}
+{% if run.state.value == 'failed' and run.exitCode is not null %}
+    {% set chipLabel = 'inbox.run_command.state.failed_exit'|trans({'%code%': run.exitCode}) %}
+{% elseif run.state.value == 'succeeded' and run.durationLabel is not null %}
+    {% set chipLabel = 'inbox.run_command.state.succeeded_in'|trans({'%duration%': run.durationLabel}) %}
+{% else %}
+    {% set chipLabel = ('inbox.run_command.state.' ~ run.state.value)|trans %}
+{% endif %}
+{% set logLink = run.hasLog and not run.state.isLive ? path('app_project_worker_run_log', {id: item.project.id, runId: run.runId}) : null %}
+{% set logLabel = 'inbox.run_command.full_log'|trans({'%count%': run.lineCount}) %}
+{% set logAnchor %}
+    <a class="lp-run-output__log" href="{{ logLink }}" target="_blank" rel="noopener" data-inbox-run-command-log>{{ logLabel }}</a>
+{% endset %}
+<div class="lp-readiness-discovery lp-inbox-thread__you" data-inbox-run-command="{{ run.state.value }}">
+    <div class="lp-comment-thread__header lp-inbox-thread__head">
+        <twig:Ds:Avatar :name="app.user.fullName" size="xs" aria-hidden="true" />
+        <span class="lp-comment-author">{{ 'inbox.thread.you'|trans }}</span>
+        <twig:Ds:Hint as="span">{{ 'inbox.thread.you_verb.run-command'|trans({'%entry%': command.entry, '%time%': run.action.requestedAt|date('H:i')}) }}</twig:Ds:Hint>
+        <twig:Ds:StatusChip class="lp-inbox-thread__chip" :modifier="chips[run.state.value]" :label="chipLabel" />
+    </div>
+    {% if run.reasonKey %}
+        <twig:Ds:Hint data-inbox-run-command-reason>{{ run.reasonKey|trans }}</twig:Ds:Hint>
+    {% endif %}
+    {% if run.isStreaming %}
+        <twig:Ds:CodeBlock class="lp-run-output" :label="'inbox.run_command.output_live'|trans" :text="run.tailText" :copy="false"
+            data-controller="run-output" data-run-output-url-value="{{ path('app_project_worker_run_output', {id: item.project.id, runId: run.runId}) }}"
+            data-run-output-run-id-value="{{ run.runId }}" data-run-output-length-value="{{ run.logLength }}" data-inbox-run-command-output data-inbox-run-command-live>
+            <twig:block name="meta"><span class="lp-run-output__live">{{ 'inbox.run_command.live'|trans }}</span></twig:block>
+            <twig:block name="tail"><span class="lp-run-output__cursor" aria-hidden="true"></span></twig:block>
+        </twig:Ds:CodeBlock>
+    {% elseif run.outputLines|length > 0 and not run.state.isLive %}
+        <twig:Ds:CodeBlock class="lp-run-output" :label="'inbox.run_command.output'|trans" :text="outputText" :copy="false" data-inbox-run-command-output />
+    {% endif %}
+    {% if run.state.value == 'queued' %}
+        {% if command.bridgeQuiet %}
+            <twig:Ds:Hint data-inbox-run-command-offline>{{ 'inbox.action.status.offline'|trans }}</twig:Ds:Hint>
+        {% endif %}
+        {% set cancelForm = inbox_action_cancel_form(run.action, refusedForm) %}
+        <div class="lp-inbox-thread__status">
+            {{ form_start(cancelForm, {action: path('app_inbox_item_action_cancel', actionParams|merge({actionId: run.action.id})), attr: {class: 'lp-inbox-thread__cancel', 'data-turbo-frame': responseFrame}}) }}
+                <twig:Ds:FieldErrors :fieldView="cancelForm" />
+                <twig:Ds:Button variant="ghost" size="sm" type="submit">{{ 'inbox.thread.cancel'|trans }}</twig:Ds:Button>
+            {{ form_end(cancelForm) }}
+        </div>
+    {% elseif run.state.canRunAgain and rerun %}
+        <twig:Ds:FormActions :align="logLink ? 'between' : 'end'">
+            {% if logLink %}
+                {{ logAnchor }}
+            {% endif %}
+            {% if doneFormId and run.state.value == 'failed' %}
+                <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ doneFormId }}" data-inbox-run-command-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
+            {% endif %}
+            <twig:Ds:Button variant="primary" size="sm" type="button" :disabled="not command.canOpenDialog" data-action="click->modal#open" data-inbox-action="run-command-again">{{ 'inbox.run_command.run_again'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    {% endif %}
+    {% if logLink and not (run.state.canRunAgain and rerun) %}
+        {{ logAnchor }}
+    {% endif %}
+</div>

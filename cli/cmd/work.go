@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/event"
 	"github.com/ubermuda/loupe/cli/internal/outbound"
 	"github.com/ubermuda/loupe/cli/internal/rules"
@@ -134,6 +135,11 @@ func (r *router) takeWork(w api.WorkRequest, source string) {
 	if r.workAPI == nil || r.bridgeID == "" {
 		return
 	}
+	if !w.ForBridge(r.bridgeID) {
+		r.log.Debug("work_request_dropped", append(workAttrs(w, source), "reason", "other_bridge")...)
+
+		return
+	}
 	if w.State == api.WorkRequestOpen {
 		r.offerWork(w, source)
 
@@ -170,10 +176,31 @@ func (r *router) takeWork(w api.WorkRequest, source string) {
 // offerWork queues an open offer that the work map runs. The queue drops a
 // copy of an offer it holds already.
 func (r *router) offerWork(w api.WorkRequest, source string) {
+	if w.Capability == rules.CapabilityAddEntry {
+		r.addEntry(w, source)
+
+		return
+	}
 	set := r.rules()
+	runCommand := w.Capability == rules.CapabilityRunCommand
+	if runCommand {
+		r.mu.Lock()
+		known := r.knownWorkLocked(w.WorkRequestID)
+		r.mu.Unlock()
+		if known {
+			return
+		}
+	}
 	m := set.MatchWork(w)
 	switch m.Skip {
 	case rules.Run:
+		if runCommand {
+			if _, ok := r.worktreeDir(context.Background(), m.Dir, w.RunBranch()); !ok {
+				r.refuseWork(w, rules.RefuseWorktreeMissing)
+
+				return
+			}
+		}
 	case rules.Unmapped:
 		r.mu.Lock()
 		first := r.markUnmappedLocked(w.ProjectID)
@@ -184,6 +211,11 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 
 		return
 	default:
+		if reason := set.RunCommandRefusal(w); reason != "" {
+			r.refuseWork(w, reason)
+
+			return
+		}
 		// The heartbeat offers an open request again at each interval.
 		level := slog.LevelInfo
 		if source == workFromHeartbeat {
@@ -202,6 +234,135 @@ func (r *router) offerWork(w api.WorkRequest, source string) {
 	}
 	p.apply(m)
 	r.enqueue(p)
+}
+
+// refuseWork claims a request the bridge cannot run, and settles it as refused
+// with the reason code. It starts no run and reports no worker run, as the
+// refusal of an invalid claim does. A claim another bridge won, or a claim that
+// fails, leaves nothing, and the next offer tries again.
+func (r *router) refuseWork(w api.WorkRequest, reason string) {
+	r.claimAndSettle(w, func(p pending) (string, string, func()) {
+		r.log.Info("work_request_refused", append(about(p.event, p.rule), "reason", reason)...)
+
+		return api.WorkRequestRefused, reason, nil
+	})
+}
+
+// claimAndSettle claims a request the bridge answers without a run. After the
+// claim, act decides the result and may return a function to call once the
+// result is queued. It takes no pool slot and reports no worker run. A claim
+// another bridge won, or a claim that fails, leaves nothing, and the next
+// offer tries again.
+func (r *router) claimAndSettle(w api.WorkRequest, act func(p pending) (state, reason string, after func())) {
+	p := pending{key: w.SubjectID, event: workEvent(w), work: w, rule: rules.WorkRulePrefix + w.Kind, runID: config.NewUUID()}
+	id := w.WorkRequestID
+	r.mu.Lock()
+	if r.frozen || r.shut() {
+		r.mu.Unlock()
+
+		return
+	}
+	if err := r.registerClaimLocked(p); err != nil {
+		r.mu.Unlock()
+		r.logClaimFailed(about(p.event, p.rule), err)
+
+		return
+	}
+	r.wg.Add(1)
+	r.mu.Unlock()
+	go func() {
+		defer r.wg.Done()
+
+		claim, err := r.requestClaim(p)
+		r.mu.Lock()
+		c := r.claims[id]
+		if err != nil || c == nil || c.gone || r.shut() {
+			if c != nil {
+				delete(r.claims, id)
+			}
+			r.mu.Unlock()
+			if err != nil {
+				r.logClaimFailed(about(p.event, p.rule), err)
+			}
+
+			return
+		}
+		c.token = claim.ClaimToken
+		p.claimToken = claim.ClaimToken
+		r.noteClaimsLocked()
+		r.mu.Unlock()
+		state, reason, after := act(p)
+		r.settleWork(p, state, reason)
+		if after != nil {
+			after()
+		}
+	}()
+}
+
+// addEntry answers a request to add a command entry to the rule file. The
+// request is no work for an agent, so it never matches the work map. Only the
+// bridge the request names takes it. The request is done only once a reload
+// runs the entry. A failed reload takes the entry out again and refuses. A
+// retry that finds the same entry in the file reloads, and is done.
+func (r *router) addEntry(w api.WorkRequest, source string) {
+	if w.TargetBridgeID == "" {
+		r.log.Warn("work_request_skipped", append(workAttrs(w, source), "reason", "no_target")...)
+
+		return
+	}
+	r.mu.Lock()
+	known := r.knownWorkLocked(w.WorkRequestID)
+	r.mu.Unlock()
+	if known {
+		return
+	}
+	r.claimAndSettle(w, func(p pending) (string, string, func()) {
+		attrs := about(p.event, p.rule)
+		if !r.rules().AcceptEntries() {
+			r.log.Info("work_request_refused", append(attrs, "reason", rules.RefuseNotAccepted)...)
+
+			return api.WorkRequestRefused, rules.RefuseNotAccepted, nil
+		}
+		r.reloadMu.Lock()
+		defer r.reloadMu.Unlock()
+		undo, err := r.addEntryToFile(w.Prompt)
+		if errors.Is(err, rules.ErrEntryPresent) {
+			undo, err = nil, nil
+		}
+		if err != nil {
+			reason := rules.RefuseWriteFailed
+			var refusal *rules.EntryRefusal
+			if errors.As(err, &refusal) {
+				reason = refusal.Reason
+			}
+			r.log.Warn("work_request_refused", append(attrs, "reason", reason, "error", err.Error())...)
+
+			return api.WorkRequestRefused, reason, nil
+		}
+		if res := r.reloadLocked(r.workerContext(), r.source); !res.OK {
+			failed := append(attrs, "stage", res.Stage, "problems", res.Problems)
+			if undo != nil {
+				if err := undo(); err != nil {
+					failed = append(failed, "undo_error", err.Error())
+				}
+			}
+			r.log.Warn("entry_reload_failed", failed...)
+
+			return api.WorkRequestRefused, rules.RefuseReloadFailed, nil
+		}
+		r.log.Info("entry_added", attrs...)
+
+		return api.WorkRequestDone, "", nil
+	})
+}
+
+// addEntryToFile adds the entry text to the rule file.
+func (r *router) addEntryToFile(text string) (func() error, error) {
+	if r.source.addEntry == nil {
+		return nil, &rules.EntryRefusal{Reason: rules.RefuseWriteFailed, Err: errors.New("the bridge cannot write the rule file")}
+	}
+
+	return r.source.addEntry(text)
 }
 
 // resumeRuns are the settings a run of m can take: those of its entry, and

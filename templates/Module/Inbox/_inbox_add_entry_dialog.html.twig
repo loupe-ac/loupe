@@ -1,0 +1,14 @@
+{#- The confirm step of an Add to rules.yaml action. It sits outside the reply form and posts it through the form attribute.
+   Params: item, command (RunCommandView), actionParams, formId (the id of the reply form). -#}
+{% set titleId = 'add-entry-title-' ~ item.id %}
+<twig:Ds:Dialog aria-labelledby="{{ titleId }}" data-action="cancel->modal#close" data-inbox-add-entry-dialog>
+    <div class="lp-run-command">
+        <h3 class="lp-dialog-title" id="{{ titleId }}">{{ 'inbox.add_entry.dialog.title'|trans({'%entry%': command.entry}) }}</h3>
+        <p class="lp-dialog-desc">{{ 'inbox.add_entry.dialog.description'|trans({'%bridge%': command.bridgeName}) }}</p>
+        <twig:Ds:CodeBlock :label="'inbox.add_entry.dialog.entry'|trans" :text="command.entryYaml|trim" :copy="false" testid="add-entry-yaml" />
+        <twig:Ds:FormActions>
+            <twig:Ds:Button variant="secondary" size="sm" type="button" data-action="click->modal#close">{{ 'inbox.add_entry.dialog.cancel'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" size="sm" type="submit" form="{{ formId }}" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'add-entry'}))" data-inbox-action="add-entry-confirm">{{ 'inbox.add_entry.dialog.confirm'|trans }}</twig:Ds:Button>
+        </twig:Ds:FormActions>
+    </div>
+</twig:Ds:Dialog>

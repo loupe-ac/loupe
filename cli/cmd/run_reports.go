@@ -26,6 +26,7 @@ type runReportClient interface {
 	ReportRunInventory(ctx context.Context, bridgeID string, runs []api.InventoryRun) error
 	ReportInteractiveLaunch(ctx context.Context, handle, sessionID string, report api.InteractiveLaunchReport) (bool, error)
 	ReportToolCalls(ctx context.Context, handle, runID string, batch api.ToolCallBatch) error
+	PutRunOutput(ctx context.Context, handle, runID, bridgeID string, offset int64, text string) (api.RunOutputAnswer, error)
 	Sites(ctx context.Context) ([]api.Site, error)
 }
 
@@ -296,4 +297,9 @@ func (s *runReports) site(ctx context.Context, handle string) api.Site {
 	}
 
 	return api.Site{}
+}
+
+// output sends one chunk of the output of the run runID.
+func (s *runReports) output(ctx context.Context, handle, runID, bridgeID string, offset int64, text string) (api.RunOutputAnswer, error) {
+	return s.client.PutRunOutput(ctx, handle, runID, bridgeID, offset, text)
 }

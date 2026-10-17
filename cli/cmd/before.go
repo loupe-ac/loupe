@@ -38,11 +38,13 @@ var (
 )
 
 // procSpec is one command to run: its argv, the project dir it runs in, and
-// the run whose directory holds its files.
+// the run whose directory holds its files. merge sends stderr to the same file
+// as stdout, so the output keeps the order in which it arrived.
 type procSpec struct {
 	argv  []string
 	dir   string
 	runID string
+	merge bool
 }
 
 // procResult is one finished command. err is set when the command never ran.
@@ -167,6 +169,9 @@ func runProc(ctx context.Context, k procKind, spec procSpec, onStart func(worker
 	cmd.Dir = spec.dir
 	cmd.Env = os.Environ()
 	cmd.Stdout, cmd.Stderr = stdout, stderr
+	if spec.merge {
+		cmd.Stderr = stdout
+	}
 	cmd.WaitDelay = waitDelay
 	setProcessGroup(cmd)
 	var cancelled atomic.Bool

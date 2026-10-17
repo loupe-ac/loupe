@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -45,6 +47,10 @@ type fakeCommand struct {
 	result  procResult
 	started chan procSpec
 	block   chan struct{}
+	// dir and stdout make the command look like a started process: onStart
+	// names dir, and stdout is written to its output file while it runs.
+	dir    string
+	stdout string
 }
 
 func (f *fakeCommand) run(ctx context.Context, spec procSpec, onStart func(workerProc)) procResult {
@@ -56,7 +62,10 @@ func (f *fakeCommand) run(ctx context.Context, spec procSpec, onStart func(worke
 	}
 	f.mu.Unlock()
 	if res.err == nil {
-		onStart(workerProc{pid: 4343})
+		onStart(workerProc{pid: 4343, dir: f.dir})
+		if f.dir != "" {
+			_ = os.WriteFile(filepath.Join(f.dir, "command.stdout"), []byte(f.stdout), 0o600)
+		}
 	}
 	if f.started != nil {
 		f.started <- spec

@@ -10,6 +10,7 @@ use App\Module\Inbox\Command\AskInboxHandler;
 use App\Module\Inbox\Command\AskInboxItem;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\CardWaitTrigger;
 use App\Module\Inbox\Service\InboxCardTileRefresher;
 use App\Module\Inbox\Service\InboxChangedPublisher;
@@ -120,6 +121,8 @@ final class AskInboxHandlerTest extends KernelTestCase
         self::assertInstanceOf(InboxItemRepository::class, $items);
         $sessionAsks = $container->get(InboxSessionAsks::class);
         self::assertInstanceOf(InboxSessionAsks::class, $sessionAsks);
+        $askingBridge = $container->get(AskingBridge::class);
+        self::assertInstanceOf(AskingBridge::class, $askingBridge);
         $links = $container->get(InboxLinkResolver::class);
         self::assertInstanceOf(InboxLinkResolver::class, $links);
         $indexer = $container->get(InboxSearchIndexer::class);
@@ -130,6 +133,6 @@ final class AskInboxHandlerTest extends KernelTestCase
         $cardWaits = $container->get(CardWaitTrigger::class);
         self::assertInstanceOf(CardWaitTrigger::class, $cardWaits);
 
-        return new AskInboxHandler($items, $sessionAsks, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()));
+        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()));
     }
 }

@@ -357,6 +357,8 @@ The actions are:
   itself.
 - "Start an interactive session" opens a terminal on your machine. See
   [Start an interactive session](#start-an-interactive-session).
+- "Run a command" runs a command of your rule file on your machine. See
+  [Running a command](#running-a-command).
 - "Dismiss" closes the item as declined. It sits apart at the bottom of the
   menu, in red. Dismiss ignores the note.
 
@@ -373,15 +375,16 @@ A worker that stops can name the stop and suggest what to do next. It adds a
 uses the title as its heading, cut to 80 characters, with the full text in the
 tooltip. Without a title, the heading is the first sentence of the report.
 
-Each suggestion names one of the seven actions above and gives a reason. The
+Each suggestion names one of the actions above and gives a reason. The
 reason shows as the heading of the reply card when that action is the main one.
 A suggestion that the worker marks `recommended` becomes the main action, but
 only while that action fits the item. A suggestion for an action that does not
 fit is dropped.
-
-An agent can also attach `suggestedActions` to an item of `inbox_ask`. Loupe
-stores them, and `inbox_get` returns them. The inbox page does not show them
-yet. See [MCP](mcp.md#what-the-tools-do).
+An agent can also attach `suggestedActions` to a to-do of `inbox_ask`. A to-do
+that carries suggestions shows a reply card with a split button, beside Decline
+and Mark done. The button offers the suggested actions that fit the to-do now,
+and the recommended one is the main action. A to-do with no suggestion that
+fits shows no split button. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
@@ -408,6 +411,125 @@ status line, so you can still act on that wait.
 The card page shows the same thread in its **Inbox items** section, with the
 same buttons. After you act there, you return to the card page. The document
 page shows no thread.
+
+### Running a command
+
+A worker can suggest that you run one command entry of your rule file. The
+button then reads "Run <entry> on <branch>", such as "Run design-export on
+main". A worker can suggest it on a to-do, or at the end of a stopped run.
+
+The button is off, with the reason beside it, when Loupe cannot offer the run.
+The reasons are:
+
+- No bridge that follows the project asked for this.
+- The bridge is too old to run commands from the inbox. Update the CLI.
+- The rule file of the bridge has no command of that name. When the agent
+  proposed the entry, see [Adding a proposed entry](#adding-a-proposed-entry).
+- The command uses `{workRequestId}` or `{project}`. The bridge fills these
+  only at the run, so Loupe cannot show the command before you run it.
+- The command uses `{cardId}` or `{cardNumber}`, and the item has no single
+  card.
+- A value does not fit the pattern of its parameter.
+- The bridge has no worktree for the branch.
+- The command is already queued or running for this item.
+
+An offline bridge does not turn the button off. Loupe checks the run against
+the last heartbeat of the bridge. The run then shows "Queued" and "No bridge is
+online", with Cancel, until the bridge comes back.
+
+Only the owner of the project can run a command. Select the button, and Loupe
+opens a confirm step. It shows the bridge, the branch, the value of each
+parameter, the folder, and the command as the bridge runs it, with the
+parameter values and the built-in placeholders filled in. The branch list holds
+each branch that has a worktree on the bridge. When the branch of the worker has
+no worktree, the list shows it off, and Run stays off until you pick another
+branch. Check the filled command, then select **Run**. Nothing runs before you
+do. When the bridge reports a changed command before you select **Run**, Loupe
+refuses the run and asks you to read the command again.
+
+The bridge checks the request again, with its own rule file. It refuses the
+run, and the item shows the reason, in these cases:
+
+- `entry-missing`: the rule file has no command of that name.
+- `entry-changed`: the command in the rule file changed after you confirmed it.
+- `param-invalid`: a value does not match the whole pattern of its parameter.
+- `worktree-missing`: the bridge finds no worktree for the branch.
+- `placeholder-missing`: the command needs a value that the item cannot give,
+  such as a card number for an item with no card.
+
+A refused run starts nothing.
+
+The status line shows the run as Queued, Running, Succeeded or Failed. While the
+command runs, the line shows its output as the command writes it, under a
+**Live** marker. The block follows the end of the output. Scroll up to read
+earlier lines, and the block stays where you are. When the run ends, the line
+shows the last 10 lines, and a Succeeded run shows its time, such as "Succeeded
+in 14 s". A command that waits for a worker of its card stays Queued until that
+worker ends.
+
+An ended run that has stored output also shows **Open the full log**, with the
+number of lines. The link opens the whole log as plain text in a new tab. On a
+failed run, the link sits left of **Mark done** and **Run again**.
+
+A success ends the item. A to-do closes as done, and the worker that waits for
+the answer resumes. For a stopped run, Loupe resumes the worker, which reads the
+result of the command with `inbox_get`. A failure keeps the item open. The
+status line shows the exit code and the last lines, and **Run again** starts the
+same command again.
+
+Two limits apply:
+
+- The pattern of a parameter is as strict as the operator writes it. A loose
+  pattern lets a worker pass a value that the command reads as an option, such
+  as `--exec=...`. Write each pattern to match only the values that you accept.
+- The output can contain what the command prints, including secrets. Loupe
+  stores up to 1 MiB of it for each run, and everyone who can see the project
+  can read it, live and in the full log. Loupe deletes the log with the run.
+
+Loupe stops storing a log at 1 MiB. The full log then ends with the line
+"Loupe stopped storing the log at 1 MiB", and the command still runs to its end.
+A run from a bridge that is too old to stream shows the last lines after the
+run ends, and no link to a full log. See
+[the bridge guide](../extending/cli-bridge.md#running-an-entry-from-the-inbox)
+for the rule file.
+
+### Adding a proposed entry
+
+An agent can propose a command entry that the rule file of the bridge lacks.
+The item then shows the entry, and the Run button stays off.
+
+The reason line says that the entry is not in the `rules.yaml` of the bridge.
+Loupe adds the name of the entry to the text that the agent sent, so you read
+the same text that the bridge writes. What happens next depends on the bridge.
+
+When the bridge opted in with `acceptEntries: true` in its rule file, the main
+button reads **Add to rules.yaml**. The same action sits in the menu when
+another action is the main button. Select it, and Loupe opens a confirm step.
+The step shows the full entry and the name of the bridge. It says that nothing
+runs yet. Select **Add the entry** to send it.
+
+Only the owner of the project can add an entry. The status line then shows
+"Queued", and Cancel withdraws the request while no bridge has taken it. The
+bridge checks the text, adds the entry to the `work:` block, and reloads. Its next heartbeat lists the entry. The status line shows "Added to
+rules.yaml", and the Run button turns on by itself. A run still asks you in its
+own confirm step.
+
+The bridge refuses a text that is no command entry, a name that the file
+already holds, and a file that it cannot change safely. It also refuses when
+the file changed while it added the entry, or when the reload after the write
+failed. The status line then shows "Refused" and the reason code:
+`entry-invalid`, `entry-exists`, `not-accepted`, `write-failed`,
+`file-changed` or `reload-failed`. A refused add changes nothing. The button
+comes back, so you can try again. Add the entry by hand when the bridge keeps
+refusing.
+
+When the bridge did not opt in, the reason line says so. The item shows the
+entry with a **Copy** button. Add it under `work:` in the rule file by hand,
+then run `loupe bridge reload`. The Run button turns on by itself.
+
+An added entry runs any command with the rights of the bridge user, after you
+confirm each run. Turn on `acceptEntries` only for a bridge that you trust with
+that. See [the bridge guide](../extending/cli-bridge.md) for the key.
 
 ### Notices
 
