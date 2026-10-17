@@ -1669,6 +1669,83 @@ describe('the scope of the list request', () => {
         expect(deletes()).toEqual(['c1']);
     });
 
+    it.each([
+        ['resolve', ['.lp-resolve'], 'nothing was resolved'],
+        ['delete', ['.lp-del', '[data-del-yes]'], 'nothing was deleted'],
+        ['edit', ['.lp-edit'], 'nothing was opened'],
+    ])(
+        'refuses to %s a row until a scoped read follows a failed reload',
+        async (action, buttons, outcome) => {
+            const ids = Array.from({ length: 50 }, (_, at) => `card-${at}`);
+            window.sessionStorage.setItem(
+                SESSION_CARDS_KEY,
+                JSON.stringify(ids),
+            );
+            const old = {
+                id: 'old',
+                body: 'Old note',
+                url: window.location.href,
+                anchors: [],
+            };
+            const fresh = {
+                id: 'c1',
+                body: 'New note',
+                url: window.location.href,
+                anchors: [],
+            };
+            let listFails = true;
+            const fetchMock = bootWidget({
+                mode: { mode: 'per-note', cardId: null },
+                respond: () => ok({ comments: [old], context: null }),
+            });
+            await settle();
+            fetchMock.mockImplementation((url, init) => {
+                if (
+                    init.method === 'POST' &&
+                    url.endsWith('/api/board/feedback')
+                )
+                    return madeCard('made-new');
+                if (init.method !== 'GET') return ok({});
+                return listFails
+                    ? rejected(500, {})
+                    : ok({ comments: [fresh], context: null });
+            });
+            const root = openNote();
+            await write(root, 'New note');
+            root.getElementById('lp-save').click();
+            await settle();
+
+            const actOnOld = async () => {
+                const row = [
+                    ...root.querySelectorAll('#lp-list .lp-item'),
+                ].find((node) => node.textContent.includes('Old note'));
+                for (const selector of buttons) {
+                    row.querySelector(selector).click();
+                    await settle();
+                }
+            };
+            const writes = () =>
+                fetchMock.mock.calls.filter(
+                    ([url, init]) =>
+                        init &&
+                        init.method !== 'GET' &&
+                        !url.endsWith('/api/board/feedback'),
+                );
+            await actOnOld();
+            expect(writes()).toEqual([]);
+            expect(viewOf(root)).toBe('list');
+            expect(root.getElementById('lp-list-error').textContent).toContain(
+                outcome,
+            );
+
+            listFails = false;
+            await actOnOld();
+            expect(writes()).toEqual([]);
+            expect(viewOf(root)).toBe('list');
+            expect(listedBodies().join(' ')).not.toContain('Old note');
+        },
+    );
+
     it('asks again when a save lands while the list still loads', async () => {
         const OTHER = '01a0cafe-0000-7000-8000-000000000002';
         let saved = false;
