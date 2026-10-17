@@ -213,7 +213,7 @@ const chooseRowMenuItem = async (
 };
 
 const headMenuButton = (page: Page): Locator =>
-    page.locator('#lp-panel').getByRole('button', { name: 'Widget menu' });
+    page.locator('#lp-panel').getByRole('button', { name: 'More actions' });
 
 /** Open the header menu and pick one of its items by name. */
 const chooseHeadMenuItem = async (
@@ -223,6 +223,9 @@ const chooseHeadMenuItem = async (
     await headMenuButton(page).click();
     await page.locator('#lp-menu').getByRole('menuitem', { name }).click();
 };
+
+/** The `#N` that opens a card label such as `#431 Review: /pricing`. */
+const cardNumber = (label: string): string => /^#\d+/.exec(label)![0];
 
 const moveLauncher = (page: Page): Promise<void> =>
     chooseHeadMenuItem(page, /^Move launcher/);
@@ -319,9 +322,9 @@ test('annotate a page and have every comment go live as it is saved', async ({
     // Pin sits near the target's top-right corner (not stuck at 0,0).
     expect(pinBox!.x).toBeGreaterThan(targetBox!.x);
     expect(
-        Math.abs(pinBox!.x - (targetBox!.x + targetBox!.width - 12)),
+        Math.abs(pinBox!.x - (targetBox!.x + targetBox!.width - 16)),
     ).toBeLessThan(4);
-    expect(Math.abs(pinBox!.y - (targetBox!.y - 12))).toBeLessThan(4);
+    expect(Math.abs(pinBox!.y - (targetBox!.y - 8))).toBeLessThan(4);
 
     // Hovering a pin reveals its popover (with the comment body) and grows — never
     // shrinks — the badge. (Regression: a re-render that recreated the pin replayed
@@ -491,9 +494,9 @@ test('one card per review is chosen once and remembered after a reload', async (
 
     // Delete all names the count and the card, also for a single note.
     const clearConfirm = page.locator('#lp-clear-confirm-text');
-    await chooseHeadMenuItem(page, 'Delete all…');
+    await chooseHeadMenuItem(page, 'Delete 1 note…');
     await expect(clearConfirm).toHaveText(
-        `Delete 1 note on ${card.label}? Your agent may have it already.`,
+        `Delete 1 note on ${cardNumber(card.label)}? Notes on other cards stay.`,
     );
     await page.locator('#lp-clear-cancel').click();
     await expect(clearConfirm).toBeHidden();
@@ -506,9 +509,9 @@ test('one card per review is chosen once and remembered after a reload', async (
     await expect(target).toHaveText(card.label);
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('2');
-    await chooseHeadMenuItem(page, 'Delete all…');
+    await chooseHeadMenuItem(page, 'Delete all 2 notes…');
     await expect(clearConfirm).toHaveText(
-        `Delete all 2 notes on ${card.label}? Your agent may have them already.`,
+        `Delete all 2 notes on ${cardNumber(card.label)}? Notes on other cards stay.`,
     );
 });
 
@@ -678,9 +681,9 @@ test('a keep=1 reload rehydrates the live comments into pins and list', async ({
     expect(pinBox).not.toBeNull();
     expect(targetBox).not.toBeNull();
     expect(
-        Math.abs(pinBox!.x - (targetBox!.x + targetBox!.width - 12)),
+        Math.abs(pinBox!.x - (targetBox!.x + targetBox!.width - 16)),
     ).toBeLessThan(4);
-    expect(Math.abs(pinBox!.y - (targetBox!.y - 12))).toBeLessThan(4);
+    expect(Math.abs(pinBox!.y - (targetBox!.y - 8))).toBeLessThan(4);
 });
 
 for (const changeDraft of [false, true]) {
@@ -1033,9 +1036,7 @@ test('a boot rejection landing after the user entered pick mode still surfaces f
     ).toBeVisible();
 });
 
-test('deleting a list comment uses a sliding confirm overlay', async ({
-    page,
-}) => {
+test('deleting a list comment confirms inside its menu', async ({ page }) => {
     await openHarness(page);
 
     // Seed two general notes through the UI.
@@ -1049,18 +1050,18 @@ test('deleting a list comment uses a sliding confirm overlay', async ({
         el.dataset.tag = 'orig';
     });
 
-    // Arming delete slides a confirm overlay over the row (not an inline swap).
-    await chooseRowMenuItem(page, row, 'Delete note');
-    const confirm = row.locator('.lp-item-confirm');
+    // Arming delete swaps the menu's items for the question.
+    await chooseRowMenuItem(page, row, 'Delete note…');
+    const confirm = page.locator('#lp-menu');
     await expect(confirm).toBeVisible();
     await expect(confirm).toContainText('Delete this note?');
     expect(await row.evaluate((el: HTMLElement) => el.dataset.tag)).toBe(
         'orig',
     );
 
-    // Cancel removes the overlay (after sliding out) and deletes nothing.
+    // Cancel closes the menu and deletes nothing.
     await confirm.getByRole('button', { name: 'Cancel' }).click();
-    await expect(row.locator('.lp-item-confirm')).toHaveCount(0);
+    await expect(confirm).toBeHidden();
     expect(await row.evaluate((el: HTMLElement) => el.dataset.tag)).toBe(
         'orig',
     );
@@ -1068,17 +1069,14 @@ test('deleting a list comment uses a sliding confirm overlay', async ({
 
     // Confirming actually deletes the comment (a DELETE to the server; the
     // count only drops once it lands).
-    await chooseRowMenuItem(page, row, 'Delete note');
+    await chooseRowMenuItem(page, row, 'Delete note…');
     const [deleted] = await Promise.all([
         page.waitForResponse(
             (response) =>
                 response.url().includes('/api/board/feedback/') &&
                 response.request().method() === 'DELETE',
         ),
-        row
-            .locator('.lp-item-confirm')
-            .getByRole('button', { name: 'Delete' })
-            .click(),
+        confirm.getByRole('button', { name: 'Delete', exact: true }).click(),
     ]);
     // A per-note save made that card, and nobody touched it since, so it
     // goes with its note rather than staying on the board empty.
@@ -1104,7 +1102,7 @@ test('a note row has one menu button, whose menu opens on its first item', async
     await expect(menu.getByRole('menuitem')).toHaveText([
         'Edit text',
         'Mark resolved',
-        'Delete note',
+        'Delete note…',
     ]);
     await expect(menu.getByRole('menuitem').first()).toBeFocused();
     await expect(
@@ -1230,7 +1228,7 @@ test('the header menu holds Move launcher, Sign out and Delete all, with no foot
     await expect(menu.getByRole('menuitem')).toHaveText([
         /^Move launcher to the /,
         'Sign out',
-        'Delete all…',
+        'Delete all 2 notes…',
     ]);
     await expect(menu.getByRole('menuitem').first()).toBeFocused();
 });
@@ -1243,15 +1241,17 @@ test('Delete all from the header menu confirms, names the count, then deletes', 
     await addGeneralNote(page, 'First note', '1');
     await addGeneralNote(page, 'Second note', '2');
 
-    await chooseHeadMenuItem(page, 'Delete all…');
+    await chooseHeadMenuItem(page, 'Delete all 2 notes…');
     const confirm = page.locator('#lp-clear-confirm-text');
-    await expect(confirm).toContainText('Delete all 2 notes?');
+    await expect(confirm).toHaveText(
+        'Delete all 2 notes? Notes on other cards stay.',
+    );
 
     await page.locator('#lp-clear-cancel').click();
     await expect(confirm).toBeHidden();
     await expect(page.locator('#lp-launch-count')).toHaveText('2');
 
-    await chooseHeadMenuItem(page, 'Delete all…');
+    await chooseHeadMenuItem(page, 'Delete all 2 notes…');
     await page.locator('#lp-clear-yes').click();
     await expect(page.locator('#lp-launch-count')).toBeHidden();
     await expect(page.locator('#lp-list .lp-item')).toHaveCount(0);
@@ -2190,13 +2190,13 @@ test('a multi-anchor comment renders as degraded when an element is gone', async
     // Hovering names how many elements the comment lost.
     await pin.hover();
     await expect(page.locator('.lp-pop-degraded')).toContainText(
-        '1 no longer on this page',
+        '1 of 2 elements is no longer on this page.',
     );
 
     // The list row says the same thing.
     await page.getByRole('button', { name: 'Review' }).click();
     await expect(page.locator('#lp-list .lp-chip')).toHaveText(
-        '1 of 2 elements',
+        '1 of 2 elements found',
     );
 });
 

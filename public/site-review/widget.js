@@ -219,6 +219,13 @@
             url: lock.url,
         };
     };
+    // The second header line of an open review: what the destination does.
+    const targetLine = (target) =>
+        target.mode === 'per-note'
+            ? 'Each note makes its own card'
+            : target.mode === 'epic'
+              ? 'Each note makes a card under the epic'
+              : 'One card for this review';
     const targetLabel = (target) => {
         if (target.mode === 'per-note') return 'A new card for each note';
         if (target.label) {
@@ -968,6 +975,10 @@
         // than a hard ring: stacked inside the accent border and the fill glow,
         // a third concentric edge muddied the box at small sizes.
         '--pin-shadow': 'rgba(63,71,0,.35)',
+        // A pin whose element is gone. Amber in both themes, since it sits on
+        // the host page and not on the widget's own surface.
+        '--warn-pin': '#e9b949',
+        '--warn-pin-ring': '#5c3d00',
     };
     const LIGHT = {
         '--surface-1': '#ffffff',
@@ -1099,6 +1110,12 @@
                 '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
                 2,
             ),
+        alertCircle: (s) =>
+            svg(
+                s,
+                '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+                2,
+            ),
         alert: (s) =>
             svg(
                 s,
@@ -1169,8 +1186,6 @@
         hoverId: null, // hovered comment index (list row)
         hoverAnchor: null, // anchor index whose on-page remove control is revealed
         hoverPinId: null, // hovered pin index
-        confirmDeleteId: null, // armed inline list-row delete
-        confirmClear: false,
         pinConfirmId: null, // armed pin-popover delete
         saving: false,
         deleting: false,
@@ -1238,6 +1253,8 @@
       @media (max-width:639px),(hover:none) and (pointer:coarse){:host{display:none}}
       @keyframes lp-spin{to{transform:rotate(360deg)}}
       @keyframes lp-fade{from{opacity:0}to{opacity:1}}
+      @keyframes lp-menu-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+      @keyframes lp-menu-up{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-pop-down{from{transform:translateY(-8px) scale(.985)}to{transform:none}}
       @keyframes lp-panel-in{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
@@ -1290,7 +1307,7 @@
       .lp-launcher.at-top [data-tip]:hover::after{transform:translateX(-50%) translateY(0)}
       .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;font-size:11px;font-weight:700;background:var(--accent);color:var(--ink)}
 
-      .lp-panel{position:fixed;right:20px;bottom:80px;width:360px;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-panel-in .3s cubic-bezier(.2,.9,.3,1);transition:height .34s cubic-bezier(.2,.9,.3,1),background .25s ease,border-color .25s ease}
+      .lp-panel{position:fixed;right:20px;bottom:80px;width:360px;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-panel-in .3s cubic-bezier(.2,.9,.3,1);transition:height .34s cubic-bezier(.2,.9,.3,1),background .25s ease,border-color .25s ease}
       /* The panel opens away from the launcher's edge. 80px clears the 44px
          launcher, its 20px inset and a 16px gap, and the 160px max-height
          budget covers that offset at either end, so no corner grows off screen. */
@@ -1302,7 +1319,7 @@
          accessibility tree skip it, and takes it back at once when it returns:
          a focus call right after a switch never waits on the animation. */
       .lp-views{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;overflow:clip}
-      .lp-view{position:absolute;left:0;top:0;width:100%;max-height:calc(100vh - 160px);display:flex;flex-direction:column;background:var(--surface-1);transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear 0s}
+      .lp-view{position:absolute;left:0;top:0;width:100%;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear 0s}
       .lp-view.is-under{transform:translateX(-28%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear .34s}
       .lp-view.is-away{transform:translateX(100%);visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),visibility 0s linear .34s}
       @media (prefers-reduced-motion:reduce){.lp-panel,.lp-view,.lp-view.is-under,.lp-view.is-away,.lp-menu{transition:none;animation:none}}
@@ -1322,7 +1339,7 @@
       .lp-view-body{flex:1 1 auto;min-height:0;overflow:auto;padding:0 16px 16px}
       .lp-spacer{flex:1}
       .lp-iconbtn{flex:0 0 auto;width:32px;height:32px;border:0;background:transparent;color:var(--text-mute);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-      .lp-iconbtn:hover{background:var(--bg-sunken);color:var(--text)}
+      .lp-iconbtn:hover,.lp-iconbtn[aria-expanded="true"]{background:var(--bg-sunken);color:var(--text)}
 
       .lp-context{display:flex;align-items:flex-start;gap:5px;margin-top:6px;font-size:12px;line-height:1.4;color:var(--text-mute);white-space:nowrap}
       .lp-context svg{flex:0 0 auto;opacity:.75;margin-top:1.5px}
@@ -1423,7 +1440,7 @@
          the keyboard hints moved to the docs. The full name stays the button's
          accessible name, which is what a screen reader and the specs read. */
       .lp-actions{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px}
-      .lp-action{flex:1;min-width:0;height:32px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;border:0;background:var(--bg-sunken);color:var(--text);transition:background .15s ease,color .15s ease}
+      .lp-action{flex:1;min-width:0;height:32px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer;border:0;background:var(--bg-sunken);color:var(--text);transition:background .15s ease,color .15s ease}
       /* An icon is a flex item with a min-content width of zero, so a row one
          pixel too tight silently squashes it instead of overflowing. */
       .lp-action svg{flex:0 0 auto}
@@ -1439,54 +1456,52 @@
       .lp-error button{flex:0 0 auto;background:transparent;border:0;color:var(--status-danger);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:10px;padding:3px 9px}
       .lp-error button:hover{background:color-mix(in srgb,var(--status-danger) 14%,transparent)}
 
-      .lp-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px 26px 28px;gap:4px}
-      .lp-empty-icon{width:42px;height:42px;border-radius:999px;background:var(--bg-sunken);display:flex;align-items:center;justify-content:center;color:var(--text-dim);margin-bottom:8px}
-      .lp-empty-title{font-size:13px;font-weight:600;color:var(--text)}
-      .lp-empty-sub{font-size:12px;color:var(--text-mute);line-height:1.5;max-width:210px}
-
-      .lp-item{position:relative;overflow:hidden;display:flex;gap:10px;padding:10px 12px 10px 16px;cursor:default}
+      .lp-empty{min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px;color:var(--text-mute);font-size:13px}
+      .lp-empty-title{font-weight:600;color:var(--text)}
+      @keyframes lp-row-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+      .lp-item{display:flex;gap:10px;padding:10px 12px 10px 16px;cursor:default;animation:lp-row-in .3s ease}
+      @media (prefers-reduced-motion:reduce){.lp-item{animation:none}}
       .lp-item:hover{background:var(--surface-2)}
-      .lp-item-confirm{position:absolute;inset:0;display:flex;align-items:center;gap:8px;padding:0 12px 0 16px;background:var(--surface-1);animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
-      .lp-item-confirm-text{flex:1;font-size:13px;color:var(--text)}
-      /* The teardrop is the pin's silhouette, so an anchored comment's badge
-         carries the same shape as the marker it points at. */
-      .lp-badge{flex:0 0 auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
-      .lp-badge.element{border-radius:50% 50% 50% 2px;background:var(--accent);color:var(--ink)}
-      .lp-badge.general{border-radius:50%;border:1.5px dashed var(--text-dim);color:var(--text-dim)}
-      .lp-badge.off{border-radius:50%;background:var(--bg-sunken);color:var(--text-mute)}
+      .lp-badge{flex:0 0 auto;width:24px;height:24px;border-radius:999px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+      .lp-badge.element{background:var(--accent);color:var(--ink)}
+      .lp-badge.general{border:1.5px dashed var(--text-dim);color:var(--text-dim)}
+      .lp-badge.off{background:var(--bg-sunken);color:var(--text-mute)}
       .lp-item-body{flex:1;min-width:0}
       .lp-item-text{font-size:13px;line-height:18px;color:var(--text);word-break:break-word}
-      .lp-chip{display:inline-flex;align-items:center;gap:5px;margin-top:6px;height:22px;padding:0 8px;background:var(--bg-sunken);color:var(--text-mute);border-radius:6px;font-size:12px;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px}
+      .lp-item-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
+      .lp-chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;background:var(--bg-sunken);color:var(--text-mute);border-radius:6px;font-size:12px;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-chip svg{flex:0 0 auto}
       .lp-chip.degraded{background:var(--warn-soft);color:var(--warn)}
       /* Chip-shaped but a real button: it says which page the comment was made on
          and goes there. Only rendered when that page is not the current one. */
-      .lp-item-page{display:inline-flex;align-items:center;gap:5px;margin-top:6px;height:22px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--accent-ink);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;max-width:100%;cursor:pointer}
+      .lp-item-page{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;background:transparent;border:1px solid var(--border);color:var(--accent-ink);border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;max-width:100%;cursor:pointer}
       .lp-item-page:hover{background:var(--bg-sunken)}
+      .lp-item-page svg{flex:0 0 auto}
       .lp-item-page-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-row-menu-btn{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+      .lp-row-menu-btn{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-mute);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}
       .lp-row-menu-btn:hover,.lp-row-menu-btn[aria-expanded="true"]{background:var(--bg-sunken);color:var(--text)}
-      .lp-menu{position:fixed;z-index:2;width:200px;padding:4px;display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);font-family:var(--font);pointer-events:auto;animation:lp-fade .12s ease}
-      .lp-menu-item{height:32px;padding:0 10px;display:flex;align-items:center;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
+      .lp-menu{position:fixed;z-index:2;width:max-content;min-width:200px;max-width:calc(100vw - 8px);padding:4px;display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);font-family:var(--font);pointer-events:auto;animation:lp-menu-in .18s ease}
+      .lp-menu.up{animation-name:lp-menu-up}
+      .lp-menu-item{height:32px;padding:0 10px;display:flex;align-items:center;white-space:nowrap;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
       .lp-menu-item:hover,.lp-menu-item:focus-visible{background:var(--bg-sunken)}
       .lp-menu-item[disabled]{opacity:.55;cursor:default}
       .lp-menu-item.danger{color:var(--status-danger)}
       .lp-menu-sep{height:1px;margin:4px 6px;background:var(--border-faint)}
-      .lp-danger-sm{flex:0 0 auto;height:32px;padding:0 12px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+      .lp-menu-conf{padding:8px 10px 6px;font-size:13px;line-height:18px;color:var(--text)}
+      .lp-menu-conf-row{display:flex;gap:6px;padding:4px 6px 6px}
       .lp-ghost-sm{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:13px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost-sm:hover{background:var(--bg-sunken);color:var(--text)}
 
       .lp-footer{flex:0 0 auto;gap:0;padding:12px 16px 16px;border-top:1px solid var(--border-faint)}
-      .lp-footer-row{display:flex;align-items:center;gap:8px;width:100%}
       .lp-footer{display:flex;flex-direction:column;background:var(--surface-2)}
       .lp-foot-action{width:100%;height:40px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;box-sizing:border-box}
       .lp-foot-action.primary{background:var(--accent);color:var(--ink)}
       .lp-foot-action.primary:hover{background:var(--accent-hover)}
-      .lp-foot-action.secondary{background:var(--bg-sunken);color:var(--text)}
+      .lp-foot-action.secondary{height:32px;font-size:13px;background:var(--bg-sunken);color:var(--text)}
       .lp-foot-action.secondary:hover{background:var(--field-focus)}
-      .lp-confirm-text{flex:1;font-size:13px;color:var(--text);font-weight:400;line-height:18px}
       .lp-clear-cancel{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:13px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-clear-cancel:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-clear-yes{height:32px;padding:0 12px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+      .lp-clear-yes{flex:1;height:32px;padding:0 12px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
       .lp-spin{width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:lp-spin .6s linear infinite}
 
       .lp-fatal{padding:10px 24px 26px;text-align:center;animation:lp-pop .2s ease}
@@ -1522,10 +1537,10 @@
           <header class="lp-hd">
             <div class="lp-hd-text">
               <div class="lp-title" id="lp-title">Review</div>
-              <button type="button" class="lp-dest" id="lp-dest" style="display:none"><span id="lp-dest-text"></span>${ICON.chevron(13)}</button>
+              <button type="button" class="lp-dest" id="lp-dest" aria-label="Change where notes go" style="display:none"><span id="lp-dest-text"></span>${ICON.chevron(16)}</button>
               <div class="lp-sub" id="lp-sub" style="display:none"></div>
             </div>
-            <button class="lp-iconbtn" id="lp-head-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Widget menu" title="Widget menu">${ICON.more(18)}</button>
+            <button class="lp-iconbtn" id="lp-head-menu" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">${ICON.more(18)}</button>
             <button class="lp-iconbtn" id="lp-close" aria-label="Close">${ICON.close(18)}</button>
           </header>
           <div class="lp-actions">
@@ -1536,22 +1551,13 @@
           <div class="lp-error" id="lp-list-error" style="display:none"></div>
           <div class="lp-body lp-scroll" id="lp-body">
             <div class="lp-empty" id="lp-empty" style="display:none">
-              <div class="lp-empty-icon">${ICON.comment(20)}</div>
-              <div class="lp-empty-title">No notes yet</div>
-              <div class="lp-empty-sub">Select text, pick an element, or add a note.</div>
+              <span class="lp-empty-title">No notes yet</span>
+              <span class="lp-empty-sub">Pick an element, draw, or write a note.</span>
             </div>
             <div id="lp-list"></div>
           </div>
           <div class="lp-footer" id="lp-footer" style="display:none">
-            <div id="lp-footer-main">
-              <div id="lp-foot-action"></div>
-            </div>
-            <div class="lp-footer-row" id="lp-footer-confirm" style="display:none">
-              <span class="lp-confirm-text" id="lp-clear-confirm-text"></span>
-              <div class="lp-spacer"></div>
-              <button class="lp-clear-cancel" id="lp-clear-cancel">Cancel</button>
-              <button class="lp-clear-yes" id="lp-clear-yes">Delete</button>
-            </div>
+            <div id="lp-foot-action"></div>
           </div>
         </section>
         <section class="lp-view" id="lp-view-compose" data-view="compose" aria-label="Note">
@@ -1647,7 +1653,7 @@
       @keyframes lp-fade{from{opacity:0}to{opacity:1}}
       @keyframes lp-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
       @keyframes lp-slide-left-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
-      @keyframes lp-pin{from{transform:scale(.4)}to{transform:scale(1)}}
+      @keyframes lp-pin{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-spin{to{transform:rotate(360deg)}}
       .lp-ov{font-family:var(--font)}
@@ -1685,27 +1691,35 @@
       .lp-ov.drawing .lp-canvas{pointer-events:auto;cursor:crosshair;touch-action:none}
       .lp-pin-wrap{position:fixed;z-index:4;pointer-events:auto}
       .lp-ov.targeting .lp-pin-wrap,.lp-ov.drawing .lp-pin-wrap{pointer-events:none}
-      .pin{width:24px;height:24px;border-radius:50% 50% 50% 2px;border:2px solid var(--pin-ring);background:var(--accent);color:var(--ink);font-family:inherit;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(15,15,13,.35);animation:lp-pin .22s cubic-bezier(.2,1.3,.5,1)}
-      .pin:hover{transform:scale(1.12)}
-      .lp-pop{position:absolute;top:16px;right:0;width:240px;padding-top:14px;cursor:default}
-      .lp-pop-card{position:relative;overflow:hidden;min-height:96px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);animation:lp-fade .12s ease;display:flex;flex-direction:column}
-      .lp-pop-body{font-size:12px;line-height:1.5;color:var(--text);word-break:break-word}
-      .pin.degraded{border-style:dashed;border-color:var(--warn)}
-      .lp-pop-degraded{margin-top:6px;font-size:11px;line-height:1.4;color:var(--warn);word-break:break-word}
-      .lp-pop-row{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:10px}
-      .lp-pop-chip{display:inline-flex;align-items:center;height:24px;padding:0 9px;background:var(--bg-sunken);color:var(--text-mute);border-radius:999px;font-size:11px;font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-pop-resolve{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
-      .lp-pop-resolve:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-pop-edit{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
-      .lp-pop-edit:hover{opacity:1;background:var(--bg-sunken);color:var(--accent-ink)}
-      .lp-pop-del{flex:0 0 auto;width:24px;height:24px;border:0;background:transparent;color:var(--text-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.6;transition:opacity .12s ease}
-      .lp-pop-del:hover{opacity:1;background:var(--bg-sunken);color:var(--status-danger)}
-      .lp-pop-confirm{position:absolute;inset:0;background:var(--surface-1);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:center;animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
-      .lp-pop-confirm-title{font-size:13px;font-weight:600;color:var(--text)}
-      .lp-pop-confirm-sub{font-size:12px;color:var(--text-mute);margin-top:3px;line-height:1.45}
-      .lp-pop-confirm-row{display:flex;gap:7px;margin-top:11px}
+      .pin{width:26px;height:26px;padding:0;border-radius:999px 999px 999px 4px;border:1.5px solid var(--pin-ring);background:var(--accent);color:var(--ink);font-family:inherit;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px var(--pin-shadow);animation:lp-pin .3s cubic-bezier(.2,.9,.3,1)}
+      .pin.act{outline:3px solid var(--accent);outline-offset:2px}
+      .pin.degraded{background:var(--warn-pin);border-style:dashed;border-color:var(--warn-pin-ring);color:#20241f}
+      .lp-pop{position:absolute;top:18px;right:0;width:280px;padding-top:14px;cursor:default}
+      .lp-pop-card{position:relative;background:var(--surface-1);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);animation:lp-fade .12s ease}
+      .lp-pop-main{padding:12px 14px 10px}
+      .lp-pop-body{font-size:13px;line-height:18px;color:var(--text);word-break:break-word}
+      .lp-pop-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
+      .lp-pop-chip{display:inline-flex;align-items:center;gap:5px;height:22px;max-width:100%;padding:0 8px;background:var(--bg-sunken);color:var(--text-mute);border-radius:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-pop-degraded{display:flex;gap:8px;align-items:flex-start;margin:0 14px 10px;padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:12px;line-height:16px;word-break:break-word}
+      .lp-pop-degraded svg{flex:0 0 auto;margin-top:1px}
+      .lp-pop-foot{display:flex;align-items:center;gap:6px;padding:8px 10px;border-top:1px solid var(--border-faint);border-radius:0 0 11px 11px;background:var(--surface-2)}
+      .lp-pop-edit{height:28px;padding:0 10px;border:0;border-radius:8px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+      .lp-pop-edit:hover{background:var(--field-focus)}
+      .lp-pop-more{flex:0 0 auto;width:28px;height:28px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--text-mute);display:flex;align-items:center;justify-content:center;cursor:pointer}
+      .lp-pop-more:hover,.lp-pop-more[aria-expanded="true"]{background:var(--bg-sunken);color:var(--text)}
+      @keyframes lp-menu-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+      .lp-pop-menu{position:absolute;right:10px;bottom:46px;z-index:2;width:168px;padding:4px;display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);animation:lp-menu-in .18s ease}
+      .lp-pop-menu[hidden]{display:none}
+      .lp-pop-menu-item{height:32px;padding:0 10px;display:flex;align-items:center;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
+      .lp-pop-menu-item:hover{background:var(--bg-sunken)}
+      .lp-pop-menu-item.danger{color:var(--status-danger)}
+      .lp-pop-menu-sep{height:1px;margin:4px 6px;background:var(--border-faint)}
+      .lp-pop-confirm{position:absolute;inset:0;background:var(--surface-1);border-radius:11px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;gap:10px;animation:lp-slide-left .18s cubic-bezier(.4,0,.2,1)}
+      .lp-pop-confirm-title{font-size:13px;line-height:18px;color:var(--text)}
+      .lp-pop-confirm-row{display:flex;gap:6px}
       .lp-pop-yes{flex:1;height:32px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
-      .lp-pop-no{flex:1;height:32px;background:var(--bg-sunken);border:0;color:var(--text);border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+      .lp-pop-no{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+      .lp-pop-no:hover{background:var(--bg-sunken);color:var(--text)}
       .lp-toast{position:fixed;top:20px;left:50%;transform:translate(-50%,0);z-index:6;display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap;box-shadow:var(--bar-shadow);animation:lp-fade .18s ease;transition:transform .22s cubic-bezier(.4,0,.2,1);pointer-events:auto}
       .lp-toast-sep{color:var(--chrome-line)}
       .lp-toast-dim{color:var(--chrome-mute);font-size:13px;font-weight:500}
@@ -1804,8 +1818,6 @@
     const launchDrawBtn = $('lp-launch-draw');
     const listNode = $('lp-list');
     const footerNode = $('lp-footer');
-    const footerMain = $('lp-footer-main');
-    const footerConfirm = $('lp-footer-confirm');
     const footAction = $('lp-foot-action');
     const menuNode = $('lp-menu');
     const headMenuBtn = $('lp-head-menu');
@@ -2312,20 +2324,31 @@
         // is not left reading a note about two things beside a pin on one.
         const missing = info.total - info.foundCount;
         const warning = info.degraded
-            ? `<div class="lp-pop-degraded">${escapeHtml(
-                  `Anchored to ${info.total} elements — ${missing} no longer on this page`,
-              )}</div>`
+            ? `<div class="lp-pop-degraded">${ICON.alertCircle(14)}<span>${escapeHtml(
+                  `${missing} of ${info.total} elements ${missing === 1 ? 'is' : 'are'} no longer on this page.`,
+              )}</span></div>`
+            : '';
+        const chipText =
+            info.total > 1 ? `${info.total} elements` : label || '';
+        const chip = chipText
+            ? `<div class="lp-pop-meta"><span class="lp-pop-chip">${escapeHtml(chipText)}</span></div>`
             : '';
         return `<div class="lp-pop">
         <div class="lp-pop-card">
-          <div class="lp-pop-body">${escapeHtml(comment.body)}</div>
+          <div class="lp-pop-main">
+            <div class="lp-pop-body">${escapeHtml(comment.body)}</div>
+            ${chip}
+          </div>
           ${warning}
-          <div class="lp-pop-row">
-            ${label ? `<span class="lp-pop-chip">${escapeHtml(label)}</span>` : ''}
+          <div class="lp-pop-foot">
+            <button class="lp-pop-edit" data-pin-edit="${index}">Edit</button>
             <div style="flex:1"></div>
-            <button class="lp-pop-resolve" data-pin-resolve="${index}" aria-label="Resolve">${ICON.check(14, 2.2)}</button>
-            <button class="lp-pop-edit" data-pin-edit="${index}" aria-label="Edit">${ICON.edit(14)}</button>
-            <button class="lp-pop-del" data-pin-del="${index}" aria-label="Delete">${ICON.trash(14)}</button>
+            <button class="lp-pop-more" data-pin-more="${index}" aria-label="More actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>
+          </div>
+          <div class="lp-pop-menu" role="menu" hidden>
+            <button class="lp-pop-menu-item" role="menuitem" data-pin-resolve="${index}">Mark resolved</button>
+            <div class="lp-pop-menu-sep" role="separator"></div>
+            <button class="lp-pop-menu-item danger" role="menuitem" data-pin-del="${index}">Delete note…</button>
           </div>
         </div>
       </div>`;
@@ -2336,8 +2359,8 @@
     // built, because the card survives scrolling — clamping once would let it
     // drift back out as the page moves under it.
     const POPOVER_MARGIN = 8;
-    const PIN_SIZE = 24; // .pin width in the overlay stylesheet
-    const POPOVER_OFFSET = 16; // .lp-pop top offset in the overlay stylesheet
+    const PIN_SIZE = 26; // .pin width in the overlay stylesheet
+    const POPOVER_OFFSET = 18; // .lp-pop top offset in the overlay stylesheet
     const clampPopover = (popover, info) => {
         if (!popover) return;
         // The wrap is the pin button, so the popover's default box in viewport
@@ -2365,31 +2388,32 @@
     const buildConfirm = (index) =>
         `<div class="lp-pop-confirm">
        <div class="lp-pop-confirm-title">Delete this note?</div>
-       <div class="lp-pop-confirm-sub">The pin will be removed from the page.</div>
        <div class="lp-pop-confirm-row">
          <button class="lp-pop-yes" data-pin-yes="${index}">Delete</button>
          <button class="lp-pop-no" data-pin-no="${index}">Cancel</button>
        </div>
      </div>`;
     const bindPopover = (holder, key, commentIndex) => {
-        const del = holder.querySelector('[data-pin-del]');
-        if (del)
-            del.addEventListener('click', () => {
-                state.pinConfirmId = key;
-                renderPins();
-            });
-        const edit = holder.querySelector('[data-pin-edit]');
-        if (edit)
-            edit.addEventListener('click', () =>
-                openEditComposer(commentIndex),
-            );
+        const more = holder.querySelector('[data-pin-more]');
+        const menu = holder.querySelector('.lp-pop-menu');
+        more.addEventListener('click', () => {
+            menu.hidden = !menu.hidden;
+            more.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+        });
+        holder.querySelector('[data-pin-del]').addEventListener('click', () => {
+            menu.hidden = true;
+            more.setAttribute('aria-expanded', 'false');
+            state.pinConfirmId = key;
+            renderPins();
+        });
+        holder
+            .querySelector('[data-pin-edit]')
+            .addEventListener('click', () => openEditComposer(commentIndex));
         // No confirm step, unlike delete: resolving keeps the comment and the
         // owner can reopen it from its card's Feedback tab.
-        const resolve = holder.querySelector('[data-pin-resolve]');
-        if (resolve)
-            resolve.addEventListener('click', () =>
-                resolveComment(commentIndex),
-            );
+        holder
+            .querySelector('[data-pin-resolve]')
+            .addEventListener('click', () => resolveComment(commentIndex));
     };
     const bindConfirm = (el, index) => {
         const yes = el.querySelector('[data-pin-yes]');
@@ -2429,8 +2453,8 @@
                     total,
                     foundCount: found.length,
                     degraded,
-                    left: r.left + r.width - 12,
-                    top: r.top - 12,
+                    left: r.left + r.width - 16,
+                    top: r.top - 8,
                     onScreen,
                 });
             });
@@ -2448,7 +2472,7 @@
                 wrap = document.createElement('div');
                 wrap.className = 'lp-pin-wrap';
                 wrap.innerHTML =
-                    `<button class="pin" style="animation:lp-pin .22s cubic-bezier(.2,1.3,.5,1)"></button>` +
+                    `<button class="pin"></button>` +
                     `<div class="lp-pop-holder"></div>`;
                 wrap.querySelector('.pin').addEventListener('click', () => {
                     state.open = true;
@@ -2466,6 +2490,7 @@
             pin.textContent = String(info.rank + 1);
             pin.dataset.anchorKind = info.kind;
             pin.classList.toggle('degraded', info.degraded);
+            pin.classList.toggle('act', state.hoverPinId === key);
             // Build the card once on hover; toggle the confirm overlay in place. Neither
             // is rebuilt on scroll, so nothing re-animates while repositioning.
             const hovered = state.hoverPinId === key;
@@ -2674,7 +2699,6 @@
 
         return { here, other, all: [...here, ...other] };
     };
-    const noteCount = (count) => (count === 1 ? '1 note' : `${count} notes`);
 
     const VERDICT_WORDS = {
         approve: 'Approved',
@@ -2683,16 +2707,16 @@
     };
     // The second header line of a locked card: its pull request and the last
     // verdict, or what the card holds while it has no pull request.
-    const cardLine = (count) => {
+    const cardLine = () => {
         const data = verdictCurrent() ? verdict.data : null;
-        if (!data) return `${noteCount(count)} on this card`;
+        if (!data) return '';
         const prs = data.pullRequests;
         if (!prs.length) {
             const last = data.latestVerdict
                 ? ` · Last verdict: ${VERDICT_WORDS[data.latestVerdict.kind] || data.latestVerdict.kind}`
                 : '';
 
-            return `No pull request yet · ${noteCount(count)} on this card${last}`;
+            return `No pull request yet${last}`;
         }
         const number =
             prs.length === 1 ? /#(\d+)\s*$/.exec(prs[0].label) : null;
@@ -2817,6 +2841,7 @@
         const { button } = menu;
         menu = null;
         menuNode.style.display = 'none';
+        menuNode.style.width = '';
         menuNode.textContent = '';
         button.setAttribute('aria-expanded', 'false');
         if (restoreFocus) button.focus({ preventScroll: true });
@@ -2840,6 +2865,38 @@
 
         return separator;
     };
+    // The menu swaps its items for a question and two buttons, so a delete is
+    // confirmed where it was asked for. Cancel takes focus, because Delete is
+    // the destructive answer and Enter must not reach it by accident.
+    const menuConfirm = (text, onYes, ids = {}) => {
+        const question = document.createElement('div');
+        question.className = 'lp-menu-conf';
+        question.textContent = text;
+        if (ids.text) question.id = ids.text;
+        const row = document.createElement('div');
+        row.className = 'lp-menu-conf-row';
+        const yes = document.createElement('button');
+        yes.type = 'button';
+        yes.className = 'lp-clear-yes';
+        yes.textContent = 'Delete';
+        if (ids.yes) yes.id = ids.yes;
+        yes.addEventListener('click', () => {
+            closeMenu(false);
+            onYes();
+        });
+        const no = document.createElement('button');
+        no.type = 'button';
+        no.className = 'lp-clear-cancel';
+        no.textContent = 'Cancel';
+        if (ids.no) no.id = ids.no;
+        no.addEventListener('click', () => closeMenu(true));
+        row.append(yes, no);
+        menu.confirming = true;
+        menuNode.style.width = '200px';
+        menuNode.replaceChildren(question, row);
+        placeMenu();
+        no.focus({ preventScroll: true });
+    };
     // Below the button when it fits, above when it does not and there is more
     // room up. A row near the foot of the list opens upward.
     const placeMenu = () => {
@@ -2855,14 +2912,22 @@
                 : window.innerHeight;
         const below = limit - rect.bottom;
         const up = below < height + MENU_GAP && rect.top > below;
+        // A row menu lines up with its row's inner edge and a header menu with
+        // the close button's, and a header menu hangs 2px under its button.
+        const edge =
+            menu.kind === 'head'
+                ? $('lp-close').getBoundingClientRect().right
+                : menu.button.closest('.lp-item').getBoundingClientRect()
+                      .right - 10;
+        const gap = menu.kind === 'head' ? 2 : MENU_GAP;
         const left = Math.min(
-            Math.max(rect.right - width, MENU_GAP),
+            Math.max(edge - width, MENU_GAP),
             Math.max(MENU_GAP, window.innerWidth - width - MENU_GAP),
         );
         menuNode.classList.toggle('up', up);
         menuNode.style.left = `${left}px`;
         menuNode.style.top = `${
-            up ? rect.top - height - MENU_GAP : rect.bottom + MENU_GAP
+            up ? rect.top - height - MENU_GAP : rect.bottom + gap
         }px`;
     };
     const openMenu = (button, kind, id, items) => {
@@ -2895,13 +2960,16 @@
             }),
             menuSeparator(),
             menuItem(
-                'Delete note',
+                'Delete note…',
                 () => {
-                    const found = at();
-                    closeMenu(true);
-                    if (found === -1) return;
-                    state.confirmDeleteId = found;
-                    renderList();
+                    if (at() === -1) {
+                        closeMenu(true);
+                        return;
+                    }
+                    menuConfirm('Delete this note?', () => {
+                        const found = at();
+                        if (found !== -1) removeComment(found);
+                    });
                 },
                 { name: 'delete', danger: true },
             ),
@@ -2935,11 +3003,25 @@
             items.push(
                 menuSeparator(),
                 menuItem(
-                    'Delete all…',
+                    comments.length === 1
+                        ? 'Delete 1 note…'
+                        : `Delete all ${comments.length} notes…`,
                     () => {
-                        closeMenu(false);
-                        armClear();
-                        $('lp-clear-cancel').focus({ preventScroll: true });
+                        const cardNumber = /^#(\d+)/.exec(deleteAllCardTitle());
+                        const count = comments.length;
+                        menuConfirm(
+                            `${
+                                count === 1
+                                    ? 'Delete 1 note'
+                                    : `Delete all ${count} notes`
+                            }${cardNumber ? ` on #${cardNumber[1]}` : ''}? Notes on other cards stay.`,
+                            confirmClearYes,
+                            {
+                                text: 'lp-clear-confirm-text',
+                                yes: 'lp-clear-yes',
+                                no: 'lp-clear-cancel',
+                            },
+                        );
                     },
                     {
                         name: 'delete-all',
@@ -2983,6 +3065,7 @@
         else if (event.key === 'Home') next = items[0];
         else if (event.key === 'End') next = items[items.length - 1];
         else if (event.key === 'Tab') {
+            if (menu && menu.confirming) return;
             event.preventDefault();
             closeMenu(true);
             return;
@@ -3078,7 +3161,6 @@
         if (state.view === 'signin') renderSignIn();
 
         // header
-        const count = n;
         if (lock) {
             const broken = lock.state === 'broken';
             const title = broken
@@ -3091,7 +3173,7 @@
             const sub = broken
                 ? 'This preview’s card is closed or gone, so notes cannot be saved here.'
                 : lock.state === 'ok'
-                  ? cardLine(count)
+                  ? cardLine()
                   : '';
             subNode.textContent = sub;
             subNode.style.display = sub ? '' : 'none';
@@ -3102,7 +3184,9 @@
             destNode.style.display = '';
             $('lp-dest-text').textContent = text;
             destNode.title = `${text}. Change where notes go.`;
-            subNode.style.display = 'none';
+            const line = target ? targetLine(target) : '';
+            subNode.textContent = line;
+            subNode.style.display = line ? '' : 'none';
         }
         $('lp-compose-title').textContent =
             state.editId != null ? 'Edit note' : 'New note';
@@ -3350,23 +3434,8 @@
 
         // footer
         const action = footerAction();
-        if (n === 0) state.confirmClear = false;
-        footerNode.style.display =
-            state.confirmClear || action ? 'flex' : 'none';
-        footerMain.style.display = state.confirmClear ? 'none' : 'block';
-        footerConfirm.style.display = state.confirmClear ? 'flex' : 'none';
+        footerNode.style.display = action ? 'flex' : 'none';
         renderFooterAction(action);
-        // These are live comments the agent may already be acting on, not a private
-        // draft, so the confirmation says what is actually at stake.
-        const cardTitle = deleteAllCardTitle();
-        const confirmText = cardTitle
-            ? n === 1
-                ? `Delete 1 note on ${cardTitle}? Your agent may have it already.`
-                : `Delete all ${n} notes on ${cardTitle}? Your agent may have them already.`
-            : n === 1
-              ? 'Delete this note? Your agent may have it already.'
-              : `Delete all ${n} notes? Your agent may have them already.`;
-        $('lp-clear-confirm-text').textContent = confirmText;
 
         fitPanel(opening);
     };
@@ -3399,9 +3468,8 @@
         footAction.appendChild(link);
     };
 
-    // List rows are reconciled (not rebuilt) so arming/cancelling a delete only toggles
-    // that row's confirm overlay in place — it slides in, and Cancel slides it back out
-    // — without re-rendering the row (which would interrupt the animation).
+    // List rows are reconciled (not rebuilt), so a repaint keeps a row's node,
+    // its focus and its row-in animation.
     const rowNodes = new Map();
     const buildSection = (label) => {
         const node = document.createElement('div');
@@ -3413,21 +3481,6 @@
     const sectionNodes = {
         here: buildSection('On this page'),
         other: buildSection('Other pages'),
-    };
-    const buildItemConfirm = (index) =>
-        `<div class="lp-item-confirm">
-       <span class="lp-item-confirm-text">Delete this note?</span>
-       <button class="lp-danger-sm" data-del-yes="${index}">Delete</button>
-       <button class="lp-ghost-sm" data-del-no="${index}">Cancel</button>
-     </div>`;
-    const bindItemConfirm = (el, index) => {
-        el.querySelector('[data-del-yes]').addEventListener('click', () =>
-            removeComment(index),
-        );
-        el.querySelector('[data-del-no]').addEventListener('click', () => {
-            state.confirmDeleteId = null;
-            renderList();
-        });
     };
     const renderList = () => {
         rowNodes.forEach((row, index) => {
@@ -3444,9 +3497,9 @@
                 row.className = 'lp-item';
                 row.innerHTML =
                     `<span class="lp-badge"></span>` +
-                    `<div class="lp-item-body"><div class="lp-item-text"></div><span class="lp-chip" style="display:none"></span>` +
+                    `<div class="lp-item-body"><div class="lp-item-text"></div><div class="lp-item-meta"><span class="lp-chip" style="display:none"></span>` +
                     `<button class="lp-item-page" style="display:none" aria-label="Go to the page this note was made on">` +
-                    `<span class="lp-item-page-label"></span>${ICON.arrowOut(11)}</button></div>` +
+                    `<span class="lp-item-page-label"></span>${ICON.arrowOut(12)}</button></div></div>` +
                     `<button class="lp-row-menu-btn" aria-label="Note actions" aria-haspopup="menu" aria-expanded="false">${ICON.more(16)}</button>`;
                 row.addEventListener('mouseenter', () => {
                     if (
@@ -3488,19 +3541,32 @@
             // A multi-anchor row names its count, and says so when some of its
             // elements are missing, rather than showing one element's text.
             const { degraded, found } = anchorHealth(comment);
+            const strokeCount = strokesOf(comment).length;
             let label = '';
             if (anchors.length > 1) {
                 label = degraded
-                    ? `${found.length} of ${anchors.length} elements`
+                    ? `${found.length} of ${anchors.length} elements found`
                     : `${anchors.length} elements`;
             } else if (isElement) {
                 label = anchorLabel(anchors[0]);
+            } else if (strokeCount) {
+                label =
+                    strokeCount === 1 ? '1 stroke' : `${strokeCount} strokes`;
+            } else {
+                label = 'Whole page';
             }
-            const showChip = isElement ? !!label : true;
-            chipEl.style.display = showChip ? '' : 'none';
+            // A note from another page shows that page alone, as a link.
+            chipEl.style.display = here && label ? '' : 'none';
             chipEl.classList.toggle('degraded', isElement && degraded);
-            if (showChip)
-                chipEl.textContent = isElement ? label : 'General note';
+            if (here && label) {
+                const icon = degraded
+                    ? ICON.alertCircle(12)
+                    : isElement && !anchors[0].quote
+                      ? ICON.target(12)
+                      : '';
+                chipEl.innerHTML = icon;
+                chipEl.append(label);
+            }
             // Only cross-page comments get the affordance: on the current page the row
             // already highlights its element, and a label saying "here" is noise.
             const pageEl = row.querySelector('.lp-item-page');
@@ -3508,20 +3574,6 @@
             if (!here)
                 pageEl.querySelector('.lp-item-page-label').textContent =
                     pageLabel(comment.url);
-            // Toggle the confirm overlay in place (slide in on arm, slide out on cancel).
-            const confirming = state.confirmDeleteId === index;
-            const liveConfirm = row.querySelector(
-                '.lp-item-confirm:not([data-exiting])',
-            );
-            if (confirming && !liveConfirm) {
-                row.querySelectorAll('.lp-item-confirm').forEach((node) =>
-                    node.remove(),
-                );
-                row.insertAdjacentHTML('beforeend', buildItemConfirm(index));
-                bindItemConfirm(row.querySelector('.lp-item-confirm'), index);
-            } else if (!confirming && liveConfirm) {
-                slideOut(liveConfirm);
-            }
         });
         // Reordered only when the sequence changed, so a repaint that changes
         // nothing keeps focus and the animation of a row's confirm overlay.
@@ -5097,6 +5149,7 @@
             await api('POST', `/api/site-review/comments/${target.id}/resolve`);
             // By id: the list can change while the request runs.
             comments = comments.filter((comment) => comment.id !== target.id);
+            flashSaved('Marked resolved');
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
             else {
@@ -5105,7 +5158,6 @@
             }
         }
         state.deleting = false;
-        state.confirmDeleteId = null;
         state.pinConfirmId = null;
         state.hoverId = null;
         state.hoverPinId = null;
@@ -5123,6 +5175,7 @@
             await ready; // don't let the boot refresh clobber an early delete
             await api('DELETE', `/api/board/feedback/${target.id}`);
             comments = comments.filter((comment) => comment.id !== target.id);
+            flashSaved('Note deleted');
         } catch (error) {
             if (authFailed(error)) enterFatal(error);
             else {
@@ -5131,18 +5184,9 @@
             }
         }
         state.deleting = false;
-        state.confirmDeleteId = null;
         state.pinConfirmId = null;
         state.hoverId = null;
         state.hoverPinId = null;
-        sync();
-    };
-    const armClear = () => {
-        state.confirmClear = true;
-        sync();
-    };
-    const cancelClear = () => {
-        state.confirmClear = false;
         sync();
     };
     const confirmClearYes = async () => {
@@ -5175,6 +5219,11 @@
                 comments = comments.filter(
                     (comment) => !doomed.includes(comment.id),
                 );
+                flashSaved(
+                    doomed.length === 1
+                        ? 'Note deleted'
+                        : `${doomed.length} notes deleted`,
+                );
             } else if (authFailed(failure.reason)) {
                 enterFatal(failure.reason);
             } else {
@@ -5192,7 +5241,6 @@
             }
         }
         state.deleting = false;
-        state.confirmClear = false;
         resetView();
         state.composeTarget = null;
         state.editId = null;
@@ -5200,7 +5248,6 @@
         setDrawing(false);
         state.hoverId = null;
         state.hoverPinId = null;
-        state.confirmDeleteId = null;
         state.pinConfirmId = null;
         sync();
     };
@@ -5582,8 +5629,6 @@
     $$('lp-draw-done').addEventListener('click', toggleDraw);
     $('lp-cancel').addEventListener('click', cancelCompose);
     $('lp-save').addEventListener('click', saveComment);
-    $('lp-clear-cancel').addEventListener('click', cancelClear);
-    $('lp-clear-yes').addEventListener('click', confirmClearYes);
     $$('lp-toast-esc').addEventListener('click', () => {
         setTargeting(false);
         sync();

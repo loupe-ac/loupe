@@ -701,7 +701,7 @@ describe('deleting a note', () => {
         expect(deleted[0]).toBe(`${BACKEND}/api/board/feedback/c1`);
     });
 
-    it('drops the confirm overlay of a row on Cancel with no animation event', async () => {
+    it('asks inside the row menu and closes it on Cancel', async () => {
         bootWidget({
             respond: () =>
                 ok({
@@ -722,11 +722,13 @@ describe('deleting a note', () => {
         root.getElementById('lp-launch-main').click();
         const row = root.querySelector('#lp-list .lp-item');
         chooseRowMenuItem(row, 'delete');
-        row.querySelector('[data-del-no]').click();
-        expect(row.querySelectorAll('.lp-item-confirm')).toHaveLength(1);
+        const menu = root.getElementById('lp-menu');
+        expect(menu.textContent).toContain('Delete this note?');
+        expect(menu.querySelector('.lp-clear-yes')).not.toBeNull();
 
-        await new Promise((resolve) => setTimeout(resolve, 350));
-        expect(row.querySelectorAll('.lp-item-confirm')).toHaveLength(0);
+        menu.querySelector('.lp-clear-cancel').click();
+        expect(menu.style.display).toBe('none');
+        expect(row.querySelector('.lp-item-body')).not.toBeNull();
     });
 });
 
@@ -764,7 +766,7 @@ describe('the note and header menus', () => {
         expect(items.map((item) => item.textContent)).toEqual([
             'Edit text',
             'Mark resolved',
-            'Delete note',
+            'Delete note…',
         ]);
         expect(root.activeElement).toBe(items[0]);
 
@@ -1387,7 +1389,7 @@ describe('a stored selector that carries a stale class', () => {
         );
         await settle();
 
-        expect(chipText()).toBe('1 of 2 elements');
+        expect(chipText()).toBe('1 of 2 elements found');
     });
     it('keeps a class that escapes a child combinator', async () => {
         // CSS.escape writes a Tailwind class such as [&>svg]:hidden with an
@@ -1434,7 +1436,7 @@ describe('a stored selector that carries a stale class', () => {
         );
         await settle();
 
-        expect(chipText()).toBe('1 of 2 elements');
+        expect(chipText()).toBe('1 of 2 elements found');
     });
 });
 
@@ -1992,7 +1994,7 @@ describe('the panel views', () => {
         const root = panelRoot();
 
         expect(root.getElementById('lp-sub').textContent).toBe(
-            'No pull request yet · 1 note on this card',
+            'No pull request yet',
         );
         expect(root.getElementById('lp-open-card').textContent).toContain(
             'Open #418 in Loupe',

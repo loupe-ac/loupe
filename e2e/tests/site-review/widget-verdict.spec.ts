@@ -211,7 +211,7 @@ test('a card with no open pull request offers no verdict', async ({ page }) => {
     // The last verdict only renders once the read has landed, so the check
     // below cannot pass before the answer arrived.
     await expect(panel(page).locator('#lp-sub')).toContainText(
-        'No pull request yet · 0 notes on this card · Last verdict: Approved',
+        'No pull request yet · Last verdict: Approved',
     );
     await expect(
         panel(page).getByRole('button', { name: 'Finish review' }),
