@@ -90,6 +90,7 @@ final class StarterExporterTest extends KernelTestCase
         yield 'board' => ['Board', ['lp-board-toolbar', 'lp-board-backlog']];
         yield 'inbox' => ['Inbox', ['lp-inbox-topbar-actions', 'lp-inbox-list-head', 'lp-filter-search', 'lp-inbox-filter', 'lp-inbox-rows']];
         yield 'document review' => ['Document review', ['lp-review-topbar-actions']];
+        yield 'card page' => ['Card page', ['lp-card-drawer__header-actions', 'lp-card-drawer__footer']];
     }
 
     /**
