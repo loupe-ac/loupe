@@ -1155,7 +1155,7 @@ test('a note row has one menu button, whose menu opens on its first item', async
 
     // The link outlives a reload, because the list names each note's card.
     await page.keyboard.press('Escape');
-    await page.reload();
+    await gotoHarness(page, keepHarnessUrl());
     await page.getByRole('button', { name: 'Review' }).click();
     await page
         .locator('#lp-list .lp-item')
