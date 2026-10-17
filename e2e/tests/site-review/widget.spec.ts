@@ -2351,6 +2351,9 @@ test('hovering one anchor outlines every anchor of the same comment', async ({
     await addTwoElementComment(page, 'These two must agree');
     await expect(page.locator('.pin')).toHaveCount(2);
 
+    // The saved row lands under the pointer that clicked Save, and a row hover
+    // outlines its anchors. Park the pointer before asserting a resting state.
+    await page.mouse.move(2, 2);
     const framed = page.locator('#lp-hl');
     const siblings = page.locator('#lp-hls > div:visible');
     await expect(framed).toBeHidden();
