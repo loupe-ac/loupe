@@ -4141,8 +4141,19 @@ test('a page that blocks site data still gets a working launcher', async ({
     await expect(page.locator('#lp-launcher')).toBeVisible();
     await expect.poll(() => cornerAttribute(page)).toBe('bottom-right');
 
-    // The corner still moves for this page, with nowhere to record it.
+    // With no stored choice, the panel asks where notes go. The choice holds
+    // for this page, with nowhere to record it.
     await page.getByRole('button', { name: 'Review' }).click();
+    const picker = page.locator('#lp-picker');
+    await expect(picker).toBeVisible();
+    await siteReviewPanelSettled(page);
+    await picker
+        .getByRole('radio', { name: 'A new card for each note' })
+        .click();
+    await page.locator('#lp-destination-save').click();
+    await expect(picker).toBeHidden();
+
+    // The corner still moves for this page, with nowhere to record it.
     await moveLauncher(page);
     await expect.poll(() => cornerAttribute(page)).toBe('bottom-left');
 });
