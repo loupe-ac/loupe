@@ -15,7 +15,6 @@ final readonly class DocumentReviewState
      * @param ?string      $reviewId      the latest review of the document for the card, or null when it has none
      * @param ?int         $reviewVersion the version that review read
      * @param bool         $answered      whether a fix round answered that review
-     * @param bool         $revised       whether an answer says the fix round revised the draft, as fixed or to-owner does
      * @param bool         $needsPerson   whether that review has a finding that needs a person
      * @param int          $failedCount   the failed reviews of the document for the card
      */
@@ -27,7 +26,6 @@ final readonly class DocumentReviewState
         public ?int $reviewVersion,
         public ?AgentReviewConclusion $conclusion,
         public bool $answered,
-        public bool $revised,
         public bool $needsPerson,
         public int $failedCount,
     ) {
@@ -52,7 +50,7 @@ final readonly class DocumentReviewState
             return $this->reviewVersion === $this->versionNumber;
         }
 
-        return $this->answered && (!$this->revised || $this->reviewVersion < $this->versionNumber);
+        return $this->answered && $this->reviewVersion < $this->versionNumber;
     }
 
     public function due(int $rounds): bool

@@ -203,7 +203,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     #[DataProvider('designSlots')]
     public function test_a_draft_design_with_no_review_asks_for_one_that_only_an_owner_action_cancels(string $slot, string $tag): void
     {
-        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, null, null, null, false, false, false, 0));
+        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, null, null, null, false, false, 0));
         $rule = $this->ruleOf($slot, $slot.'-review');
 
         self::assertTrue($rule->when->evaluate($facts));
@@ -236,7 +236,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         foreach ($active as $kind) {
             str_starts_with($kind, 'worker:') ? $workers[] = substr($kind, 7) : $work[] = $kind;
         }
-        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, null, null, null, false, false, false, 0), $work, $workers, \in_array('session', $active, true));
+        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, null, null, null, false, false, 0), $work, $workers, \in_array('session', $active, true));
 
         self::assertSame($asks, $this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
     }
@@ -244,7 +244,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     #[DataProvider('designSlots')]
     public function test_a_failed_design_review_asks_for_a_revision_with_its_reason_and_limit(string $slot, string $tag): void
     {
-        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, 'review', 1, AgentReviewConclusion::Failure, false, false, false, 1));
+        $facts = self::withDesignReview($slot, $tag, new DocumentReviewState('doc', [$tag], 1, 'review', 1, AgentReviewConclusion::Failure, false, false, 1));
         $rule = $this->ruleOf($slot, $slot.'-review-fix');
 
         self::assertTrue($rule->when->evaluate($facts));
@@ -257,7 +257,7 @@ final class ShippedTemplatesTest extends KernelTestCase
     #[DataProvider('publishedTags')]
     public function test_a_finished_design_review_publishes_the_drafts_once_nothing_runs(string $slot, string $tag, array $tags): void
     {
-        $finished = new DocumentReviewState('doc', [$tag], 1, 'review', 1, AgentReviewConclusion::Success, false, false, false, 0);
+        $finished = new DocumentReviewState('doc', [$tag], 1, 'review', 1, AgentReviewConclusion::Success, false, false, 0);
         $rule = $this->ruleOf($slot, $slot.'-review-publish');
 
         self::assertTrue($rule->when->evaluate(self::withDesignReview($slot, $tag, $finished)));

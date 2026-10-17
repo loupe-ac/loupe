@@ -19,7 +19,7 @@ use Mcp\Exception\ToolCallException;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 
-#[McpTool(name: self::NAME, description: 'Answer each finding of the latest agent review that a card got for a draft design document. A review of another card that links the same document does not count. Only a running design fix worker of the card can call it: the call must come from the loupe CLI session of a worker run of the product-design-revise or tech-design-revise work on this card. Pass the cardId, the documentId and one answer for each finding of the latest review, counted from 0 in the order document_get_review lists them. An answer is fixed, not-changed with a reason, or to-owner for a finding that only the owner can settle. Call it once, after you revise the draft. A review that already has its answers refuses a second call.')]
+#[McpTool(name: self::NAME, description: 'Answer each finding of the latest agent review that a card got for a draft design document. A review of another card that links the same document does not count. Only a running design fix worker of the card can call it: the call must come from the loupe CLI session of a worker run of the product-design-revise or tech-design-revise work on this card. Pass the cardId, the documentId and one answer for each finding of the latest review, counted from 0 in the order document_get_review lists them. An answer is fixed, not-changed with a reason, or to-owner for a finding that only the owner can settle. A finding that needs a person always takes to-owner. Call it once, after you revise the draft. A review that already has its answers refuses a second call.')]
 final readonly class DocumentReviewAnswerTool
 {
     public const string NAME = 'document_review_answer';
@@ -47,6 +47,7 @@ final readonly class DocumentReviewAnswerTool
         AnswerDocumentReviewHandler::DUPLICATE_ANSWER => 'Two answers name the same finding.',
         AnswerDocumentReviewHandler::MISSING_ANSWER => 'Answer every finding of the latest review.',
         AnswerDocumentReviewHandler::REASON_REQUIRED => 'An answer of not-changed needs a reason.',
+        AnswerDocumentReviewHandler::OWNER_FINDING => 'A finding that needs a person takes the answer to-owner, with a decision fence in the draft.',
     ];
 
     public function __construct(

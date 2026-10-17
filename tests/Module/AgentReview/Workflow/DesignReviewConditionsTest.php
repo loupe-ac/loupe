@@ -33,10 +33,9 @@ final class DesignReviewConditionsTest extends TestCase
         yield 'third failure, not answered' => [self::state(AgentReviewConclusion::Failure, failed: 3), false, false, true, false];
         yield 'third failure, answered' => [self::state(AgentReviewConclusion::Failure, answered: true, failed: 3), false, false, true, false];
         yield 'passed with a question, not answered' => [self::state(AgentReviewConclusion::Success, needsPerson: true), false, true, false, true];
-        yield 'passed with a question that the fix round judged wrong' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true), false, false, true, false];
-        yield 'passed with a question, answered for the owner before the revision' => [self::state(AgentReviewConclusion::Success, answered: true, revised: true, needsPerson: true), true, false, false, true];
+        yield 'passed with a question, answered before the revision' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true), true, false, false, true];
         yield 'passed without a question' => [self::state(AgentReviewConclusion::Success), false, false, true, false];
-        yield 'passed with a question, answered with a revision' => [self::state(AgentReviewConclusion::Success, answered: true, revised: true, needsPerson: true, version: 2, reviewVersion: 1), false, false, true, false];
+        yield 'passed with a question, answered with a revision' => [self::state(AgentReviewConclusion::Success, answered: true, needsPerson: true, version: 2, reviewVersion: 1), false, false, true, false];
         yield 'passed review of an older version' => [self::state(AgentReviewConclusion::Success, version: 2, reviewVersion: 1), true, false, false, true];
         yield 'passed review of an older version after two failures' => [self::state(AgentReviewConclusion::Success, failed: 2, version: 3, reviewVersion: 2), true, false, false, true];
         yield 'passed after two failures' => [self::state(AgentReviewConclusion::Success, failed: 2), false, false, true, false];
@@ -137,9 +136,9 @@ final class DesignReviewConditionsTest extends TestCase
     }
 
     /** @param list<string> $tags */
-    private static function state(?AgentReviewConclusion $conclusion = null, bool $answered = false, bool $revised = false, bool $needsPerson = false, int $failed = 0, int $version = 1, ?int $reviewVersion = null, array $tags = ['tech-design']): DocumentReviewState
+    private static function state(?AgentReviewConclusion $conclusion = null, bool $answered = false, bool $needsPerson = false, int $failed = 0, int $version = 1, ?int $reviewVersion = null, array $tags = ['tech-design']): DocumentReviewState
     {
-        return new DocumentReviewState('doc-'.uniqid(), $tags, $version, null === $conclusion ? null : 'review-'.uniqid(), null === $conclusion ? null : $reviewVersion ?? $version, $conclusion, $answered, $revised, $needsPerson, $failed);
+        return new DocumentReviewState('doc-'.uniqid(), $tags, $version, null === $conclusion ? null : 'review-'.uniqid(), null === $conclusion ? null : $reviewVersion ?? $version, $conclusion, $answered, $needsPerson, $failed);
     }
 
     private static function facts(DocumentReviewState ...$states): Facts

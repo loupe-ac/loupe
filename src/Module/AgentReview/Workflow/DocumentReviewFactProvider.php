@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module\AgentReview\Workflow;
 
-use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Repository\DocumentAgentReviewRepository;
 use App\Module\Board\Repository\CardDocumentRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -76,7 +75,6 @@ final readonly class DocumentReviewFactProvider implements FactProvider
                 $review?->versionNumber,
                 $review?->conclusion,
                 $review?->isAnswered() ?? false,
-                null !== $review && [] !== array_filter($review->answers(), static fn ($answer): bool => DocumentReviewAnswer::NotChanged !== $answer->answer),
                 null !== $review && [] !== array_filter($review->findings(), static fn ($finding): bool => $finding->needsPerson),
                 $failed[$id] ?? 0,
             );

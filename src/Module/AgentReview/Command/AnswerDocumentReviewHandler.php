@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\AgentReview\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\AgentReview\Entity\AgentReviewFinding;
 use App\Module\AgentReview\Entity\DocumentAgentReview;
 use App\Module\AgentReview\Entity\DocumentReviewAnswer;
 use App\Module\AgentReview\Entity\DocumentReviewFindingAnswer;
@@ -31,6 +32,7 @@ final readonly class AnswerDocumentReviewHandler
     public const string DUPLICATE_ANSWER = 'agent_review.error.answer_repeats_finding';
     public const string MISSING_ANSWER = 'agent_review.error.finding_has_no_answer';
     public const string REASON_REQUIRED = 'agent_review.error.not_changed_needs_reason';
+    public const string OWNER_FINDING = 'agent_review.error.owner_finding_goes_to_owner';
 
     public const string WORK_WITHDRAWN = 'agent_review.error.work_withdrawn';
 
@@ -72,7 +74,7 @@ final readonly class AnswerDocumentReviewHandler
             throw new DomainErrors(['documentId' => self::ALREADY_ANSWERED]);
         }
 
-        $this->assertAnswersCover(\count($review->findings), $command->answers);
+        $this->assertAnswersCover($review->findings(), $command->answers);
 
         $answers = $command->answers;
         usort($answers, static fn (DocumentReviewFindingAnswer $a, DocumentReviewFindingAnswer $b): int => $a->index <=> $b->index);
@@ -102,10 +104,12 @@ final readonly class AnswerDocumentReviewHandler
     }
 
     /**
+     * @param list<AgentReviewFinding>          $findings
      * @param list<DocumentReviewFindingAnswer> $answers
      */
-    private function assertAnswersCover(int $findingCount, array $answers): void
+    private function assertAnswersCover(array $findings, array $answers): void
     {
+        $findingCount = \count($findings);
         $seen = [];
         foreach ($answers as $answer) {
             if ($answer->index < 0 || $answer->index >= $findingCount) {
@@ -117,6 +121,9 @@ final readonly class AnswerDocumentReviewHandler
             $seen[$answer->index] = true;
             if (DocumentReviewAnswer::NotChanged === $answer->answer && '' === trim($answer->reason ?? '')) {
                 throw new DomainErrors(['answers' => self::REASON_REQUIRED]);
+            }
+            if ($findings[$answer->index]->needsPerson && DocumentReviewAnswer::ToOwner !== $answer->answer) {
+                throw new DomainErrors(['answers' => self::OWNER_FINDING]);
             }
         }
         if (\count($seen) !== $findingCount) {

@@ -617,8 +617,9 @@ this loop runs:
    publishes the draft with the `publish-documents` action. The document
    reaches your inbox in review.
 
-A review that passes but has a finding for you waits for the revise worker to
-answer that finding. The loop then ends. The app publishes the drafts only when
+A review that passes but has a finding for you waits for the revise worker.
+The worker writes that finding into the draft as a decision for you, and the
+loop ends on the new version. The app publishes the drafts only when
 the loop of each draft with the tag ended.
 
 You can skip the loop. When you publish or review the draft yourself, no
