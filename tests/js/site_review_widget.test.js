@@ -95,6 +95,13 @@ const targetText = (root) =>
 
 const CARD = '01a0cafe-0000-7000-8000-000000000001';
 
+/** The save notice, which lives in the overlay root. */
+const savedNotice = () =>
+    [...document.querySelectorAll('*')]
+        .filter((element) => element.shadowRoot)
+        .map((element) => element.shadowRoot.getElementById('lp-saved-text'))
+        .find(Boolean)?.textContent;
+
 /** Draw mode marks the overlay, which lives in a shadow root of its own. */
 const drawing = () =>
     [...document.documentElement.children]
@@ -234,10 +241,9 @@ describe('the mode', () => {
         await settle();
 
         expect(feedbackSave(fetchMock).target).toEqual({ newCard: {} });
-        const last = root.getElementById('lp-last-card');
-        expect(last.textContent).toBe('Saved as #12 The hero image is blurry');
-        expect(last.querySelector('a').href).toBe(
-            `${BACKEND}/projects/p/board/cards/${CARD}`,
+        expect(root.getElementById('lp-last-card')).toBeNull();
+        expect(savedNotice()).toBe(
+            'Note saved to #12 The hero image is blurry',
         );
     });
 
@@ -271,7 +277,7 @@ describe('the mode', () => {
         await settle();
 
         expect(feedbackSave(fetchMock).target).toEqual({ cardId: CARD });
-        expect(root.getElementById('lp-last-card').style.display).toBe('none');
+        expect(savedNotice()).toBe('Note saved to #3 Review: /');
     });
 
     it('epic mode checks an epic and puts each note under it', async () => {
@@ -411,9 +417,7 @@ describe('the mode picker', () => {
         const textarea = root.getElementById('lp-textarea');
         root.querySelector('[data-mode="per-review"]').click();
         await settle();
-        expect(root.activeElement).toBe(
-            root.getElementById('lp-picker-search'),
-        );
+        expect(root.activeElement).toBe(root.getElementById('lp-picker-title'));
 
         root.getElementById('lp-picker-back').click();
         await settle();
