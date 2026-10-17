@@ -38,9 +38,9 @@ final class QueueDepthReaderTest extends KernelTestCase
 
     public function test_it_counts_due_messages_per_queue_with_the_age_of_the_oldest(): void
     {
-        $this->insert('default', '-120 seconds');
-        $this->insert('default', '-30 seconds');
-        $this->insert('async_low', '-10 seconds');
+        $this->insert('jobs', '-120 seconds');
+        $this->insert('jobs', '-30 seconds');
+        $this->insert('card_sweep', '-10 seconds');
         $this->insert('failed', '-600 seconds');
 
         $byQueue = [];
@@ -48,30 +48,30 @@ final class QueueDepthReaderTest extends KernelTestCase
             $byQueue[$depth->queueName] = $depth;
         }
 
-        self::assertSame(2, $byQueue['default']->pending);
-        self::assertSame(120, $byQueue['default']->oldestAgeSeconds);
-        self::assertSame('async', $byQueue['default']->transport);
-        self::assertSame(1, $byQueue['async_low']->pending);
-        self::assertSame(10, $byQueue['async_low']->oldestAgeSeconds);
+        self::assertSame(2, $byQueue['jobs']->pending);
+        self::assertSame(120, $byQueue['jobs']->oldestAgeSeconds);
+        self::assertSame('jobs', $byQueue['jobs']->transport);
+        self::assertSame(1, $byQueue['card_sweep']->pending);
+        self::assertSame(10, $byQueue['card_sweep']->oldestAgeSeconds);
         self::assertSame(1, $byQueue['failed']->pending);
         self::assertSame(600, $byQueue['failed']->oldestAgeSeconds);
-        self::assertSame(0, $byQueue['workflow']->pending);
+        self::assertSame(0, $byQueue['card_eval']->pending);
     }
 
     public function test_it_skips_future_messages_and_live_claims_but_counts_expired_claims(): void
     {
-        $this->insert('default', '+60 seconds');
-        $this->insert('default', '-100 seconds', '-60 seconds');
-        $this->insert('workflow', '-200 seconds', '-4000 seconds');
+        $this->insert('jobs', '+60 seconds');
+        $this->insert('jobs', '-100 seconds', '-60 seconds');
+        $this->insert('card_eval', '-200 seconds', '-4000 seconds');
 
         $byQueue = [];
         foreach ($this->reader->read($this->now) as $depth) {
             $byQueue[$depth->queueName] = $depth;
         }
 
-        self::assertSame(0, $byQueue['default']->pending);
-        self::assertSame(1, $byQueue['workflow']->pending);
-        self::assertSame(200, $byQueue['workflow']->oldestAgeSeconds);
+        self::assertSame(0, $byQueue['jobs']->pending);
+        self::assertSame(1, $byQueue['card_eval']->pending);
+        self::assertSame(200, $byQueue['card_eval']->oldestAgeSeconds);
     }
 
     public function test_the_queue_map_covers_every_doctrine_transport(): void

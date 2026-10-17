@@ -34,7 +34,7 @@ final class SweepCardWaitsTaskTest extends KernelTestCase
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $this->transport = $transport;
 

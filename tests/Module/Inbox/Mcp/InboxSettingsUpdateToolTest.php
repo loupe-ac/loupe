@@ -54,7 +54,7 @@ final class InboxSettingsUpdateToolTest extends KernelTestCase
         $this->em->persist($stored);
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($project);
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 

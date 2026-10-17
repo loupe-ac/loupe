@@ -285,7 +285,7 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.workflow');
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

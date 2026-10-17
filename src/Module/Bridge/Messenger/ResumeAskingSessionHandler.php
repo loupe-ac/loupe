@@ -30,7 +30,7 @@ final readonly class ResumeAskingSessionHandler
         // Handled inline in the middle of the ask close, the request would take
         // the bridge lock under the project lock. The queue runs it afterwards.
         if ($this->em->getUnitOfWork()->hasPendingInsertions()) {
-            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['async'])]));
+            $this->bus->dispatch(new Envelope($message, [new TransportNamesStamp(['jobs'])]));
 
             return;
         }

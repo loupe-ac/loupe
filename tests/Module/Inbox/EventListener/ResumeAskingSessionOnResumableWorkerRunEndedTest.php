@@ -217,7 +217,7 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

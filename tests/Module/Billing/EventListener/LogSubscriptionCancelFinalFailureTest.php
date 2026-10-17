@@ -66,7 +66,7 @@ final class LogSubscriptionCancelFinalFailureTest extends TestCase
     {
         ($this->listener)(new WorkerMessageFailedEvent(
             new Envelope(new \stdClass()),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         ));
 
@@ -95,7 +95,7 @@ final class LogSubscriptionCancelFinalFailureTest extends TestCase
     {
         return new WorkerMessageFailedEvent(
             new Envelope(new CancelSubscriptionMessage('sub_123', 'cus_123', 'user-id-123')),
-            'async',
+            'jobs',
             new \RuntimeException('boom'),
         );
     }

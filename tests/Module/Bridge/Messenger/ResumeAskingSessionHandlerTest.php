@@ -34,7 +34,7 @@ final class ResumeAskingSessionHandlerTest extends KernelTestCase
         $message = $this->blockedRun('ask-session-inline');
         $project = $this->project($this->em(), $this->user($this->em(), 'ask-session-inline-other@example.com'), 'Other');
         $this->em()->persist(new Document($project->owner, $project, 'Not flushed yet'));
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 

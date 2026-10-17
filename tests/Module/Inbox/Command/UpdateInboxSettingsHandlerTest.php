@@ -28,7 +28,7 @@ final class UpdateInboxSettingsHandlerTest extends KernelTestCase
         $stored->documentInReview = false;
         $em->persist($stored);
         $em->flush();
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
         $transport->reset();
 

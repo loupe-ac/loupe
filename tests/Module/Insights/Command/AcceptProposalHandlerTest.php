@@ -242,7 +242,7 @@ final class AcceptProposalHandlerTest extends KernelTestCase
 
     private function transport(): InMemoryTransport
     {
-        $transport = self::getContainer()->get('messenger.transport.async');
+        $transport = self::getContainer()->get('messenger.transport.jobs');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;

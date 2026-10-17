@@ -37,7 +37,7 @@ final class EvaluationTriggerTest extends TestCase
         $this->trigger()->inBackground([$one, $one->toRfc4122()]);
 
         self::assertEquals([new EvaluateCard($one->toRfc4122())], $this->dispatched);
-        self::assertEquals([new TransportNamesStamp(['async_low'])], $this->stamps);
+        self::assertEquals([new TransportNamesStamp(['card_sweep'])], $this->stamps);
     }
 
     public function test_it_is_always_on(): void

@@ -47,30 +47,30 @@ final class ReportQueueDepthHandlerTest extends KernelTestCase
         self::assertSame(4, \count(array_keys($names, 'messenger.queue.pending', true)));
         self::assertSame(4, \count(array_keys($names, 'messenger.queue.oldest_age', true)));
         $queues = array_values(array_unique(array_map(static fn (Metric $m): mixed => $m->getAttributes()->toSimpleArray()['queue_name'], $seen->metrics)));
-        self::assertEqualsCanonicalizing(['default', 'workflow', 'async_low', 'failed'], $queues);
+        self::assertEqualsCanonicalizing(['jobs', 'card_eval', 'card_sweep', 'failed'], $queues);
     }
 
     public function test_the_gauges_carry_the_value_the_attributes_and_the_unit(): void
     {
-        $this->insertWaiting('async_low', '-90 seconds');
+        $this->insertWaiting('card_sweep', '-90 seconds');
         $seen = $this->captureMetrics();
 
         ($this->handler(self::DSN))(new ReportQueueDepthCommand());
 
-        $pending = $this->gauge($seen->metrics, 'messenger.queue.pending', 'async_low');
+        $pending = $this->gauge($seen->metrics, 'messenger.queue.pending', 'card_sweep');
         self::assertEquals(1, $pending->getValue());
-        self::assertSame('async_low', $pending->getAttributes()->toSimpleArray()['transport']);
+        self::assertSame('card_sweep', $pending->getAttributes()->toSimpleArray()['transport']);
         self::assertNull($pending->getUnit());
 
-        $age = $this->gauge($seen->metrics, 'messenger.queue.oldest_age', 'async_low');
+        $age = $this->gauge($seen->metrics, 'messenger.queue.oldest_age', 'card_sweep');
         self::assertGreaterThanOrEqual(90, $age->getValue());
         self::assertLessThan(120, $age->getValue());
-        self::assertSame('async_low', $age->getAttributes()->toSimpleArray()['transport']);
+        self::assertSame('card_sweep', $age->getAttributes()->toSimpleArray()['transport']);
         self::assertSame('second', (string) $age->getUnit());
 
-        $asyncPending = $this->gauge($seen->metrics, 'messenger.queue.pending', 'default');
-        self::assertEquals(0, $asyncPending->getValue());
-        self::assertSame('async', $asyncPending->getAttributes()->toSimpleArray()['transport']);
+        $jobsPending = $this->gauge($seen->metrics, 'messenger.queue.pending', 'jobs');
+        self::assertEquals(0, $jobsPending->getValue());
+        self::assertSame('jobs', $jobsPending->getAttributes()->toSimpleArray()['transport']);
     }
 
     public function test_it_does_nothing_without_a_usable_dsn(): void

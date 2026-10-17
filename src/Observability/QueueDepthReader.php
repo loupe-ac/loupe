@@ -14,11 +14,11 @@ use Doctrine\DBAL\Types\Types;
  */
 final readonly class QueueDepthReader
 {
-    /** Queue name in `messenger_messages` to the transport that owns it. The `async` transport sets no queue name, so its rows carry the Doctrine default. */
+    /** Queue name in `messenger_messages` to the transport that owns it. Each transport sets its queue name to its own name. */
     public const array TRANSPORT_BY_QUEUE = [
-        'default' => 'async',
-        'workflow' => 'workflow',
-        'async_low' => 'async_low',
+        'jobs' => 'jobs',
+        'card_eval' => 'card_eval',
+        'card_sweep' => 'card_sweep',
         'failed' => 'failed',
     ];
 
