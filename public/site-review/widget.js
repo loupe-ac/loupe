@@ -1236,8 +1236,6 @@
       @keyframes lp-menu-up{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
       @keyframes lp-pop{from{transform:translateY(8px) scale(.985)}to{transform:none}}
       @keyframes lp-pop-down{from{transform:translateY(-8px) scale(.985)}to{transform:none}}
-      @keyframes lp-panel-in{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
-      @keyframes lp-panel-in-down{from{transform:translateY(-24px);opacity:0}to{transform:none;opacity:1}}
       @keyframes lp-slide-left{from{transform:translateX(-100%)}to{transform:translateX(0)}}
       @keyframes lp-slide-left-out{from{transform:translateX(0)}to{transform:translateX(-100%)}}
       button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
@@ -1286,12 +1284,14 @@
       .lp-launcher.at-top [data-tip]:hover::after{transform:translateX(-50%) translateY(0)}
       .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;font-size:11px;font-weight:700;background:var(--accent);color:var(--ink)}
 
-      .lp-panel{position:fixed;right:20px;bottom:80px;width:362px;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-panel-in .3s cubic-bezier(.2,.9,.3,1);transition:height .34s cubic-bezier(.2,.9,.3,1),background .25s ease,border-color .25s ease}
+      .lp-panel{position:fixed;right:20px;bottom:80px;width:362px;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);transition:height .34s cubic-bezier(.2,.9,.3,1),transform .3s cubic-bezier(.2,.9,.3,1),opacity .24s ease,visibility 0s linear 0s,background .25s ease,border-color .25s ease}
+      .lp-panel.is-closed{transform:translateY(24px);opacity:0;visibility:hidden;pointer-events:none;transition:height .34s ease,transform .26s ease,opacity .2s ease,visibility 0s linear .26s,background .25s ease,border-color .25s ease}
       /* The panel opens away from the launcher's edge. 80px clears the 44px
          launcher, its 20px inset and a 16px gap, and the 160px max-height
          budget covers that offset at either end, so no corner grows off screen. */
       .lp-panel.at-left{right:auto;left:20px}
-      .lp-panel.at-top{bottom:auto;top:80px;animation-name:lp-panel-in-down}
+      .lp-panel.at-top{bottom:auto;top:80px}
+      .lp-panel.at-top.is-closed{transform:translateY(-24px)}
       /* Every view stays mounted and sits over the panel's box. The panel's
          height follows the current view, which JS measures. A view that is
          not current hides with visibility after its slide, so Tab and the
@@ -1299,9 +1299,11 @@
          a focus call right after a switch never waits on the animation. */
       .lp-views{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;overflow:clip}
       .lp-view{position:absolute;left:0;top:0;width:100%;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear 0s}
+      .lp-views.no-slide .lp-view{transition:none!important}
       .lp-view.is-under{transform:translateX(-28%);opacity:0;visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease,visibility 0s linear .34s}
       .lp-view.is-away{transform:translateX(100%);visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),visibility 0s linear .34s}
-      @media (prefers-reduced-motion:reduce){.lp-panel,.lp-view,.lp-view.is-under,.lp-view.is-away,.lp-menu{transition:none;animation:none}}
+      #lp-view-finish{max-height:min(540px,calc(100vh - 160px))}
+      @media (prefers-reduced-motion:reduce){.lp-panel,.lp-view,.lp-view.is-under,.lp-view.is-away,.lp-menu{transition:none;animation:none}.lp-panel.is-closed{transition:none}}
       .lp-hd{flex:0 0 auto;display:flex;align-items:flex-start;gap:4px;padding:12px 10px 12px 16px;border-bottom:1px solid var(--border-faint)}
       .lp-hd--back{padding-left:8px}
       .lp-hd--back .lp-hd-text{padding-top:5px}
@@ -1360,21 +1362,21 @@
       .lp-dest-foot .lp-foot-action:disabled{opacity:.45;cursor:default}
       .lp-verdict{flex:1 1 auto;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px;font-size:12px;line-height:1.45;color:var(--text)}
       .lp-verdict-set{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
-      .lp-verdict-label{display:block;padding:0;margin-bottom:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
-      .lp-verdict-set .lp-verdict-label{margin-bottom:0}
+      .lp-verdict-label{display:block;padding:0;margin-bottom:8px;line-height:13px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
       .lp-verdict-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
-      .lp-verdict-opt.is-on{border-color:var(--accent-border);background:var(--accent-fill)}
+      .lp-verdict-opt.is-on{border-color:var(--accent-border);background:var(--accent-soft)}
       .lp-verdict-opt input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--accent-ink)}
       .lp-verdict-opt input:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
       .lp-verdict-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px}
-      .lp-verdict-opt-d{display:block;margin-top:2px;color:var(--text-mute)}
+      .lp-verdict-opt-d{display:block;margin-top:2px;line-height:16px;color:var(--text-mute)}
       .lp-verdict-pr{display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}
       .lp-verdict-notes{display:flex;flex-direction:column;gap:8px}
-      .lp-verdict-note{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;align-items:start;color:var(--text-mute);overflow-wrap:anywhere}
-      .lp-verdict-n{width:20px;height:20px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--accent);color:var(--ink)}
+      .lp-verdict-note{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;align-items:start;line-height:17px;color:var(--text-mute);overflow-wrap:anywhere}
+      .lp-verdict-n{width:20px;height:20px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;line-height:1;background:var(--accent);color:var(--ink)}
+      .lp-verdict-n.off{background:var(--bg-sunken);color:var(--text-mute)}
       .lp-verdict .lp-textarea{min-height:72px;border:1px solid var(--border);background:var(--field)}
-      .lp-verdict-line{color:var(--text-mute)}
-      .lp-verdict-warn{color:var(--warn)}
+      .lp-verdict-line{line-height:16px;color:var(--text-dim)}
+      .lp-verdict-warn{line-height:16px;color:var(--warn)}
       .lp-verdict-error{color:var(--status-danger)}
       .lp-verdict-foot{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--border-faint);background:var(--surface-2)}
       .lp-verdict-foot .lp-foot-action{flex:1 1 auto;width:auto}
@@ -1504,7 +1506,7 @@
         <span class="lp-count" id="lp-launch-count" style="display:none">0</span>
       </button>
     </div>
-    <div class="lp-panel" id="lp-panel" style="display:none">
+    <div class="lp-panel is-closed" id="lp-panel" inert>
       <div class="lp-views" id="lp-views">
         <section class="lp-view" id="lp-view-list" data-view="list" aria-label="Review">
           <header class="lp-hd">
@@ -1716,7 +1718,9 @@
       .lp-pop-yes{flex:1;height:32px;background:var(--status-danger);color:var(--on-danger);border:0;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
       .lp-pop-no{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
       .lp-pop-no:hover{background:var(--bg-sunken);color:var(--text)}
-      .lp-toast{position:fixed;top:20px;left:50%;transform:translate(-50%,0);z-index:6;display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap;box-shadow:var(--bar-shadow);animation:lp-fade .18s ease;transition:transform .22s cubic-bezier(.4,0,.2,1);pointer-events:auto}
+      .lp-toast{position:fixed;top:20px;left:50%;--lp-dock:0px;--lp-hide:-24px;transform:translate(-50%,calc(var(--lp-dock) + var(--lp-hide)));opacity:0;visibility:hidden;z-index:6;display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;background:var(--chrome);border:1px solid var(--chrome-line);color:var(--chrome-fg);border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap;box-shadow:var(--bar-shadow);transition:transform .32s cubic-bezier(.2,.9,.3,1),opacity .24s ease,visibility 0s linear .32s;pointer-events:none}
+      .lp-toast.on{transform:translate(-50%,var(--lp-dock));opacity:1;visibility:visible;pointer-events:auto;transition:transform .32s cubic-bezier(.2,.9,.3,1),opacity .24s ease,visibility 0s linear 0s}
+      @media (prefers-reduced-motion:reduce){.lp-toast,.lp-toast.on{transition:none}}
       .lp-toast-sep{color:var(--chrome-line)}
       .lp-toast-dim{color:var(--chrome-mute);font-size:13px;font-weight:500}
       .lp-toast-key{height:28px;padding:0 10px;display:inline-flex;align-items:center;background:var(--chrome-raised);border:0;border-radius:999px;color:inherit;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .12s ease}
@@ -1740,14 +1744,14 @@
       <canvas class="lp-canvas" id="lp-canvas"></canvas>
       <div id="lp-hlx"></div>
       <div id="lp-pins"></div>
-      <div class="lp-toast" id="lp-toast" style="display:none">
+      <div class="lp-toast" id="lp-toast">
         ${ICON.target(15)}
         <span id="lp-toast-text">Click to add a note</span>
         <span class="lp-toast-sep">·</span>
         <span class="lp-toast-dim">${ALT_LABEL} scroll to resize</span>
         <span class="lp-toast-key" id="lp-toast-esc">Esc</span>
       </div>
-      <div class="lp-toast" id="lp-draw-toast" style="display:none">
+      <div class="lp-toast" id="lp-draw-toast">
         ${ICON.pen(15)}
         <span id="lp-draw-text">Drag to draw</span>
         <span class="lp-toast-sep">·</span>
@@ -1755,7 +1759,7 @@
         <button class="lp-toast-key" id="lp-draw-clear" type="button">Clear</button>
         <button class="lp-toast-key" id="lp-draw-done" type="button">Done</button>
       </div>
-      <div class="lp-toast lp-toast--saved" id="lp-saved" style="display:none">
+      <div class="lp-toast lp-toast--saved" id="lp-saved">
         <span class="lp-tick">${ICON.check(12, 3)}</span>
         <span id="lp-saved-text"></span>
       </div>
@@ -2540,7 +2544,25 @@
     const dockToast = (node, dock) => {
         const offset =
             dock === 'bottom' ? window.innerHeight - node.offsetHeight - 40 : 0;
-        node.style.transform = `translate(-50%, ${offset}px)`;
+        node.style.setProperty('--lp-dock', `${offset}px`);
+        node.style.setProperty(
+            '--lp-hide',
+            dock === 'bottom' ? '24px' : '-24px',
+        );
+    };
+    // A toast slides in from its edge and back out. Its resting place is set
+    // with transitions off while it is hidden, so it never crosses the screen.
+    const setToast = (node, on, dock) => {
+        if (on) {
+            const quiet = !node.classList.contains('on');
+            if (quiet) node.style.transition = 'none';
+            dockToast(node, dock);
+            if (quiet) {
+                void node.offsetHeight;
+                node.style.transition = '';
+            }
+        }
+        node.classList.toggle('on', on);
     };
     const positionToast = () => dockToast(toastNode, state.toastDock);
     const updateToastDodge = (clientY) => {
@@ -2607,28 +2629,22 @@
 
     const renderOverlay = () => {
         scrimNode.style.display = state.target ? 'block' : 'none';
-        toastNode.style.display = state.target ? 'flex' : 'none';
         toastText.textContent = state.addAnchor
             ? 'Click to add another element'
             : 'Click to add a note';
-        // offsetHeight only reads correctly once the toast is shown, so position after.
-        if (state.target) positionToast();
+        setToast(toastNode, state.target, state.toastDock);
         // Every toast shares one resting edge, so the mode the reviewer is in wins.
         // The saved notice clears itself on a timer, and drawing again inside that
         // window would otherwise bury the stroke count and its Undo and Clear.
         const showSaved =
             !!state.savedNotice && !state.target && !state.drawing;
-        savedToastNode.style.display = showSaved ? 'flex' : 'none';
-        if (showSaved) {
-            $$('lp-saved-text').textContent = state.savedNotice;
-            dockToast(savedToastNode, toastHome());
-        }
-        drawToastNode.style.display = state.drawing ? 'flex' : 'none';
+        if (showSaved) $$('lp-saved-text').textContent = state.savedNotice;
+        setToast(savedToastNode, showSaved, toastHome());
+        setToast(drawToastNode, state.drawing, toastHome());
         if (state.drawing) {
             // Parked at the edge away from the launcher, and never dodging: the
             // pointer is busy drawing, and a toast that moved would carry its own
             // Undo and Clear out from under the reviewer.
-            dockToast(drawToastNode, toastHome());
             const count = state.strokes.length;
             $$('lp-draw-text').textContent =
                 count === 0
@@ -2701,6 +2717,16 @@
         'request-changes': 'Changes requested',
         comment: 'Commented',
     };
+    const pullRequestName = (prs) => {
+        const number =
+            prs.length === 1 ? /#(\d+)\s*$/.exec(prs[0].label) : null;
+
+        return prs.length > 1
+            ? `${prs.length} pull requests`
+            : number
+              ? `PR #${number[1]}`
+              : 'Pull request';
+    };
     // The second header line of a locked card: its pull request and the last
     // verdict, or what the card holds while it has no pull request.
     const cardLine = () => {
@@ -2714,14 +2740,7 @@
 
             return `No pull request yet${last}`;
         }
-        const number =
-            prs.length === 1 ? /#(\d+)\s*$/.exec(prs[0].label) : null;
-        const name =
-            prs.length > 1
-                ? `${prs.length} pull requests`
-                : number
-                  ? `PR #${number[1]}`
-                  : 'Pull request';
+        const name = pullRequestName(prs);
         const last = data.latestVerdict
             ? VERDICT_WORDS[data.latestVerdict.kind] || data.latestVerdict.kind
             : 'No verdict yet';
@@ -2796,11 +2815,11 @@
             const current = name === state.view;
             node.classList.toggle(
                 'is-under',
-                !current && state.stack.includes(name),
+                !current && (name === 'list' || state.stack.includes(name)),
             );
             node.classList.toggle(
                 'is-away',
-                !current && !state.stack.includes(name),
+                !current && name !== 'list' && !state.stack.includes(name),
             );
             // Inert at once, so Tab and the accessibility tree skip a view
             // that is sliding out, and the current view takes focus calls
@@ -2814,7 +2833,6 @@
     };
     // The panel is as tall as its current view, up to the viewport budget.
     const fitPanel = (instant) => {
-        if (panelNode.style.display === 'none') return;
         const height = viewNodes[state.view].offsetHeight;
         if (!height) return;
         if (instant) panelNode.style.transition = 'none';
@@ -3213,9 +3231,17 @@
         // its click. Once expanded and idle, the transitionend handler lets tooltips out.
         if (state.open || fatal) launchQuick.style.overflow = 'hidden';
         const showing = state.open && !picking;
-        const opening = showing && panelNode.style.display === 'none';
-        panelNode.style.display = showing ? 'flex' : 'none';
-        if (!showing) return;
+        const opening = showing && panelNode.classList.contains('is-closed');
+        // The panel keeps its box while it slides out, so the class and the
+        // inert flag follow `showing` and the height is set before it opens.
+        const setPanelShown = (shown) => {
+            panelNode.classList.toggle('is-closed', !shown);
+            panelNode.toggleAttribute('inert', !shown);
+        };
+        if (!showing) {
+            setPanelShown(false);
+            return;
+        }
 
         // An outage replaces the views with the error panel. Sign-in is a
         // view of its own.
@@ -3224,9 +3250,15 @@
         if (outage) {
             panelNode.style.height = '';
             renderFatal();
+            setPanelShown(true);
             return;
         }
+        if (opening) viewsNode.classList.add('no-slide');
         applyViewClasses();
+        if (opening) {
+            void viewsNode.offsetHeight;
+            viewsNode.classList.remove('no-slide');
+        }
         if (state.view === 'signin') renderSignIn();
 
         // header
@@ -3452,6 +3484,7 @@
         renderFooterAction(action);
 
         fitPanel(opening);
+        setPanelShown(true);
     };
 
     let footerActionDrawn = null;
@@ -3842,13 +3875,10 @@
         !sending &&
         ticked > 0 &&
         (kind === 'approve' || noteCount > 0 || message.trim() !== '');
-    const notesOpenText = (kind, count) => {
-        const one = count === 1;
-        if (kind === 'approve') {
-            return `${count} ${one ? 'note is' : 'notes are'} still open`;
-        }
-        return `${count} ${one ? 'note goes' : 'notes go'} with this review`;
-    };
+    const notesOpenText = (kind, count) =>
+        kind === 'approve'
+            ? `Notes still open · ${count}`
+            : `Notes in this review · ${count}`;
     const deliveryText = (delivery) => {
         const head = DELIVERY_STATES[delivery.state] || delivery.state;
         let reason = DELIVERY_REASONS[delivery.reason] || '';
@@ -3934,11 +3964,14 @@
         if (message) message.focus({ preventScroll: true });
     };
     // Focus goes back to the footer action that opened the view.
+    const focusFooterAction = () => {
+        const action = footAction.querySelector('button, a');
+        if (action) action.focus({ preventScroll: true });
+    };
     const leaveFinish = () => {
         resetView();
         sync();
-        const action = footAction.querySelector('button, a');
-        if (action) action.focus({ preventScroll: true });
+        focusFooterAction();
     };
     const verdictSendable = () =>
         verdictCanSend({
@@ -3997,9 +4030,13 @@
         verdict.message = '';
         verdict.ticked = [];
         verdict.attempt = null;
+        const focusBack = viewNodes.finish.contains(root.activeElement);
         resetView();
-        flashSaved('Sent to the workflow');
+        flashSaved(
+            `Review sent: ${(VERDICT_WORDS[kind] || kind).toLowerCase()}`,
+        );
         sync();
+        if (focusBack) focusFooterAction();
         await loadVerdict();
     };
 
@@ -4057,6 +4094,13 @@
         comment: 'Send the notes with no verdict.',
     };
 
+    const messageHint = (kind, noteCount) =>
+        noteCount > 0
+            ? 'Your notes can stand on their own.'
+            : kind === 'approve'
+              ? 'Add a message, or send the approval as is.'
+              : 'Say what needs to change.';
+
     const renderVerdictBody = (data) => {
         if (!data.pullRequests.length) return renderVerdictResult(data);
         const kind = currentKind();
@@ -4072,7 +4116,7 @@
         const prs = data.pullRequests
             .map((pr) =>
                 single
-                    ? `<div class="lp-verdict-pr">${escapeHtml(pr.label)}</div>`
+                    ? ''
                     : `<label class="lp-verdict-pr"><input type="checkbox" data-pr="${escapeHtml(pr.id)}"${
                           verdict.ticked.includes(pr.id) ? ' checked' : ''
                       }>${escapeHtml(pr.label)}</label>`,
@@ -4086,7 +4130,7 @@
             ? `<div><div class="lp-verdict-label">${notesOpenText(kind, data.notes.length)}</div><div class="lp-verdict-notes">${data.notes
                   .map(
                       (note, index) =>
-                          `<div class="lp-verdict-note"><span class="lp-verdict-n">${index + 1}</span><span>${escapeHtml(note.body)}</span></div>`,
+                          `<div class="lp-verdict-note"><span class="lp-verdict-n${isHere(note) ? '' : ' off'}">${index + 1}</span><span>${escapeHtml(note.body)}</span></div>`,
                   )
                   .join('')}</div></div>`
             : '';
@@ -4113,11 +4157,7 @@
         ${own ? '<div class="lp-verdict-warn">You opened this pull request, so GitHub accepts no verdict from you. The review goes as a comment.</div>' : ''}
         <div>
           <label class="lp-verdict-label" for="lp-verdict-message">${optional ? 'Message (optional)' : 'Message'}</label>
-          <textarea class="lp-textarea" id="lp-verdict-message" placeholder="${
-              optional
-                  ? 'Your notes can stand on their own.'
-                  : 'Say what needs to change.'
-          }"></textarea>
+          <textarea class="lp-textarea" id="lp-verdict-message" placeholder="${messageHint(kind, data.notes.length)}"></textarea>
         </div>
         ${notes}
         <div>${does}${account}</div>
@@ -4131,10 +4171,10 @@
         const send = connect
             ? `<button class="lp-foot-action primary" id="lp-verdict-connect" type="button"${
                   verdict.connecting ? ' disabled' : ''
-              }>${verdict.connecting ? 'Waiting for GitHub…' : 'Connect GitHub to send this review'}</button>`
+              }>${verdict.connecting ? 'Waiting for GitHub…' : 'Connect GitHub to send'}</button>`
             : `<button class="lp-foot-action primary" id="lp-verdict-send" type="button"${
                   verdictSendable() ? '' : ' disabled'
-              }>${verdict.sending ? '<span class="lp-spin"></span>Sending…' : 'Send'}</button>`;
+              }>${verdict.sending ? '<span class="lp-spin"></span>Sending…' : 'Send review'}</button>`;
 
         return `<button class="lp-ghost" id="lp-verdict-cancel" type="button">Cancel</button>${send}`;
     };
@@ -4170,7 +4210,7 @@
             verdictDrawn = null;
             return;
         }
-        finishSub.textContent = lock && lock.label ? lock.label : 'This card';
+        finishSub.textContent = `${lock && lock.label ? lock.label : 'This card'} · ${pullRequestName(data.pullRequests)}`;
         const body = renderVerdictBody(data);
         const foot = renderVerdictFoot(data);
         // The typed message is not part of the markup, so typing never repaints.

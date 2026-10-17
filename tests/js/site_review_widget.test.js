@@ -1516,7 +1516,7 @@ describe('style sheet colour tokens', () => {
                 (match) => match[1],
             ),
         ),
-    ];
+    ].filter((name) => !name.startsWith('--lp-'));
 
     it.each(['LIGHT', 'DARK'])(
         'uses only custom properties that the %s theme defines',

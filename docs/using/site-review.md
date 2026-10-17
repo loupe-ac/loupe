@@ -170,16 +170,16 @@ request.
 The view opens with a verdict already chosen. It picks **Request changes** when
 the card has open notes, and **Approve** when it has none. You can pick
 **Approve**, **Request changes** or **Comment** instead. The message field has
-focus, so you can type at once. Loupe records nothing until you press **Send**.
+focus, so you can type at once. Loupe records nothing until you press **Send review**.
 Press **Cancel** or the back arrow to return to the list with no record.
 
 The view shows:
 
-- The name of the card, under the title.
-- The pull request. When the card has two or more, you tick each one that gets
-  the review. Send covers the ticked pull requests.
-- The open notes that go with the verdict. On an approval, the view says how
-  many notes are still open, and you can still send.
+- The name of the card and its pull request, under the title.
+- The pull requests, when the card has two or more. You tick each one that gets
+  the review. Send review covers the ticked pull requests.
+- The open notes, under **Notes in this review**. On an approval, the heading is
+  **Notes still open**, and you can still send.
 - A field for a message.
 - What Loupe does with the verdict. When the workflow writes nothing to GitHub,
   the view says **Recorded in Loupe only**.
@@ -187,22 +187,23 @@ The view shows:
   when you have connected one.
 
 **Request changes** and **Comment** need a message when the card has no open
-note. **Send** stays off until you write one. When notes are open, they go with
+note. **Send review** stays off until you write one. When notes are open, they go with
 the verdict, and the message is optional. **Approve** needs no message.
 
-After a send, the panel returns to the list and shows **Sent to the workflow**.
+After a send, the panel returns to the list and shows **Review sent**, with the
+verdict, such as **Review sent: changes requested**.
 Loupe then posts the review on GitHub when the project allows it. See
 [Board automation](board.md).
 
-When a send fails and you press **Send** again with the same verdict, Loupe
+When a send fails and you press **Send review** again with the same verdict, Loupe
 keeps one verdict. It does not post the review twice. If you change the
 message or the ticks first, the panel sends a new verdict.
 
 ### Connecting GitHub
 
 Loupe posts a review under your own GitHub account. When you have not
-connected that account, or the connection ended, a **Connect GitHub to send
-this review** button replaces **Send**. The button opens a GitHub window. Allow
+connected that account, or the connection ended, a **Connect GitHub to send**
+button replaces **Send review**. The button opens a GitHub window. Allow
 pop-ups for the page if your browser blocks it.
 
 When you return, the panel reads your connection again. Your message and ticks
@@ -447,8 +448,9 @@ Esc closes the menu before it closes anything else.
 
 The panel shows one view at a time. The composer, the destination choice and
 the verdict form slide in over the list, and the back arrow slides them out.
-With the system setting that asks for reduced motion, the views swap with no
-slide. The closed launcher keeps the **Review** button with the count and three
+The panel slides up to open and down to close, and a message slides in from the
+edge of the page and back out. With the system setting that asks for reduced
+motion, the views and the messages swap with no slide. The closed launcher keeps the **Review** button with the count and three
 tool buttons: add a note, pick an element and draw. The tool in use shows with
 the accent fill. When you are signed out, the launcher says **Sign in to
 review**, and the panel explains the three steps with a **Sign in with Loupe**

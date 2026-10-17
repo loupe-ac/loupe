@@ -3390,20 +3390,22 @@ test('the saved notice gives way to the drawing toast', async ({ page }) => {
             .filter((root): root is ShadowRoot => root !== null);
         const panel = roots.find((root) => root.getElementById('lp-panel'))!;
         const overlay = roots.find((root) => root.getElementById('lp-ov'))!;
-        const savedBefore = overlay.getElementById('lp-saved')!.style.display;
+        const shown = (id: string): boolean =>
+            overlay.getElementById(id)!.classList.contains('on');
+        const savedBefore = shown('lp-saved');
         panel.getElementById('draw')!.click();
         return {
             savedBefore,
-            savedAfter: overlay.getElementById('lp-saved')!.style.display,
-            drawAfter: overlay.getElementById('lp-draw-toast')!.style.display,
+            savedAfter: shown('lp-saved'),
+            drawAfter: shown('lp-draw-toast'),
         };
     });
 
     // Guard: without this the two assertions below also pass on a notice that
     // had already timed out, which proves nothing.
-    expect(toasts.savedBefore).toBe('flex');
-    expect(toasts.drawAfter).toBe('flex');
-    expect(toasts.savedAfter).toBe('none');
+    expect(toasts.savedBefore).toBe(true);
+    expect(toasts.drawAfter).toBe(true);
+    expect(toasts.savedAfter).toBe(false);
     await expect(page.locator('#lp-draw-text')).toHaveText('Drag to draw');
 });
 
