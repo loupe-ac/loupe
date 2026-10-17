@@ -249,9 +249,10 @@ That route now answers HTTP 410 with `widget_outdated`, and the widget tells the
 
 ## Resolving a note
 
-Press the tick on a note, either in the widget's list or on the popover that
-opens from its pin. The note leaves the widget, because the widget lists the
-notes that are still open.
+Open the menu of a note and choose **Mark resolved**. The menu button is the
+three dots at the end of the row in the widget's list. The popover that opens
+from the pin of a note also has a tick. The note leaves the widget, because the
+widget lists the notes that are still open.
 
 Resolving keeps the note. It shows as **Resolved** on the Feedback tab of its
 card, where you can read it again and reopen it. The Feedback tab also has
@@ -266,8 +267,9 @@ terminal column leaves the notes resolved.
 
 ## Deleting a note
 
-The widget deletes a pending note, and it asks you to confirm first. The delete
-also removes the note's card when all of these are true:
+Open the menu of a note and choose **Delete note**. The widget deletes a pending
+note, and it asks you to confirm first. The confirm slides over the row. The
+delete also removes the note's card when all of these are true:
 
 - The note created the card.
 - The card is still in Backlog.
@@ -381,9 +383,9 @@ work.
 The launcher sits in the bottom-right corner, where many pages pin their own
 controls. Move it to another corner in one of two ways:
 
-- Open the panel and press the corner button in its header. Each press moves the
-  launcher to the next corner. Tab reaches the button, and Enter or Space
-  presses it.
+- Open the panel, open the menu in its header and choose **Move launcher**. Each
+  choice moves the launcher to the next corner, and the item names that corner.
+  Tab reaches the menu button, and Enter or Space opens the menu.
 - Drag the launcher. It follows the pointer, and on release it snaps to the
   nearest corner. A drag never opens the panel.
 
@@ -418,12 +420,22 @@ panel: the locked card, or the destination of your review. A note stays in that
 list, where you can edit and delete it, until the agent marks it addressed.
 Then it **disappears from the widget**.
 
-The list is always open. It has no timestamps. The notes made on the page that
+The list is always open. It has no timestamps. Each row has one menu button.
+Its menu holds **Edit text**, **Mark resolved** and **Delete note**. The menu
+opens upward when the row is near the foot of the list, and it puts focus on
+its first item. The notes made on the page that
 you are looking at come first, under **On this page**. The notes made on other
 pages follow under **Other pages**, and each of those rows has a link with the
 path of its page. Pins on the page carry the same numbers as the list. The
 count on the launcher, the pins and **Delete all** read this one list, so
 **Delete all** never reaches a note outside the context.
+
+The menu in the header holds **Move launcher**, **Sign out** and **Delete all**.
+**Sign out** shows only when you signed in with the Loupe pop-up. It ends the
+sign-in of this tab and shows the sign-in view. **Delete all** asks you to
+confirm in the footer. The question names the number of notes and, when the
+panel has one card, the card. Click outside a menu, or press Esc, to close it.
+Esc closes the menu before it closes anything else.
 
 The panel shows one view at a time. The composer, the destination choice and
 the verdict form slide in over the list, and the back arrow slides them out.

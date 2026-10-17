@@ -26,7 +26,7 @@
  * comments on every harness load.
  */
 
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import {
     hubStubbedTest as test,
     signWidgetIn,
@@ -201,6 +201,31 @@ const addGeneralNote = async (
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText(expectedCount);
 };
+
+/** Open a row's menu and pick one of its items by name. */
+const chooseRowMenuItem = async (
+    page: Page,
+    row: Locator,
+    name: string,
+): Promise<void> => {
+    await row.getByRole('button', { name: 'Note actions' }).click();
+    await page.locator('#lp-menu').getByRole('menuitem', { name }).click();
+};
+
+const headMenuButton = (page: Page): Locator =>
+    page.locator('#lp-panel').getByRole('button', { name: 'Widget menu' });
+
+/** Open the header menu and pick one of its items by name. */
+const chooseHeadMenuItem = async (
+    page: Page,
+    name: string | RegExp,
+): Promise<void> => {
+    await headMenuButton(page).click();
+    await page.locator('#lp-menu').getByRole('menuitem', { name }).click();
+};
+
+const moveLauncher = (page: Page): Promise<void> =>
+    chooseHeadMenuItem(page, /^Move launcher/);
 
 /**
  * Read the site's live comments straight from the API using the widget's own
@@ -463,6 +488,15 @@ test('one card per review is chosen once and remembered after a reload', async (
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
+    // Delete all names the count and the card, also for a single note.
+    const clearConfirm = page.locator('#lp-clear-confirm-text');
+    await chooseHeadMenuItem(page, 'Delete all…');
+    await expect(clearConfirm).toHaveText(
+        `Delete 1 note on ${card.label}? Your agent may have it already.`,
+    );
+    await page.locator('#lp-clear-cancel').click();
+    await expect(clearConfirm).toBeHidden();
+
     // The choice outlives the page, and the boot load names the card again.
     await gotoHarness(page, keepHarnessUrl());
     await page.getByRole('button', { name: 'Review' }).click();
@@ -471,6 +505,10 @@ test('one card per review is chosen once and remembered after a reload', async (
     await expect(target).toHaveText(card.label);
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('2');
+    await chooseHeadMenuItem(page, 'Delete all…');
+    await expect(clearConfirm).toHaveText(
+        `Delete all 2 notes on ${card.label}? Your agent may have them already.`,
+    );
 });
 
 test('a card per note names the card each note became', async ({ page }) => {
@@ -783,7 +821,11 @@ test('a comment the agent already addressed can no longer be edited', async ({
         });
     });
 
-    await page.locator('#lp-list .lp-item').first().locator('.lp-edit').click();
+    await chooseRowMenuItem(
+        page,
+        page.locator('#lp-list .lp-item').first(),
+        'Edit text',
+    );
     await page.getByPlaceholder(/Describe the issue/).fill('Too late');
     const panel = page.locator('#lp-panel');
     await clickSave(page);
@@ -1013,7 +1055,7 @@ test('deleting a list comment uses a sliding confirm overlay', async ({
     });
 
     // Arming delete slides a confirm overlay over the row (not an inline swap).
-    await row.locator('.lp-del').click();
+    await chooseRowMenuItem(page, row, 'Delete note');
     const confirm = row.locator('.lp-item-confirm');
     await expect(confirm).toBeVisible();
     await expect(confirm).toContainText('Delete this comment?');
@@ -1031,7 +1073,7 @@ test('deleting a list comment uses a sliding confirm overlay', async ({
 
     // Confirming actually deletes the comment (a DELETE to the server; the
     // count only drops once it lands).
-    await row.locator('.lp-del').click();
+    await chooseRowMenuItem(page, row, 'Delete note');
     const [deleted] = await Promise.all([
         page.waitForResponse(
             (response) =>
@@ -1047,6 +1089,189 @@ test('deleting a list comment uses a sliding confirm overlay', async ({
     // goes with its note rather than staying on the board empty.
     expect(await deleted.json()).toEqual({ cardDeleted: true });
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
+});
+
+test('a note row has one menu button, whose menu opens on its first item', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+
+    const row = page.locator('#lp-list .lp-item').first();
+    await expect(row.getByRole('button')).toHaveCount(1);
+    const menu = page.locator('#lp-menu');
+    await expect(menu).toBeHidden();
+
+    await row.getByRole('button', { name: 'Note actions' }).click();
+    await expect(menu).toBeVisible();
+    await expect(menu).toHaveAttribute('role', 'menu');
+    await expect(menu.getByRole('menuitem')).toHaveText([
+        'Edit text',
+        'Mark resolved',
+        'Delete note',
+    ]);
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+    await expect(
+        row.getByRole('button', { name: 'Note actions' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('Mark resolved in the row menu resolves the note', async ({ page }) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+
+    const [resolved] = await Promise.all([
+        page.waitForResponse(
+            (response) =>
+                /\/api\/site-review\/comments\/[^/]+\/resolve$/.test(
+                    response.url(),
+                ) && response.request().method() === 'POST',
+        ),
+        chooseRowMenuItem(
+            page,
+            page.locator('#lp-list .lp-item').first(),
+            'Mark resolved',
+        ),
+    ]);
+    expect(resolved.ok()).toBe(true);
+    await expect(page.locator('#lp-launch-count')).toBeHidden();
+});
+
+test('a press outside closes the menu, and only one menu is open at a time', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+    await addGeneralNote(page, 'Second note', '2');
+
+    const menu = page.locator('#lp-menu');
+    const rows = page.locator('#lp-list .lp-item');
+    await rows.nth(0).getByRole('button', { name: 'Note actions' }).click();
+    await expect(menu).toBeVisible();
+
+    // The open menu can sit over this button, so the click skips the hit test.
+    await rows
+        .nth(1)
+        .getByRole('button', { name: 'Note actions' })
+        .dispatchEvent('click');
+    await expect(menu).toBeVisible();
+    await expect(
+        rows.nth(0).getByRole('button', { name: 'Note actions' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    await expect(
+        rows.nth(1).getByRole('button', { name: 'Note actions' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+
+    await headMenuButton(page).dispatchEvent('click');
+    await expect(menu.getByRole('menuitem').first()).toContainText(
+        'Move launcher',
+    );
+    await expect(
+        rows.nth(1).getByRole('button', { name: 'Note actions' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await expect(menu).toBeHidden();
+});
+
+test('Escape closes an open menu before it closes a mode or view', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+    const row = page.locator('#lp-list .lp-item').first();
+    const menu = page.locator('#lp-menu');
+    await row.getByRole('button', { name: 'Note actions' }).click();
+    await expect(menu).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    await expect(
+        row.getByRole('button', { name: 'Note actions' }),
+    ).toBeFocused();
+    await expect(page.locator('#lp-panel')).toBeVisible();
+
+    // With the menu gone, Escape reaches the composer as before.
+    await chooseRowMenuItem(page, row, 'Edit text');
+    const textarea = page.getByPlaceholder(/Describe the issue/);
+    await expect(textarea).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(textarea).toBeHidden();
+    await expect(page.locator('#lp-panel')).toBeVisible();
+});
+
+test('the menu of the last row opens upward', async ({ page }) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+
+    const button = page
+        .locator('#lp-list .lp-item')
+        .first()
+        .getByRole('button', { name: 'Note actions' });
+    await button.click();
+    const menuBox = (await page.locator('#lp-menu').boundingBox())!;
+    const buttonBox = (await button.boundingBox())!;
+    expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(buttonBox.y);
+});
+
+test('the header menu holds Move launcher, Sign out and Delete all, with no footer button', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+    await addGeneralNote(page, 'Second note', '2');
+
+    await expect(
+        page.locator('#lp-panel').getByRole('button', { name: 'Delete all' }),
+    ).toHaveCount(0);
+
+    await headMenuButton(page).click();
+    const menu = page.locator('#lp-menu');
+    await expect(menu.getByRole('menuitem')).toHaveText([
+        /^Move launcher to the /,
+        'Sign out',
+        'Delete all…',
+    ]);
+    await expect(menu.getByRole('menuitem').first()).toBeFocused();
+});
+
+test('Delete all from the header menu confirms, names the count, then deletes', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+    await addGeneralNote(page, 'First note', '1');
+    await addGeneralNote(page, 'Second note', '2');
+
+    await chooseHeadMenuItem(page, 'Delete all…');
+    const confirm = page.locator('#lp-clear-confirm-text');
+    await expect(confirm).toContainText('Delete all 2 comments?');
+
+    await page.locator('#lp-clear-cancel').click();
+    await expect(confirm).toBeHidden();
+    await expect(page.locator('#lp-launch-count')).toHaveText('2');
+
+    await chooseHeadMenuItem(page, 'Delete all…');
+    await page.locator('#lp-clear-yes').click();
+    await expect(page.locator('#lp-launch-count')).toBeHidden();
+    await expect(page.locator('#lp-list .lp-item')).toHaveCount(0);
+});
+
+test('Sign out from the header menu shows the sign-in view', async ({
+    page,
+}) => {
+    await openHarness(page);
+    await page.getByRole('button', { name: 'Review' }).click();
+
+    await chooseHeadMenuItem(page, 'Sign out');
+    await expect(
+        page.getByRole('button', { name: 'Sign in with Loupe' }),
+    ).toBeVisible();
 });
 
 test('re-executing the script does not stack a second widget', async ({
@@ -1116,7 +1341,7 @@ test('editing an anchored comment updates its body in place', async ({
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
     const row = page.locator('#lp-list .lp-item').first();
-    await row.locator('.lp-edit').click();
+    await chooseRowMenuItem(page, row, 'Edit text');
 
     // The composer reopens pre-filled with the stored body and keeps the element chip
     // (selector/text are rebuilt from the stored comment, so the anchor label shows).
@@ -1419,7 +1644,11 @@ test('a comment can be anchored to several elements at once', async ({
 
     // An edit PATCHes the body alone, so the composer offers no control that
     // would change the anchors and then silently discard the change.
-    await page.locator('#lp-list .lp-edit').first().click();
+    await chooseRowMenuItem(
+        page,
+        page.locator('#lp-list .lp-item').first(),
+        'Edit text',
+    );
     await expect(page.locator('#lp-compose-head .lp-compose-chip')).toHaveCount(
         2,
     );
@@ -2122,6 +2351,9 @@ test('hovering one anchor outlines every anchor of the same comment', async ({
     await addTwoElementComment(page, 'These two must agree');
     await expect(page.locator('.pin')).toHaveCount(2);
 
+    // The saved row lands under the pointer that clicked Save, and a row hover
+    // outlines its anchors. Park the pointer before asserting a resting state.
+    await page.mouse.move(2, 2);
     const framed = page.locator('#lp-hl');
     const siblings = page.locator('#lp-hls > div:visible');
     await expect(framed).toBeHidden();
@@ -2571,7 +2803,11 @@ test('editing a comment withdraws the offer to quote a selection', async ({
     await page.locator('#lp-quote-btn').click();
     await saveComposed(page, 'The original body');
 
-    await page.locator('#lp-list .lp-edit').first().click();
+    await chooseRowMenuItem(
+        page,
+        page.locator('#lp-list .lp-item').first(),
+        'Edit text',
+    );
     const textarea = page.getByPlaceholder(/Describe the issue/);
     await textarea.fill('An edit in progress');
 
@@ -3706,7 +3942,7 @@ test('the corner control walks the launcher round every corner, each on screen',
         // The composer collapses and slides the header down under the pointer, so
         // a press mid-collapse releases off the button and fires no click.
         await settledBox(page, '#lp-panel');
-        await page.locator('#lp-move').click();
+        await moveLauncher(page);
         await expect.poll(() => cornerAttribute(page)).not.toBe(corner);
     }
 
@@ -3777,8 +4013,8 @@ test('dragging the launcher snaps it to the nearest corner, and is not a click',
 test('the chosen corner survives a reload', async ({ page }) => {
     await openHarness(page);
     await page.getByRole('button', { name: 'Review' }).click();
-    await page.locator('#lp-move').click();
-    await page.locator('#lp-move').click();
+    await moveLauncher(page);
+    await moveLauncher(page);
     await expect.poll(() => cornerAttribute(page)).toBe('top-left');
 
     await page.reload();
@@ -3797,25 +4033,26 @@ test('the corner control is reachable and operable from the keyboard', async ({
     await page.getByRole('button', { name: 'Review' }).click();
     await expect(page.locator('#lp-panel')).toBeVisible();
 
-    // The control names where it will move the launcher, so a screen reader
-    // hears the destination rather than "button".
-    const move = page.locator('#lp-move');
-    await expect(move).toHaveAttribute(
-        'aria-label',
-        'Move the launcher to the bottom left',
-    );
-
-    // In the tab order, not merely focusable by script: Close follows it in the
-    // header, so Shift+Tab from Close has to land on it.
+    // In the tab order, not merely focusable by script: Close follows the menu
+    // button in the header, so Shift+Tab from Close has to land on it.
+    const menuButton = headMenuButton(page);
     await page.locator('#lp-close').focus();
     await page.keyboard.press('Shift+Tab');
-    await expect(move).toBeFocused();
+    await expect(menuButton).toBeFocused();
+
+    // Enter opens the menu on its first item, which names where the launcher
+    // will move, so a screen reader hears the destination rather than "button".
+    await page.keyboard.press('Enter');
+    const first = page.locator('#lp-menu').getByRole('menuitem').first();
+    await expect(first).toBeFocused();
+    await expect(first).toHaveText('Move launcher to the bottom left');
 
     await page.keyboard.press('Enter');
     await expect.poll(() => cornerAttribute(page)).toBe('bottom-left');
 
-    // Focus stays on the control, so a second press keeps walking the corners.
-    await expect(move).toBeFocused();
+    // Focus returns to the menu button, so a second round keeps walking the corners.
+    await expect(menuButton).toBeFocused();
+    await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
     await expect.poll(() => cornerAttribute(page)).toBe('top-left');
 });
@@ -3843,7 +4080,7 @@ test('a page that blocks site data still gets a working launcher', async ({
 
     // The corner still moves for this page, with nowhere to record it.
     await page.getByRole('button', { name: 'Review' }).click();
-    await page.locator('#lp-move').click();
+    await moveLauncher(page);
     await expect.poll(() => cornerAttribute(page)).toBe('bottom-left');
 });
 

@@ -94,6 +94,18 @@ final class WidgetFileTest extends TestCase
         self::assertStringContainsString('prefers-reduced-motion:reduce', $src);
     }
 
+    public function test_note_actions_live_in_menus(): void
+    {
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+
+        foreach (['lp-resolve', 'lp-edit', 'lp-del"', 'id="lp-move"', 'id="lp-clear"'] as $gone) {
+            self::assertStringNotContainsString($gone, $src, $gone);
+        }
+        self::assertStringContainsString('id="lp-menu" role="menu"', $src);
+        self::assertStringContainsString("setAttribute('role', 'menuitem')", $src);
+        self::assertStringContainsString('prefers-reduced-motion:reduce){.lp-panel,.lp-view,.lp-view.is-under,.lp-view.is-away,.lp-menu{', $src);
+    }
+
     public function test_active_launcher_tool_shows_an_accent_disc_inside_the_button(): void
     {
         $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');

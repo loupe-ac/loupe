@@ -28,6 +28,18 @@ beforeAll(() => {
 
 afterEach(() => resetWidget(originalHistory));
 
+/** Opens the header menu and arms Delete all, as the reviewer does. */
+function armDeleteAll(root) {
+    root.getElementById('lp-head-menu').click();
+    root.querySelector('[data-menu-action="delete-all"]').click();
+}
+
+/** Opens a row's menu and picks one of its items by action name. */
+function chooseRowMenuItem(row, action) {
+    row.querySelector('.lp-row-menu-btn').click();
+    row.getRootNode().querySelector(`[data-menu-action="${action}"]`).click();
+}
+
 /** The critical panel's detail line, which names the fix for this rejection. */
 function fatalDetail() {
     openPanel();
@@ -675,7 +687,7 @@ describe('deleting a note', () => {
 
         const root = panelRoot();
         root.getElementById('lp-launch-main').click();
-        root.getElementById('lp-clear').click();
+        armDeleteAll(root);
         root.getElementById('lp-clear-yes').click();
         await settle();
 
@@ -705,12 +717,96 @@ describe('deleting a note', () => {
         const root = panelRoot();
         root.getElementById('lp-launch-main').click();
         const row = root.querySelector('#lp-list .lp-item');
-        row.querySelector('.lp-del').click();
+        chooseRowMenuItem(row, 'delete');
         row.querySelector('[data-del-no]').click();
         expect(row.querySelectorAll('.lp-item-confirm')).toHaveLength(1);
 
         await new Promise((resolve) => setTimeout(resolve, 350));
         expect(row.querySelectorAll('.lp-item-confirm')).toHaveLength(0);
+    });
+});
+
+describe('the note and header menus', () => {
+    const bootOneNote = async () => {
+        bootWidget({
+            respond: () =>
+                ok({
+                    comments: [
+                        {
+                            id: 'c1',
+                            body: 'a note',
+                            url: 'about:blank',
+                            anchors: [],
+                        },
+                    ],
+                    context: null,
+                }),
+        });
+        await settle();
+        const root = panelRoot();
+        root.getElementById('lp-launch-main').click();
+
+        return root;
+    };
+    const visible = (root) =>
+        root.getElementById('lp-menu').style.display !== 'none';
+
+    it('opens on the row button, focuses its first item and closes on Escape', async () => {
+        const root = await bootOneNote();
+        root.querySelector('.lp-row-menu-btn').click();
+
+        expect(visible(root)).toBe(true);
+        const items = [...root.querySelectorAll('[role="menuitem"]')];
+        expect(items.map((item) => item.textContent)).toEqual([
+            'Edit text',
+            'Mark resolved',
+            'Delete note',
+        ]);
+        expect(root.activeElement).toBe(items[0]);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(visible(root)).toBe(false);
+        expect(root.activeElement).toBe(root.querySelector('.lp-row-menu-btn'));
+    });
+
+    it('closes on a press outside and keeps one menu open at a time', async () => {
+        const root = await bootOneNote();
+        root.querySelector('.lp-row-menu-btn').click();
+        root.getElementById('lp-head-menu').click();
+        expect(
+            root
+                .getElementById('lp-menu')
+                .querySelector('[data-menu-action="move"]'),
+        ).not.toBeNull();
+        expect(
+            root
+                .querySelector('.lp-row-menu-btn')
+                .getAttribute('aria-expanded'),
+        ).toBe('false');
+
+        document.body.dispatchEvent(
+            new Event('pointerdown', { bubbles: true, composed: true }),
+        );
+        expect(visible(root)).toBe(false);
+    });
+
+    it('signs out from the header menu and shows the sign-in view', async () => {
+        const root = await bootOneNote();
+        root.getElementById('lp-head-menu').click();
+        const actions = [...root.querySelectorAll('[role="menuitem"]')].map(
+            (item) => item.dataset.menuAction,
+        );
+        expect(actions).toEqual(['move', 'sign-out', 'delete-all']);
+
+        root.querySelector('[data-menu-action="sign-out"]').click();
+        expect(visible(root)).toBe(false);
+        expect(
+            root.getElementById('lp-panel').querySelector('#lp-views').dataset
+                .view,
+        ).toBe('signin');
+        expect(
+            window.sessionStorage.getItem(storageKeyFor(PROJECT)),
+        ).toBeNull();
     });
 });
 
@@ -1604,7 +1700,7 @@ describe('the scope of the list request', () => {
         await settle();
         expect(release).toBeTypeOf('function');
 
-        root.getElementById('lp-clear').click();
+        armDeleteAll(root);
         root.getElementById('lp-clear-yes').click();
         await settle();
         release();
@@ -1658,7 +1754,7 @@ describe('the scope of the list request', () => {
             fetchMock.mock.calls
                 .filter(([, init]) => init && init.method === 'DELETE')
                 .map(([url]) => url.split('/').pop());
-        root.getElementById('lp-clear').click();
+        armDeleteAll(root);
         root.getElementById('lp-clear-yes').click();
         await settle();
         expect(deletes()).toEqual([]);
@@ -1667,7 +1763,7 @@ describe('the scope of the list request', () => {
         );
 
         listFails = false;
-        root.getElementById('lp-clear').click();
+        armDeleteAll(root);
         root.getElementById('lp-clear-yes').click();
         await settle();
         expect(deletes()).toEqual(['c1']);
