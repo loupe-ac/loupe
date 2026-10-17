@@ -84,7 +84,7 @@ final readonly class InboxAskTool implements FlagGatedToolInterface
                             'branch' => ['type' => 'string', 'description' => 'the branch to run it on; defaults to main'],
                             'params' => ['type' => 'object', 'additionalProperties' => ['type' => 'string'], 'description' => 'the value of each param of the entry; each value must match the pattern of its param whole'],
                         ], 'required' => ['entry']],
-                        'prompt' => ['type' => 'string', 'maxLength' => SessionPromptLimit::DEFAULT, 'description' => 'for start-session only: the instruction the session starts with; the owner reads and may edit it first. At most 2000 characters by default; an admin can set a lower or higher limit'],
+                        'prompt' => ['type' => 'string', 'description' => 'for start-session only: the instruction the session starts with; the owner reads and may edit it first. At most '.SessionPromptLimit::DEFAULT.' characters by default; an admin can set a lower or higher limit'],
                         'proposedEntry' => ['type' => 'string', 'maxLength' => RunSuggestions::MAX_PROPOSED_ENTRY_LENGTH, 'description' => 'for run-command: the YAML of one command entry, without its name, for a bridge that lacks the entry. Keys: action (command), description, params (each name with a pattern), run, timeout'],
                     ],
                     'required' => ['action', 'reason'],

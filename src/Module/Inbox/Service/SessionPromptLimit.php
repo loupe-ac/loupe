@@ -11,7 +11,7 @@ final readonly class SessionPromptLimit
 {
     public const string FLAG = 'inbox.session_prompt_max_length';
 
-    /** The coded fallback, the seeded value, and the maxLength that the static inbox_ask schema publishes. */
+    /** The coded fallback and the seeded value. The inbox_ask schema publishes no maxLength, because the flag can raise it. */
     public const int DEFAULT = 2000;
 
     public function __construct(

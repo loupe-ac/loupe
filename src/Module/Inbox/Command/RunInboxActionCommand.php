@@ -25,7 +25,7 @@ final readonly class RunInboxActionCommand
         public ?array $params = null,
         /** The digest of the run list the owner read in the confirm dialog. */
         public ?string $runDigest = null,
-        /** The prompt the owner confirmed for a start-session action. Null or blank keeps the one of the suggestion. */
+        /** The prompt the owner confirmed for a start-session action. Null or blank starts the session with no prompt. */
         public ?string $sessionPrompt = null,
     ) {
     }

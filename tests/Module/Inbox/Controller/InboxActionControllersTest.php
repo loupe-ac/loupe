@@ -386,6 +386,25 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('Use the <skill>. Part 1 only.', $this->onlyAction($item)->sessionPrompt);
     }
 
+    public function test_a_session_prompt_field_the_owner_cleared_starts_the_session_with_no_prompt(): void
+    {
+        $session = new Bridge($this->project->owner, Uuid::v4(), [$this->project->id?->toRfc4122() ?? ''], 'b4e39aa7', new \DateTimeImmutable());
+        $session->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $session->lastSeenAt = new \DateTimeImmutable();
+        $this->em()->persist($session);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']];
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->em()->persist($item);
+        $this->em()->flush();
+        $this->askHolding($this->em(), $this->project, [$item]);
+        $this->em()->flush();
+
+        $this->post($this->actionPath($item, 'start-session'), $item, ['note' => '', 'sessionPrompt' => '']);
+
+        self::assertNull($this->onlyAction($item)->sessionPrompt);
+    }
+
     public function test_a_question_keeps_its_answer_form_with_the_heading_your_answer(): void
     {
         $question = $this->question($this->em(), $this->project, 40);

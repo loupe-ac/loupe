@@ -684,7 +684,8 @@ card. The prompt names the inbox item, and the agent reads your note with
 
 An agent can suggest the action with a prompt for the session. The inbox then
 shows the prompt in a text field above the action. You can edit the text. The
-session runs the text that you leave in the field. The limit is 2000
+session runs the text that you leave in the field. When you clear the field,
+the session starts with no suggested prompt. The limit is 2000
 characters, and an admin changes it with the `inbox.session_prompt_max_length`
 flag on the flags page. The action hides only while a session request of the
 same card is live. You can cancel the action until a bridge takes it. A request that

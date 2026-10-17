@@ -652,12 +652,12 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertFalse($this->audit->record('inbox.action_requested')->context['hasPrompt']);
     }
 
-    public function test_a_session_sends_the_prompt_of_the_suggestion_by_default(): void
+    public function test_a_session_sends_the_prefilled_prompt_the_owner_left_unchanged(): void
     {
         $this->sessionBridge();
         $item = $this->todoWithSessionPrompt('Use the skill.');
 
-        $action = $this->runAction($item, InboxActionKind::StartSession) ?? throw new \LogicException('A session records a row.');
+        $action = $this->runAction($item, InboxActionKind::StartSession, '', 'Use the skill.') ?? throw new \LogicException('A session records a row.');
 
         self::assertSame('Use the skill.', $action->sessionPrompt);
         self::assertSame('Use the skill.', $this->em()->find(WorkRequest::class, $action->workRequestId)?->prompt);
@@ -677,14 +677,15 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame('Use the skill. Part 1 only.', $this->em()->find(WorkRequest::class, $action->workRequestId)?->prompt);
     }
 
-    public function test_a_blank_edit_falls_back_to_the_prompt_of_the_suggestion(): void
+    public function test_a_cleared_field_starts_a_session_without_the_suggested_prompt(): void
     {
         $this->sessionBridge();
         $item = $this->todoWithSessionPrompt('Use the skill.');
 
         $action = $this->runAction($item, InboxActionKind::StartSession, '', '   ') ?? throw new \LogicException('A session records a row.');
 
-        self::assertSame('Use the skill.', $action->sessionPrompt);
+        self::assertNull($action->sessionPrompt);
+        self::assertNull($this->em()->find(WorkRequest::class, $action->workRequestId)?->prompt);
     }
 
     public function test_a_suggestion_stored_before_the_prompt_existed_starts_a_plain_session(): void

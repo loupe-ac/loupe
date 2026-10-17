@@ -219,10 +219,9 @@ final readonly class RunInboxActionHandler
         if (mb_strlen($command->sessionPrompt ?? '') > $this->promptLimit->maxLength()) {
             throw new DomainErrors(['action' => self::SESSION_PROMPT_TOO_LONG]);
         }
+        // The field is the prompt, so a field the owner cleared starts a session with no prompt.
         $prompt = trim($command->sessionPrompt ?? '');
-        if ('' === $prompt) {
-            $prompt = ItemActions::suggestedSessionPrompt($item);
-        }
+        $prompt = '' === $prompt ? null : $prompt;
 
         // The row commits first, because the request names it. A refused request removes it again.
         $action = new InboxAction($item, InboxActionKind::StartSession, $command->user, $note);
