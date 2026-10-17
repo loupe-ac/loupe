@@ -91,16 +91,26 @@ function boot({ verdict = verdictAnswer(), post, locked = true, mode } = {}) {
     return fetchMock;
 }
 
-const buttons = () =>
-    [...panelRoot().querySelectorAll('.lp-verdict-btn')].map(
-        (b) => b.textContent,
-    );
-const press = (name) =>
-    [...panelRoot().querySelectorAll('.lp-verdict-btn')]
-        .find((b) => b.textContent === name)
-        .click();
+const radios = () => [...panelRoot().querySelectorAll('input[data-kind]')];
+const optionName = (radio) =>
+    radio.closest('label').querySelector('.lp-verdict-opt-t').textContent;
+const buttons = () => radios().map(optionName);
+const checkedName = () => optionName(radios().find((radio) => radio.checked));
+const press = (name) => {
+    const radio = radios().find((input) => optionName(input) === name);
+    radio.checked = true;
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
+};
+/** The footer action of the list opens the Finish review view. */
+const openFinish = () => panelRoot().getElementById('lp-finish').click();
+const savedNotice = () =>
+    [...document.querySelectorAll('*')]
+        .filter((element) => element.shadowRoot)
+        .map((element) => element.shadowRoot.getElementById('lp-saved-text'))
+        .find(Boolean)?.textContent;
+const view = () => panelRoot().getElementById('lp-views').dataset.view;
 const sendButton = () => panelRoot().getElementById('lp-verdict-send');
-const form = () => panelRoot().getElementById('lp-verdict-form');
+const form = () => panelRoot().getElementById('lp-verdict');
 const sent = (fetchMock) =>
     fetchMock.mock.calls
         .filter(([url]) => String(url).endsWith('/verdicts'))
@@ -113,7 +123,7 @@ async function write(text) {
     await settle();
 }
 
-describe('verdict buttons', () => {
+describe('verdict options', () => {
     it('show on a locked card with an open pull request', async () => {
         boot();
         await settle();
@@ -122,7 +132,7 @@ describe('verdict buttons', () => {
         expect(buttons()).toEqual(['Approve', 'Request changes', 'Comment']);
     });
 
-    it('stay hidden when the card has no open pull request', async () => {
+    it('stay absent when the card has no open pull request', async () => {
         boot({ verdict: verdictAnswer({ pullRequests: [] }) });
         await settle();
         openPanel();
@@ -130,7 +140,7 @@ describe('verdict buttons', () => {
         expect(buttons()).toEqual([]);
     });
 
-    it('stay hidden when the page locks no card', async () => {
+    it('stay absent when the page locks no card', async () => {
         const fetchMock = boot({
             locked: false,
             mode: { mode: 'per-review', cardId: CARD },
@@ -146,7 +156,7 @@ describe('verdict buttons', () => {
         ).toBe(false);
     });
 
-    it('stay hidden when the verdict cannot be read', async () => {
+    it('stay absent when the verdict cannot be read', async () => {
         boot({ verdict: new Error('down') });
         await settle();
         openPanel();
@@ -155,18 +165,75 @@ describe('verdict buttons', () => {
     });
 });
 
-describe('confirm panel', () => {
+describe('Finish review view', () => {
     it('names the card, the pull request and what the verdict does, and records nothing yet', async () => {
         const fetchMock = boot();
         await settle();
         openPanel();
-        press('Approve');
+        openFinish();
         await settle();
 
-        expect(form().textContent).toContain('Approve for #7 Preview card');
+        expect(panelRoot().getElementById('lp-finish-sub').textContent).toBe(
+            '#7 Preview card',
+        );
         expect(form().textContent).toContain('acme/site#12');
         expect(form().textContent).toContain('Posts your verdict.');
         expect(sent(fetchMock)).toEqual([]);
+    });
+
+    it('preselects Approve with no open note and Request changes with one', async () => {
+        let notes = [];
+        boot({ verdict: () => verdictAnswer({ notes }) });
+        await settle();
+        openPanel();
+        openFinish();
+        await settle();
+        expect(checkedName()).toBe('Approve');
+
+        notes = [
+            { id: 'n1', url: 'https://x.test/', body: 'One', anchorCount: 0 },
+        ];
+        panelRoot().getElementById('lp-verdict-cancel').click();
+        await settle();
+        openFinish();
+        await settle();
+        expect(checkedName()).toBe('Request changes');
+    });
+
+    it('keeps the reviewer’s own pick when the notes load again', async () => {
+        boot();
+        await settle();
+        openPanel();
+        openFinish();
+        await settle();
+        press('Comment');
+        await settle();
+
+        expect(checkedName()).toBe('Comment');
+    });
+
+    it('focuses the message field when it opens', async () => {
+        boot();
+        await settle();
+        openPanel();
+        openFinish();
+        await settle();
+
+        expect(panelRoot().activeElement).toBe(
+            panelRoot().getElementById('lp-verdict-message'),
+        );
+    });
+
+    it('names the GitHub account that posts the review', async () => {
+        boot({
+            verdict: verdictAnswer({
+                connection: { state: 'connected', login: 'ubermuda' },
+            }),
+        });
+        await settle();
+        openPanel();
+
+        expect(form().textContent).toContain('Posts to GitHub as @ubermuda');
     });
 
     it('says when a verdict is recorded in Loupe only', async () => {
@@ -200,10 +267,8 @@ describe('confirm panel', () => {
                 submissionId: expect.stringMatching(UUID),
             },
         ]);
-        expect(panelRoot().querySelector('.lp-verdict-ok').textContent).toBe(
-            'Sent to the workflow',
-        );
-        expect(form()).toBeNull();
+        expect(savedNotice()).toBe('Sent to the workflow');
+        expect(view()).toBe('list');
     });
 
     it.each(['Request changes', 'Comment'])(
@@ -216,7 +281,8 @@ describe('confirm panel', () => {
             await settle();
 
             expect(
-                panelRoot().getElementById('lp-verdict-message').placeholder,
+                panelRoot().querySelector('label[for="lp-verdict-message"]')
+                    .textContent,
             ).toBe('Message');
             expect(sendButton().disabled).toBe(true);
             await write('   ');
@@ -247,7 +313,8 @@ describe('confirm panel', () => {
         expect(form().textContent).toContain('1 note goes with this review');
         expect(form().textContent).toContain('Heading is cut off');
         expect(
-            panelRoot().getElementById('lp-verdict-message').placeholder,
+            panelRoot().querySelector('label[for="lp-verdict-message"]')
+                .textContent,
         ).toBe('Message (optional)');
         expect(sendButton().disabled).toBe(false);
         sendButton().click();
@@ -277,6 +344,8 @@ describe('confirm panel', () => {
         });
         await settle();
         openPanel();
+        openFinish();
+        await settle();
         press('Request changes');
         await settle();
         expect(reads).toBe(2);
@@ -289,7 +358,8 @@ describe('confirm panel', () => {
         );
         expect(sendButton().disabled).toBe(true);
         expect(
-            panelRoot().getElementById('lp-verdict-message').placeholder,
+            panelRoot().querySelector('label[for="lp-verdict-message"]')
+                .textContent,
         ).toBe('Message');
     });
 
@@ -417,25 +487,21 @@ describe('confirm panel', () => {
         expect(second.submissionId).not.toBe(first.submissionId);
     });
 
-    it('makes a new submission id after the reviewer cancelled', async () => {
-        const fetchMock = boot({ post: () => rejected(500, {}) });
+    it('keeps the draft message when the reviewer cancels and comes back', async () => {
+        boot();
         await settle();
         openPanel();
-        press('Comment');
+        openFinish();
         await settle();
         await write('Looks odd');
-        sendButton().click();
-        await settle();
         panelRoot().getElementById('lp-verdict-cancel').click();
         await settle();
-        press('Comment');
-        await settle();
-        await write('Looks odd');
-        sendButton().click();
+        openFinish();
         await settle();
 
-        const [first, second] = sent(fetchMock);
-        expect(second.submissionId).not.toBe(first.submissionId);
+        expect(panelRoot().getElementById('lp-verdict-message').value).toBe(
+            'Looks odd',
+        );
     });
 
     it('cancel leaves nothing sent', async () => {
@@ -447,7 +513,7 @@ describe('confirm panel', () => {
         panelRoot().getElementById('lp-verdict-cancel').click();
         await settle();
 
-        expect(form()).toBeNull();
+        expect(view()).toBe('list');
         expect(sent(fetchMock)).toEqual([]);
     });
 });

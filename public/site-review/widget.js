@@ -1363,25 +1363,30 @@
       .lp-picker-foot .lp-picker-search{flex:1 1 auto}
       .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
       .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
-      .lp-verdict{flex:1 1 auto;min-height:0;overflow:auto;margin:12px 14px;font-size:12px;line-height:1.45;color:var(--text)}
-      .lp-verdict-row{display:flex;gap:6px}
-      .lp-verdict-btn{flex:1;min-width:0;height:32px;padding:0 6px;border:0;border-radius:10px;background:var(--bg-sunken);color:var(--text);font-family:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .15s ease}
-      .lp-verdict-btn[data-kind="request-changes"]{flex:1.5}
-      .lp-verdict-btn:hover{background:var(--accent-fill)}
-      .lp-verdict-btn:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
-      .lp-verdict-form{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--bg-sunken)}
-      .lp-verdict-title{font-size:13px;font-weight:700;overflow-wrap:anywhere}
-      .lp-verdict-form .lp-textarea{min-height:56px;margin-top:8px;background:var(--surface-1)}
-      .lp-verdict-line{margin-top:6px;color:var(--text-mute)}
-      .lp-verdict-pr{display:flex;align-items:center;gap:6px;margin-top:6px;overflow-wrap:anywhere}
-      .lp-verdict-notes{margin:4px 0 0;padding-left:16px;color:var(--text-mute)}
-      .lp-verdict-notes li{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .lp-verdict-warn{margin-top:6px;color:var(--warn)}
-      .lp-verdict-error{margin-top:6px;color:var(--status-danger)}
-      .lp-verdict-foot{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:10px}
-      .lp-verdict-result{margin-top:8px;color:var(--text-mute)}
+      .lp-verdict{flex:1 1 auto;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px;font-size:12px;line-height:1.45;color:var(--text)}
+      .lp-verdict-set{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+      .lp-verdict-label{display:block;padding:0;margin-bottom:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+      .lp-verdict-set .lp-verdict-label{margin-bottom:0}
+      .lp-verdict-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer}
+      .lp-verdict-opt.is-on{border-color:var(--accent-border);background:var(--accent-fill)}
+      .lp-verdict-opt input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--accent-ink)}
+      .lp-verdict-opt input:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+      .lp-verdict-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px}
+      .lp-verdict-opt-d{display:block;margin-top:2px;color:var(--text-mute)}
+      .lp-verdict-pr{display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}
+      .lp-verdict-notes{display:flex;flex-direction:column;gap:8px}
+      .lp-verdict-note{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;align-items:start;color:var(--text-mute);overflow-wrap:anywhere}
+      .lp-verdict-n{width:20px;height:20px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--accent);color:var(--ink)}
+      .lp-verdict .lp-textarea{min-height:72px;border:1px solid var(--border);background:var(--field)}
+      .lp-verdict-line{color:var(--text-mute)}
+      .lp-verdict-warn{color:var(--warn)}
+      .lp-verdict-error{color:var(--status-danger)}
+      .lp-verdict-foot{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--border-faint);background:var(--surface-2)}
+      .lp-verdict-foot .lp-foot-action{flex:1 1 auto;width:auto}
+      .lp-verdict-foot .lp-ghost{height:40px;font-size:13px}
+      .lp-verdict-foot .lp-foot-action:disabled{opacity:.5;cursor:default}
+      .lp-verdict-result{color:var(--text-mute)}
       .lp-verdict-result a{color:var(--accent-ink)}
-      .lp-verdict-ok{margin-bottom:6px;color:var(--status-ok);font-weight:600}
       .lp-composer{flex:1 1 auto;min-height:0;overflow:auto}
       .lp-composer-inner{padding:14px 16px 14px}
       /* The composer's height is fixed and it clips, so the chips scroll rather
@@ -1605,9 +1610,10 @@
         <section class="lp-view" id="lp-view-finish" data-view="finish" aria-label="Finish review">
           <header class="lp-hd lp-hd--back">
             <button class="lp-iconbtn" id="lp-finish-back" aria-label="Back to notes">${ICON.back(18)}</button>
-            <div class="lp-hd-text"><div class="lp-title">Finish review</div></div>
+            <div class="lp-hd-text"><div class="lp-title">Finish review</div><div class="lp-sub" id="lp-finish-sub"></div></div>
           </header>
           <div class="lp-verdict lp-scroll" id="lp-verdict"></div>
+          <footer class="lp-verdict-foot" id="lp-verdict-foot"></footer>
         </section>
         <section class="lp-view" id="lp-view-signin" data-view="signin" aria-label="Sign in">
           <header class="lp-hd lp-hd--center">
@@ -1780,6 +1786,8 @@
     const pickerTitleNode = $('lp-picker-title');
     const pickerTypeNode = $('lp-picker-type');
     const verdictNode = $('lp-verdict');
+    const verdictFoot = $('lp-verdict-foot');
+    const finishSub = $('lp-finish-sub');
     const composeHead = $('lp-compose-head');
     let composeHeadHtml = null;
     const textareaNode = $('lp-textarea');
@@ -3698,7 +3706,6 @@
         sending: false,
         connecting: false,
         error: null,
-        notice: null,
         attempt: null,
     };
     let verdictGeneration = 0;
@@ -3714,7 +3721,6 @@
             sending: false,
             connecting: false,
             error: null,
-            notice: null,
             attempt: null,
         });
     };
@@ -3747,6 +3753,12 @@
         return verdict.attempt.id;
     };
 
+    // Request changes when notes are open, and Approve when none is.
+    const currentKind = () =>
+        verdict.kind ||
+        (verdict.data && verdict.data.notes.length > 0
+            ? 'request-changes'
+            : 'approve');
     const verdictActions = (data, kind) =>
         ((data.preview || {})[kind] || {}).actions || [];
     // The review write needs the reviewer's own GitHub account.
@@ -3833,23 +3845,22 @@
         } else if (verdict.cardId !== lock.cardId) loadVerdict();
     };
 
-    // The footer action opens the view with no verdict picked yet.
+    // The footer action opens the view with the verdict that the open notes
+    // suggest. The reviewer's own pick, once made, stays.
     const openFinish = () => {
         if (!verdictCurrent()) return;
-        showView('finish');
-        verdict.notice = null;
-        sync();
-        // The notes may have changed since the page loaded.
-        loadVerdict();
-    };
-    const openVerdict = (kind) => {
-        verdict.kind = kind;
+        verdict.kind = null;
         verdict.error = null;
-        verdict.notice = null;
         tidyTicks();
         showView('finish');
         sync();
+        focusVerdictMessage();
+        // The notes may have changed since the page loaded.
         loadVerdict();
+    };
+    const focusVerdictMessage = () => {
+        const message = $('lp-verdict-message');
+        if (message) message.focus({ preventScroll: true });
     };
     // Focus goes back to the footer action that opened the view.
     const leaveFinish = () => {
@@ -3858,17 +3869,9 @@
         const action = footAction.querySelector('button, a');
         if (action) action.focus({ preventScroll: true });
     };
-    const closeVerdict = () => {
-        verdict.kind = null;
-        verdict.message = '';
-        verdict.ticked = [];
-        verdict.attempt = null;
-        verdict.error = null;
-        sync();
-    };
     const verdictSendable = () =>
         verdictCanSend({
-            kind: verdict.kind,
+            kind: currentKind(),
             noteCount: verdict.data.notes.length,
             message: verdict.message,
             ticked: verdict.ticked.length,
@@ -3876,9 +3879,9 @@
         });
 
     const sendVerdict = async () => {
-        if (!verdict.kind || !verdictCurrent() || !verdictSendable()) return;
+        if (!verdictCurrent() || !verdictSendable()) return;
         const cardId = verdict.cardId;
-        const kind = verdict.kind;
+        const kind = currentKind();
         const content = {
             cardId,
             kind,
@@ -3923,7 +3926,8 @@
         verdict.message = '';
         verdict.ticked = [];
         verdict.attempt = null;
-        verdict.notice = 'Sent to the workflow';
+        resetView();
+        flashSaved('Sent to the workflow');
         sync();
         await loadVerdict();
     };
@@ -3976,10 +3980,24 @@
         });
     }
 
-    const renderVerdictForm = (data) => {
-        const kind = verdict.kind;
-        const label = lock && lock.label ? lock.label : 'this card';
+    const VERDICT_HINTS = {
+        approve: 'The change is ready from your side.',
+        'request-changes': 'The agent works through your notes next.',
+        comment: 'Send the notes with no verdict.',
+    };
+
+    const renderVerdictBody = (data) => {
+        if (!data.pullRequests.length) return renderVerdictResult(data);
+        const kind = currentKind();
         const single = data.pullRequests.length === 1;
+        const options = Object.entries(VERDICT_KINDS)
+            .map(
+                ([value, text]) =>
+                    `<label class="lp-verdict-opt${value === kind ? ' is-on' : ''}"><input type="radio" name="lp-verdict-kind" data-kind="${value}"${
+                        value === kind ? ' checked' : ''
+                    }><span><span class="lp-verdict-opt-t">${text}</span><span class="lp-verdict-opt-d">${VERDICT_HINTS[value]}</span></span></label>`,
+            )
+            .join('');
         const prs = data.pullRequests
             .map((pr) =>
                 single
@@ -3992,10 +4010,14 @@
         const own = data.pullRequests.some(
             (pr) => pr.ownPullRequest && verdict.ticked.includes(pr.id),
         );
+        const optional = kind === 'approve' || data.notes.length > 0;
         const notes = data.notes.length
-            ? `<div class="lp-verdict-line">${notesOpenText(kind, data.notes.length)}</div><ul class="lp-verdict-notes">${data.notes
-                  .map((note) => `<li>${escapeHtml(note.body)}</li>`)
-                  .join('')}</ul>`
+            ? `<div><div class="lp-verdict-label">${notesOpenText(kind, data.notes.length)}</div><div class="lp-verdict-notes">${data.notes
+                  .map(
+                      (note, index) =>
+                          `<div class="lp-verdict-note"><span class="lp-verdict-n">${index + 1}</span><span>${escapeHtml(note.body)}</span></div>`,
+                  )
+                  .join('')}</div></div>`
             : '';
         const actions = verdictActions(data, kind);
         const does = actions.length
@@ -4006,31 +4028,44 @@
                   )
                   .join('')
             : '<div class="lp-verdict-line">Recorded in Loupe only</div>';
-        const connect = verdictNeedsConnect(data, kind);
+        const login = data.connection.login;
+        const account =
+            data.connection.state === 'connected' && login
+                ? `<div class="lp-verdict-line">Posts to GitHub as @${escapeHtml(login)}</div>`
+                : '';
+
+        return `<fieldset class="lp-verdict-set" aria-label="Verdict" role="group">
+          <legend class="lp-verdict-label">Your verdict</legend>
+          ${options}
+        </fieldset>
+        ${prs ? `<div>${prs}</div>` : ''}
+        ${own ? '<div class="lp-verdict-warn">You opened this pull request, so GitHub accepts no verdict from you. The review goes as a comment.</div>' : ''}
+        <div>
+          <label class="lp-verdict-label" for="lp-verdict-message">${optional ? 'Message (optional)' : 'Message'}</label>
+          <textarea class="lp-textarea" id="lp-verdict-message" placeholder="${
+              optional
+                  ? 'Your notes can stand on their own.'
+                  : 'Say what needs to change.'
+          }"></textarea>
+        </div>
+        ${notes}
+        <div>${does}${account}</div>
+        ${verdict.error ? `<div class="lp-verdict-error" role="alert">${escapeHtml(verdict.error)}</div>` : ''}
+        ${renderVerdictResult(data)}`;
+    };
+
+    const renderVerdictFoot = (data) => {
+        if (!data.pullRequests.length) return '';
+        const connect = verdictNeedsConnect(data, currentKind());
         const send = connect
-            ? `<button class="lp-primary" id="lp-verdict-connect" type="button"${
+            ? `<button class="lp-foot-action primary" id="lp-verdict-connect" type="button"${
                   verdict.connecting ? ' disabled' : ''
               }>${verdict.connecting ? 'Waiting for GitHub…' : 'Connect GitHub to send this review'}</button>`
-            : `<button class="lp-primary" id="lp-verdict-send" type="button"${
+            : `<button class="lp-foot-action primary" id="lp-verdict-send" type="button"${
                   verdictSendable() ? '' : ' disabled'
               }>${verdict.sending ? '<span class="lp-spin"></span>Sending…' : 'Send'}</button>`;
-        return `<div class="lp-verdict-form" id="lp-verdict-form" role="group" aria-label="${escapeHtml(VERDICT_KINDS[kind])}">
-          <div class="lp-verdict-title">${escapeHtml(VERDICT_KINDS[kind])} for ${escapeHtml(label)}</div>
-          ${prs}
-          ${own ? '<div class="lp-verdict-warn">You opened this pull request, so GitHub accepts no verdict from you. The review goes as a comment.</div>' : ''}
-          ${notes}
-          <textarea class="lp-textarea" id="lp-verdict-message" aria-label="Message" placeholder="${
-              kind === 'approve' || data.notes.length > 0
-                  ? 'Message (optional)'
-                  : 'Message'
-          }"></textarea>
-          ${does}
-          ${verdict.error ? `<div class="lp-verdict-error" role="alert">${escapeHtml(verdict.error)}</div>` : ''}
-          <div class="lp-verdict-foot">
-            <button class="lp-ghost" id="lp-verdict-cancel" type="button">Cancel</button>
-            ${send}
-          </div>
-        </div>`;
+
+        return `<button class="lp-ghost" id="lp-verdict-cancel" type="button">Cancel</button>${send}`;
     };
 
     const renderVerdictResult = (data) => {
@@ -4061,42 +4096,28 @@
     const renderVerdict = () => {
         const data = verdictCurrent() ? verdict.data : null;
         if (!data) {
-            verdictNode.style.display = 'none';
             verdictDrawn = null;
             return;
         }
-        verdictNode.style.display = 'block';
-        const html = [
-            verdict.notice
-                ? `<div class="lp-verdict-ok" role="status">${escapeHtml(verdict.notice)}</div>`
-                : '',
-            verdict.kind
-                ? renderVerdictForm(data)
-                : (data.pullRequests.length
-                      ? `<div class="lp-verdict-row" role="group" aria-label="Verdict">${Object.entries(
-                            VERDICT_KINDS,
-                        )
-                            .map(
-                                ([kind, text]) =>
-                                    `<button class="lp-verdict-btn" type="button" data-kind="${kind}">${text}</button>`,
-                            )
-                            .join('')}</div>`
-                      : '') + renderVerdictResult(data),
-        ].join('');
+        finishSub.textContent = lock && lock.label ? lock.label : 'This card';
+        const body = renderVerdictBody(data);
+        const foot = renderVerdictFoot(data);
         // The typed message is not part of the markup, so typing never repaints.
-        if (html === verdictDrawn) return;
-        verdictDrawn = html;
+        if (body + foot === verdictDrawn) return;
+        verdictDrawn = body + foot;
         const focused = root.activeElement;
         const typing = focused?.id === 'lp-verdict-message';
+        const pickedKind = focused?.dataset?.kind;
         const tickedBox = focused?.dataset?.pr;
-        verdictNode.innerHTML = html;
-        verdictNode
-            .querySelectorAll('[data-kind]')
-            .forEach((button) =>
-                button.addEventListener('click', () =>
-                    openVerdict(button.dataset.kind),
-                ),
-            );
+        verdictNode.innerHTML = body;
+        verdictFoot.innerHTML = foot;
+        verdictNode.querySelectorAll('[data-kind]').forEach((radio) =>
+            radio.addEventListener('change', () => {
+                verdict.kind = radio.dataset.kind;
+                verdict.error = null;
+                sync();
+            }),
+        );
         verdictNode.querySelectorAll('[data-pr]').forEach((box) =>
             box.addEventListener('change', () => {
                 verdict.ticked = box.checked
@@ -4115,6 +4136,12 @@
             });
             if (typing) message.focus({ preventScroll: true });
         }
+        if (pickedKind) {
+            const radio = verdictNode.querySelector(
+                `[data-kind="${CSS.escape(pickedKind)}"]`,
+            );
+            if (radio) radio.focus({ preventScroll: true });
+        }
         if (tickedBox) {
             const box = verdictNode.querySelector(
                 `[data-pr="${CSS.escape(tickedBox)}"]`,
@@ -4125,7 +4152,7 @@
             const node = $(id);
             if (node) node.addEventListener('click', handler);
         };
-        on('lp-verdict-cancel', closeVerdict);
+        on('lp-verdict-cancel', leaveFinish);
         on('lp-verdict-send', sendVerdict);
         on('lp-verdict-connect', connectGitHub);
         on('lp-verdict-again', connectGitHub);
