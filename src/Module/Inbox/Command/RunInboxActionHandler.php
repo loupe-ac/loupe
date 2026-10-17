@@ -221,7 +221,9 @@ final readonly class RunInboxActionHandler
         }
         // The field is the prompt, so a field the owner cleared starts a session with no prompt.
         $prompt = trim($command->sessionPrompt ?? '');
-        $prompt = '' === $prompt ? null : $prompt;
+        if ('' === $prompt) {
+            $prompt = null;
+        }
 
         // The row commits first, because the request names it. A refused request removes it again.
         $action = new InboxAction($item, InboxActionKind::StartSession, $command->user, $note);
