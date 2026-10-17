@@ -1036,18 +1036,6 @@
         `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
         `stroke-width="${stroke || 2}" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
     const ICON = {
-        // lucide:playing-cards-fan. Traced by hand because this script is
-        // standalone and cannot use <twig:UX:Icon>. Note the paths assume a
-        // 24-unit box and a 2-unit stroke, so scaling the stroke down as the
-        // other icons do here would thin the fan unevenly.
-        cards: (s) =>
-            svg(
-                s,
-                '<path d="M12.65 7.65a2 2 0 0 1 2.629-1.046l5.51 2.374a2 2 0 0 1 1.046 2.628l-3.957 9.184a2 2 0 0 1-2.628 1.046l-5.51-2.374a2 2 0 0 1-1.046-2.628z"/>' +
-                    '<path d="M18 7.777V4a2 2 0 0 0-2-2h-6a2 2 0 0 0-2 2v10a2 2 0 0 0 1.137 1.805"/>' +
-                    '<path d="m8 4.389l-4.364.809a2 2 0 0 0-1.602 2.33l1.822 9.833a2 2 0 0 0 2.331 1.602l2.542-.47"/>',
-                2,
-            ),
         comment: (s) =>
             svg(
                 s,
@@ -1093,15 +1081,6 @@
             svg(
                 s,
                 '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
-                2,
-            ),
-        glyph: (s) =>
-            `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ` +
-            `stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>`,
-        quote: (s) =>
-            svg(
-                s,
-                '<path d="M9 7H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v1a3 3 0 0 1-3 3"/><path d="M19 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v1a3 3 0 0 1-3 3"/>',
                 2,
             ),
         more: (s) =>
@@ -1307,7 +1286,7 @@
       .lp-launcher.at-top [data-tip]:hover::after{transform:translateX(-50%) translateY(0)}
       .lp-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;font-size:11px;font-weight:700;background:var(--accent);color:var(--ink)}
 
-      .lp-panel{position:fixed;right:20px;bottom:80px;width:360px;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-panel-in .3s cubic-bezier(.2,.9,.3,1);transition:height .34s cubic-bezier(.2,.9,.3,1),background .25s ease,border-color .25s ease}
+      .lp-panel{position:fixed;right:20px;bottom:80px;width:362px;max-height:min(560px,calc(100vh - 160px));display:flex;flex-direction:column;background:var(--surface-1);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);pointer-events:auto;overflow:hidden;font-family:var(--font);color:var(--text);animation:lp-panel-in .3s cubic-bezier(.2,.9,.3,1);transition:height .34s cubic-bezier(.2,.9,.3,1),background .25s ease,border-color .25s ease}
       /* The panel opens away from the launcher's edge. 80px clears the 44px
          launcher, its 20px inset and a 16px gap, and the 160px max-height
          budget covers that offset at either end, so no corner grows off screen. */
@@ -1324,11 +1303,14 @@
       .lp-view.is-away{transform:translateX(100%);visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.2,.9,.3,1),visibility 0s linear .34s}
       @media (prefers-reduced-motion:reduce){.lp-panel,.lp-view,.lp-view.is-under,.lp-view.is-away,.lp-menu{transition:none;animation:none}}
       .lp-hd{flex:0 0 auto;display:flex;align-items:flex-start;gap:4px;padding:12px 10px 12px 16px;border-bottom:1px solid var(--border-faint)}
-      .lp-hd--back{align-items:center;padding-left:8px}
+      .lp-hd--back{padding-left:8px}
+      .lp-hd--back .lp-hd-text{padding-top:5px}
       .lp-hd-text{flex:1 1 auto;min-width:0}
       .lp-title{min-height:32px;display:flex;align-items:center;font-size:15px;font-weight:600;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .lp-hd-text .lp-title{display:block;min-height:0;margin-top:6px}
       .lp-hd--back .lp-hd-text .lp-title{margin-top:0}
+      #lp-destination-head .lp-hd-text{padding-top:0}
+      #lp-destination-head .lp-hd-text .lp-title{margin-top:6px}
       .lp-sub{margin-top:2px;font-size:12px;line-height:16px;color:var(--text-mute)}
       .lp-dest{max-width:100%;height:32px;margin-left:-8px;padding:0 6px 0 8px;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:transparent;color:var(--text);font:inherit;font-size:15px;font-weight:600;cursor:pointer}
       .lp-dest:hover{background:var(--bg-sunken)}
@@ -1336,50 +1318,46 @@
       .lp-dest svg{flex:0 0 auto}
       .lp-body{flex:1 1 auto;min-height:0;overflow:auto;padding-bottom:8px}
       .lp-section{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
-      .lp-view-body{flex:1 1 auto;min-height:0;overflow:auto;padding:0 16px 16px}
       .lp-spacer{flex:1}
       .lp-iconbtn{flex:0 0 auto;width:32px;height:32px;border:0;background:transparent;color:var(--text-mute);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}
       .lp-iconbtn:hover,.lp-iconbtn[aria-expanded="true"]{background:var(--bg-sunken);color:var(--text)}
 
-      .lp-context{display:flex;align-items:flex-start;gap:5px;margin-top:6px;font-size:12px;line-height:1.4;color:var(--text-mute);white-space:nowrap}
-      .lp-context svg{flex:0 0 auto;opacity:.75;margin-top:1.5px}
-      /* The icon replaced the words "Saves to" on screen. A screen reader would
-         otherwise hear a bare card title with nothing saying what it is for. */
-      .lp-context-label[data-role="picker"]{cursor:pointer;background:none;border:0;padding:0;font:inherit}
-      /* The widget's own palette, not raw hex. Both themes are injected into
-         this shadow root, and hardcoding light values put a white panel inside
-         the dark widget. */
-      .lp-picker{margin-top:8px;border:1px solid var(--border-faint);border-radius:10px;padding:8px;background:var(--surface-2)}
-      .lp-picker-search{width:100%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
-      .lp-picker-search::placeholder{color:var(--text-dim)}
-      .lp-picker-search:focus{border-color:var(--accent-border);background:var(--field-focus)}
-      .lp-picker-list{max-height:min(132px,20vh);overflow:auto;margin-top:6px}
-      .lp-picker-row{display:block;width:100%;text-align:left;border:0;background:none;padding:5px 6px;border-radius:6px;font:inherit;font-size:12px;color:var(--text);cursor:pointer}
-      /* Three cues, because one is not enough here. --bg-sunken was the first
-         attempt and is the same value as --surface-2 in dark, so the hover was
-         invisible; every other fill measured under 1.2:1 against the panel in
-         light, where the whole palette is pale. The 1px edge is what carries
-         light mode: a crisp border reads where a wash does not. */
-      .lp-picker-row:hover,.lp-picker-row:focus-visible{background:var(--accent-fill);box-shadow:inset 0 0 0 1px var(--accent-border)}
-      .lp-picker-row:hover .n,.lp-picker-row:focus-visible .n{color:var(--accent-ink)}
-      .lp-picker-row .n{color:var(--text-mute);margin-right:5px}
-      .lp-picker-note{padding:6px;font-size:12px;color:var(--text-mute)}
-      .lp-picker-foot{display:flex;align-items:center;gap:8px;margin-top:6px}
+      .lp-context{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-context-label{color:inherit;font:inherit}
+      .lp-context-label[data-role="picker"]{cursor:pointer;background:none;border:0;padding:0;border-radius:3px}
+      .lp-context-label[data-role="picker"]:hover{color:var(--text);text-decoration:underline;text-underline-offset:2px}
+      .lp-context-label[data-wrap]{white-space:normal}
       .lp-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-      /* A card title runs to 255 characters and the composer is a fixed height
-         with overflow hidden, so a wrapped label would push Save out of sight.
-         The ellipsis lives on this element rather than on .lp-context, because
-         a flex container cannot ellipse its own anonymous text run. */
-      .lp-context-label{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:underline;text-underline-offset:2px}
-      a.lp-context-label:hover{color:var(--text)}
-      /* A statement rather than a control, so it carries no underline. */
-      .lp-context-label[data-role="target"]{text-decoration:none}
-      /* A state message is a sentence the reviewer must read in full, and it
-         runs to two lines at most, so it wraps where a card title ellipses. */
-      .lp-context-label[data-wrap]{white-space:normal;overflow:visible}
-      .lp-picker-foot .lp-picker-search{flex:1 1 auto}
-      .lp-picker-type{flex:0 0 auto;max-width:40%;box-sizing:border-box;background:var(--field);color:var(--text);border:1px solid var(--border-faint);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
-      .lp-picker-type:focus{border-color:var(--accent-border);background:var(--field-focus)}
+      .lp-dest-body{flex:1 1 auto;min-height:0;overflow:auto;padding:16px}
+      #lp-picker-modes{display:flex;flex-direction:column;gap:8px}
+      .lp-opt{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;align-items:start;padding:12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}
+      .lp-opt.is-on{border-color:var(--accent-border);background:var(--accent-soft)}
+      .lp-opt input[type="radio"]{margin:2px 0 0;width:16px;height:16px;accent-color:var(--accent-ink)}
+      .lp-opt-main{min-width:0}
+      .lp-opt-main label{cursor:pointer}
+      .lp-opt-t{display:block;font-size:13px;font-weight:600;line-height:18px;color:var(--text)}
+      .lp-opt-d{display:block;margin-top:2px;font-size:12px;line-height:16px;color:var(--text-mute)}
+      .lp-opt-more{cursor:default}
+      .lp-seg{display:flex;padding:2px;margin-top:10px;border-radius:8px;background:var(--surface-1);border:1px solid var(--border)}
+      .lp-seg button{flex:1;height:28px;border:0;border-radius:6px;background:transparent;color:var(--text-mute);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+      .lp-seg button.is-on{background:var(--bg-sunken);color:var(--text)}
+      .lp-field-label{display:block;margin:10px 0 4px;font-size:12px;font-weight:600;color:var(--text-mute)}
+      .lp-field{display:block;width:100%;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--field);color:var(--text);font-family:inherit;font-size:13px}
+      .lp-field::placeholder{color:var(--text-dim)}
+      .lp-field:focus{outline-color:transparent;border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
+      .lp-field-search{margin-top:10px}
+      .lp-opt-error{margin-top:8px;font-size:12px;line-height:16px;color:var(--status-danger)}
+      .lp-picker-list{max-height:min(132px,20vh);overflow:auto;margin-top:6px}
+      .lp-picker-row{display:flex;align-items:center;gap:6px;width:100%;min-height:32px;padding:0 8px;border:0;border-radius:6px;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:left;cursor:pointer}
+      .lp-picker-row:hover{background:var(--bg-sunken)}
+      .lp-picker-row.is-picked{background:var(--surface-1);box-shadow:inset 0 0 0 1px var(--accent-border);font-weight:600}
+      .lp-picker-row .n{flex:0 0 auto;color:var(--text-mute)}
+      .lp-picker-row .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .lp-picker-note{padding:6px 8px;font-size:12px;color:var(--text-mute)}
+      .lp-dest-foot{flex:0 0 auto;display:flex;gap:8px;padding:12px 16px 16px;border-top:1px solid var(--border-faint);background:var(--surface-2)}
+      .lp-dest-foot .lp-ghost{height:40px;font-size:14px}
+      .lp-dest-foot .lp-foot-action{flex:1 1 auto;width:auto}
+      .lp-dest-foot .lp-foot-action:disabled{opacity:.45;cursor:default}
       .lp-verdict{flex:1 1 auto;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:18px;font-size:12px;line-height:1.45;color:var(--text)}
       .lp-verdict-set{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
       .lp-verdict-label{display:block;padding:0;margin-bottom:8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
@@ -1404,32 +1382,28 @@
       .lp-verdict-foot .lp-foot-action:disabled{opacity:.45;cursor:default}
       .lp-verdict-result{color:var(--text-mute)}
       .lp-verdict-result a{color:var(--accent-ink)}
-      .lp-composer{flex:1 1 auto;min-height:0;overflow:auto}
-      .lp-composer-inner{padding:14px 16px 14px}
-      /* The composer's height is fixed and it clips, so the chips scroll rather
-         than push the textarea and the buttons out of the box. */
-      .lp-compose-head{display:flex;align-items:center;gap:7px;margin-bottom:9px;min-height:21px;flex-wrap:wrap;max-height:90px;overflow-y:auto;overscroll-behavior:contain}
-      .lp-compose-general{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-mute)}
-      .lp-dot{width:7px;height:7px;border-radius:50%;border:1.5px dashed var(--text-dim)}
-      .lp-compose-chip{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;background:var(--accent-soft);color:var(--accent-ink);border-radius:999px;font-size:12px;font-weight:600;overflow:hidden}
+      .lp-composer{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;margin:12px 12px 16px;border:1px solid var(--accent-border);border-radius:12px;background:var(--field);box-shadow:0 0 0 3px var(--accent-soft)}
+      .lp-compose-head{display:flex;flex-wrap:wrap;gap:6px;padding:10px 10px 0;max-height:90px;overflow-y:auto;overscroll-behavior:contain}
+      .lp-compose-chip{flex:0 1 auto;min-width:0;height:24px;box-sizing:border-box;padding:0 4px 0 8px;display:inline-flex;align-items:center;gap:5px;border-radius:6px;background:var(--bg-sunken);color:var(--text);font-size:12px;white-space:nowrap}
       .lp-compose-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      /* The pill names one anchor, so it is a control: point at it and its
-         element is emphasised on the page, click it and the page scrolls to it. */
-      .lp-chip-name{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;gap:5px;border:0;padding:0;background:transparent;color:inherit;font-family:inherit;font-size:inherit;font-weight:inherit;line-height:1;cursor:pointer}
-      .lp-chip-name:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px;border-radius:999px}
+      .lp-chip-name{flex:0 1 auto;min-width:0;display:inline-flex;align-items:center;border:0;padding:0;background:transparent;color:inherit;font-family:inherit;font-size:inherit;font-weight:inherit;line-height:1;cursor:pointer}
+      .lp-chip-name:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px;border-radius:4px}
       .lp-compose-chip.lit{background:var(--accent);color:var(--ink)}
-      .lp-chip-x{flex:0 0 auto;border:0;background:transparent;color:inherit;font-family:inherit;font-size:13px;line-height:1;padding:0;margin-right:-3px;cursor:pointer;opacity:.6}
-      .lp-chip-x:hover{opacity:1}
-      .lp-chip-x:focus-visible{opacity:1;outline:2px solid var(--accent-ink);outline-offset:2px;border-radius:999px}
-      .lp-compose-hint{flex:0 0 auto;height:24px;line-height:24px;color:var(--text-mute);font-size:12px;font-weight:400}
-      /* Borderless: the fill is the field, as everywhere else in the app. */
-      .lp-textarea{width:100%;min-height:74px;resize:none;border:0;background:var(--field);color:var(--text);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:13px;line-height:1.5;transition:background .14s ease}
-      .lp-textarea:focus{background:var(--field-focus);box-shadow:inset 0 0 0 1px var(--accent-ink),0 0 0 3px var(--accent-soft)}
+      .lp-chip-x{flex:0 0 auto;width:18px;height:18px;padding:0;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:4px;background:transparent;color:var(--text-dim);cursor:pointer}
+      .lp-chip-x:hover{background:var(--surface-1);color:var(--text)}
+      .lp-compose-chip.lit .lp-chip-x{color:inherit}
+      .lp-compose-add{height:24px;box-sizing:border-box;padding:0 8px;display:inline-flex;align-items:center;gap:5px;border:1px dashed var(--border);border-radius:6px;background:transparent;color:var(--text-mute);font-family:inherit;font-size:12px;cursor:pointer}
+      .lp-compose-add .lp-kbd{margin-left:2px}
+      .lp-compose-add:hover{background:var(--bg-sunken);color:var(--text)}
+      .lp-textarea{display:block;width:100%;min-height:72px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--field);color:var(--text);font-family:inherit;font-size:13px;line-height:18px;resize:none}
+      .lp-textarea:focus{outline-color:transparent;border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-soft)}
       .lp-textarea::placeholder{color:var(--text-dim)}
-      .lp-compose-foot{display:flex;align-items:center;gap:4px;margin-top:9px}
+      .lp-composer .lp-textarea{flex:1 1 auto;border:0;background:transparent}
+      .lp-composer .lp-textarea:focus{box-shadow:none}
+      .lp-composer .lp-error{margin:0 10px 6px}
+      .lp-compose-foot{display:flex;align-items:center;gap:4px;padding:6px 8px 8px 6px}
       .lp-compose-foot .lp-iconbtn.on{background:var(--accent-soft);color:var(--accent-ink)}
-      .lp-hint{font-size:12px;color:var(--text-dim)}
-      .lp-mono{font-family:var(--mono)}
+      .lp-kbd{height:18px;padding:0 5px;box-sizing:content-box;display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:4px;font-size:11px;font-weight:600;color:var(--text-dim);white-space:nowrap}
       .lp-ghost{height:32px;padding:0 12px;background:transparent;border:0;color:var(--text-mute);font-family:inherit;font-size:13px;font-weight:600;border-radius:10px;cursor:pointer}
       .lp-ghost:hover{background:var(--bg-sunken);color:var(--text)}
       .lp-primary{height:32px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--ink);border:0;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .14s ease}
@@ -1509,7 +1483,6 @@
       .lp-fatal-title{font-size:15px;font-weight:600;color:var(--text)}
       .lp-fatal-sub{max-width:252px;margin:6px auto 0;font-size:12px;color:var(--text-mute);line-height:1.55}
       .lp-signin .lp-fatal-disc{background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)}
-      .lp-hd--center{align-items:center}
       .lp-signin-body{display:flex;flex-direction:column;gap:14px;padding:20px 16px 16px}
       .lp-step{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;font-size:13px;line-height:18px;color:var(--text-mute)}
       .lp-step-n{width:24px;height:24px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
@@ -1563,55 +1536,78 @@
         <section class="lp-view" id="lp-view-compose" data-view="compose" aria-label="Note">
           <header class="lp-hd lp-hd--back">
             <button class="lp-iconbtn" id="lp-compose-back" aria-label="Back to notes">${ICON.back(18)}</button>
-            <div class="lp-hd-text"><div class="lp-title" id="lp-compose-title">New note</div></div>
+            <div class="lp-hd-text">
+              <div class="lp-title" id="lp-compose-title">New note</div>
+              <div class="lp-sub lp-context" id="lp-context"></div>
+            </div>
           </header>
           <div class="lp-composer" id="lp-composer">
-            <div class="lp-composer-inner">
-              <div class="lp-compose-head" id="lp-compose-head"></div>
-              <textarea class="lp-textarea" id="lp-textarea" placeholder="Describe the issue or idea…"></textarea>
-              <div class="lp-context" id="lp-context" style="display:none"></div>
-              <div class="lp-error" id="lp-error" style="display:none"></div>
-              <div class="lp-compose-foot">
-                <button class="lp-iconbtn" id="lp-compose-target" aria-pressed="false" aria-label="Pick element" title="Pick element">${ICON.target(15)}</button>
-                <button class="lp-iconbtn" id="lp-compose-draw" aria-pressed="false" aria-label="Draw" title="Draw">${ICON.pen(15)}</button>
-                <span class="lp-hint"><span class="lp-mono">${MOD_LABEL}↵</span> to save</span>
-                <div class="lp-spacer"></div>
-                <button class="lp-ghost" id="lp-cancel">Cancel</button>
-                <button class="lp-primary" id="lp-save">Save</button>
-              </div>
+            <div class="lp-compose-head" id="lp-compose-head" style="display:none"></div>
+            <label class="lp-sr-only" for="lp-textarea">Note</label>
+            <textarea class="lp-textarea" id="lp-textarea" placeholder="What should change?"></textarea>
+            <div class="lp-error" id="lp-error" style="display:none"></div>
+            <div class="lp-compose-foot">
+              <button class="lp-iconbtn" id="lp-compose-target" aria-pressed="false" aria-label="Pick element" title="Pick an element  T">${ICON.target(16)}</button>
+              <button class="lp-iconbtn" id="lp-compose-draw" aria-pressed="false" aria-label="Draw" title="Draw on the page  D">${ICON.pen(16)}</button>
+              <div class="lp-spacer"></div>
+              <span class="lp-kbd">${MOD_LABEL} ↵</span>
+              <button class="lp-ghost" id="lp-cancel">Cancel</button>
+              <button class="lp-primary" id="lp-save" disabled>Save note</button>
             </div>
           </div>
         </section>
         <section class="lp-view" id="lp-view-destination" data-view="destination" aria-label="Where notes go">
-          <header class="lp-hd lp-hd--back">
-            <button class="lp-iconbtn" id="lp-destination-back" aria-label="Back">${ICON.back(18)}</button>
-            <div class="lp-hd-text"><div class="lp-title">Where notes go</div></div>
+          <header class="lp-hd" id="lp-destination-head">
+            <button class="lp-iconbtn" id="lp-destination-back" aria-label="Back to notes" style="display:none">${ICON.back(18)}</button>
+            <div class="lp-hd-text"><div class="lp-title">Where should your notes go?</div></div>
+            <button class="lp-iconbtn" id="lp-destination-close" aria-label="Close">${ICON.close(18)}</button>
           </header>
           <div class="lp-error" id="lp-destination-error" style="display:none"></div>
-          <div class="lp-view-body lp-scroll">
-            <div class="lp-picker" id="lp-picker">
-              <div id="lp-picker-modes" role="group" aria-label="Where notes go">
-                <div class="lp-picker-note">Where should your notes go?</div>
-                <button type="button" class="lp-picker-row" data-mode="per-note">A new card for each note</button>
-                <button type="button" class="lp-picker-row" data-mode="per-review">One card for this review</button>
-                <button type="button" class="lp-picker-row" data-mode="epic">A card for each note, under an epic</button>
-              </div>
-              <div id="lp-picker-cards" style="display:none">
-                <input class="lp-picker-search" id="lp-picker-search" placeholder="Search cards…" aria-label="Search cards" autocomplete="off">
-                <div class="lp-picker-list" id="lp-picker-list"></div>
-                <div class="lp-picker-foot">
-                  <input class="lp-picker-search" id="lp-picker-title" aria-label="New card title" autocomplete="off">
-                  <select class="lp-picker-type" id="lp-picker-type" aria-label="New card type" style="display:none"></select>
-                  <button type="button" class="lp-ghost" id="lp-picker-create">Create</button>
+          <div class="lp-dest-body lp-scroll" id="lp-picker">
+            <div id="lp-picker-modes" role="radiogroup" aria-label="Where notes go">
+              <div class="lp-opt" data-mode="per-review">
+                <input type="radio" name="lp-dest" id="lp-dest-per-review" value="per-review">
+                <div class="lp-opt-main">
+                  <label for="lp-dest-per-review"><span class="lp-opt-t">One card for this review</span><span class="lp-opt-d">Every note lands on the same card.</span></label>
+                  <div class="lp-opt-more" id="lp-picker-slot-per-review"></div>
                 </div>
               </div>
-              <div class="lp-picker-foot">
-                <button type="button" class="lp-ghost" id="lp-picker-back" style="display:none">Back</button>
-                <div class="lp-spacer"></div>
-                <button type="button" class="lp-ghost" id="lp-picker-close">Close</button>
+              <div class="lp-opt" data-mode="per-note">
+                <input type="radio" name="lp-dest" id="lp-dest-per-note" value="per-note">
+                <div class="lp-opt-main">
+                  <label for="lp-dest-per-note"><span class="lp-opt-t">A new card for each note</span><span class="lp-opt-d">Good for unrelated issues across the site.</span></label>
+                </div>
+              </div>
+              <div class="lp-opt" data-mode="epic">
+                <input type="radio" name="lp-dest" id="lp-dest-epic" value="epic">
+                <div class="lp-opt-main">
+                  <label for="lp-dest-epic"><span class="lp-opt-t">A card for each note, under an epic</span><span class="lp-opt-d">You pick or create the epic next.</span></label>
+                  <div class="lp-opt-more" id="lp-picker-slot-epic"></div>
+                </div>
+              </div>
+            </div>
+            <div class="lp-picker-more" id="lp-picker-more" style="display:none">
+              <div class="lp-seg" id="lp-picker-seg" role="group" aria-label="Card">
+                <button type="button" data-sub="new" aria-pressed="true"></button>
+                <button type="button" data-sub="existing" aria-pressed="false"></button>
+              </div>
+              <div id="lp-picker-new">
+                <label class="lp-field-label" for="lp-picker-title" id="lp-picker-title-label">Card title</label>
+                <input class="lp-field" id="lp-picker-title" autocomplete="off">
+                <label class="lp-field-label" for="lp-picker-type" id="lp-picker-type-label" style="display:none">Type</label>
+                <select class="lp-field" id="lp-picker-type" style="display:none"></select>
+                <div class="lp-opt-error" id="lp-picker-error" role="alert" style="display:none"></div>
+              </div>
+              <div id="lp-picker-cards" style="display:none">
+                <input class="lp-field lp-field-search" id="lp-picker-search" placeholder="Search cards…" aria-label="Search cards" autocomplete="off">
+                <div class="lp-picker-list" id="lp-picker-list"></div>
               </div>
             </div>
           </div>
+          <footer class="lp-dest-foot">
+            <button type="button" class="lp-ghost" id="lp-picker-cancel">Cancel</button>
+            <button type="button" class="lp-foot-action primary" id="lp-destination-save">Start reviewing</button>
+          </footer>
         </section>
         <section class="lp-view" id="lp-view-finish" data-view="finish" aria-label="Finish review">
           <header class="lp-hd lp-hd--back">
@@ -1622,7 +1618,7 @@
           <footer class="lp-verdict-foot" id="lp-verdict-foot"></footer>
         </section>
         <section class="lp-view" id="lp-view-signin" data-view="signin" aria-label="Sign in">
-          <header class="lp-hd lp-hd--center">
+          <header class="lp-hd">
             <div class="lp-hd-text"><div class="lp-title">Review this page</div></div>
             <button class="lp-iconbtn" id="lp-signin-close" aria-label="Close">${ICON.close(18)}</button>
           </header>
@@ -3088,6 +3084,79 @@
     $('lp-body').addEventListener('scroll', () => closeMenu(false));
     window.addEventListener('resize', () => closeMenu(false));
 
+    const saveDisabled = () =>
+        state.saving ||
+        !state.draft.trim() ||
+        (composing() && state.editId == null && !activeTarget());
+    // The card number alone says where a note goes, and the full title is one tap away.
+    const cardNumberOf = (label) =>
+        ((label || '').match(/^#\d+/) || [label || ''])[0];
+    const saveTargetText = (target) => {
+        const named = cardNumberOf(target.label);
+        if (target.mode === 'per-note') return 'a new card';
+        if (target.mode === 'epic') {
+            return named
+                ? `a new card under ${named}`
+                : 'a new card under an epic';
+        }
+        return named || 'the review card';
+    };
+    // The line under the title of the note view: where a new note goes, or what
+    // an edit may change.
+    let contextKey = null;
+    const renderContext = (newNote) => {
+        const target = composing() ? activeTarget() : null;
+        const key = JSON.stringify([
+            composing(),
+            newNote,
+            lock ? lock.state : null,
+            lock && lock.label,
+            target && [target.mode, target.label],
+        ]);
+        if (key === contextKey) return;
+        contextKey = key;
+        contextNode.textContent = '';
+        delete contextNode.dataset.role;
+        if (!composing()) return;
+        if (!newNote) {
+            contextNode.textContent = 'Only the text of a note can change.';
+            contextNode.dataset.role = 'edit-hint';
+            return;
+        }
+        const say = (text, wrap) => {
+            const line = document.createElement('span');
+            line.className = 'lp-context-label';
+            line.dataset.role = 'target';
+            line.textContent = text;
+            if (wrap) line.dataset.wrap = '';
+            contextNode.appendChild(line);
+        };
+        if (lock && lock.state === 'broken') {
+            say(
+                'This preview’s card is closed or gone, so notes cannot be saved here.',
+                true,
+            );
+            return;
+        }
+        contextNode.append('Saves to ');
+        if (lock) {
+            say(cardNumberOf(lock.label) || 'this preview’s card');
+            return;
+        }
+        const choose = document.createElement('button');
+        choose.type = 'button';
+        choose.className = 'lp-context-label';
+        choose.dataset.role = 'picker';
+        if (target) {
+            choose.textContent = saveTargetText(target);
+            choose.title = `${targetLabel(target)}. Change where notes go.`;
+        } else {
+            contextNode.textContent = '';
+            choose.textContent = 'Choose where your notes go.';
+        }
+        choose.addEventListener('click', openDestination);
+        contextNode.appendChild(choose);
+    };
     const updatePanel = () => {
         normalizeView();
         normalizeMenu();
@@ -3192,121 +3261,56 @@
             state.editId != null ? 'Edit note' : 'New note';
 
         // composer
-        // A new note shows where it goes, and this row is how the reviewer
-        // changes that. An edit changes the body alone, and the row says so.
         const newNote = composing() && state.editId == null;
-        contextNode.style.display = composing() ? 'flex' : 'none';
         if (state.view === 'destination') renderPickerMode();
         renderVerdict();
-        if (composing() && !newNote) {
-            contextNode.textContent = 'Only the text of a note can change.';
-            contextNode.dataset.role = 'edit-hint';
-        } else if (newNote) {
-            delete contextNode.dataset.role;
-            // The icon carries "which board thing", so the words that said it
-            // are gone: two rows of muted prose under the textarea read as
-            // clutter, and the card is context rather than an instruction.
-            contextNode.innerHTML = ICON.cards(13);
-            contextNode.firstChild.setAttribute('aria-hidden', 'true');
-            const say = (text, wrap) => {
-                const line = document.createElement('span');
-                line.className = 'lp-context-label';
-                line.dataset.role = 'target';
-                line.textContent = text;
-                if (wrap) line.dataset.wrap = '';
-                else line.title = text;
-                contextNode.appendChild(line);
-            };
-            const target = activeTarget();
-            if (lock && lock.state === 'broken') {
-                say(
-                    'This preview’s card is closed or gone, so notes cannot be saved here.',
-                    true,
-                );
-            } else if (lock) say(lock.label || 'This preview’s card');
-            else if (!target) {
-                const choose = document.createElement('button');
-                choose.type = 'button';
-                choose.className = 'lp-context-label';
-                choose.dataset.role = 'picker';
-                choose.textContent = 'Choose where your notes go.';
-                choose.addEventListener('click', openDestination);
-                contextNode.appendChild(choose);
-            } else {
-                const said = document.createElement('span');
-                said.className = 'lp-sr-only';
-                said.textContent = 'Saves to ';
-                contextNode.appendChild(said);
-                // A button rather than a link: changing the mode is the action
-                // here, and the card's own page is one click further in.
-                const label = document.createElement('button');
-                label.type = 'button';
-                label.className = 'lp-context-label';
-                label.dataset.role = 'picker';
-                label.textContent = targetLabel(target);
-                // The full title on hover, since the visible one may be cut.
-                label.title = `${targetLabel(target)}. Change where notes go.`;
-                label.addEventListener('click', openDestination);
-                contextNode.appendChild(label);
-            }
-        }
-        // The save is the composer's own action, so its progress belongs on the Save button.
-        saveBtn.disabled = state.saving || (newNote && !activeTarget());
+        renderContext(newNote);
+        saveBtn.disabled = saveDisabled();
         saveBtn.innerHTML = state.saving
             ? `<span class="lp-spin"></span>Saving…`
-            : 'Save';
+            : 'Save note';
         if (composing()) {
             const ct = state.composeTarget || { type: 'general' };
-            // The drawing gets a pill of its own, so it stays visible and removable
+            // The drawing gets a chip of its own, so it stays visible and removable
             // after the reviewer leaves draw mode and goes back to typing.
             const strokeCount = state.editId == null ? state.strokes.length : 0;
             const strokeChip = strokeCount
-                ? `<span class="lp-compose-chip">${ICON.pen(11)}<span>${
+                ? `<span class="lp-compose-chip"><span>${
                       strokeCount === 1 ? '1 stroke' : `${strokeCount} strokes`
-                  }</span><button class="lp-chip-x" type="button" data-stroke-clear="1" aria-label="Remove the strokes">×</button></span>`
+                  }</span><button class="lp-chip-x" type="button" data-stroke-clear="1" aria-label="Remove the strokes">${ICON.close(12)}</button></span>`
                 : '';
-            let headHtml;
-            if (ct.type === 'general') {
-                // The hold points a page note at an element and keeps the draft, so the
-                // note says the key does something rather than changing type in silence.
-                headHtml =
-                    `<span class="lp-compose-general"><span class="lp-dot"></span>General note</span>` +
-                    strokeChip +
-                    (state.editId == null
-                        ? `<span class="lp-compose-hint">Hold ${MOD_LABEL} to point at an element</span>`
-                        : '');
-            } else {
-                // One chip per anchor. An edit PATCHes the body alone and leaves the
-                // stored anchors untouched, so the remove × is not offered while editing:
-                // it would confirm a change that the save then discards.
-                const anchors = ct.anchors || [];
-                const editable = state.editId == null;
-                const chips = anchors
-                    .map((anchor, anchorIndex) => {
-                        const quoted = !!anchor.quote;
-                        const label =
-                            anchor.label ||
-                            (quoted ? 'Selected text' : 'Selected element');
-                        const noun = quoted ? 'text' : 'element';
-                        return `<span class="lp-compose-chip" data-anchor-chip="${anchorIndex}" data-anchor-kind="${
-                            quoted ? 'quote' : 'element'
-                        }"><button class="lp-chip-name" type="button" data-anchor-pill="${anchorIndex}" aria-label="Highlight ${escapeHtml(
-                            label,
-                        )}">${quoted ? ICON.quote(11) : ICON.glyph(11)}<span>${escapeHtml(label)}</span></button>${
-                            editable
-                                ? `<button class="lp-chip-x" data-anchor-remove="${anchorIndex}" aria-label="Remove this ${noun}">×</button>`
-                                : ''
-                        }</span>`;
-                    })
-                    .join('');
-                const canAdd = editable && anchors.length < MAX_ANCHORS;
-                headHtml =
-                    chips +
-                    strokeChip +
-                    (canAdd
-                        ? `<span class="lp-compose-hint">Hold ${MOD_LABEL} to add another</span>`
-                        : '');
-            }
+            // One chip per anchor. An edit PATCHes the body alone and leaves the
+            // stored anchors untouched, so the remove button is not offered while
+            // editing: it would confirm a change that the save then discards.
+            const anchors = ct.type === 'general' ? [] : ct.anchors || [];
+            const editable = state.editId == null;
+            const chips = anchors
+                .map((anchor, anchorIndex) => {
+                    const quoted = !!anchor.quote;
+                    const label =
+                        anchor.label ||
+                        (quoted ? 'Selected text' : 'Selected element');
+                    const noun = quoted ? 'text' : 'element';
+                    return `<span class="lp-compose-chip" data-anchor-chip="${anchorIndex}" data-anchor-kind="${
+                        quoted ? 'quote' : 'element'
+                    }"><button class="lp-chip-name" type="button" data-anchor-pill="${anchorIndex}" aria-label="Highlight ${escapeHtml(
+                        label,
+                    )}"><span>${escapeHtml(label)}</span></button>${
+                        editable
+                            ? `<button class="lp-chip-x" data-anchor-remove="${anchorIndex}" aria-label="Remove this ${noun}">${ICON.close(12)}</button>`
+                            : ''
+                    }</span>`;
+                })
+                .join('');
+            const canAdd =
+                editable && anchors.length > 0 && anchors.length < MAX_ANCHORS;
+            const headHtml =
+                chips +
+                strokeChip +
+                (canAdd
+                    ? `<button class="lp-compose-add" type="button" data-anchor-add="1">+ Element <span class="lp-kbd">${MOD_LABEL} hold</span></button>`
+                    : '');
+            composeHead.style.display = headHtml ? 'flex' : 'none';
             // A repaint that changes nothing keeps the nodes. Replacing them takes the
             // focus off a pill and the hover off a chip, and no event comes to restore it.
             if (headHtml !== composeHeadHtml) {
@@ -3367,6 +3371,16 @@
                             event.preventDefault(),
                         );
                         button.addEventListener('click', () => clearStrokes());
+                    });
+                composeHead
+                    .querySelectorAll('[data-anchor-add]')
+                    .forEach((button) => {
+                        button.addEventListener('mousedown', (event) =>
+                            event.preventDefault(),
+                        );
+                        button.addEventListener('click', () =>
+                            $('lp-compose-target').click(),
+                        );
                     });
             }
             paintAnchorChips();
@@ -4680,17 +4694,50 @@
     };
     let pickerDebounce = null;
     let pickerGeneration = 0;
-    // The mode picker. The card list loads only once a mode needs a card.
-    // A choice holds for every later note until the reviewer changes it, and
-    // it outlives a reload.
+    // The destination view. The radio group holds the choice. A card list
+    // loads only once the choice is an existing card. A choice holds for every
+    // later note until the reviewer changes it, and it outlives a reload.
     const sameTarget = (a, b) =>
         !!a && !!b && a.mode === b.mode && a.cardId === b.cardId;
+    const pickerSubs = { 'per-review': 'new', epic: 'new' };
+    let pickerPicked = null;
+    const pickerHasCards = () =>
+        pickerMode === 'per-review' || pickerMode === 'epic';
     const focusDestination = () => {
-        const first = root.querySelector('#lp-picker-modes [data-mode]');
-        if (first) first.focus({ preventScroll: true });
+        const field =
+            pickerHasCards() &&
+            (pickerSubs[pickerMode] === 'existing'
+                ? pickerSearchNode
+                : pickerTitleNode);
+        const control =
+            field ||
+            root.querySelector('#lp-picker-modes input[type="radio"]:checked');
+        if (!control) return;
+        control.focus({ preventScroll: true });
+        if (control === pickerTitleNode) control.select();
+    };
+    // The view starts on the stored choice, or on one card for the review.
+    const initDestination = () => {
+        const stored = storedTarget;
+        pickerMode = stored ? stored.mode : 'per-review';
+        pickerSubs['per-review'] = 'new';
+        pickerSubs.epic = 'new';
+        pickerPicked = null;
+        pickerError = null;
+        pickerSearchNode.value = '';
+        pickerTitleNode.value = `Review: ${location.pathname}`;
+        if (stored && stored.cardId && pickerHasCards()) {
+            pickerSubs[pickerMode] = 'existing';
+            pickerPicked = {
+                cardId: stored.cardId,
+                label: stored.label || '',
+                url: stored.url || null,
+            };
+            loadPickerCards('');
+        }
     };
     const openDestination = () => {
-        pickerMode = null;
+        initDestination();
         showView('destination');
         sync();
         focusDestination();
@@ -4721,47 +4768,99 @@
         focusAfterDestination();
         if (changed) refresh().then(sync);
     };
-    const pickMode = (mode) => {
-        if (mode === 'per-note') {
-            chooseTarget({ mode, cardId: null });
-            return;
-        }
+    const selectMode = (mode) => {
+        if (pickerMode === mode) return;
         pickerMode = mode;
-        pickerSearchNode.value = '';
-        // Editable, and prefilled so the common case is one click.
-        pickerTitleNode.value = `Review: ${location.pathname}`;
+        pickerPicked = null;
+        pickerError = null;
+        if (pickerSubs[mode] === 'existing') loadPickerCards('');
         sync();
-        loadPickerCards('');
-        // The title is the one field the common case needs, so it takes the
-        // focus; an epic or an existing card starts from the search.
-        if (mode === 'per-review') {
-            pickerTitleNode.focus({ preventScroll: true });
-            const end = pickerTitleNode.value.length;
-            pickerTitleNode.setSelectionRange(end, end);
-        } else {
-            pickerSearchNode.focus({ preventScroll: true });
-        }
     };
-    root.querySelectorAll('#lp-picker-modes [data-mode]').forEach((button) =>
-        button.addEventListener('click', () => pickMode(button.dataset.mode)),
+    const selectSub = (sub) => {
+        if (!pickerHasCards() || pickerSubs[pickerMode] === sub) return;
+        pickerSubs[pickerMode] = sub;
+        pickerError = null;
+        if (sub === 'existing') loadPickerCards(pickerSearchNode.value.trim());
+        sync();
+        focusDestination();
+    };
+    root.querySelectorAll('#lp-picker-modes [data-mode]').forEach((option) => {
+        const choose = () => selectMode(option.dataset.mode);
+        option.addEventListener('click', choose);
+        option
+            .querySelector('input[type="radio"]')
+            .addEventListener('change', choose);
+    });
+    root.querySelectorAll('#lp-picker-seg [data-sub]').forEach((button) =>
+        button.addEventListener('click', () => selectSub(button.dataset.sub)),
     );
-    const renderPickerMode = () => {
-        $('lp-picker-modes').style.display = pickerMode ? 'none' : '';
-        $('lp-picker-cards').style.display = pickerMode ? '' : 'none';
-        $('lp-picker-back').style.display = pickerMode ? '' : 'none';
-        // With no mode stored there is nothing to go back to, so the only way
-        // out is a choice or the composer's own Cancel.
-        $('lp-picker-close').style.display = storedTarget ? '' : 'none';
-        pickerSearchNode.placeholder =
-            pickerMode === 'epic' ? 'Search epics…' : 'Search cards…';
-        renderParentTypes();
+    const pickerCanCommit = () => {
+        if (!pickerMode || pickerCreating) return false;
+        if (pickerMode === 'per-note') return true;
+        if (pickerSubs[pickerMode] === 'existing') return !!pickerPicked;
+        return !!pickerTitleNode.value.trim();
     };
-    // The mode row needs a type that can have children. The selector shows
-    // only in that mode, and only when the template has more than one.
-    const renderParentTypes = () => {
+    const renderPickerMode = () => {
+        if (!pickerMode) initDestination();
+        const epic = pickerMode === 'epic';
+        const existing =
+            pickerHasCards() && pickerSubs[pickerMode] === 'existing';
+        root.querySelectorAll('#lp-picker-modes [data-mode]').forEach(
+            (option) => {
+                const on = option.dataset.mode === pickerMode;
+                option.classList.toggle('is-on', on);
+                option.querySelector('input[type="radio"]').checked = on;
+            },
+        );
         root.querySelector(
             '#lp-picker-modes [data-mode="epic"]',
         ).style.display = parentTypes.length ? '' : 'none';
+        const more = $('lp-picker-more');
+        more.style.display = pickerHasCards() ? '' : 'none';
+        const slot = pickerHasCards()
+            ? $(`lp-picker-slot-${pickerMode}`)
+            : null;
+        if (slot && more.parentNode !== slot) slot.appendChild(more);
+        const noun = epic ? 'epic' : 'card';
+        const labels = [`New ${noun}`, `Existing ${noun}`];
+        root.querySelectorAll('#lp-picker-seg [data-sub]').forEach(
+            (button, index) => {
+                const on = (button.dataset.sub === 'existing') === existing;
+                button.textContent = labels[index];
+                button.classList.toggle('is-on', on);
+                button.setAttribute('aria-pressed', on ? 'true' : 'false');
+            },
+        );
+        $('lp-picker-seg').setAttribute('aria-label', epic ? 'Epic' : 'Card');
+        $('lp-picker-new').style.display = existing ? 'none' : '';
+        $('lp-picker-cards').style.display = existing ? '' : 'none';
+        $('lp-picker-title-label').textContent = epic
+            ? 'Epic title'
+            : 'Card title';
+        pickerSearchNode.placeholder = epic ? 'Search epics…' : 'Search cards…';
+        pickerSearchNode.setAttribute(
+            'aria-label',
+            epic ? 'Search epics' : 'Search cards',
+        );
+        const errorNode = $('lp-picker-error');
+        errorNode.textContent = pickerError || '';
+        errorNode.style.display = pickerError && !existing ? '' : 'none';
+        renderParentTypes();
+        renderPicker();
+        const exists = !!storedTarget;
+        $('lp-destination-head').classList.toggle('lp-hd--back', exists);
+        $('lp-destination-back').style.display = exists ? '' : 'none';
+        const save = $('lp-destination-save');
+        save.disabled = !pickerCanCommit();
+        save.innerHTML = pickerCreating
+            ? '<span class="lp-spin"></span>Creating…'
+            : exists
+              ? 'Save'
+              : 'Start reviewing';
+    };
+    // A new epic needs a type that can have children. The selector shows only
+    // for a new epic, and only when the template has more than one.
+    const renderParentTypes = () => {
         const keys = parentTypes.map((type) => `${type.key}:${type.label}`);
         const listed = [...pickerTypeNode.options].map(
             (option) => `${option.value}:${option.textContent}`,
@@ -4779,8 +4878,12 @@
                 pickerTypeNode.value = chosen;
             }
         }
-        pickerTypeNode.style.display =
-            pickerMode === 'epic' && parentTypes.length > 1 ? '' : 'none';
+        const shown =
+            pickerMode === 'epic' &&
+            pickerSubs.epic === 'new' &&
+            parentTypes.length > 1;
+        pickerTypeNode.style.display = shown ? '' : 'none';
+        $('lp-picker-type-label').style.display = shown ? '' : 'none';
     };
     const renderPicker = () => {
         pickerListNode.textContent = '';
@@ -4790,33 +4893,55 @@
             el.textContent = text;
             pickerListNode.appendChild(el);
         };
-        if (pickerCreating) return note('Creating…');
         if (pickerBusy) return note('Loading…');
         if (pickerError) return note(pickerError);
-        if (!pickerCards.length) {
+        const shown = [...pickerCards];
+        // The card this review already uses stays in the list, picked, even
+        // when the search does not return it.
+        if (
+            pickerPicked &&
+            pickerPicked.label &&
+            !pickerSearchNode.value.trim() &&
+            !shown.some((card) => card.cardId === pickerPicked.cardId)
+        ) {
+            shown.unshift({
+                cardId: pickerPicked.cardId,
+                label: pickerPicked.label,
+            });
+        }
+        if (!shown.length) {
             return note(
                 pickerMode === 'epic'
                     ? 'No open epics match.'
                     : 'No open cards match.',
             );
         }
-        pickerCards.forEach((card) => {
+        shown.forEach((card) => {
             const row = document.createElement('button');
             row.type = 'button';
-            row.className = 'lp-picker-row';
-            const n = document.createElement('span');
-            n.className = 'n';
-            n.textContent = `#${card.number}`;
-            row.appendChild(n);
-            row.appendChild(document.createTextNode(card.title));
-            row.addEventListener('click', () =>
-                chooseTarget({
-                    mode: pickerMode,
+            const picked =
+                !!pickerPicked && pickerPicked.cardId === card.cardId;
+            row.className = 'lp-picker-row' + (picked ? ' is-picked' : '');
+            row.setAttribute('aria-pressed', picked ? 'true' : 'false');
+            if (card.label) {
+                row.textContent = card.label;
+            } else {
+                const n = document.createElement('span');
+                n.className = 'n';
+                n.textContent = `#${card.number}`;
+                const t = document.createElement('span');
+                t.className = 't';
+                t.textContent = card.title;
+                row.append(n, t);
+            }
+            row.addEventListener('click', () => {
+                pickerPicked = {
                     cardId: card.cardId,
-                    label: `#${card.number} ${card.title}`,
+                    label: card.label || `#${card.number} ${card.title}`,
                     url: null,
-                }),
-            );
+                };
+                sync();
+            });
             pickerListNode.appendChild(row);
         });
     };
@@ -4870,7 +4995,8 @@
         pickerGeneration++;
         pickerBusy = false;
         pickerCreating = true;
-        renderPicker();
+        pickerError = null;
+        sync();
         try {
             const card = await api('POST', '/api/board/cards', {
                 title,
@@ -4904,7 +5030,23 @@
             pickerError = 'Could not create the card.';
         }
         pickerCreating = false;
-        renderPicker();
+        sync();
+    };
+    // The one action of the view: the choice is made here, not on a row.
+    const commitDestination = () => {
+        if (!pickerCanCommit()) return;
+        if (pickerMode === 'per-note') {
+            chooseTarget({ mode: 'per-note', cardId: null });
+        } else if (pickerSubs[pickerMode] === 'existing') {
+            chooseTarget({
+                mode: pickerMode,
+                cardId: pickerPicked.cardId,
+                label: pickerPicked.label,
+                url: pickerPicked.url,
+            });
+        } else {
+            createCardFromPicker();
+        }
     };
 
     pickerSearchNode.addEventListener('input', () => {
@@ -4914,6 +5056,9 @@
             () => loadPickerCards(pickerSearchNode.value.trim()),
             250,
         );
+    });
+    pickerTitleNode.addEventListener('input', () => {
+        $('lp-destination-save').disabled = !pickerCanCommit();
     });
     // Escape closes the picker alone. The document's own Escape cancels the
     // compose, which would throw the draft away.
@@ -4927,17 +5072,12 @@
     pickerSearchNode.addEventListener('keydown', closePickerOnEscape);
     pickerTitleNode.addEventListener('keydown', closePickerOnEscape);
     pickerTitleNode.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') createCardFromPicker();
+        if (event.key === 'Enter') commitDestination();
     });
-    $('lp-picker-create').addEventListener('click', createCardFromPicker);
-    $('lp-picker-close').addEventListener('click', () => {
-        leaveDestination();
-        sync();
-        focusAfterDestination();
-    });
-    $('lp-destination-back').addEventListener('click', () => {
-        // With no destination chosen a note cannot be saved, so backing out of
-        // the choice backs out of the note too.
+    $('lp-destination-save').addEventListener('click', commitDestination);
+    // With no destination chosen a note cannot be saved, so backing out of
+    // the choice backs out of the note too.
+    const cancelDestination = () => {
         if (needsMode() && composing()) {
             cancelCompose();
             return;
@@ -4945,13 +5085,11 @@
         leaveDestination();
         sync();
         focusAfterDestination();
-    });
+    };
+    $('lp-picker-cancel').addEventListener('click', cancelDestination);
+    $('lp-destination-back').addEventListener('click', cancelDestination);
+    $('lp-destination-close').addEventListener('click', () => togglePanel());
     destNode.addEventListener('click', openDestination);
-    $('lp-picker-back').addEventListener('click', () => {
-        pickerMode = null;
-        sync();
-        focusDestination();
-    });
 
     const cancelCompose = () => {
         state.deliveryId = null;
@@ -5764,6 +5902,7 @@
 
     textareaNode.addEventListener('input', (event) => {
         state.draft = event.target.value;
+        saveBtn.disabled = saveDisabled();
     });
     textareaNode.addEventListener('keydown', (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter')

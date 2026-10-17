@@ -179,7 +179,7 @@ const clickSave = async (page: Page): Promise<void> => {
                 (response.url().includes('/api/site-review/comments/') &&
                     response.request().method() === 'PATCH'),
         ),
-        page.getByRole('button', { name: 'Save' }).click(),
+        page.getByRole('button', { name: 'Save note' }).click(),
     ]);
 };
 
@@ -197,7 +197,7 @@ const addGeneralNote = async (
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await page.getByPlaceholder(/What should change/).fill(body);
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText(expectedCount);
 };
@@ -302,7 +302,7 @@ test('annotate a page and have every comment go live as it is saved', async ({
     await page.locator('#target-me').click();
 
     // Type a comment and save it (the save POSTs to the server immediately).
-    await page.getByPlaceholder(/Describe the issue/).fill('Make this bigger');
+    await page.getByPlaceholder(/What should change/).fill('Make this bigger');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
@@ -398,7 +398,7 @@ test('saving a comment confirms it is live', async ({ page }) => {
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page.getByPlaceholder(/Describe the issue/).fill('Straight through');
+    await page.getByPlaceholder(/What should change/).fill('Straight through');
 
     // Dropping the "review sent" screen would leave the reviewer with nothing
     // telling them the comment persisted, so the save raises a brief toast.
@@ -436,7 +436,7 @@ const startNote = async (page: Page, body: string): Promise<void> => {
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await page.getByPlaceholder(/What should change/).fill(body);
     await siteReviewPanelSettled(page);
 };
 
@@ -454,7 +454,7 @@ const openNoteOverDestination = async (page: Page): Promise<void> => {
 };
 
 const fillNote = async (page: Page, body: string): Promise<void> => {
-    await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await page.getByPlaceholder(/What should change/).fill(body);
     await siteReviewPanelSettled(page);
 };
 
@@ -468,26 +468,28 @@ test('one card per review is chosen once and remembered after a reload', async (
     // No choice yet, so the modes come before the first note can be written.
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
-    await picker
-        .getByRole('button', { name: 'One card for this review' })
-        .click();
-    await expect(picker.getByLabel('New card title')).toHaveValue(
+    // One card for this review is the choice the view opens on, and its title
+    // takes the focus.
+    await expect(
+        picker.getByRole('radio', { name: 'One card for this review' }),
+    ).toBeChecked();
+    await expect(picker.getByLabel('Card title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
     );
-    await expect(picker.getByLabel('New card title')).toBeFocused();
+    await expect(picker.getByLabel('Card title')).toBeFocused();
     const [created] = await Promise.all([
         page.waitForResponse(
             (response) =>
                 response.url().endsWith('/api/board/cards') &&
                 response.request().method() === 'POST',
         ),
-        picker.getByRole('button', { name: 'Create', exact: true }).click(),
+        page.locator('#lp-destination-save').click(),
     ]);
     const card = await created.json();
     await expect(picker).toBeHidden();
     await fillNote(page, 'The first note of this review');
     const target = page.locator('#lp-context [data-role="picker"]');
-    await expect(target).toHaveText(card.label);
+    await expect(target).toHaveText(cardNumber(card.label));
 
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
@@ -506,7 +508,7 @@ test('one card per review is chosen once and remembered after a reload', async (
     await page.getByRole('button', { name: 'Review' }).click();
     await startNote(page, 'A second note, after the reload');
     await expect(picker).toBeHidden();
-    await expect(target).toHaveText(card.label);
+    await expect(target).toHaveText(cardNumber(card.label));
     expect(await nextSaveTarget(page)).toEqual({ cardId: card.cardId });
     await expect(page.locator('#lp-launch-count')).toHaveText('2');
     await chooseHeadMenuItem(page, 'Delete all 2 notes…');
@@ -521,11 +523,12 @@ test('a card per note names the card each note became', async ({ page }) => {
     await openNoteOverDestination(page);
     await page
         .locator('#lp-picker')
-        .getByRole('button', { name: 'A new card for each note' })
+        .getByRole('radio', { name: 'A new card for each note' })
         .click();
+    await page.locator('#lp-destination-save').click();
     await fillNote(page, 'The logo is cut off');
     await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
-        'A new card for each note',
+        'a new card',
     );
 
     expect(await nextSaveTarget(page)).toEqual({ newCard: {} });
@@ -548,14 +551,15 @@ test('the mode comes before the first pick', async ({ page }) => {
     await expect(pickToast).toBeHidden();
     await siteReviewPanelSettled(page);
     await picker
-        .getByRole('button', { name: 'A new card for each note' })
+        .getByRole('radio', { name: 'A new card for each note' })
         .click();
+    await page.locator('#lp-destination-save').click();
     await expect(picker).toBeHidden();
 
     await panel.getByRole('button', { name: 'Pick element' }).click();
     await expect(pickToast).toBeVisible();
     await page.locator('#target-me').click();
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeVisible();
+    await expect(page.getByPlaceholder(/What should change/)).toBeVisible();
     await expect(picker).toBeHidden();
 });
 
@@ -565,9 +569,9 @@ test('epic mode files each note as a card under the epic', async ({ page }) => {
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
     await picker
-        .getByRole('button', { name: 'A card for each note, under an epic' })
+        .getByRole('radio', { name: 'A card for each note, under an epic' })
         .click();
-    await expect(picker.getByLabel('New card title')).toHaveValue(
+    await expect(picker.getByLabel('Epic title')).toHaveValue(
         HARNESS_REVIEW_TITLE,
     );
     const [created] = await Promise.all([
@@ -576,12 +580,12 @@ test('epic mode files each note as a card under the epic', async ({ page }) => {
                 response.url().endsWith('/api/board/cards') &&
                 response.request().method() === 'POST',
         ),
-        picker.getByRole('button', { name: 'Create', exact: true }).click(),
+        page.locator('#lp-destination-save').click(),
     ]);
     const epic = await created.json();
     await fillNote(page, 'The pricing table overflows');
     await expect(page.locator('#lp-context [data-role="picker"]')).toHaveText(
-        `Cards under ${epic.label}`,
+        `a new card under ${cardNumber(epic.label)}`,
     );
 
     expect(await nextSaveTarget(page)).toEqual({
@@ -611,10 +615,10 @@ test('epic mode shows a type selector when the template has two grouping types',
     await openNoteOverDestination(page);
     const picker = page.locator('#lp-picker');
     await picker
-        .getByRole('button', { name: 'A card for each note, under an epic' })
+        .getByRole('radio', { name: 'A card for each note, under an epic' })
         .click();
 
-    const selector = picker.getByLabel('New card type');
+    const selector = picker.getByLabel('Type', { exact: true });
     await expect(selector.locator('option')).toHaveText(['Initiative', 'Epic']);
     await selector.selectOption('epic');
     const [created] = await Promise.all([
@@ -623,7 +627,7 @@ test('epic mode shows a type selector when the template has two grouping types',
                 response.url().endsWith('/api/board/cards') &&
                 response.request().method() === 'POST',
         ),
-        picker.getByRole('button', { name: 'Create', exact: true }).click(),
+        page.locator('#lp-destination-save').click(),
     ]);
 
     expect(created.status()).toBe(201);
@@ -650,7 +654,7 @@ test('a keep=1 reload rehydrates the live comments into pins and list', async ({
         .getByRole('button', { name: 'Pick element' })
         .click();
     await page.locator('#target-me').click();
-    await page.getByPlaceholder(/Describe the issue/).fill('Make this bigger');
+    await page.getByPlaceholder(/What should change/).fill('Make this bigger');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
     await addGeneralNote(page, 'A general note about the page', '2');
@@ -696,7 +700,7 @@ for (const changeDraft of [false, true]) {
             .locator('#lp-panel')
             .getByRole('button', { name: 'Add note' })
             .click();
-        const textarea = page.getByPlaceholder(/Describe the issue/);
+        const textarea = page.getByPlaceholder(/What should change/);
         await textarea.fill('Persisted before the connection drops');
         const deliveryIds: string[] = [];
         await page.route('**/api/board/feedback', async (route) => {
@@ -711,7 +715,7 @@ for (const changeDraft of [false, true]) {
         });
 
         await siteReviewPanelSettled(page);
-        await page.getByRole('button', { name: 'Save' }).click();
+        await page.getByRole('button', { name: 'Save note' }).click();
         await expect(
             page
                 .locator('#lp-panel')
@@ -774,7 +778,7 @@ test('a failed save keeps the text in the composer so it can be retried', async 
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    const textarea = page.getByPlaceholder(/Describe the issue/);
+    const textarea = page.getByPlaceholder(/What should change/);
     await textarea.fill('This one will not land');
     await clickSave(page);
 
@@ -828,7 +832,7 @@ test('a comment the agent already addressed can no longer be edited', async ({
         page.locator('#lp-list .lp-item').first(),
         'Edit text',
     );
-    await page.getByPlaceholder(/Describe the issue/).fill('Too late');
+    await page.getByPlaceholder(/What should change/).fill('Too late');
     const panel = page.locator('#lp-panel');
     await clickSave(page);
 
@@ -839,10 +843,10 @@ test('a comment the agent already addressed can no longer be edited', async ({
     // the row, so this is the path where nothing is sent at all — and it is
     // exactly where a blanket "saved" toast would lie. Nothing goes out, so this
     // is the one Save that cannot wait for a response.
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save note' }).click();
     await expect(panel.getByText(/already picked that note up/i)).toBeVisible();
     await expect(page.locator('#lp-saved')).toBeHidden();
-    await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
+    await expect(page.getByPlaceholder(/What should change/)).toHaveValue(
         'Too late',
     );
 });
@@ -881,7 +885,7 @@ test('a 403 on the boot load drops the widget into a critical, dead-end state', 
     // It is a dead end: the whole normal UI (composer + actions) is gone, and there is no
     // retry that would just 403 again.
     await expect(panel.locator('#lp-views')).toBeHidden();
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeHidden();
+    await expect(page.getByPlaceholder(/What should change/)).toBeHidden();
     await expect(panel.getByRole('button', { name: 'Try again' })).toHaveCount(
         0,
     );
@@ -967,7 +971,7 @@ test('a grant revoked mid-session signs the reviewer out and clears the on-page 
         .getByRole('button', { name: 'Pick element' })
         .click();
     await page.locator('#target-me').click();
-    await page.getByPlaceholder(/Describe the issue/).fill('Anchored note');
+    await page.getByPlaceholder(/What should change/).fill('Anchored note');
     await clickSave(page);
     await expect(page.locator('.pin')).toHaveText('1');
 
@@ -983,7 +987,7 @@ test('a grant revoked mid-session signs the reviewer out and clears the on-page 
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page.getByPlaceholder(/Describe the issue/).fill('Second note');
+    await page.getByPlaceholder(/What should change/).fill('Second note');
     await clickSave(page);
 
     // The widget asks for a fresh sign-in AND the stale pin is gone — no interactive
@@ -1189,7 +1193,7 @@ test('Escape closes an open menu before it closes a mode or view', async ({
 
     // With the menu gone, Escape reaches the composer as before.
     await chooseRowMenuItem(page, row, 'Edit text');
-    const textarea = page.getByPlaceholder(/Describe the issue/);
+    const textarea = page.getByPlaceholder(/What should change/);
     await expect(textarea).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(textarea).toBeHidden();
@@ -1303,7 +1307,7 @@ test("the 't' shortcut still works immediately after saving a comment", async ({
         .getByRole('button', { name: 'Pick element' })
         .click();
     await page.locator('#target-me').click();
-    await page.getByPlaceholder(/Describe the issue/).fill('Make this bigger');
+    await page.getByPlaceholder(/What should change/).fill('Make this bigger');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
@@ -1331,7 +1335,7 @@ test('editing an anchored comment updates its body in place', async ({
         .getByRole('button', { name: 'Pick element' })
         .click();
     await page.locator('#target-me').click();
-    await page.getByPlaceholder(/Describe the issue/).fill('Original note');
+    await page.getByPlaceholder(/What should change/).fill('Original note');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 
@@ -1340,7 +1344,7 @@ test('editing an anchored comment updates its body in place', async ({
 
     // The composer reopens pre-filled with the stored body and keeps the element chip
     // (selector/text are rebuilt from the stored comment, so the anchor label shows).
-    const textarea = page.getByPlaceholder(/Describe the issue/);
+    const textarea = page.getByPlaceholder(/What should change/);
     await expect(textarea).toHaveValue('Original note');
     await expect(page.locator('#lp-compose-head')).toContainText(
         'A button to comment on',
@@ -1417,10 +1421,8 @@ test('the launcher exposes icon-only quick actions for note and pick', async ({
     // without first having to open the panel and click the in-panel action.
     await launcher.getByRole('button', { name: 'Add note' }).click();
     await expect(page.locator('#lp-panel')).toBeVisible();
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeVisible();
-    await expect(page.locator('#lp-compose-head')).toContainText(
-        'General note',
-    );
+    await expect(page.getByPlaceholder(/What should change/)).toBeVisible();
+    await expect(page.locator('#lp-compose-head')).toBeHidden();
 
     // With the panel open the launcher's quick actions are hidden (they duplicate the
     // in-panel ones); only the Review toggle remains.
@@ -1551,7 +1553,7 @@ const addTwoElementComment = async (
     await page.keyboard.down(modifier);
     await page.locator('#target-two').click();
     await page.keyboard.up(modifier);
-    await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await page.getByPlaceholder(/What should change/).fill(body);
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 };
@@ -1594,9 +1596,12 @@ test('a comment can be anchored to several elements at once', async ({
     await expect(page.locator('#lp-compose-head .lp-compose-chip')).toHaveCount(
         1,
     );
-    await expect(page.locator('#lp-compose-head .lp-compose-hint')).toHaveText(
-        /Hold .* to add another/,
-    );
+    await expect(
+        page.locator('#lp-compose-head .lp-compose-add'),
+    ).toContainText('+ Element');
+    await expect(
+        page.locator('#lp-compose-head .lp-compose-add .lp-kbd'),
+    ).toHaveText(/ hold$/);
 
     // Holding the modifier brings the picker back, and the composer stays up so
     // the draft keeps its focus and the chips keep up with the picks.
@@ -1617,7 +1622,7 @@ test('a comment can be anchored to several elements at once', async ({
     await expect(page.locator('#lp-toast')).toBeHidden();
 
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('These two should sit side by side');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
@@ -1655,7 +1660,7 @@ test('a comment can be anchored to several elements at once', async ({
         2,
     );
     await expect(page.locator('#lp-compose-head .lp-chip-x')).toHaveCount(0);
-    await expect(page.locator('#lp-compose-head .lp-compose-hint')).toHaveCount(
+    await expect(page.locator('#lp-compose-head .lp-compose-add')).toHaveCount(
         0,
     );
     // The anchors are still outlined while editing, and none offers to remove
@@ -1701,7 +1706,7 @@ test('an element can be dropped from the composer before saving', async ({
     );
 
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('Only the first one');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
@@ -1840,12 +1845,12 @@ test('pointing at a pill emphasises the anchor it names', async ({ page }) => {
             .locator('.lp-chip-name[data-anchor-pill="2"]')
             .evaluate((el) => el.matches(':focus-visible')),
     ).toBe(true);
-    await page.getByPlaceholder(/Describe the issue/).click();
+    await page.getByPlaceholder(/What should change/).click();
     await page.locator('.lp-chip-name[data-anchor-pill="0"]').click();
     await expect(
         page.locator('.lp-chip-name[data-anchor-pill="0"]'),
     ).not.toBeFocused();
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeFocused();
+    await expect(page.getByPlaceholder(/What should change/)).toBeFocused();
 });
 
 /**
@@ -1879,7 +1884,7 @@ test('picking an element does not give it focus', async ({ page }) => {
     // A text field is the sharpest case: focus would put the caret in the page.
     await page.locator('#target-input').click();
     await expect(page.locator('#target-input')).not.toBeFocused();
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeFocused();
+    await expect(page.getByPlaceholder(/What should change/)).toBeFocused();
     await expect(page.locator('#lp-compose-head .lp-compose-chip')).toHaveCount(
         1,
     );
@@ -1903,9 +1908,9 @@ test('picking an element does not give it focus', async ({ page }) => {
     ).toBe(0);
 
     // The caret is in the draft, so the reviewer types or pastes straight away.
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeFocused();
+    await expect(page.getByPlaceholder(/What should change/)).toBeFocused();
     await page.keyboard.type('Typed without clicking first');
-    await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
+    await expect(page.getByPlaceholder(/What should change/)).toHaveValue(
         'Typed without clicking first',
     );
 });
@@ -1939,7 +1944,7 @@ test('an anchor can be dropped from its own box on the page', async ({
         3,
     );
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('All three of these');
 
     // Every anchor is outlined, and every outline has a control of its own.
@@ -1993,10 +1998,10 @@ test('an anchor can be dropped from its own box on the page', async ({
 
     // A mouse press must not focus the control. Focus goes back to the draft,
     // which is where the reviewer works next, rather than to the document.
-    await expect(page.getByPlaceholder(/Describe the issue/)).toBeFocused();
+    await expect(page.getByPlaceholder(/What should change/)).toBeFocused();
 
     // The draft is untouched, and the survivors save in their original order.
-    await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
+    await expect(page.getByPlaceholder(/What should change/)).toHaveValue(
         'All three of these',
     );
     await clickSave(page);
@@ -2028,7 +2033,7 @@ test('dropping the last anchor leaves a page note with the draft intact', async 
         .click();
     await page.locator('#target-me').click();
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('Actually about the page');
 
     const box = page.locator('.highlight.removable');
@@ -2052,11 +2057,9 @@ test('dropping the last anchor leaves a page note with the draft intact', async 
     ).toBe(0);
 
     // The comment becomes a page note and keeps what was typed.
-    await expect(page.locator('#lp-compose-head')).toContainText(
-        'General note',
-    );
+    await expect(page.locator('#lp-compose-head')).toBeHidden();
     await expect(page.locator('.highlight.removable')).toHaveCount(0);
-    await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
+    await expect(page.getByPlaceholder(/What should change/)).toHaveValue(
         'Actually about the page',
     );
 
@@ -2110,7 +2113,7 @@ test('the composer keeps Save reachable at the anchor cap', async ({
     );
     // At the cap the widget stops offering another pick, and an eleventh says so
     // rather than doing nothing.
-    await expect(page.locator('#lp-compose-head .lp-compose-hint')).toHaveCount(
+    await expect(page.locator('#lp-compose-head .lp-compose-add')).toHaveCount(
         0,
     );
     await page.locator('#long-11').click();
@@ -2143,7 +2146,7 @@ test('the composer keeps Save reachable at the anchor cap', async ({
     // Save stays inside the composer's clipped box, so it can still be clicked.
     const composerBox = await page.locator('#lp-composer').boundingBox();
     const saveBox = await page
-        .getByRole('button', { name: 'Save' })
+        .getByRole('button', { name: 'Save note' })
         .boundingBox();
     expect(saveBox!.y + saveBox!.height).toBeLessThanOrEqual(
         composerBox!.y + composerBox!.height + 1,
@@ -2151,7 +2154,7 @@ test('the composer keeps Save reachable at the anchor cap', async ({
 
     // The real proof: the comment saves.
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('Ten anchors with long labels');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
@@ -2243,7 +2246,7 @@ test('the add-anchor modifier can be held before the very first pick', async ({
     await expect(page.locator('#lp-toast')).toBeHidden();
     await page.keyboard.up(modifier);
 
-    await page.getByPlaceholder(/Describe the issue/).fill('Both of these');
+    await page.getByPlaceholder(/What should change/).fill('Both of these');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
     const comments = await fetchReviewComments(page);
@@ -2268,7 +2271,7 @@ test('a second key spends the add-anchor hold and leaves the shortcut alone', as
         .click();
     await page.locator('#target-me').click();
 
-    const textarea = page.getByPlaceholder(/Describe the issue/);
+    const textarea = page.getByPlaceholder(/What should change/);
     await textarea.fill('select all of this');
     await expect(textarea).toBeFocused();
 
@@ -2317,17 +2320,15 @@ test('holding the modifier over a page note points it at an element', async ({
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await expect(page.locator('#lp-compose-head .lp-compose-hint')).toHaveText(
-        /Hold .* to point at an element/,
-    );
-    await page.getByPlaceholder(/Describe the issue/).fill('Actually this bit');
+    await expect(page.locator('#lp-compose-head')).toBeHidden();
+    await page.getByPlaceholder(/What should change/).fill('Actually this bit');
 
     await page.keyboard.down(modifier);
     await page.locator('#target-me').click();
     await page.keyboard.up(modifier);
 
     // The draft survives and the note is now anchored.
-    await expect(page.getByPlaceholder(/Describe the issue/)).toHaveValue(
+    await expect(page.getByPlaceholder(/What should change/)).toHaveValue(
         'Actually this bit',
     );
     await expect(page.locator('#lp-compose-head .lp-compose-chip')).toHaveCount(
@@ -2483,7 +2484,7 @@ const afterSelectionRead = async (
 
 /** Fill the composer and save, waiting for the API to accept the comment. */
 const saveComposed = async (page: Page, body: string): Promise<void> => {
-    await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await page.getByPlaceholder(/What should change/).fill(body);
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
 };
@@ -2810,7 +2811,7 @@ test('editing a comment withdraws the offer to quote a selection', async ({
         page.locator('#lp-list .lp-item').first(),
         'Edit text',
     );
-    const textarea = page.getByPlaceholder(/Describe the issue/);
+    const textarea = page.getByPlaceholder(/What should change/);
     await textarea.fill('An edit in progress');
 
     // Selecting page text mid-edit changes nothing: no offer, one chip still,
@@ -3086,7 +3087,7 @@ const composeDrawingOnWideBlock = async (page: Page): Promise<void> => {
 
 const saveComposer = async (page: Page, body: string): Promise<void> => {
     await page.getByRole('button', { name: 'Done' }).click();
-    await page.getByPlaceholder(/Describe the issue/).fill(body);
+    await page.getByPlaceholder(/What should change/).fill(body);
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1', inkTimeout);
     // The "saved" toast clears itself on a timer, and that timer repaints the
@@ -3376,7 +3377,7 @@ test('the saved notice gives way to the drawing toast', async ({ page }) => {
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page.getByPlaceholder(/Describe the issue/).fill('A plain note');
+    await page.getByPlaceholder(/What should change/).fill('A plain note');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1', inkTimeout);
 
@@ -3918,7 +3919,7 @@ const openTallestPanel = async (page: Page): Promise<void> => {
         .locator('#lp-panel')
         .getByRole('button', { name: 'Add note' })
         .click();
-    await page.getByPlaceholder(/Describe the issue/).fill('x'.repeat(200));
+    await page.getByPlaceholder(/What should change/).fill('x'.repeat(200));
 };
 
 test('the corner control walks the launcher round every corner, each on screen', async ({
@@ -4202,7 +4203,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
     await page.locator('#lp-dest').click();
     const picker = page.locator('#lp-picker');
     await picker
-        .getByRole('button', { name: 'One card for this review' })
+        .getByRole('radio', { name: 'One card for this review' })
         .click();
     const [created] = await Promise.all([
         page.waitForResponse(
@@ -4210,7 +4211,7 @@ test('a card per note lists the cards this tab made, and a new destination clear
                 response.url().endsWith('/api/board/cards') &&
                 response.request().method() === 'POST',
         ),
-        picker.getByRole('button', { name: 'Create', exact: true }).click(),
+        page.locator('#lp-destination-save').click(),
     ]);
     const card = await created.json();
     await expect
@@ -4241,7 +4242,7 @@ test('pins and the list number notes with this page first, then other pages', as
         .click();
     await page.locator('#target-me').click();
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('First, on this page');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('1');
@@ -4256,7 +4257,7 @@ test('pins and the list number notes with this page first, then other pages', as
         .click();
     await page.locator('#target-two').click();
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('Second, on another route');
     await clickSave(page);
     await expect(page.locator('#lp-launch-count')).toHaveText('2');

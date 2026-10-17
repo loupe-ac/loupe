@@ -62,20 +62,22 @@ pop-up and the page, and the widget then gets no answer.
 
 ## Where notes go
 
-Every note lands on a card. Before the first note, the widget asks where notes
-go:
+Every note lands on a card. Before the first note, the widget opens a view
+named "Where should your notes go?". Choose one option and press **Start
+reviewing**:
 
 | Choice | What a save does |
 |---|---|
 | A new card for each note | Creates a new card for the note. |
-| One card for this review | Adds the note to one card. Pick an open card, or create one. |
-| A card for each note, under an epic | Creates a new card for the note, as a child of one epic. Pick an open epic, or create one. The widget shows this choice only when the workflow template has a card type with the children capability. |
+| One card for this review | Adds the note to one card. Create a new card, or pick an existing one. |
+| A card for each note, under an epic | Creates a new card for the note, as a child of one epic. Create a new epic, or pick an existing one. The widget shows this choice only when the workflow template has a card type with the children capability. |
 
 The widget keeps the choice in the browser's local storage, for this instance
 and this project. It holds for every later note, and after a reload, until you
 change it. The panel header shows where notes go. Click it to open the
-destination view and choose again. The row under the note field in the composer
-does the same.
+destination view and choose again. The line "Saves to ..." under the title of the
+composer does the same. Once a choice exists, the button of the view reads
+**Save**.
 
 The destination also decides which notes the list shows:
 
@@ -89,13 +91,14 @@ When you change the destination, the list changes with it. Until you choose a
 destination, the list is empty. With **One card for this review**, the footer
 shows **Open #N in Loupe**, which opens that card.
 
-The second and third choices open a card picker. Search the open cards, or
-type a title and create a card. The title starts as `Review: ` and the page
-path, and you can edit it. With **One card for this review**, the title field takes the focus.
-The third choice lists the open cards of every type that has the children
-capability, and it creates a card of one of those types. When the template has
-two or more such types, a type selector shows beside the Create button. The
-first type of the template is chosen at first.
+The first and third choices open a switch with **New card** and **Existing
+card**. With **New card**, type a title and the button creates the card. The
+title starts as `Review: ` and the page path, and the view selects it so that
+you can replace it. With **Existing card**, search the open cards, pick one
+row and press the button. The third choice lists the open cards of every type
+that has the children capability, and it creates a card of one of those types.
+When the template has two or more such types, a **Type** selector shows under
+the title. The first type of the template is chosen at first.
 
 A card that the widget creates has these values:
 

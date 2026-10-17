@@ -74,10 +74,11 @@ test('a reviewer signs in through the popup and saves a comment', async ({
     await siteReviewPanelSettled(page);
     await page
         .locator('#lp-picker')
-        .getByRole('button', { name: 'A new card for each note' })
+        .getByRole('radio', { name: 'A new card for each note' })
         .click();
+    await page.locator('#lp-destination-save').click();
     await page
-        .getByPlaceholder(/Describe the issue/)
+        .getByPlaceholder(/What should change/)
         .fill('Signed in with OAuth');
     await siteReviewPanelSettled(page);
     const saved = page.waitForResponse(
@@ -85,7 +86,7 @@ test('a reviewer signs in through the popup and saves a comment', async ({
             response.url().includes('/api/board/feedback') &&
             response.request().method() === 'POST',
     );
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByRole('button', { name: 'Save note' }).click();
     const response = await saved;
     expect(response.status()).toBe(201);
     expect(response.request().headers()['authorization']).toMatch(/^Bearer ey/);
