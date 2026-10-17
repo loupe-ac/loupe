@@ -15,8 +15,10 @@
 {% set commandRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.runCommand)|first : null %}
 {% set runCommand = commandRow ? commandRow.action.runCommand : null %}
 {% set actionForm = reply ? inbox_action_form(item, refusedForm) : null %}
-{# The start-session row that carries a prompt of the asking agent. The owner reads and edits it before the click. #}
-{% set sessionRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.sessionPrompt is not null)|first : null %}
+{# The enabled start-session row that carries a prompt of the asking agent. The owner reads and edits it before the click. #}
+{% set sessionRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.sessionPrompt is not null and row.action.disabledReasonKey is null)|first : null %}
+{# The field shows when Start session is the main button. From the menu, the row shows it first, with its own button. #}
+{% set sessionMain = sessionRow and sessionRow is same as(actions.main) %}
 {# The dialog posts the reply form, so it needs the reply card on the page. #}
 {% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
 {# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
@@ -83,7 +85,7 @@
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set noteLabel = 'inbox.thread.note_placeholder'|trans %}
         <div class="lp-inbox-item__actions">
-            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}}) }}
+            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}|merge(sessionRow and not sessionMain ? {'data-controller': 'inbox-session-prompt'} : {})}) }}
                 {% if actions.main %}
                     <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans }}</h3>
                 {% endif %}
@@ -107,8 +109,15 @@
                     {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
                     <twig:Ds:FieldErrors :fieldView="actionForm.note" />
                 {% endif %}
-                {% if sessionRow %}
+                {% if sessionMain %}
                     <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+                {% elseif sessionRow %}
+                    <div data-inbox-session-prompt-target="field" data-inbox-session-prompt-field hidden>
+                        <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+                        <twig:Ds:FormActions>
+                            <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans }}</twig:Ds:Button>
+                        </twig:Ds:FormActions>
+                    </div>
                 {% endif %}
                 <twig:Ds:FieldErrors :fieldView="actionForm" />
                 {{ form_widget(actionForm._token) }}

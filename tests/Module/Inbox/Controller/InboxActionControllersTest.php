@@ -28,10 +28,12 @@ use App\Module\Inbox\Entity\InboxCardWaitType;
 use App\Module\Inbox\Entity\InboxCardWatch;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
+use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxActionRepository;
 use App\Module\Project\Entity\Project;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\PauseKind;
@@ -207,7 +209,7 @@ final class InboxActionControllersTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $main = $crawler->filter('.inbox-split__main');
-        self::assertSame('Open', trim($main->text()));
+        self::assertSame('Open the card', trim($main->text()));
         self::assertSame('/projects/'.$this->project->id.'/board/cards/'.$this->card->id, $main->attr('href'));
         self::assertCount(0, $crawler->filter('[data-inbox-action="retry-card"]'));
     }
@@ -434,6 +436,58 @@ final class InboxActionControllersTest extends WebTestCase
         $this->post($this->actionPath($question, 'start-session'), $question, ['sessionPrompt' => 'Use the skill.']);
 
         self::assertSame('Use the skill.', $this->onlyAction($question)->sessionPrompt);
+    }
+
+    public function test_open_names_the_document_it_opens(): void
+    {
+        $document = new Document($this->project->owner, $this->project, 'Plan');
+        $document->addVersion('# One', '<h1>One</h1>');
+        $this->em()->persist($document);
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Read the plan', blocking: false);
+        $item->suggestedActions = [['action' => 'open', 'reason' => 'The plan waits.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null]];
+        $item->documents->add(new InboxItemDocument($item, $document));
+        $this->em()->persist($item);
+        $this->em()->flush();
+        $this->askHolding($this->em(), $this->project, [$item]);
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('Open the document', trim($crawler->filter('#inbox-item-'.$item->number.' .inbox-split__main')->text()));
+    }
+
+    public function test_a_session_prompt_shows_no_field_while_start_session_is_off(): void
+    {
+        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $item = $crawler->filter('#inbox-item-'.$question->number);
+        self::assertNotSame('start-session', $item->filter('[data-inbox-thread] .inbox-split__main')->attr('data-inbox-action'));
+        self::assertCount(0, $item->filter('textarea[data-inbox-session-prompt]'));
+    }
+
+    public function test_a_session_prompt_in_the_menu_stays_hidden_until_the_owner_picks_start_session(): void
+    {
+        $this->sessionBridge();
+        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => false, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $thread = $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread]');
+        self::assertNotSame('start-session', $thread->filter('.inbox-split__main')->attr('data-inbox-action'));
+        self::assertSame('inbox-session-prompt', $thread->filter('form.lp-inbox-thread__reply')->attr('data-controller'));
+        $field = $thread->filter('[data-inbox-session-prompt-field]');
+        self::assertNotNull($field->attr('hidden'));
+        self::assertSame('Use the skill.', trim($field->filter('textarea[data-inbox-session-prompt]')->text()));
+        $row = $thread->filter('.lp-menu__panel [data-inbox-action="start-session"]');
+        self::assertSame('button', $row->attr('type'));
+        self::assertStringContainsString('inbox-session-prompt#reveal', (string) $row->attr('data-action'));
+        $confirm = $field->filter('[data-inbox-action="start-session-confirm"]');
+        self::assertSame($this->actionPath($question, 'start-session'), parse_url((string) $confirm->attr('formaction'), \PHP_URL_PATH));
     }
 
     public function test_a_question_with_a_card_and_no_suggestion_shows_no_reply_card(): void
@@ -759,7 +813,7 @@ final class InboxActionControllersTest extends WebTestCase
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
-        self::assertSame('Open', trim($crawler->filter('.inbox-split__main')->text()));
+        self::assertSame('Open the card', trim($crawler->filter('.inbox-split__main')->text()));
         $row = $crawler->filter('.inbox-split .lp-menu__panel [data-inbox-action="add-entry"]');
         self::assertCount(1, $row);
         self::assertSame('Add to rules.yaml', trim($row->filter('.lp-menu__label')->text()));

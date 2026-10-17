@@ -353,8 +353,8 @@ The actions are:
   earlier session. It fits only when the column of the card names stage work,
   no request for that work is live, and no worker runs on the card. See
   [Workflow templates](workflows.md).
-- "Open" opens the card, or the document. A card page offers no link to
-  itself.
+- "Open the card" or "Open the document" opens the card or the document of the
+  item. A card page offers no link to itself.
 - "Start an interactive session" opens a terminal on your machine. See
   [Start an interactive session](#start-an-interactive-session).
 - "Run a command" runs a command of your rule file on your machine. See
@@ -685,8 +685,10 @@ says that no bridge can open a session. The bridge opens a new session on the
 card. The prompt names the inbox item, and the agent reads your note with
 `inbox_get`.
 
-An agent can suggest the action with a prompt for the session. The inbox then
-shows the prompt in a text field above the action. You can edit the text. The
+An agent can suggest the action with a prompt for the session. When the action
+is the main button, the inbox shows the prompt in a text field above it. When
+the action is in the menu, choose it to show the field and its own start
+button. A grey action shows no field. You can edit the text. The
 session runs the text that you leave in the field. When you clear the field,
 the session starts with no suggested prompt. The limit is 2000
 characters, and an admin changes it with the `inbox.session_prompt_max_length`
