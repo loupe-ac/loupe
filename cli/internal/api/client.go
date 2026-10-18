@@ -537,9 +537,9 @@ type Heartbeat struct {
 	// HostSamples sends no key when empty. The client sends the oldest
 	// HostSamplesPerHeartbeat of them.
 	HostSamples []HostSample `json:"hostSamples,omitempty"`
-	// PushLogin is the GitHub login that workers push as. It follows Name:
-	// nil keeps the stored login, and "" clears it.
-	PushLogin *string `json:"pushLogin,omitempty"`
+	// GitIdentities follows the same rule as Repositories: nil sends no key
+	// and keeps the rows the server holds, and an empty list sends [].
+	GitIdentities []GitIdentityReport `json:"gitIdentities,omitzero"`
 	// Accounts is nil until the bridge checked its accounts, which sends no
 	// key and keeps the rows the server holds.
 	Accounts []AccountReport `json:"accounts,omitzero"`
@@ -558,6 +558,7 @@ const (
 	MaxCommandEntries = 50
 	MaxWorktrees      = 200
 	MaxRepositories   = 500
+	MaxGitIdentities  = 50
 )
 
 // CommandEntryReport is one command entry of the rule file. Run holds the
@@ -590,6 +591,24 @@ type RepositoryReport struct {
 	ProjectID string `json:"projectId"`
 	Path      string `json:"path"`
 	RemoteURL string `json:"remoteUrl"`
+}
+
+// The modes of a git identity row.
+const (
+	GitModeAgentAccount = "agent_account"
+	GitModeAppToken     = "app_token"
+	GitModeMachine      = "machine"
+)
+
+// GitIdentityReport is the git identity that a worker of one followed project
+// pushes as. CommitName and PushLogin are empty when unknown, and GitHubUserID
+// is nil then. The row holds no token.
+type GitIdentityReport struct {
+	ProjectID    string `json:"projectId"`
+	Mode         string `json:"mode"`
+	CommitName   string `json:"commitName"`
+	PushLogin    string `json:"pushLogin"`
+	GitHubUserID *int64 `json:"githubUserId"`
 }
 
 // The states of an account row.
@@ -719,6 +738,9 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 	}
 	if len(hb.Repositories) > MaxRepositories {
 		hb.Repositories = hb.Repositories[:MaxRepositories]
+	}
+	if len(hb.GitIdentities) > MaxGitIdentities {
+		hb.GitIdentities = hb.GitIdentities[:MaxGitIdentities]
 	}
 	if len(hb.HostSamples) > HostSamplesPerHeartbeat {
 		hb.HostSamples = hb.HostSamples[:HostSamplesPerHeartbeat]

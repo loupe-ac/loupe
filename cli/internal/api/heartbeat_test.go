@@ -505,4 +505,12 @@ func TestHeartbeatSendsRepositoriesOnlyWhenTheListIsSetAndClipsIt(t *testing.T) 
 	if len(sent.Repositories) != MaxRepositories {
 		t.Fatalf("sent %d repositories", len(sent.Repositories))
 	}
+
+	hb = Heartbeat{CLIVersion: "v", GitIdentities: make([]GitIdentityReport, MaxGitIdentities+5)}
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent.GitIdentities) != MaxGitIdentities {
+		t.Fatalf("sent %d git identities", len(sent.GitIdentities))
+	}
 }
