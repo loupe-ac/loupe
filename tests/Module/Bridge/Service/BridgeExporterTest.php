@@ -39,6 +39,9 @@ final class BridgeExporterTest extends TestCase
         $worktree = ['projectId' => $projectId, 'branch' => 'main', 'path' => '/work/main'];
         $bridge->worktrees = [$worktree];
         $bridge->worktreesReportedAt = new \DateTimeImmutable('2026-09-14T15:56:00+00:00');
+        $repository = ['projectId' => $projectId, 'path' => '/work/main', 'remoteUrl' => 'git@github.com:acme/loupe.git'];
+        $bridge->repositories = [$repository];
+        $bridge->repositoriesReportedAt = new \DateTimeImmutable('2026-09-14T15:55:00+00:00');
         $bridge->pauseRequested = true;
         $bridge->pauseRequestedAt = new \DateTimeImmutable('2026-09-14T15:30:00+00:00');
         $bridge->pauseRequestedBy = $owner;
@@ -69,6 +72,8 @@ final class BridgeExporterTest extends TestCase
             'commandEntriesReportedAt' => '2026-09-14T15:57:00+00:00',
             'worktrees' => [$worktree],
             'worktreesReportedAt' => '2026-09-14T15:56:00+00:00',
+            'repositories' => [$repository],
+            'repositoriesReportedAt' => '2026-09-14T15:55:00+00:00',
             'pauseRequested' => true,
             'pauseRequestedAt' => '2026-09-14T15:30:00+00:00',
             'pausedReported' => false,

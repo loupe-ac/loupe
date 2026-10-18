@@ -29,6 +29,7 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type CommandParamRow array{name: string, pattern: string, description: ?string}
  * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
  * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
+ * @phpstan-type RepositoryRow array{projectId: string, path: string, remoteUrl: string}
  */
 #[ORM\Entity(repositoryClass: BridgeRepository::class)]
 #[ORM\Table(name: 'bridges')]
@@ -149,6 +150,18 @@ class Bridge
     /** The server clock at the heartbeat that carried the worktree rows. */
     #[ORM\Column(name: 'worktrees_reported_at', nullable: true)]
     public ?\DateTimeImmutable $worktreesReportedAt = null;
+
+    /**
+     * The repository folder and the origin remote of each followed project, as the last heartbeat reported them. Null until a bridge sends a report.
+     *
+     * @var list<RepositoryRow>|null
+     */
+    #[ORM\Column(name: 'repositories', type: Types::JSON, nullable: true)]
+    public ?array $repositories = null;
+
+    /** The server clock at the heartbeat that carried the repository rows. */
+    #[ORM\Column(name: 'repositories_reported_at', nullable: true)]
+    public ?\DateTimeImmutable $repositoriesReportedAt = null;
 
     /** Whether a person asked the bridge to start no new work. It stays until a person clears it. */
     #[ORM\Column(name: 'pause_requested', options: ['default' => false])]

@@ -76,14 +76,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $discovery = $this->discoveryRuns->latestForProject($project);
 
         return new WorkshopReadiness([
-            new WorkshopReadinessRow(
-                'agent',
-                'readiness.row.agent.label',
-                $agent,
-                $agent ? 'readiness.row.agent.done' : 'readiness.row.agent.open',
-                actionLabel: $agent ? null : 'readiness.row.agent.action',
-                actionUrl: $agent ? null : $connect,
-            ),
+            $this->agentRow($agent, $connect),
             $this->bridgeRow($takers, $connect, $this->urls->generate('app_project_agents', ['id' => (string) $projectId])),
             new WorkshopReadinessRow(
                 'github',
@@ -96,6 +89,86 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $this->agentAccountRow($project, $running),
             $this->repositoryRow($project, $discovery, $this->refusal($project, $takers, $binding)),
         ], $discovery?->card->number);
+    }
+
+    /**
+     * The four rows of the setup wizard, in order: cli, repository_linked, agent and bridge.
+     * The agent and bridge rows are the ones of the guide.
+     *
+     * @return list<WorkshopReadinessRow>
+     */
+    public function wizardRows(Project $project): array
+    {
+        $projectId = $project->id ?? throw new \LogicException('A stored project has an id.');
+        $connect = $this->urls->generate('app_project_connect', ['id' => (string) $projectId]);
+
+        return [
+            $this->cliRow($project, $connect),
+            $this->repositoryLinkedRow($project, $connect),
+            $this->agentRow(null !== $project->agentFirstSeenAt, $connect),
+            $this->bridgeRow(
+                $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true),
+                $connect,
+                $this->urls->generate('app_project_agents', ['id' => (string) $projectId]),
+            ),
+        ];
+    }
+
+    /** Changes when a row of the wizard changes what it shows: its flag, its status, its parameters or its detail. */
+    public function wizardFingerprint(Project $project): string
+    {
+        return hash('sha256', json_encode(array_map(
+            static fn (WorkshopReadinessRow $row): array => [$row->key, $row->done, $row->status, $row->statusParameters, $row->detail],
+            $this->wizardRows($project),
+        ), \JSON_THROW_ON_ERROR));
+    }
+
+    private function agentRow(bool $agent, string $connect): WorkshopReadinessRow
+    {
+        return new WorkshopReadinessRow(
+            'agent',
+            'readiness.row.agent.label',
+            $agent,
+            $agent ? 'readiness.row.agent.done' : 'readiness.row.agent.open',
+            actionLabel: $agent ? null : 'readiness.row.agent.action',
+            actionUrl: $agent ? null : $connect,
+        );
+    }
+
+    /** Done once the owner holds a bridge row, whichever project it follows. A live bridge leads the detail. */
+    private function cliRow(Project $project, string $connect): WorkshopReadinessRow
+    {
+        $bridges = $this->connections->forOwnerOf($project);
+        $lead = array_find($bridges, static fn (WorkshopConnection $connection): bool => !$connection->quiet) ?? $bridges[0] ?? null;
+        if (null === $lead) {
+            return new WorkshopReadinessRow('cli', 'readiness.row.cli.label', false, 'readiness.row.cli.open', actionLabel: 'readiness.row.cli.action', actionUrl: $connect);
+        }
+
+        return new WorkshopReadinessRow(
+            'cli',
+            'readiness.row.cli.label',
+            true,
+            $lead->quiet ? 'readiness.row.cli.quiet' : 'readiness.row.cli.done',
+            detail: $lead->label.', loupe '.$lead->cliVersion,
+        );
+    }
+
+    /** Done once a bridge that follows the project reported a folder for it. A live bridge leads the detail. */
+    private function repositoryLinkedRow(Project $project, string $connect): WorkshopReadinessRow
+    {
+        $linked = array_values(array_filter($this->connections->forProject($project), static fn (WorkshopConnection $connection): bool => null !== $connection->repositoryPath));
+        $lead = array_find($linked, static fn (WorkshopConnection $connection): bool => !$connection->quiet) ?? $linked[0] ?? null;
+        if (null === $lead) {
+            return new WorkshopReadinessRow('repository_linked', 'readiness.row.repository_linked.label', false, 'readiness.row.repository_linked.open', actionLabel: 'readiness.row.repository_linked.action', actionUrl: $connect);
+        }
+
+        return new WorkshopReadinessRow(
+            'repository_linked',
+            'readiness.row.repository_linked.label',
+            true,
+            'readiness.row.repository_linked.done',
+            detail: '' === ($lead->repositoryRemoteUrl ?? '') ? $lead->repositoryPath : $lead->repositoryPath.' ('.$lead->repositoryRemoteUrl.')',
+        );
     }
 
     /** The same reading as the engine takes for the request, so the row and the failure agree. */

@@ -17,6 +17,7 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-import-type AccountRow from Bridge
  * @phpstan-import-type CommandEntryRow from Bridge
  * @phpstan-import-type WorktreeRow from Bridge
+ * @phpstan-import-type RepositoryRow from Bridge
  */
 final readonly class RecordBridgeHeartbeatCommand
 {
@@ -33,6 +34,7 @@ final readonly class RecordBridgeHeartbeatCommand
      * @param list<AccountRow>|null        $accounts       null keeps the stored rows, because a bridge that predates account checks sends none
      * @param list<CommandEntryRow>|null   $commandEntries null keeps the stored rows, because a bridge that predates command entries sends none
      * @param list<WorktreeRow>|null       $worktrees      null keeps the stored rows, because a bridge that predates worktrees sends none
+     * @param list<RepositoryRow>|null     $repositories   null keeps the stored rows, because a bridge that predates repositories sends none
      * @param list<string>                 $workKinds      empty from a bridge that predates work kinds, which then runs no kind
      */
     public function __construct(
@@ -55,6 +57,7 @@ final readonly class RecordBridgeHeartbeatCommand
         public ?array $commandEntries = null,
         public ?array $worktrees = null,
         public array $workKinds = [],
+        public ?array $repositories = null,
     ) {
     }
 }

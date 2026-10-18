@@ -8692,6 +8692,15 @@
             <trans-unit id="readiness.row.agent.done"><source>readiness.row.agent.done</source><target>Connected</target></trans-unit>
             <trans-unit id="readiness.row.agent.open"><source>readiness.row.agent.open</source><target>No agent yet</target></trans-unit>
             <trans-unit id="readiness.row.agent.action"><source>readiness.row.agent.action</source><target>Connect</target></trans-unit>
+            <trans-unit id="readiness.row.cli.label"><source>readiness.row.cli.label</source><target>CLI signed in</target></trans-unit>
+            <trans-unit id="readiness.row.cli.done"><source>readiness.row.cli.done</source><target>Signed in</target></trans-unit>
+            <trans-unit id="readiness.row.cli.quiet"><source>readiness.row.cli.quiet</source><target>Signed in, but it sends no heartbeat now</target></trans-unit>
+            <trans-unit id="readiness.row.cli.open"><source>readiness.row.cli.open</source><target>Not signed in</target></trans-unit>
+            <trans-unit id="readiness.row.cli.action"><source>readiness.row.cli.action</source><target>Install the CLI</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.label"><source>readiness.row.repository_linked.label</source><target>Repository linked</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.done"><source>readiness.row.repository_linked.done</source><target>Linked</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.open"><source>readiness.row.repository_linked.open</source><target>No repository folder reported yet</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.action"><source>readiness.row.repository_linked.action</source><target>Link</target></trans-unit>
             <trans-unit id="readiness.row.bridge.label"><source>readiness.row.bridge.label</source><target>Bridge running</target></trans-unit>
             <trans-unit id="readiness.row.bridge.done"><source>readiness.row.bridge.done</source><target>Running</target></trans-unit>
             <trans-unit id="readiness.row.bridge.open"><source>readiness.row.bridge.open</source><target>Not running</target></trans-unit>

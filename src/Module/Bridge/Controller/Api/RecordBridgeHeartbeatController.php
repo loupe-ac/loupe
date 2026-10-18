@@ -72,6 +72,7 @@ final class RecordBridgeHeartbeatController extends AppController
             commandEntries: $payload->commandEntries(),
             worktrees: $payload->worktrees(),
             workKinds: $payload->workKinds(),
+            repositories: $payload->repositories(),
         ));
 
         return new JsonResponse([

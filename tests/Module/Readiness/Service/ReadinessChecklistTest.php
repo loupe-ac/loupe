@@ -418,6 +418,104 @@ final class ReadinessChecklistTest extends KernelTestCase
         return $run;
     }
 
+    public function test_the_wizard_rows_start_open_in_order(): void
+    {
+        $project = $this->newProject('wizard-rows-open@example.com');
+
+        $rows = $this->checklist()->wizardRows($project);
+
+        self::assertSame(['cli', 'repository_linked', 'agent', 'bridge'], array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $rows));
+        self::assertSame(
+            ['readiness.row.cli.open', 'readiness.row.repository_linked.open', 'readiness.row.agent.open', 'readiness.row.bridge.open'],
+            array_map(static fn (WorkshopReadinessRow $row): string => $row->status, $rows),
+        );
+        self::assertSame([false, false, false, false], array_map(static fn (WorkshopReadinessRow $row): bool => $row->done, $rows));
+    }
+
+    public function test_a_bridge_that_follows_nothing_signs_the_cli_in_and_links_no_repository(): void
+    {
+        $project = $this->newProject('wizard-rows-cli@example.com');
+        $bridge = $this->seedBridge($this->em(), $project->owner, cliVersion: 'v1.4.0');
+        $bridge->name = 'laptop';
+        $this->em()->flush();
+
+        [$cli, $repository] = $this->checklist()->wizardRows($project);
+
+        self::assertSame([true, 'readiness.row.cli.done', 'laptop, loupe v1.4.0'], [$cli->done, $cli->status, $cli->detail]);
+        self::assertFalse($repository->done);
+    }
+
+    public function test_a_quiet_bridge_still_counts_as_signed_in_but_says_so(): void
+    {
+        $project = $this->newProject('wizard-rows-quiet@example.com');
+        $this->seedBridge($this->em(), $project->owner, lastSeenAt: new \DateTimeImmutable('-1 day'));
+
+        [$cli] = $this->checklist()->wizardRows($project);
+
+        self::assertSame([true, 'readiness.row.cli.quiet'], [$cli->done, $cli->status]);
+    }
+
+    public function test_a_reported_repository_of_a_following_bridge_links_the_project(): void
+    {
+        $project = $this->newProject('wizard-rows-linked@example.com');
+        $other = $this->project($this->em(), $project->owner, 'Another project');
+        $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id, (string) $other->id]);
+        $bridge->repositories = [
+            ['projectId' => (string) $other->id, 'path' => '/work/other', 'remoteUrl' => ''],
+            ['projectId' => (string) $project->id, 'path' => '/work/loupe', 'remoteUrl' => 'git@github.com:acme/loupe.git'],
+        ];
+        $this->em()->flush();
+
+        [, $repository] = $this->checklist()->wizardRows($project);
+        [, $otherRepository] = $this->checklist()->wizardRows($other);
+
+        self::assertSame([true, 'readiness.row.repository_linked.done', '/work/loupe (git@github.com:acme/loupe.git)'], [$repository->done, $repository->status, $repository->detail]);
+        self::assertSame('/work/other', $otherRepository->detail);
+    }
+
+    public function test_the_wizard_agent_and_bridge_rows_are_the_ones_of_the_guide(): void
+    {
+        $project = $this->newProject('wizard-rows-shared@example.com');
+        $this->bind($project);
+        $this->seedCapableBridge($project);
+        $project->agentFirstSeenAt = new \DateTimeImmutable();
+        $this->em()->flush();
+        $checklist = $this->checklist();
+        $guide = $this->readiness($checklist, $project);
+
+        [, , $agent, $bridge] = $checklist->wizardRows($project);
+
+        self::assertEquals($this->row($guide, 'agent'), $agent);
+        self::assertEquals($this->row($guide, 'bridge'), $bridge);
+        self::assertTrue($agent->done && $bridge->done);
+    }
+
+    public function test_the_wizard_fingerprint_is_stable_and_follows_every_row(): void
+    {
+        $project = $this->newProject('wizard-fingerprint@example.com');
+        $checklist = $this->checklist();
+        $open = $checklist->wizardFingerprint($project);
+
+        self::assertSame($open, $checklist->wizardFingerprint($project));
+
+        $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $signedIn = $checklist->wizardFingerprint($project);
+        self::assertNotSame($open, $signedIn);
+
+        $bridge->repositories = [['projectId' => (string) $project->id, 'path' => '/work/loupe', 'remoteUrl' => '']];
+        $this->em()->flush();
+        $linked = $checklist->wizardFingerprint($project);
+        self::assertNotSame($signedIn, $linked);
+
+        $bridge->repositories = [['projectId' => (string) $project->id, 'path' => '/work/loupe', 'remoteUrl' => 'git@github.com:acme/loupe.git']];
+        $this->em()->flush();
+        self::assertNotSame($linked, $checklist->wizardFingerprint($project));
+
+        $project->agentFirstSeenAt = new \DateTimeImmutable();
+        $this->em()->flush();
+        self::assertNotSame($linked, $checklist->wizardFingerprint($project));
+    }
+
     private function bind(Project $project): void
     {
         $this->em()->persist(new WorkflowBinding($project, 'simple', 1, []));

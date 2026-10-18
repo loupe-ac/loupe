@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Module\Bridge\Command;
 
+use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\BridgeLiveness;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use Psr\Clock\ClockInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * No heartbeat marks the moment a bridge goes quiet, so the minute sweep looks
@@ -27,6 +29,7 @@ final readonly class AnnounceQuietBridgesHandler
         private BridgeLiveness $liveness,
         private WorkerRunChangedPublisher $publisher,
         private ClockInterface $clock,
+        private EventDispatcherInterface $events,
     ) {
     }
 
@@ -44,6 +47,9 @@ final readonly class AnnounceQuietBridgesHandler
         }
         foreach ($told as $project) {
             $this->publisher->runsChanged($project);
+        }
+        if ([] !== $told) {
+            $this->events->dispatch(new BridgeReported(array_keys($told)));
         }
 
         return array_values($told);

@@ -18,6 +18,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @phpstan-import-type AccountRow from Bridge
  * @phpstan-import-type CommandEntryRow from Bridge
  * @phpstan-import-type WorktreeRow from Bridge
+ * @phpstan-import-type RepositoryRow from Bridge
  */
 final class RecordBridgeHeartbeatRequest
 {
@@ -38,6 +39,9 @@ final class RecordBridgeHeartbeatRequest
 
     /** Far above the worktrees one bridge holds, and small enough to bound the JSON column. */
     public const int MAX_WORKTREES = 200;
+
+    /** Far above the projects one bridge follows, and small enough to bound the JSON column. */
+    public const int MAX_REPOSITORIES = 500;
 
     /** Far above the features one bridge reports, and small enough to bound the JSON column. */
     public const int MAX_CAPABILITIES = 20;
@@ -64,6 +68,7 @@ final class RecordBridgeHeartbeatRequest
      * @param list<BridgeAccountInput>|null      $accounts       null from a bridge that predates account checks
      * @param list<BridgeCommandEntryInput>|null $commandEntries null from a bridge that predates command entries
      * @param list<BridgeWorktreeInput>|null     $worktrees      null from a bridge that predates worktrees
+     * @param list<BridgeRepositoryInput>|null   $repositories   null from a bridge that predates repositories
      * @param list<string>|null                  $workKinds      null from a bridge that predates work kinds
      */
     public function __construct(
@@ -135,6 +140,12 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $worktrees = null,
+
+        #[Assert\All([new Assert\Type(BridgeRepositoryInput::class)])]
+        #[Assert\Count(max: self::MAX_REPOSITORIES)]
+        #[Assert\Type('list')]
+        #[Assert\Valid]
+        public ?array $repositories = null,
 
         #[Assert\All([new Assert\Type('string'), new Assert\Regex(pattern: Bridge::WORK_KIND_PATTERN)])]
         #[Assert\Count(max: self::MAX_WORK_KINDS)]
@@ -305,6 +316,25 @@ final class RecordBridgeHeartbeatRequest
             'branch' => $worktree->branch ?? '',
             'path' => $worktree->path ?? '',
         ], array_values($this->worktrees));
+    }
+
+    /**
+     * The repository rows as the bridge row stores them, with the project id in
+     * canonical form. Null when the bridge sent no report.
+     *
+     * @return list<RepositoryRow>|null
+     */
+    public function repositories(): ?array
+    {
+        if (null === $this->repositories) {
+            return null;
+        }
+
+        return array_map(static fn (BridgeRepositoryInput $repository): array => [
+            'projectId' => Uuid::fromString($repository->projectId ?? '')->toRfc4122(),
+            'path' => $repository->path ?? '',
+            'remoteUrl' => $repository->remoteUrl ?? '',
+        ], array_values($this->repositories));
     }
 
     /**
