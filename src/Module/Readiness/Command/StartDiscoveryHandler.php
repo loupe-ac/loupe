@@ -60,7 +60,7 @@ final readonly class StartDiscoveryHandler
         $run = $this->em->wrapInTransaction(function () use ($command, $project): DiscoveryRun|DiscoveryRunning {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             $latest = $this->discoveryRuns->latestForProject($project);
-            if (DiscoveryRunState::Requested === $latest?->state) {
+            if (null !== $latest && \in_array($latest->state, [DiscoveryRunState::Requested, DiscoveryRunState::Revising], true)) {
                 return new DiscoveryRunning($latest->card->number);
             }
 

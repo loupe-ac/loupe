@@ -15,6 +15,20 @@ rules:
                   - The Loupe plugin skills are installed for the agent, with the loupe-discovery skill
                   - The bridge rule file maps the discovery kind, or sets appPrompts to true
 
+    # The owner asked for changes to the report. An approval or a failure ends the run, so the rule turns false and the engine cancels the request.
+    - id: discovery-revise
+      slot: '@backlog'
+      when: { card.discovery.revising: {} }
+      then:
+          request:
+              kind: discovery-revise
+              onTimeout: expire
+              onNoTaker: fail
+              prompt: discovery-revise
+              checks:
+                  - The Loupe plugin skills are installed for the agent, with the loupe-discovery skill
+                  - The bridge rule file maps the discovery-revise kind, or sets appPrompts to true
+
     - id: post-widget-review
       when: { card.site_review.verdict_unsent: {} }
       then: { forge-write: { write: post-review } }
