@@ -163,6 +163,7 @@ final class GitIdentityComponentTest extends WebTestCase
         $warning = $crawler->filter('[data-testid="git-identity-warning"]');
         self::assertStringContainsString('This machine pushes as your GitHub account. You cannot approve its pull requests.', $warning->text());
         self::assertStringContainsString('Check', $crawler->filter('[data-git-identity="owner-account"]')->text());
+        self::assertStringEndsWith('/getting-started/agent-github-account/', (string) $warning->filter('[data-testid="git-identity-guide"]')->attr('href'));
     }
 
     public function test_the_owner_match_prefers_the_numeric_id_over_the_login(): void
@@ -189,6 +190,7 @@ final class GitIdentityComponentTest extends WebTestCase
         $warning = $crawler->filter('[data-testid="git-identity-warning"]');
         self::assertStringContainsString('This machine pushes as riley-dev. If this is your own account, you cannot approve its pull requests.', $warning->text());
         self::assertStringNotContainsString('your GitHub account', $warning->text());
+        self::assertStringEndsWith('/getting-started/agent-github-account/', (string) $warning->filter('[data-testid="git-identity-guide"]')->attr('href'));
     }
 
     public function test_a_login_that_differs_from_the_held_owner_login_gets_the_conditional_warning(): void
@@ -198,7 +200,9 @@ final class GitIdentityComponentTest extends WebTestCase
         $crawler = $this->connectPage($client, $project);
 
         self::assertCount(1, $crawler->filter('[data-git-identity="maybe-owner-account"]'));
-        self::assertStringContainsString('If this is your own account', $crawler->filter('[data-testid="git-identity-warning"]')->text());
+        $warning = $crawler->filter('[data-testid="git-identity-warning"]');
+        self::assertStringContainsString('If this is your own account', $warning->text());
+        self::assertCount(1, $warning->filter('[data-testid="git-identity-guide"]'));
     }
 
     public function test_a_machine_that_gave_no_login_is_unknown(): void

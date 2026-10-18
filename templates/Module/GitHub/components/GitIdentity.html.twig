@@ -40,9 +40,7 @@
     {% if line.state.warns %}
     <twig:Ds:Flash severity="warning" class="lp-connect-flash" data-testid="git-identity-warning">
         {{ ('github.identity.warning.' ~ line.state.value)|trans({'%login%': line.pushLogin, '%machine%': line.bridgeLabel}) }}
-        {% if line.state.value == 'owner-account' %}
-        <a class="lp-workshop-text-link" href="{{ app_docs_url }}/getting-started/agent-github-account/" target="_blank" rel="noopener noreferrer">{{ 'github.identity.docs_link'|trans }}</a>
-        {% endif %}
+        <a class="lp-workshop-text-link" href="{{ app_docs_url }}/getting-started/agent-github-account/" target="_blank" rel="noopener noreferrer" data-testid="git-identity-guide">{{ 'github.identity.docs_link'|trans }}</a>
     </twig:Ds:Flash>
     {% endif %}
     {% else %}
