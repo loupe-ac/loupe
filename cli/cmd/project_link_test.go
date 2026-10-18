@@ -48,6 +48,7 @@ func inRepo(t *testing.T, baseURL string) string {
 	// Pin Claude Code's configuration at an empty directory, so no test here
 	// reads, or reports on, the real one belonging to whoever runs the suite.
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	t.Setenv("LOUPE_URL", "")
 
 	dir := t.TempDir()
 	previous, err := os.Getwd()

@@ -96,7 +96,7 @@ func newInitCmd() *cobra.Command {
 		Short: "Set up Loupe for this repository: sign in, link the project, write the rules and start the bridge",
 		Long: "Runs the first-run steps in order. Each step skips itself when it is done already, " +
 			"so you can run the command again and nothing changes.\n\n" +
-			"1. Sign in with `loupe login`, when you are not signed in. --url names the instance.\n" +
+			"1. Sign in with `loupe login`, when you are not signed in. --url names the instance. A login to another instance stops the command.\n" +
 			"2. Choose the project. --project names it. Else " + projectfile.Name + " in this directory " +
 			"names it. Else the command lists your projects. When your login covers none, it " +
 			"creates one from the `origin` remote of this repository.\n" +
@@ -185,6 +185,14 @@ func initSignIn(cmd *cobra.Command, o initOptions) (config.Config, error) {
 	out := cmd.OutOrStdout()
 	cfg, err := config.Load()
 	if err == nil {
+		// The machine holds one login, so a request for another instance
+		// stops rather than replace the login a running bridge uses.
+		if o.baseURL != "" || os.Getenv("LOUPE_URL") != "" {
+			want := resolveBaseURL(o.baseURL, os.Getenv("LOUPE_URL"))
+			if !strings.EqualFold(want, strings.TrimRight(cfg.BaseURL, "/")) {
+				return config.Config{}, fmt.Errorf("you are signed in to %s, not %s: run `loupe login --url %s` to switch, then run `loupe init` again", cfg.BaseURL, want, want)
+			}
+		}
 		step(out, "Sign in", "skipped", "you are signed in to "+cfg.BaseURL)
 
 		return cfg, nil

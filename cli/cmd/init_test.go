@@ -250,6 +250,40 @@ func TestInitSignsInWhenNoLoginIsStored(t *testing.T) {
 	}
 }
 
+func TestInitRefusesAURLForAnotherInstanceThanTheStoredLogin(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, "https://a.loupe.test")
+
+	for _, args := range [][]string{{"--no-mcp", "--url", w.server.URL}, {"--no-mcp"}} {
+		if len(args) == 1 {
+			t.Setenv("LOUPE_URL", w.server.URL+"/")
+		}
+		out, err := runInitCmd(t, "n\n", args...)
+		if err == nil || !strings.Contains(err.Error(), "signed in to https://a.loupe.test, not "+w.server.URL) || !strings.Contains(err.Error(), "loupe login --url "+w.server.URL) {
+			t.Errorf("init %v: want a refusal that names both instances, got %v\n%s", args, err, out)
+		}
+		if strings.Contains(out, "Project:") {
+			t.Errorf("init %v went on past sign-in:\n%s", args, out)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("init wrote %s: %v", projectfile.Name, err)
+	}
+	if stored, err := config.Load(); err != nil || stored.BaseURL != "https://a.loupe.test" {
+		t.Errorf("stored login = %+v, %v", stored, err)
+	}
+}
+
+func TestInitAcceptsAURLThatNamesTheStoredLogin(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--url", w.server.URL+"/")
+	if err != nil || !strings.Contains(out, "Sign in: skipped") {
+		t.Errorf("init: %v\n%s", err, out)
+	}
+}
+
 func TestInitKeepsTheProjectFileAndUsesTheFlagOverTheList(t *testing.T) {
 	w := newInitWorld(t, devSite()+`,{"id":"`+secondProject+`","slug":"other","name":"Other"}`)
 	dir := inRepo(t, w.server.URL)
