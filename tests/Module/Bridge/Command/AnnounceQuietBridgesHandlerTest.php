@@ -61,6 +61,23 @@ final class AnnounceQuietBridgesHandlerTest extends KernelTestCase
         self::assertSame([[(string) $followed->id]], array_map(static fn (BridgeReported $event): array => $event->projectIds, $reported->of(BridgeReported::class)));
     }
 
+    public function test_a_quiet_bridge_without_pools_is_reported_and_reloads_no_pill(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock(self::NOW));
+        $em = $this->em();
+        $owner = $this->user($em, 'announce-quiet-no-pools@example.com');
+        $followed = $this->project($em, $owner, 'Followed');
+        $this->seedBridge($em, $owner, projects: [(string) $followed->id], lastSeenAt: new \DateTimeImmutable('2026-09-23 11:56:00'));
+        $reported = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeReported::class, $reported);
+
+        self::assertSame([], $this->announce());
+        self::assertSame([[(string) $followed->id]], array_map(static fn (BridgeReported $event): array => $event->projectIds, $reported->of(BridgeReported::class)));
+    }
+
     /** @return list<Project> */
     private function announce(): array
     {
