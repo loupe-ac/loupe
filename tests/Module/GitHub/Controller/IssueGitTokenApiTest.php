@@ -11,6 +11,8 @@ use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppApi;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubGitTokenIssuer;
+use App\Module\GitHub\Service\GitHubGitTokenRefused;
 use App\Module\Project\Entity\Project;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\OAuthScenario;
@@ -198,6 +200,49 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertSame([], $this->requests);
     }
 
+    public function test_a_token_bound_to_one_project_gets_no_token_for_another_project_of_its_owner(): void
+    {
+        [$owner, $project] = $this->managedProject('bound', ['contents' => 'write', 'pull_requests' => 'write']);
+        $bound = $this->scenario->createProject($owner, 'Bound site');
+
+        $this->call(AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $bound), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([], $this->requests);
+    }
+
+    public function test_a_token_bound_to_the_project_gets_its_token(): void
+    {
+        [$owner, $project] = $this->managedProject('boundsame', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+
+        $this->call(AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $project), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(201);
+    }
+
+    public function test_the_project_can_push_when_a_later_installation_grants_what_the_first_lacks(): void
+    {
+        [, $project] = $this->managedProject('later', ['contents' => 'read', 'pull_requests' => 'write']);
+        $this->installation($project, 71_005, 9_005);
+        $this->responses = [$this->answer([
+            ['id' => self::INSTALLATION, 'account' => ['login' => 'acme'], 'permissions' => ['contents' => 'read', 'pull_requests' => 'write']],
+            ['id' => 71_005, 'account' => ['login' => 'acme'], 'permissions' => ['contents' => 'write', 'pull_requests' => 'write']],
+        ])];
+
+        self::assertNull($this->issuer()->refusal($project));
+    }
+
+    public function test_the_project_cannot_push_when_no_installation_grants_the_push(): void
+    {
+        [, $project] = $this->managedProject('none', ['contents' => 'read', 'pull_requests' => 'write']);
+
+        $refusal = $this->issuer()->refusal($project);
+
+        self::assertNotNull($refusal);
+        self::assertSame(GitHubGitTokenRefused::MISSING_GRANT, $refusal->cause);
+    }
+
     public function test_it_answers_bad_gateway_when_github_fails(): void
     {
         [$owner, $project] = $this->managedProject('down', ['contents' => 'write', 'pull_requests' => 'write']);
@@ -223,6 +268,14 @@ final class IssueGitTokenApiTest extends WebTestCase
         $this->useApi();
 
         return [$owner, $project];
+    }
+
+    private function issuer(): GitHubGitTokenIssuer
+    {
+        $issuer = static::getContainer()->get(GitHubGitTokenIssuer::class);
+        self::assertInstanceOf(GitHubGitTokenIssuer::class, $issuer);
+
+        return $issuer;
     }
 
     private function installation(Project $project, int $installationId, int $repositoryId, bool $newInstallation = true): void

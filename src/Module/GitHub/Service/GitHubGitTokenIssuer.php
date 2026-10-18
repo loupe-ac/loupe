@@ -53,6 +53,9 @@ final readonly class GitHubGitTokenIssuer
     }
 
     /**
+     * Serves the first candidate repository whose installation grants the push.
+     * When none does, the refusal of the first candidate stands for them all.
+     *
      * @param ?string $repositoryPath the `owner/name` to serve, or null for any repository of the project
      *
      * @return array{int, int, array<string, string>} the installation id, the repository id and the permissions to ask for
@@ -61,8 +64,45 @@ final readonly class GitHubGitTokenIssuer
      */
     private function resolve(Project $project, ?string $repositoryPath): array
     {
-        $installationId = null;
-        $repositoryId = null;
+        $candidates = $this->candidates($project, $repositoryPath);
+
+        try {
+            $installations = $this->api->installations();
+        } catch (GitHubAppApiFailed) {
+            throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
+        }
+
+        $first = null;
+        foreach ($candidates as [$installationId, $repositoryId]) {
+            $access = array_find($installations, fn ($candidate) => $candidate->id === $installationId);
+            $missing = null !== $access ? $access->missingWriteAccess(self::REQUIRED_GRANTS) : [];
+            if (null !== $access && [] === $missing) {
+                $permissions = array_fill_keys(self::REQUIRED_GRANTS, 'write');
+                if ([] === $access->missingWriteAccess([self::OPTIONAL_GRANT])) {
+                    $permissions[self::OPTIONAL_GRANT] = 'write';
+                }
+
+                return [$installationId, $repositoryId, $permissions];
+            }
+
+            $first ??= null === $access
+                ? new GitHubGitTokenRefused(GitHubGitTokenRefused::NO_INSTALLATION)
+                : new GitHubGitTokenRefused(GitHubGitTokenRefused::MISSING_GRANT, $missing);
+        }
+
+        throw $first;
+    }
+
+    /**
+     * The repositories of the project that live installations serve, as installation id and repository id pairs.
+     *
+     * @return non-empty-list<array{int, int}>
+     *
+     * @throws GitHubGitTokenRefused when the project has none
+     */
+    private function candidates(Project $project, ?string $repositoryPath): array
+    {
+        $candidates = [];
         $suspended = false;
         $otherRepository = false;
         foreach ($this->forgeRepositories->findByProject($project) as $row) {
@@ -90,38 +130,15 @@ final readonly class GitHubGitTokenIssuer
                 continue;
             }
 
-            $installationId = $installation->installationId;
-            $repositoryId = (int) $row->externalId;
-            break;
+            $candidates[] = [$installation->installationId, (int) $row->externalId];
         }
 
-        if (null === $installationId || null === $repositoryId) {
+        if ([] === $candidates) {
             throw new GitHubGitTokenRefused(match (true) {
                 $suspended => GitHubGitTokenRefused::INSTALLATION_SUSPENDED, $otherRepository => GitHubGitTokenRefused::NO_REPOSITORY, default => GitHubGitTokenRefused::NO_INSTALLATION,
             });
         }
 
-        try {
-            $installations = $this->api->installations();
-        } catch (GitHubAppApiFailed) {
-            throw new GitHubGitTokenRefused(GitHubGitTokenRefused::GITHUB_UNAVAILABLE);
-        }
-        $access = array_find($installations, fn ($candidate) => $candidate->id === $installationId);
-
-        if (null === $access) {
-            throw new GitHubGitTokenRefused(GitHubGitTokenRefused::NO_INSTALLATION);
-        }
-
-        $missing = $access->missingWriteAccess(self::REQUIRED_GRANTS);
-        if ([] !== $missing) {
-            throw new GitHubGitTokenRefused(GitHubGitTokenRefused::MISSING_GRANT, $missing);
-        }
-
-        $permissions = array_fill_keys(self::REQUIRED_GRANTS, 'write');
-        if ([] === $access->missingWriteAccess([self::OPTIONAL_GRANT])) {
-            $permissions[self::OPTIONAL_GRANT] = 'write';
-        }
-
-        return [$installationId, $repositoryId, $permissions];
+        return $candidates;
     }
 }

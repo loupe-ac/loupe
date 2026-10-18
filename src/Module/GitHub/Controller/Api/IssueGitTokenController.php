@@ -10,17 +10,20 @@ use App\Module\Account\Entity\User;
 use App\Module\GitHub\Command\IssueGitTokenCommand;
 use App\Module\GitHub\Command\IssueGitTokenHandler;
 use App\Module\GitHub\Service\GitHubGitTokenRefused;
+use App\Security\AuthenticatedCredential;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
  * Hands a managed worker a GitHub App token that opens one repository of one
- * project and no other. The firewall admits agent-scoped tokens alone. The
- * request names the repository, and the issuer serves only one the project holds.
+ * project and no other. The firewall admits agent-scoped tokens alone, and a
+ * token bound to one project reaches no other project of its owner. The request
+ * names the repository, and the issuer serves only one the project holds.
  *
  * The rate limit key expression sees only the request, the arguments and this
  * controller, so the key service rides on a public property.
@@ -37,6 +40,7 @@ final class IssueGitTokenController extends AppController
     public function __construct(
         private readonly IssueGitTokenHandler $issueGitToken,
         public readonly CredentialRateLimitKey $rateLimitKey,
+        private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -48,7 +52,12 @@ final class IssueGitTokenController extends AppController
         }
 
         try {
-            $token = ($this->issueGitToken)(new IssueGitTokenCommand($user, $handle, $payload->repository ?? throw new \LogicException('repository required after validation')));
+            $token = ($this->issueGitToken)(new IssueGitTokenCommand(
+                $user,
+                $handle,
+                $payload->repository ?? throw new \LogicException('repository required after validation'),
+                AuthenticatedCredential::of($this->tokenStorage->getToken())?->projectId,
+            ));
         } catch (DomainErrors $e) {
             return isset($e->errors['handle'])
                 ? $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND)
