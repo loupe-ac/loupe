@@ -1126,7 +1126,7 @@ final class InboxActionControllersTest extends WebTestCase
         $this->em()->flush();
     }
 
-    /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: null, proposedEntry: null, prompt: ?string}>|null $suggestions */
+    /** @param list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: null, proposedEntry?: null, prompt?: string|null}>|null $suggestions */
     private function sessionQuestion(?array $suggestions): InboxItem
     {
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Question, title: 'Which tag order?', blocking: true, options: ['By name', 'By use'], freeText: true);
