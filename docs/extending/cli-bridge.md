@@ -1243,6 +1243,45 @@ folder is gone. A recorded folder that the bridge cannot read fails the resume.
 [The before command](../../cli/README.md#the-before-command) in
 `cli/README.md` gives the fields, the timeouts and the folder contract.
 
+## Worker isolation
+
+`defaults.isolation` keeps the workers of different cards out of one checkout.
+It takes `worktree` or `none`. The default is `worktree`, and the bridge refuses
+the file at start for any other value.
+
+```yaml
+defaults:
+  account: claude
+  isolation: none
+```
+
+With `worktree`, the bridge makes a git worktree for a card before the first
+worker of the card. The folder is `<config dir>/loupe/worktrees/<project>/card-<number>`,
+next to the `runs` folder. It lies outside your repository, so the source
+checkout stays clean. The worktree starts detached at the default branch of the
+project. The bridge fetches `origin` first and ignores a failed fetch. Without
+an `origin` branch, it starts at the local branch.
+
+Later workers of the same card reuse the folder, with the changes the earlier
+workers left. A resume still starts in the folder that its transcript records.
+When the bridge cannot make the worktree, the run fails and its output gives the
+reason. A new worktree has no installed dependencies, so a repository that needs
+an install step still needs a [before command](#before-command).
+
+The worktree applies to a worker of a work request about a card. It does not
+apply to an entry with a `before` command, because the folder that command
+prints wins. It does not apply to an interactive or a command entry. With
+`none`, a worker runs in the project folder, as it did before the option existed.
+A reload reads the option again, and a run that is already in progress keeps its
+folder.
+
+The bridge handles the `teardown` request of a card itself when `isolation` is
+`worktree` and the work map has no `teardown` entry. It runs
+`git worktree remove --force` for the card folder and then `git worktree prune`
+in the project folder, and starts no agent. A folder that is already gone is not
+an error. The run reports as a command run. A `teardown` entry of your own wins,
+including an entry with `action: command`.
+
 ## Command action
 
 An entry with `action: command` runs a command for the card, and starts no
@@ -1451,7 +1490,8 @@ effort.
 Both shipped workflow templates
 request `teardown` each time a card reaches a terminal column. A `teardown`
 request that no bridge takes expires after the work timeout, and the card does
-not pause.
+not pause. With [worker isolation](#worker-isolation) on and no `teardown`
+entry, the bridge removes the worktree of the card without an agent.
 
 The `review` kind runs the `loupe-stage-review` skill of the Loupe plugin. The
 worker reads the change of the pull request at its head commit, and sends its

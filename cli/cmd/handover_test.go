@@ -304,7 +304,7 @@ exit $code
 
 	h2 := newHarnessWith(t, withMaxWorkers(defaultRules, 2), rules.Defaults{})
 	rec := h2.states()
-	h2.router.worker = defaultWorkerOps()
+	h2.router.worker = withProjectFolder(defaultWorkerOps())
 	h2.router.adopt(st)
 	h2.router.wg.Wait()
 
@@ -370,7 +370,7 @@ func adoptInto(t *testing.T, st handoverState) (*harness, api.RunStateReport) {
 	t.Helper()
 	h := newHarness(t)
 	rec := h.states()
-	h.router.worker = defaultWorkerOps()
+	h.router.worker = withProjectFolder(defaultWorkerOps())
 	h.router.adopt(st)
 	h.router.wg.Wait()
 
