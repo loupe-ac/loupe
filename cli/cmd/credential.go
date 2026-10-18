@@ -335,6 +335,11 @@ func parseGitHubRemote(remote string) (string, error) {
 		if _, set := u.User.Password(); set {
 			return "", fmt.Errorf("the origin remote %s holds a password, so git would not ask Loupe for a token", u.Redacted())
 		}
+		// The bridge helper is set for https://github.com, which git matches
+		// on the default port alone.
+		if port := u.Port(); port != "" && port != "443" {
+			return "", fmt.Errorf("the origin remote %s names port %s, so git would not ask Loupe for a token", u.Redacted(), port)
+		}
 		path = u.Path
 	}
 	path = strings.TrimSuffix(strings.TrimSuffix(path, "/"), ".git")

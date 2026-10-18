@@ -185,6 +185,45 @@ func TestWorkerEnvHelperRunsInGit(t *testing.T) {
 	}
 }
 
+// Every remote that parseGitHubRemote accepts gets its credential from the
+// bridge helper, never from a helper of the machine.
+func TestEveryAcceptedRemoteAsksTheBridgeHelper(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	dir := t.TempDir()
+	loupe := filepath.Join(dir, "loupe")
+	machine := filepath.Join(dir, "machine")
+	for path, script := range map[string]string{
+		loupe:   "#!/bin/sh\ncat >/dev/null\necho username=x-access-token\necho password=bridge-token\n",
+		machine: "#!/bin/sh\ncat >/dev/null\necho username=owner\necho password=machine-secret\n",
+	} {
+		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	creds := &credentialEnv{runID: "r1", socket: credSocket, loupe: loupe, binDir: filepath.Join(dir, "bin")}
+	env := workerEnv([]string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1"}, "s1", nil, creds)
+
+	remotes := []string{
+		"https://github.com/acme/site", "https://GitHub.com/acme/site", "https://user@github.com/acme/site",
+		"https://github.com:443/acme/site", "https://github.com:9999/acme/site", "https://github.com:80/acme/site",
+	}
+	for _, remote := range remotes {
+		if _, err := parseGitHubRemote(remote); err != nil {
+			continue
+		}
+		cmd := exec.Command(git, "-c", "credential.helper="+machine, "credential", "fill")
+		cmd.Env = env
+		cmd.Stdin = strings.NewReader("url=" + remote + "\n\n")
+		out, err := cmd.CombinedOutput()
+		if err != nil || !strings.Contains(string(out), "password=bridge-token\n") {
+			t.Errorf("git credential fill for %s = %v: %q, want the bridge token", remote, err, out)
+		}
+	}
+}
+
 // When the bridge helper fails, git asks no askpass program of the machine.
 func TestWorkerEnvFailingHelperUsesNoMachineAskpass(t *testing.T) {
 	git, err := exec.LookPath("git")
