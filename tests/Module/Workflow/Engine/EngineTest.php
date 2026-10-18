@@ -118,6 +118,7 @@ use App\Outbox\OutboxWriter;
 use App\Tests\Module\Board\Workflow\FakeForgeWriter;
 use App\Tests\Module\Workflow\Action\ActionScenario;
 use App\Tests\Module\Workflow\Action\FakeRuleAsks;
+use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
@@ -173,6 +174,8 @@ final class EngineTest extends KernelTestCase
 
     /** @var (\Closure(): void)|null */
     private ?\Closure $settleJoinedWork = null;
+
+    private ?AppRules $appRules = null;
 
     private FakeRuleAsks $asks;
 
@@ -917,6 +920,19 @@ final class EngineTest extends KernelTestCase
         self::assertSame(['repair', 'work', null, 'failed'], [$repair->kind, $repair->ruleId, $repair->capability, $repair->context->reason]);
         $state = $this->ruleState($card, 'work');
         self::assertSame([2, true, null, $repair->id?->toRfc4122()], [$state->attempts, $state->repaired, $state->dueAt, $state->workRequestId?->toRfc4122()]);
+    }
+
+    public function test_the_repair_of_an_app_rule_carries_the_repair_prompt_and_not_the_prompt_of_the_rule(): void
+    {
+        $card = $this->boundCard([], onWorkFailed: self::REPAIR);
+        $this->appRules = new AppRules($this->service(TemplateParser::class), AppRulesTest::FIXTURE);
+        $this->moveTo($card, 'backlog');
+
+        $repair = $this->repairing($card);
+
+        self::assertSame(['repair', 'app-groom'], [$repair->kind, $repair->ruleId]);
+        self::assertSame($this->service(KindPrompts::class)->forKind('repair'), $repair->prompt);
+        self::assertStringContainsString('Use the loupe-stage-repair skill.', $repair->prompt ?? '');
     }
 
     public function test_a_repair_request_that_cannot_open_pauses_the_card(): void
@@ -4126,7 +4142,7 @@ final class EngineTest extends KernelTestCase
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), $this->service(TemplateParser::class), $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), $this->service(TemplateParser::class), $this->appRules ?? $this->service(AppRules::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),
