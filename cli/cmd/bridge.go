@@ -51,7 +51,7 @@ func newBridgeCmd() *cobra.Command {
 		Use:   "bridge",
 		Short: "Bridge Loupe events into local workers",
 	}
-	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
+	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
 
 	return cmd
 }
@@ -61,6 +61,8 @@ type bridgeRunOptions struct {
 	rulesPath, permissionMode, model, logFile string
 	// resumeFile and rolledBackFrom carry a handover from a former image.
 	resumeFile, rolledBackFrom string
+	// daemon starts the bridge detached and returns.
+	daemon bool
 }
 
 func newBridgeRunCmd() *cobra.Command {
@@ -76,6 +78,8 @@ func newBridgeRunCmd() *cobra.Command {
 			"The bridge refuses to start without the file, and checks every project and " +
 			"column slug against the server first. It follows every project you own on " +
 			"one connection, and ignores the events of a project the file does not map.\n\n" +
+			"With -d the bridge runs in the background, and its log goes to the log file. " +
+			"Run `loupe bridge stop` to stop it.\n\n" +
 			"Run `loupe bridge reload` to apply a changed rule file without a restart. " +
 			"A second bridge on the same rule file refuses to start.\n\n" +
 			"The defaults block of the rule file and each rule win over --permission-mode " +
@@ -87,6 +91,10 @@ func newBridgeRunCmd() *cobra.Command {
 			"while its card has a worker. The bridge writes one JSON " +
 			"object per line to stdout and to --log-file.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if o.daemon {
+				return startDaemon(cmd, o)
+			}
+
 			return startBridge(cmd, o)
 		},
 	}
@@ -96,6 +104,7 @@ func newBridgeRunCmd() *cobra.Command {
 	cmd.Flags().Int(maxWorkersFlag, rules.DefaultMaxWorkers, "does nothing; set maxWorkers in rules.yaml")
 	cmd.Flags().MarkDeprecated(maxWorkersFlag, "it does nothing; set maxWorkers in rules.yaml instead")
 	cmd.Flags().StringVar(&o.logFile, "log-file", "", "append the JSON log to this `path`; empty uses bridge.log in your config directory")
+	cmd.Flags().BoolVarP(&o.daemon, daemonFlag, "d", false, "start the bridge in the background and return; `loupe bridge stop` stops it")
 	cmd.Flags().StringVar(&o.resumeFile, resumeHandoverFlag, "", "take over the bridge that a former image handed over in this `file`")
 	cmd.Flags().StringVar(&o.rolledBackFrom, rolledBackFromFlag, "", "the `version` that handed the bridge back")
 	cmd.Flags().MarkHidden(resumeHandoverFlag)
@@ -507,6 +516,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	var served <-chan struct{}
 	if r.control != nil {
 		served = serveControl(ctx, r.control, controlOps{
+			stop:   stop,
 			reload: func(ctx context.Context) reloadResult { return r.reload(ctx, r.source) },
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
