@@ -273,6 +273,9 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		agent:      cfg.AgentAccount,
 		pushLogin:  checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log),
 	}
+	if control != nil {
+		r.credentials = newCredentialBroker(apiClient(cfg), cfg.AgentAccount, control.Addr().String())
+	}
 	if dir, err := config.Dir(); err == nil {
 		r.assumeAutoUpdate = migrateAutoUpdate(bl.log, dir, path, o.resumeFile != "")
 	}
@@ -495,6 +498,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		}
 		hb.onReply, hb.onLost = r.onHeartbeatReply, r.loseClaims
 		hb.worktrees = func(ctx context.Context) []api.WorktreeReport { return worktreeReports(ctx, r.rules()) }
+		hb.repositories = func(ctx context.Context) []api.RepositoryReport { return repositoryReports(ctx, r.rules()) }
 		// Adopted runs can end on their own goroutines, and read heartbeat
 		// under mu.
 		r.mu.Lock()
@@ -518,6 +522,13 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		served = serveControl(ctx, r.control, controlOps{
 			stop:   stop,
 			reload: func(ctx context.Context) reloadResult { return r.reload(ctx, r.source) },
+			credential: func(ctx context.Context, runID string) credentialResult {
+				if r.credentials == nil {
+					return credentialResult{Problem: "this bridge hands out no credentials"}
+				}
+
+				return r.credentials.answer(ctx, runID)
+			},
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					return updateResult{From: version, Outcome: outcomeFailed, Problem: "this bridge runs no update checks"}

@@ -12,6 +12,7 @@ use App\Module\Bridge\Command\RecordBridgeHeartbeatHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
+use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\Service\CliCompatibility;
 use App\Module\Bridge\Service\HostSampling;
@@ -580,6 +581,52 @@ final class RecordBridgeHeartbeatHandlerTest extends KernelTestCase
         self::assertSame([], $bridge->worktrees);
         self::assertSame('2026-09-14 16:02:00', $bridge->commandEntriesReportedAt?->format('Y-m-d H:i:s'));
         self::assertSame('2026-09-14 16:02:00', $bridge->worktreesReportedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_repositories_are_replaced_kept_and_cleared(): void
+    {
+        self::bootKernel();
+        $clock = new MockClock('2026-09-14 16:00:00');
+        self::getContainer()->set('clock', $clock);
+        $owner = $this->user($this->em(), 'heartbeat-repositories-handler@example.com');
+        $bridgeId = Uuid::v4();
+        $handler = $this->handler();
+        $repository = ['projectId' => (string) Uuid::v7(), 'path' => '/work/main', 'remoteUrl' => 'git@github.com:acme/loupe.git'];
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+        $bridge = $this->reload($owner, $bridgeId);
+        self::assertNull($bridge->repositories);
+        self::assertNull($bridge->repositoriesReportedAt);
+
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', repositories: [$repository]));
+        $clock->modify('+1 minute');
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7'));
+
+        $bridge = $this->reload($owner, $bridgeId);
+        self::assertSame([$repository], $bridge->repositories);
+        self::assertSame('2026-09-14 16:00:00', $bridge->repositoriesReportedAt?->format('Y-m-d H:i:s'));
+
+        $clock->modify('+1 minute');
+        $handler(new RecordBridgeHeartbeatCommand($owner, $bridgeId, [], 'b4e39aa7', repositories: []));
+
+        $bridge = $this->reload($owner, $bridgeId);
+        self::assertSame([], $bridge->repositories);
+        self::assertSame('2026-09-14 16:02:00', $bridge->repositoriesReportedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_every_heartbeat_announces_the_projects_it_touched(): void
+    {
+        self::bootKernel();
+        $owner = $this->user($this->em(), 'heartbeat-reported@example.com');
+        $project = $this->project($this->em(), $owner, 'Reported');
+        $reported = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeReported::class, $reported);
+
+        $this->handler()(new RecordBridgeHeartbeatCommand($owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7'));
+
+        self::assertSame([[(string) $project->id]], array_map(static fn (BridgeReported $event): array => $event->projectIds, $reported->of(BridgeReported::class)));
     }
 
     public function test_a_first_heartbeat_answers_no_commands_and_stores_the_reports(): void

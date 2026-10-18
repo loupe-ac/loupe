@@ -881,19 +881,24 @@ set up. The bridge does not check again until it restarts.
 
 Each worker gets these variables when an account is stored. The bridge
 first removes the inherited `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_AUTHOR_NAME`,
-`GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`.
+`GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`. It sets no
+`GH_TOKEN`, so the token never sits in the environment of the worker.
 
 | Variable | Value |
 |---|---|
-| `GH_TOKEN` | The stored token, which `gh` reads |
 | `GIT_AUTHOR_NAME`, `GIT_COMMITTER_NAME` | The login |
 | `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_EMAIL` | `<id>+<login>@users.noreply.github.com` |
+| `LOUPE_RUN_ID`, `LOUPE_CONTROL_SOCKET` | The run, and the control socket of the bridge. See [Credentials for workers](#credentials-for-workers) |
+| `GIT_TERMINAL_PROMPT`, `GCM_INTERACTIVE` | `0` and `never`, so git never asks a person for a password |
+| `GIT_ASKPASS` | `false`, so git uses no askpass program of your machine when the bridge helper fails |
+| `PATH` | The `bin` folder of the run first, which holds a `gh` wrapper |
 | `GIT_CONFIG_KEY_n`, `GIT_CONFIG_VALUE_n` | Two `credential.https://github.com.helper` entries and two `url.https://github.com/.insteadOf` entries |
 | `GIT_CONFIG_COUNT` | The inherited count plus four |
 
 The first helper entry is empty, which removes every helper that your git
-configuration names for `github.com`. The second helper answers with the login
-and `$GH_TOKEN`. The two `insteadOf` entries change a GitHub SSH remote,
+configuration names for `github.com`. The second helper runs
+`loupe credential`, which asks the bridge for the login and the stored token each
+time git needs them. The two `insteadOf` entries change a GitHub SSH remote,
 `git@github.com:` or `ssh://git@github.com/`, to HTTPS. A worker then pushes
 with the token, never with the SSH key of the machine. A rule in your own git
 configuration that changes `https://github.com/` to SSH, with `insteadOf` or
@@ -901,6 +906,84 @@ configuration that changes `https://github.com/` to SSH, with `insteadOf` or
 machine of the bridge. An inherited `GIT_CONFIG_COUNT` keeps its entries, and the
 bridge numbers its own entries after them. A before command and a command
 action keep the bridge's own environment, so they push as you.
+
+## Credentials for workers
+
+A worker gets its GitHub credentials from the bridge, and the bridge gets them
+from one of two places. A worker with an [agent account](#agent-account) gets the
+stored token and login. The bridge makes no call to Loupe for it.
+
+Otherwise the bridge asks the [git token endpoint](#git-token-endpoint) each
+time a worker starts, also when it holds a token already. The bridge reads
+`owner/name` from every fetch and push address of the `origin` remote in the
+folder of the worker, because git pushes to each push address. An address can be
+`https://github.com/<owner>/<name>`, `git@github.com:<owner>/<name>` or
+`ssh://git@github.com/<owner>/<name>`, each with or without `.git`. All the
+addresses must name the same GitHub repository. An `https` address must hold no
+password, because git then pushes with that password and never asks the bridge.
+Any other SSH address of GitHub, such as one with a port, another user or an
+uppercase host, is refused. The `insteadOf` entries do not change it, so git
+would push it with the SSH key of the machine.
+
+The bridge reads each address as the worker's git sees it, with the worker's
+`insteadOf` entries added to your git configuration. When a rule of your own
+still sends an address to SSH, the bridge refuses the address. Remove that rule
+on the machine of the bridge.
+
+| Answer | The worker |
+|---|---|
+| A token | is managed |
+| 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
+| 404 with no error code, from a server without the route | keeps the git setup of the machine |
+| A folder with no `origin` remote, or an `origin` remote with no address on GitHub | keeps the git setup of the machine |
+| Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, an address with a password, another SSH address of GitHub, or an address that a rule of your git configuration sends to SSH | is managed, and its credentials fail until the cause ends |
+
+A managed worker gets the same environment as a worker with an agent account,
+except for the git identity. The bridge leaves `GIT_AUTHOR_*` and
+`GIT_COMMITTER_*` as they are, and git uses the identity of the machine. The
+helper answers with the user name `x-access-token` and the App token. The
+`insteadOf` entries send an SSH remote through HTTPS, as for the agent account.
+
+The bridge keeps one token for each project and repository. It replaces the
+token when less than five minutes remain. Requests that arrive together cause
+one call. When a replacement fails, the bridge keeps using the old token until
+it ends. When the endpoint answers that Loupe manages the identity no more, the
+bridge drops the token at once.
+
+Nothing falls back to the machine. When the helper, the `gh` wrapper or
+`loupe credential` gets no token, it prints one line to stderr and exits with
+status 1. The cause is the code the endpoint gave, such as `missing_grant` or
+`no_installation`. The Connect page of the project shows the same cause.
+
+### The credential command
+
+`loupe credential` prints a GitHub token for the run of the worker that calls
+it. It reads `LOUPE_RUN_ID` and `LOUPE_CONTROL_SOCKET` from the environment, and
+the bridge sets both.
+
+| Call | Effect |
+|---|---|
+| `loupe credential` | Prints the bare token and a newline |
+| `loupe credential get` | Reads a git credential request from stdin. For `protocol=https` and `host=github.com`, or no host, it prints `username=<login>`, `password=<token>` and a blank line. For any other request it prints nothing |
+| `loupe credential store`, `loupe credential erase` | Does nothing and exits 0 |
+
+The `gh` wrapper is the script `bin/gh` in the run folder. It finds the real
+`gh` on the `PATH` without its own folder, gets a token from `loupe credential`,
+and runs the real `gh` with `GH_TOKEN` set for that one call. It exits with 127
+when no `gh` exists.
+
+The command talks to the control socket of the bridge with the op `credential`:
+`{"op":"credential","runId":"<id>"}`. The answer is one JSON line with `ok`,
+`login`, `token`, `expiresAt` and `problem`. The bridge answers only for a run
+that it started or adopted. It forgets a run when the worker ends. The socket
+has mode 0600, so only your user can ask.
+
+During an [update handover](#the-handover) the new image listens on the same
+socket. `loupe credential` retries a refused or missing socket every 200
+milliseconds for 5 seconds. The bridge writes the project and the credential
+mode into `run.json`, so the new image answers for an adopted run. A worker
+must run `loupe credential` each time it needs a token, and must never store
+the token.
 
 ## Experiments
 
@@ -1974,3 +2057,46 @@ columns endpoint, and `cardId` is the card's uuid.
 | 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
 | 404 | `{"error":"card_not_found"}` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
 | 429 | | more than 60 reads in one minute from one token, counted together with the columns endpoint |
+
+## Git token endpoint
+
+`POST /api/projects/{handle}/git-token` returns a GitHub App token for one
+repository of one project. The token opens that repository and no other, with
+Contents and Pull requests write access, and Workflows write access when the
+installation grants it. GitHub ends it after one hour. The handle follows the
+same rules as the columns endpoint.
+
+The JSON body names the repository as `owner/name`, as the git remote of the
+worker names it. Loupe serves it only when a live installation of the GitHub App
+delivers that repository to the project. The match ignores case. A project can
+link several repositories, so each worker asks for the one it pushes to.
+
+```json
+{ "repository": "acme/site" }
+```
+
+```json
+{ "token": "ghs_example", "expiresAt": "2026-10-18T14:00:00+00:00" }
+```
+
+A project holds the setting "Loupe manages the git identity of agents". It is on
+for every project. With the setting off, the endpoint hands out no token.
+
+| Status | Body | When |
+|---|---|---|
+| 201 | the object above | the user owns the project, the setting is on, and the installation grants the access |
+| 401 | | the request carries no token |
+| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
+| 403 | `{"error":"git_identity_not_managed"}` | the setting is off for the project |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
+| 409 | `{"error":"no_repository","missing":[]}` | the project has installed repositories, and the named one is not among them |
+| 422 | | the body names no repository, or a value that is not `owner/name` |
+| 409 | `{"error":"app_not_configured","missing":[]}` | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
+| 409 | `{"error":"missing_grant","missing":["contents"]}` | the installation lacks write access to the permissions that `missing` names |
+| 429 | | more than 60 requests in one minute from one token |
+| 502 | `{"error":"github_unavailable","missing":[]}` | GitHub did not answer |
+
+The Connect page of the project shows the same cause under "Agents of this
+project cannot push", so the owner can install the App, grant the permission, or
+turn the setting off.

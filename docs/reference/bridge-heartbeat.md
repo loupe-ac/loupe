@@ -70,6 +70,7 @@ The path holds no project, because one bridge follows several projects.
 | `accounts` | optional. A list of at most 50 rows, one for each account the bridge checked. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `commandEntries` | optional. A list of at most 50 rows, one for each command entry of the `work:` map in `rules.yaml` that the inbox can run. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `worktrees` | optional. A list of at most 200 rows, one for each worktree of each followed project folder. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
+| `repositories` | optional. A list of at most 500 rows, one for each followed project whose folder the rule file names. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
 | `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workKinds` | optional. A list of at most 50 kinds of work the bridge can run, such as `fix` or `tech-design`. It holds the kinds of the rule file whose agent and account are on. A kind whose subject is `card` is its bare name. A kind of another subject is `<subject>:<kind>`, such as `analysis:cost-report`. Each kind and each subject starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. An empty list says that the bridge can run no kind. A missing or `null` value stores an empty list, so a bridge from before work kinds counts as able to run no kind until its CLI is upgraded |
@@ -138,8 +139,16 @@ Each row of `worktrees` holds these fields:
 | `branch` | required. The branch that the worktree has checked out, 1 to 255 characters |
 | `path` | required. The folder of the worktree, 1 to 4096 characters |
 
+Each row of `repositories` holds these fields:
+
+| Field | Rule |
+|---|---|
+| `projectId` | required. The project id, as a uuid. The server stores it in lower case |
+| `path` | required. The folder of the project in the rule file, with `~/` expanded, 1 to 4096 characters |
+| `remoteUrl` | optional. The `origin` remote of that folder, at most 2048 characters. An empty value says the bridge could not read one |
+
 The server stamps a report time from its own clock when a heartbeat carries a
-`commandEntries` list or a `worktrees` list, an empty list included. A
+`commandEntries`, `worktrees` or `repositories` list, an empty list included. A
 heartbeat with no list keeps the rows and their time. The
 [`bridge_list`](../using/mcp.md) tool shows the entries to a worker.
 
@@ -196,7 +205,7 @@ changes it. Bridges of different accounts never clash.
 
 A bridge with an [agent GitHub account](../getting-started/agent-github-account.md)
 sends the login of that account as `pushLogin`. The server stores it on the
-row of the bridge. The Agent GitHub account row of the
+row of the bridge. The Who pushes the code row of the
 [readiness guide](../using/workshop.md#the-readiness-guide) is done when a
 running bridge of the project sends the login that the owner recorded. The
 server compares the two logins without regard to case. The token of the
@@ -612,7 +621,7 @@ writes a `bridge.work_request_settled` record to the audit log.
 Deleting an account deletes the rows of its bridges and their commands. The
 data export holds the bridges in `bridges.json`, with the stored update state,
 version and install method, the hook rows, the worker pool rows with their
-report time, the account rows with their report time, the command entry rows and the worktree rows, each with its report time, the pause state, the capabilities, the work kinds, the name the bridge holds,
+report time, the account rows with their report time, the command entry rows, the worktree rows and the repository rows, each with its report time, the pause state, the capabilities, the work kinds, the name the bridge holds,
 the name it asked for and the push login. It holds the commands in
 `bridge_commands.json`. Deleting an account also deletes the host samples of
 its bridges. The data export holds them in `bridge_host_samples.json`, with the

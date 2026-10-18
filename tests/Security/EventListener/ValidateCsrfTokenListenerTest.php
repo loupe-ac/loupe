@@ -44,7 +44,7 @@ final class ValidateCsrfTokenListenerTest extends WebTestCase
     {
         yield 'resend-verification' => ['/register/resend'];
         yield 'wizard-skip' => ['/welcome/skip'];
-        yield 'wizard-finish' => ['/welcome/done/finish'];
+        yield 'wizard-continue' => ['/welcome/continue'];
         yield 'revoke-preview-token' => ['/account/connected-apps/preview-tokens/some-token/revoke'];
         yield 'revoke-preview-token to the card' => ['/account/connected-apps/preview-tokens/some-token/revoke/to-card'];
     }

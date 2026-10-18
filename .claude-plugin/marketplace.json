@@ -5,7 +5,7 @@
     "url": "https://github.com/ubermuda"
   },
   "description": "The Loupe plugin for Claude Code \u2014 skills for documents, the board, the inbox, site review, the workers and the card stages.",
-  "version": "0.40.0",
+  "version": "0.41.0",
   "plugins": [
     {
       "name": "loupe",

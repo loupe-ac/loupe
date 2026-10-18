@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import { agentAccessToken, createTest } from '../fixtures';
+import { hideReadinessGuide } from '../helpers';
 
 const test = createTest({
     email: `e2e-workshop-crew-${Date.now()}@example.com`,
@@ -23,7 +24,9 @@ test('Workshop shows reported connections and opens the matching details', async
     await expect(
         page.locator('[data-readiness-guide][data-readiness-layout="full"]'),
     ).toBeVisible();
-    await page.locator('[data-readiness-hide]').click();
+    await expect(page.locator('[data-readiness-hide]')).toHaveCount(0);
+    await hideReadinessGuide(page, projectId);
+    await page.goto(workshopUrl);
     const empty = page.locator('[data-workshop-crew-empty]');
     await expect(empty).toBeVisible();
     await expect(empty).toHaveAttribute('href', `${workshopUrl}/connect`);

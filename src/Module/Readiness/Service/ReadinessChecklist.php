@@ -76,14 +76,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $discovery = $this->discoveryRuns->latestForProject($project);
 
         return new WorkshopReadiness([
-            new WorkshopReadinessRow(
-                'agent',
-                'readiness.row.agent.label',
-                $agent,
-                $agent ? 'readiness.row.agent.done' : 'readiness.row.agent.open',
-                actionLabel: $agent ? null : 'readiness.row.agent.action',
-                actionUrl: $agent ? null : $connect,
-            ),
+            $this->agentRow($agent, $connect),
             $this->bridgeRow($takers, $connect, $this->urls->generate('app_project_agents', ['id' => (string) $projectId])),
             new WorkshopReadinessRow(
                 'github',
@@ -92,20 +85,109 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 $github ? 'readiness.row.github.done' : 'readiness.row.github.open',
                 actionLabel: null === $installUrl ? null : 'readiness.row.github.action',
                 actionUrl: $installUrl,
+                group: WorkshopReadinessRow::GROUP_PULL_REQUESTS,
             ),
             $this->agentAccountRow($project, $running),
             $this->repositoryRow($project, $discovery, $this->refusal($project, $takers, $binding)),
+            $this->widgetRow($project, $connect.'#site-review-widget'),
         ], $discovery?->card->number);
     }
 
-    /** The same reading as the engine takes for the request, so the row and the failure agree. */
+    /**
+     * The four rows of the setup wizard, in order: cli, repository_linked, agent and bridge.
+     * The agent and bridge rows are the ones of the guide.
+     *
+     * @return list<WorkshopReadinessRow>
+     */
+    #[\Override]
+    public function wizardRows(Project $project): array
+    {
+        $projectId = $project->id ?? throw new \LogicException('A stored project has an id.');
+        $connect = $this->urls->generate('app_project_connect', ['id' => (string) $projectId]);
+
+        return [
+            $this->cliRow($project, $connect),
+            $this->repositoryLinkedRow($project, $connect),
+            $this->agentRow(null !== $project->agentFirstSeenAt, $connect),
+            $this->bridgeRow(
+                $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true),
+                $connect,
+                $this->urls->generate('app_project_agents', ['id' => (string) $projectId]),
+            ),
+        ];
+    }
+
+    /** Changes when a row of the wizard changes what it shows: its flag, its status, its parameters or its detail. */
+    public function wizardFingerprint(Project $project): string
+    {
+        return hash('sha256', json_encode(array_map(
+            static fn (WorkshopReadinessRow $row): array => [$row->key, $row->done, $row->status, $row->statusParameters, $row->detail],
+            $this->wizardRows($project),
+        ), \JSON_THROW_ON_ERROR));
+    }
+
+    private function agentRow(bool $agent, string $connect): WorkshopReadinessRow
+    {
+        return new WorkshopReadinessRow(
+            'agent',
+            'readiness.row.agent.label',
+            $agent,
+            $agent ? 'readiness.row.agent.done' : 'readiness.row.agent.open',
+            actionLabel: $agent ? null : 'readiness.row.agent.action',
+            actionUrl: $agent ? null : $connect,
+        );
+    }
+
+    /** Done once the owner holds a bridge row, whichever project it follows. A live bridge leads the detail. */
+    private function cliRow(Project $project, string $connect): WorkshopReadinessRow
+    {
+        $bridges = $this->connections->forOwnerOf($project);
+        $lead = array_find($bridges, static fn (WorkshopConnection $connection): bool => !$connection->quiet) ?? $bridges[0] ?? null;
+        if (null === $lead) {
+            return new WorkshopReadinessRow('cli', 'readiness.row.cli.label', false, 'readiness.row.cli.open', actionLabel: 'readiness.row.cli.action', actionUrl: $connect);
+        }
+
+        return new WorkshopReadinessRow(
+            'cli',
+            'readiness.row.cli.label',
+            true,
+            $lead->quiet ? 'readiness.row.cli.quiet' : 'readiness.row.cli.done',
+            detail: $lead->label.', loupe '.$lead->cliVersion,
+        );
+    }
+
+    /** Done once a bridge that follows the project reported a folder for it. A live bridge leads the detail. */
+    private function repositoryLinkedRow(Project $project, string $connect): WorkshopReadinessRow
+    {
+        $linked = array_values(array_filter($this->connections->forProject($project), static fn (WorkshopConnection $connection): bool => null !== $connection->repositoryPath));
+        $lead = array_find($linked, static fn (WorkshopConnection $connection): bool => !$connection->quiet) ?? $linked[0] ?? null;
+        if (null === $lead) {
+            return new WorkshopReadinessRow('repository_linked', 'readiness.row.repository_linked.label', false, 'readiness.row.repository_linked.open', actionLabel: 'readiness.row.repository_linked.action', actionUrl: $connect);
+        }
+
+        return new WorkshopReadinessRow(
+            'repository_linked',
+            'readiness.row.repository_linked.label',
+            true,
+            'readiness.row.repository_linked.done',
+            detail: '' === ($lead->repositoryRemoteUrl ?? '') ? $lead->repositoryPath : $lead->repositoryPath.' ('.$lead->repositoryRemoteUrl.')',
+        );
+    }
+
+    /** The same reading as the engine takes for the request, so the row and the failure agree. The row names the machine when the reading does. */
     private function bridgeRow(WorkTakerReading $takers, string $connect, string $agents): WorkshopReadinessRow
     {
+        $named = null !== $takers->bridgeLabel;
         [$done, $status, $actionLabel, $actionUrl] = match ($takers->state) {
             WorkTakerState::None => [false, 'readiness.row.bridge.open', 'readiness.row.bridge.action', $connect],
-            WorkTakerState::NotCapable => [false, $takers->appPromptsMissing ? 'readiness.row.bridge.not_capable_app_prompts' : 'readiness.row.bridge.not_capable', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::NotCapable => [false, match (true) {
+                $takers->appPromptsMissing && $named => 'readiness.row.bridge.not_capable_app_prompts_on',
+                $takers->appPromptsMissing => 'readiness.row.bridge.not_capable_app_prompts',
+                $named => 'readiness.row.bridge.not_capable_on',
+                default => 'readiness.row.bridge.not_capable',
+            }, 'readiness.row.bridge.action', $connect],
             WorkTakerState::Paused => [false, 'readiness.row.bridge.paused', 'readiness.row.bridge.resume', $agents],
-            WorkTakerState::Available => [true, 'readiness.row.bridge.done', null, null],
+            WorkTakerState::Available => [true, $named ? 'readiness.row.bridge.done_on' : 'readiness.row.bridge.done', null, null],
         };
 
         return new WorkshopReadinessRow(
@@ -115,6 +197,8 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $status,
             actionLabel: $actionLabel,
             actionUrl: $actionUrl,
+            statusParameters: null === $takers->bridgeLabel ? [] : ['%machine%' => $takers->bridgeLabel],
+            seenAt: $takers->bridgeSeenAt,
         );
     }
 
@@ -233,6 +317,25 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             actionLabel: $done ? null : 'readiness.row.agent_account.action',
             actionUrl: $done ? null : $this->urls->generate('app_project_readiness_agent_account', ['id' => (string) $project->id]),
             statusParameters: null === $login ? [] : ['%login%' => $login],
+            group: WorkshopReadinessRow::GROUP_PULL_REQUESTS,
+            optional: true,
+        );
+    }
+
+    /** Optional: done once the project names a site that may sign in to the review widget. */
+    private function widgetRow(Project $project, string $setup): WorkshopReadinessRow
+    {
+        $done = [] !== $project->allowedOrigins;
+
+        return new WorkshopReadinessRow(
+            'widget',
+            'readiness.row.widget.label',
+            $done,
+            $done ? 'readiness.row.widget.done' : 'readiness.row.widget.open',
+            actionLabel: 'readiness.row.widget.action',
+            actionUrl: $setup,
+            statusParameters: $done ? ['%origins%' => implode(', ', $project->allowedOrigins)] : [],
+            group: WorkshopReadinessRow::GROUP_OPTIONAL,
         );
     }
 

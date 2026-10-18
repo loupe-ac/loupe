@@ -1,0 +1,25 @@
+/* The progress strip of a short flow: done, current and upcoming steps with a bar between them.
+   `templates/components/Ds/Stepper.html.twig` renders it. */
+@layer components {
+    .lp-stepper {
+        @apply m-0 flex list-none items-center gap-2 p-0 text-sm text-fg-dim;
+    }
+    .lp-stepper__step {
+        @apply flex items-center gap-1.5;
+    }
+    .lp-stepper__step--done {
+        @apply text-status-ok-deep;
+    }
+    .lp-stepper__step--current {
+        @apply font-semibold text-ink;
+    }
+    .lp-stepper__number {
+        @apply box-border inline-flex size-5.5 items-center justify-center rounded-full border border-line-strong text-xs;
+    }
+    .lp-stepper__step--current .lp-stepper__number {
+        @apply border-ink bg-ink text-white;
+    }
+    .lp-stepper__bar {
+        @apply h-px w-7 bg-line-strong;
+    }
+}

@@ -51,9 +51,9 @@ Only a token that carries the agent scope and covers every project of its owner 
 ## Agent readiness
 
 Project settings has an Agent readiness tab. Only the project owner can open it.
-The Discovery part shows the state of the latest discovery run, with the same status as the Repository row of the [readiness guide](workshop.md#run-discovery).
+The Discovery part shows the state of the latest discovery run, with the same status as the Run discovery row of the [readiness guide](workshop.md#run-discovery).
 The Agent GitHub account part links to the page that sets up a [GitHub user for the agents](../getting-started/agent-github-account.md).
-The Workshop guide part has one switch, "Show the readiness checklist on the Workshop".
+The Workshop guide part has one switch, "Show the readiness checklist".
 Turn it on and select Save to show the [readiness guide](workshop.md#the-readiness-guide) on the Workshop again.
 Turn it off and select Save to hide the guide.
 While the guide is hidden, the tab shows the date it was hidden.
@@ -93,6 +93,8 @@ GitHub then asks you to authorize Loupe. Loupe connects the installation only wh
 The repositories of the installation that your GitHub account can reach join the list at once. Under "All repositories", each other repository joins on its first delivery.
 When you add or remove a repository in the App settings on GitHub, the list follows.
 The section says when GitHub suspends the installation or when someone uninstalls it.
+
+When the project lets Loupe manage the git identity of agents, the section also says when agents cannot push. Agents push with a token of the App that opens the repository of the project and no other. The message names the missing installation or the missing write access.
 
 ### The list
 

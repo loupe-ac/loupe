@@ -659,3 +659,20 @@ func TestHeartbeatReadsTheWorktreesWhenItGoesOut(t *testing.T) {
 		}
 	}
 }
+
+func TestHeartbeatReadsTheRepositoriesWhenItGoesOut(t *testing.T) {
+	client := &fakeHeartbeats{}
+	rows := []api.RepositoryReport{{ProjectID: testProject, Path: "/r", RemoteURL: "git@github.com:a/b.git"}}
+	hh := startHeartbeater(t, client, time.Minute, func(h *heartbeater) {
+		h.repositories = func(context.Context) []api.RepositoryReport { return rows }
+	})
+	hh.h.setBody(api.Heartbeat{Projects: []string{testProject}, CLIVersion: "v"})
+	eventually(t, "the second heartbeat", func() bool { return client.count() == 2 })
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	for i, hb := range client.sent {
+		if !slices.Equal(hb.Repositories, rows) {
+			t.Errorf("heartbeat %d repositories = %+v", i, hb.Repositories)
+		}
+	}
+}

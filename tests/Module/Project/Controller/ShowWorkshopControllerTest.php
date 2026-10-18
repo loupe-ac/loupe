@@ -358,17 +358,21 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertCount(1, $live);
         self::assertSame('true', $live->attr('data-worker-run-refresh-whole-value'));
         self::assertSame((string) $project->id, $live->attr('data-worker-run-refresh-project-value'));
-        self::assertSame(['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed'], json_decode((string) $live->attr('data-worker-run-refresh-events-value'), true));
+        self::assertSame(['worker_run.changed', 'board.card_changed', 'inbox.open_count_changed', 'bridge.readiness_changed'], json_decode((string) $live->attr('data-worker-run-refresh-events-value'), true));
         self::assertSame('Get Guide project ready for agents', trim($crawler->filter('[data-workshop] h1')->text()));
-        self::assertSelectorTextContains('[data-readiness-guide]', 'Run discovery');
-        self::assertSelectorTextContains('.lp-readiness-discovery__status', 'Discovery waits for a running bridge');
+        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Run discovery');
+        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Discovery waits for a running bridge');
         self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="none"]');
-        self::assertSelectorNotExists('[data-readiness-guide] button:not([data-readiness-hide])');
-        self::assertSelectorTextContains('.lp-section-heading__description', '0 of 5');
-        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository'], $crawler->filter('[data-readiness-row]')->extract(['data-readiness-row']));
-        self::assertSame(array_fill(0, 5, '0'), $crawler->filter('[data-readiness-row]')->extract(['data-readiness-done']));
+        self::assertSelectorNotExists('[data-readiness-guide] button');
+        self::assertSelectorNotExists('[data-readiness-hide]');
+        self::assertSelectorNotExists('form[action$="/readiness/guide/hide"]');
+        self::assertSelectorTextContains('[data-workshop] .lp-workspace-desc', '0 of 4 required steps done');
+        self::assertSame(['discovery', 'pull_requests', 'optional'], $crawler->filter('[data-readiness-group]')->extract(['data-readiness-group']));
+        self::assertSame(['Ready for discovery', 'Ready for pull requests', 'Optional'], $crawler->filter('.lp-readiness-checklist__group')->each(static fn ($heading): string => trim($heading->text())));
+        self::assertSame(['agent', 'bridge', 'repository', 'github', 'agent_account', 'widget'], $crawler->filter('[data-readiness-row]')->extract(['data-readiness-row']));
+        self::assertSame(array_fill(0, 6, '0'), $crawler->filter('[data-readiness-row]')->extract(['data-readiness-done']));
         self::assertSame('/projects/'.$project->id.'/connect', $crawler->filter('[data-readiness-row="agent"] a')->attr('href'));
-        self::assertSame('/projects/'.$project->id.'/readiness/guide/hide', $crawler->filter('[data-readiness-hide]')->closest('form')?->attr('action'));
+        self::assertSame('/projects/'.$project->id.'/connect#site-review-widget', $crawler->filter('[data-readiness-group="optional"] [data-readiness-row="widget"] a')->attr('href'));
         self::assertSelectorNotExists('.lp-workshop-summary');
         self::assertSelectorNotExists('#workshop-in-motion');
         self::assertSelectorNotExists('.lp-workshop-crew');
@@ -421,7 +425,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('[data-readiness-guide][data-readiness-layout="full"]');
         self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="requested"]');
-        self::assertSelectorTextContains('.lp-readiness-discovery__status', 'Running on card #'.$run->card->number);
+        self::assertSelectorTextContains('[data-readiness-row="repository"]', 'Running on card #'.$run->card->number);
         self::assertSame('/projects/'.$project->id.'/board/cards/'.$run->card->id, $crawler->filter('[data-readiness-row="repository"] a')->attr('href'));
     }
 

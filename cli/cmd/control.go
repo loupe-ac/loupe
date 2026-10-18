@@ -278,6 +278,9 @@ type controlOps struct {
 	stop   func()
 	reload func(ctx context.Context) reloadResult
 	update func(ctx context.Context, reply func(updateResult)) updateResult
+	// credential answers a worker's request for the GitHub credentials of its
+	// run.
+	credential func(ctx context.Context, runID string) credentialResult
 }
 
 // serveControl answers each connection on ln with ops until ctx ends. The
@@ -347,7 +350,8 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	}
 	send := func(res any) { write(res, true) }
 	var req struct {
-		Op string `json:"op"`
+		Op    string `json:"op"`
+		RunID string `json:"runId"`
 	}
 	switch {
 	case err != nil:
@@ -364,8 +368,10 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	case req.Op == "stop" && ops.stop != nil:
 		send(reloadResult{OK: true})
 		ops.stop()
+	case req.Op == "credential" && ops.credential != nil:
+		send(ops.credential(ctx, req.RunID))
 	default:
-		send(refused(fmt.Sprintf("unknown op %q: only reload, update and stop are known", req.Op)))
+		send(refused(fmt.Sprintf("unknown op %q: only reload, update, stop and credential are known", req.Op)))
 	}
 }
 
@@ -445,6 +451,48 @@ func requestControl(sock, op string, timeout time.Duration) (reloadResult, error
 
 	if _, err := conn.Write([]byte(`{"op":"` + op + `"}` + "\n")); err != nil {
 		return res, fmt.Errorf("send the %s: %w", op, err)
+	}
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return res, fmt.Errorf("read the answer of the bridge: %w", err)
+	}
+	if err := json.Unmarshal([]byte(line), &res); err != nil {
+		return res, fmt.Errorf("read the answer of the bridge: %w", err)
+	}
+
+	return res, nil
+}
+
+// requestCredential asks the bridge for the GitHub credentials of a run. It
+// retries a dial that finds no listener for window, because a bridge that hands
+// over to a new image leaves the socket for a moment.
+func requestCredential(sock, runID string, window, interval time.Duration) (credentialResult, error) {
+	var res credentialResult
+	deadline := time.Now().Add(window)
+	for {
+		conn, err := net.DialTimeout("unix", sock, requestTimeout)
+		if err == nil {
+			defer conn.Close()
+
+			return exchangeCredential(conn, runID)
+		}
+		if !(connRefused(err) || errors.Is(err, fs.ErrNotExist)) || !time.Now().Add(interval).Before(deadline) {
+			return res, err
+		}
+		time.Sleep(interval)
+	}
+}
+
+// exchangeCredential sends the credential request on conn and reads the answer.
+func exchangeCredential(conn net.Conn, runID string) (credentialResult, error) {
+	var res credentialResult
+	conn.SetDeadline(time.Now().Add(gitTokenTimeout + requestTimeout))
+	req, err := json.Marshal(map[string]string{"op": "credential", "runId": runID})
+	if err != nil {
+		return res, err
+	}
+	if _, err := conn.Write(append(req, '\n')); err != nil {
+		return res, fmt.Errorf("send the credential request: %w", err)
 	}
 	line, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {

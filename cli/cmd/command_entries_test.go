@@ -100,3 +100,42 @@ func TestWorktreeReportsReadGitAndOmitTheListOnFailure(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestOriginRemoteReadsGitAndDropsCredentials(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is missing")
+	}
+	dir := t.TempDir()
+	if got := originRemote(context.Background(), dir); got != "" {
+		t.Fatalf("a folder with no repository gave %q", got)
+	}
+	for _, args := range [][]string{{"init", "-b", "main"}, {"remote", "add", "origin", "https://user:secret@github.com/ubermuda/loupe.git"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	if got := originRemote(context.Background(), dir); got != "https://github.com/ubermuda/loupe.git" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestRepositoryReportsSkipAProjectWithNoResolvedID(t *testing.T) {
+	got := repositoryReports(context.Background(), commandSet(t, ""))
+	if got == nil || len(got) != 0 {
+		t.Fatalf("got %+v, want an empty list that clears the stored rows", got)
+	}
+}
+
+func TestWithoutCredentialsKeepsAnScpRemoteAndDropsTheOverlongOne(t *testing.T) {
+	for in, want := range map[string]string{
+		"git@github.com:ubermuda/loupe.git":     "git@github.com:ubermuda/loupe.git",
+		"https://github.com/ubermuda/loupe.git": "https://github.com/ubermuda/loupe.git",
+		"https://tok@github.com/ubermuda/l.git": "https://github.com/ubermuda/l.git",
+		"":                                      "",
+		strings.Repeat("a", maxRemoteURL+1):     "",
+	} {
+		if got := withoutCredentials(in); got != want {
+			t.Errorf("withoutCredentials(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

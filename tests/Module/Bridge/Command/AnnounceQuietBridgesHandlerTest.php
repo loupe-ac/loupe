@@ -6,10 +6,13 @@ namespace App\Tests\Module\Bridge\Command;
 
 use App\Module\Bridge\Command\AnnounceQuietBridgesCommand;
 use App\Module\Bridge\Command\AnnounceQuietBridgesHandler;
+use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Bridge\BridgeScenario;
+use App\Tests\Support\RecordedEvents;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /** The default heartbeat interval is 60 seconds, so a bridge goes quiet after 180. */
 final class AnnounceQuietBridgesHandlerTest extends KernelTestCase
@@ -38,6 +41,41 @@ final class AnnounceQuietBridgesHandlerTest extends KernelTestCase
         $told = array_map(static fn (Project $project): string => (string) $project->id, $this->announce());
 
         self::assertEqualsCanonicalizing([(string) $followed->id, (string) $other->id], $told);
+    }
+
+    public function test_the_projects_of_a_bridge_that_just_went_quiet_are_reported(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock(self::NOW));
+        $em = $this->em();
+        $owner = $this->user($em, 'announce-quiet-reported@example.com');
+        $followed = $this->project($em, $owner, 'Followed');
+        $this->seedBridge($em, $owner, projects: [(string) $followed->id], lastSeenAt: new \DateTimeImmutable('2026-09-23 11:56:59'), workerPools: [self::POOL]);
+        $reported = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeReported::class, $reported);
+
+        $this->announce();
+
+        self::assertSame([[(string) $followed->id]], array_map(static fn (BridgeReported $event): array => $event->projectIds, $reported->of(BridgeReported::class)));
+    }
+
+    public function test_a_quiet_bridge_without_pools_is_reported_and_reloads_no_pill(): void
+    {
+        self::bootKernel();
+        self::getContainer()->set('clock', new MockClock(self::NOW));
+        $em = $this->em();
+        $owner = $this->user($em, 'announce-quiet-no-pools@example.com');
+        $followed = $this->project($em, $owner, 'Followed');
+        $this->seedBridge($em, $owner, projects: [(string) $followed->id], lastSeenAt: new \DateTimeImmutable('2026-09-23 11:56:00'));
+        $reported = new RecordedEvents();
+        $dispatcher = self::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(BridgeReported::class, $reported);
+
+        self::assertSame([], $this->announce());
+        self::assertSame([[(string) $followed->id]], array_map(static fn (BridgeReported $event): array => $event->projectIds, $reported->of(BridgeReported::class)));
     }
 
     /** @return list<Project> */

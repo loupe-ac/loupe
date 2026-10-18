@@ -4,6 +4,10 @@ The stage skills read this file when the forge is `github`. It maps each forge o
 
 `<n>` is the pull request number. `<nameWithOwner>` is the repository of the checkout, such as `ubermuda/loupe`. Split it into `<owner>` and `<repo>` where a command needs both.
 
+## Get a token
+
+The bridge gives a worker GitHub credentials that end. Git and `gh` ask the bridge for them, so a plain `git push` and a plain `gh` command work. When you need a bare token for another call, run `loupe credential` each time you need one. Never store it, in a file, a variable, or a comment. When `loupe credential` fails, report its stderr line and stop. Do not try another credential.
+
 ## Find and validate the pull request
 
 Run this before any other query or reply:

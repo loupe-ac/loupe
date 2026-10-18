@@ -10,9 +10,9 @@ a terminal.
 
 ## Set up with one prompt
 
-A coding agent can do the whole setup for you. A project's Connect page and
-the first-run wizard at `/welcome/connect` show a short prompt with a Copy
-button. Paste it into Claude Code or Codex, in the repository of the project:
+A coding agent can do the whole setup for you. Open "Other ways to connect" on
+the Connect page of a project to find a short prompt with a Copy button. Paste
+it into Claude Code or Codex, in the repository of the project:
 
 ```text
 Set up Loupe for this repository. Run
@@ -216,8 +216,12 @@ table and for how to revoke a connection.
 `403 insufficient_scope` means the sign-in is valid and carries the wrong scope
 for that endpoint. Connect the client again with the scope the endpoint needs.
 
-A project's Connect page shows the command for each way on this page. The
-first-run wizard shows the same commands at `/welcome/connect`.
+A project's Connect page leads with `loupe init --project <project id>` and
+lists the machines of the owner. It keeps the commands for the other ways on
+this page in the "Other ways to connect" block, and links to the tools below.
+The machine step of the first-run wizard at `/welcome/connect` shows the
+install command and `loupe init --project <project id>`, and it lists what
+Loupe sees of the machine, live.
 
 ## The Claude Code plugin
 
