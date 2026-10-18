@@ -912,18 +912,20 @@ A worker gets its GitHub credentials from the bridge, and the bridge gets them
 from one of two places. A worker with an [agent account](#agent-account) gets the
 stored token and login. The bridge makes no call to Loupe for it.
 
-Otherwise the bridge asks the [git token endpoint](#git-token-endpoint) when
-the worker starts. The bridge reads `owner/name` from `git remote get-url
-origin` in the folder of the worker. The remote can be
-`https://github.com/<owner>/<name>`, `git@github.com:<owner>/<name>` or
-`ssh://git@github.com/<owner>/<name>`, each with or without `.git`.
+Otherwise the bridge asks the [git token endpoint](#git-token-endpoint) each
+time a worker starts, also when it holds a token already. The bridge reads
+`owner/name` from the fetch and the push address of the `origin` remote in the
+folder of the worker. An address can be `https://github.com/<owner>/<name>`,
+`git@github.com:<owner>/<name>` or `ssh://git@github.com/<owner>/<name>`, each
+with or without `.git`. Both addresses must name the same GitHub repository.
 
 | Answer | The worker |
 |---|---|
 | A token | is managed |
 | 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
 | 404 with no error code, from a server without the route | keeps the git setup of the machine |
-| Any other failure, such as 409, 502, a network error, or a remote that is not on GitHub | is managed, and its credentials fail until the cause ends |
+| A folder with no `origin` remote, or an `origin` remote whose two addresses are not on GitHub | keeps the git setup of the machine |
+| Any other failure, such as 409, 502, a network error, a git command that fails, or a remote that fetches and pushes to different places | is managed, and its credentials fail until the cause ends |
 
 A managed worker gets the same environment as a worker with an agent account,
 except for the git identity. The bridge leaves `GIT_AUTHOR_*` and
@@ -934,7 +936,8 @@ helper answers with the user name `x-access-token` and the App token. The
 The bridge keeps one token for each project and repository. It replaces the
 token when less than five minutes remain. Requests that arrive together cause
 one call. When a replacement fails, the bridge keeps using the old token until
-it ends.
+it ends. When the endpoint answers that Loupe manages the identity no more, the
+bridge drops the token at once.
 
 Nothing falls back to the machine. When the helper, the `gh` wrapper or
 `loupe credential` gets no token, it prints one line to stderr and exits with

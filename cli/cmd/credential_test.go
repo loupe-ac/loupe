@@ -57,22 +57,73 @@ func TestParseGitHubRemote(t *testing.T) {
 	}
 }
 
-func TestGitRepositoryReadsTheOriginRemote(t *testing.T) {
+// gitFolder makes a git folder and runs each git command in it.
+func gitFolder(t *testing.T, commands ...[]string) string {
+	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
 	dir := t.TempDir()
-	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", "git@github.com:acme/site.git"}} {
+	for _, args := range append([][]string{{"init", "-q"}}, commands...) {
 		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v: %s", args, err, out)
 		}
 	}
+
+	return dir
+}
+
+func TestGitRepositoryReadsTheOriginRemote(t *testing.T) {
+	dir := gitFolder(t, []string{"remote", "add", "origin", "git@github.com:acme/site.git"})
 	got, err := gitRepository(context.Background(), dir)
 	if err != nil || got != "acme/site" {
 		t.Fatalf("gitRepository = %q, %v", got, err)
 	}
-	if _, err := gitRepository(context.Background(), t.TempDir()); err == nil {
-		t.Fatal("a folder with no origin must fail")
+}
+
+// Only a missing origin and an origin off GitHub leave the worker on the git
+// setup of the machine. Every other failure must keep it managed.
+func TestGitRepositoryFailsClosedUnlessTheRemoteIsAbsentOrOffGitHub(t *testing.T) {
+	cases := []struct {
+		name     string
+		dir      string
+		wantRepo string
+		want     error
+	}{
+		{"no origin", gitFolder(t), "", errNoOrigin},
+		{"not on GitHub", gitFolder(t, []string{"remote", "add", "origin", "git@gitlab.com:acme/site.git"}), "", errNotGitHub},
+		{"not a git folder", t.TempDir(), "", nil},
+		{"push goes off GitHub", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
+			[]string{"config", "remote.origin.pushurl", "git@gitlab.com:acme/site.git"}), "", nil},
+		{"push comes from GitHub only", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@gitlab.com:acme/site.git"},
+			[]string{"config", "remote.origin.pushurl", "git@github.com:acme/site.git"}), "", nil},
+		{"push to another repository", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
+			[]string{"config", "remote.origin.pushurl", "git@github.com:acme/other.git"}), "", nil},
+		{"push to the same repository", gitFolder(t,
+			[]string{"remote", "add", "origin", "https://github.com/acme/site"},
+			[]string{"config", "remote.origin.pushurl", "git@github.com:ACME/site.git"}), "ACME/site", nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := gitRepository(context.Background(), c.dir)
+			if c.wantRepo != "" {
+				if err != nil || got != c.wantRepo {
+					t.Fatalf("gitRepository = %q, %v; want %q", got, err, c.wantRepo)
+				}
+
+				return
+			}
+			if err == nil {
+				t.Fatalf("gitRepository = %q, want an error", got)
+			}
+			unmanaged := errors.Is(err, errNoOrigin) || errors.Is(err, errNotGitHub)
+			if c.want != nil && !errors.Is(err, c.want) || c.want == nil && unmanaged {
+				t.Fatalf("err = %v, want %v", err, c.want)
+			}
+		})
 	}
 }
 
@@ -270,6 +321,32 @@ func TestManagedDecisionWarmsTheCache(t *testing.T) {
 	res := f.broker.answerFor("r1", credentialRun{handle: "p1", dir: "/work"})
 	if !res.OK || f.calls.Load() != 1 {
 		t.Fatalf("answer = %+v after %d calls", res, f.calls.Load())
+	}
+}
+
+// A new worker asks the server even when the cache holds a token, so a project
+// setting turned off since then leaves the worker on the machine setup.
+func TestManagedDecisionSkipsTheCache(t *testing.T) {
+	f := newTokenFixture()
+	if _, _, err := f.broker.token(context.Background(), "p1", "acme/site"); err != nil {
+		t.Fatal(err)
+	}
+	f.failWith(api.ErrGitIdentityNotManaged)
+	if managed, _ := f.broker.manages(context.Background(), "p1", "/work"); managed || f.calls.Load() != 2 {
+		t.Fatalf("managed = %v after %d calls, want unmanaged after 2", managed, f.calls.Load())
+	}
+	if tok, _, err := f.broker.token(context.Background(), "p1", "acme/site"); err == nil {
+		t.Fatalf("token = %q, want no cached token once the server stops managing the project", tok)
+	}
+}
+
+func TestANotManagedAnswerEndsTheCachedToken(t *testing.T) {
+	f := newTokenFixture()
+	f.broker.token(context.Background(), "p1", "acme/site")
+	f.clock.advance(58 * time.Minute)
+	f.failWith(fmt.Errorf("x: %w", api.ErrGitIdentityNotManaged))
+	if tok, _, err := f.broker.token(context.Background(), "p1", "acme/site"); err == nil {
+		t.Fatalf("token = %q, want the not-managed error", tok)
 	}
 }
 

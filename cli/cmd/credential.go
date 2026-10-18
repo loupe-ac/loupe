@@ -104,24 +104,36 @@ func (b *credentialBroker) forget(runID string) {
 // but the two answers that say Loupe does not manage the identity, and a
 // folder with no GitHub remote. The helper
 // then reports the failure, and the worker never falls back to the git setup
-// of the machine. err says why the ask failed.
+// of the machine. err says why the ask failed. The ask skips the cache, so a
+// project setting that changed since the last token decides the new worker.
 func (b *credentialBroker) manages(ctx context.Context, handle, dir string) (managed bool, err error) {
 	repository, err := b.repository(ctx, dir)
 	if err == nil {
-		_, _, err = b.token(ctx, handle, repository)
+		_, _, err = b.fetch(ctx, handle, repository, true)
 	}
-	if errors.Is(err, api.ErrGitIdentityNotManaged) || errors.Is(err, api.ErrGitTokenUnsupported) ||
-		errors.Is(err, errNoOrigin) || errors.Is(err, errNotGitHub) {
+	if notManaged(err) || errors.Is(err, errNoOrigin) || errors.Is(err, errNotGitHub) {
 		return false, err
 	}
 
 	return true, err
 }
 
+// notManaged says the server answered that Loupe gives no token for the
+// project.
+func notManaged(err error) bool {
+	return errors.Is(err, api.ErrGitIdentityNotManaged) || errors.Is(err, api.ErrGitTokenUnsupported)
+}
+
 // token returns the cached token of a project repository, or asks for a new one
 // when less than tokenRefreshWindow remains. When the ask fails, a token that
-// has not ended yet stays in use.
+// has not ended yet stays in use, unless the server says it manages the
+// identity no more.
 func (b *credentialBroker) token(ctx context.Context, handle, repository string) (string, time.Time, error) {
+	return b.fetch(ctx, handle, repository, false)
+}
+
+// fetch is token, and with fresh it asks the server even for a cached token.
+func (b *credentialBroker) fetch(ctx context.Context, handle, repository string, fresh bool) (string, time.Time, error) {
 	key := tokenKey{handle: handle, repository: strings.ToLower(repository)}
 	b.mu.Lock()
 	if b.tokens == nil {
@@ -137,10 +149,15 @@ func (b *credentialBroker) token(ctx context.Context, handle, repository string)
 	entry.mu.Lock()
 	defer entry.mu.Unlock()
 	now := b.now()
-	if entry.token != "" && entry.expires.Sub(now) > tokenRefreshWindow {
+	if !fresh && entry.token != "" && entry.expires.Sub(now) > tokenRefreshWindow {
 		return entry.token, entry.expires, nil
 	}
 	token, expires, err := b.issue(ctx, handle, repository)
+	if notManaged(err) {
+		entry.token, entry.expires = "", time.Time{}
+
+		return "", time.Time{}, err
+	}
 	if err != nil {
 		if entry.token != "" && entry.expires.After(now) {
 			return entry.token, entry.expires, nil
@@ -191,18 +208,53 @@ var (
 )
 
 // gitRepository reads owner/name from the origin remote of the git folder dir.
+// The fetch and the push address must name one GitHub repository. When only one
+// of them is on GitHub, or they name two repositories, the error is neither
+// errNoOrigin nor errNotGitHub, so the worker stays managed and fails closed.
 func gitRepository(ctx context.Context, dir string) (string, error) {
+	fetch, err := originURL(ctx, dir)
+	if err != nil {
+		return "", err
+	}
+	push, err := originURL(ctx, dir, "--push")
+	if err != nil {
+		return "", err
+	}
+	fetchRepo, fetchErr := parseGitHubRemote(fetch)
+	pushRepo, pushErr := parseGitHubRemote(push)
+	switch {
+	case errors.Is(fetchErr, errNotGitHub) && errors.Is(pushErr, errNotGitHub):
+		return "", pushErr
+	case fetchErr != nil:
+		return "", fmt.Errorf("the origin fetch address: %s", fetchErr.Error())
+	case pushErr != nil:
+		return "", fmt.Errorf("the origin push address: %s", pushErr.Error())
+	case !strings.EqualFold(fetchRepo, pushRepo):
+		return "", fmt.Errorf("the origin remote fetches from %s and pushes to %s", fetchRepo, pushRepo)
+	}
+
+	return pushRepo, nil
+}
+
+// originURL runs git remote get-url for origin in dir. Only the exit code 2 of
+// git, which says the remote does not exist, gives errNoOrigin.
+func originURL(ctx context.Context, dir string, flags ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTokenTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
+	cmd := exec.CommandContext(ctx, "git", append(append([]string{"remote", "get-url"}, flags...), "origin")...)
 	cmd.Dir = dir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 2 && ctx.Err() == nil {
 		return "", fmt.Errorf("%w in %s: %s", errNoOrigin, dir, strings.TrimSpace(stderr.String()))
 	}
+	if err != nil {
+		return "", fmt.Errorf("read the origin remote in %s: %w: %s", dir, err, strings.TrimSpace(stderr.String()))
+	}
 
-	return parseGitHubRemote(strings.TrimSpace(stdout.String()))
+	return strings.TrimSpace(stdout.String()), nil
 }
 
 // parseGitHubRemote returns owner/name from a GitHub remote URL in the https,
