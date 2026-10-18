@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Board\EventListener;
 
+use App\Module\Board\Command\RecordPullRequestSyncCommand;
+use App\Module\Board\Command\RecordPullRequestSyncHandler;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\EventListener\EvaluateParentsOnCardEventWritten;
@@ -106,6 +108,21 @@ final class EvaluateParentsListenersTest extends KernelTestCase
         $this->em()->flush();
 
         self::assertSame([], $this->sent());
+    }
+
+    public function test_a_pull_request_sync_of_a_child_asks_for_its_epic(): void
+    {
+        $childPullRequest = $this->linkPullRequest($this->child, []);
+        $loosePullRequest = $this->linkPullRequest($this->loose, []);
+        $sync = $this->service(RecordPullRequestSyncHandler::class);
+        $this->transport()->reset();
+
+        $sync(new RecordPullRequestSyncCommand($childPullRequest));
+        self::assertContains($this->id($this->epic), $this->sent());
+
+        $this->transport()->reset();
+        $sync(new RecordPullRequestSyncCommand($loosePullRequest));
+        self::assertNotContains($this->id($this->epic), $this->sent());
     }
 
     public function test_the_collector_collects_the_card_of_a_new_row_and_clear_and_reset_drop_it(): void
