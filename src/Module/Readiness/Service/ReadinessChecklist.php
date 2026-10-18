@@ -169,8 +169,8 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             ),
             DiscoveryRunState::Revising => $row(
                 'readiness.row.repository.revising',
-                actionLabel: 'readiness.row.repository.card',
-                actionUrl: $this->urls->generate('app_board_card', ['projectId' => (string) $project->id, 'cardId' => (string) $run->card->id]),
+                actionLabel: null === $run->reportDocument ? null : 'readiness.row.repository.open_report',
+                actionUrl: null === $run->reportDocument ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $run->reportDocument->id]),
                 parameters: ['%number%' => (string) $run->card->number],
             ),
             DiscoveryRunState::Reported => $row(
