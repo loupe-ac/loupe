@@ -998,9 +998,15 @@ func TestInitDeclaresTheMcpServerToCodexWhenOnlyCodexIsInstalled(t *testing.T) {
 	}
 }
 
+// codexDeclaration is what `codex mcp get loupe --json` prints.
+func codexDeclaration(enabled bool, command string) string {
+	return fmt.Sprintf(`{"name":"loupe","enabled":%t,"transport":{"type":"stdio","command":%q,"args":["mcp"]}}`, enabled, command)
+}
+
 func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "/usr/local/bin/loupe")
 	inRepo(t, w.server.URL)
 
 	out, err := runInitCmd(t, "n\n", "--mcp")
@@ -1012,6 +1018,65 @@ func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 	}
 	if !strings.Contains(out, "Codex: skipped, Codex declares") {
 		t.Errorf("output lacks the skip:\n%s", out)
+	}
+}
+
+// The bridge check refuses a declaration that starts another command, so init
+// must not count it as connected. Replacing it always asks, even with --mcp.
+func TestInitOffersToReplaceACodexServerThatIsNotLoupeMcp(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "npx")
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "as command npx") || !strings.Contains(out, "Replace it with `loupe mcp`?") {
+		t.Errorf("output lacks the offer:\n%s", out)
+	}
+	if !w.called("codex mcp remove loupe") || !w.called("codex mcp add loupe -- loupe mcp") {
+		t.Errorf("init did not replace the declaration: %v", w.execCalls)
+	}
+	if !strings.Contains(out, "Codex: done, replaced") {
+		t.Errorf("output lacks the result:\n%s", out)
+	}
+}
+
+func TestInitLeavesAWrongCodexServerWhenDeclined(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "npx")
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("codex mcp remove") || w.called("codex mcp add") {
+		t.Errorf("init changed a declaration it was told to leave: %v", w.execCalls)
+	}
+	if !strings.Contains(out, "run `codex mcp remove loupe && codex mcp add loupe -- loupe mcp`") {
+		t.Errorf("output lacks the command:\n%s", out)
+	}
+}
+
+func TestInitSaysADisabledCodexServerIsDisabled(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(false, "loupe")
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("codex mcp remove") || w.called("codex mcp add") {
+		t.Errorf("init changed a disabled declaration: %v", w.execCalls)
+	}
+	if !strings.Contains(out, "is disabled; set enabled = true") {
+		t.Errorf("output lacks the fix:\n%s", out)
 	}
 }
 

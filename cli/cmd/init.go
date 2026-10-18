@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/ubermuda/loupe/cli/internal/api"
 	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/ubermuda/loupe/cli/internal/harness/codex"
 	"github.com/ubermuda/loupe/cli/internal/mcpjson"
 	"github.com/ubermuda/loupe/cli/internal/profile"
 	"github.com/ubermuda/loupe/cli/internal/projectfile"
@@ -427,10 +428,17 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
 	defer cancel()
 
-	_, getErr := initExec(ctx, dir, "codex", "mcp", "get", mcpjson.ServerKey, "--json")
+	raw, getErr := initExec(ctx, dir, "codex", "mcp", "get", mcpjson.ServerKey, "--json")
+	decl, parseErr := codex.ParseDeclaration(raw)
 	switch {
-	case getErr == nil:
+	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp() && decl.Enabled:
 		step(out, "Codex", "skipped", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already")
+	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp():
+		step(out, "Codex", "skipped", "the `"+mcpjson.ServerKey+"` MCP server is disabled; set enabled = true under [mcp_servers."+mcpjson.ServerKey+"] in ~/.codex/config.toml")
+	case getErr == nil && link.skipMcp:
+		step(out, "Codex", "skipped", "--no-mcp is set; Codex starts `"+mcpjson.ServerKey+"` as something other than `loupe mcp`")
+	case getErr == nil:
+		replaceCodexServer(ctx, cmd, dir, decl, parseErr)
 	case link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
 	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex?"):
@@ -446,6 +454,35 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
 	fmt.Fprintf(out, "Codex needs two more steps by hand. Add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in ~/.codex/config.toml, "+
 		"or the bridge turns its Codex account off. Copy the folders of plugins/loupe/skills/ from %s into ~/.agents/skills/, "+
 		"so the workers have the stage skills.\n", mcpjson.ServerKey, codexSkillsRepository)
+}
+
+// replaceCodexServer offers to replace a declaration that does not start
+// `loupe mcp`. It always asks, because a script must not remove a declaration
+// somebody made by hand.
+func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, decl codex.Declaration, parseErr error) {
+	out := cmd.OutOrStdout()
+	fix := "codex mcp remove " + mcpjson.ServerKey + " && codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
+	shown := decl.Summary()
+	if parseErr != nil {
+		shown = "a server init cannot read"
+	}
+	fmt.Fprintf(out, "Codex starts %q as %s, which is not `loupe mcp`, so the bridge turns its Codex account off.\n", mcpjson.ServerKey, shown)
+	if !confirm(out, cmd.InOrStdin(), "Replace it with `loupe mcp`?") {
+		step(out, "Codex", "skipped", "to replace it, run `"+fix+"`")
+
+		return
+	}
+	if raw, err := initExec(ctx, dir, "codex", "mcp", "remove", mcpjson.ServerKey); err != nil {
+		step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), fix))
+
+		return
+	}
+	if raw, err := initExec(ctx, dir, "codex", "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
+		step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), fix))
+
+		return
+	}
+	step(out, "Codex", "done", "replaced the declaration with `loupe mcp`")
 }
 
 // indented formats the output of a failed command as a block after a message.
