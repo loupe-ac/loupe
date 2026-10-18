@@ -511,6 +511,14 @@ and the `permissionMode` of an entry are gone.
 files, the login of a second Claude Code account, and the migration of an
 older file.
 
+`defaults.isolation` is `worktree` or `none`, and `worktree` is the default.
+With `worktree`, each card gets a git worktree of its own under
+`<config dir>/loupe/worktrees/<project>/card-<number>`, and the bridge removes it
+on the `teardown` request of the card when the work map has no `teardown` entry.
+A `before` command wins over the worktree. `none` runs workers in the project
+folder. [Worker isolation](../docs/extending/cli-bridge.md#worker-isolation)
+gives the details.
+
 `autoUpdate` at the top of the file turns [updates](#updates) on or off. It is
 off when the key is absent. With updates off, the bridge installs no release,
 and it only logs `update_available`. A reload applies a change to the key.

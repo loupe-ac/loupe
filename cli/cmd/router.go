@@ -1001,6 +1001,13 @@ func (r *router) start(p pending) {
 				"account", p.spec.account, "permission_mode", p.spec.permissionMode, "model", p.spec.model,
 			)...)
 		}
+		if card := worktreeCard(p, r.rules()); card > 0 {
+			dir, ok := r.cardWorktree(p, card)
+			if !ok {
+				return
+			}
+			p.spec.dir = dir
+		}
 		if p.spec.before != nil {
 			// A bad env file fails the run before the command changes the
 			// worktree. runAgent reads the files again for the agent.
@@ -1016,6 +1023,24 @@ func (r *router) start(p pending) {
 		}
 		r.runAgent(p, time.Time{}, "")
 	}()
+}
+
+// cardWorktree returns the worktree of the card of p. When it cannot be made,
+// the run ends as failed and ok is false.
+func (r *router) cardWorktree(p pending, card int) (string, bool) {
+	began := time.Now()
+	ensure := r.worker.worktree
+	if ensure == nil {
+		ensure = ensureWorktree
+	}
+	dir, err := ensure(r.workerContext(), p.spec.dir, p.project, card)
+	if err == nil {
+		return dir, true
+	}
+	failed := workerResult{exitCode: -1, output: failedOutput("the bridge cannot make the worktree of the card: "+err.Error(), ""), before: true}
+	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+
+	return "", false
 }
 
 // runAgent runs claude for the run and settles it. began is when the run's
