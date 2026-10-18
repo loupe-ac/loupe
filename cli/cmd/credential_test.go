@@ -42,6 +42,14 @@ func TestParseGitHubRemote(t *testing.T) {
 		"":                                          "",
 		"git@github.com:acme":                       "",
 		"https://github.com.evil.example/acme/site": "",
+		"ssh://git@github.com:22/acme/site.git":     "",
+		"ssh://git@GitHub.com/acme/site.git":        "",
+		"ssh://github.com/acme/site.git":            "",
+		"ssh://git@ssh.github.com:443/acme/site":    "",
+		"git+ssh://git@github.com/acme/site.git":    "",
+		"git@GitHub.com:acme/site.git":              "",
+		"github.com:acme/site.git":                  "",
+		"deploy@github.com:acme/site.git":           "",
 	}
 	for remote, want := range cases {
 		got, err := parseGitHubRemote(remote)
@@ -54,6 +62,35 @@ func TestParseGitHubRemote(t *testing.T) {
 		}
 		if err != nil || got != want {
 			t.Errorf("parseGitHubRemote(%q) = %q, %v; want %q", remote, got, err, want)
+		}
+	}
+}
+
+func TestEveryGitHubSSHAddressIsRefusedOrSentThroughHTTPS(t *testing.T) {
+	dir := gitFolder(t)
+	remotes := []string{
+		"git@github.com:acme/site.git", "ssh://git@github.com/acme/site.git", "ssh://git@github.com:22/acme/site.git",
+		"ssh://git@GitHub.com/acme/site.git", "ssh://github.com/acme/site", "ssh://git@ssh.github.com:443/acme/site",
+		"git+ssh://git@github.com/acme/site", "ssh+git://git@github.com/acme/site", "git@GitHub.com:acme/site",
+		"github.com:acme/site", "deploy@github.com:acme/site", "ssh.github.com:acme/site", "[git@github.com:22]:acme/site",
+		"[github.com:22]:acme/site",
+	}
+	env := workerEnv(os.Environ(), "s1", nil, credEnvFixture())
+	for _, remote := range remotes {
+		_, err := parseGitHubRemote(remote)
+		if errors.Is(err, errNotGitHub) {
+			t.Errorf("parseGitHubRemote(%q) leaves the worker on the machine setup", remote)
+
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		cmd := exec.Command("git", "-C", dir, "ls-remote", "--get-url", remote)
+		cmd.Env = env
+		out, err := cmd.Output()
+		if err != nil || !strings.HasPrefix(string(out), "https://github.com/") {
+			t.Errorf("git sends the accepted address %q to %q, %v; want https://github.com/", remote, out, err)
 		}
 	}
 }

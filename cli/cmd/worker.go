@@ -229,8 +229,8 @@ func workerEnv(environ []string, sessionID string, agent *config.AgentAccount, c
 		"GIT_CONFIG_KEY_"+n(gitConfigs)+"="+githubHelperKey, "GIT_CONFIG_VALUE_"+n(gitConfigs)+"=",
 		"GIT_CONFIG_KEY_"+n(gitConfigs+1)+"="+githubHelperKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+1)+"="+helper,
 		// An SSH remote would push with the machine's key, so it goes through HTTPS.
-		"GIT_CONFIG_KEY_"+n(gitConfigs+2)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+2)+"=git@github.com:",
-		"GIT_CONFIG_KEY_"+n(gitConfigs+3)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+3)+"=ssh://git@github.com/",
+		"GIT_CONFIG_KEY_"+n(gitConfigs+2)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+2)+"="+githubSSHPrefixes[0],
+		"GIT_CONFIG_KEY_"+n(gitConfigs+3)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+3)+"="+githubSSHPrefixes[1],
 		"GIT_CONFIG_COUNT="+n(gitConfigs+4),
 	)
 }

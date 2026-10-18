@@ -920,6 +920,9 @@ folder of the worker, because git pushes to each push address. An address can be
 `ssh://git@github.com/<owner>/<name>`, each with or without `.git`. All the
 addresses must name the same GitHub repository. An `https` address must hold no
 password, because git then pushes with that password and never asks the bridge.
+Any other SSH address of GitHub, such as one with a port, another user or an
+uppercase host, is refused. The `insteadOf` entries do not change it, so git
+would push it with the SSH key of the machine.
 
 | Answer | The worker |
 |---|---|
@@ -927,7 +930,7 @@ password, because git then pushes with that password and never asks the bridge.
 | 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
 | 404 with no error code, from a server without the route | keeps the git setup of the machine |
 | A folder with no `origin` remote, or an `origin` remote with no address on GitHub | keeps the git setup of the machine |
-| Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, or an address with a password | is managed, and its credentials fail until the cause ends |
+| Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, an address with a password, or another SSH address of GitHub | is managed, and its credentials fail until the cause ends |
 
 A managed worker gets the same environment as a worker with an agent account,
 except for the git identity. The bridge leaves `GIT_AUTHOR_*` and

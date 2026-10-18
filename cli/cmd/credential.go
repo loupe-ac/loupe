@@ -275,14 +275,26 @@ func originURLs(ctx context.Context, dir string, flags ...string) ([]string, err
 	return urls, nil
 }
 
+// githubSSHPrefixes are the SSH address forms that workerEnv rewrites to HTTPS.
+var githubSSHPrefixes = []string{"git@github.com:", "ssh://git@github.com/"}
+
 // parseGitHubRemote returns owner/name from a GitHub remote URL in the https,
 // scp or ssh form. A URL with a password is refused, because git pushes with
-// that password and never asks the credential helper.
+// that password and never asks the credential helper. So is any other SSH
+// address of GitHub, because git would push it with the machine's key.
 func parseGitHubRemote(remote string) (string, error) {
-	path, ok := strings.CutPrefix(remote, "git@github.com:")
+	path, ok := "", false
+	for _, prefix := range githubSSHPrefixes {
+		if path, ok = strings.CutPrefix(remote, prefix); ok {
+			break
+		}
+	}
 	if !ok {
+		if githubSSHAddress(remote) {
+			return "", fmt.Errorf("the origin remote %q is an SSH address that Loupe cannot send through HTTPS, so use https://github.com/<owner>/<name>", remote)
+		}
 		u, err := url.Parse(remote)
-		if err != nil || (u.Scheme != "https" && u.Scheme != "ssh") || !strings.EqualFold(u.Hostname(), "github.com") {
+		if err != nil || u.Scheme != "https" || !strings.EqualFold(u.Hostname(), "github.com") {
 			return "", fmt.Errorf("%w: %q", errNotGitHub, remote)
 		}
 		if _, set := u.User.Password(); set {
@@ -298,6 +310,26 @@ func parseGitHubRemote(remote string) (string, error) {
 	}
 
 	return owner + "/" + name, nil
+}
+
+// githubSSHAddress says whether git reaches remote over SSH on a GitHub host,
+// in the URL form or the scp form host:path.
+func githubSSHAddress(remote string) bool {
+	host := ""
+	if scheme, rest, found := strings.Cut(remote, "://"); found {
+		if scheme != "ssh" && scheme != "git+ssh" && scheme != "ssh+git" {
+			return false
+		}
+		u, err := url.Parse("ssh://" + rest)
+		if err != nil {
+			return false
+		}
+		host = u.Hostname()
+	} else if before, _, found := strings.Cut(remote, ":"); found && !strings.Contains(before, "/") {
+		host = strings.TrimPrefix(before[strings.LastIndex(before, "@")+1:], "[")
+	}
+
+	return strings.EqualFold(host, "github.com") || strings.EqualFold(host, "ssh.github.com")
 }
 
 // credentialEnv is what a worker needs to ask the bridge for credentials.
