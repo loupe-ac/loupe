@@ -54,6 +54,9 @@ type router struct {
 	// none was checked. Neither changes after start.
 	agent     *config.AgentAccount
 	pushLogin string
+	// credentials gives the workers their GitHub credentials, and answers the
+	// credential op of the control socket. A nil one gives none.
+	credentials *credentialBroker
 	// bridgeID names the bridge in every report it sends. With none, as in
 	// most tests, the bridge sends no report.
 	bridgeID string
@@ -1077,6 +1080,7 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 	}
 	spec := p.spec
 	spec.agent = r.agent
+	spec.credentials, spec.project = r.credentials, p.project
 	env, err := spec.accountEnv()
 	if err != nil {
 		failed := workerResult{err: err, dir: beforeDir}

@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -26,7 +28,7 @@ const (
 func TestWorkerEnvReplacesAnInheritedSession(t *testing.T) {
 	base := []string{sessionVar + "outer", "HOME=/home/a", sessionVar + "again"}
 
-	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", nil)).Env
+	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", nil, nil)).Env
 	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0"}) {
 		t.Fatalf("workerEnv = %q", got)
 	}
@@ -35,61 +37,151 @@ func TestWorkerEnvReplacesAnInheritedSession(t *testing.T) {
 	}
 }
 
-// The helper prints the agent's login and the token from GH_TOKEN, and only
-// for a get.
-const agentHelper = `!f() { test "$1" = get && echo username=loupe-bot && echo "password=$GH_TOKEN"; }; f`
+const (
+	credLoupe   = "/opt/loupe bin/loupe"
+	credBinDir  = "/runs/r1/bin"
+	credHelper  = `!'/opt/loupe bin/loupe' credential`
+	credSocket  = "/cfg/bridge-x.sock"
+	ghTokenVar  = "GH_TOKEN="
+	githubToken = "GITHUB_TOKEN="
+)
+
+func credEnvFixture() *credentialEnv {
+	return &credentialEnv{runID: "r1", socket: credSocket, loupe: credLoupe, binDir: credBinDir}
+}
+
+func gitConfigEntries(count int, start int) []string {
+	n := strconv.Itoa
+	return []string{
+		"GIT_CONFIG_KEY_" + n(start) + "=credential.https://github.com.helper", "GIT_CONFIG_VALUE_" + n(start) + "=",
+		"GIT_CONFIG_KEY_" + n(start+1) + "=credential.https://github.com.helper", "GIT_CONFIG_VALUE_" + n(start+1) + "=" + credHelper,
+		"GIT_CONFIG_KEY_" + n(start+2) + "=url.https://github.com/.insteadOf", "GIT_CONFIG_VALUE_" + n(start+2) + "=git@github.com:",
+		"GIT_CONFIG_KEY_" + n(start+3) + "=url.https://github.com/.insteadOf", "GIT_CONFIG_VALUE_" + n(start+3) + "=ssh://git@github.com/",
+		"GIT_CONFIG_COUNT=" + n(count),
+	}
+}
 
 func TestWorkerEnvPushesAsTheAgentAccount(t *testing.T) {
 	base := []string{
-		"HOME=/home/a", "GH_TOKEN=owner", "GITHUB_TOKEN=owner", "GIT_AUTHOR_NAME=Owner",
+		"HOME=/home/a", "PATH=/usr/bin:/bin", "GH_TOKEN=owner", "GITHUB_TOKEN=owner", "GIT_AUTHOR_NAME=Owner",
 		"GIT_AUTHOR_EMAIL=owner@example.test", "GIT_COMMITTER_NAME=Owner", "GIT_COMMITTER_EMAIL=owner@example.test",
 	}
 	account := &config.AgentAccount{Token: "ghp_agent", Login: "loupe-bot", ID: 4242}
 
-	got := workerEnv(base, "s1", account)
-	want := []string{
+	got := workerEnv(base, "s1", account, credEnvFixture())
+	want := append([]string{
 		"HOME=/home/a", sessionVar + "s1",
-		"GH_TOKEN=ghp_agent",
+		"LOUPE_RUN_ID=r1", "LOUPE_CONTROL_SOCKET=" + credSocket,
+		"GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never",
+		"PATH=" + credBinDir + ":/usr/bin:/bin",
 		"GIT_AUTHOR_NAME=loupe-bot", "GIT_COMMITTER_NAME=loupe-bot",
 		"GIT_AUTHOR_EMAIL=4242+loupe-bot@users.noreply.github.com",
 		"GIT_COMMITTER_EMAIL=4242+loupe-bot@users.noreply.github.com",
-		"GIT_CONFIG_KEY_0=credential.https://github.com.helper", "GIT_CONFIG_VALUE_0=",
-		"GIT_CONFIG_KEY_1=credential.https://github.com.helper", "GIT_CONFIG_VALUE_1=" + agentHelper,
-		"GIT_CONFIG_KEY_2=url.https://github.com/.insteadOf", "GIT_CONFIG_VALUE_2=git@github.com:",
-		"GIT_CONFIG_KEY_3=url.https://github.com/.insteadOf", "GIT_CONFIG_VALUE_3=ssh://git@github.com/",
-		"GIT_CONFIG_COUNT=4",
+	}, gitConfigEntries(4, 0)...)
+	if !slices.Equal(got, want) {
+		t.Fatalf("workerEnv =\n%q\nwant\n%q", got, want)
 	}
+	assertNoToken(t, got, "ghp_agent")
+}
+
+// A managed worker keeps its own git identity and gets the same helper.
+func TestWorkerEnvManagedWorkerKeepsItsIdentity(t *testing.T) {
+	base := []string{
+		"HOME=/home/a", "PATH=/usr/bin", "GH_TOKEN=owner", "GITHUB_TOKEN=owner", "GIT_AUTHOR_NAME=Owner",
+		"LOUPE_RUN_ID=old", "GIT_TERMINAL_PROMPT=1",
+	}
+
+	got := workerEnv(base, "s1", nil, credEnvFixture())
+	want := append([]string{
+		"HOME=/home/a", "GIT_AUTHOR_NAME=Owner", sessionVar + "s1",
+		"LOUPE_RUN_ID=r1", "LOUPE_CONTROL_SOCKET=" + credSocket,
+		"GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never",
+		"PATH=" + credBinDir + ":/usr/bin",
+	}, gitConfigEntries(4, 0)...)
 	if !slices.Equal(got, want) {
 		t.Fatalf("workerEnv =\n%q\nwant\n%q", got, want)
 	}
 }
 
-// An operator's own GIT_CONFIG entries stay, and the agent's follow them.
+func TestWorkerEnvWithoutAPathStillPutsTheWrapperFirst(t *testing.T) {
+	got := workerEnv([]string{"HOME=/h"}, "s1", nil, credEnvFixture())
+	if !slices.Contains(got, "PATH="+credBinDir+":/usr/local/bin:/usr/bin:/bin") {
+		t.Fatalf("workerEnv = %q", got)
+	}
+}
+
+// An operator's own GIT_CONFIG entries stay, and the bridge's follow them.
 func TestWorkerEnvKeepsTheInheritedGitConfig(t *testing.T) {
 	base := []string{"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=core.editor", "GIT_CONFIG_VALUE_0=vi"}
 	account := &config.AgentAccount{Token: "ghp_agent", Login: "loupe-bot", ID: 4242}
 
-	got := workerEnv(base, "s1", account)
-	for _, e := range []string{
-		"GIT_CONFIG_KEY_0=core.editor", "GIT_CONFIG_VALUE_0=vi",
-		"GIT_CONFIG_KEY_1=credential.https://github.com.helper", "GIT_CONFIG_VALUE_1=",
-		"GIT_CONFIG_KEY_2=credential.https://github.com.helper", "GIT_CONFIG_VALUE_2=" + agentHelper,
-		"GIT_CONFIG_KEY_3=url.https://github.com/.insteadOf", "GIT_CONFIG_VALUE_3=git@github.com:",
-		"GIT_CONFIG_KEY_4=url.https://github.com/.insteadOf", "GIT_CONFIG_VALUE_4=ssh://git@github.com/",
-		"GIT_CONFIG_COUNT=5",
-	} {
-		if !slices.Contains(got, e) {
-			t.Fatalf("workerEnv = %q, want %q in it", got, e)
+	for name, agent := range map[string]*config.AgentAccount{"agent": account, "managed": nil} {
+		t.Run(name, func(t *testing.T) {
+			got := workerEnv(base, "s1", agent, credEnvFixture())
+			for _, e := range append([]string{"GIT_CONFIG_KEY_0=core.editor", "GIT_CONFIG_VALUE_0=vi"}, gitConfigEntries(5, 1)...) {
+				if !slices.Contains(got, e) {
+					t.Fatalf("workerEnv = %q, want %q in it", got, e)
+				}
+			}
+			counts := 0
+			for _, e := range got {
+				if strings.HasPrefix(e, "GIT_CONFIG_COUNT=") {
+					counts++
+				}
+			}
+			if counts != 1 {
+				t.Fatalf("workerEnv = %q, want one GIT_CONFIG_COUNT", got)
+			}
+		})
+	}
+}
+
+// A plain worker keeps the bridge environment, token and path included.
+func TestWorkerEnvPlainWorkerKeepsTheEnvironment(t *testing.T) {
+	base := []string{"HOME=/h", "PATH=/bin", "GH_TOKEN=owner", "GIT_CONFIG_COUNT=2"}
+
+	got := workerEnv(base, "s1", nil, nil)
+	if !slices.Equal(got, append(slices.Clone(base), sessionVar+"s1")) {
+		t.Fatalf("workerEnv = %q", got)
+	}
+}
+
+func assertNoToken(t *testing.T, env []string, token string) {
+	t.Helper()
+	for _, e := range env {
+		if strings.Contains(e, token) || strings.HasPrefix(e, ghTokenVar) || strings.HasPrefix(e, githubToken) {
+			t.Fatalf("the environment holds a token: %q", e)
 		}
 	}
-	counts := 0
-	for _, e := range got {
-		if strings.HasPrefix(e, "GIT_CONFIG_COUNT=") {
-			counts++
-		}
+}
+
+// The helper string runs in git itself: git adds the word get, and the quoted
+// path survives a space.
+func TestWorkerEnvHelperRunsInGit(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
 	}
-	if counts != 1 {
-		t.Fatalf("workerEnv = %q, want one GIT_CONFIG_COUNT", got)
+	dir := t.TempDir()
+	loupe := filepath.Join(dir, "loupe bin", "it's")
+	if err := os.MkdirAll(filepath.Dir(loupe), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\ncat >/dev/null\n[ \"$1 $2\" = \"credential get\" ] || exit 1\necho username=x-access-token\necho password=tok-1\n"
+	if err := os.WriteFile(loupe, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	creds := &credentialEnv{runID: "r1", socket: credSocket, loupe: loupe, binDir: filepath.Join(dir, "bin")}
+
+	cmd := exec.Command(git, "credential", "fill")
+	cmd.Env = workerEnv([]string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1"}, "s1", nil, creds)
+	cmd.Stdin = strings.NewReader("protocol=https\nhost=github.com\n\n")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git credential fill: %v: %s", err, out)
+	}
+	if !strings.Contains(string(out), "username=x-access-token\n") || !strings.Contains(string(out), "password=tok-1\n") {
+		t.Fatalf("git credential fill = %q", out)
 	}
 }
 
