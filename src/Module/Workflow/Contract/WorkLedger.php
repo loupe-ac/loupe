@@ -18,8 +18,13 @@ interface WorkLedger
 
     public function find(Uuid $requestId): ?WorkView;
 
-    /** Answers false when the work is unknown or already settled. */
-    public function withdraw(Uuid $requestId, WithdrawKind $kind): bool;
+    /**
+     * Answers false when the work is unknown or already settled. The reason is a code that the module of the work reads.
+     */
+    public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null): bool;
+
+    /** The reason code when the open work has no bridge online that could run it, or null when a bridge could, or the work is not open. */
+    public function noTakerReason(Uuid $requestId): ?string;
 
     /** The newest run of the card that resumes or reruns an earlier run, and that a worker ran or runs. */
     public function latestContinuation(Uuid $cardId, ?\DateTimeImmutable $since, ?string $ruleId): ?RunView;

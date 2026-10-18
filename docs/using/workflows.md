@@ -151,6 +151,10 @@ markers:
   follows the project, reports the kind of work and was seen in the last three
   heartbeat intervals could take it. The marker counts from the later of the
   start of the wait and the moment the last such bridge went quiet.
+- `card.run.work_no_capable_taker`: a work request of the card waits, a bridge
+  that follows the project is online, and none of those bridges can run the
+  work. A bridge runs a kind of work when its rule file maps the kind, or when
+  it reports `app-prompts` and the request ships a prompt.
 - `card.run.work_taker_paused`: a work request of the card waits, and every
   online bridge that could take it is paused. A bridge counts as paused while
   you paused it, or while its last heartbeat said so.
@@ -748,8 +752,11 @@ The app adds five rules.
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
 [discovery run](workshop.md#run-discovery), and it sends the discovery prompt
-with the request. A request that no bridge takes expires, and the run fails with
-the reason that no bridge took the work.
+with the request. The rule sets `onNoTaker: fail`, so the request fails at once
+when no online bridge could take it, and the run fails with the cause: no bridge
+serves the project, or a bridge is online and cannot run discovery. A request
+that a capable bridge does not claim in time expires, and the run fails with the
+reason that no bridge took the work.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the
@@ -841,6 +848,12 @@ holds the same reason. A request rule can set the reason with the optional
 `reason` parameter. The parameter replaces the reason that the state of the
 pull request gives, in the context and in the event. The fix rules for the
 [agent review](#agent-review) use `reason: agent-review`.
+
+A request rule can set the optional `onNoTaker` parameter to `fail`. The engine
+then expires an open request of the rule as soon as no online bridge that
+follows the project could take it. The card does not pause, and the module that
+owns the work reads the cause from the reason of the request. A request without
+the parameter waits for the work timeout instead.
 
 A request rule can set the optional `cancelWhen` parameter. It holds a
 condition. While the condition is true, the engine withdraws the live request

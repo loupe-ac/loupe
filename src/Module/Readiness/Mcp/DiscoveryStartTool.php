@@ -42,6 +42,8 @@ final readonly class DiscoveryStartTool
         } catch (DomainErrors $e) {
             $message = match (array_first($e->errors)) {
                 StartDiscoveryHandler::NO_LIVE_BRIDGE => 'No bridge serves this project now. Start a bridge that serves this project, then call discovery_start again.',
+                StartDiscoveryHandler::NO_CAPABLE_BRIDGE => 'A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true, then call discovery_start again.',
+                StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS => 'A bridge is online, but none can run discovery. Run loupe init again, then call discovery_start again.',
                 StartDiscoveryHandler::NO_WORKFLOW => 'This project has no workflow, so the workflow cannot ask a bridge for the work. Choose a workflow for this project, then call discovery_start again.',
                 StartDiscoveryHandler::AUTOMATION_OFF => 'Board automation is off for this project, so the workflow cannot ask a bridge for the work. Switch on "Run the workflow of the board" on the Automation tab of the project settings, or call automation_settings_update with enabled true, then call discovery_start again.',
                 default => 'The request was rejected. The error has been logged.',

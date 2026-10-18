@@ -16,10 +16,16 @@ final readonly class WorkTakerFacts
     ) {
     }
 
-    /** The reading that has no taker and has waited longest, or null when every open request has one. */
+    /** The reading that has no taker, online but incapable bridges included, and has waited longest, or null when every open request has one. */
     public function withoutTaker(): ?WorkTakerReading
     {
-        return $this->earliest(WorkTakerState::None);
+        return $this->earliest(WorkTakerState::None, WorkTakerState::NotCapable);
+    }
+
+    /** The reading of a request that an online bridge follows but none can run, or null when no request is in that state. */
+    public function notCapable(): ?WorkTakerReading
+    {
+        return $this->earliest(WorkTakerState::NotCapable);
     }
 
     /** The reading of a request whose takers are all paused, or null while another request has no taker at all. */
@@ -36,9 +42,9 @@ final readonly class WorkTakerFacts
         return [] === $times ? null : min($times);
     }
 
-    private function earliest(WorkTakerState $state): ?WorkTakerReading
+    private function earliest(WorkTakerState ...$states): ?WorkTakerReading
     {
-        $matching = array_filter($this->readings, static fn (WorkTakerReading $reading): bool => $state === $reading->state);
+        $matching = array_filter($this->readings, static fn (WorkTakerReading $reading): bool => \in_array($reading->state, $states, true));
         usort($matching, static fn (WorkTakerReading $a, WorkTakerReading $b): int => $a->noTakerSince <=> $b->noTakerSince);
 
         return $matching[0] ?? null;

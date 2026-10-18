@@ -24,6 +24,8 @@ final readonly class StartDiscoveryHandler
     private const string CARD_TYPE = 'tooling';
 
     public const string NO_LIVE_BRIDGE = 'readiness.discovery.error.no_bridge';
+    public const string NO_CAPABLE_BRIDGE = 'readiness.discovery.error.no_capable_bridge';
+    public const string NO_CAPABLE_BRIDGE_APP_PROMPTS = 'readiness.discovery.error.no_capable_bridge_app_prompts';
 
     public const string NO_WORKFLOW = 'readiness.discovery.error.no_workflow';
 

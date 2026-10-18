@@ -48,6 +48,11 @@ class WorkRequest
     public const int MAX_REASON_LENGTH = 64;
 
     /** A reason code, never text a person wrote. */
+    /** The withdraw reasons of an open request that no online bridge could take. */
+    public const string REASON_NO_TAKER = 'no-taker';
+    public const string REASON_NO_CAPABLE_TAKER = 'no-capable-taker';
+    public const string REASON_NO_CAPABLE_TAKER_APP_PROMPTS = 'no-capable-taker-app-prompts';
+
     public const string REASON_PATTERN = '/^[a-z][a-z0-9-]{0,63}$/D';
 
     public const int MAX_BRANCH_LENGTH = 200;
@@ -230,9 +235,12 @@ class WorkRequest
         return true;
     }
 
-    /** Moves a live request to cancelled or expired. Answers false when the request already settled. */
-    public function withdraw(WorkRequestState $state, \DateTimeImmutable $now): bool
+    /** Moves a live request to cancelled or expired, with the reason code of the withdrawal when the caller has one. Answers false when the request already settled. */
+    public function withdraw(WorkRequestState $state, \DateTimeImmutable $now, ?string $reason = null): bool
     {
+        if (null !== $reason && 1 !== preg_match(self::REASON_PATTERN, $reason)) {
+            throw new \LogicException('A work request reason is a code.');
+        }
         if (WorkRequestState::Cancelled !== $state && WorkRequestState::Expired !== $state) {
             throw new \LogicException('A work request withdraws to cancelled or expired.');
         }
@@ -241,6 +249,7 @@ class WorkRequest
         }
 
         $this->state = $state;
+        $this->reason = $reason;
         $this->settledAt = $now;
 
         return true;

@@ -1,5 +1,5 @@
 key: lifecycle
-version: 5
+version: 6
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -779,12 +779,21 @@ markers:
       label: marker.run_open
       remedy: marker.run_open.remedy
       when: { card.run.worker_active: {} }
+    - key: no-capable-bridge
+      kind: stuck
+      label: marker.no_capable_bridge
+      remedy: marker.no_capable_bridge.remedy
+      link: agents
+      when: { card.run.work_no_capable_taker: {} }
     - key: no-bridge-online
       kind: stuck
       label: marker.no_bridge_online
       remedy: marker.no_bridge_online.remedy
       link: agents
-      when: { card.run.work_no_taker: {} }
+      when:
+          all:
+              - card.run.work_no_taker: {}
+              - not: { card.run.work_no_capable_taker: {} }
     - key: bridge-paused
       kind: waiting
       label: marker.bridge_paused

@@ -50,7 +50,7 @@ The guide is a checklist named Ready for agents. It counts the rows that are don
 
 - Agent connected is done after an agent first calls the MCP server for this project. Connect opens the Connect page.
 - Workflow is done when the project has a workflow. The row shows the name of the workflow template.
-- Bridge running is done when a bridge that serves the project sends heartbeats. Start opens the Connect page.
+- Bridge running is done when a bridge that serves the project sends heartbeats and can run the discovery work. A bridge that is online but cannot run it shows "Online, but it cannot run this work". Start opens the Connect page.
 - GitHub App is done when a repository connects to the project through the GitHub App. Install starts the install when the instance has a GitHub App.
 - Agent GitHub account is done when the owner records the login of the agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the [agent account page](../getting-started/agent-github-account.md).
 - Repository shows the latest [discovery](#run-discovery) of the project. It is done when the owner reviewed the discovery report.
@@ -109,10 +109,11 @@ The Repository row shows the state of the latest run:
 |---|---|---|
 | Not run | Discovery never ran on this project | Run discovery |
 | Discovery waits for a running bridge | Discovery never ran, and no bridge serves the project now | None. The Bridge running row links to the setup |
+| Discovery waits for a bridge that can run it | Discovery never ran, and a bridge is online but cannot run the discovery work | None. Map the `discovery` kind in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again when the bridge is old |
 | Discovery waits for a workflow | Discovery never ran, and the project has no workflow | None. Choose a workflow for the project |
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
 | Running on card #N | A run is open. A second start is refused until it ends | Open card |
-| Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no bridge claimed the request in time. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
+| Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no bridge claimed the request in time. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
 | The report waits for your review | The worker reported. The run is in the Reported state | None |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
 
