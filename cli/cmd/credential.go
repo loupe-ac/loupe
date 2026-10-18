@@ -101,7 +101,8 @@ func (b *credentialBroker) forget(runID string) {
 
 // manages asks for the first token of a run folder, which warms the cache. A
 // run is managed when it gets a token and also when the ask fails in any way
-// but the two answers that say Loupe does not manage the identity. The helper
+// but the two answers that say Loupe does not manage the identity, and a
+// folder with no GitHub remote. The helper
 // then reports the failure, and the worker never falls back to the git setup
 // of the machine. err says why the ask failed.
 func (b *credentialBroker) manages(ctx context.Context, handle, dir string) (managed bool, err error) {
@@ -109,7 +110,8 @@ func (b *credentialBroker) manages(ctx context.Context, handle, dir string) (man
 	if err == nil {
 		_, _, err = b.token(ctx, handle, repository)
 	}
-	if errors.Is(err, api.ErrGitIdentityNotManaged) || errors.Is(err, api.ErrGitTokenUnsupported) {
+	if errors.Is(err, api.ErrGitIdentityNotManaged) || errors.Is(err, api.ErrGitTokenUnsupported) ||
+		errors.Is(err, errNoOrigin) || errors.Is(err, errNotGitHub) {
 		return false, err
 	}
 
@@ -181,6 +183,13 @@ func (b *credentialBroker) answer(ctx context.Context, runID string) credentialR
 	return credentialResult{OK: true, Login: appTokenLogin, Token: token, ExpiresAt: expires}
 }
 
+var (
+	// errNoOrigin and errNotGitHub say the folder has no GitHub remote to push
+	// to, so Loupe has no token to give and the machine keeps its git setup.
+	errNoOrigin  = errors.New("the folder has no origin remote")
+	errNotGitHub = errors.New("the origin remote is not a GitHub https or ssh address")
+)
+
 // gitRepository reads owner/name from the origin remote of the git folder dir.
 func gitRepository(ctx context.Context, dir string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTokenTimeout)
@@ -190,7 +199,7 @@ func gitRepository(ctx context.Context, dir string) (string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("read the origin remote in %s: %w: %s", dir, err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("%w in %s: %s", errNoOrigin, dir, strings.TrimSpace(stderr.String()))
 	}
 
 	return parseGitHubRemote(strings.TrimSpace(stdout.String()))
@@ -203,7 +212,7 @@ func parseGitHubRemote(remote string) (string, error) {
 	if !ok {
 		u, err := url.Parse(remote)
 		if err != nil || (u.Scheme != "https" && u.Scheme != "ssh") || !strings.EqualFold(u.Hostname(), "github.com") {
-			return "", fmt.Errorf("the origin remote %q is not a GitHub https or ssh address", remote)
+			return "", fmt.Errorf("%w: %q", errNotGitHub, remote)
 		}
 		path = u.Path
 	}

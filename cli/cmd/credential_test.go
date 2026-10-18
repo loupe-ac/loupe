@@ -240,7 +240,9 @@ func TestManagedDecisionMatrix(t *testing.T) {
 		{"no installation", errors.New("the server refused to issue a git token (HTTP 409): no_installation"), nil, true},
 		{"github down", errors.New("HTTP 502: github_unavailable"), nil, true},
 		{"network", errors.New("request a git token: connection refused"), nil, true},
-		{"no remote", nil, errors.New("not a github remote"), true},
+		{"remote is not GitHub", nil, fmt.Errorf("%w: %q", errNotGitHub, "git@gitlab.com:a/b.git"), false},
+		{"no origin", nil, fmt.Errorf("%w in /work", errNoOrigin), false},
+		{"unreadable remote", nil, errors.New("git failed"), true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
