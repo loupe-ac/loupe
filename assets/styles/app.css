@@ -6280,7 +6280,7 @@
     /* Top-aligned with a padding rather than centred, so the lane controller
        reads the final place of each part while the head height still moves. */
     .lp-board-lane__heading {
-        @apply grid self-start min-w-0 items-center gap-x-2 gap-y-1 pt-5;
+        @apply grid self-start min-w-0 items-center gap-x-2 gap-y-1 pt-3;
         grid-template-columns: auto auto minmax(0, 1fr);
         grid-template-areas:
             'number status progress'
