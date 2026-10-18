@@ -176,7 +176,8 @@ loupe init --reset               # write the first-run rules again
 
 1. Sign in with `loupe login`, when you are not signed in.
 2. Choose the project. `--project` names it. Else `.loupe.yaml` names it. Else
-   the command lists your projects. When your login covers none, it creates one
+   the command lists your projects. A `--project` that differs from the project
+   of an existing `.loupe.yaml` stops the command, unless you pass `--force`. When your login covers none, it creates one
    from the `origin` remote of the repository. With no remote, it stops and asks
    for `--project`.
 3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
@@ -186,19 +187,24 @@ loupe init --reset               # write the first-run rules again
 5. Write the rule file. A new file holds the first-run rules: app prompts on,
    one account for the agent it finds, the project, and, where it knows a
    terminal, a product-design entry. An existing file gets only the keys it
-   lacks, and its comments stay. `--reset` writes the first-run rules again and
-   keeps the `projects` map.
+   lacks, and its comments stay. A file with no account gets the account of the
+   agent it finds. `--reset` writes the first-run rules again and keeps the
+   `projects` map. When that map holds the project under another directory,
+   the command stops and names the entry to change.
 6. Ask `Turn on automatic updates? [y/N]`, when the rule file has no
    `autoUpdate` key. A session with no terminal answers no, and the command
    writes `autoUpdate: false`.
 7. Start the bridge in the background, as `loupe bridge run -d` does. A bridge
-   that runs already is left alone. A bridge that fails to start is reported,
-   the later steps still run, and the command exits with an error.
+   that runs already reloads the rule file when step 5 changed it, as
+   `loupe bridge reload` does, and is left alone otherwise. A bridge that fails
+   to start or to reload is reported, the later steps still run, and the
+   command exits with an error.
 8. Install the Playwright browser, when `package.json` lists `@playwright/test`
    or `playwright` and the Playwright cache holds no Chromium. The command asks
    first, and runs `npx playwright install chromium`.
-9. Print the page to open next, `/projects/<id>/connect` on your instance, and
-   remind you to commit `.loupe/lifecycle.md`.
+9. Print the page to open next, the machine step of the wizard at
+   `/welcome/connect` on your instance, and remind you to commit
+   `.loupe/lifecycle.md`.
 
 ## `loupe project link`
 

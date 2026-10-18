@@ -257,7 +257,6 @@ func TestMergeLeavesAFullFileByteIdentical(t *testing.T) {
 
 func TestMergeNeverChangesAPresentKey(t *testing.T) {
 	o := firstRunOptions(t, "darwin", "claude")
-	other := t.TempDir()
 	existing := `appPrompts: false
 accounts:
   work:
@@ -267,7 +266,7 @@ defaults:
   permissions: full
 projects:
   my-app:
-    dir: ` + other + `
+    dir: ` + o.Dir + `
 launch:
   command: ["my-terminal", "{script}"]
 work:
@@ -281,6 +280,57 @@ work:
 	}
 	if string(out) != existing || len(added) != 0 {
 		t.Fatalf("merge changed a present key (%v):\n%s", added, out)
+	}
+}
+
+func TestMergeAddsAnAccountToAFileWithNone(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body, account string
+		names         []string
+		want          []string
+	}{
+		"no account at all":   {"autoUpdate: true\n", HarnessClaudeCode, []string{"claude"}, []string{"defaults.account", "accounts.claude-code"}},
+		"codex only":          {"accounts: {}\n", HarnessCodex, []string{"codex"}, []string{"defaults.account", "accounts.codex"}},
+		"a default names one": {"defaults:\n  account: mine\n", "mine", []string{"claude"}, []string{"accounts.mine"}},
+	} {
+		o := firstRunOptions(t, "linux", tc.names...)
+		out, added, err := Merge([]byte(tc.body), o)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, want := range tc.want {
+			if !slices.Contains(added, want) {
+				t.Errorf("%s: added = %v, want %s", name, added, want)
+			}
+		}
+		set, err := Parse(out, Defaults{})
+		if err != nil {
+			t.Fatalf("%s: the merged file does not load: %v\n%s", name, err, out)
+		}
+		if set.AgentsOff() != "" || !slices.Equal(set.DeclaredAccounts(), []string{tc.account}) {
+			t.Errorf("%s: agents off %q, accounts %v, want %s\n%s", name, set.AgentsOff(), set.DeclaredAccounts(), tc.account, out)
+		}
+	}
+}
+
+func TestMergeAndResetRefuseAProjectMappedToAnotherDirectory(t *testing.T) {
+	o := firstRunOptions(t, "darwin", "claude")
+	other := t.TempDir()
+	body := "projects:\n  my-app:\n    dir: " + other + "\n"
+	if _, _, err := Merge([]byte(body), o); err == nil || !strings.Contains(err.Error(), "projects.my-app maps "+other) {
+		t.Errorf("Merge: err = %v, want the other directory named", err)
+	}
+	if _, err := Reset([]byte(body), o); err == nil || !strings.Contains(err.Error(), "projects.my-app maps "+other) {
+		t.Errorf("Reset: err = %v, want the other directory named", err)
+	}
+
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(o.Dir, link); err != nil {
+		t.Fatal(err)
+	}
+	same := "projects:\n  my-app:\n    dir: " + link + "/\n"
+	if _, added, err := Merge([]byte(same), o); err != nil || slices.Contains(added, "projects.my-app") {
+		t.Errorf("a link to the same directory must pass: %v, %v", added, err)
 	}
 }
 

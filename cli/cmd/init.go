@@ -52,6 +52,30 @@ var (
 
 		return err == nil && controlAnswers(sock)
 	}
+	initReloadBridge = func(rulesPath string) error {
+		abs, err := filepath.Abs(rulesPath)
+		if err != nil {
+			return err
+		}
+		sock, err := socketPath(abs)
+		if err != nil {
+			return err
+		}
+		res, err := requestReload(sock)
+		if err != nil {
+			return err
+		}
+		if !res.OK {
+			problems := cmp.Or(strings.Join(res.Problems, "; "), "the bridge did not apply the rule file")
+			if res.Stage != "" {
+				problems = res.Stage + ": " + problems
+			}
+
+			return errors.New(problems)
+		}
+
+		return nil
+	}
 )
 
 // initOptions are the flags of `loupe init`.
@@ -81,13 +105,15 @@ func newInitCmd() *cobra.Command {
 			"Loupe plugin. When a command fails, the step prints it for you to run.\n" +
 			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
-			"--reset writes the first-run rules again and keeps the projects map.\n" +
+			"--reset writes the first-run rules again and keeps the projects map. A projects entry " +
+			"that maps this project to another directory stops the command.\n" +
 			"6. Ask whether to turn on automatic updates, when the rule file has no autoUpdate key. " +
 			"The default is no, and a session with no terminal answers no.\n" +
-			"7. Start the bridge in the background, as `loupe bridge run -d` does.\n" +
+			"7. Start the bridge in the background, as `loupe bridge run -d` does. A bridge that " +
+			"runs already reloads the rule file when step 5 changed it.\n" +
 			"8. Install the Playwright browser, when package.json lists Playwright and the browser " +
 			"is missing. The command asks first.\n" +
-			"9. Print the page to open next.\n\n" +
+			"9. Print the wizard page to open next.\n\n" +
 			"Steps 1, 2, 3 and 5 stop the command when they fail. The other steps report a failure and go on. " +
 			"A bridge that fails to start makes the command exit with an error after the last step.",
 		Args: cobra.NoArgs,
@@ -133,13 +159,16 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := initRules(cmd, path, dir, site, o.reset); err != nil {
+	changed, err := initRules(cmd, path, dir, site, o.reset)
+	if err != nil {
 		return err
 	}
-	initAutoUpdate(cmd, path)
-	bridgeErr := initBridge(cmd, o.rulesPath, path)
+	if initAutoUpdate(cmd, path) {
+		changed = true
+	}
+	bridgeErr := initBridge(cmd, o.rulesPath, path, changed)
 	initPlaywright(cmd, dir)
-	initNext(cmd, cfg.BaseURL, site.ID)
+	initNext(cmd, cfg.BaseURL)
 
 	return bridgeErr
 }
@@ -192,13 +221,9 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 		return api.Site{ID: id}
 	}
 
-	if o.link.projectID != "" {
-		site := find(o.link.projectID)
-		step(out, "Project", "done", "using "+describe(site))
-
-		return site, nil
-	}
-
+	// init keeps a project file without --force, so the file decides the
+	// project, and a flag that names another one stops the command.
+	linked := ""
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !o.link.force {
 		file, err := projectfile.Load(dir)
 		if err != nil {
@@ -207,7 +232,21 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 		if file.Project == "" {
 			return api.Site{}, fmt.Errorf("%s names no project: pass --force to replace it", projectfile.Name)
 		}
-		site := find(file.Project)
+		linked = file.Project
+	}
+
+	if o.link.projectID != "" {
+		if linked != "" && !strings.EqualFold(linked, o.link.projectID) {
+			return api.Site{}, fmt.Errorf("%s names %s, not %s: pass --force to replace the file, or leave out --project", projectfile.Name, describe(find(linked)), describe(find(o.link.projectID)))
+		}
+		site := find(o.link.projectID)
+		step(out, "Project", "done", "using "+describe(site))
+
+		return site, nil
+	}
+
+	if linked != "" {
+		site := find(linked)
 		step(out, "Project", "skipped", projectfile.Name+" names "+describe(site))
 
 		return site, nil
@@ -327,15 +366,16 @@ func indented(raw []byte) string {
 	return ":\n  " + strings.ReplaceAll(text, "\n", "\n  ") + "\n"
 }
 
-// initRules writes the first-run rule file, or adds to the one that exists.
-func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) error {
+// initRules writes the first-run rule file, or adds to the one that exists. It
+// reports whether it changed a file that existed.
+func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) (bool, error) {
 	out := cmd.OutOrStdout()
 	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), Dir: dir}
 
 	existing, err := os.ReadFile(path)
 	missing := errors.Is(err, fs.ErrNotExist)
 	if err != nil && !missing {
-		return fmt.Errorf("read rule file: %w", err)
+		return false, fmt.Errorf("read rule file: %w", err)
 	}
 
 	var (
@@ -345,23 +385,23 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 	switch {
 	case missing:
 		if next, err = rules.FirstRun(opts); err != nil {
-			return err
+			return false, err
 		}
 		detail = "wrote " + path
 	case reset:
 		if next, err = rules.Reset(existing, opts); err != nil {
-			return fmt.Errorf("rule file %s: %w", path, err)
+			return false, fmt.Errorf("rule file %s: %w", path, err)
 		}
 		detail = "wrote the first-run rules to " + path + " and kept its projects map"
 	default:
 		var added []string
 		if next, added, err = rules.Merge(existing, opts); err != nil {
-			return fmt.Errorf("rule file %s: %w", path, err)
+			return false, fmt.Errorf("rule file %s: %w", path, err)
 		}
 		if len(added) == 0 {
 			step(out, "Rules", "skipped", path+" has what the first run needs")
 
-			return nil
+			return false, nil
 		}
 		detail = "added " + strings.Join(added, ", ") + " to " + path
 	}
@@ -369,17 +409,14 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 	if !missing && bytes.Equal(existing, next) {
 		step(out, "Rules", "skipped", path+" is the same already")
 
-		return nil
+		return false, nil
 	}
 	if err := saveRuleFile(path, next); err != nil {
-		return err
+		return false, err
 	}
 	step(out, "Rules", "done", detail)
-	if !missing {
-		fmt.Fprintln(out, "A running bridge reads the change on `loupe bridge reload`.")
-	}
 
-	return nil
+	return !missing, nil
 }
 
 // saveRuleFile replaces the file through a rename. A new file gets mode 0600
@@ -400,40 +437,58 @@ func saveRuleFile(path string, data []byte) error {
 }
 
 // initAutoUpdate asks about automatic updates when the rule file is silent on
-// them. It is a note on failure, because the file is written already.
-func initAutoUpdate(cmd *cobra.Command, path string) {
+// them, and reports whether it wrote the answer. It is a note on failure,
+// because the file is written already.
+func initAutoUpdate(cmd *cobra.Command, path string) bool {
 	out := cmd.OutOrStdout()
 
 	on, present, err := rules.ReadAutoUpdate(path)
 	if err != nil {
 		step(out, "Auto-update", "failed", err.Error())
 
-		return
+		return false
 	}
 	if present {
 		step(out, "Auto-update", "skipped", "the rule file sets autoUpdate to "+fmt.Sprint(on))
 
-		return
+		return false
 	}
 
 	on = confirmNo(out, cmd.InOrStdin(), "Turn on automatic updates?")
 	if _, err := rules.SetAutoUpdate(path, on); err != nil {
 		step(out, "Auto-update", "failed", err.Error())
 
-		return
+		return false
 	}
 	step(out, "Auto-update", "done", "automatic updates are "+onOff(on))
 	if !on {
 		fmt.Fprintln(out, "To turn them on later, run `loupe update auto on`.")
 	}
+
+	return true
 }
 
-// initBridge starts the bridge in the background. It returns the failure
-// instead of ending the command, so the later steps still run.
-func initBridge(cmd *cobra.Command, rulesFlag, path string) error {
+// initBridge starts the bridge in the background, or reloads a running one
+// when the rule file changed. It returns the failure instead of ending the
+// command, so the later steps still run.
+func initBridge(cmd *cobra.Command, rulesFlag, path string, changed bool) error {
 	out := cmd.OutOrStdout()
+	flag := ""
+	if rulesFlag != "" {
+		flag = " --rules " + rulesFlag
+	}
 	if initBridgeRuns(path) {
-		step(out, "Bridge", "skipped", "it runs already and reads "+path)
+		if !changed {
+			step(out, "Bridge", "skipped", "it runs already and reads "+path)
+
+			return nil
+		}
+		if err := initReloadBridge(path); err != nil {
+			step(out, "Bridge", "failed", fmt.Sprintf("it runs and did not reload %s: %v. After you fix that, run `loupe bridge reload%s`", path, err, flag))
+
+			return fmt.Errorf("reload the bridge: %w", err)
+		}
+		step(out, "Bridge", "done", "it reloaded "+path)
 
 		return nil
 	}
@@ -441,12 +496,11 @@ func initBridge(cmd *cobra.Command, rulesFlag, path string) error {
 	run := newBridgeRunCmd()
 	run.SetOut(out)
 	run.SetErr(cmd.ErrOrStderr())
-	byHand := "loupe bridge run -d"
+	byHand := "loupe bridge run -d" + flag
 	if rulesFlag != "" {
 		if err := run.Flags().Set("rules", rulesFlag); err != nil {
 			return err
 		}
-		byHand += " --rules " + rulesFlag
 	}
 
 	if err := initStartBridge(run, bridgeRunOptions{rulesPath: rulesFlag}); err != nil {
@@ -546,11 +600,12 @@ func playwrightBrowserInstalled(dir string) bool {
 	return false
 }
 
-// initNext says what to do after init.
-func initNext(cmd *cobra.Command, baseURL, projectID string) {
+// initNext sends you to the machine step of the wizard, which shows the local
+// steps and leads on to the Workshop.
+func initNext(cmd *cobra.Command, baseURL string) {
 	out := cmd.OutOrStdout()
 
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "Open %s/projects/%s/connect to finish the setup.\n", baseURL, projectID)
+	fmt.Fprintf(out, "Open %s/welcome/connect to finish the setup.\n", baseURL)
 	fmt.Fprintf(out, "Commit %s, because a worker sees only what you push.\n", profile.Path)
 }

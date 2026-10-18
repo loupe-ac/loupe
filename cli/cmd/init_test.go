@@ -42,6 +42,8 @@ type initWorld struct {
 	bridgeErr    error
 	bridgeUp     bool
 	bridgeFlags  []string
+	reloads      int
+	reloadErr    error
 }
 
 func newInitWorld(t *testing.T, sites string) *initWorld {
@@ -69,8 +71,10 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	}))
 	t.Cleanup(w.server.Close)
 
-	oldLook, oldExec, oldStart, oldRuns := initLookPath, initExec, initStartBridge, initBridgeRuns
-	t.Cleanup(func() { initLookPath, initExec, initStartBridge, initBridgeRuns = oldLook, oldExec, oldStart, oldRuns })
+	oldLook, oldExec, oldStart, oldRuns, oldReload := initLookPath, initExec, initStartBridge, initBridgeRuns, initReloadBridge
+	t.Cleanup(func() {
+		initLookPath, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldExec, oldStart, oldRuns, oldReload
+	})
 	initLookPath = func(name string) (string, error) {
 		if name == "claude" && w.claude {
 			return "/bin/claude", nil
@@ -100,6 +104,11 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 		return w.bridgeErr
 	}
 	initBridgeRuns = func(string) bool { return w.bridgeUp }
+	initReloadBridge = func(string) error {
+		w.reloads++
+
+		return w.reloadErr
+	}
 
 	return w
 }
@@ -155,7 +164,7 @@ func TestInitRunsEveryStepOnAFreshRepository(t *testing.T) {
 		"Sign in: skipped", "Project: done, using Dev Project", "Link: done", "Plugin: skipped",
 		"Rules: done", "Turn on automatic updates? [y/N]", "Auto-update: done, automatic updates are on",
 		"Bridge: done", "Playwright: skipped",
-		"Open " + w.server.URL + "/projects/" + firstProject + "/connect", "Commit " + profile.Path,
+		"Open " + w.server.URL + "/welcome/connect", "Commit " + profile.Path,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
@@ -212,8 +221,8 @@ func TestInitASecondRunChangesNothing(t *testing.T) {
 			t.Errorf("second run lacks %q:\n%s", want, out)
 		}
 	}
-	if w.bridgeStarts != 1 {
-		t.Errorf("bridge starts = %d, want 1", w.bridgeStarts)
+	if w.bridgeStarts != 1 || w.reloads != 0 {
+		t.Errorf("bridge starts = %d, reloads = %d, want 1 and 0", w.bridgeStarts, w.reloads)
 	}
 	if strings.Contains(readOrEmpty(t, path), "autoUpdate: true") {
 		t.Error("an answer of no turned automatic updates on")
@@ -259,6 +268,28 @@ func TestInitKeepsTheProjectFileAndUsesTheFlagOverTheList(t *testing.T) {
 	path, _ := defaultRulesPath()
 	if body := readOrEmpty(t, path); !strings.Contains(body, "other:") {
 		t.Errorf("rule file must map the kept project:\n%s", body)
+	}
+}
+
+func TestInitRefusesAProjectFlagThatDiffersFromTheProjectFile(t *testing.T) {
+	w := newInitWorld(t, devSite()+`,{"id":"`+secondProject+`","slug":"other","name":"Other"}`)
+	dir := inRepo(t, w.server.URL)
+	if err := projectfile.Write(dir, firstProject); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--project", secondProject)
+	if err == nil || !strings.Contains(err.Error(), "names Dev Project") || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("err = %v, want a refusal that names the linked project\n%s", err, out)
+	}
+	path, _ := defaultRulesPath()
+	if body := readOrEmpty(t, path); body != "" {
+		t.Errorf("init wrote a rule file after the refusal:\n%s", body)
+	}
+
+	out, err = runInitCmd(t, "n\n", "--no-mcp", "--project", strings.ToUpper(firstProject))
+	if err != nil || !strings.Contains(out, "Link: skipped") {
+		t.Errorf("a flag that names the linked project must pass: %v\n%s", err, out)
 	}
 }
 
@@ -432,8 +463,12 @@ func TestInitAddsOnlyWhatAnExistingRuleFileLacks(t *testing.T) {
 	if !strings.Contains(body, "# mine") || !strings.Contains(body, "maxWorkers: 3") {
 		t.Errorf("the old content is gone:\n%s", body)
 	}
-	if !strings.Contains(out, "Rules: done, added") || !strings.Contains(out, "loupe bridge reload") {
+	if !strings.Contains(out, "Rules: done, added") {
 		t.Errorf("output:\n%s", out)
+	}
+	set, err := rules.Parse([]byte(body), rules.Defaults{})
+	if err != nil || set.AgentsOff() != "" {
+		t.Errorf("the merged file must run workers: %v, %q\n%s", err, set.AgentsOff(), body)
 	}
 	if info, _ := os.Stat(path); info.Mode().Perm() != 0o644 {
 		t.Errorf("mode = %v, want the old 0644", info.Mode().Perm())
@@ -515,6 +550,53 @@ func TestInitReportsABridgeThatFailsToStartAfterTheLaterSteps(t *testing.T) {
 		t.Fatalf("err = %v, want the bridge failure", err)
 	}
 	for _, want := range []string{"Bridge: failed", "loupe bridge run -d", "Playwright:", "Open " + w.server.URL} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	path, _ := defaultRulesPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("autoUpdate: false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.bridgeUp = true
+
+	out, err := runInitCmd(t, "", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.reloads != 1 || w.bridgeStarts != 0 || !strings.Contains(out, "Bridge: done, it reloaded "+path) {
+		t.Errorf("reloads = %d, starts = %d, want 1 and 0:\n%s", w.reloads, w.bridgeStarts, out)
+	}
+
+	full, err := rules.FirstRun(rules.FirstRunOptions{Slug: "dev", Dir: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, full, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runInitCmd(t, "", "--no-mcp")
+	if err != nil || w.reloads != 2 || !strings.Contains(out, "Rules: skipped") || !strings.Contains(out, "Auto-update: done") {
+		t.Errorf("an auto-update answer alone must reload too: reloads = %d, %v\n%s", w.reloads, err, out)
+	}
+
+	w.reloadErr = errors.New("projects: dev is unknown")
+	if err := os.WriteFile(path, []byte("autoUpdate: false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err = runInitCmd(t, "", "--no-mcp")
+	if err == nil || !strings.Contains(err.Error(), "dev is unknown") {
+		t.Fatalf("err = %v, want the reload failure", err)
+	}
+	for _, want := range []string{"Bridge: failed", "loupe bridge reload", "Open " + w.server.URL} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -101,8 +102,8 @@ func FirstRun(o FirstRunOptions) ([]byte, error) {
 }
 
 // Merge adds to an existing rule file what first-run needs and the file lacks:
-// the appPrompts key, defaults.permissions, the project, the launch command and
-// the product-design entry. A key that is present stays as it is. The second
+// the appPrompts key, an account when the file has none, defaults.permissions,
+// the project, the launch command and the product-design entry. A key that is present stays as it is. The second
 // result names what Merge added, and is empty when the file needed nothing, in
 // which case the first result is the input. Comments and layout stay.
 func Merge(existing []byte, o FirstRunOptions) ([]byte, []string, error) {
@@ -116,7 +117,7 @@ func Merge(existing []byte, o FirstRunOptions) ([]byte, []string, error) {
 		return nil, nil, err
 	}
 
-	added, err := addMissing(top, o.Slug, o.Dir, o.Terminal())
+	added, err := addMissing(top, o, o.Terminal())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -140,7 +141,7 @@ func Merge(existing []byte, o FirstRunOptions) ([]byte, []string, error) {
 
 // Reset builds a new first-run file and keeps the projects map and the
 // autoUpdate key of the existing one. The project of o is added when the old
-// map lacks it.
+// map lacks it. A map that holds the project under another directory fails.
 func Reset(existing []byte, o FirstRunOptions) ([]byte, error) {
 	fresh, err := FirstRun(o)
 	if err != nil {
@@ -167,7 +168,7 @@ func Reset(existing []byte, o FirstRunOptions) ([]byte, error) {
 	if hasProjects {
 		i, _ := index(top, "projects")
 		top.Content[i+1] = projects
-		if _, err := addMissing(top, o.Slug, o.Dir, nil); err != nil {
+		if _, err := addMissing(top, o, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -180,7 +181,7 @@ func Reset(existing []byte, o FirstRunOptions) ([]byte, error) {
 
 // addMissing adds the missing keys to the top mapping and names them. A nil
 // launch adds neither the launch command nor the interactive entry.
-func addMissing(top *yaml.Node, slug, dir string, launch []string) ([]string, error) {
+func addMissing(top *yaml.Node, o FirstRunOptions, launch []string) ([]string, error) {
 	var added []string
 
 	if _, ok := lookup(top, "appPrompts"); !ok {
@@ -197,13 +198,36 @@ func addMissing(top *yaml.Node, slug, dir string, launch []string) ([]string, er
 		added = append(added, "defaults.permissions")
 	}
 
+	// A file with no account runs no worker, so it gets the detected one,
+	// under the name defaults.account gives when it gives one.
+	accounts, err := childMapping(top, "accounts")
+	if err != nil {
+		return nil, err
+	}
+	if len(accounts.Content) == 0 {
+		harness := o.Harness()
+		name := harness
+		if n, ok := lookup(defaults, "account"); ok && n.Kind == yaml.ScalarNode && n.Value != "" {
+			name = n.Value
+		} else {
+			defaults.Content = append(defaults.Content, scalarNode("account"), scalarNode(harness))
+			added = append(added, "defaults.account")
+		}
+		accounts.Content = append(accounts.Content, scalarNode(name), mappingNode("harness", scalarNode(harness)))
+		added = append(added, "accounts."+name)
+	}
+
 	projects, err := childMapping(top, "projects")
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := lookup(projects, slug); !ok {
-		projects.Content = append(projects.Content, scalarNode(slug), mappingNode("dir", scalarNode(dir)))
-		added = append(added, "projects."+slug)
+	if project, ok := lookup(projects, o.Slug); ok {
+		if err := sameDir(project, o.Slug, o.Dir); err != nil {
+			return nil, err
+		}
+	} else {
+		projects.Content = append(projects.Content, scalarNode(o.Slug), mappingNode("dir", scalarNode(o.Dir)))
+		added = append(added, "projects."+o.Slug)
 	}
 
 	if launch == nil {
@@ -223,6 +247,33 @@ func addMissing(top *yaml.Node, slug, dir string, launch []string) ([]string, er
 	}
 
 	return added, nil
+}
+
+// sameDir fails when the project entry maps another directory than dir. An
+// entry with no dir is left to Parse.
+func sameDir(project *yaml.Node, slug, dir string) error {
+	n, ok := lookup(project, "dir")
+	if project.Kind != yaml.MappingNode || !ok || n.Kind != yaml.ScalarNode || n.Value == "" {
+		return nil
+	}
+	mapped, err := expandHome(n.Value)
+	if err != nil {
+		return err
+	}
+	if realPath(mapped) == realPath(dir) {
+		return nil
+	}
+
+	return fmt.Errorf("projects.%s maps %s, not this directory %s: change its dir, or remove the entry, then run loupe init again", slug, n.Value, dir)
+}
+
+// realPath resolves the symlinks of a path that exists, and cleans any other.
+func realPath(p string) string {
+	if real, err := filepath.EvalSymlinks(p); err == nil {
+		return real
+	}
+
+	return filepath.Clean(p)
 }
 
 // editableRules parses the file into a node tree and returns the top mapping.
