@@ -46,7 +46,7 @@ final readonly class WithdrawWorkRequestHandler
             $request = $this->workRequests->findOneLocked($command->workRequestId);
             if (null === $request
                 || ($command->onlyIfOpen && WorkRequestState::Open !== $request->state)
-                || !$request->withdraw($command->state, $this->clock->now())) {
+                || !$request->withdraw($command->state, $this->clock->now(), $command->reason)) {
                 return null;
             }
             $this->outbox->write($request->project, BridgeEventType::WORK_REQUEST, WorkRequestPayload::of($request));

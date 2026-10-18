@@ -6,6 +6,9 @@ namespace App\Tests\Module\Readiness\Service;
 
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Entity\Card;
+use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Forge\Entity\ForgeRepository;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
@@ -72,7 +75,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     {
         $project = $this->newProject('readiness-discovery-start@example.com');
         $this->bind($project);
-        $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
 
@@ -84,7 +87,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     public function test_discovery_with_no_workflow_waits_for_one(): void
     {
         $project = $this->newProject('readiness-discovery-no-workflow@example.com');
-        $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
 
@@ -97,7 +100,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     {
         $project = $this->newProject('readiness-discovery-automation-off@example.com');
         $this->bind($project);
-        $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
         $this->em()->persist(new BoardAutomationSettings($project, enabled: false));
         $this->em()->flush();
 
@@ -111,7 +114,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     public function test_a_failed_run_with_no_workflow_offers_no_new_run(): void
     {
         $project = $this->newProject('readiness-discovery-failed-unbound@example.com');
-        $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
         $this->discoveryRun($project, DiscoveryRunState::Failed, 'lost');
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
@@ -124,7 +127,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     public function test_a_requested_run_links_its_card(): void
     {
         $project = $this->newProject('readiness-discovery-running@example.com');
-        $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
         $run = $this->discoveryRun($project, DiscoveryRunState::Requested);
 
         $readiness = $this->readiness($this->checklist(), $project);
@@ -142,7 +145,7 @@ final class ReadinessChecklistTest extends KernelTestCase
     {
         $project = $this->newProject('readiness-discovery-failed@example.com');
         $this->bind($project);
-        $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
         $this->discoveryRun($project, DiscoveryRunState::Failed, $code);
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
@@ -219,7 +222,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project = $this->newProject('readiness-ready@example.com');
         $project->agentFirstSeenAt = new \DateTimeImmutable();
         $em->persist(new WorkflowBinding($project, 'simple', 1, []));
-        $this->seedBridge($em, $project->owner, projects: [(string) $project->id]);
+        $this->seedCapableBridge($project);
         $em->persist(new GitHubInstallation($project, ++self::$installationId, 'acme', GitHubRepositorySelection::Selected));
         $em->persist(new ForgeRepository($project, 'github', 'ext-ready', 'acme/app', ForgeRepositorySource::Installation, (string) self::$installationId));
         $em->flush();
@@ -294,6 +297,64 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($row->actionUrl);
     }
 
+    public function test_a_bridge_that_cannot_run_discovery_shows_three_states_and_refuses_the_start(): void
+    {
+        $project = $this->newProject('readiness-incapable@example.com');
+        $this->bind($project);
+        $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $this->em()->flush();
+
+        $readiness = $this->readiness($this->checklist(), $project);
+
+        self::assertSame(['readiness.row.bridge.not_capable_app_prompts', false], [$this->row($readiness, 'bridge')->status, $this->row($readiness, 'bridge')->done]);
+        self::assertSame('readiness.row.repository.no_capable_bridge', $this->row($readiness, 'repository')->status);
+        self::assertSame('readiness.discovery.error.no_capable_bridge_app_prompts', $this->checklist()->startRefusal($project));
+    }
+
+    public function test_a_bridge_that_maps_the_discovery_kind_is_ready_without_app_prompts(): void
+    {
+        $project = $this->newProject('readiness-mapped@example.com');
+        $this->bind($project);
+        $bridge = $this->seedCapableBridge($project, appPrompts: false);
+        $bridge->workKinds = ['discovery'];
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'bridge');
+
+        self::assertSame(['readiness.row.bridge.done', true], [$row->status, $row->done]);
+        self::assertNull($this->checklist()->startRefusal($project));
+    }
+
+    public function test_a_paused_bridge_is_not_ready_and_refuses_the_start(): void
+    {
+        $project = $this->newProject('readiness-paused@example.com');
+        $this->bind($project);
+        $bridge = $this->seedCapableBridge($project);
+        $bridge->pauseRequested = true;
+        $this->em()->flush();
+
+        $readiness = $this->readiness($this->checklist(), $project);
+        $row = $this->row($readiness, 'bridge');
+
+        self::assertSame(['readiness.row.bridge.paused', false, 'readiness.row.bridge.resume'], [$row->status, $row->done, $row->actionLabel]);
+        self::assertStringEndsWith('/projects/'.$project->id.'/agents', (string) $row->actionUrl);
+        self::assertSame('readiness.row.repository.bridge_paused', $this->row($readiness, 'repository')->status);
+        self::assertSame('readiness.discovery.error.bridge_paused', $this->checklist()->startRefusal($project));
+    }
+
+    public function test_a_failed_run_with_no_capable_taker_or_a_worker_that_ended_shows_the_cause(): void
+    {
+        $project = $this->newProject('readiness-causes@example.com');
+        $this->bind($project);
+        $this->seedCapableBridge($project);
+        $this->discoveryRun($project, DiscoveryRunState::Failed, WorkRequest::REASON_NO_CAPABLE_TAKER_APP_PROMPTS);
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertStringContainsString('loupe init', $row->statusParameters['%reason%']);
+    }
+
     public function test_a_quiet_bridge_does_not_count_as_running(): void
     {
         $project = $this->newProject('readiness-quiet@example.com');
@@ -363,9 +424,19 @@ final class ReadinessChecklistTest extends KernelTestCase
         $this->em()->flush();
     }
 
+    private function seedCapableBridge(Project $project, bool $appPrompts = true): Bridge
+    {
+        $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $bridge->capabilities = $appPrompts ? [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS] : [Bridge::CAPABILITY_WORK_REQUESTS];
+        $this->em()->flush();
+
+        return $bridge;
+    }
+
     private function seedPushingBridge(Project $project, string $login, \DateTimeImmutable $lastSeenAt = new \DateTimeImmutable()): void
     {
-        $bridge = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id], lastSeenAt: $lastSeenAt);
+        $bridge = $this->seedCapableBridge($project);
+        $bridge->lastSeenAt = $lastSeenAt;
         $bridge->pushLogin = $login;
         $this->em()->flush();
     }
@@ -394,6 +465,7 @@ final class ReadinessChecklistTest extends KernelTestCase
             $container->get(TranslatorInterface::class),
             $container->get(WorkflowAutomation::class),
             $container->get(CardEvaluations::class),
+            $container->get(WorkTakers::class),
         );
     }
 

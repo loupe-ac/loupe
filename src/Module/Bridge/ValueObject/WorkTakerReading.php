@@ -15,6 +15,8 @@ final readonly class WorkTakerReading
         public WorkTakerState $state,
         public \DateTimeImmutable $noTakerSince,
         public ?\DateTimeImmutable $quietAt,
+        /** On a not-capable reading: an online bridge lacks the app-prompts capability that a request with a prompt needs. */
+        public bool $appPromptsMissing = false,
     ) {
     }
 }

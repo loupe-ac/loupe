@@ -131,10 +131,10 @@ final class FailDiscoveryListenersTest extends KernelTestCase
     /** @return iterable<string, array{WorkerRunState, ?string, string}> */
     public static function endedRuns(): iterable
     {
-        yield 'stopped by a person' => [WorkerRunState::Stopped, null, 'stopped'];
-        yield 'timed out' => [WorkerRunState::TimedOut, null, 'timed-out'];
-        yield 'lost' => [WorkerRunState::Lost, null, 'lost'];
-        yield 'succeeded with no report' => [WorkerRunState::Succeeded, null, 'succeeded'];
+        yield 'stopped by a person' => [WorkerRunState::Stopped, null, 'worker-ended'];
+        yield 'timed out' => [WorkerRunState::TimedOut, null, 'worker-ended'];
+        yield 'lost' => [WorkerRunState::Lost, null, 'worker-ended'];
+        yield 'succeeded with no report' => [WorkerRunState::Succeeded, null, 'worker-ended'];
         yield 'not started, with a reason' => [WorkerRunState::NotStarted, 'claude: command not found', 'claude: command not found'];
     }
 
@@ -263,7 +263,9 @@ final class FailDiscoveryListenersTest extends KernelTestCase
 
     private function liveBridge(Project $project): void
     {
-        $this->em()->persist(new Bridge(AgentCredential::managed($this->em(), $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable()));
+        $bridge = new Bridge(AgentCredential::managed($this->em(), $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $this->em()->persist($bridge);
         $this->em()->flush();
     }
 

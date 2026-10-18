@@ -431,6 +431,7 @@ final readonly class Engine
     /**
      * Cancels the live requests of rules that no longer apply or whose `cancelWhen` holds, and expires the open ones no bridge took in time.
      * An expiry pauses the card, unless the rule expires its work with no pause.
+     * A rule with `onNoTaker: fail` expires an open request at once when no online bridge could take it, with no pause.
      * A baseline pauses nothing, so it leaves an overdue request to the next pass.
      */
     private function settleWorkRequests(Evaluation $run, Uuid $cardId, bool $expire = true): void
@@ -452,9 +453,18 @@ final readonly class Engine
                 continue;
             }
 
+            // The template decides that a request no bridge could take fails at once, with no pause.
+            if ($expire && WorkState::Open === $request->state && 'fail' === ActionParams::optionalString($rule, 'onNoTaker')) {
+                $reason = $this->ledger->noTakerReason($requestId);
+                if (null !== $reason && $this->ledger->withdraw($requestId, WithdrawKind::Expired, $reason, onlyIfOpen: true)) {
+                    $withdrawn = true;
+                    continue;
+                }
+            }
+
             $deadline = ($request->reopenedAt ?? $request->createdAt)->add(new \DateInterval(\sprintf('PT%dM', $run->template->workTimeoutMinutes)));
             if ($expire && WorkState::Open === $request->state && $deadline <= $run->now
-                && $this->ledger->withdraw($requestId, WithdrawKind::Expired)) {
+                && $this->ledger->withdraw($requestId, WithdrawKind::Expired, onlyIfOpen: true)) {
                 $withdrawn = true;
                 // A repair always pauses, because nothing else ends its escalation.
                 $state = $run->states[$rule->id] ?? null;

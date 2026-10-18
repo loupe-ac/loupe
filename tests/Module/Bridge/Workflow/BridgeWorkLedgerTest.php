@@ -78,6 +78,33 @@ final class BridgeWorkLedgerTest extends KernelTestCase
         self::assertSame(WorkRequestState::Expired, $this->em()->find(WorkRequest::class, $expiredId)?->state);
     }
 
+    public function test_an_expiry_only_if_open_leaves_a_request_that_a_bridge_claimed(): void
+    {
+        $project = $this->scenario('ledger-only-if-open@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'discovery', state: WorkRequestState::Claimed);
+        $id = $request->id ?? throw new \LogicException('A flushed request has an id.');
+
+        self::assertFalse($this->ledger()->withdraw($id, WithdrawKind::Expired, WorkRequest::REASON_NO_TAKER, onlyIfOpen: true));
+
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Claimed, $this->em()->find(WorkRequest::class, $id)?->state);
+    }
+
+    public function test_a_withdrawal_stores_its_reason_and_no_taker_reason_reads_the_open_request(): void
+    {
+        $project = $this->scenario('ledger-no-taker@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'implement');
+        $id = $request->id ?? throw new \LogicException('A flushed request has an id.');
+
+        self::assertSame(WorkRequest::REASON_NO_TAKER, $this->ledger()->noTakerReason($id));
+        self::assertNull($this->ledger()->noTakerReason(Uuid::v7()));
+        self::assertTrue($this->ledger()->withdraw($id, WithdrawKind::Expired, WorkRequest::REASON_NO_TAKER));
+        self::assertNull($this->ledger()->noTakerReason($id));
+
+        $this->em()->clear();
+        self::assertSame(WorkRequest::REASON_NO_TAKER, $this->em()->find(WorkRequest::class, $id)?->reason);
+    }
+
     public function test_the_latest_continuation_honours_the_time_and_the_rule(): void
     {
         $project = $this->scenario('ledger-continuation@example.com');

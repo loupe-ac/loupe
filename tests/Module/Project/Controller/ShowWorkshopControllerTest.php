@@ -529,7 +529,9 @@ final class ShowWorkshopControllerTest extends WebTestCase
         foreach ($projects as $project) {
             $em->persist(new WorkflowBinding($project, 'simple', 1, $shipped->source('simple')));
         }
-        $em->persist(new Bridge(AgentCredential::managed($em, $owner, $owner->id), Uuid::v4(), array_values(array_map(static fn (Project $project): string => (string) $project->id, $projects)), 'b4e39aa7', new \DateTimeImmutable()));
+        $bridge = new Bridge(AgentCredential::managed($em, $owner, $owner->id), Uuid::v4(), array_values(array_map(static fn (Project $project): string => (string) $project->id, $projects)), 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $em->persist($bridge);
         $em->flush();
     }
 
