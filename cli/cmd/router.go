@@ -50,10 +50,11 @@ type router struct {
 	topic    string
 	worker   workerOps
 	// agent is the GitHub user that each claude worker pushes as, or nil.
-	// pushLogin is the login GitHub gave for its token at start, and "" when
-	// none was checked. Neither changes after start.
-	agent     *config.AgentAccount
-	pushLogin string
+	// It does not change after start.
+	agent *config.AgentAccount
+	// identities reads the git identity of each followed project for the
+	// heartbeat. A nil one reports none.
+	identities *identityReporter
 	// credentials gives the workers their GitHub credentials, and answers the
 	// credential op of the control socket. A nil one gives none.
 	credentials *credentialBroker

@@ -15,6 +15,7 @@ use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Workshop\WorkshopConnection;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
+use App\Module\Project\Workshop\WorkshopGitIdentity;
 use App\Module\Project\Workshop\WorkshopReadiness;
 use App\Module\Project\Workshop\WorkshopReadinessProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadinessRow;
@@ -305,7 +306,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $status = 'readiness.row.agent_account.no_login';
             $done = false;
         } else {
-            $done = array_any($running, static fn (WorkshopConnection $connection): bool => null !== $connection->pushLogin && 0 === strcasecmp($connection->pushLogin, $login));
+            $done = array_any($running, static fn (WorkshopConnection $connection): bool => WorkshopGitIdentity::MODE_AGENT_ACCOUNT === $connection->gitIdentity?->mode && 0 === strcasecmp($connection->gitIdentity->pushLogin, $login));
             $status = $done ? 'readiness.row.agent_account.done' : 'readiness.row.agent_account.no_push';
         }
 

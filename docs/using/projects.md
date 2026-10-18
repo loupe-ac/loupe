@@ -94,7 +94,9 @@ The repositories of the installation that your GitHub account can reach join the
 When you add or remove a repository in the App settings on GitHub, the list follows.
 The section says when GitHub suspends the installation or when someone uninstalls it.
 
-When the project lets Loupe manage the git identity of agents, the section also says when agents cannot push. Agents push with a token of the App that opens the repository of the project and no other. The message names the missing installation or the missing write access.
+The Connect page has a Git identity panel with the switch "Loupe manages the git identity of agents". The switch is on for every project. When it is on, agents push as the Loupe App, so you can approve their pull requests. Agents push with a token of the App that opens the repository of the project and no other. The panel says when agents cannot push, and names the missing installation or the missing write access. A machine whose bridge runs an older CLI keeps its own git setup, and the panel shows it as Not managed until you run `loupe update` there.
+
+When you turn the switch off, agents use the git setup of each machine. A machine can also fall back to its own git setup while the switch is on. The panel then shows one line for each machine that runs a bridge for the project: the name its commits carry, and the GitHub account it pushes as. When a machine pushes as your own GitHub account, the panel warns you, because GitHub does not let you approve your own pull requests. Use a [separate GitHub account for agents](../getting-started/agent-github-account.md) on that machine.
 
 ### The list
 

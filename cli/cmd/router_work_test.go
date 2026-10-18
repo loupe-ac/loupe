@@ -457,7 +457,7 @@ func TestAHeartbeatReplyLosesClaimsBeforeItTakesOffers(t *testing.T) {
 	w := workRequest(1, 87, "implement", api.WorkRequestOpen)
 	f.requests[w.WorkRequestID] = w
 	server := &replying{reply: api.HeartbeatReply{LostClaims: []string{workID(1)}, WorkRequests: []api.WorkRequest{w}}}
-	hb := newHeartbeater(context.Background(), latestNow{}, server, testBridgeID, heartbeatBody(h.router.rules(), ""), time.Minute, h.router.log)
+	hb := newHeartbeater(context.Background(), latestNow{}, server, testBridgeID, heartbeatBody(h.router.rules()), time.Minute, h.router.log)
 	hb.onReply, hb.onLost = h.router.onHeartbeatReply, h.router.loseClaims
 	h.router.heartbeat = hb
 
@@ -489,7 +489,7 @@ func TestTheHeartbeatRenewsTheHeldClaims(t *testing.T) {
 	h := newHarnessWith(t, workRules, rules.Defaults{})
 	f := h.withWork()
 	client := &fakeHeartbeats{}
-	hb := newHeartbeater(context.Background(), latestNow{}, client, testBridgeID, heartbeatBody(h.router.rules(), ""), time.Minute, h.router.log)
+	hb := newHeartbeater(context.Background(), latestNow{}, client, testBridgeID, heartbeatBody(h.router.rules()), time.Minute, h.router.log)
 	h.router.heartbeat = hb
 	block := h.blocked()
 
@@ -513,7 +513,7 @@ func TestTheHeartbeatRenewsTheHeldClaims(t *testing.T) {
 	if got := client.sent[1].WorkClaims; len(got) != 0 {
 		t.Fatalf("claims after the result = %v", got)
 	}
-	if got := client.sent[0].Capabilities; !slices.Equal(got, []string{"commands", "rerun-command", "session-usage", "run-command", "work-requests"}) {
+	if got := client.sent[0].Capabilities; !slices.Equal(got, []string{"commands", "rerun-command", "session-usage", "run-command", "git-identities", "work-requests"}) {
 		t.Fatalf("capabilities = %v", got)
 	}
 }

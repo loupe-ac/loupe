@@ -271,11 +271,12 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		cursorFile: cursorFile,
 		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
-		pushLogin:  checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log),
 	}
+	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
 	if control != nil {
 		r.credentials = newCredentialBroker(apiClient(cfg), cfg.AgentAccount, control.Addr().String())
 	}
+	r.identities = newIdentityReporter(cmd.Context(), cfg.AgentAccount, pushLogin, r.credentials, bl.log)
 	if dir, err := config.Dir(); err == nil {
 		r.assumeAutoUpdate = migrateAutoUpdate(bl.log, dir, path, o.resumeFile != "")
 	}
@@ -434,7 +435,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 	set := r.rules()
 	if r.bridgeID != "" {
-		announce(ctx, apiClient(cfg), r.bridgeID, set, r.pushLogin, r.log)
+		announce(ctx, apiClient(cfg), r.bridgeID, set, r.identities, r.log)
 	}
 	events, err := startEvents(ctx, cfg, r.bridgeID, set)
 	if err != nil {
@@ -475,7 +476,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	var updates *updater
 	var watched <-chan struct{}
 	if r.bridgeID != "" {
-		hb := newHeartbeater(ctx, queue, apiClient(cfg), r.bridgeID, heartbeatBody(set, r.pushLogin), heartbeatInterval(events), r.log)
+		hb := newHeartbeater(ctx, queue, apiClient(cfg), r.bridgeID, heartbeatBody(set), heartbeatInterval(events), r.log)
 		if dir, err := config.Dir(); err != nil {
 			r.log.Warn("update_skipped", "reason", err.Error())
 		} else {
@@ -499,6 +500,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		hb.onReply, hb.onLost = r.onHeartbeatReply, r.loseClaims
 		hb.worktrees = func(ctx context.Context) []api.WorktreeReport { return worktreeReports(ctx, r.rules()) }
 		hb.repositories = func(ctx context.Context) []api.RepositoryReport { return repositoryReports(ctx, r.rules()) }
+		hb.gitIdentities = func(context.Context) ([]api.GitIdentityReport, time.Duration) {
+			return r.identities.rows(identityTargets(r.rules()))
+		}
 		// Adopted runs can end on their own goroutines, and read heartbeat
 		// under mu.
 		r.mu.Lock()
@@ -583,8 +587,9 @@ func logStaged(log *slog.Logger, from string) stagedHook {
 // announce sends one heartbeat before the first GET /api/events, because the
 // server serves the events only to a bridge whose heartbeat names the
 // work-requests capability. A failure leaves GET /api/events to answer.
-func announce(ctx context.Context, client heartbeatSender, bridgeID string, set *rules.Set, pushLogin string, log *slog.Logger) {
-	body := heartbeatBody(set, pushLogin)
+func announce(ctx context.Context, client heartbeatSender, bridgeID string, set *rules.Set, identities *identityReporter, log *slog.Logger) {
+	body := heartbeatBody(set)
+	body.GitIdentities = identities.start(ctx, set)
 	body.Capabilities = slices.Concat(bridgeCapabilities, body.Capabilities)
 	if _, err := client.Heartbeat(ctx, bridgeID, body); err != nil {
 		log.Warn("start_heartbeat_failed", "error", err.Error())
@@ -615,9 +620,9 @@ func startEvents(ctx context.Context, cfg config.Config, bridgeID string, set *r
 }
 
 // heartbeatBody names the projects the rule file maps, by id, the CLI
-// version, the capabilities and the kinds of the work map, the bridge name, the login that
-// workers push as, and the state of each account.
-func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
+// version, the capabilities and the kinds of the work map, the bridge name, and
+// the state of each account. The git identities join it when it goes out.
+func heartbeatBody(set *rules.Set) api.Heartbeat {
 	ids := []string{}
 	for _, slug := range set.Projects() {
 		ids = append(ids, set.ProjectID(slug))
@@ -630,7 +635,7 @@ func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
 		caps = append(caps, rules.CapabilityAddEntry)
 	}
 
-	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: caps, WorkKinds: set.WorkKindsOn(), Name: &name, PushLogin: &pushLogin, Accounts: accountReports(set), CommandEntries: commandEntryReports(set)}
+	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: caps, WorkKinds: set.WorkKindsOn(), Name: &name, Accounts: accountReports(set), CommandEntries: commandEntryReports(set)}
 }
 
 // missingProjects names the mapped projects that GET /api/events does not list:

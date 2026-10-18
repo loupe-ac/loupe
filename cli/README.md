@@ -1325,8 +1325,16 @@ itself, and answers with the range of CLI versions it supports. A reload sends
 a heartbeat at once, so the server reads the new projects before the next
 interval. The heartbeat also carries the last run of each
 [hook](#loupe-bridge-hooks), and a hook run sends a heartbeat at once.
-The heartbeat carries `pushLogin`, the login of the
-[agent account](#loupe-agent-account) that the bridge checked at start.
+The heartbeat carries `gitIdentities`, one row for each followed project, at
+most 50. A row has the `projectId`, a `mode`, the `commitName`, the `pushLogin`
+and the `githubUserId`. The mode is `agent_account` when the machine has an
+[agent account](#loupe-agent-account), `app_token` when Loupe manages the
+project's git identity, and `machine` otherwise. For `machine`, the bridge reads
+`git config user.name` and finds the push login with the credential helper of
+git and `GET /user` on GitHub, or with `ssh -T` for an SSH remote. A login it
+cannot find is empty, and the user id is then `null`. No row holds a token.
+The bridge reads the identities at start, at a reload and every 10 minutes. A
+heartbeat sends the last result and never waits for a read.
 
 The heartbeat also carries `workerPools`, one row for each
 [worker pool](#the-queue) with its `name`, `size`, `inUse` and `queued` counts.
@@ -1378,7 +1386,7 @@ or another server holds no pause for this bridge. The first reply that carries
 missing cache heals. When the bridge cannot find its config directory, it runs
 with no cache. An update hands the pause to the new version directly. Each
 heartbeat sends `paused` with the state the bridge applies, and
-`capabilities: ["commands", "rerun-command", "session-usage", "run-command"]`,
+`capabilities: ["commands", "rerun-command", "session-usage", "run-command", "git-identities"]`,
 with `add-entry` when `acceptEntries` is on, and with the capabilities of the
 work map.
 
