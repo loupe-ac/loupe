@@ -208,37 +208,51 @@ var (
 )
 
 // gitRepository reads owner/name from the origin remote of the git folder dir.
-// The fetch and the push address must name one GitHub repository. When only one
-// of them is on GitHub, or they name two repositories, the error is neither
-// errNoOrigin nor errNotGitHub, so the worker stays managed and fails closed.
+// Every fetch and push address must name one GitHub repository, because git
+// pushes to each push address. When only some of them are on GitHub, or they
+// name two repositories, the error is neither errNoOrigin nor errNotGitHub, so
+// the worker stays managed and fails closed.
 func gitRepository(ctx context.Context, dir string) (string, error) {
-	fetch, err := originURL(ctx, dir)
+	fetch, err := originURLs(ctx, dir, "--all")
 	if err != nil {
 		return "", err
 	}
-	push, err := originURL(ctx, dir, "--push")
+	push, err := originURLs(ctx, dir, "--push", "--all")
 	if err != nil {
 		return "", err
 	}
-	fetchRepo, fetchErr := parseGitHubRemote(fetch)
-	pushRepo, pushErr := parseGitHubRemote(push)
+	remotes := append(fetch, push...)
+	repos := make([]string, len(remotes))
+	offGitHub := 0
+	var firstErr error
+	for i, remote := range remotes {
+		repos[i], err = parseGitHubRemote(remote)
+		if errors.Is(err, errNotGitHub) {
+			offGitHub++
+		}
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
 	switch {
-	case errors.Is(fetchErr, errNotGitHub) && errors.Is(pushErr, errNotGitHub):
-		return "", pushErr
-	case fetchErr != nil:
-		return "", fmt.Errorf("the origin fetch address: %s", fetchErr.Error())
-	case pushErr != nil:
-		return "", fmt.Errorf("the origin push address: %s", pushErr.Error())
-	case !strings.EqualFold(fetchRepo, pushRepo):
-		return "", fmt.Errorf("the origin remote fetches from %s and pushes to %s", fetchRepo, pushRepo)
+	case offGitHub == len(remotes):
+		return "", firstErr
+	case firstErr != nil:
+		return "", fmt.Errorf("an origin address: %s", firstErr.Error())
+	}
+	for _, repo := range repos[1:] {
+		if !strings.EqualFold(repo, repos[0]) {
+			return "", fmt.Errorf("the origin remote names both %s and %s", repos[0], repo)
+		}
 	}
 
-	return pushRepo, nil
+	return repos[len(fetch)], nil
 }
 
-// originURL runs git remote get-url for origin in dir. Only the exit code 2 of
-// git, which says the remote does not exist, gives errNoOrigin.
-func originURL(ctx context.Context, dir string, flags ...string) (string, error) {
+// originURLs runs git remote get-url for origin in dir, and returns one address
+// per line. Only the exit code 2 of git, which says the remote does not exist,
+// gives errNoOrigin.
+func originURLs(ctx context.Context, dir string, flags ...string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTokenTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", append(append([]string{"remote", "get-url"}, flags...), "origin")...)
@@ -248,23 +262,31 @@ func originURL(ctx context.Context, dir string, flags ...string) (string, error)
 	err := cmd.Run()
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 2 && ctx.Err() == nil {
-		return "", fmt.Errorf("%w in %s: %s", errNoOrigin, dir, strings.TrimSpace(stderr.String()))
+		return nil, fmt.Errorf("%w in %s: %s", errNoOrigin, dir, strings.TrimSpace(stderr.String()))
 	}
 	if err != nil {
-		return "", fmt.Errorf("read the origin remote in %s: %w: %s", dir, err, strings.TrimSpace(stderr.String()))
+		return nil, fmt.Errorf("read the origin remote in %s: %w: %s", dir, err, strings.TrimSpace(stderr.String()))
+	}
+	urls := strings.Fields(stdout.String())
+	if len(urls) == 0 {
+		return nil, fmt.Errorf("the origin remote in %s has no address", dir)
 	}
 
-	return strings.TrimSpace(stdout.String()), nil
+	return urls, nil
 }
 
 // parseGitHubRemote returns owner/name from a GitHub remote URL in the https,
-// scp or ssh form.
+// scp or ssh form. A URL with a password is refused, because git pushes with
+// that password and never asks the credential helper.
 func parseGitHubRemote(remote string) (string, error) {
 	path, ok := strings.CutPrefix(remote, "git@github.com:")
 	if !ok {
 		u, err := url.Parse(remote)
 		if err != nil || (u.Scheme != "https" && u.Scheme != "ssh") || !strings.EqualFold(u.Hostname(), "github.com") {
 			return "", fmt.Errorf("%w: %q", errNotGitHub, remote)
+		}
+		if _, set := u.User.Password(); set {
+			return "", fmt.Errorf("the origin remote %s holds a password, so git would not ask Loupe for a token", u.Redacted())
 		}
 		path = u.Path
 	}

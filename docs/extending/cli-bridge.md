@@ -914,18 +914,20 @@ stored token and login. The bridge makes no call to Loupe for it.
 
 Otherwise the bridge asks the [git token endpoint](#git-token-endpoint) each
 time a worker starts, also when it holds a token already. The bridge reads
-`owner/name` from the fetch and the push address of the `origin` remote in the
-folder of the worker. An address can be `https://github.com/<owner>/<name>`,
-`git@github.com:<owner>/<name>` or `ssh://git@github.com/<owner>/<name>`, each
-with or without `.git`. Both addresses must name the same GitHub repository.
+`owner/name` from every fetch and push address of the `origin` remote in the
+folder of the worker, because git pushes to each push address. An address can be
+`https://github.com/<owner>/<name>`, `git@github.com:<owner>/<name>` or
+`ssh://git@github.com/<owner>/<name>`, each with or without `.git`. All the
+addresses must name the same GitHub repository. An `https` address must hold no
+password, because git then pushes with that password and never asks the bridge.
 
 | Answer | The worker |
 |---|---|
 | A token | is managed |
 | 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
 | 404 with no error code, from a server without the route | keeps the git setup of the machine |
-| A folder with no `origin` remote, or an `origin` remote whose two addresses are not on GitHub | keeps the git setup of the machine |
-| Any other failure, such as 409, 502, a network error, a git command that fails, or a remote that fetches and pushes to different places | is managed, and its credentials fail until the cause ends |
+| A folder with no `origin` remote, or an `origin` remote with no address on GitHub | keeps the git setup of the machine |
+| Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, or an address with a password | is managed, and its credentials fail until the cause ends |
 
 A managed worker gets the same environment as a worker with an agent account,
 except for the git identity. The bridge leaves `GIT_AUTHOR_*` and

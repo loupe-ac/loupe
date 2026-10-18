@@ -25,7 +25,8 @@ func TestParseGitHubRemote(t *testing.T) {
 		"https://github.com/acme/site.git":          "acme/site",
 		"https://github.com/acme/site/":             "acme/site",
 		"https://user@github.com/acme/site.git":     "acme/site",
-		"https://x-access-token:t@github.com/a/b":   "a/b",
+		"https://x-access-token:t@github.com/a/b":   "",
+		"https://user:@github.com/a/b":              "",
 		"https://GitHub.com/Acme/Site.git":          "Acme/Site",
 		"git@github.com:acme/site.git":              "acme/site",
 		"git@github.com:acme/site":                  "acme/site",
@@ -102,6 +103,24 @@ func TestGitRepositoryFailsClosedUnlessTheRemoteIsAbsentOrOffGitHub(t *testing.T
 		{"push to another repository", gitFolder(t,
 			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
 			[]string{"config", "remote.origin.pushurl", "git@github.com:acme/other.git"}), "", nil},
+		{"a second push address goes off GitHub", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.pushurl", "git@github.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.pushurl", "git@gitlab.com:acme/site.git"}), "", nil},
+		{"a second url goes to another repository", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.url", "git@github.com:acme/other.git"}), "", nil},
+		{"a push address holds a password", gitFolder(t,
+			[]string{"remote", "add", "origin", "https://github.com/acme/site"},
+			[]string{"config", "remote.origin.pushurl", "https://x-access-token:secret@github.com/acme/site"}), "", nil},
+		{"every push address is off GitHub", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@gitlab.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.pushurl", "git@gitlab.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.pushurl", "https://gitlab.com/acme/site.git"}), "", errNotGitHub},
+		{"every push address names the repository", gitFolder(t,
+			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.pushurl", "git@github.com:acme/site.git"},
+			[]string{"config", "--add", "remote.origin.pushurl", "https://github.com/acme/site"}), "acme/site", nil},
 		{"push to the same repository", gitFolder(t,
 			[]string{"remote", "add", "origin", "https://github.com/acme/site"},
 			[]string{"config", "remote.origin.pushurl", "git@github.com:ACME/site.git"}), "ACME/site", nil},
@@ -124,6 +143,13 @@ func TestGitRepositoryFailsClosedUnlessTheRemoteIsAbsentOrOffGitHub(t *testing.T
 				t.Fatalf("err = %v, want %v", err, c.want)
 			}
 		})
+	}
+}
+
+func TestParseGitHubRemoteKeepsThePasswordOutOfItsError(t *testing.T) {
+	_, err := parseGitHubRemote("https://x-access-token:secret@github.com/acme/site")
+	if err == nil || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("err = %v, want an error without the password", err)
 	}
 }
 
