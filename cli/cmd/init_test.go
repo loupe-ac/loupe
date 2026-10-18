@@ -339,33 +339,40 @@ func TestInitCreatesAProjectFromTheOriginRemoteWhenTheLoginCoversNone(t *testing
 }
 
 func TestInitSendsAndPrintsTheRemoteWithoutItsCredentials(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Header().Set("Content-Type", "application/json")
-		if r.Method == http.MethodGet {
-			fmt.Fprint(rw, `{"sites":[]}`)
+	for _, remote := range []string{
+		"https://bob:s3cret@github.com/acme/app.git\n",
+		"https://bob:s3cret%@github.com/acme/app.git\n",
+	} {
+		t.Run(remote, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+				rw.Header().Set("Content-Type", "application/json")
+				if r.Method == http.MethodGet {
+					fmt.Fprint(rw, `{"sites":[]}`)
 
-			return
-		}
-		if body, _ := io.ReadAll(r.Body); strings.Contains(string(body), "s3cret") {
-			t.Errorf("the create request carries the token: %s", body)
-		}
-		rw.WriteHeader(http.StatusConflict)
-		fmt.Fprint(rw, `{"error":"name_taken"}`)
-	}))
-	t.Cleanup(server.Close)
-	w := newInitWorld(t, "")
-	inRepo(t, server.URL)
-	w.execOut["git remote get-url origin"] = "https://bob:s3cret@github.com/acme/app.git\n"
+					return
+				}
+				if body, _ := io.ReadAll(r.Body); strings.Contains(string(body), "s3cret") {
+					t.Errorf("the create request carries the token: %s", body)
+				}
+				rw.WriteHeader(http.StatusConflict)
+				fmt.Fprint(rw, `{"error":"name_taken"}`)
+			}))
+			t.Cleanup(server.Close)
+			w := newInitWorld(t, "")
+			inRepo(t, server.URL)
+			w.execOut["git remote get-url origin"] = remote
 
-	out, err := runInitCmd(t, "", "--no-mcp")
-	if err == nil {
-		t.Fatalf("init must fail on the refusal:\n%s", out)
-	}
-	if strings.Contains(err.Error()+out, "s3cret") || strings.Contains(err.Error(), "bob@") {
-		t.Errorf("the error shows the credentials: %v\n%s", err, out)
-	}
-	if !strings.Contains(err.Error(), "https://github.com/acme/app.git") {
-		t.Errorf("err = %v, want the remote without its credentials", err)
+			out, err := runInitCmd(t, "", "--no-mcp")
+			if err == nil {
+				t.Fatalf("init must fail on the refusal:\n%s", out)
+			}
+			if strings.Contains(err.Error()+out, "s3cret") || strings.Contains(err.Error(), "bob@") {
+				t.Errorf("the error shows the credentials: %v\n%s", err, out)
+			}
+			if !strings.Contains(err.Error(), "https://github.com/acme/app.git") {
+				t.Errorf("err = %v, want the remote without its credentials", err)
+			}
+		})
 	}
 }
 
@@ -375,6 +382,8 @@ func TestWithoutUserinfoKeepsARemoteWithNoCredentials(t *testing.T) {
 		"https://github.com/acme/app.git":                    "https://github.com/acme/app.git",
 		"git@github.com:acme/app.git":                        "git@github.com:acme/app.git",
 		"ssh://git@github.com/acme/app.git":                  "ssh://github.com/acme/app.git",
+		"https://bob:se%cret@github.com/acme/app.git":        "https://github.com/acme/app.git",
+		"https://bob:p@ss%zz@github.com":                     "https://github.com",
 	} {
 		if got := withoutUserinfo(in); got != want {
 			t.Errorf("withoutUserinfo(%q) = %q, want %q", in, got, want)

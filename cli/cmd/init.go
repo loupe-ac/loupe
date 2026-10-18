@@ -294,10 +294,26 @@ func createProjectFromRemote(ctx context.Context, client *api.Client, dir, baseU
 }
 
 // withoutUserinfo drops the user and password of a URL remote, which can hold
-// a token. An scp-style remote such as git@host:path has no password.
+// a token. An scp-style remote such as git@host:path has no password. A URL
+// that url.Parse refuses, such as a password with a bare %, is cut by hand.
 func withoutUserinfo(remote string) string {
 	u, err := url.Parse(remote)
-	if err != nil || u.User == nil {
+	if err != nil {
+		scheme, rest, ok := strings.Cut(remote, "://")
+		if !ok {
+			return remote
+		}
+		authority, path, hasPath := strings.Cut(rest, "/")
+		if at := strings.LastIndex(authority, "@"); at >= 0 {
+			authority = authority[at+1:]
+		}
+		if !hasPath {
+			return scheme + "://" + authority
+		}
+
+		return scheme + "://" + authority + "/" + path
+	}
+	if u.User == nil {
 		return remote
 	}
 	u.User = nil
