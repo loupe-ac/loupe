@@ -253,27 +253,30 @@ func createProjectFromRemote(ctx context.Context, client *api.Client, dir, baseU
 }
 
 // initLink writes the project file, the profile and the MCP declaration. A
-// project file that exists is the finished state of this step.
+// project file that exists is kept, and the profile and the MCP server still
+// get their checks, because a clone of the repository has the file and lacks
+// the declaration.
 func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	out := cmd.OutOrStdout()
-	_, statErr := os.Stat(filepath.Join(dir, projectfile.Name))
-	existed := statErr == nil
-
 	link := o.link
-	link.projectID = projectID
-	err := runProjectLink(cmd, link)
-	switch {
-	case errors.Is(err, errLinkExists):
+
+	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !link.force {
+		if err := writeProfile(cmd, dir); err != nil {
+			return err
+		}
+		if err := offerServer(cmd, dir, link.writeMcp, link.skipMcp, link.writeMcpJSON); err != nil {
+			return err
+		}
 		step(out, "Link", "skipped", projectfile.Name+" exists already")
 
 		return nil
-	case err != nil:
-		return err
-	case existed && !link.force:
-		step(out, "Link", "skipped", projectfile.Name+" exists already")
-	default:
-		step(out, "Link", "done", projectfile.Name+" names the project")
 	}
+
+	link.projectID = projectID
+	if err := runProjectLink(cmd, link); err != nil {
+		return err
+	}
+	step(out, "Link", "done", projectfile.Name+" names the project")
 
 	return nil
 }

@@ -21,10 +21,6 @@ import (
 	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
-// errLinkExists marks a directory that already holds the project file, when
-// the link was not forced.
-var errLinkExists = fmt.Errorf("%s already exists", projectfile.Name)
-
 // projectLinkOptions are the flags of `loupe project link`.
 type projectLinkOptions struct {
 	projectID    string
@@ -102,7 +98,7 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 			return err
 		}
 		if !o.writeMcp && !o.writeMcpJSON {
-			return fmt.Errorf("%w: pass --force to replace it", errLinkExists)
+			return fmt.Errorf("%s already exists: pass --force to replace it", projectfile.Name)
 		}
 
 		// --mcp on a repository that already names its project asks for

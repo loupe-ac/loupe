@@ -623,3 +623,72 @@ func TestInitIsRegisteredAndKeepsTheLinkFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestInitChecksTheMcpServerWhenTheProjectFileExists(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	if err := projectfile.Write(dir, firstProject); err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", home)
+	entry := `{"mcpServers":{"loupe":{"type":"stdio","command":"loupe","args":["mcp"]}}}`
+	log := fakeClaude(t, "cat > "+filepath.Join(home, ".claude.json")+" <<'EOF'\n"+entry+"\nEOF")
+
+	out, err := runInitCmd(t, "y\nn\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	argv, _ := os.ReadFile(log)
+	if !strings.Contains(string(argv), "mcp add") || !strings.Contains(string(argv), "--scope user") {
+		t.Errorf("init must declare the server, claude got %q\n%s", argv, out)
+	}
+	if !strings.Contains(out, "Link: skipped") || !strings.Contains(out, "Restart your agent") {
+		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestInitLeavesACorrectMcpServerAloneWhenTheProjectFileExists(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	if err := projectfile.Write(dir, firstProject); err != nil {
+		t.Fatal(err)
+	}
+	declareShim(t)
+	log := fakeClaude(t, "exit 1")
+
+	out, err := runInitCmd(t, "n\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Nothing to change") || !strings.Contains(out, "Link: skipped") {
+		t.Errorf("output:\n%s", out)
+	}
+	if _, err := os.Stat(log); !os.IsNotExist(err) {
+		t.Error("init ran claude though the server was correct")
+	}
+}
+
+func TestInitResetKeepsTheAutoUpdateKey(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	path, _ := defaultRulesPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("autoUpdate: true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInitCmd(t, "", "--no-mcp", "--reset")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	body := readOrEmpty(t, path)
+	if !strings.Contains(body, "autoUpdate: true") || strings.Contains(body, "autoUpdate: false") {
+		t.Errorf("reset must keep autoUpdate: true:\n%s", body)
+	}
+	if !strings.Contains(out, "Auto-update: skipped") {
+		t.Errorf("output:\n%s", out)
+	}
+}

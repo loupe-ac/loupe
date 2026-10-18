@@ -138,8 +138,9 @@ func Merge(existing []byte, o FirstRunOptions) ([]byte, []string, error) {
 	return out, added, nil
 }
 
-// Reset builds a new first-run file and keeps the projects map of the
-// existing one. The project of o is added when the old map lacks it.
+// Reset builds a new first-run file and keeps the projects map and the
+// autoUpdate key of the existing one. The project of o is added when the old
+// map lacks it.
 func Reset(existing []byte, o FirstRunOptions) ([]byte, error) {
 	fresh, err := FirstRun(o)
 	if err != nil {
@@ -152,8 +153,10 @@ func Reset(existing []byte, o FirstRunOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	kept, ok := lookup(old, "projects")
-	if !ok || isNull(kept) {
+	projects, hasProjects := lookup(old, "projects")
+	hasProjects = hasProjects && !isNull(projects)
+	autoUpdate, hasAuto := lookup(old, autoUpdateKey)
+	if !hasProjects && !hasAuto {
 		return fresh, nil
 	}
 
@@ -161,10 +164,15 @@ func Reset(existing []byte, o FirstRunOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	i, _ := index(top, "projects")
-	top.Content[i+1] = kept
-	if _, err := addMissing(top, o.Slug, o.Dir, nil); err != nil {
-		return nil, err
+	if hasProjects {
+		i, _ := index(top, "projects")
+		top.Content[i+1] = projects
+		if _, err := addMissing(top, o.Slug, o.Dir, nil); err != nil {
+			return nil, err
+		}
+	}
+	if hasAuto {
+		top.Content = append(top.Content, scalarNode(autoUpdateKey), autoUpdate)
 	}
 
 	return encodeRules(doc)

@@ -386,3 +386,31 @@ work:
 		t.Fatal("reset must not discard a file it cannot read")
 	}
 }
+
+func TestResetKeepsTheAutoUpdateKey(t *testing.T) {
+	o := firstRunOptions(t, "darwin", "claude")
+	other := t.TempDir()
+	for name, existing := range map[string]string{
+		"with projects":    "autoUpdate: true\nprojects:\n  other:\n    dir: " + other + "\n",
+		"without projects": "# mine\nautoUpdate: false\nmaxWorkers: 3\n",
+	} {
+		out, err := Reset([]byte(existing), o)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		want := "autoUpdate: true"
+		if name == "without projects" {
+			want = "autoUpdate: false"
+		}
+		text := string(out)
+		if strings.Count(text, "autoUpdate:") != 1 || !strings.Contains(text, want) {
+			t.Errorf("%s: reset must keep %q once:\n%s", name, want, text)
+		}
+		if strings.Contains(text, "maxWorkers") {
+			t.Errorf("%s: reset kept a key it should drop:\n%s", name, text)
+		}
+		if _, err := Parse(out, Defaults{}); err != nil {
+			t.Errorf("%s: the reset file does not load: %v\n%s", name, err, text)
+		}
+	}
+}
