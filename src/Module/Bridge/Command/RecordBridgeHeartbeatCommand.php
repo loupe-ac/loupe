@@ -36,7 +36,7 @@ final readonly class RecordBridgeHeartbeatCommand
      * @param list<WorktreeRow>|null       $worktrees      null keeps the stored rows, because a bridge that predates worktrees sends none
      * @param list<RepositoryRow>|null     $repositories   null keeps the stored rows, because a bridge that predates repositories sends none
      * @param list<string>                 $workKinds      empty from a bridge that predates work kinds, which then runs no kind
-     * @param list<GitIdentityRow>|null    $gitIdentities  null keeps the stored rows, because a bridge that predates git identities sends none
+     * @param list<GitIdentityRow>|null    $gitIdentities  null keeps the stored rows when the capabilities name git-identities, and clears them otherwise
      */
     public function __construct(
         public User $owner,

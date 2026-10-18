@@ -1259,7 +1259,7 @@ its fields, the failure events included.
 The server can pause a bridge, stop or resume one of its runs, run a failed
 command run again, and ask for the usage of an interactive run. Each heartbeat
 tells the server that the bridge takes these commands, with
-`capabilities: ["commands", "rerun-command", "session-usage"]`.
+`capabilities: ["commands", "rerun-command", "session-usage"]`. It also names `git-identities`, because it reports its git identity.
 [Pause and commands](../reference/bridge-heartbeat.md#pause-and-commands)
 describes the protocol.
 

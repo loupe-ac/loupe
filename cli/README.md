@@ -1328,7 +1328,7 @@ or another server holds no pause for this bridge. The first reply that carries
 missing cache heals. When the bridge cannot find its config directory, it runs
 with no cache. An update hands the pause to the new version directly. Each
 heartbeat sends `paused` with the state the bridge applies, and
-`capabilities: ["commands", "rerun-command", "session-usage", "run-command"]`,
+`capabilities: ["commands", "rerun-command", "session-usage", "run-command", "git-identities"]`,
 with `add-entry` when `acceptEntries` is on, and with the capabilities of the
 work map.
 

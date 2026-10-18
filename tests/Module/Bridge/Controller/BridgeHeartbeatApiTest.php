@@ -1452,11 +1452,36 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $bridgeId = (string) Uuid::v4();
 
         $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()]]);
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7']);
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => null]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'capabilities' => ['git-identities']]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'capabilities' => ['git-identities'], 'gitIdentities' => null]);
 
         self::assertResponseStatusCodeSame(200);
         self::assertCount(1, $this->bridge($owner, $bridgeId)->gitIdentities ?? []);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function olderCliHeartbeats(): iterable
+    {
+        yield 'capabilities without git-identities' => [['capabilities' => ['commands']]];
+        yield 'no capabilities' => [[]];
+    }
+
+    /** @param array<string, mixed> $heartbeat */
+    #[DataProvider('olderCliHeartbeats')]
+    public function test_a_heartbeat_from_an_older_cli_clears_the_git_identities(array $heartbeat): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-older-cli@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'capabilities' => ['git-identities'], 'gitIdentities' => [self::identity()]]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', ...$heartbeat]);
+
+        self::assertResponseStatusCodeSame(200);
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertNull($bridge->gitIdentities);
+        self::assertNull($bridge->gitIdentitiesReportedAt);
     }
 
     public function test_an_empty_list_clears_the_git_identities(): void

@@ -61,6 +61,9 @@ class Bridge
     /** The capability of a bridge that reports the usage of an interactive run from the session transcript. */
     public const string CAPABILITY_SESSION_USAGE = 'session-usage';
 
+    /** The capability of a bridge that reports its git identities, so a heartbeat without it clears the stored rows. */
+    public const string CAPABILITY_GIT_IDENTITIES = 'git-identities';
+
     /** The capability of a bridge that claims work requests. */
     public const string CAPABILITY_WORK_REQUESTS = 'work-requests';
 

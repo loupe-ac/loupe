@@ -130,6 +130,10 @@ final readonly class RecordBridgeHeartbeatHandler
             if (null !== $command->gitIdentities) {
                 $bridge->gitIdentities = $command->gitIdentities;
                 $bridge->gitIdentitiesReportedAt = $now;
+            } elseif (!\in_array(Bridge::CAPABILITY_GIT_IDENTITIES, $command->capabilities ?? [], true)) {
+                // An older CLI pushes with the git setup of the machine, so the rows of a newer one no longer hold.
+                $bridge->gitIdentities = null;
+                $bridge->gitIdentitiesReportedAt = null;
             }
             // A new bridge and a bridge back from quiet change what the waiting cards can expect.
             $availabilityChanged = $created

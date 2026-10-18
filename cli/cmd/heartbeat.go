@@ -30,7 +30,7 @@ const heartbeatLane = "heartbeat"
 const poolsWindow = 10 * time.Second
 
 // bridgeCapabilities names what this bridge supports to the server.
-var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", rules.CapabilityRunCommand}
+var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", rules.CapabilityRunCommand, "git-identities"}
 
 // heartbeatSender sends one heartbeat. *api.Client is one.
 type heartbeatSender interface {
