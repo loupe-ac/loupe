@@ -17,6 +17,10 @@ final readonly class WorkTakerReading
         public ?\DateTimeImmutable $quietAt,
         /** On a not-capable reading: an online bridge lacks the app-prompts capability that a request with a prompt needs. */
         public bool $appPromptsMissing = false,
+        /** On an available or not-capable reading: the label of the newest online bridge that the state names. */
+        public ?string $bridgeLabel = null,
+        /** The last heartbeat of that bridge. */
+        public ?\DateTimeImmutable $bridgeSeenAt = null,
     ) {
     }
 }

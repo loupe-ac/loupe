@@ -14,7 +14,7 @@ on the machine of the bridge. The bridge sends only the login to Loupe.
 
 ## Set up the account
 
-The Agent GitHub account row of the
+The Who pushes the code row of the
 [readiness guide](../using/workshop.md#the-readiness-guide) links to a page
 with these steps. Set up opens it. The project owner can also open it from
 **Project settings**, then **Agent readiness**.
@@ -41,7 +41,7 @@ one.
 
 ## What the check reads
 
-The Agent GitHub account row is done when both of these are true:
+The Who pushes the code row is done when both of these are true:
 
 - The owner recorded a login on the agent account page.
 - A running bridge of the project pushes as that login.

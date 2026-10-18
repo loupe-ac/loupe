@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"net/url"
 	"os/exec"
 	"slices"
 	"strings"
@@ -74,6 +75,61 @@ func worktreeReports(ctx context.Context, set *rules.Set) []api.WorktreeReport {
 	}
 
 	return out[:min(len(out), api.MaxWorktrees)]
+}
+
+// maxRemoteURL is the longest remote the server stores.
+const maxRemoteURL = 2048
+
+// repositoryReports reads the origin remote in the folder of each followed
+// project. A folder with no readable remote still goes out, with its path and
+// an empty remote, because the path says the project is linked.
+func repositoryReports(ctx context.Context, set *rules.Set) []api.RepositoryReport {
+	slugs := set.Projects()
+	if len(slugs) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, worktreeTimeout)
+	defer cancel()
+	out := make([]api.RepositoryReport, 0, min(len(slugs), api.MaxRepositories))
+	for _, slug := range slugs[:min(len(slugs), api.MaxRepositories)] {
+		dir, id := set.Dir(slug), set.ProjectID(slug)
+		if id == "" || len(dir) > 4096 {
+			continue
+		}
+		remote := originRemote(ctx, dir)
+		out = append(out, api.RepositoryReport{ProjectID: id, Path: dir, RemoteURL: remote})
+	}
+
+	return out
+}
+
+// originRemote is the origin remote of the repository in dir, without
+// credentials, and "" when git has none to give.
+func originRemote(ctx context.Context, dir string) string {
+	var stdout bytes.Buffer
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "remote", "get-url", "origin")
+	cmd.Stdout = &stdout
+	if cmd.Run() != nil {
+		return ""
+	}
+
+	return withoutCredentials(strings.TrimSpace(stdout.String()))
+}
+
+// withoutCredentials drops the user and password of a URL remote, which a
+// person may have written into it. An scp-style remote holds none, and a value
+// over the server's limit gives "".
+func withoutCredentials(remote string) string {
+	if len(remote) > maxRemoteURL {
+		return ""
+	}
+	if u, err := url.Parse(remote); err == nil && u.User != nil {
+		u.User = nil
+
+		return u.String()
+	}
+
+	return remote
 }
 
 // listWorktrees reads `git worktree list --porcelain` in dir. It reads git

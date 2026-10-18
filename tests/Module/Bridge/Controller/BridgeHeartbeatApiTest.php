@@ -10,6 +10,7 @@ use App\Module\Bridge\Controller\Api\BridgeCommandEntryInput;
 use App\Module\Bridge\Controller\Api\BridgeCommandParamInput;
 use App\Module\Bridge\Controller\Api\BridgeHookInput;
 use App\Module\Bridge\Controller\Api\BridgeHostSampleInput;
+use App\Module\Bridge\Controller\Api\BridgeRepositoryInput;
 use App\Module\Bridge\Controller\Api\BridgeWorktreeInput;
 use App\Module\Bridge\Controller\Api\RecordBridgeHeartbeatRequest;
 use App\Module\Bridge\Entity\Bridge;
@@ -449,6 +450,32 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $bridge = $this->bridge($owner, $bridgeId);
         self::assertSame([], $bridge->commandEntries);
         self::assertSame([], $bridge->worktrees);
+    }
+
+    public function test_the_repositories_are_stored_kept_and_cleared(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-repositories@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $projectId = strtoupper((string) Uuid::v7());
+        $base = ['projects' => [], 'cliVersion' => 'b4e39aa7'];
+
+        $this->put($client, $bridgeId, $raw, $base + ['repositories' => [['projectId' => $projectId, 'path' => '/work/loupe', 'remoteUrl' => 'git@github.com:acme/loupe.git'], ['projectId' => $projectId, 'path' => '/work/other']]]);
+
+        self::assertResponseStatusCodeSame(200);
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertSame([
+            ['projectId' => strtolower($projectId), 'path' => '/work/loupe', 'remoteUrl' => 'git@github.com:acme/loupe.git'],
+            ['projectId' => strtolower($projectId), 'path' => '/work/other', 'remoteUrl' => ''],
+        ], $bridge->repositories);
+        self::assertNotNull($bridge->repositoriesReportedAt);
+
+        $this->put($client, $bridgeId, $raw, $base);
+        self::assertCount(2, $this->bridge($owner, $bridgeId)->repositories ?? []);
+
+        $this->put($client, $bridgeId, $raw, $base + ['repositories' => []]);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->repositories);
     }
 
     /** A bridge from before accounts sends none, so its heartbeat leaves the stored rows alone. */
@@ -926,6 +953,16 @@ final class BridgeHeartbeatApiTest extends WebTestCase
      *
      * @return array<string, mixed>
      */
+    private static function repository(array $overrides = []): array
+    {
+        return array_merge(['projectId' => (string) Uuid::v7(), 'path' => '/work/main', 'remoteUrl' => 'git@github.com:acme/loupe.git'], $overrides);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
     private static function worktree(array $overrides = []): array
     {
         return array_merge(['projectId' => (string) Uuid::v7(), 'branch' => 'main', 'path' => '/work/main'], $overrides);
@@ -1038,6 +1075,12 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a command param with no name' => [['commandEntries' => [self::commandEntry(['params' => [['name' => null, 'pattern' => 'a']]])]]];
         yield 'a command param with no pattern' => [['commandEntries' => [self::commandEntry(['params' => [['name' => 'out', 'pattern' => '']]])]]];
         yield 'a command param pattern that is too long' => [['commandEntries' => [self::commandEntry(['params' => [['name' => 'out', 'pattern' => str_repeat('a', BridgeCommandParamInput::MAX_PATTERN_LENGTH + 1)]]])]]];
+        yield 'repositories that are not a list' => [['repositories' => 'main']];
+        yield 'too many repositories' => [['repositories' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_REPOSITORIES + 1, self::repository())]];
+        yield 'a repository with a project id that is not a uuid' => [['repositories' => [self::repository(['projectId' => 'loupe'])]]];
+        yield 'a repository with no path' => [['repositories' => [self::repository(['path' => ''])]]];
+        yield 'a repository path that is too long' => [['repositories' => [self::repository(['path' => str_repeat('a', BridgeRepositoryInput::MAX_PATH_LENGTH + 1)])]]];
+        yield 'a repository remote that is too long' => [['repositories' => [self::repository(['remoteUrl' => str_repeat('a', BridgeRepositoryInput::MAX_REMOTE_URL_LENGTH + 1)])]]];
         yield 'worktrees that are not a list' => [['worktrees' => 'main']];
         yield 'too many worktrees' => [['worktrees' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_WORKTREES + 1, self::worktree())]];
         yield 'a worktree with a project id that is not a uuid' => [['worktrees' => [self::worktree(['projectId' => 'loupe'])]]];

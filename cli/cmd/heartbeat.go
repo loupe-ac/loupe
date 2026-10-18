@@ -64,6 +64,9 @@ type heartbeater struct {
 	// worktrees reads the worktrees of the followed projects when a heartbeat
 	// goes out. It returns nil on a failure, which sends no list. It may be nil.
 	worktrees func(context.Context) []api.WorktreeReport
+	// repositories reads the folder and origin remote of each followed project
+	// when a heartbeat goes out. It may be nil.
+	repositories func(context.Context) []api.RepositoryReport
 
 	mu   sync.Mutex
 	body api.Heartbeat
@@ -342,6 +345,9 @@ func (h *heartbeater) send() {
 		body.HostSamples, upto = h.pendingHostSamples()
 		if h.worktrees != nil {
 			body.Worktrees = h.worktrees(ctx)
+		}
+		if h.repositories != nil {
+			body.Repositories = h.repositories(ctx)
 		}
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {

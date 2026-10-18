@@ -52,13 +52,7 @@
     {{ secondary }}
     {%- if switch is not null -%}
     <label class="lp-filter-switch">
-        <input type="checkbox"
-               class="lp-switch"
-               role="switch"
-               name="{{ switch.name }}"
-               value="1"
-               {{ switch.checked|default(false) ? 'checked' }}{{ bar.attrs(switch.attributes|default({})) }}
-               data-action="change->autosearch#search">
+        {{ component('Ds:Switch', {name: switch.name, checked: switch.checked|default(false), 'data-action': 'change->autosearch#search'}|merge(switch.attributes|default({}))) }}
         {{ switch.label }}
     </label>
     {%- endif -%}

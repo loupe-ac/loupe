@@ -108,14 +108,13 @@ class BridgeRepository extends ServiceEntityRepository
     }
 
     /**
-     * The bridges that report worker pools and whose last heartbeat came in the window.
+     * The bridges whose last heartbeat came in the window.
      *
      * @return list<Bridge>
      */
-    public function findWithPoolsLastSeenBetween(\DateTimeImmutable $from, \DateTimeImmutable $before): array
+    public function findLastSeenBetween(\DateTimeImmutable $from, \DateTimeImmutable $before): array
     {
         return $this->createQueryBuilder('b')
-            ->andWhere('b.workerPools IS NOT NULL')
             ->andWhere('b.lastSeenAt >= :from')
             ->andWhere('b.lastSeenAt < :before')
             ->setParameter('from', $from)

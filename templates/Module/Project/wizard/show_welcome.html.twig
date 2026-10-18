@@ -4,7 +4,7 @@
 
 {% block body %}
 <twig:Ds:Workspace width="narrow">
-    {% include '@Project/wizard/_wizard_progress.html.twig' with {step: 1} only %}
+    <twig:Ds:Stepper class="lp-wizard-stepper" :steps="['project.wizard.progress.step_1'|trans, 'project.wizard.progress.step_2'|trans, 'project.wizard.progress.step_3'|trans]" :current="1" :aria-label="'project.wizard.progress.label'|trans" />
 
     <h1 class="lp-workspace-title">{{ 'project.wizard.welcome.heading'|trans }}</h1>
     <p class="lp-workspace-desc">{{ 'project.wizard.welcome.lead'|trans }}</p>

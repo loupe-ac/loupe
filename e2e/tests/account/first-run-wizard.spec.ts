@@ -1,7 +1,7 @@
 /**
  * End-to-end coverage for the first-run wizard (/welcome): a fresh account is
- * routed there after verifying its email, walks through creating its first
- * project and connecting an agent, and can skip out at any step.
+ * routed there after verifying its email, creates its first project, sees what
+ * Loupe knows about its machine, and can skip out at either step.
  */
 
 import { expect } from '@playwright/test';
@@ -11,7 +11,7 @@ import { registerFreshUser, submitRedirectingForm } from '../helpers';
 test.describe('first-run wizard', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
-    test('full flow: create project, connect, finish', async ({
+    test('create a project, then see what Loupe sees on the machine step', async ({
         page,
         request,
     }) => {
@@ -32,78 +32,34 @@ test.describe('first-run wizard', () => {
 
         await expect(page).toHaveURL(/\/welcome\/connect$/);
         await expect(page.locator('ol[data-wizard-step="2"]')).toBeVisible();
-
-        // The setup prompt is open, and names the project created above. The
-        // id is checked against the dashboard URL at the end of the flow.
-        const setupPrompt = page.locator('[data-testid="setup-prompt"]');
-        await expect(setupPrompt).toBeVisible();
-        await expect(setupPrompt).toContainText(
-            /curl -fsSL "https?:\/\/[^"]+\/setup\.md\?project=[0-9a-f-]{36}"/,
-        );
-        const promptText = (await setupPrompt.textContent()) ?? '';
+        await expect(page.locator('ol[data-wizard-step] > li')).toHaveCount(5);
         await expect(
-            page
-                .locator('.lp-code-dark')
-                .filter({ has: setupPrompt })
-                .getByRole('button', { name: 'Copy' }),
+            page.getByRole('heading', { name: 'Connect your machine' }),
         ).toBeVisible();
 
-        // The three ways to connect start collapsed, so the command is in the DOM
-        // but out of the accessibility tree until its disclosure is opened.
-        await expect(page.locator('details.lp-install')).toHaveCount(3);
-        const byHandCommand = page.getByText('claude mcp add --transport');
-        await expect(byHandCommand).toBeHidden();
-        // Keyed on the method rather than its heading: this assertion broke once
-        // when the heading was reworded, which a copy change should not do.
-        await page.locator('[data-testid="install-cli"] summary').click();
-        await expect(byHandCommand).toBeVisible();
-
-        // The skills are named outside the plugin card, so a hand-wired install
-        // still meets them.
-        await expect(page.getByText('loupe-site-review')).toBeVisible();
-
         await expect(
-            page.getByRole('button', { name: 'Skip setup' }),
+            page.locator('[data-testid="wizard-install-command"]'),
+        ).toContainText(/curl -fsSL https?:\/\/[^ ]+\/install\.sh \| sh/);
+        const initCommand = page.locator('[data-testid="wizard-init-command"]');
+        await expect(initCommand).toContainText(
+            /^loupe init --project [0-9a-f-]{36}$/,
+        );
+
+        const panel = page.locator('[data-wizard-readiness]');
+        await expect(panel).toHaveAttribute('aria-live', 'polite');
+        await expect(panel.locator('[data-readiness-row]')).toHaveCount(4);
+        await expect(panel.getByText('Waiting')).toHaveCount(4);
+
+        // No bridge runs in the suite, so the way on stays shut.
+        await expect(
+            page.getByRole('button', { name: 'Continue to the Workshop' }),
+        ).toBeDisabled();
+        await expect(
+            page.getByRole('button', { name: 'Skip for now' }),
         ).toBeVisible();
 
-        // The step mints nothing. It names the MCP endpoint, and an agent
-        // authorizes itself against it.
-        await expect(page.locator('code.lp-connect-field__value')).toHaveText(
-            /\/mcp$/,
-        );
-
-        await page.getByRole('link', { name: 'Continue' }).click();
-        await expect(page).toHaveURL(/\/welcome\/widget$/);
-        await expect(page.locator('ol[data-wizard-step="3"]')).toBeVisible();
-
-        // The embed carries the project and no credential, so the reviewer
-        // signs in through the widget's own pop-up.
-        const snippet = page.locator('[data-testid="wizard-widget-snippet"]');
-        await expect(snippet).toContainText('site-review/widget.js');
-        await expect(snippet).toContainText('data-project=');
-        await expect(snippet).not.toContainText('data-token=');
-
-        await page.getByRole('link', { name: 'Continue' }).click();
-        await expect(page).toHaveURL(/\/welcome\/done$/);
-        await expect(page.locator('ol[data-wizard-step="4"]')).toBeVisible();
-        await expect(
-            page.getByRole('button', { name: 'Skip setup' }),
-        ).toHaveCount(0);
-        await submitRedirectingForm(
-            page,
-            page.getByRole('button', { name: 'Go to dashboard' }),
-            '/welcome/done/finish',
-        );
-
-        // The first render of the documents page can take over 3 s on a CI runner.
-        await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+\/documents$/, {
-            timeout: 15000,
-        });
-        const projectId = new URL(page.url()).pathname.split('/')[2];
-        expect(promptText).toContain(`/setup.md?project=${projectId}"`);
-
-        await page.goto('/welcome');
-        await expect(page).not.toHaveURL(/\/welcome/);
+        const gone = await page.goto('/welcome/widget');
+        expect(gone?.status()).toBe(404);
     });
 
     test('skip from the first step', async ({ page, request }) => {
@@ -146,7 +102,7 @@ test.describe('first-run wizard', () => {
 
         await submitRedirectingForm(
             page,
-            page.getByRole('button', { name: 'Skip setup' }),
+            page.getByRole('button', { name: 'Skip for now' }),
             '/welcome/skip',
         );
         await expect(page).toHaveURL(/\/projects$/);

@@ -1,0 +1,25 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }}, bare and with a label" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** Id of the input. Defaults to the name. */
+    id?: string;
+    name?: string;
+    /** Text of the label. With a label or help, a field row wraps the switch. */
+    label?: string;
+    /** A line under the label, tied to the input with aria-describedby. */
+    help?: string;
+    checked?: boolean;
+    defaultChecked?: boolean;
+    disabled?: boolean;
+    className?: string;
+    /** An input is a void element, so it takes no children. */
+    children?: never;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

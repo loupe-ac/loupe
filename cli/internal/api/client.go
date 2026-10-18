@@ -548,12 +548,16 @@ type Heartbeat struct {
 	// them.
 	CommandEntries []CommandEntryReport `json:"commandEntries,omitzero"`
 	Worktrees      []WorktreeReport     `json:"worktrees,omitzero"`
+	// Repositories follows the same rule: nil sends no key and keeps the rows
+	// the server holds.
+	Repositories []RepositoryReport `json:"repositories,omitzero"`
 }
 
 // The most rows of each list a heartbeat carries.
 const (
 	MaxCommandEntries = 50
 	MaxWorktrees      = 200
+	MaxRepositories   = 500
 )
 
 // CommandEntryReport is one command entry of the rule file. Run holds the
@@ -578,6 +582,14 @@ type WorktreeReport struct {
 	ProjectID string `json:"projectId"`
 	Branch    string `json:"branch"`
 	Path      string `json:"path"`
+}
+
+// RepositoryReport is the folder of one followed project and its origin
+// remote. RemoteURL is empty when git has none to give.
+type RepositoryReport struct {
+	ProjectID string `json:"projectId"`
+	Path      string `json:"path"`
+	RemoteURL string `json:"remoteUrl"`
 }
 
 // The states of an account row.
@@ -704,6 +716,9 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 	}
 	if len(hb.Worktrees) > MaxWorktrees {
 		hb.Worktrees = hb.Worktrees[:MaxWorktrees]
+	}
+	if len(hb.Repositories) > MaxRepositories {
+		hb.Repositories = hb.Repositories[:MaxRepositories]
 	}
 	if len(hb.HostSamples) > HostSamplesPerHeartbeat {
 		hb.HostSamples = hb.HostSamples[:HostSamplesPerHeartbeat]

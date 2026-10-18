@@ -1,0 +1,10 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's stepper. {{ entry.summary }}
+
+```jsx
+<{{ name }} aria-label="Setup progress" steps={['Project', 'Your machine', 'Ready for agents']} current={2} />
+```
+
+Steps before `current` show a check, the current step is bold and the rest are outlined. Pass `complete` on the final screen. Labels are sentence case. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}
