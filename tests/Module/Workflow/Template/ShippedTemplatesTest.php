@@ -249,7 +249,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertTrue($rule->when->evaluate($facts));
         self::assertFalse($this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
-        self::assertSame(['kind' => $tag.'-revise', 'reason' => 'agent-review', 'limit' => 3], \array_slice($rule->then->params, 0, 3));
+        self::assertSame(['kind' => $tag.'-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->then->params, 0, 3));
         self::assertNotNull($rule->then->cancelWhen);
     }
 
