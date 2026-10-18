@@ -8,9 +8,10 @@ import (
 
 // Gaps names what a rule file lacks for dir to run work: a permission default,
 // a source of prompts, and a project that maps dir. keys are the handles of the
-// project linked to dir, such as its slug and its id, and only an entry under
-// one of them counts. With no keys, any entry counts. The file may be valid
-// and still run nothing, so a gap is a note and never an error.
+// project linked to dir. Only an entry under the first key counts, because the
+// bridge takes only the slug. An entry under another key, such as the id, is a
+// gap that names it. With no keys, any entry counts. The file may be valid and
+// still run nothing, so a gap is a note and never an error.
 func Gaps(data []byte, dir string, keys ...string) ([]string, error) {
 	m, err := decodeMap(data)
 	if err != nil {
@@ -24,7 +25,9 @@ func Gaps(data []byte, dir string, keys ...string) ([]string, error) {
 		gaps = append(gaps, "it has no prompts: set appPrompts to true, or add a work entry")
 	}
 	switch {
-	case mapsDir(m, dir, keys):
+	case mapsDir(m, dir, keys[:min(len(keys), 1)]) != "":
+	case len(keys) > 1 && mapsDir(m, dir, keys[1:]) != "":
+		gaps = append(gaps, "project "+keys[0]+" is mapped under projects."+mapsDir(m, dir, keys[1:])+", and the bridge takes only projects."+keys[0])
 	case len(keys) > 0:
 		gaps = append(gaps, "project "+keys[0]+" does not map "+dir+": add it under projects")
 	default:
@@ -61,7 +64,9 @@ func hasPrompts(m map[string]any) bool {
 	return len(work) > 0
 }
 
-func mapsDir(m map[string]any, dir string, keys []string) bool {
+// mapsDir returns the key of an entry under one of keys that maps dir, or ""
+// when none does. With no keys, any entry counts.
+func mapsDir(m map[string]any, dir string, keys []string) string {
 	want := canonical(dir)
 	projects, _ := m["projects"].(map[string]any)
 	for key, project := range projects {
@@ -74,11 +79,11 @@ func mapsDir(m map[string]any, dir string, keys []string) bool {
 			continue
 		}
 		if expanded, err := expandHome(dir); err == nil && canonical(expanded) == want {
-			return true
+			return key
 		}
 	}
 
-	return false
+	return ""
 }
 
 func text(v any) string {

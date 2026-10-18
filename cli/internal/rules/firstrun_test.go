@@ -372,6 +372,55 @@ func TestMergeAndResetRefuseAProjectMappedToAnotherDirectory(t *testing.T) {
 	}
 }
 
+func TestMergeAndResetRenameAProjectKeyedByItsID(t *testing.T) {
+	o := firstRunOptions(t, "linux", "claude")
+	o.ID = "01A0C0D9-905C-7922-A586-CCC8CE043704"
+	body := "accounts:\n  a:\n    harness: claude-code\ndefaults:\n  account: a\nprojects:\n  01a0c0d9-905c-7922-a586-ccc8ce043704:\n    dir: " + o.Dir + " # the app\n"
+
+	out, added, err := Merge([]byte(body), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(added, "projects.my-app (renamed from projects.01a0c0d9-905c-7922-a586-ccc8ce043704)") {
+		t.Errorf("added = %v, want the rename named", added)
+	}
+	reset, err := Reset([]byte(body), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, file := range map[string][]byte{"Merge": out, "Reset": reset} {
+		set, err := Parse(file, Defaults{})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := set.Projects(); !slices.Equal(got, []string{"my-app"}) {
+			t.Errorf("%s: projects = %v, want only my-app", name, got)
+		}
+		if !strings.Contains(string(file), o.Dir+" # the app") {
+			t.Errorf("%s: the entry must keep its value:\n%s", name, file)
+		}
+	}
+}
+
+func TestMergeAndResetRefuseAProjectKeyedByItsSlugAndItsID(t *testing.T) {
+	o := firstRunOptions(t, "linux", "claude")
+	o.ID = "01a0c0d9-905c-7922-a586-ccc8ce043704"
+	both := "projects:\n  my-app:\n    dir: " + o.Dir + "\n  " + o.ID + ":\n    dir: " + o.Dir + "\n"
+	want := "remove projects." + o.ID
+	if _, _, err := Merge([]byte(both), o); err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("Merge: err = %v, want %q", err, want)
+	}
+	if _, err := Reset([]byte(both), o); err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("Reset: err = %v, want %q", err, want)
+	}
+
+	other := t.TempDir()
+	elsewhere := "projects:\n  " + o.ID + ":\n    dir: " + other + "\n"
+	if _, _, err := Merge([]byte(elsewhere), o); err == nil || !strings.Contains(err.Error(), "projects."+o.ID+" maps "+other) {
+		t.Errorf("an id entry at another directory: err = %v, want the directory named", err)
+	}
+}
+
 func TestMergeWritesNoLauncherWhenNoneIsKnown(t *testing.T) {
 	o := firstRunOptions(t, "linux", "claude")
 	out, added, err := Merge([]byte(writePartial(t, partialRules)), o)

@@ -34,7 +34,9 @@ var terminals = [][]string{
 // on the PATH of the process, and an empty GOOS means the running OS.
 type FirstRunOptions struct {
 	// Slug is the project key, and Dir is the repository directory it maps to.
+	// ID is the project id, whose entry Merge renames to Slug.
 	Slug string
+	ID   string
 	Dir  string
 
 	LookPath func(string) (string, error)
@@ -226,10 +228,21 @@ func addMissing(top *yaml.Node, o FirstRunOptions, launch []string) ([]string, e
 	if err != nil {
 		return nil, err
 	}
+	idKey, byID := idEntry(projects, o)
 	if project, ok := lookup(projects, o.Slug); ok {
+		if byID {
+			return nil, fmt.Errorf("projects.%s and projects.%s name the same project, and the bridge refuses both: remove projects.%s, then run loupe init again", o.Slug, idKey.Value, idKey.Value)
+		}
 		if err := sameDir(project, o.Slug, o.Dir); err != nil {
 			return nil, err
 		}
+	} else if byID {
+		project, _ := lookup(projects, idKey.Value)
+		if err := sameDir(project, idKey.Value, o.Dir); err != nil {
+			return nil, err
+		}
+		added = append(added, "projects."+o.Slug+" (renamed from projects."+idKey.Value+")")
+		idKey.Value = o.Slug
 	} else {
 		projects.Content = append(projects.Content, scalarNode(o.Slug), mappingNode("dir", scalarNode(o.Dir)))
 		added = append(added, "projects."+o.Slug)
@@ -252,6 +265,21 @@ func addMissing(top *yaml.Node, o FirstRunOptions, launch []string) ([]string, e
 	}
 
 	return added, nil
+}
+
+// idEntry finds the key of the entry that names the project by its id. The
+// bridge takes only the slug of a project that has one.
+func idEntry(projects *yaml.Node, o FirstRunOptions) (*yaml.Node, bool) {
+	if o.ID == "" || strings.EqualFold(o.ID, o.Slug) {
+		return nil, false
+	}
+	for i := 0; i+1 < len(projects.Content); i += 2 {
+		if strings.EqualFold(projects.Content[i].Value, o.ID) {
+			return projects.Content[i], true
+		}
+	}
+
+	return nil, false
 }
 
 // sameDir fails when the project entry maps another directory than dir. An

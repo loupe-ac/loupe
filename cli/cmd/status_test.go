@@ -332,3 +332,18 @@ func TestStatusNotesARuleFileThatMapsTheDirectoryToAnotherProject(t *testing.T) 
 		t.Fatalf("want the linked project gap: %v\n%s", err, out)
 	}
 }
+
+func TestStatusNotesAProjectMappedUnderItsID(t *testing.T) {
+	passingStatus(t)
+	dir := readyProject(t)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := noteRules(t, readyProject(t), "  "+projectA+":\n    dir: "+dir+"\ndefaults:\n  account: in\n  permissions: workspace\nwork:\n  plan:\n    prompt: go\n")
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	want := "Rules:       note: project loupe is mapped under projects." + projectA + ", and the bridge takes only projects.loupe. Run `loupe init` to fix it."
+	if err != nil || !strings.Contains(out, want) {
+		t.Fatalf("want %q: %v\n%s", want, err, out)
+	}
+}

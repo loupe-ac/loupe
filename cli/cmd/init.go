@@ -413,7 +413,7 @@ func indented(raw []byte) string {
 // reports whether it changed a file that existed.
 func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) (bool, error) {
 	out := cmd.OutOrStdout()
-	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
+	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), ID: site.ID, Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
 
 	existing, err := os.ReadFile(path)
 	missing := errors.Is(err, fs.ErrNotExist)

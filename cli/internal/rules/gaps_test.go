@@ -99,8 +99,12 @@ func TestGapsChecksOnlyTheLinkedProject(t *testing.T) {
 	if got := strings.Join(gaps, "\n"); !strings.Contains(got, "project a does not map") {
 		t.Errorf("another project at the directory must not count, got:\n%s", got)
 	}
-	if gaps, _ := Gaps([]byte(body), dir, "a", "B"); len(gaps) != 0 {
-		t.Errorf("the key matches any handle of the project, got %v", gaps)
+	if gaps, _ := Gaps([]byte(body), dir, "B", "a"); len(gaps) != 0 {
+		t.Errorf("the first key matches, got %v", gaps)
+	}
+	gaps, _ = Gaps([]byte(body), dir, "a", "B")
+	if got := strings.Join(gaps, "\n"); !strings.Contains(got, "project a is mapped under projects.b, and the bridge takes only projects.a") {
+		t.Errorf("an entry under another handle must be named, got:\n%s", got)
 	}
 }
 
