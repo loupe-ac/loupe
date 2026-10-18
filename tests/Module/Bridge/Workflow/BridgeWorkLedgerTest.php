@@ -78,6 +78,18 @@ final class BridgeWorkLedgerTest extends KernelTestCase
         self::assertSame(WorkRequestState::Expired, $this->em()->find(WorkRequest::class, $expiredId)?->state);
     }
 
+    public function test_an_expiry_only_if_open_leaves_a_request_that_a_bridge_claimed(): void
+    {
+        $project = $this->scenario('ledger-only-if-open@example.com');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'discovery', state: WorkRequestState::Claimed);
+        $id = $request->id ?? throw new \LogicException('A flushed request has an id.');
+
+        self::assertFalse($this->ledger()->withdraw($id, WithdrawKind::Expired, WorkRequest::REASON_NO_TAKER, onlyIfOpen: true));
+
+        $this->em()->clear();
+        self::assertSame(WorkRequestState::Claimed, $this->em()->find(WorkRequest::class, $id)?->state);
+    }
+
     public function test_a_withdrawal_stores_its_reason_and_no_taker_reason_reads_the_open_request(): void
     {
         $project = $this->scenario('ledger-no-taker@example.com');

@@ -456,7 +456,7 @@ final readonly class Engine
             // The template decides that a request no bridge could take fails at once, with no pause.
             if ($expire && WorkState::Open === $request->state && 'fail' === ActionParams::optionalString($rule, 'onNoTaker')) {
                 $reason = $this->ledger->noTakerReason($requestId);
-                if (null !== $reason && $this->ledger->withdraw($requestId, WithdrawKind::Expired, $reason)) {
+                if (null !== $reason && $this->ledger->withdraw($requestId, WithdrawKind::Expired, $reason, onlyIfOpen: true)) {
                     $withdrawn = true;
                     continue;
                 }
@@ -464,7 +464,7 @@ final readonly class Engine
 
             $deadline = ($request->reopenedAt ?? $request->createdAt)->add(new \DateInterval(\sprintf('PT%dM', $run->template->workTimeoutMinutes)));
             if ($expire && WorkState::Open === $request->state && $deadline <= $run->now
-                && $this->ledger->withdraw($requestId, WithdrawKind::Expired)) {
+                && $this->ledger->withdraw($requestId, WithdrawKind::Expired, onlyIfOpen: true)) {
                 $withdrawn = true;
                 // A repair always pauses, because nothing else ends its escalation.
                 $state = $run->states[$rule->id] ?? null;

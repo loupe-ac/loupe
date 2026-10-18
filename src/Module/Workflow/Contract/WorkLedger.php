@@ -20,8 +20,9 @@ interface WorkLedger
 
     /**
      * Answers false when the work is unknown or already settled. The reason is a code that the module of the work reads.
+     * With onlyIfOpen, it also answers false when a bridge claimed the work since the caller read it.
      */
-    public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null): bool;
+    public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null, bool $onlyIfOpen = false): bool;
 
     /** The reason code when the open work has no bridge online that could run it, or null when a bridge could, or the work is not open. */
     public function noTakerReason(Uuid $requestId): ?string;

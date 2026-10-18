@@ -326,6 +326,23 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($this->checklist()->startRefusal($project));
     }
 
+    public function test_a_paused_bridge_is_not_ready_and_refuses_the_start(): void
+    {
+        $project = $this->newProject('readiness-paused@example.com');
+        $this->bind($project);
+        $bridge = $this->seedCapableBridge($project);
+        $bridge->pauseRequested = true;
+        $this->em()->flush();
+
+        $readiness = $this->readiness($this->checklist(), $project);
+        $row = $this->row($readiness, 'bridge');
+
+        self::assertSame(['readiness.row.bridge.paused', false, 'readiness.row.bridge.resume'], [$row->status, $row->done, $row->actionLabel]);
+        self::assertStringEndsWith('/projects/'.$project->id.'/agents', (string) $row->actionUrl);
+        self::assertSame('readiness.row.repository.bridge_paused', $this->row($readiness, 'repository')->status);
+        self::assertSame('readiness.discovery.error.bridge_paused', $this->checklist()->startRefusal($project));
+    }
+
     public function test_a_failed_run_with_no_capable_taker_or_a_worker_that_ended_shows_the_cause(): void
     {
         $project = $this->newProject('readiness-causes@example.com');

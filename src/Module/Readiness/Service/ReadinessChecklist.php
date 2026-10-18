@@ -84,7 +84,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 actionLabel: $agent ? null : 'readiness.row.agent.action',
                 actionUrl: $agent ? null : $connect,
             ),
-            $this->bridgeRow($takers, $connect),
+            $this->bridgeRow($takers, $connect, $this->urls->generate('app_project_agents', ['id' => (string) $projectId])),
             new WorkshopReadinessRow(
                 'github',
                 'readiness.row.github.label',
@@ -99,12 +99,13 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     }
 
     /** The same reading as the engine takes for the request, so the row and the failure agree. */
-    private function bridgeRow(WorkTakerReading $takers, string $connect): WorkshopReadinessRow
+    private function bridgeRow(WorkTakerReading $takers, string $connect, string $agents): WorkshopReadinessRow
     {
-        [$done, $status] = match ($takers->state) {
-            WorkTakerState::None => [false, 'readiness.row.bridge.open'],
-            WorkTakerState::NotCapable => [false, $takers->appPromptsMissing ? 'readiness.row.bridge.not_capable_app_prompts' : 'readiness.row.bridge.not_capable'],
-            WorkTakerState::Available, WorkTakerState::Paused => [true, 'readiness.row.bridge.done'],
+        [$done, $status, $actionLabel, $actionUrl] = match ($takers->state) {
+            WorkTakerState::None => [false, 'readiness.row.bridge.open', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::NotCapable => [false, $takers->appPromptsMissing ? 'readiness.row.bridge.not_capable_app_prompts' : 'readiness.row.bridge.not_capable', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::Paused => [false, 'readiness.row.bridge.paused', 'readiness.row.bridge.resume', $agents],
+            WorkTakerState::Available => [true, 'readiness.row.bridge.done', null, null],
         };
 
         return new WorkshopReadinessRow(
@@ -112,8 +113,8 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             'readiness.row.bridge.label',
             $done,
             $status,
-            actionLabel: $done ? null : 'readiness.row.bridge.action',
-            actionUrl: $done ? null : $connect,
+            actionLabel: $actionLabel,
+            actionUrl: $actionUrl,
         );
     }
 
@@ -131,6 +132,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         return match (true) {
             WorkTakerState::None === $takers->state => StartDiscoveryHandler::NO_LIVE_BRIDGE,
             WorkTakerState::NotCapable === $takers->state => $takers->appPromptsMissing ? StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS : StartDiscoveryHandler::NO_CAPABLE_BRIDGE,
+            WorkTakerState::Paused === $takers->state => StartDiscoveryHandler::BRIDGE_PAUSED,
             null === $binding => StartDiscoveryHandler::NO_WORKFLOW,
             !$this->evaluations->isOn() || !$this->automation->runsFor($project) => StartDiscoveryHandler::AUTOMATION_OFF,
             default => null,
@@ -160,6 +162,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 StartDiscoveryHandler::AUTOMATION_OFF => $row('readiness.row.repository.automation_off'),
                 StartDiscoveryHandler::NO_LIVE_BRIDGE => $row('readiness.row.repository.no_bridge'),
                 StartDiscoveryHandler::NO_CAPABLE_BRIDGE, StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS => $row('readiness.row.repository.no_capable_bridge'),
+                StartDiscoveryHandler::BRIDGE_PAUSED => $row('readiness.row.repository.bridge_paused'),
                 default => throw new \LogicException('Unknown discovery refusal '.$refusal),
             },
             DiscoveryRunState::Requested => $row(

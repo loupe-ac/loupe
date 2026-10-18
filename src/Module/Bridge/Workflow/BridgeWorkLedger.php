@@ -54,11 +54,12 @@ final readonly class BridgeWorkLedger implements WorkLedger
     }
 
     #[\Override]
-    public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null): bool
+    public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null, bool $onlyIfOpen = false): bool
     {
         return ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand(
             $requestId,
             WithdrawKind::Cancelled === $kind ? WorkRequestState::Cancelled : WorkRequestState::Expired,
+            onlyIfOpen: $onlyIfOpen,
             reason: $reason,
         ));
     }

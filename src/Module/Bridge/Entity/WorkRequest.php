@@ -47,12 +47,12 @@ class WorkRequest
 
     public const int MAX_REASON_LENGTH = 64;
 
-    /** A reason code, never text a person wrote. */
     /** The withdraw reasons of an open request that no online bridge could take. */
     public const string REASON_NO_TAKER = 'no-taker';
     public const string REASON_NO_CAPABLE_TAKER = 'no-capable-taker';
     public const string REASON_NO_CAPABLE_TAKER_APP_PROMPTS = 'no-capable-taker-app-prompts';
 
+    /** A reason code, never text a person wrote. */
     public const string REASON_PATTERN = '/^[a-z][a-z0-9-]{0,63}$/D';
 
     public const int MAX_BRANCH_LENGTH = 200;
