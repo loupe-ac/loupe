@@ -50,6 +50,14 @@ const ActionInteractive = "interactive"
 // of a worker.
 const ActionCommand = "command"
 
+// The values of defaults.isolation. A worker of a card runs in a git worktree
+// of its own with IsolationWorktree, and in the project folder with
+// IsolationNone.
+const (
+	IsolationWorktree = "worktree"
+	IsolationNone     = "none"
+)
+
 // DefaultLaunchTimeout bounds the launch command when the file sets no timeout.
 const DefaultLaunchTimeout = 10 * time.Second
 
@@ -194,6 +202,8 @@ type WorkerPool struct {
 type FileDefaults struct {
 	Account     string `yaml:"account"`
 	Permissions string `yaml:"permissions"`
+	// Isolation is worktree or none, and an empty value means worktree.
+	Isolation string `yaml:"isolation"`
 	// Model and PermissionMode are old keys. A file with accounts refuses
 	// them, and a file without loads with its agents off.
 	Model          string `yaml:"model"`
@@ -428,6 +438,7 @@ func Parse(data []byte, defaults Defaults) (*Set, error) {
 		errs = append(errs, fmt.Errorf("%sdefaults.account is required, and names one of accounts: %s", lineOf(root, "accounts"), declaredNames(declared)))
 	}
 	errs = append(errs, checkLevel(lineOf(root, "defaults", "permissions"), "defaults.permissions", f.Defaults.Permissions)...)
+	errs = append(errs, checkIsolation(lineOf(root, "defaults", "isolation"), f.Defaults.Isolation)...)
 	if len(f.Projects) == 0 {
 		errs = append(errs, errors.New("the rule file maps no projects"))
 	}
@@ -611,6 +622,20 @@ func checkLevel(at, field, level string) []error {
 	}
 
 	return nil
+}
+
+func checkIsolation(at, value string) []error {
+	if value == "" || value == IsolationWorktree || value == IsolationNone {
+		return nil
+	}
+
+	return []error{fmt.Errorf("%sdefaults.isolation %q is not %s or %s", at, value, IsolationWorktree, IsolationNone)}
+}
+
+// Isolation is how the bridge keeps the workers of different cards apart:
+// IsolationWorktree when the file sets nothing.
+func (s *Set) Isolation() string {
+	return cmp.Or(s.fileDefaults.Isolation, IsolationWorktree)
 }
 
 // checkWorkAccounts checks the account and the level of an entry and of its

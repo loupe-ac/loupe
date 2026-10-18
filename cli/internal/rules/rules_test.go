@@ -374,6 +374,7 @@ func TestParseRefusesAnInvalidAccount(t *testing.T) {
 		"an empty accounts block":   {"accounts: {}\n" + oneWork, "defaults.account is required, and names one of accounts: none"},
 		"an unknown default":        {claudeAccount + "defaults:\n  account: other\n" + oneWork, `line 5: defaults.account "other" is not in accounts, which declares claude`},
 		"an unknown default level":  {claudeAccount + claudeDefaults + "  permissions: admin\n" + oneWork, `line 6: defaults.permissions "admin" is not read-only, workspace or full`},
+		"an unknown isolation":      {claudeAccount + claudeDefaults + "  isolation: sandbox\n" + oneWork, `line 6: defaults.isolation "sandbox" is not worktree or none`},
 		"an unknown entry account":  {oneRule + "    account: other\n", `line 13: work "implement": account "other" is not in accounts, which declares claude`},
 		"an unknown entry level":    {oneRule + "    permissions: yolo\n", `line 13: work "implement": permissions "yolo" is not read-only, workspace or full`},
 		"an unknown variant account": {oneRule + "    variants:\n      - {name: a, weight: 1, model: opus}\n      - {name: b, weight: 1, account: other}\n",
@@ -1045,4 +1046,19 @@ func manyAccounts(n int) string {
 	}
 
 	return b.String()
+}
+
+func TestIsolationDefaultsToWorktree(t *testing.T) {
+	for name, tc := range map[string]struct{ line, want string }{
+		"absent":   {"", IsolationWorktree},
+		"worktree": {"  isolation: worktree\n", IsolationWorktree},
+		"none":     {"  isolation: none\n", IsolationNone},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := parse(t, claudeAccount+claudeDefaults+tc.line+oneWork)
+			if got := s.Isolation(); got != tc.want {
+				t.Fatalf("Isolation = %q, want %q", got, tc.want)
+			}
+		})
+	}
 }

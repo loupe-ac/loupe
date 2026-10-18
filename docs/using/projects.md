@@ -41,6 +41,13 @@ When the project has no reported connections, Your crew links to connection setu
 Each connection shows its own health. This does not report whether an individual agent is available or running.
 Agent configuration and rules remain read-only in Loupe. Configure them through the CLI and its rule file.
 
+## Create a project from the CLI
+
+A signed-in `loupe` CLI creates a project with `POST /api/projects`. Send a JSON body with a `name`, an optional `website` and an optional `remote`, the git URL of the repository.
+A request with a `remote` and no `name` names the project after the repository. The new project gets the same board and workflow as a project made in the app.
+The response is `201` with the `id`, the `slug` and the `name`. A name that the owner already uses gets `409` with `name_taken`.
+Only a token that carries the agent scope and covers every project of its owner can call it, as `loupe login` grants. Any other token, such as one bound to one project, gets `403` with `credential_not_owner_wide`. Each token can create 10 projects a minute.
+
 ## Agent readiness
 
 Project settings has an Agent readiness tab. Only the project owner can open it.
