@@ -15,12 +15,39 @@ var (
 )
 
 // ApproveTools sets default_tools_approval_mode = "approve" for the loupe MCP
-// server in config.toml of the Codex home, so a worker calls the Loupe tools
-// without a prompt. It edits the text, so the comments and the order of the
-// file stay, and it writes nothing unless the result parses with the mode set.
-// It reports whether it changed the file.
-func ApproveTools(home string) (bool, error) {
-	path := filepath.Join(home, "config.toml")
+// server, so a worker calls the Loupe tools without a prompt. It edits the file
+// that decides the mode, as the bridge check reads it: the profile file when it
+// sets a mode, else config.toml of the Codex home. It returns that file, and
+// whether it changed it.
+func ApproveTools(home, profile string) (string, bool, error) {
+	base := filepath.Join(home, "config.toml")
+	paths := []string{base}
+	if profile != "" {
+		paths = []string{profileFile(home, profile), base}
+	}
+	for _, f := range loadFiles(paths...) {
+		if f.err != nil {
+			return f.path, false, fmt.Errorf("%s does not parse: %w", f.path, f.err)
+		}
+		switch f.cfg.McpServers["loupe"].DefaultToolsApprovalMode {
+		case "":
+		case "approve":
+			return f.path, false, nil
+		default:
+			changed, err := approveIn(f.path)
+
+			return f.path, changed, err
+		}
+	}
+	changed, err := approveIn(base)
+
+	return base, changed, err
+}
+
+// approveIn sets the mode in one file. It edits the text, so the comments and
+// the order of the file stay, and it writes nothing unless the result parses
+// with the mode set. It reports whether it changed the file.
+func approveIn(path string) (bool, error) {
 	files := loadFiles(path)
 	if files[0].err != nil {
 		return false, fmt.Errorf("%s does not parse: %w", path, files[0].err)
@@ -62,7 +89,7 @@ func ApproveTools(home string) (bool, error) {
 		lines = append(lines[:header+1], append([]string{set}, lines[header+1:]...)...)
 	}
 
-	next := filepath.Join(filepath.Dir(path), ".config.toml.loupe")
+	next := filepath.Join(filepath.Dir(path), "."+filepath.Base(path)+".loupe")
 	if err := os.WriteFile(next, []byte(strings.Join(lines, "\n")), info.Mode().Perm()); err != nil {
 		return false, err
 	}

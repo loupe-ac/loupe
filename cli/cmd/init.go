@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -109,8 +110,10 @@ func newInitCmd() *cobra.Command {
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
 			"4. Install the Loupe plugin in Claude Code, when `claude` is on your PATH and has no " +
 			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
-			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for it in " +
-			"~/.codex/config.toml, and copy the Loupe skills into ~/.agents/skills/. " +
+			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for each " +
+			"Codex account of the rule file: in its profile file when that sets the mode, else in config.toml " +
+			"of its Codex home. Then copy the Loupe skills into ~/.agents/skills/. The Codex part runs " +
+			"after step 5, because it reads the Codex accounts of the rule file. " +
 			"When a command fails, the step prints it for you to run.\n" +
 			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
@@ -163,9 +166,6 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 		return err
 	}
 	initPlugin(cmd, dir)
-	if codexAccount() {
-		initCodex(cmd, dir, o.link)
-	}
 
 	path, err := rulesPathOr(o.rulesPath)
 	if err != nil {
@@ -174,6 +174,9 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	changed, err := initRules(cmd, path, dir, site, o.reset)
 	if err != nil {
 		return err
+	}
+	if codexAccount() {
+		initCodex(cmd, dir, o.link, codexTargets(path))
 	}
 	if initAutoUpdate(cmd, path) {
 		changed = true
@@ -424,7 +427,7 @@ func codexAccount() bool {
 // initCodex connects Codex, when the rule file gives the bridge a Codex
 // account. It declares `loupe mcp` as --mcp and --no-mcp say, approves the
 // Loupe tools of a declaration that starts `loupe mcp`, and installs the skills.
-func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
+func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets []codexTarget) {
 	out := cmd.OutOrStdout()
 	add := "codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
@@ -458,7 +461,7 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
 	}
 
 	if connected {
-		initCodexApproval(out)
+		initCodexApproval(out, targets)
 	}
 	initCodexSkills(ctx, out, dir)
 }
@@ -494,24 +497,59 @@ func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, dec
 	return true
 }
 
-// initCodexApproval lets the workers call the Loupe tools without a prompt.
-// Without it, the bridge check turns the Codex account off.
-func initCodexApproval(out io.Writer) {
-	byHand := "add `default_tools_approval_mode = \"approve\"` under [mcp_servers." + mcpjson.ServerKey + "] in ~/.codex/config.toml"
-	home, err := codex.Home()
-	if err != nil {
-		step(out, "Codex approval", "failed", fmt.Sprintf("%v; %s", err, byHand))
+// codexTarget is the Codex home and profile of one Codex account. An empty
+// home is the default one.
+type codexTarget struct{ home, profile string }
 
-		return
+// codexTargets lists the Codex accounts of the rule file, or the default home
+// with no profile when the file declares none or does not load.
+func codexTargets(path string) []codexTarget {
+	fallback := []codexTarget{{}}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fallback
 	}
-	changed, err := codex.ApproveTools(home)
-	switch {
-	case err != nil:
-		step(out, "Codex approval", "failed", fmt.Sprintf("%v; %s", err, byHand))
-	case changed:
-		step(out, "Codex approval", "done", "Codex runs the Loupe tools without asking")
-	default:
-		step(out, "Codex approval", "skipped", "Codex runs the Loupe tools without asking already")
+	set, err := rules.Parse(data, rules.Defaults{})
+	if err != nil {
+		return fallback
+	}
+	var out []codexTarget
+	for _, name := range set.DeclaredAccounts() {
+		r, _ := set.Account(name, "")
+		if t := (codexTarget{r.ConfigDir, r.Profile}); r.Harness == rules.HarnessCodex && !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	if len(out) == 0 {
+		return fallback
+	}
+
+	return out
+}
+
+// initCodexApproval lets the workers of each Codex account call the Loupe tools
+// without a prompt. Without it, the bridge check turns the account off.
+func initCodexApproval(out io.Writer, targets []codexTarget) {
+	for _, t := range targets {
+		home := t.home
+		if home == "" {
+			h, err := codex.Home()
+			if err != nil {
+				step(out, "Codex approval", "failed", fmt.Sprintf("%v; add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in ~/.codex/config.toml", err, mcpjson.ServerKey))
+
+				continue
+			}
+			home = h
+		}
+		path, changed, err := codex.ApproveTools(home, t.profile)
+		switch {
+		case err != nil:
+			step(out, "Codex approval", "failed", fmt.Sprintf("%v; add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in %s", err, mcpjson.ServerKey, path))
+		case changed:
+			step(out, "Codex approval", "done", "Codex runs the Loupe tools without asking, as "+path+" says")
+		default:
+			step(out, "Codex approval", "skipped", "Codex runs the Loupe tools without asking already, as "+path+" says")
+		}
 	}
 }
 

@@ -1052,6 +1052,32 @@ func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 	}
 }
 
+// The bridge reads the approval mode of the account's own home and profile,
+// and the profile file wins over config.toml there.
+func TestInitApprovesTheToolsInTheProfileOfTheCodexAccount(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
+	inRepo(t, w.server.URL)
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, "config.toml"), "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n")
+	profile := filepath.Join(home, "work.config.toml")
+	writeFile(t, profile, "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"prompt\"\n")
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "n\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Codex approval: done, Codex runs the Loupe tools without asking, as "+profile+" says") {
+		t.Errorf("output lacks the approval of the profile:\n%s", out)
+	}
+	if body := readOrEmpty(t, profile); !strings.Contains(body, `default_tools_approval_mode = "approve"`) {
+		t.Errorf("the profile still overrides the mode:\n%s", body)
+	}
+}
+
 // The bridge check refuses a declaration that starts another command, so init
 // must not count it as connected. Replacing it always asks, even with --mcp.
 func TestInitOffersToReplaceACodexServerThatIsNotLoupeMcp(t *testing.T) {
