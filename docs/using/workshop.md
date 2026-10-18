@@ -46,10 +46,9 @@ Workshop does not infer running agents from open cards or bridge heartbeats.
 
 The readiness guide shows the project owner what the project needs before agents can work on it.
 Other members do not see it.
-The guide is a checklist named Ready for agents. It counts the rows that are done, for example "2 of 6".
+The guide is a checklist named Ready for agents. It counts the rows that are done, for example "2 of 5".
 
 - Agent connected is done after an agent first calls the MCP server for this project. Connect opens the Connect page.
-- Workflow is done when the project has a workflow. The row shows the name of the workflow template.
 - Bridge running is done when a bridge that serves the project sends heartbeats and can run the discovery work. A bridge that is online but cannot run it shows "Online, but it cannot run this work". Start opens the Connect page.
 - GitHub App is done when a repository connects to the project through the GitHub App. Install starts the install when the instance has a GitHub App.
 - Agent GitHub account is done when the owner records the login of the agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the [agent account page](../getting-started/agent-github-account.md).

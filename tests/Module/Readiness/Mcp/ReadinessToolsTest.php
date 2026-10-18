@@ -43,8 +43,8 @@ final class ReadinessToolsTest extends KernelTestCase
         $answer = $this->readinessGet()();
 
         self::assertTrue($answer['guideHidden']);
-        self::assertSame(['agent', 'workflow', 'bridge', 'github', 'agent_account', 'repository'], array_column($answer['rows'], 'key'));
-        self::assertSame(['key' => 'repository', 'done' => false, 'status' => 'Discovery waits for a running bridge'], $answer['rows'][5]);
+        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository'], array_column($answer['rows'], 'key'));
+        self::assertSame(['key' => 'repository', 'done' => false, 'status' => 'Discovery waits for a running bridge'], $answer['rows'][4]);
         self::assertNull($answer['discovery']);
     }
 
@@ -59,7 +59,7 @@ final class ReadinessToolsTest extends KernelTestCase
         $answer = $this->readinessGet()();
 
         self::assertFalse($answer['guideHidden']);
-        self::assertSame('Discovery failed: No bridge took the work.', $answer['rows'][5]['status']);
+        self::assertSame('Discovery failed: No bridge took the work.', $answer['rows'][4]['status']);
         self::assertSame([
             'runId' => (string) $run->id,
             'state' => 'failed',

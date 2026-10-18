@@ -26,7 +26,7 @@ Loupe ships two templates.
 | **Lifecycle** | The process of this repository: product design, tech design, implementation, review and merge, with epics and blockers |
 | **Simple** | Any board. A merge moves the card to the terminal column |
 
-A new project picks its template during setup. The template creates its columns
+A new project gets the Lifecycle template. The setup form has no template field. The template creates its columns
 with its slots linked. A project that existed before the workflow engine got a
 template when the engine was switched on. A board that had a column for each
 Lifecycle slot got Lifecycle, and every other board got Simple. A project that already had a
