@@ -364,9 +364,9 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertSelectorTextContains('.lp-readiness-discovery__status', 'Discovery waits for a running bridge');
         self::assertSelectorExists('[data-readiness-row="repository"][data-readiness-discovery-state="none"]');
         self::assertSelectorNotExists('[data-readiness-guide] button:not([data-readiness-hide])');
-        self::assertSelectorTextContains('.lp-section-heading__description', '0 of 6');
-        self::assertSame(['agent', 'workflow', 'bridge', 'github', 'agent_account', 'repository'], $crawler->filter('[data-readiness-row]')->extract(['data-readiness-row']));
-        self::assertSame(array_fill(0, 6, '0'), $crawler->filter('[data-readiness-row]')->extract(['data-readiness-done']));
+        self::assertSelectorTextContains('.lp-section-heading__description', '0 of 5');
+        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository'], $crawler->filter('[data-readiness-row]')->extract(['data-readiness-row']));
+        self::assertSame(array_fill(0, 5, '0'), $crawler->filter('[data-readiness-row]')->extract(['data-readiness-done']));
         self::assertSame('/projects/'.$project->id.'/connect', $crawler->filter('[data-readiness-row="agent"] a')->attr('href'));
         self::assertSame('/projects/'.$project->id.'/readiness/guide/hide', $crawler->filter('[data-readiness-hide]')->closest('form')?->attr('action'));
         self::assertSelectorNotExists('.lp-workshop-summary');
@@ -529,7 +529,9 @@ final class ShowWorkshopControllerTest extends WebTestCase
         foreach ($projects as $project) {
             $em->persist(new WorkflowBinding($project, 'simple', 1, $shipped->source('simple')));
         }
-        $em->persist(new Bridge(AgentCredential::managed($em, $owner, $owner->id), Uuid::v4(), array_values(array_map(static fn (Project $project): string => (string) $project->id, $projects)), 'b4e39aa7', new \DateTimeImmutable()));
+        $bridge = new Bridge(AgentCredential::managed($em, $owner, $owner->id), Uuid::v4(), array_values(array_map(static fn (Project $project): string => (string) $project->id, $projects)), 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $em->persist($bridge);
         $em->flush();
     }
 

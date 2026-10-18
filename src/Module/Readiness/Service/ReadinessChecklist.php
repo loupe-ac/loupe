@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Module\Readiness\Service;
 
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\Service\WorkTakers;
+use App\Module\Bridge\ValueObject\WorkTakerReading;
+use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\Project\Entity\Project;
-use App\Module\Project\Service\WorkflowTemplateChoices;
 use App\Module\Project\Workshop\WorkshopConnection;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadiness;
@@ -19,6 +22,7 @@ use App\Module\Readiness\Command\StartDiscoveryHandler;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\EventListener\FailDiscoveryOnRequestWithdrawn;
+use App\Module\Readiness\EventListener\FailDiscoveryOnRunEnded;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Entity\WorkflowBinding;
@@ -33,10 +37,12 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
 {
     public const string START_TOKEN = 'readiness-discovery-start';
 
+    /** The work the first run of a project asks a bridge for, with the prompt that the app ships. */
+    private const string DISCOVERY_KIND = 'discovery';
+
     public function __construct(
         private WorkshopConnectionsProviderInterface $connections,
         private WorkflowBindingRepository $workflowBindings,
-        private WorkflowTemplateChoices $templateChoices,
         private GitHubInstallationRepository $gitHubInstallations,
         private ForgeRepositoryRepository $forgeRepositories,
         private GitHubAppConfiguration $gitHubApp,
@@ -45,6 +51,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         private TranslatorInterface $translator,
         private WorkflowAutomation $automation,
         private CardEvaluations $evaluations,
+        private WorkTakers $workTakers,
     ) {
     }
 
@@ -63,7 +70,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         $agent = null !== $project->agentFirstSeenAt;
         $binding = $this->workflowBindings->findOneByProjectId($projectId);
         $running = $this->runningConnections($project);
-        $bridge = [] !== $running;
+        $takers = $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true);
         $github = $this->gitHubReady($project);
         $installUrl = $github || !$this->gitHubApp->isConfigured() ? null : $this->urls->generate('app_github_app_install', ['id' => (string) $projectId]);
         $discovery = $this->discoveryRuns->latestForProject($project);
@@ -77,21 +84,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 actionLabel: $agent ? null : 'readiness.row.agent.action',
                 actionUrl: $agent ? null : $connect,
             ),
-            new WorkshopReadinessRow(
-                'workflow',
-                'readiness.row.workflow.label',
-                null !== $binding,
-                null !== $binding ? 'readiness.row.workflow.done' : 'readiness.row.workflow.open',
-                detail: null === $binding ? null : $this->templateLabel($binding->templateKey),
-            ),
-            new WorkshopReadinessRow(
-                'bridge',
-                'readiness.row.bridge.label',
-                $bridge,
-                $bridge ? 'readiness.row.bridge.done' : 'readiness.row.bridge.open',
-                actionLabel: $bridge ? null : 'readiness.row.bridge.action',
-                actionUrl: $bridge ? null : $connect,
-            ),
+            $this->bridgeRow($takers, $connect, $this->urls->generate('app_project_agents', ['id' => (string) $projectId])),
             new WorkshopReadinessRow(
                 'github',
                 'readiness.row.github.label',
@@ -101,14 +94,28 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 actionUrl: $installUrl,
             ),
             $this->agentAccountRow($project, $running),
-            $this->repositoryRow($project, $discovery, $this->refusal($project, $bridge, $binding)),
+            $this->repositoryRow($project, $discovery, $this->refusal($project, $takers, $binding)),
         ], $discovery?->card->number);
     }
 
-    /** A bridge that serves the project sent its heartbeat lately. */
-    private function bridgeLive(Project $project): bool
+    /** The same reading as the engine takes for the request, so the row and the failure agree. */
+    private function bridgeRow(WorkTakerReading $takers, string $connect, string $agents): WorkshopReadinessRow
     {
-        return [] !== $this->runningConnections($project);
+        [$done, $status, $actionLabel, $actionUrl] = match ($takers->state) {
+            WorkTakerState::None => [false, 'readiness.row.bridge.open', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::NotCapable => [false, $takers->appPromptsMissing ? 'readiness.row.bridge.not_capable_app_prompts' : 'readiness.row.bridge.not_capable', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::Paused => [false, 'readiness.row.bridge.paused', 'readiness.row.bridge.resume', $agents],
+            WorkTakerState::Available => [true, 'readiness.row.bridge.done', null, null],
+        };
+
+        return new WorkshopReadinessRow(
+            'bridge',
+            'readiness.row.bridge.label',
+            $done,
+            $status,
+            actionLabel: $actionLabel,
+            actionUrl: $actionUrl,
+        );
     }
 
     /** The error key that refuses a discovery start now, or null when the engine can open its request. */
@@ -116,14 +123,16 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     {
         $projectId = $project->id ?? throw new \LogicException('A stored project has an id.');
 
-        return $this->refusal($project, $this->bridgeLive($project), $this->workflowBindings->findOneByProjectId($projectId));
+        return $this->refusal($project, $this->workTakers->capableFor($project, self::DISCOVERY_KIND, true), $this->workflowBindings->findOneByProjectId($projectId));
     }
 
     /** The same gates as the engine, which skips a card of a project with no workflow or with its automation off. */
-    private function refusal(Project $project, bool $bridge, ?WorkflowBinding $binding): ?string
+    private function refusal(Project $project, WorkTakerReading $takers, ?WorkflowBinding $binding): ?string
     {
         return match (true) {
-            !$bridge => StartDiscoveryHandler::NO_LIVE_BRIDGE,
+            WorkTakerState::None === $takers->state => StartDiscoveryHandler::NO_LIVE_BRIDGE,
+            WorkTakerState::NotCapable === $takers->state => $takers->appPromptsMissing ? StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS : StartDiscoveryHandler::NO_CAPABLE_BRIDGE,
+            WorkTakerState::Paused === $takers->state => StartDiscoveryHandler::BRIDGE_PAUSED,
             null === $binding => StartDiscoveryHandler::NO_WORKFLOW,
             !$this->evaluations->isOn() || !$this->automation->runsFor($project) => StartDiscoveryHandler::AUTOMATION_OFF,
             default => null,
@@ -152,6 +161,8 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 StartDiscoveryHandler::NO_WORKFLOW => $row('readiness.row.repository.no_workflow'),
                 StartDiscoveryHandler::AUTOMATION_OFF => $row('readiness.row.repository.automation_off'),
                 StartDiscoveryHandler::NO_LIVE_BRIDGE => $row('readiness.row.repository.no_bridge'),
+                StartDiscoveryHandler::NO_CAPABLE_BRIDGE, StartDiscoveryHandler::NO_CAPABLE_BRIDGE_APP_PROMPTS => $row('readiness.row.repository.no_capable_bridge'),
+                StartDiscoveryHandler::BRIDGE_PAUSED => $row('readiness.row.repository.bridge_paused'),
                 default => throw new \LogicException('Unknown discovery refusal '.$refusal),
             },
             DiscoveryRunState::Requested => $row(
@@ -189,6 +200,9 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         return match ($reason) {
             FailDiscoveryOnRequestWithdrawn::NO_TAKER => $this->translator->trans('readiness.discovery.reason.no_taker'),
             FailDiscoveryOnRequestWithdrawn::CARD_MOVED => $this->translator->trans('readiness.discovery.reason.card_moved'),
+            WorkRequest::REASON_NO_CAPABLE_TAKER => $this->translator->trans('readiness.discovery.reason.no_capable_taker'),
+            WorkRequest::REASON_NO_CAPABLE_TAKER_APP_PROMPTS => $this->translator->trans('readiness.discovery.reason.no_capable_taker_app_prompts'),
+            FailDiscoveryOnRunEnded::WORKER_ENDED => $this->translator->trans('readiness.discovery.reason.worker_ended', ['%number%' => (string) $run->card->number]),
             default => $reason,
         };
     }
@@ -239,17 +253,5 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         }
 
         return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => ForgeRepositorySource::Installation === $repository->source && isset($live[$repository->sourceRef ?? '']));
-    }
-
-    /** A translation key for a shipped template, or the bare key of any other. */
-    private function templateLabel(string $templateKey): string
-    {
-        foreach ($this->templateChoices->choices() as $choice) {
-            if ($choice->key === $templateKey) {
-                return $choice->label;
-            }
-        }
-
-        return $templateKey;
     }
 }
