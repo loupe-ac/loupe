@@ -28,7 +28,7 @@ Read a stored artifact with `artifact_get` and `artifact_read`, a file of the re
 
 ## Dispatch a sub-agent
 
-When the harness supports sub-agents, dispatch one with the `senior-dev` instruction and repeat every stage rule in its prompt. Otherwise, perform the task in the worker folder and apply the same instruction.
+When the harness supports sub-agents, dispatch one and repeat every stage rule in its prompt. Start the prompt with the `senior-dev` instruction from `.agents/agents/senior-dev.md` when the repository has that file. Otherwise start it with the essentials that `codex.md` "Dispatch a sub-agent" lists. Otherwise, perform the task in the worker folder and apply the same instruction.
 
 A sub-agent reads a prototype page with `artifact_read`. When it cannot call the `loupe` tools, put the text of its pages into its prompt.
 
