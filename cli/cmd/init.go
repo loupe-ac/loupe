@@ -223,14 +223,14 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 	}
 	// find takes an id or a slug, because the first-run command names the
 	// project by its slug. A handle that no listed project has stays as given.
-	find := func(handle string) api.Site {
+	find := func(handle string) (api.Site, bool) {
 		for _, s := range sites {
 			if strings.EqualFold(s.ID, handle) || (s.Slug != "" && s.Slug == handle) {
-				return s
+				return s, true
 			}
 		}
 
-		return api.Site{ID: handle}
+		return api.Site{ID: handle}, false
 	}
 
 	// init keeps a project file without --force, so the file decides the
@@ -248,12 +248,13 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 	}
 
 	if o.link.projectID != "" {
-		site := find(o.link.projectID)
-		if err := projectfile.Valid(site.ID); err != nil {
+		site, ok := find(o.link.projectID)
+		if !ok {
 			return api.Site{}, fmt.Errorf("no project of yours has the id or slug %q", o.link.projectID)
 		}
 		if linked != "" && !strings.EqualFold(linked, site.ID) {
-			return api.Site{}, fmt.Errorf("%s names %s, not %s: pass --force to replace the file, or leave out --project", projectfile.Name, describe(find(linked)), describe(site))
+			linkedSite, _ := find(linked)
+			return api.Site{}, fmt.Errorf("%s names %s, not %s: pass --force to replace the file, or leave out --project", projectfile.Name, describe(linkedSite), describe(site))
 		}
 		step(out, "Project", "done", "using "+describe(site))
 
@@ -261,7 +262,10 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 	}
 
 	if linked != "" {
-		site := find(linked)
+		site, ok := find(linked)
+		if !ok {
+			return api.Site{}, fmt.Errorf("%s names %s, which your login does not cover: sign in with the login that covers it, or pass --force to replace the file", projectfile.Name, linked)
+		}
 		step(out, "Project", "skipped", projectfile.Name+" names "+describe(site))
 
 		return site, nil
@@ -281,7 +285,7 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 	if err != nil {
 		return api.Site{}, err
 	}
-	site := find(id)
+	site, _ := find(id)
 	step(out, "Project", "done", "using "+describe(site))
 
 	return site, nil

@@ -363,6 +363,40 @@ func TestInitRefusesAnUnknownProjectSlug(t *testing.T) {
 	}
 }
 
+func TestInitRefusesAProjectIDThatTheLoginDoesNotList(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--project", secondProject)
+	if err == nil || !strings.Contains(err.Error(), secondProject) {
+		t.Fatalf("err = %v, want a refusal that names the id\n%s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); !os.IsNotExist(err) {
+		t.Errorf("init wrote %s for an unlisted project", projectfile.Name)
+	}
+	path, _ := defaultRulesPath()
+	if body := readOrEmpty(t, path); body != "" {
+		t.Errorf("init wrote a rule file for an unlisted project:\n%s", body)
+	}
+}
+
+func TestInitRefusesAProjectFileThatNamesAnUnlistedProject(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	if err := projectfile.Write(dir, secondProject); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err == nil || !strings.Contains(err.Error(), secondProject) || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("err = %v, want a refusal that names the id and --force\n%s", err, out)
+	}
+	path, _ := defaultRulesPath()
+	if body := readOrEmpty(t, path); body != "" {
+		t.Errorf("init wrote a rule file for an unlisted project:\n%s", body)
+	}
+}
+
 func TestInitWithProjectAndForceReplacesTheFile(t *testing.T) {
 	w := newInitWorld(t, devSite()+`,{"id":"`+secondProject+`","slug":"other","name":"Other"}`)
 	dir := inRepo(t, w.server.URL)
