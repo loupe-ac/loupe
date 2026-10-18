@@ -62,11 +62,11 @@ func inRepo(t *testing.T, baseURL string) string {
 	return dir
 }
 
-// runInit runs `loupe init` with args and the given answer on stdin.
-func runInit(t *testing.T, answer string, args ...string) (string, error) {
+// runInit runs `loupe project link` with args and the given answer on stdin.
+func runLink(t *testing.T, answer string, args ...string) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
-	cmd := newInitCmd()
+	cmd := newProjectLinkCmd()
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetIn(strings.NewReader(answer))
@@ -76,13 +76,13 @@ func runInit(t *testing.T, answer string, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func TestInitWritesTheOneProjectTheLoginCoversWithNoQuestion(t *testing.T) {
+func TestProjectLinkWritesTheOneProjectTheLoginCoversWithNoQuestion(t *testing.T) {
 	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
 	dir := inRepo(t, server.URL)
 
-	out, err := runInit(t, "")
+	out, err := runLink(t, "")
 	if err != nil {
-		t.Fatalf("init: %v", err)
+		t.Fatalf("project link: %v", err)
 	}
 	if !strings.Contains(out, "Dev Project") {
 		t.Fatalf("output must name the project, got %q", out)
@@ -97,12 +97,12 @@ func TestInitWritesTheOneProjectTheLoginCoversWithNoQuestion(t *testing.T) {
 	}
 }
 
-func TestInitAsksWhichProjectWhenTheLoginCoversSeveral(t *testing.T) {
+func TestProjectLinkAsksWhichProjectWhenTheLoginCoversSeveral(t *testing.T) {
 	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"one","name":"One"},{"id":"`+secondProject+`","slug":"two","name":"Two"}`)
 	dir := inRepo(t, server.URL)
 
-	if _, err := runInit(t, "2\n"); err != nil {
-		t.Fatalf("init: %v", err)
+	if _, err := runLink(t, "2\n"); err != nil {
+		t.Fatalf("project link: %v", err)
 	}
 
 	file, err := projectfile.Load(dir)
@@ -114,27 +114,27 @@ func TestInitAsksWhichProjectWhenTheLoginCoversSeveral(t *testing.T) {
 	}
 }
 
-func TestInitRefusesAnAnswerThatIsNotOnTheList(t *testing.T) {
+func TestProjectLinkRefusesAnAnswerThatIsNotOnTheList(t *testing.T) {
 	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"one","name":"One"},{"id":"`+secondProject+`","slug":"two","name":"Two"}`)
 	dir := inRepo(t, server.URL)
 
-	if _, err := runInit(t, "9\n"); err == nil {
-		t.Fatal("init with an answer off the list: got no error")
+	if _, err := runLink(t, "9\n"); err == nil {
+		t.Fatal("project link with an answer off the list: got no error")
 	}
 	if _, err := projectfile.Load(dir); err == nil {
-		t.Fatal("init must write no file when the answer is refused")
+		t.Fatal("project link must write no file when the answer is refused")
 	}
 }
 
-func TestInitRefusesToReplaceAnExistingFileWithoutForce(t *testing.T) {
+func TestProjectLinkRefusesToReplaceAnExistingFileWithoutForce(t *testing.T) {
 	dir := inRepo(t, "")
 	if err := projectfile.Write(dir, firstProject); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 
-	_, err := runInit(t, "", "--project", secondProject)
+	_, err := runLink(t, "", "--project", secondProject)
 	if err == nil {
-		t.Fatal("init over an existing file: got no error")
+		t.Fatal("project link over an existing file: got no error")
 	}
 	if !strings.Contains(err.Error(), "--force") {
 		t.Fatalf("error must say how to replace it, got %v", err)
@@ -146,14 +146,14 @@ func TestInitRefusesToReplaceAnExistingFileWithoutForce(t *testing.T) {
 	}
 }
 
-func TestInitReplacesAnExistingFileWithForce(t *testing.T) {
+func TestProjectLinkReplacesAnExistingFileWithForce(t *testing.T) {
 	dir := inRepo(t, "")
 	if err := projectfile.Write(dir, firstProject); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 
-	if _, err := runInit(t, "", "--project", secondProject, "--force"); err != nil {
-		t.Fatalf("init --force: %v", err)
+	if _, err := runLink(t, "", "--project", secondProject, "--force"); err != nil {
+		t.Fatalf("project link --force: %v", err)
 	}
 
 	file, err := projectfile.Load(dir)
@@ -165,11 +165,11 @@ func TestInitReplacesAnExistingFileWithForce(t *testing.T) {
 	}
 }
 
-func TestInitWithAProjectFlagAsksTheServerNothing(t *testing.T) {
+func TestProjectLinkWithAProjectFlagAsksTheServerNothing(t *testing.T) {
 	dir := inRepo(t, "")
 
-	if _, err := runInit(t, "", "--project", firstProject); err != nil {
-		t.Fatalf("init --project: %v", err)
+	if _, err := runLink(t, "", "--project", firstProject); err != nil {
+		t.Fatalf("project link --project: %v", err)
 	}
 
 	file, err := projectfile.Load(dir)
@@ -181,28 +181,28 @@ func TestInitWithAProjectFlagAsksTheServerNothing(t *testing.T) {
 	}
 }
 
-func TestInitSaysSoWhenTheLoginCoversNoProject(t *testing.T) {
+func TestProjectLinkSaysSoWhenTheLoginCoversNoProject(t *testing.T) {
 	server := projectsServer(t, "")
 	inRepo(t, server.URL)
 
-	_, err := runInit(t, "")
+	_, err := runLink(t, "")
 	if err == nil {
-		t.Fatal("init with no project: got no error")
+		t.Fatal("project link with no project: got no error")
 	}
 	if !strings.Contains(err.Error(), "no project") {
 		t.Fatalf("error must say the login covers no project, got %v", err)
 	}
 }
 
-func TestInitRefusesToReplaceAMalformedFileWithoutForce(t *testing.T) {
+func TestProjectLinkRefusesToReplaceAMalformedFileWithoutForce(t *testing.T) {
 	dir := inRepo(t, "")
 	if err := os.WriteFile(filepath.Join(dir, projectfile.Name), []byte("project: [broken\n"), 0o644); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
 
-	_, err := runInit(t, "", "--project", firstProject)
+	_, err := runLink(t, "", "--project", firstProject)
 	if err == nil {
-		t.Fatal("init over a malformed file: got no error")
+		t.Fatal("project link over a malformed file: got no error")
 	}
 	if !strings.Contains(err.Error(), "--force") {
 		t.Fatalf("error must say how to replace it, got %v", err)
@@ -240,7 +240,7 @@ func TestConfirmReadsTheAnswer(t *testing.T) {
 }
 
 // declareOther makes Claude Code start something other than `loupe mcp` for
-// dir, which is the case init has to report and offer to replace.
+// dir, which is the case the link has to report and offer to replace.
 func declareOther(t *testing.T, dir string) {
 	t.Helper()
 	resolved, err := filepath.EvalSymlinks(dir)
@@ -270,7 +270,7 @@ func fakeClaude(t *testing.T, body string) string {
 }
 
 // declareShim makes Claude Code already start `loupe mcp` for every project,
-// which is the state init must leave alone.
+// which is the state the link must leave alone.
 func declareShim(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
@@ -281,33 +281,33 @@ func declareShim(t *testing.T) {
 	}
 }
 
-func TestInitDoesNothingWhenClaudeCodeAlreadyStartsTheShim(t *testing.T) {
+func TestProjectLinkDoesNothingWhenClaudeCodeAlreadyStartsTheShim(t *testing.T) {
 	inRepo(t, "")
 	declareShim(t)
 	log := fakeClaude(t, "exit 1")
 
-	out, err := runInit(t, "", "--project", firstProject, "--mcp")
+	out, err := runLink(t, "", "--project", firstProject, "--mcp")
 	if err != nil {
-		t.Fatalf("init --mcp: %v", err)
+		t.Fatalf("project link --mcp: %v", err)
 	}
 	if !strings.Contains(out, "Nothing to change") {
 		t.Fatalf("output must say there is nothing to do, got %q", out)
 	}
 	if _, err := os.Stat(log); !os.IsNotExist(err) {
-		t.Fatal("init must not run claude when the server is already correct")
+		t.Fatal("project link must not run claude when the server is already correct")
 	}
 }
 
-func TestInitDeclaresTheShimWhenNothingDoes(t *testing.T) {
+func TestProjectLinkDeclaresTheShimWhenNothingDoes(t *testing.T) {
 	inRepo(t, "")
 	home := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", home)
 	entry := `{"mcpServers":{"loupe":{"type":"stdio","command":"loupe","args":["mcp"]}}}`
 	log := fakeClaude(t, "cat > "+filepath.Join(home, ".claude.json")+" <<'EOF'\n"+entry+"\nEOF")
 
-	out, err := runInit(t, "", "--project", firstProject, "--mcp")
+	out, err := runLink(t, "", "--project", firstProject, "--mcp")
 	if err != nil {
-		t.Fatalf("init --mcp: %v", err)
+		t.Fatalf("project link --mcp: %v", err)
 	}
 
 	argv, err := os.ReadFile(log)
@@ -315,7 +315,7 @@ func TestInitDeclaresTheShimWhenNothingDoes(t *testing.T) {
 		t.Fatalf("read argv: %v", err)
 	}
 	if !strings.Contains(string(argv), "--scope user") {
-		t.Fatalf("init must declare it for every project, argv was %q", argv)
+		t.Fatalf("project link must declare it for every project, argv was %q", argv)
 	}
 	if !strings.Contains(out, "Restart your agent") {
 		t.Fatalf("output must say to restart, got %q", out)
@@ -324,13 +324,13 @@ func TestInitDeclaresTheShimWhenNothingDoes(t *testing.T) {
 
 // A script that passed no flag must change nothing, because nothing answers the
 // prompt.
-func TestInitDeclaresNothingWhenNobodyAnswers(t *testing.T) {
+func TestProjectLinkDeclaresNothingWhenNobodyAnswers(t *testing.T) {
 	inRepo(t, "")
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	log := fakeClaude(t, "exit 0")
 
-	if _, err := runInit(t, "", "--project", firstProject); err != nil {
-		t.Fatalf("init: %v", err)
+	if _, err := runLink(t, "", "--project", firstProject); err != nil {
+		t.Fatalf("project link: %v", err)
 	}
 	if _, err := os.Stat(log); !os.IsNotExist(err) {
 		t.Fatal("an unanswered prompt must not run claude")
@@ -339,14 +339,14 @@ func TestInitDeclaresNothingWhenNobodyAnswers(t *testing.T) {
 
 // --mcp may create what is missing. Replacing a declaration somebody made by
 // hand always asks, so a script can never drop it.
-func TestInitNeverReplacesADeclarationWithoutAsking(t *testing.T) {
+func TestProjectLinkNeverReplacesADeclarationWithoutAsking(t *testing.T) {
 	dir := inRepo(t, "")
 	declareOther(t, dir)
 	log := fakeClaude(t, "exit 0")
 
-	out, err := runInit(t, "", "--project", firstProject, "--mcp")
+	out, err := runLink(t, "", "--project", firstProject, "--mcp")
 	if err != nil {
-		t.Fatalf("init --mcp: %v", err)
+		t.Fatalf("project link --mcp: %v", err)
 	}
 	if _, err := os.Stat(log); !os.IsNotExist(err) {
 		t.Fatal("--mcp must not remove an existing declaration")
@@ -359,11 +359,11 @@ func TestInitNeverReplacesADeclarationWithoutAsking(t *testing.T) {
 	}
 }
 
-func TestInitWritesTheRepositoryFileWhenAsked(t *testing.T) {
+func TestProjectLinkWritesTheRepositoryFileWhenAsked(t *testing.T) {
 	dir := inRepo(t, "")
 
-	if _, err := runInit(t, "", "--project", firstProject, "--mcp-json", "--mcp"); err != nil {
-		t.Fatalf("init --mcp-json: %v", err)
+	if _, err := runLink(t, "", "--project", firstProject, "--mcp-json", "--mcp"); err != nil {
+		t.Fatalf("project link --mcp-json: %v", err)
 	}
 
 	state, _, err := mcpjson.Read(dir)
@@ -377,28 +377,28 @@ func TestInitWritesTheRepositoryFileWhenAsked(t *testing.T) {
 
 // The file is the lowest scope, so it can be written correctly and still do
 // nothing. Saying so is the difference between a working setup and a puzzle.
-func TestInitSaysTheRepositoryFileIsOutranked(t *testing.T) {
+func TestProjectLinkSaysTheRepositoryFileIsOutranked(t *testing.T) {
 	dir := inRepo(t, "")
 	declareOther(t, dir)
 
-	out, err := runInit(t, "", "--project", firstProject, "--mcp-json", "--mcp")
+	out, err := runLink(t, "", "--project", firstProject, "--mcp-json", "--mcp")
 	if err != nil {
-		t.Fatalf("init --mcp-json: %v", err)
+		t.Fatalf("project link --mcp-json: %v", err)
 	}
 	if !strings.Contains(out, "no effect yet") {
 		t.Fatalf("output must say the file is outranked, got %q", out)
 	}
 }
 
-func TestInitLeavesEverythingAloneWhenTold(t *testing.T) {
+func TestProjectLinkLeavesEverythingAloneWhenTold(t *testing.T) {
 	dir := inRepo(t, "")
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	log := fakeClaude(t, "exit 0")
 
 	// A yes on stdin, so an ignored --no-mcp acts rather than falling through
 	// to a prompt nobody answers.
-	if _, err := runInit(t, "y\n", "--project", firstProject, "--no-mcp"); err != nil {
-		t.Fatalf("init --no-mcp: %v", err)
+	if _, err := runLink(t, "y\n", "--project", firstProject, "--no-mcp"); err != nil {
+		t.Fatalf("project link --no-mcp: %v", err)
 	}
 	if _, err := os.Stat(log); !os.IsNotExist(err) {
 		t.Fatal("--no-mcp must not run claude")
@@ -410,16 +410,16 @@ func TestInitLeavesEverythingAloneWhenTold(t *testing.T) {
 
 // The message printed when somebody declines tells them to run this, so it must
 // reach the offer rather than stopping at the existing project file.
-func TestInitWithMcpOnAnInitialisedRepositoryReachesTheOffer(t *testing.T) {
+func TestProjectLinkWithMcpOnAnInitialisedRepositoryReachesTheOffer(t *testing.T) {
 	dir := inRepo(t, "")
 	if err := projectfile.Write(dir, firstProject); err != nil {
 		t.Fatalf("projectfile.Write: %v", err)
 	}
 	declareShim(t)
 
-	out, err := runInit(t, "", "--mcp")
+	out, err := runLink(t, "", "--mcp")
 	if err != nil {
-		t.Fatalf("init --mcp on an initialised repository: %v", err)
+		t.Fatalf("project link --mcp on a linked repository: %v", err)
 	}
 	if !strings.Contains(out, "Nothing to change") {
 		t.Fatalf("output must reach the server check, got %q", out)
@@ -437,21 +437,21 @@ func TestInitWithMcpOnAnInitialisedRepositoryReachesTheOffer(t *testing.T) {
 func TestMcpAndNoMcpTogetherAreRefused(t *testing.T) {
 	inRepo(t, "")
 
-	if _, err := runInit(t, "", "--project", firstProject, "--mcp", "--no-mcp"); err == nil {
-		t.Fatal("init --mcp --no-mcp: got no error")
+	if _, err := runLink(t, "", "--project", firstProject, "--mcp", "--no-mcp"); err == nil {
+		t.Fatal("project link --mcp --no-mcp: got no error")
 	}
 }
 
-func TestInitWritesTheStarterProfileFromWhatItDetects(t *testing.T) {
+func TestProjectLinkWritesTheStarterProfileFromWhatItDetects(t *testing.T) {
 	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
 	dir := inRepo(t, server.URL)
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"scripts":{"test":"vitest"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	out, err := runInit(t, "")
+	out, err := runLink(t, "")
 	if err != nil {
-		t.Fatalf("init: %v", err)
+		t.Fatalf("project link: %v", err)
 	}
 	if !strings.Contains(out, "Wrote "+profile.Path) {
 		t.Fatalf("output must say the profile was written, got %q", out)
@@ -466,7 +466,7 @@ func TestInitWritesTheStarterProfileFromWhatItDetects(t *testing.T) {
 	}
 }
 
-func TestInitKeepsAProfileThatExists(t *testing.T) {
+func TestProjectLinkKeepsAProfileThatExists(t *testing.T) {
 	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
 	dir := inRepo(t, server.URL)
 	path := filepath.Join(dir, profile.Path)
@@ -477,9 +477,9 @@ func TestInitKeepsAProfileThatExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := runInit(t, "")
+	out, err := runLink(t, "")
 	if err != nil {
-		t.Fatalf("init: %v", err)
+		t.Fatalf("project link: %v", err)
 	}
 	if !strings.Contains(out, profile.Path+" already exists") {
 		t.Fatalf("output must say the profile is kept, got %q", out)
@@ -489,25 +489,32 @@ func TestInitKeepsAProfileThatExists(t *testing.T) {
 	}
 }
 
-func TestInitWritesTheProfileWhenTheProjectFileExists(t *testing.T) {
+func TestProjectLinkWritesTheProfileWhenTheProjectFileExists(t *testing.T) {
 	for _, args := range [][]string{nil, {"--mcp-json", "--mcp"}} {
 		dir := inRepo(t, "")
 		if err := projectfile.Write(dir, firstProject); err != nil {
 			t.Fatalf("Write: %v", err)
 		}
 
-		_, err := runInit(t, "", args...)
+		_, err := runLink(t, "", args...)
 		if nil == args && (err == nil || !strings.Contains(err.Error(), "--force")) {
-			t.Fatalf("init %v over an existing file: got %v, want the --force refusal", args, err)
+			t.Fatalf("project link %v over an existing file: got %v, want the --force refusal", args, err)
 		}
 		if nil != args && err != nil {
-			t.Fatalf("init %v: %v", args, err)
+			t.Fatalf("project link %v: %v", args, err)
 		}
 		if _, err := os.Stat(filepath.Join(dir, profile.Path)); err != nil {
-			t.Fatalf("init %v must write the profile: %v", args, err)
+			t.Fatalf("project link %v must write the profile: %v", args, err)
 		}
 		if file, _ := projectfile.Load(dir); file.Project != firstProject {
-			t.Fatalf("init %v replaced the project file: %q", args, file.Project)
+			t.Fatalf("project link %v replaced the project file: %q", args, file.Project)
 		}
+	}
+}
+
+func TestProjectLinkIsRegisteredUnderProject(t *testing.T) {
+	found, _, err := newRootCmd().Find([]string{"project", "link"})
+	if err != nil || found.Name() != "link" {
+		t.Fatalf("Find(project link) = %v, %v", found, err)
 	}
 }

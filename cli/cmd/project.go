@@ -21,13 +21,30 @@ import (
 	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
-func newInitCmd() *cobra.Command {
-	var projectID string
-	var force bool
-	var writeMcp, skipMcp, writeMcpJSON bool
+// projectLinkOptions are the flags of `loupe project link`.
+type projectLinkOptions struct {
+	projectID    string
+	force        bool
+	writeMcp     bool
+	skipMcp      bool
+	writeMcpJSON bool
+}
+
+func newProjectCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "project",
+		Short: "Work with the Loupe project of this repository",
+	}
+	cmd.AddCommand(newProjectLinkCmd())
+
+	return cmd
+}
+
+func newProjectLinkCmd() *cobra.Command {
+	var o projectLinkOptions
 
 	cmd := &cobra.Command{
-		Use:   "init",
+		Use:   "link",
 		Short: "Write " + projectfile.Name + ", the file that names this repository's project",
 		Long: "Writes " + projectfile.Name + " in the current directory. `loupe mcp` reads it and " +
 			"sends that project with every request, so an agent in this repository acts on this " +
@@ -49,70 +66,78 @@ func newInitCmd() *cobra.Command {
 			"Pass --mcp-json to write " + mcpjson.Name + " instead, which commits the server to the " +
 			"repository for everyone who clones it. Claude Code prefers its own declaration over " +
 			"that file, and asks you to approve the file once.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			dir, err := os.Getwd()
-			if err != nil {
-				return err
-			}
-
-			// Whether the file parses is beside the point. Replacing one
-			// somebody wrote is the thing that needs saying yes to.
-			if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !force {
-				// A repository linked before the profile existed still needs one.
-				if err := writeProfile(cmd, dir); err != nil {
-					return err
-				}
-				if !writeMcp && !writeMcpJSON {
-					return fmt.Errorf("%s already exists: pass --force to replace it", projectfile.Name)
-				}
-
-				// --mcp on a repository that already names its project asks for
-				// the second half alone. Refusing here would make the message
-				// printed when somebody declines the offer a dead end.
-				fmt.Fprintf(cmd.OutOrStdout(), "%s already exists, so it is kept.\n", projectfile.Name)
-
-				return offerServer(cmd, dir, writeMcp, skipMcp, writeMcpJSON)
-			}
-
-			if projectID == "" {
-				cfg, err := config.Load()
-				if err != nil {
-					return err
-				}
-
-				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-				defer cancel()
-				sites, err := apiClient(cfg).Sites(ctx)
-				if err != nil {
-					return err
-				}
-
-				if projectID, err = chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites); err != nil {
-					return err
-				}
-			}
-
-			if err := projectfile.Write(dir, projectID); err != nil {
-				return err
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s for project %s.\n", projectfile.Name, projectID)
-
-			if err := writeProfile(cmd, dir); err != nil {
-				return err
-			}
-
-			return offerServer(cmd, dir, writeMcp, skipMcp, writeMcpJSON)
+			return runProjectLink(cmd, o)
 		},
 	}
-	cmd.Flags().StringVar(&projectID, "project", "", "project id to write, instead of choosing from a list")
-	cmd.Flags().BoolVar(&force, "force", false, "replace an existing "+projectfile.Name)
-	cmd.Flags().BoolVar(&writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
-	cmd.Flags().BoolVar(&skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
-	cmd.Flags().BoolVar(&writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
+	cmd.Flags().StringVar(&o.projectID, "project", "", "project id to write, instead of choosing from a list")
+	cmd.Flags().BoolVar(&o.force, "force", false, "replace an existing "+projectfile.Name)
+	cmd.Flags().BoolVar(&o.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
+	cmd.Flags().BoolVar(&o.skipMcp, "no-mcp", false, "leave the MCP server alone without asking")
+	cmd.Flags().BoolVar(&o.writeMcpJSON, "mcp-json", false, "write "+mcpjson.Name+" instead, to commit the server to the repository")
 	cmd.MarkFlagsMutuallyExclusive("mcp", "no-mcp")
 	cmd.MarkFlagsMutuallyExclusive("mcp-json", "no-mcp")
 
 	return cmd
+}
+
+// runProjectLink links the current directory to a project. It reads and
+// writes through the streams and the context of cmd.
+func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// Whether the file parses is beside the point. Replacing one
+	// somebody wrote is the thing that needs saying yes to.
+	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !o.force {
+		// A repository linked before the profile existed still needs one.
+		if err := writeProfile(cmd, dir); err != nil {
+			return err
+		}
+		if !o.writeMcp && !o.writeMcpJSON {
+			return fmt.Errorf("%s already exists: pass --force to replace it", projectfile.Name)
+		}
+
+		// --mcp on a repository that already names its project asks for
+		// the second half alone. Refusing here would make the message
+		// printed when somebody declines the offer a dead end.
+		fmt.Fprintf(cmd.OutOrStdout(), "%s already exists, so it is kept.\n", projectfile.Name)
+
+		return offerServer(cmd, dir, o.writeMcp, o.skipMcp, o.writeMcpJSON)
+	}
+
+	projectID := o.projectID
+	if projectID == "" {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+		defer cancel()
+		sites, err := apiClient(cfg).Sites(ctx)
+		if err != nil {
+			return err
+		}
+
+		if projectID, err = chooseProject(cmd.OutOrStdout(), cmd.InOrStdin(), sites); err != nil {
+			return err
+		}
+	}
+
+	if err := projectfile.Write(dir, projectID); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s for project %s.\n", projectfile.Name, projectID)
+
+	if err := writeProfile(cmd, dir); err != nil {
+		return err
+	}
+
+	return offerServer(cmd, dir, o.writeMcp, o.skipMcp, o.writeMcpJSON)
 }
 
 // writeProfile gives the repository its starter profile. The file is a guess

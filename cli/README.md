@@ -424,25 +424,26 @@ needs a restart.
 
 The bridge no longer takes `--site` or `--dir`, and it refuses to start without
 a rule file. Write `rules.yaml` beside `config.json` before you upgrade. The
-`projects` map replaces both flags. The file below runs one kind of work:
+`projects` map replaces both flags. The file below runs the prompts the app sends,
+and opens a product-design session in Terminal on macOS:
 
 ```yaml
+appPrompts: true
 accounts:
-  claude:
+  claude-code:
     harness: claude-code
-
 defaults:
-  account: claude
-
+  account: claude-code
+  permissions: workspace
 projects:
   my-app:
     dir: ~/Code/my-app
-
+launch:
+  command: ["open", "-a", "Terminal", "{script}"]
 work:
-  implement:
-    prompt: |
-      Loupe asks for {kind} work on card {cardNumber} of project {projectId}.
-      Read it with the card_get MCP tool, passing cardId {cardId}, and do it.
+  product-design:
+    action: interactive
+    prompt: /loupe:product-design {cardNumber}
 ```
 
 The bridge prints this example when it finds no file, or an empty one.
