@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,10 +17,12 @@ use Ubermuda\AuditBundle\Auditor;
 use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
-/** Fails the latest discovery run of the card while it is requested, and cancels the discovery request the run opened. */
+/** Fails the latest discovery run of the card while it is requested or revising, and cancels the discovery request the run opened. */
 final readonly class FailDiscoveryRunHandler
 {
     public const string RULE_ID = 'discovery';
+
+    public const string REVISE_RULE_ID = 'discovery-revise';
 
     public function __construct(
         private DiscoveryRunRepository $discoveryRuns,
@@ -36,14 +39,19 @@ final readonly class FailDiscoveryRunHandler
     public function __invoke(FailDiscoveryRunCommand $command): bool
     {
         $run = $this->discoveryRuns->latestForCard($command->cardId);
-        if (null === $run || !$run->fail($command->reason, $this->clock->now())) {
+        $waitsFor = match ($command->ruleId) {
+            self::RULE_ID => [DiscoveryRunState::Requested],
+            self::REVISE_RULE_ID => [DiscoveryRunState::Revising],
+            default => [DiscoveryRunState::Requested, DiscoveryRunState::Revising],
+        };
+        if (null === $run || !\in_array($run->state, $waitsFor, true) || !$run->fail($command->reason, $this->clock->now())) {
             return false;
         }
         $this->em->flush();
 
         // The engine cancels a live request only when its card leaves the slot. A bridge that drops its claim lets the request open again.
         foreach ($this->workRequests->findLiveForCard($command->cardId) as $request) {
-            if (self::RULE_ID === $request->ruleId) {
+            if (\in_array($request->ruleId, [self::RULE_ID, self::REVISE_RULE_ID], true)) {
                 ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand($request->id ?? throw new \LogicException('A persisted work request has an id.'), WorkRequestState::Cancelled));
             }
         }

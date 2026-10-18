@@ -138,6 +138,47 @@ final class FailDiscoveryListenersTest extends KernelTestCase
         yield 'not started, with a reason' => [WorkerRunState::NotStarted, 'claude: command not found', 'claude: command not found'];
     }
 
+    public function test_a_revise_worker_that_ends_fails_a_revising_run_and_cancels_its_request(): void
+    {
+        self::bootKernel();
+        [$card, $run] = $this->requestedDiscovery();
+        $run->state = DiscoveryRunState::Revising;
+        $revise = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException(), $card->number, 'discovery-revise', 'discovery-revise', 'discovery-revise', new \DateTimeImmutable());
+        $revise->state = WorkRequestState::Claimed;
+        $this->em()->persist($revise);
+        $this->em()->flush();
+
+        $this->dispatch(...WorkerRunChanged::ofRuns([$this->workerRun($card, 'discovery-revise', WorkerRunState::Lost)]));
+
+        self::assertSame([DiscoveryRunState::Failed, 'lost'], [$run->state, $run->failureReason]);
+        self::assertSame(WorkRequestState::Cancelled, $revise->state);
+    }
+
+    public function test_a_late_discovery_worker_leaves_a_revising_run_alone(): void
+    {
+        self::bootKernel();
+        [$card, $run] = $this->requestedDiscovery();
+        $run->state = DiscoveryRunState::Revising;
+        $this->em()->flush();
+
+        $this->dispatch(...WorkerRunChanged::ofRuns([$this->workerRun($card, 'discovery', WorkerRunState::Lost)]));
+
+        self::assertSame(DiscoveryRunState::Revising, $run->state);
+    }
+
+    public function test_a_revising_run_opens_a_revise_request_and_a_requested_run_does_not(): void
+    {
+        self::bootKernel();
+        [$card, $run] = $this->requestedDiscovery();
+        $run->state = DiscoveryRunState::Revising;
+        $this->em()->flush();
+
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        $kinds = array_map(static fn (WorkRequest $request): string => $request->kind, $this->liveRequests($card));
+        self::assertContains('discovery-revise', $kinds);
+    }
+
     /** These runs leave the work to a later run, so discovery goes on. */
     #[DataProvider('continuingRuns')]
     public function test_a_discovery_worker_whose_work_goes_on_leaves_the_run_requested(WorkerRunState $state): void

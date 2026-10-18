@@ -743,13 +743,19 @@ A request of an app rule can carry a prompt that ships with Loupe. A bridge that
 sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
-The app adds five rules.
+The app adds six rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
 [discovery run](workshop.md#run-discovery), and it sends the discovery prompt
 with the request. A request that no bridge takes expires, and the run fails with
 the reason that no bridge took the work.
+
+The rule `discovery-revise` also watches the Backlog. It asks for work of kind
+`discovery-revise` when you asked for changes to the report of a
+[discovery run](workshop.md#review-the-report), and it sends the revision prompt
+with the request. The worker submits a new version of the same report. An
+approval of the report while the worker revises it cancels the request.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the

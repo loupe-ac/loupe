@@ -109,6 +109,34 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         $this->assertRefused(SubmitReadinessReportHandler::ALREADY_REPORTED, fn () => $this->submit());
     }
 
+    public function test_a_revising_run_takes_a_new_version_of_the_same_document_and_replaces_its_proposals(): void
+    {
+        $first = $this->submit(proposals: [$this->proposal('tests', 'Add tests'), $this->proposal('docs', 'Write docs', type: 'docs')]);
+        $this->run->state = DiscoveryRunState::Revising;
+        $this->em()->flush();
+
+        $second = $this->submit(proposals: [$this->proposal('tests', 'Add unit tests', body: 'Changed.'), $this->proposal('ci', 'Add CI', type: 'tooling')], summary: 'Revised.');
+
+        self::assertSame($first, $second);
+        self::assertSame(DiscoveryRunState::Reported, $this->run->state);
+        self::assertSame($first, $this->run->reportDocument);
+        self::assertSame(2, $first->currentVersion()->versionNumber);
+        self::assertStringContainsString("- [ ] Add unit tests\n- [ ] Add CI\n", $first->currentVersion()->markdownSource);
+        self::assertSame(
+            [['tests', 'Add unit tests', 'Changed.'], ['ci', 'Add CI', 'Body.']],
+            array_map(static fn (DiscoveryProposal $proposal): array => [$proposal->key, $proposal->title, $proposal->body], $this->proposals()->findForRun($this->run)),
+        );
+        self::assertCount(1, $this->audit->records('readiness.report_revised'));
+    }
+
+    public function test_a_revision_after_the_run_left_revising_is_refused(): void
+    {
+        $this->submit();
+
+        $this->assertRefused(SubmitReadinessReportHandler::ALREADY_REPORTED, fn () => $this->submit());
+        self::assertSame(1, $this->run->reportDocument?->currentVersion()->versionNumber);
+    }
+
     #[DataProvider('endedStates')]
     public function test_a_run_that_does_not_wait_for_a_report_is_refused(DiscoveryRunState $state): void
     {

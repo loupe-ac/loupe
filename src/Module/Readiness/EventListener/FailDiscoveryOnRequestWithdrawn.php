@@ -35,11 +35,12 @@ final readonly class FailDiscoveryOnRequestWithdrawn
         if (null === $reason || null === $cardId) {
             return;
         }
-        if (FailDiscoveryRunHandler::RULE_ID !== $this->workRequests->find($event->workRequestId)?->ruleId) {
+        $ruleId = $this->workRequests->find($event->workRequestId)?->ruleId;
+        if (!\in_array($ruleId, [FailDiscoveryRunHandler::RULE_ID, FailDiscoveryRunHandler::REVISE_RULE_ID], true)) {
             return;
         }
 
         // The handler cancels the request after it fails the run, so that cancel finds no requested run.
-        ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($cardId, $reason));
+        ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($cardId, $reason, $ruleId));
     }
 }

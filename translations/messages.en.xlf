@@ -2622,6 +2622,10 @@
                 <source>readiness.report.description</source>
                 <target>The report of a discovery run. Tick the proposals to keep, then approve the report.</target>
             </trans-unit>
+            <trans-unit id="readiness.report.revision_description">
+                <source>readiness.report.revision_description</source>
+                <target>The report revised after the owner asked for changes. The proposals are replaced.</target>
+            </trans-unit>
             <trans-unit id="readiness.report.summary">
                 <source>readiness.report.summary</source>
                 <target>Summary</target>
@@ -8388,6 +8392,8 @@
             <trans-unit id="workflow.waiting.not.card_is_child"><source>workflow.waiting.not.card_is_child</source><target>Waiting: the card is a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_discovery_requested"><source>workflow.waiting.card_discovery_requested</source><target>Waiting: the card has no requested discovery.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_discovery_requested"><source>workflow.waiting.not.card_discovery_requested</source><target>Waiting: the card has a requested discovery.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_discovery_revising"><source>workflow.waiting.card_discovery_revising</source><target>Waiting: no discovery report of the card needs a revision.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_discovery_revising"><source>workflow.waiting.not.card_discovery_revising</source><target>Waiting: a discovery report of the card needs a revision.</target></trans-unit>
             <trans-unit id="workflow.waiting.site_review_verdict_unsent"><source>workflow.waiting.site_review_verdict_unsent</source><target>Waiting: no verdict of the card waits to be sent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.site_review_verdict_unsent"><source>workflow.waiting.not.site_review_verdict_unsent</source><target>Waiting: a verdict of the card waits to be sent.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_fix_run_uncommented"><source>workflow.waiting.card_fix_run_uncommented</source><target>Waiting: each open or recent fix run of the card has a pull request comment.</target></trans-unit>
@@ -8717,6 +8723,8 @@
             <trans-unit id="readiness.row.repository.card"><source>readiness.row.repository.card</source><target>Open card</target></trans-unit>
             <trans-unit id="readiness.row.repository.failed"><source>readiness.row.repository.failed</source><target>Discovery failed: %reason%</target></trans-unit>
             <trans-unit id="readiness.row.repository.retry"><source>readiness.row.repository.retry</source><target>Run again</target></trans-unit>
+            <trans-unit id="readiness.row.repository.revising"><source>readiness.row.repository.revising</source><target>A worker revises the report on card #%number%</target></trans-unit>
+            <trans-unit id="readiness.row.repository.open_report"><source>readiness.row.repository.open_report</source><target>Open report</target></trans-unit>
             <trans-unit id="readiness.row.repository.reported"><source>readiness.row.repository.reported</source><target>The report waits for your review</target></trans-unit>
             <trans-unit id="readiness.row.repository.done"><source>readiness.row.repository.done</source><target>Reviewed</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_bridge"><source>readiness.discovery.error.no_bridge</source><target>No bridge serves this project now. Start a bridge that serves this project, then run discovery again.</target></trans-unit>
