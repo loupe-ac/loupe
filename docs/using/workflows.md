@@ -743,6 +743,11 @@ A request of an app rule can carry a prompt that ships with Loupe. A bridge that
 sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
+Every work request of the Lifecycle template also carries the prompt that Loupe
+ships for its kind. This covers all 17 kinds, such as `tech-design`, `implement`,
+`fix`, `merge` and `repair`. A `work:` entry of the bridge rule file still wins
+over the shipped prompt.
+
 The app adds six rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
