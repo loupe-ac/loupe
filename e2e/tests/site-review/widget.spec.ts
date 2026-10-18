@@ -1268,9 +1268,14 @@ test('the menu of the last row opens upward', async ({ page }) => {
         .first()
         .getByRole('button', { name: 'Note actions' });
     await button.click();
-    const menuBox = (await page.locator('#lp-menu').boundingBox())!;
     const buttonBox = (await button.boundingBox())!;
-    expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(buttonBox.y);
+    // The upward menu slides in from 4px below its place, so read it after the animation.
+    await expect
+        .poll(async () => {
+            const menuBox = (await page.locator('#lp-menu').boundingBox())!;
+            return menuBox.y + menuBox.height;
+        })
+        .toBeLessThanOrEqual(buttonBox.y);
 });
 
 test('the header menu holds Move launcher, Sign out and Delete all, with no footer button', async ({
