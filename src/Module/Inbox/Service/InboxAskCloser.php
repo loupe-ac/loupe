@@ -18,15 +18,18 @@ use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEvaluations;
 use App\Outbox\OutboxWriter;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Closes each open ask that a closed item leaves with no open blocking item,
  * writes one inbox.ask_closed row for an ask a bridge can resume, and queues
  * the resume of its session. When one answer closes several asks of sessions
- * on the same card, only the session that took the item first resumes.
+ * on the same card, only the session that took the item first resumes. The
+ * card of each closed ask evaluates again, because its fix rules wait on it.
  *
  * InboxItemCloser calls it, so the caller holds the project lock and the
  * transaction. It does not flush and throws no domain error, because it runs
@@ -42,6 +45,7 @@ final readonly class InboxAskCloser
         private CardEventRepository $cardEvents,
         private OutboxWriter $outbox,
         private MessageBusInterface $bus,
+        private CardEvaluations $evaluations,
         private LoggerInterface $logger,
     ) {
     }
@@ -76,6 +80,11 @@ final readonly class InboxAskCloser
             } else {
                 $this->skipResume($ask, $item, $now);
             }
+        }
+
+        $cardIds = array_values(array_filter(array_map(static fn (InboxAsk $ask): ?Uuid => $ask->card?->id, $closing)));
+        if ([] !== $cardIds) {
+            $this->evaluations->forCards($cardIds);
         }
     }
 

@@ -40,6 +40,7 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Outbox\AgentPush;
 use App\Outbox\Command\DrainOutboxCommand;
 use App\Outbox\Command\DrainOutboxHandler;
@@ -266,6 +267,26 @@ final class InboxAskCloserTest extends KernelTestCase
 
         self::assertSame([(string) $joiner->sessionId], array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()));
         self::assertFalse($this->reloadAsk($joiner)->resumeSkipped);
+    }
+
+    public function test_an_answer_to_a_question_with_no_card_link_evaluates_the_card_of_each_closed_ask(): void
+    {
+        $first = $this->card($this->em, $this->project, 7);
+        $second = $this->card($this->em, $this->project, 8);
+        $this->em->flush();
+        $item = $this->question(1);
+        $this->askTaking($item, '2026-10-18 14:57:00', $first);
+        $skipped = $this->askTaking($item, '2026-10-18 15:20:00', $first);
+        $this->askTaking($item, '2026-10-18 15:30:00', $second);
+        $this->evaluationTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertTrue($this->reloadAsk($skipped)->resumeSkipped);
+        self::assertEqualsCanonicalizing(
+            [(string) $first->id, (string) $second->id],
+            array_values(array_unique(array_map(static fn (EvaluateCard $message): string => $message->cardId, $this->evaluations()))),
+        );
     }
 
     public function test_sessions_of_different_cards_that_share_an_item_all_resume(): void
@@ -774,6 +795,23 @@ final class InboxAskCloserTest extends KernelTestCase
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;
+    }
+
+    private function evaluationTransport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
+    }
+
+    /** @return list<EvaluateCard> */
+    private function evaluations(): array
+    {
+        return array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $this->evaluationTransport()->getSent()),
+            static fn (object $message): bool => $message instanceof EvaluateCard,
+        ));
     }
 
     /** @return list<ResumeAskingSession> */
