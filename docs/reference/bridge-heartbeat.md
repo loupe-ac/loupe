@@ -30,7 +30,9 @@ The path holds no project, because one bridge follows several projects.
   "projects": ["0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90"],
   "cliVersion": "1.0.0",
   "name": "homelab",
-  "pushLogin": "acme-agent",
+  "gitIdentities": [
+    {"projectId": "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90", "mode": "machine", "commitName": "Sam Owner", "pushLogin": "sam-owner", "githubUserId": 4821}
+  ],
   "update": {"state": "rolled-back", "version": "1.1.0"},
   "workerPools": [
     {"name": "default", "size": 3, "inUse": 2, "queued": 0},
@@ -60,7 +62,8 @@ The path holds no project, because one bridge follows several projects.
 | `projects` | required. A list of at most 500 project ids, which may be empty. The server keeps the ids of projects the token's user owns, and drops every other id |
 | `cliVersion` | required. The version of a release build, such as `1.0.0`, or the commit of a development build. 1 to 100 characters after trimming |
 | `name` | optional. The name the web UI shows for the bridge. 1 to 40 characters after trimming, with no control character. A missing or `null` value keeps the name the server holds, and an empty or blank value clears it. See [The bridge name](#the-bridge-name) |
-| `pushLogin` | optional. The GitHub login the bridge pushes as, from `loupe agent-account set`. It holds 1 to 39 letters, digits and single hyphens, and does not start or end with a hyphen. A missing or `null` value keeps the login the server holds, and an empty value clears it. See [The push login](#the-push-login) |
+| `gitIdentities` | optional. A list of at most 50 rows, one for each followed project. A missing or `null` value keeps the rows the server holds, and an empty list clears them. See [The git identity](#the-git-identity) |
+| `pushLogin` | ignored. Older bridges send the login of their agent account. The server accepts the field and stores nothing from it |
 | `update` | optional. The state of the bridge's own [update](../extending/cli-bridge.md#updates) |
 | `update.state` | required in `update`. One of the states below |
 | `update.version` | optional. The release the state is about, at most 100 characters |
@@ -148,7 +151,7 @@ Each row of `repositories` holds these fields:
 | `remoteUrl` | optional. The `origin` remote of that folder, at most 2048 characters. An empty value says the bridge could not read one |
 
 The server stamps a report time from its own clock when a heartbeat carries a
-`commandEntries`, `worktrees` or `repositories` list, an empty list included. A
+`commandEntries`, `worktrees`, `repositories` or `gitIdentities` list, an empty list included. A
 heartbeat with no list keeps the rows and their time. The
 [`bridge_list`](../using/mcp.md) tool shows the entries to a worker.
 
@@ -201,15 +204,33 @@ heartbeat, stores the name it asked for, and gives it no name. The
 The bridge gets the name at its next heartbeat after the other bridge clears or
 changes it. Bridges of different accounts never clash.
 
-### The push login
+### The git identity
 
-A bridge with an [agent GitHub account](../getting-started/agent-github-account.md)
-sends the login of that account as `pushLogin`. The server stores it on the
-row of the bridge. The Who pushes the code row of the
+Each row of `gitIdentities` says who a worker of one project commits and
+pushes as on this machine. The bridge reads it at start and at each reload.
+It reads a machine setup again every ten minutes. The token of any account
+never reaches the server.
+
+| Field | Rule |
+|---|---|
+| `projectId` | required. The project id, as a uuid. The server stores it in lower case |
+| `mode` | required. `agent_account` when the machine has an [agent GitHub account](../getting-started/agent-github-account.md), `app_token` when Loupe manages the git identity of the project, or `machine` when the workers use the git setup of the machine |
+| `commitName` | optional. The name that commits carry, at most 255 characters. For `machine`, the bridge reads `user.name` with `git config` |
+| `pushLogin` | optional. The GitHub login the workers push as, 1 to 39 letters, digits and single hyphens. An empty value says the bridge could not read one |
+| `githubUserId` | optional. The numeric GitHub user id of the login, or `null` when the bridge has none |
+
+For a `machine` row, the bridge reads the push address with
+`git remote get-url --push origin`. For an HTTPS address, it asks
+`git credential fill` for a credential without a prompt, and calls
+`GET /user` with it. For an SSH address, it runs `ssh -T -o BatchMode=yes`
+and reads the login from the greeting "Hi <login>!". When neither probe gives a
+login, `pushLogin` is empty, and the Connect page says the login is unknown.
+
+The Git identity panel of the Connect page shows one line for each machine. The
+Who pushes the code row of the
 [readiness guide](../using/workshop.md#the-readiness-guide) is done when a
-running bridge of the project sends the login that the owner recorded. The
-server compares the two logins without regard to case. The token of the
-account never reaches the server.
+running bridge of the project reports mode `agent_account` with the login that
+the owner recorded. The server compares the two logins without regard to case.
 
 | `update.state` | Meaning |
 |---|---|
