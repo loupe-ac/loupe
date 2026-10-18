@@ -83,7 +83,8 @@ login` gets one through the OAuth device flow: it prints a link and a code, and
 you choose **Allow** on that page. The CLI then refreshes the access token by
 itself. There is no static token, so a machine where nobody can open a browser
 cannot run the bridge. See [Connected apps](../using/connected-apps.md) for the
-device flow. The token reaches `GET /api/projects`, `GET /api/events`,
+device flow. The token reaches `GET /api/projects`, `POST /api/projects`,
+`GET /api/events`,
 `GET /api/projects/{handle}/board/columns`,
 `GET /api/projects/{handle}/board/cards/{cardId}`,
 `PUT /api/projects/{handle}/worker-runs/{runId}`,
