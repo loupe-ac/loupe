@@ -87,6 +87,7 @@ use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\RetryNotes;
@@ -4109,6 +4110,7 @@ final class EngineTest extends KernelTestCase
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
             $this->service(RetryNotes::class),
+            $this->service(KindPrompts::class),
         );
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
 
