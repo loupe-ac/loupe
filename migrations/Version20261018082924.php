@@ -13,7 +13,7 @@ final class Version20261018082924 extends AbstractMigration
     #[\Override]
     public function getDescription(): string
     {
-        return 'Write the shipped Lifecycle copy, whose design review loop ends after 5 failed reviews, into every binding, and keep the epic branch of each copy';
+        return 'Write the shipped Lifecycle copy, whose design review loop ends after 6 failed reviews, into every binding, and keep the epic branch of each copy';
     }
 
     /** The design review conditions read their rounds from the stored copy. The epic branch belongs to the project, so each copy keeps its own, or keeps none. */

@@ -631,7 +631,7 @@ this loop runs:
    `agent-review`. The revise worker changes the draft and answers each
    finding with `document_review_answer`. A finding can be fixed, not changed
    with a reason, or sent to you. The new version gets a new review.
-3. The loop ends when a review passes, or after 5 failed reviews. The app then
+3. The loop ends when a review passes, or after 6 failed reviews, so a draft gets up to 5 revisions. The app then
    publishes the draft with the `publish-documents` action. The document
    reaches your inbox in review.
 

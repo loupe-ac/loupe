@@ -21,7 +21,7 @@ use App\Module\Review\Entity\DocumentStatus;
 final readonly class AgentReviewSummary
 {
     /** The number of failed reviews after which the loop gives up. */
-    public const int FAILED_ROUND_LIMIT = 5;
+    public const int FAILED_ROUND_LIMIT = 6;
 
     public function __construct(
         private DocumentAgentReviews $agentReviews,

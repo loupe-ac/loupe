@@ -35,7 +35,7 @@ final class DesignReviewFiveRoundsMigrationTest extends KernelTestCase
         $this->migrate($connection);
 
         self::assertEquals([...$shipped->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $this->row($connection, $projectId));
-        self::assertSame([5], $this->roundsOf($this->row($connection, $projectId)));
+        self::assertSame([6], $this->roundsOf($this->row($connection, $projectId)));
         self::assertSame($shipped->source('lifecycle')['version'], (int) $connection->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$projectId]));
     }
 
@@ -63,7 +63,7 @@ final class DesignReviewFiveRoundsMigrationTest extends KernelTestCase
     private function withThreeRounds(array $definition, ?string $epicBranch): array
     {
         $json = json_encode($definition, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION);
-        $decoded = json_decode(str_replace('"rounds":5', '"rounds":3', $json), true, flags: \JSON_THROW_ON_ERROR);
+        $decoded = json_decode(str_replace('"rounds":6', '"rounds":3', $json), true, flags: \JSON_THROW_ON_ERROR);
         self::assertIsArray($decoded);
         $decoded['version'] = 5;
         unset($decoded['epicBranch']);
