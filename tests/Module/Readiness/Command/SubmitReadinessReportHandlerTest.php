@@ -15,6 +15,7 @@ use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
+use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ProposalTypes;
 use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -127,6 +128,16 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
             array_map(static fn (DiscoveryProposal $proposal): array => [$proposal->key, $proposal->title, $proposal->body], $this->proposals()->findForRun($this->run)),
         );
         self::assertCount(1, $this->audit->records('readiness.report_revised'));
+    }
+
+    public function test_a_revision_requested_after_the_run_was_loaded_still_stores_the_reported_state(): void
+    {
+        $this->submit();
+        $this->em()->getConnection()->executeStatement('UPDATE discovery_runs SET state = ? WHERE id = ?', [DiscoveryRunState::Revising->value, $this->run->id?->toRfc4122()]);
+
+        $this->submit(summary: 'Revised.');
+
+        self::assertSame(DiscoveryRunState::Reported, self::getContainer()->get(DiscoveryRunRepository::class)->freshStateOf($this->run)['state']);
     }
 
     public function test_a_revision_after_the_run_left_revising_is_refused(): void

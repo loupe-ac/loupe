@@ -86,6 +86,8 @@ final readonly class SubmitReadinessReportHandler
         $document = $this->em->wrapInTransaction(function () use ($command, $run, $types, &$revised): Document|DomainErrors {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
             $fresh = $this->discoveryRuns->freshStateOf($run);
+            // A verdict that committed after the load changed the row only, and a state the entity still holds is not written again.
+            $run->state = $fresh['state'];
             if (DiscoveryRunState::Revising === $fresh['state']) {
                 $revised = true;
 
