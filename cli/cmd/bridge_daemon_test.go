@@ -192,6 +192,71 @@ func TestBridgeStopWaitsForTheLockOfTheBridgeAfterItsSymlinkMoved(t *testing.T) 
 	}
 }
 
+func TestBridgeStopWaitsForTheLockThatAReloadMovedAfterTheStop(t *testing.T) {
+	shortConfigHome(t)
+	dir := t.TempDir()
+	link := filepath.Join(dir, "rules.yaml")
+	for _, name := range []string{"a.yaml", "b.yaml"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(dir, "a.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+	path, err := socketPath(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := lockBridge(link, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	ln, err := listenControl(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	moved := make(chan error, 1)
+	done := serveControl(ctx, ln, controlOps{stop: func() {
+		// A reload that runs when the stop arrives moves the lock to b.yaml.
+		os.Remove(link)
+		os.Symlink(filepath.Join(dir, "b.yaml"), link)
+		_, apply, err := lock.follow()
+		if err == nil {
+			apply(true)
+		}
+		moved <- err
+		cancel()
+	}})
+
+	returned := make(chan error, 1)
+	go func() {
+		_, err := stopCmd(t, "--rules", link)
+		returned <- err
+	}()
+	if err := <-moved; err != nil {
+		t.Fatal(err)
+	}
+	<-done
+	select {
+	case err := <-returned:
+		t.Fatalf("stop returned while the bridge held its moved lock: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
+	lock.Close()
+	select {
+	case err := <-returned:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("stop did not return after the lock was released")
+	}
+}
+
 func TestDaemonArgsKeepTheFlagsThatWereSetAndDropTheDaemonFlag(t *testing.T) {
 	cmd := newBridgeRunCmd()
 	if err := cmd.ParseFlags([]string{"-d", "--rules", "r.yaml", "--model", "opus"}); err != nil {

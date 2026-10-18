@@ -157,12 +157,6 @@ func newBridgeStopCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// The rule path may resolve to another file than the one the bridge
-			// locked, so read its locks from the files that name its socket.
-			locks, err := locksNaming(sock)
-			if err != nil {
-				return err
-			}
 			res, err := requestControl(sock, "stop", requestTimeout)
 			if connRefused(err) || errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("no running bridge reads %s", abs)
@@ -173,10 +167,8 @@ func newBridgeStopCmd() *cobra.Command {
 			if !res.OK {
 				return fmt.Errorf("the bridge did not stop: %s", strings.Join(res.Problems, "; "))
 			}
-			for _, lock := range locks {
-				if err := waitUnlocked(lock, stopTimeout); err != nil {
-					return err
-				}
+			if err := waitReleased(sock, stopTimeout); err != nil {
+				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "stopped the bridge that reads "+abs)
 
@@ -201,14 +193,16 @@ func locksNaming(sock string) ([]string, error) {
 	return nil, nil
 }
 
-// waitUnlocked waits until no process holds the bridge lock at path. The
-// bridge closes its socket as soon as it stops, and releases the lock only
-// after its workers end, or when it dies.
-func waitUnlocked(path string, timeout time.Duration) error {
+// waitReleased waits until no held bridge lock names sock. The bridge closes
+// its socket as soon as it stops, and releases its lock only after its workers
+// end, or when it dies. A reload can move the lock to another file, and it
+// takes the new lock before it releases the old one, so each poll reads the
+// lock files again.
+func waitReleased(sock string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		held, err := lockHeldAt(path)
-		if err != nil || !held {
+		locks, err := locksNaming(sock)
+		if err != nil || len(locks) == 0 {
 			return err
 		}
 		if time.Now().After(deadline) {
@@ -216,26 +210,4 @@ func waitUnlocked(path string, timeout time.Duration) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-}
-
-// lockHeldAt reports whether another open file holds the lock at path. A
-// missing file holds no lock.
-func lockHeldAt(path string) (bool, error) {
-	f, err := os.Open(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("open the bridge lock: %w", err)
-	}
-	defer f.Close()
-	if err := tryLockFile(f); err != nil {
-		if lockHeld(err) {
-			return true, nil
-		}
-
-		return false, fmt.Errorf("lock %s: %w", path, err)
-	}
-
-	return false, nil
 }
