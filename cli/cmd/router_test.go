@@ -43,8 +43,20 @@ func sessionUUID(n int) string {
 	return fmt.Sprintf("0199a0e2-0000-4000-8000-%012d", n)
 }
 
+// projectFolder stands in for ensureWorktree: the worker runs in the project dir.
+func projectFolder(_ context.Context, projectDir, _ string, _ int) (string, error) {
+	return projectDir, nil
+}
+
+// withProjectFolder gives real worker ops the project folder as the worker folder.
+func withProjectFolder(ops workerOps) workerOps {
+	ops.worktree = projectFolder
+
+	return ops
+}
+
 func (f *fakeWorker) ops() workerOps {
-	return workerOps{sessionID: f.nextSession, run: func(_ context.Context, spec workerSpec, onStart func(workerProc)) workerResult {
+	return workerOps{sessionID: f.nextSession, worktree: projectFolder, run: func(_ context.Context, spec workerSpec, onStart func(workerProc)) workerResult {
 		res := f.enter(spec)
 		// A result with an error stands for a process that never started.
 		if onStart != nil && res.err == nil {

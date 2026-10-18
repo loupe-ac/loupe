@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/directive"
 	"github.com/ubermuda/loupe/cli/internal/event"
 )
@@ -30,6 +31,14 @@ const (
 	CapabilityRunCommand = "run-command"
 	CapabilityAddEntry   = "add-entry"
 )
+
+// TeardownKind is the work kind that ends the work of a card. With worktree
+// isolation and no entry of its own, the bridge removes the card's worktree.
+const TeardownKind = "teardown"
+
+// teardownScript removes the worktree at $1 when its folder exists, then prunes
+// the entries of folders that are gone.
+const teardownScript = `if [ -e "$1" ]; then git worktree remove --force "$1" || exit; fi; git worktree prune`
 
 // SessionKind is the work kind that starts an interactive session from an
 // inbox item. Its entry must be interactive.
@@ -325,11 +334,20 @@ func (s *Set) MatchWork(w api.WorkRequest) Match {
 	if m.Skip == Run && s.RunCommandRefusal(w) != "" {
 		return Match{Skip: NoRule, Project: m.Project}
 	}
-	if _, mapped := s.entry(w); m.Skip == Run && !mapped && !validAppPrompt(w.Prompt) {
+	if _, mapped := s.entry(w); m.Skip == Run && !mapped && !s.removesWorktree(w) && !validAppPrompt(w.Prompt) {
 		return Match{Skip: NoRule, Project: m.Project}
 	}
 
 	return m
+}
+
+// removesWorktree reports whether the bridge itself ends w: the teardown of a
+// card, when the set isolates cards in worktrees and the work map has no
+// teardown entry for the card.
+func (s *Set) removesWorktree(w api.WorkRequest) bool {
+	_, mapped := s.entry(w)
+
+	return !mapped && w.Kind == TeardownKind && w.OnCard() && w.CardNumber >= 1 && s.Isolation() == IsolationWorktree
 }
 
 // validAppPrompt reports whether an app prompt holds text and only the
@@ -365,6 +383,9 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	runCommand := runsCommand(w)
 	if runCommand && (!ok || entry.Action != ActionCommand) {
 		return Match{Skip: NoRule, Project: slug}
+	}
+	if s.removesWorktree(w) {
+		return s.matchWorktreeRemoval(w, slug)
 	}
 	runs := entry.runs()
 	if !ok {
@@ -437,6 +458,27 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 	}
 
 	return m
+}
+
+// matchWorktreeRemoval is the command run that removes the worktree of the
+// card of w. It starts no agent, so an off account or off agents do not stop it.
+func (s *Set) matchWorktreeRemoval(w api.WorkRequest, slug string) Match {
+	path, err := config.WorktreeDir(slug, w.CardNumber)
+	s.mu.RLock()
+	dead := s.deadWork[slug] != ""
+	s.mu.RUnlock()
+	if err != nil || dead {
+		return Match{Skip: NoRule, Project: slug}
+	}
+
+	return Match{
+		Skip:    Run,
+		Rule:    WorkRulePrefix + w.Kind,
+		Action:  ActionCommand,
+		Project: slug,
+		Dir:     s.dirs[slug],
+		Command: &Command{Argv: []string{"sh", "-c", teardownScript, "sh", path}, Timeout: DefaultCommandTimeout},
+	}
 }
 
 // renderWork renders the prompt of a run. A request that an inbox action sent
@@ -605,8 +647,18 @@ func (s *Set) WorkKindsOn() []string {
 	defer s.mu.RUnlock()
 
 	out := []string{}
-	for _, kind := range slices.Sorted(maps.Keys(s.work)) {
-		entry := s.work[kind]
+	kinds := slices.Sorted(maps.Keys(s.work))
+	if _, has := s.work[TeardownKind]; !has && s.Isolation() == IsolationWorktree {
+		kinds = append(kinds, TeardownKind)
+		slices.Sort(kinds)
+	}
+	for _, kind := range kinds {
+		entry, has := s.work[kind]
+		if !has {
+			out = append(out, kind)
+
+			continue
+		}
 		if s.agentsOff != "" && entry.Action != ActionCommand || s.offLocked(entry.runs()) {
 			continue
 		}

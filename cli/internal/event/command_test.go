@@ -84,7 +84,7 @@ func TestParseCommandTakesARerun(t *testing.T) {
 func TestParseCommandReadsTheCause(t *testing.T) {
 	for payload, want := range map[string]string{
 		commandPayload: api.CausePerson,
-		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"ask-closed"`, 1): api.CauseAskClosed,
+		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"ask-closed"`, 1):   api.CauseAskClosed,
 		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"person"`, 1):       api.CausePerson,
 		strings.Replace(commandPayload, `"kind":"stop-run"`, `"kind":"resume-run","cause":"inbox-action"`, 1): api.CauseInboxAction,
 	} {
