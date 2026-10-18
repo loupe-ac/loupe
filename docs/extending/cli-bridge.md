@@ -54,7 +54,7 @@ config directory, or to `--log-file`. When the bridge ends at start, the command
 prints why. When a bridge already reads the rule file, the command says so and
 changes nothing. `loupe bridge stop` stops the bridge over the same socket. The
 bridge ends its workers, sends their reports and exits, and the command returns
-once the socket is gone. It fails when no bridge reads the rule file.
+once the bridge has exited. It fails when no bridge reads the rule file.
 
 One rule file serves one bridge, so a second `loupe bridge run` on the same file
 refuses to start. Its error names the socket of the first bridge.

@@ -92,6 +92,48 @@ func TestBridgeStopWaitsForTheBridgeToExit(t *testing.T) {
 	<-done
 }
 
+func TestBridgeStopWaitsForTheLockAfterTheSocketCloses(t *testing.T) {
+	shortConfigHome(t)
+	abs, _ := filepath.Abs("rules.yaml")
+	path, err := socketPath(abs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := lockBridge(abs, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	ln, err := listenControl(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := serveControl(ctx, ln, controlOps{stop: cancel})
+
+	returned := make(chan error, 1)
+	go func() {
+		_, err := stopCmd(t, "--rules", "rules.yaml")
+		returned <- err
+	}()
+	<-done
+	select {
+	case err := <-returned:
+		t.Fatalf("stop returned while the bridge held its lock: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
+	lock.Close()
+	select {
+	case err := <-returned:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("stop did not return after the lock was released")
+	}
+}
+
 func TestDaemonArgsKeepTheFlagsThatWereSetAndDropTheDaemonFlag(t *testing.T) {
 	cmd := newBridgeRunCmd()
 	if err := cmd.ParseFlags([]string{"-d", "--rules", "r.yaml", "--model", "opus"}); err != nil {

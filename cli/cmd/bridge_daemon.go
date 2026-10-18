@@ -24,8 +24,8 @@ const (
 	// daemonStartTimeout bounds the wait for the control socket of a new
 	// daemon. The bridge checks the rule file against the server first.
 	daemonStartTimeout = 60 * time.Second
-	// stopTimeout bounds the wait for a stopped bridge to release its socket.
-	// The bridge ends its workers and sends their reports first.
+	// stopTimeout bounds the wait for a stopped bridge to release its lock.
+	// The bridge kills its workers and sends their reports first.
 	stopTimeout = 60 * time.Second
 	// maxStartError bounds the part of a failed start that the parent prints.
 	maxStartError = 2048
@@ -156,6 +156,10 @@ func newBridgeStopCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			lock, err := lockPath(abs)
+			if err != nil {
+				return err
+			}
 			res, err := requestControl(sock, "stop", requestTimeout)
 			if connRefused(err) || errors.Is(err, fs.ErrNotExist) {
 				return fmt.Errorf("no running bridge reads %s", abs)
@@ -166,7 +170,7 @@ func newBridgeStopCmd() *cobra.Command {
 			if !res.OK {
 				return fmt.Errorf("the bridge did not stop: %s", strings.Join(res.Problems, "; "))
 			}
-			if err := waitGone(sock, stopTimeout); err != nil {
+			if err := waitUnlocked(lock, stopTimeout); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "stopped the bridge that reads "+abs)
@@ -179,16 +183,41 @@ func newBridgeStopCmd() *cobra.Command {
 	return cmd
 }
 
-// waitGone waits until nothing answers on sock. The bridge closes the socket
-// when it stops.
-func waitGone(sock string, timeout time.Duration) error {
+// waitUnlocked waits until no process holds the bridge lock at path. The
+// bridge closes its socket as soon as it stops, and releases the lock only
+// after its workers end, or when it dies.
+func waitUnlocked(path string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	for controlAnswers(sock) {
+	for {
+		held, err := lockHeldAt(path)
+		if err != nil || !held {
+			return err
+		}
 		if time.Now().After(deadline) {
 			return fmt.Errorf("the bridge did not exit within %s; it ends its workers first, so read the log", timeout)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
 
-	return nil
+// lockHeldAt reports whether another open file holds the lock at path. A
+// missing file holds no lock.
+func lockHeldAt(path string) (bool, error) {
+	f, err := os.Open(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("open the bridge lock: %w", err)
+	}
+	defer f.Close()
+	if err := tryLockFile(f); err != nil {
+		if lockHeld(err) {
+			return true, nil
+		}
+
+		return false, fmt.Errorf("lock %s: %w", path, err)
+	}
+
+	return false, nil
 }
