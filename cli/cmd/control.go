@@ -232,6 +232,8 @@ func listenControl(path string) (net.Listener, error) {
 // line before an exec ends the connection. When the exec fails, its return
 // value follows as a second line.
 type controlOps struct {
+	// stop ends the bridge. The connection gets its answer first.
+	stop   func()
 	reload func(ctx context.Context) reloadResult
 	update func(ctx context.Context, reply func(updateResult)) updateResult
 }
@@ -317,8 +319,11 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	case req.Op == "update" && ops.update != nil:
 		conn.SetDeadline(time.Time{})
 		send(ops.update(ctx, func(res updateResult) { write(res, false) }))
+	case req.Op == "stop" && ops.stop != nil:
+		send(reloadResult{OK: true})
+		ops.stop()
 	default:
-		send(refused(fmt.Sprintf("unknown op %q: only reload and update are known", req.Op)))
+		send(refused(fmt.Sprintf("unknown op %q: only reload, update and stop are known", req.Op)))
 	}
 }
 
@@ -381,8 +386,14 @@ func newBridgeReloadCmd() *cobra.Command {
 
 // requestReload sends one reload request to the socket and reads the answer.
 func requestReload(sock string) (reloadResult, error) {
+	return requestControl(sock, "reload", reloadTimeout)
+}
+
+// requestControl sends one op to the socket and reads the one line that comes
+// back.
+func requestControl(sock, op string, timeout time.Duration) (reloadResult, error) {
 	var res reloadResult
-	deadline := time.Now().Add(reloadTimeout)
+	deadline := time.Now().Add(timeout)
 	conn, err := (&net.Dialer{Deadline: deadline}).Dial("unix", sock)
 	if err != nil {
 		return res, err
@@ -390,8 +401,8 @@ func requestReload(sock string) (reloadResult, error) {
 	defer conn.Close()
 	conn.SetDeadline(deadline)
 
-	if _, err := conn.Write([]byte(`{"op":"reload"}` + "\n")); err != nil {
-		return res, fmt.Errorf("send the reload: %w", err)
+	if _, err := conn.Write([]byte(`{"op":"` + op + `"}` + "\n")); err != nil {
+		return res, fmt.Errorf("send the %s: %w", op, err)
 	}
 	line, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {

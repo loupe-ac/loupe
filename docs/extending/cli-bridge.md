@@ -47,6 +47,15 @@ and the command prints each problem and exits with status 1. A worker in flight
 keeps running. A queued request stays when the new file still runs its kind with
 the same action, and the bridge drops and logs the others.
 
+`loupe bridge run -d` starts the bridge in the background and returns once the
+bridge listens on its socket. The command runs the `loupe` binary again as a
+detached process in a new session, and the log goes to `bridge.log` in the
+config directory, or to `--log-file`. When the bridge ends at start, the command
+prints why. When a bridge already reads the rule file, the command says so and
+changes nothing. `loupe bridge stop` stops the bridge over the same socket. The
+bridge ends its workers, sends their reports and exits, and the command returns
+once the socket is gone. It fails when no bridge reads the rule file.
+
 One rule file serves one bridge, so a second `loupe bridge run` on the same file
 refuses to start. Its error names the socket of the first bridge.
 
