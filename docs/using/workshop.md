@@ -113,7 +113,7 @@ The Repository row shows the state of the latest run:
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
 | Running on card #N | A run is open. A second start is refused until it ends | Open card |
 | Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no bridge claimed the request in time. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
-| A worker revises the report on card #N | You asked for changes to the report. The run is in the Revising state | Open card |
+| A worker revises the report on card #N | You asked for changes to the report. The run is in the Revising state | Open report |
 | The report waits for your review | The worker reported. The run is in the Reported state | Open report |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
 
