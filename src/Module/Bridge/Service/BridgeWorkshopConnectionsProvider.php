@@ -10,6 +10,7 @@ use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Workshop\WorkshopConnection;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
+use App\Module\Project\Workshop\WorkshopGitIdentity;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -32,13 +33,14 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
         foreach (($this->agents)(new ListAgentsCommand($project))->connections as $connection) {
             $id = (string) $connection->bridge->id;
             $repository = array_find($connection->bridge->repositories ?? [], static fn (array $row): bool => $row['projectId'] === (string) $project->id);
+            $identity = array_find($connection->bridge->gitIdentities ?? [], static fn (array $row): bool => $row['projectId'] === (string) $project->id);
             $connections[] = new WorkshopConnection(
                 $id,
                 $connection->bridge->cliVersion,
                 $connection->status->quiet,
                 $url.'#agent-connection-'.$id,
                 $connection->bridge->label,
-                $connection->bridge->pushLogin,
+                null === $identity ? null : new WorkshopGitIdentity($identity['mode'], $identity['commitName'], $identity['pushLogin'], $identity['githubUserId'], $connection->bridge->gitIdentitiesReportedAt),
                 $repository['path'] ?? null,
                 $repository['remoteUrl'] ?? null,
             );
@@ -57,7 +59,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
         return array_map(static function ($bridge) use ($statuses, $url): WorkshopConnection {
             $id = (string) $bridge->id;
 
-            return new WorkshopConnection($id, $bridge->cliVersion, $statuses[$id]->quiet, $url.'#agent-connection-'.$id, $bridge->label, $bridge->pushLogin);
+            return new WorkshopConnection($id, $bridge->cliVersion, $statuses[$id]->quiet, $url.'#agent-connection-'.$id, $bridge->label);
         }, $bridges);
     }
 }

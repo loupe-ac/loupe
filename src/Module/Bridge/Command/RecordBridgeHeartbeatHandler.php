@@ -127,8 +127,9 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->capabilities = $command->capabilities;
             }
             $bridge->workKinds = $command->workKinds;
-            if (null !== $command->pushLogin) {
-                $bridge->pushLogin = '' === $command->pushLogin ? null : $command->pushLogin;
+            if (null !== $command->gitIdentities) {
+                $bridge->gitIdentities = $command->gitIdentities;
+                $bridge->gitIdentitiesReportedAt = $now;
             }
             // A new bridge and a bridge back from quiet change what the waiting cards can expect.
             $availabilityChanged = $created
