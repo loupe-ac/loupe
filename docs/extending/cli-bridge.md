@@ -890,6 +890,7 @@ first removes the inherited `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_AUTHOR_NAME`,
 | `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_EMAIL` | `<id>+<login>@users.noreply.github.com` |
 | `LOUPE_RUN_ID`, `LOUPE_CONTROL_SOCKET` | The run, and the control socket of the bridge. See [Credentials for workers](#credentials-for-workers) |
 | `GIT_TERMINAL_PROMPT`, `GCM_INTERACTIVE` | `0` and `never`, so git never asks a person for a password |
+| `GIT_ASKPASS` | `false`, so git uses no askpass program of your machine when the bridge helper fails |
 | `PATH` | The `bin` folder of the run first, which holds a `gh` wrapper |
 | `GIT_CONFIG_KEY_n`, `GIT_CONFIG_VALUE_n` | Two `credential.https://github.com.helper` entries and two `url.https://github.com/.insteadOf` entries |
 | `GIT_CONFIG_COUNT` | The inherited count plus four |

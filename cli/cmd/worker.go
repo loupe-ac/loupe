@@ -209,7 +209,9 @@ func workerEnv(environ []string, sessionID string, agent *config.AgentAccount, c
 	path = cmp.Or(path, "/usr/local/bin:/usr/bin:/bin")
 	env = append(env,
 		runIDEnv+"="+creds.runID, controlSocketEnv+"="+creds.socket,
-		"GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never",
+		// An askpass program that fails keeps git from asking the machine's
+		// askpass when the bridge helper fails.
+		"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=false", "GCM_INTERACTIVE=never",
 		"PATH="+creds.binDir+string(os.PathListSeparator)+path,
 	)
 	if agent != nil {
@@ -251,7 +253,7 @@ const githubInsteadOfKey = "url.https://github.com/.insteadOf"
 // credentials from the bridge replaces or loses. The bridge sets no GH_TOKEN,
 // because the gh wrapper sets it for one call.
 var credentialEnvOverrides = []string{
-	"GH_TOKEN", "GITHUB_TOKEN", runIDEnv, controlSocketEnv, "GIT_TERMINAL_PROMPT", "GCM_INTERACTIVE",
+	"GH_TOKEN", "GITHUB_TOKEN", runIDEnv, controlSocketEnv, "GIT_TERMINAL_PROMPT", "GIT_ASKPASS", "GCM_INTERACTIVE",
 }
 
 // agentEnvOverrides are the inherited git identity variables that an agent

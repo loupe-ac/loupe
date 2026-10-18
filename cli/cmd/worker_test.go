@@ -72,7 +72,7 @@ func TestWorkerEnvPushesAsTheAgentAccount(t *testing.T) {
 	want := append([]string{
 		"HOME=/home/a", sessionVar + "s1",
 		"LOUPE_RUN_ID=r1", "LOUPE_CONTROL_SOCKET=" + credSocket,
-		"GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never",
+		"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=false", "GCM_INTERACTIVE=never",
 		"PATH=" + credBinDir + ":/usr/bin:/bin",
 		"GIT_AUTHOR_NAME=loupe-bot", "GIT_COMMITTER_NAME=loupe-bot",
 		"GIT_AUTHOR_EMAIL=4242+loupe-bot@users.noreply.github.com",
@@ -88,14 +88,14 @@ func TestWorkerEnvPushesAsTheAgentAccount(t *testing.T) {
 func TestWorkerEnvManagedWorkerKeepsItsIdentity(t *testing.T) {
 	base := []string{
 		"HOME=/home/a", "PATH=/usr/bin", "GH_TOKEN=owner", "GITHUB_TOKEN=owner", "GIT_AUTHOR_NAME=Owner",
-		"LOUPE_RUN_ID=old", "GIT_TERMINAL_PROMPT=1",
+		"LOUPE_RUN_ID=old", "GIT_TERMINAL_PROMPT=1", "GIT_ASKPASS=/usr/bin/owner-askpass",
 	}
 
 	got := workerEnv(base, "s1", nil, credEnvFixture())
 	want := append([]string{
 		"HOME=/home/a", "GIT_AUTHOR_NAME=Owner", sessionVar + "s1",
 		"LOUPE_RUN_ID=r1", "LOUPE_CONTROL_SOCKET=" + credSocket,
-		"GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never",
+		"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=false", "GCM_INTERACTIVE=never",
 		"PATH=" + credBinDir + ":/usr/bin",
 	}, gitConfigEntries(4, 0)...)
 	if !slices.Equal(got, want) {
@@ -182,6 +182,32 @@ func TestWorkerEnvHelperRunsInGit(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "username=x-access-token\n") || !strings.Contains(string(out), "password=tok-1\n") {
 		t.Fatalf("git credential fill = %q", out)
+	}
+}
+
+// When the bridge helper fails, git asks no askpass program of the machine.
+func TestWorkerEnvFailingHelperUsesNoMachineAskpass(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is not installed")
+	}
+	dir := t.TempDir()
+	loupe := filepath.Join(dir, "loupe")
+	askpass := filepath.Join(dir, "askpass")
+	for path, script := range map[string]string{loupe: "#!/bin/sh\nexit 1\n", askpass: "#!/bin/sh\necho machine-secret\n"} {
+		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	creds := &credentialEnv{runID: "r1", socket: credSocket, loupe: loupe, binDir: filepath.Join(dir, "bin")}
+	base := []string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_ASKPASS=" + askpass, "SSH_ASKPASS=" + askpass}
+
+	cmd := exec.Command(git, "-c", "core.askPass="+askpass, "credential", "fill")
+	cmd.Env = workerEnv(base, "s1", nil, creds)
+	cmd.Stdin = strings.NewReader("protocol=https\nhost=github.com\n\n")
+	out, err := cmd.CombinedOutput()
+	if err == nil || strings.Contains(string(out), "machine-secret") {
+		t.Fatalf("git credential fill = %v: %q, want a failure with no machine credential", err, out)
 	}
 }
 
