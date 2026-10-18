@@ -89,21 +89,42 @@ func gitFailure(what, out string, err error) error {
 // of the default branch of origin, or the local branch when the remote has none.
 // It fetches the branch first and ignores a failed fetch.
 func defaultBranch(ctx context.Context, dir string) string {
-	branch := ""
-	if ref, err := git(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
-		branch = strings.TrimPrefix(ref, "origin/")
-	} else if ref, err := git(ctx, dir, "symbolic-ref", "--short", "HEAD"); err == nil {
-		branch = ref
+	fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
+	defer cancel()
+	branch := remoteDefaultBranch(fetchCtx, dir)
+	if branch == "" {
+		if ref, err := git(ctx, dir, "symbolic-ref", "--short", "HEAD"); err == nil {
+			branch = ref
+		}
 	}
 	if branch == "" {
 		return "HEAD"
 	}
-	fetchCtx, cancel := context.WithTimeout(ctx, fetchTimeout)
-	defer cancel()
 	_, _ = git(fetchCtx, dir, "fetch", "origin", branch)
 	if _, err := git(ctx, dir, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/"+branch); err == nil {
 		return "origin/" + branch
 	}
 
 	return branch
+}
+
+// remoteDefaultBranch names the default branch of origin. A clone records it as
+// origin/HEAD, and a remote added by hand records nothing, so it asks the remote.
+func remoteDefaultBranch(ctx context.Context, dir string) string {
+	if ref, err := git(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
+		return strings.TrimPrefix(ref, "origin/")
+	}
+	out, err := git(ctx, dir, "ls-remote", "--symref", "origin", "HEAD")
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if ref, ok := strings.CutPrefix(line, "ref: refs/heads/"); ok {
+			if name, _, found := strings.Cut(ref, "\t"); found {
+				return name
+			}
+		}
+	}
+
+	return ""
 }

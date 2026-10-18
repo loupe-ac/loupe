@@ -136,6 +136,33 @@ func TestEnsureWorktreeStartsAtTheFetchedDefaultBranch(t *testing.T) {
 	}
 }
 
+func TestEnsureWorktreeAsksTheRemoteWhenOriginHeadIsAbsent(t *testing.T) {
+	isolateConfig(t)
+	origin := t.TempDir()
+	newRepo(t, origin)
+	project := t.TempDir()
+	newRepo(t, project)
+	runGit(t, project, "remote", "add", "origin", origin)
+	runGit(t, project, "config", "remote.origin.followRemoteHEAD", "never")
+	runGit(t, project, "fetch", "origin")
+	runGit(t, project, "update-ref", "-d", "refs/remotes/origin/HEAD")
+	runGit(t, project, "switch", "-c", "feature")
+	commitFile(t, project, "feature.txt")
+	commitFile(t, origin, "second.txt")
+
+	got, err := ensureWorktree(context.Background(), project, "loupe", 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(got, "feature.txt")); err == nil {
+		t.Fatal("the worktree starts at the feature branch of the source checkout")
+	}
+	if _, err := os.Stat(filepath.Join(got, "second.txt")); err != nil {
+		t.Fatalf("the worktree starts before the default branch of origin: %v", err)
+	}
+}
+
 func TestEnsureWorktreeRecoversFromAFolderDeletedByHand(t *testing.T) {
 	isolateConfig(t)
 	project := t.TempDir()
