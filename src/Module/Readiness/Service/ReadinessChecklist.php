@@ -9,7 +9,6 @@ use App\Module\Forge\Repository\ForgeRepositoryRepository;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\Project\Entity\Project;
-use App\Module\Project\Service\WorkflowTemplateChoices;
 use App\Module\Project\Workshop\WorkshopConnection;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadiness;
@@ -36,7 +35,6 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
     public function __construct(
         private WorkshopConnectionsProviderInterface $connections,
         private WorkflowBindingRepository $workflowBindings,
-        private WorkflowTemplateChoices $templateChoices,
         private GitHubInstallationRepository $gitHubInstallations,
         private ForgeRepositoryRepository $forgeRepositories,
         private GitHubAppConfiguration $gitHubApp,
@@ -76,13 +74,6 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 $agent ? 'readiness.row.agent.done' : 'readiness.row.agent.open',
                 actionLabel: $agent ? null : 'readiness.row.agent.action',
                 actionUrl: $agent ? null : $connect,
-            ),
-            new WorkshopReadinessRow(
-                'workflow',
-                'readiness.row.workflow.label',
-                null !== $binding,
-                null !== $binding ? 'readiness.row.workflow.done' : 'readiness.row.workflow.open',
-                detail: null === $binding ? null : $this->templateLabel($binding->templateKey),
             ),
             new WorkshopReadinessRow(
                 'bridge',
@@ -229,17 +220,5 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         }
 
         return array_any($this->forgeRepositories->findByProject($project), fn ($repository) => ForgeRepositorySource::Installation === $repository->source && isset($live[$repository->sourceRef ?? '']));
-    }
-
-    /** A translation key for a shipped template, or the bare key of any other. */
-    private function templateLabel(string $templateKey): string
-    {
-        foreach ($this->templateChoices->choices() as $choice) {
-            if ($choice->key === $templateKey) {
-                return $choice->label;
-            }
-        }
-
-        return $templateKey;
     }
 }

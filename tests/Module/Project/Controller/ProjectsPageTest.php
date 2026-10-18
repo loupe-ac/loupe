@@ -85,7 +85,7 @@ final class ProjectsPageTest extends WebTestCase
         self::assertSame(SearchLanguage::English, $projects[0]->searchLanguage);
     }
 
-    public function test_the_form_offers_each_workflow_template_with_its_description(): void
+    public function test_the_form_has_no_workflow_template_field(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -96,17 +96,11 @@ final class ProjectsPageTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects');
 
         self::assertResponseIsSuccessful();
-        $radios = $crawler->filter('input[type="radio"][name="create_project_form[workflowTemplate]"]');
-        self::assertSame(['lifecycle', 'simple'], $radios->each(static fn ($radio): string => (string) $radio->attr('value')));
-        self::assertSame('simple', $crawler->filter('input[name="create_project_form[workflowTemplate]"][checked]')->attr('value'));
-        $field = $crawler->filter('[data-workflow-template-field]');
-        self::assertStringContainsString('Lifecycle', $field->text());
-        self::assertStringContainsString('Simple', $field->text());
-        self::assertStringContainsString('Product design, tech design, implementation and review', $crawler->filter('[data-workflow-template-description="lifecycle"]')->text());
-        self::assertStringContainsString('A merged pull request finishes the card', $crawler->filter('[data-workflow-template-description="simple"]')->text());
+        self::assertCount(0, $crawler->filter('[name="create_project_form[workflowTemplate]"]'));
+        self::assertCount(0, $crawler->filter('[data-workflow-template-field]'));
     }
 
-    public function test_picking_lifecycle_seeds_the_lifecycle_columns(): void
+    public function test_a_new_project_gets_the_lifecycle_columns(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -117,7 +111,6 @@ final class ProjectsPageTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/projects');
         $client->submitForm('Add project', [
             'create_project_form[name]' => 'lifecycle-project',
-            'create_project_form[workflowTemplate]' => 'lifecycle',
         ]);
 
         static::getContainer()->get(EntityManagerInterface::class)->clear();
@@ -131,24 +124,6 @@ final class ProjectsPageTest extends WebTestCase
                 static::getContainer()->get(BoardColumnRepository::class)->findForProject($projects[0]),
             ),
         );
-    }
-
-    public function test_a_submit_without_the_workflow_field_is_refused(): void
-    {
-        $client = static::createClient();
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->user($em, 'projects-workflow-omitted@example.com');
-        $em->flush();
-
-        $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/projects');
-        $form = $crawler->selectButton('Add project')->form(['create_project_form[name]' => 'no-radio']);
-        $form->remove('create_project_form[workflowTemplate]');
-        $crawler = $client->submit($form);
-
-        self::assertResponseStatusCodeSame(422);
-        self::assertNotSame('', trim($crawler->filter('[data-workflow-template-field] .lp-field-errors')->text()));
-        self::assertSame([], static::getContainer()->get(ProjectRepository::class)->findByOwner($user));
     }
 
     public function test_paginates_at_twenty_per_page(): void

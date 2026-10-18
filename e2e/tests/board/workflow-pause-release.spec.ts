@@ -30,7 +30,6 @@ test('Retry now ends a retries pause, and the history records the release', asyn
         .getByRole('button', { name: /new project/i })
         .click();
     await page.getByLabel('Project name').fill(`pause-${Date.now()}`);
-    await page.getByLabel('Lifecycle', { exact: true }).check();
     await page.getByRole('button', { name: 'Add project' }).click();
     await expect(page.locator('[data-workshop]')).toBeVisible();
     const projectId = /\/projects\/([0-9a-f-]{36})/.exec(page.url())?.[1];
