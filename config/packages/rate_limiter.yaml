@@ -94,6 +94,11 @@ framework:
         agent_preview_tokens:
             <<: *agent_per_token
 
+        # Bounds the push tokens a bridge asks for. A bridge asks about once an
+        # hour for each project, and again after a restart.
+        agent_git_token:
+            <<: *agent_per_token
+
         # Bounds project creation from the CLI. A person creates a project a few
         # times in a lifetime, so the limit is far below the shared agent shape.
         agent_project_create:
@@ -256,6 +261,10 @@ when@test:
                 limit: 100000
                 interval: '1 minute'
             agent_preview_tokens:
+                policy: 'sliding_window'
+                limit: 100000
+                interval: '1 minute'
+            agent_git_token:
                 policy: 'sliding_window'
                 limit: 100000
                 interval: '1 minute'

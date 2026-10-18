@@ -28,6 +28,9 @@ final class GitHubAppApi
     /** @var array<int, array{token: non-empty-string, until: \DateTimeImmutable}> */
     private array $tokens = [];
 
+    /** @var array<string, GitHubScopedToken> */
+    private array $scopedTokens = [];
+
     public function __construct(
         private readonly HttpClientInterface $githubApiClient,
         private readonly GitHubAppConfiguration $configuration,
@@ -58,6 +61,44 @@ final class GitHubAppApi
         $this->tokens[$installationId] = ['token' => $token, 'until' => $now->modify('+50 minutes')];
 
         return $token;
+    }
+
+    /**
+     * A token that opens one repository with the named permissions, so a leak
+     * reaches no other repository of the installation. The cache key holds the
+     * repository and the permissions, so a token never serves a wider request.
+     *
+     * @param array<string, string> $permissions the permission name and its grant, such as `contents` and `write`
+     *
+     * @throws GitHubAppApiFailed
+     */
+    public function repositoryToken(int $installationId, int $repositoryId, array $permissions): GitHubScopedToken
+    {
+        ksort($permissions);
+        $key = $installationId.':'.$repositoryId.':'.json_encode($permissions, \JSON_THROW_ON_ERROR);
+        $now = $this->clock->now();
+        $cached = $this->scopedTokens[$key] ?? null;
+        if (null !== $cached && $now < $cached->expiresAt->modify('-5 minutes')) {
+            return $cached;
+        }
+
+        $body = $this->send('POST', '/app/installations/'.$installationId.'/access_tokens', ['json' => [
+            'repository_ids' => [$repositoryId],
+            'permissions' => $permissions,
+        ]]);
+        $token = $body['token'] ?? null;
+        $expiresAt = $body['expires_at'] ?? null;
+        if (!\is_string($token) || '' === $token || !\is_string($expiresAt)) {
+            throw new GitHubAppApiFailed('malformed_body');
+        }
+
+        try {
+            $expires = new \DateTimeImmutable($expiresAt);
+        } catch (\DateMalformedStringException) {
+            throw new GitHubAppApiFailed('malformed_body');
+        }
+
+        return $this->scopedTokens[$key] = new GitHubScopedToken($token, $expires);
     }
 
     /**
