@@ -44,11 +44,14 @@ projects your login covers and asks which one. Commit the file, so everyone in
 the repository reaches the same project.
 
 It also writes `.loupe/lifecycle.md`, the repository profile that every stage
-skill reads. The file holds the gate commands, the pull request rules and the
-column names. `loupe init` guesses the gate commands from a `justfile`, a
-`Makefile`, `package.json`, `composer.json` or `go.mod`, and marks each guess
-"detected, check it". Read the file, correct the guesses, and commit it, because
-a worker sees only what you push. A profile that exists is never replaced.
+skill reads, also when `.loupe.yaml` exists already. The file holds the gate
+commands, the pull request rules, the column names and the epic branch rules.
+`loupe init` guesses the gate commands from a `justfile`, a `Makefile`,
+`package.json`, `composer.json` or `go.mod`, and marks each guess "detected,
+check it". It lists only checks with a common name, such as `lint` or `test`, so
+add each other check that CI runs. Read the file, correct the guesses, and
+commit it, because a worker sees only what you push. A profile that exists is
+never replaced.
 
 When Claude Code does not start the `loupe` MCP server yet, `loupe init` offers
 to declare it for every repository:

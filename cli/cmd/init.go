@@ -35,7 +35,8 @@ func newInitCmd() *cobra.Command {
 			"With no --project, it lists the projects your login covers and asks which one. " +
 			"A login that covers exactly one project needs no answer.\n\n" +
 			"It refuses to replace an existing file unless you pass --force.\n\n" +
-			"It also writes " + profile.Path + " when the repository has none. The stage skills " +
+			"It also writes " + profile.Path + " when the repository has none, also when " +
+			projectfile.Name + " exists already. The stage skills " +
 			"read that profile, and stop without it. The starter guesses the gate commands from " +
 			"the files it finds, and marks each guess \"" + profile.Marker + "\". Commit the file " +
 			"after you read it. A profile that exists is never replaced.\n\n" +
@@ -57,6 +58,10 @@ func newInitCmd() *cobra.Command {
 			// Whether the file parses is beside the point. Replacing one
 			// somebody wrote is the thing that needs saying yes to.
 			if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !force {
+				// A repository linked before the profile existed still needs one.
+				if err := writeProfile(cmd, dir); err != nil {
+					return err
+				}
 				if !writeMcp && !writeMcpJSON {
 					return fmt.Errorf("%s already exists: pass --force to replace it", projectfile.Name)
 				}

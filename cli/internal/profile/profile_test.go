@@ -120,7 +120,7 @@ func TestEveryStageSectionIsWritten(t *testing.T) {
 	text := Render(Detect(t.TempDir()))
 	for _, section := range []string{
 		"Instruction files", "Environment", "Gate", "Code review", "Changelog",
-		"Pull request", "Board", "Merge", "Repair",
+		"Pull request", "Board", "Merge", "Epics", "Repair",
 	} {
 		if !strings.Contains(text, "\n## "+section+"\n") {
 			t.Errorf("section %q is missing", section)
@@ -167,5 +167,30 @@ func TestWriteCreatesTheProfileAndKeepsAnExistingOne(t *testing.T) {
 	}
 	if body, _ := os.ReadFile(path); string(body) != "mine\n" {
 		t.Fatalf("existing profile was replaced: %q", body)
+	}
+}
+
+func TestTheGateSaysItCanMissACheck(t *testing.T) {
+	for _, justfile := range []string{"", "test:\n    x\n\narkitect:\n    x\n"} {
+		dir := t.TempDir()
+		if "" != justfile {
+			put(t, dir, "justfile", justfile)
+		}
+
+		text := Render(Detect(dir))
+		gate := text[strings.Index(text, "## Gate"):strings.Index(text, "## Code review")]
+		if !strings.Contains(gate, "this list can miss one ("+Marker+")") {
+			t.Fatalf("gate does not say it is incomplete:\n%s", gate)
+		}
+		if strings.Count(gate, "\n3. ") != 1 {
+			t.Fatalf("gate items are misnumbered:\n%s", gate)
+		}
+	}
+}
+
+func TestTheEpicBranchPatternIsMarked(t *testing.T) {
+	text := Render(Detect(t.TempDir()))
+	if !strings.Contains(text, "is `epic/<n>` ("+Marker+")") {
+		t.Fatalf("epic branch pattern is missing or unmarked:\n%s", text)
 	}
 }

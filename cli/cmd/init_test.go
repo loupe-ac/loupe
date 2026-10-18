@@ -488,3 +488,26 @@ func TestInitKeepsAProfileThatExists(t *testing.T) {
 		t.Fatalf("profile was replaced: %q", body)
 	}
 }
+
+func TestInitWritesTheProfileWhenTheProjectFileExists(t *testing.T) {
+	for _, args := range [][]string{nil, {"--mcp-json", "--mcp"}} {
+		dir := inRepo(t, "")
+		if err := projectfile.Write(dir, firstProject); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+
+		_, err := runInit(t, "", args...)
+		if nil == args && (err == nil || !strings.Contains(err.Error(), "--force")) {
+			t.Fatalf("init %v over an existing file: got %v, want the --force refusal", args, err)
+		}
+		if nil != args && err != nil {
+			t.Fatalf("init %v: %v", args, err)
+		}
+		if _, err := os.Stat(filepath.Join(dir, profile.Path)); err != nil {
+			t.Fatalf("init %v must write the profile: %v", args, err)
+		}
+		if file, _ := projectfile.Load(dir); file.Project != firstProject {
+			t.Fatalf("init %v replaced the project file: %q", args, file.Project)
+		}
+	}
+}

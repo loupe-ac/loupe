@@ -46,6 +46,7 @@ func Render(d Detection) string {
 	for i, c := range d.Gate {
 		fmt.Fprintf(&b, "%d. Run `%s` (%s: %s).\n", i+2, c.Run, Marker, c.Source)
 	}
+	fmt.Fprintf(&b, "%d. The starter lists only checks with a common name, such as `lint` or `test`, so this list can miss one (%s). Add each other check that CI runs and that must pass before a push.\n", max(len(d.Gate), 1)+2, Marker)
 	b.WriteString("\nFix every failure of the gate, also one that pre-dates the branch.\n\n")
 
 	b.WriteString("## Code review\n\n")
@@ -76,7 +77,16 @@ func Render(d Detection) string {
 	b.WriteString("## Merge\n\n")
 	b.WriteString("1. The merge method is `squash` (" + Marker + ").\n")
 	b.WriteString("2. Merge only a pull request whose base is the base branch of the `Gate` section.\n")
-	b.WriteString("3. Count the approval of any reviewer (" + Marker + "). Name one approver here to count that reviewer alone.\n\n")
+	b.WriteString("3. Count the approval of any reviewer (" + Marker + "). Name one approver here to count that reviewer alone.\n")
+	b.WriteString("4. An epic child merges as the `Epics` section says.\n\n")
+
+	b.WriteString("## Epics\n\n")
+	b.WriteString("1. The epic branch of epic card `<n>` is `epic/<n>` (" + Marker + "). It must match the `epicBranch` value of the workflow template of the project, which is `epic/{number}` in both shipped templates.\n")
+	b.WriteString("2. The breakdown pushes the epic branch from the base branch of the `Gate` section.\n")
+	b.WriteString("3. A child of an epic whose `epic/<n>` branch exists cuts its branch from `origin/epic/<n>`, and its pull request targets `epic/<n>`. An epic with no such branch keeps the flow of the base branch for its children.\n")
+	b.WriteString("4. A child merges into `epic/<n>` with `squash` and no approval, once its checks pass.\n")
+	b.WriteString("5. The epic pull request goes from `epic/<n>` to the base branch, and merges as the `Merge` section says. Nothing force-pushes `epic/<n>`.\n")
+	b.WriteString("6. This profile names no epic preview and no epic preview lock (" + Marker + "), so a refresh of the epic preview stops blocked. Describe here how to serve the epic branch.\n\n")
 
 	b.WriteString("## Repair\n\n")
 	b.WriteString("1. The repair worker starts in the folder the bridge makes for the card. Run no project command there.\n")
