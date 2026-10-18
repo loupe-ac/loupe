@@ -309,7 +309,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
         $this->pass($this->template('lifecycle'), $facts('tech-design', 'tech-design'));
         self::assertSame(['design-review-running'], $this->writtenKeys());
-        self::assertSame(['%round%' => 2, '%limit%' => 3], $this->written('design-review-running')->params);
+        self::assertSame(['%round%' => 2, '%limit%' => 6], $this->written('design-review-running')->params);
 
         self::assertSame(['design-review-running'], $this->keys($facts('product-design', 'product-design')));
         self::assertSame([], $this->keys($facts('product-design', 'tech-design')));

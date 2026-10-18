@@ -66,7 +66,7 @@ rules:
       slot: product-design
       when:
           all:
-              - design_review.due: { tag: product-design, rounds: 3 }
+              - design_review.due: { tag: product-design, rounds: 6 }
               - not: { card.run.work_active: { kind: product-design } }
               - not: { card.run.work_active: { kind: product-design-revise } }
               - not: { card.run.worker_active: { kind: product-design } }
@@ -84,13 +84,13 @@ rules:
 
     - id: product-design-review-fix
       slot: product-design
-      when: { design_review.fix_due: { tag: product-design, rounds: 3 } }
+      when: { design_review.fix_due: { tag: product-design, rounds: 6 } }
       then:
           request:
               kind: product-design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
-              limit: 3
+              limit: 5
               document: { tag: product-design, status: draft }
               checks:
                   - The Loupe plugin skills are installed for the agent
@@ -99,7 +99,7 @@ rules:
       slot: product-design
       when:
           all:
-              - design_review.finished: { tag: product-design, rounds: 3 }
+              - design_review.finished: { tag: product-design, rounds: 6 }
               - not: { card.run.work_active: {} }
               - not: { card.run.worker_active: {} }
       then: { publish-documents: { tags: [product-design] } }
@@ -139,7 +139,7 @@ rules:
       slot: tech-design
       when:
           all:
-              - design_review.due: { tag: tech-design, rounds: 3 }
+              - design_review.due: { tag: tech-design, rounds: 6 }
               - not: { card.run.work_active: { kind: tech-design } }
               - not: { card.run.work_active: { kind: tech-design-revise } }
               - not: { card.run.worker_active: { kind: tech-design } }
@@ -157,13 +157,13 @@ rules:
 
     - id: tech-design-review-fix
       slot: tech-design
-      when: { design_review.fix_due: { tag: tech-design, rounds: 3 } }
+      when: { design_review.fix_due: { tag: tech-design, rounds: 6 } }
       then:
           request:
               kind: tech-design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
-              limit: 3
+              limit: 5
               document: { tag: tech-design, status: draft }
               checks:
                   - The agent can read the whole repository
@@ -174,7 +174,7 @@ rules:
       slot: tech-design
       when:
           all:
-              - design_review.finished: { tag: tech-design, rounds: 3 }
+              - design_review.finished: { tag: tech-design, rounds: 6 }
               - not: { card.run.work_active: {} }
               - not: { card.run.worker_active: {} }
       then: { publish-documents: { tags: [tech-design, deploy-notes] } }
@@ -765,10 +765,10 @@ markers:
           any:
               - all:
                     - card.in_slot: { slot: product-design }
-                    - design_review.running: { tag: product-design, rounds: 3 }
+                    - design_review.running: { tag: product-design, rounds: 6 }
               - all:
                     - card.in_slot: { slot: tech-design }
-                    - design_review.running: { tag: tech-design, rounds: 3 }
+                    - design_review.running: { tag: tech-design, rounds: 6 }
     - key: session-open
       kind: working
       label: marker.session_open
