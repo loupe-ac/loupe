@@ -18,6 +18,21 @@ func tryLockFile(f *os.File) error {
 	}
 }
 
+// waitLockFile takes the lock of f, alone when exclusive, and waits while
+// another open file holds it.
+func waitLockFile(f *os.File, exclusive bool) error {
+	how := syscall.LOCK_SH
+	if exclusive {
+		how = syscall.LOCK_EX
+	}
+	for {
+		err := syscall.Flock(int(f.Fd()), how)
+		if !errors.Is(err, syscall.EINTR) {
+			return err
+		}
+	}
+}
+
 // lockHeld reports whether tryLockFile failed because another file holds the lock.
 func lockHeld(err error) bool {
 	return errors.Is(err, syscall.EWOULDBLOCK)
