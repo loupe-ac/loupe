@@ -14,7 +14,7 @@ use Ubermuda\AuditBundle\AuditOutcome;
 use Ubermuda\AuditBundle\AuditSubject;
 
 /**
- * Issues a push token limited to the repository of one of the caller's
+ * Issues a push token limited to one repository of one of the caller's
  * projects. A project that keeps its own git setup gets none.
  */
 final readonly class IssueGitTokenHandler
@@ -45,14 +45,14 @@ final readonly class IssueGitTokenHandler
         }
 
         try {
-            $token = $this->issuer->issue($project);
+            $token = $this->issuer->issue($project, $command->repository);
         } catch (GitHubGitTokenRefused $refused) {
-            $this->auditor->record('github.git_token_refused', AuditOutcome::Refused, ['projectId' => $projectId, 'cause' => $refused->cause], new AuditSubject('project', $projectId));
+            $this->auditor->record('github.git_token_refused', AuditOutcome::Refused, ['projectId' => $projectId, 'repository' => $command->repository, 'cause' => $refused->cause], new AuditSubject('project', $projectId));
 
             throw $refused;
         }
 
-        $this->auditor->record('github.git_token_issued', AuditOutcome::Success, ['projectId' => $projectId], new AuditSubject('project', $projectId));
+        $this->auditor->record('github.git_token_issued', AuditOutcome::Success, ['projectId' => $projectId, 'repository' => $command->repository], new AuditSubject('project', $projectId));
 
         return $token;
     }

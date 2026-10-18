@@ -13,13 +13,14 @@ use App\Module\GitHub\Service\GitHubGitTokenRefused;
 use App\Security\CredentialRateLimitKey;
 use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\HttpKernel\Attribute\RateLimit;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Hands a managed worker a GitHub App token that opens the repository of one
+ * Hands a managed worker a GitHub App token that opens one repository of one
  * project and no other. The firewall admits agent-scoped tokens alone. The
- * repository comes from the project, never from the request.
+ * request names the repository, and the issuer serves only one the project holds.
  *
  * The rate limit key expression sees only the request, the arguments and this
  * controller, so the key service rides on a public property.
@@ -39,7 +40,7 @@ final class IssueGitTokenController extends AppController
     ) {
     }
 
-    public function __invoke(string $handle): JsonResponse
+    public function __invoke(string $handle, #[MapRequestPayload] IssueGitTokenRequest $payload): JsonResponse
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -47,7 +48,7 @@ final class IssueGitTokenController extends AppController
         }
 
         try {
-            $token = ($this->issueGitToken)(new IssueGitTokenCommand($user, $handle));
+            $token = ($this->issueGitToken)(new IssueGitTokenCommand($user, $handle, $payload->repository ?? throw new \LogicException('repository required after validation')));
         } catch (DomainErrors $e) {
             return isset($e->errors['handle'])
                 ? $this->json(['error' => 'project_not_found'], JsonResponse::HTTP_NOT_FOUND)

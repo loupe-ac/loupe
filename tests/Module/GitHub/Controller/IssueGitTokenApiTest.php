@@ -138,7 +138,7 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertSame('installation_suspended', $this->json()['error']);
     }
 
-    public function test_it_reads_the_repository_from_the_project_and_never_from_another_one(): void
+    public function test_it_serves_the_repository_of_the_project_and_never_the_one_of_another_project(): void
     {
         [$owner, $project] = $this->managedProject('mine', ['contents' => 'write', 'pull_requests' => 'write']);
         $other = $this->scenario->createProject($owner, 'Other site');
@@ -150,6 +150,41 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertStringContainsString('"repository_ids":['.self::REPOSITORY.']', $this->requests[1]['body']);
         self::assertStringNotContainsString('9002', $this->requests[1]['body']);
+    }
+
+    public function test_it_serves_the_repository_the_worker_names_when_the_project_holds_several(): void
+    {
+        [$owner, $project] = $this->managedProject('several', ['contents' => 'write', 'pull_requests' => 'write']);
+        $this->installation($project, self::INSTALLATION, 9_003, newInstallation: false);
+
+        $this->responses[] = $this->answer(['token' => 'ghs_scoped', 'expires_at' => '2026-10-18T14:00:00Z'], 201);
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id, 'ACME/site-9003');
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertStringContainsString('"repository_ids":[9003]', $this->requests[1]['body']);
+    }
+
+    public function test_it_refuses_a_repository_the_project_does_not_hold(): void
+    {
+        [$owner, $project] = $this->managedProject('foreign', ['contents' => 'write', 'pull_requests' => 'write']);
+        $other = $this->scenario->createProject($owner, 'Foreign site');
+        $this->installation($other, 71_004, 9_004);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id, 'acme/site-9004');
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('no_repository', $this->json()['error']);
+        self::assertSame([], $this->requests);
+    }
+
+    public function test_it_refuses_a_request_that_names_no_repository(): void
+    {
+        [$owner, $project] = $this->managedProject('unnamed', ['contents' => 'write', 'pull_requests' => 'write']);
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id, null);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame([], $this->requests);
     }
 
     public function test_it_does_not_serve_the_project_of_another_owner(): void
@@ -190,9 +225,11 @@ final class IssueGitTokenApiTest extends WebTestCase
         return [$owner, $project];
     }
 
-    private function installation(Project $project, int $installationId, int $repositoryId): void
+    private function installation(Project $project, int $installationId, int $repositoryId, bool $newInstallation = true): void
     {
-        $this->em()->persist(new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::Selected));
+        if ($newInstallation) {
+            $this->em()->persist(new GitHubInstallation($project, $installationId, 'acme', GitHubRepositorySelection::Selected));
+        }
         $this->em()->persist(new ForgeRepository($project, 'github', (string) $repositoryId, 'acme/site-'.$repositoryId, ForgeRepositorySource::Installation, (string) $installationId));
         $this->em()->flush();
     }
@@ -216,12 +253,14 @@ final class IssueGitTokenApiTest extends WebTestCase
         ));
     }
 
-    private function call(string $token, string $handle): void
+    /** @param ?string $repository the repository to ask for, or null to send an empty object */
+    private function call(string $token, string $handle, ?string $repository = 'acme/site-'.self::REPOSITORY): void
     {
         $this->client->request(Request::METHOD_POST, '/api/projects/'.$handle.'/git-token', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$token,
             'HTTP_ACCEPT' => 'application/json',
-        ]);
+            'CONTENT_TYPE' => 'application/json',
+        ], content: null === $repository ? '{}' : json_encode(['repository' => $repository], \JSON_THROW_ON_ERROR));
     }
 
     /** @param array<mixed> $body */

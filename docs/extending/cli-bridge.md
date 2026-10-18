@@ -1977,12 +1977,20 @@ columns endpoint, and `cardId` is the card's uuid.
 
 ## Git token endpoint
 
-`POST /api/projects/{handle}/git-token` returns a GitHub App token for the
+`POST /api/projects/{handle}/git-token` returns a GitHub App token for one
 repository of one project. The token opens that repository and no other, with
 Contents and Pull requests write access, and Workflows write access when the
-installation grants it. GitHub ends it after one hour. The request takes no
-body. The handle follows the same rules as the columns endpoint. Loupe reads the
-repository from the project, so a caller cannot name another one.
+installation grants it. GitHub ends it after one hour. The handle follows the
+same rules as the columns endpoint.
+
+The JSON body names the repository as `owner/name`, as the git remote of the
+worker names it. Loupe serves it only when a live installation of the GitHub App
+delivers that repository to the project. The match ignores case. A project can
+link several repositories, so each worker asks for the one it pushes to.
+
+```json
+{ "repository": "acme/site" }
+```
 
 ```json
 { "token": "ghs_example", "expiresAt": "2026-10-18T14:00:00+00:00" }
@@ -1998,7 +2006,9 @@ for every project. With the setting off, the endpoint hands out no token.
 | 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
 | 403 | `{"error":"git_identity_not_managed"}` | the setting is off for the project |
 | 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
-| 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` and `no_repository` name the other causes |
+| 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
+| 409 | `{"error":"no_repository","missing":[]}` | the project has installed repositories, and the named one is not among them |
+| 422 | | the body names no repository, or a value that is not `owner/name` |
 | 409 | `{"error":"missing_grant","missing":["contents"]}` | the installation lacks write access to the permissions that `missing` names |
 | 429 | | more than 60 requests in one minute from one token |
 | 502 | `{"error":"github_unavailable","missing":[]}` | GitHub did not answer |
