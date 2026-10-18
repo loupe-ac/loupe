@@ -38,6 +38,23 @@ final class ShippedKindPromptsTest extends TestCase
         }
     }
 
+    public function test_a_merge_stage_prompt_asks_for_an_action_that_the_merge_skill_accepts(): void
+    {
+        $skill = (string) file_get_contents(self::ROOT.'/plugins/loupe/skills/loupe-stage-merge/SKILL.md');
+
+        $checked = 0;
+        foreach ($this->lifecycleKinds() as $kind) {
+            $lines = explode("\n", $this->prompts()->forKind($kind) ?? '');
+            if ('Use the loupe-stage-merge skill.' !== $lines[0]) {
+                continue;
+            }
+            $request = strtr($lines[2], ['{pullRequestUrl}' => '<url>', '{headSha}' => '<sha>']);
+            self::assertStringContainsString('The line `'.$request.'`', $skill, $kind);
+            ++$checked;
+        }
+        self::assertSame(5, $checked);
+    }
+
     public function test_a_kind_with_no_prompt_file_or_an_unsafe_name_ships_none(): void
     {
         self::assertNull($this->prompts()->forKind('unknown-kind'));
