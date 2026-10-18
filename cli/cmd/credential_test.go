@@ -158,6 +158,9 @@ func TestGitRepositoryFailsClosedUnlessTheRemoteIsAbsentOrOffGitHub(t *testing.T
 			[]string{"remote", "add", "origin", "git@github.com:acme/site.git"},
 			[]string{"config", "--add", "remote.origin.pushurl", "git@github.com:acme/site.git"},
 			[]string{"config", "--add", "remote.origin.pushurl", "https://github.com/acme/site"}), "acme/site", nil},
+		{"a machine rewrite sends the origin over SSH", gitFolder(t,
+			[]string{"remote", "add", "origin", "https://github.com/acme/site.git"},
+			[]string{"config", "url.git@github.com:.insteadOf", "https://github.com/"}), "", nil},
 		{"push to the same repository", gitFolder(t,
 			[]string{"remote", "add", "origin", "https://github.com/acme/site"},
 			[]string{"config", "remote.origin.pushurl", "git@github.com:ACME/site.git"}), "ACME/site", nil},
@@ -180,6 +183,39 @@ func TestGitRepositoryFailsClosedUnlessTheRemoteIsAbsentOrOffGitHub(t *testing.T
 				t.Fatalf("err = %v, want %v", err, c.want)
 			}
 		})
+	}
+}
+
+// A worker that gitRepository accepts must push to GitHub over HTTPS, whatever
+// url rewrite the git config of the machine holds.
+func TestAnAcceptedOriginPushesOverHTTPSUnderMachineRewrites(t *testing.T) {
+	origins := []string{"https://github.com/acme/site.git", "git@github.com:acme/site.git", "ssh://git@github.com/acme/site"}
+	rewrites := [][]string{
+		{"url.git@github.com:.insteadOf", "https://github.com/"},
+		{"url.git@github.com:.pushInsteadOf", "https://github.com/"},
+		{"url.ssh://git@github.com/.insteadOf", "https://github.com/"},
+		{"url.ssh://git@github.com:22/.pushInsteadOf", "git@github.com:"},
+		{"url.https://github.com/.insteadOf", "git@github.com:"},
+		{"url.https://evil.example/.pushInsteadOf", "https://github.com/acme/"},
+	}
+	env := workerEnv(os.Environ(), "s1", nil, credEnvFixture())
+	for _, origin := range origins {
+		for _, rewrite := range rewrites {
+			dir := gitFolder(t, []string{"remote", "add", "origin", origin}, append([]string{"config"}, rewrite...))
+			if _, err := gitRepository(context.Background(), dir); err != nil {
+				if errors.Is(err, errNoOrigin) || errors.Is(err, errNotGitHub) {
+					t.Errorf("origin %q with %v leaves the worker on the machine setup: %v", origin, rewrite, err)
+				}
+
+				continue
+			}
+			cmd := exec.Command("git", "-C", dir, "remote", "get-url", "--push", "origin")
+			cmd.Env = env
+			out, err := cmd.Output()
+			if err != nil || !strings.HasPrefix(string(out), "https://github.com/acme/site") {
+				t.Errorf("origin %q with %v pushes to %q, %v; want https://github.com/acme/site", origin, rewrite, out, err)
+			}
+		}
 	}
 }
 

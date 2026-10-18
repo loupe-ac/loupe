@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -227,6 +229,9 @@ func gitRepository(ctx context.Context, dir string) (string, error) {
 	var firstErr error
 	for i, remote := range remotes {
 		repos[i], err = parseGitHubRemote(remote)
+		if err == nil && hasGitHubSSHPrefix(remote) {
+			err = fmt.Errorf("a url rewrite in the git config of the machine sends the origin address %q over SSH, so remove that rewrite", remote)
+		}
 		if errors.Is(err, errNotGitHub) {
 			offGitHub++
 		}
@@ -249,14 +254,15 @@ func gitRepository(ctx context.Context, dir string) (string, error) {
 	return repos[len(fetch)], nil
 }
 
-// originURLs runs git remote get-url for origin in dir, and returns one address
-// per line. Only the exit code 2 of git, which says the remote does not exist,
-// gives errNoOrigin.
+// originURLs runs git remote get-url for origin in dir, with the url rewrites
+// of a worker, and returns one address per line. Only the exit code 2 of git,
+// which says the remote does not exist, gives errNoOrigin.
 func originURLs(ctx context.Context, dir string, flags ...string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTokenTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "git", append(append([]string{"remote", "get-url"}, flags...), "origin")...)
 	cmd.Dir = dir
+	cmd.Env = withGitHubRewrites(os.Environ())
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()
@@ -277,6 +283,35 @@ func originURLs(ctx context.Context, dir string, flags ...string) ([]string, err
 
 // githubSSHPrefixes are the SSH address forms that workerEnv rewrites to HTTPS.
 var githubSSHPrefixes = []string{"git@github.com:", "ssh://git@github.com/"}
+
+// hasGitHubSSHPrefix says whether remote starts with one of githubSSHPrefixes.
+// After the rewrites of a worker, only a rewrite of the machine produces one.
+func hasGitHubSSHPrefix(remote string) bool {
+	return slices.ContainsFunc(githubSSHPrefixes, func(prefix string) bool { return strings.HasPrefix(remote, prefix) })
+}
+
+// withGitHubRewrites adds to environ the url rewrites that workerEnv gives a
+// worker, after the git config entries that environ holds already.
+func withGitHubRewrites(environ []string) []string {
+	env := make([]string, 0, len(environ)+5)
+	count := 0
+	for _, e := range environ {
+		if n, ok := strings.CutPrefix(e, "GIT_CONFIG_COUNT="); ok {
+			count, _ = strconv.Atoi(n)
+			count = max(count, 0)
+
+			continue
+		}
+		env = append(env, e)
+	}
+	for _, prefix := range githubSSHPrefixes {
+		n := strconv.Itoa(count)
+		env = append(env, "GIT_CONFIG_KEY_"+n+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n+"="+prefix)
+		count++
+	}
+
+	return append(env, "GIT_CONFIG_COUNT="+strconv.Itoa(count))
+}
 
 // parseGitHubRemote returns owner/name from a GitHub remote URL in the https,
 // scp or ssh form. A URL with a password is refused, because git pushes with

@@ -924,13 +924,18 @@ Any other SSH address of GitHub, such as one with a port, another user or an
 uppercase host, is refused. The `insteadOf` entries do not change it, so git
 would push it with the SSH key of the machine.
 
+The bridge reads each address as the worker's git sees it, with the worker's
+`insteadOf` entries added to your git configuration. When a rule of your own
+still sends an address to SSH, the bridge refuses the address. Remove that rule
+on the machine of the bridge.
+
 | Answer | The worker |
 |---|---|
 | A token | is managed |
 | 403 `git_identity_not_managed` | keeps the git setup of the machine, as without this feature |
 | 404 with no error code, from a server without the route | keeps the git setup of the machine |
 | A folder with no `origin` remote, or an `origin` remote with no address on GitHub | keeps the git setup of the machine |
-| Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, an address with a password, or another SSH address of GitHub | is managed, and its credentials fail until the cause ends |
+| Any other failure, such as 409, 502, a network error, a git command that fails, a remote whose addresses name different places, an address with a password, another SSH address of GitHub, or an address that a rule of your git configuration sends to SSH | is managed, and its credentials fail until the cause ends |
 
 A managed worker gets the same environment as a worker with an agent account,
 except for the git identity. The bridge leaves `GIT_AUTHOR_*` and
