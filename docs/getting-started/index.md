@@ -43,6 +43,13 @@ loupe init
 projects your login covers and asks which one. Commit the file, so everyone in
 the repository reaches the same project.
 
+It also writes `.loupe/lifecycle.md`, the repository profile that every stage
+skill reads. The file holds the gate commands, the pull request rules and the
+column names. `loupe init` guesses the gate commands from a `justfile`, a
+`Makefile`, `package.json`, `composer.json` or `go.mod`, and marks each guess
+"detected, check it". Read the file, correct the guesses, and commit it, because
+a worker sees only what you push. A profile that exists is never replaced.
+
 When Claude Code does not start the `loupe` MCP server yet, `loupe init` offers
 to declare it for every repository:
 

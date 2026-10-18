@@ -397,6 +397,9 @@ that change from one setup to the next.
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
    skill never reads the column list, which can be missing.
+   `loupe init` writes a starter profile when the repository has none, from
+   `cli/internal/profile`. It marks each guessed value "detected, check it", and
+   the discovery run proposes a card for each marked value that is wrong.
 2. A harness adapter maps the steps of a worker to the tools of one agent
    harness: connect to Loupe, load an instruction, run a long command,
    dispatch a sub-agent, and write and run a plan. The generic adapter is

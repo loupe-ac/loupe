@@ -70,6 +70,9 @@ cd ~/code/my-project
 loupe init                   # writes .loupe.yaml, choosing from your projects
 ```
 
+`loupe init` also writes `.loupe/lifecycle.md` when the repository has none.
+[Getting started](../getting-started/index.md) says what the file holds.
+
 `loupe init` then checks how Claude Code starts the `loupe` server. When nothing
 does, it offers to declare it for every project:
 
