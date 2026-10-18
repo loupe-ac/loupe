@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,6 +37,7 @@ const (
 // replaces them.
 var (
 	initLookPath = exec.LookPath
+	initGOOS     = runtime.GOOS
 	initExec     = func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
 		c := exec.CommandContext(ctx, name, args...)
 		c.Dir = dir
@@ -278,7 +280,7 @@ func createProjectFromRemote(ctx context.Context, client *api.Client, dir, baseU
 	byHand := fmt.Sprintf("pass --project <id>, or create the project in the app at %s", baseURL)
 
 	raw, err := initExec(ctx, dir, "git", "remote", "get-url", "origin")
-	remote := strings.TrimSpace(string(raw))
+	remote := withoutUserinfo(strings.TrimSpace(string(raw)))
 	if err != nil || remote == "" {
 		return api.Site{}, fmt.Errorf("your login covers no project, and this repository has no origin remote to name one: %s", byHand)
 	}
@@ -289,6 +291,18 @@ func createProjectFromRemote(ctx context.Context, client *api.Client, dir, baseU
 	}
 
 	return site, nil
+}
+
+// withoutUserinfo drops the user and password of a URL remote, which can hold
+// a token. An scp-style remote such as git@host:path has no password.
+func withoutUserinfo(remote string) string {
+	u, err := url.Parse(remote)
+	if err != nil || u.User == nil {
+		return remote
+	}
+	u.User = nil
+
+	return u.String()
 }
 
 // initLink writes the project file, the profile and the MCP declaration. A
@@ -370,7 +384,7 @@ func indented(raw []byte) string {
 // reports whether it changed a file that existed.
 func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) (bool, error) {
 	out := cmd.OutOrStdout()
-	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), Dir: dir}
+	opts := rules.FirstRunOptions{Slug: cmp.Or(site.Slug, site.ID), Dir: dir, LookPath: initLookPath, GOOS: initGOOS}
 
 	existing, err := os.ReadFile(path)
 	missing := errors.Is(err, fs.ErrNotExist)
@@ -400,6 +414,7 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 		}
 		if len(added) == 0 {
 			step(out, "Rules", "skipped", path+" has what the first run needs")
+			noteNoProductDesign(out, path, next, opts)
 
 			return false, nil
 		}
@@ -408,6 +423,7 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 
 	if !missing && bytes.Equal(existing, next) {
 		step(out, "Rules", "skipped", path+" is the same already")
+		noteNoProductDesign(out, path, next, opts)
 
 		return false, nil
 	}
@@ -415,8 +431,22 @@ func initRules(cmd *cobra.Command, path, dir string, site api.Site, reset bool) 
 		return false, err
 	}
 	step(out, "Rules", "done", detail)
+	noteNoProductDesign(out, path, next, opts)
 
 	return !missing, nil
+}
+
+// noteNoProductDesign says so when the rule file runs no interactive work
+// because first-run knows no terminal on this machine.
+func noteNoProductDesign(out io.Writer, path string, data []byte, opts rules.FirstRunOptions) {
+	if opts.Terminal() != nil {
+		return
+	}
+	set, err := rules.Parse(data, rules.Defaults{})
+	if err != nil || set.HasInteractive() {
+		return
+	}
+	step(out, "Product design", "skipped", fmt.Sprintf("this machine has no known terminal, so %s has no interactive entry and product design waits for a person. To run it here, add a `launch` command and a `work.%s` entry with `action: %s` to that file", path, rules.ProductDesignKind, rules.ActionInteractive))
 }
 
 // saveRuleFile replaces the file through a rename. A new file gets mode 0600

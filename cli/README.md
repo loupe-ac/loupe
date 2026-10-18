@@ -186,7 +186,9 @@ loupe init --reset               # write the first-run rules again
    you to run, and never fails the step.
 5. Write the rule file. A new file holds the first-run rules: app prompts on,
    one account for the agent it finds, the project, and, where it knows a
-   terminal, a product-design entry. An existing file gets only the keys it
+   terminal, a product-design entry. With no known terminal, the step says
+   that product design waits for a person, and names the keys to add by hand.
+   An existing file gets only the keys it
    lacks, and its comments stay. A file with no account gets the account of the
    agent it finds. `--reset` writes the first-run rules again and keeps the
    `projects` map. When that map holds the project under another directory,

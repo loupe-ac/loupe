@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,10 +72,11 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	}))
 	t.Cleanup(w.server.Close)
 
-	oldLook, oldExec, oldStart, oldRuns, oldReload := initLookPath, initExec, initStartBridge, initBridgeRuns, initReloadBridge
+	oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload := initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge
 	t.Cleanup(func() {
-		initLookPath, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldExec, oldStart, oldRuns, oldReload
+		initLookPath, initGOOS, initExec, initStartBridge, initBridgeRuns, initReloadBridge = oldLook, oldGOOS, oldExec, oldStart, oldRuns, oldReload
 	})
+	initGOOS = "darwin"
 	initLookPath = func(name string) (string, error) {
 		if name == "claude" && w.claude {
 			return "/bin/claude", nil
@@ -336,6 +338,50 @@ func TestInitCreatesAProjectFromTheOriginRemoteWhenTheLoginCoversNone(t *testing
 	}
 }
 
+func TestInitSendsAndPrintsTheRemoteWithoutItsCredentials(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet {
+			fmt.Fprint(rw, `{"sites":[]}`)
+
+			return
+		}
+		if body, _ := io.ReadAll(r.Body); strings.Contains(string(body), "s3cret") {
+			t.Errorf("the create request carries the token: %s", body)
+		}
+		rw.WriteHeader(http.StatusConflict)
+		fmt.Fprint(rw, `{"error":"name_taken"}`)
+	}))
+	t.Cleanup(server.Close)
+	w := newInitWorld(t, "")
+	inRepo(t, server.URL)
+	w.execOut["git remote get-url origin"] = "https://bob:s3cret@github.com/acme/app.git\n"
+
+	out, err := runInitCmd(t, "", "--no-mcp")
+	if err == nil {
+		t.Fatalf("init must fail on the refusal:\n%s", out)
+	}
+	if strings.Contains(err.Error()+out, "s3cret") || strings.Contains(err.Error(), "bob@") {
+		t.Errorf("the error shows the credentials: %v\n%s", err, out)
+	}
+	if !strings.Contains(err.Error(), "https://github.com/acme/app.git") {
+		t.Errorf("err = %v, want the remote without its credentials", err)
+	}
+}
+
+func TestWithoutUserinfoKeepsARemoteWithNoCredentials(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://x-access-token:tok@github.com/acme/app.git": "https://github.com/acme/app.git",
+		"https://github.com/acme/app.git":                    "https://github.com/acme/app.git",
+		"git@github.com:acme/app.git":                        "git@github.com:acme/app.git",
+		"ssh://git@github.com/acme/app.git":                  "ssh://github.com/acme/app.git",
+	} {
+		if got := withoutUserinfo(in); got != want {
+			t.Errorf("withoutUserinfo(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestInitAsksForAProjectWhenThereIsNoRemote(t *testing.T) {
 	w := newInitWorld(t, "")
 	dir := inRepo(t, w.server.URL)
@@ -475,6 +521,41 @@ func TestInitAddsOnlyWhatAnExistingRuleFileLacks(t *testing.T) {
 	}
 }
 
+func TestInitSaysProductDesignWaitsOnAMachineWithNoTerminal(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+	initGOOS = "linux"
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Product design: skipped, this machine has no known terminal") {
+		t.Errorf("init must say that product design waits for a person:\n%s", out)
+	}
+
+	out, err = runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("second init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Product design: skipped") {
+		t.Errorf("a second run must say it again:\n%s", out)
+	}
+}
+
+func TestInitSaysNothingAboutProductDesignWhenATerminalIsKnown(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "Product design:") {
+		t.Errorf("a machine with a terminal gets the entry:\n%s", out)
+	}
+}
+
 func TestInitResetWritesTheFirstRunFileAndKeepsTheProjectsMap(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	dir := inRepo(t, w.server.URL)
@@ -576,7 +657,7 @@ func TestInitReloadsARunningBridgeWhenTheRulesChange(t *testing.T) {
 		t.Errorf("reloads = %d, starts = %d, want 1 and 0:\n%s", w.reloads, w.bridgeStarts, out)
 	}
 
-	full, err := rules.FirstRun(rules.FirstRunOptions{Slug: "dev", Dir: dir})
+	full, err := rules.FirstRun(rules.FirstRunOptions{Slug: "dev", Dir: dir, LookPath: initLookPath, GOOS: initGOOS})
 	if err != nil {
 		t.Fatal(err)
 	}
