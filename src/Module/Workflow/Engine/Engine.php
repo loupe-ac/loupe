@@ -407,7 +407,9 @@ final readonly class Engine
         if ($state->attempts > $policy->retries || null === $backoff) {
             $state->dueAt = null;
             if (null !== $policy->repairKind && !$state->repaired) {
-                $outcome = $this->opener->open($this->contexts->for($rule, $run->card, $bound->facts, $state->fires), $policy->repairKind, null, $code);
+                // The prompt of an app rule asks for the work of that rule, so the repair carries the prompt of its own kind.
+                $context = $rule->context($run->card, $bound->facts, $state->fires, $this->contexts->columns($rule, $run->card->projectId));
+                $outcome = $this->opener->open($context, $policy->repairKind, null, $code);
                 if (null !== $outcome->requestId) {
                     $state->workRequestId = $outcome->requestId;
                     $state->repaired = true;

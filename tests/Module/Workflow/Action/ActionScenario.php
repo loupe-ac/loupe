@@ -30,6 +30,7 @@ use App\Module\Workflow\Contract\ActionOutcomeKind;
 use App\Module\Workflow\Contract\BoardColumns;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\Facts;
+use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Expression\AllOf;
@@ -99,6 +100,7 @@ trait ActionScenario
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
             $this->service(RetryNotes::class),
+            $this->service(KindPrompts::class),
         );
     }
 

@@ -198,6 +198,30 @@ gh pr update-branch <url>
 
 This merges the base into the head branch on the forge. Never pass `--rebase`. Whether an update keeps an approval depends on the branch rules, and the repository profile says it.
 
+## Change the base
+
+The base of a stacked pull request is the head branch of its parent. Find the merged parent, and read its base:
+
+```bash
+gh pr view <url> --json baseRefName -q .baseRefName
+gh pr list --head <parent head branch> --state merged --json url,baseRefName
+```
+
+An empty list means no parent merged. Then change the base to the `baseRefName` of the parent:
+
+```bash
+gh pr edit <url> --base <parent base>
+```
+
+## Merge a branch into the epic branch
+
+```bash
+git ls-remote --exit-code origin refs/heads/<epic branch>
+gh api repos/<nameWithOwner>/merges -f base='<epic branch>' -f head='<base>' -i
+```
+
+A non-zero exit of `git ls-remote` means the epic branch does not exist. The forge makes the merge commit on the epic branch. The status line reports the result: `201` merged, `204` already up to date, and `409` a conflict. Any other status is a failed step.
+
 ## Merge
 
 ```bash

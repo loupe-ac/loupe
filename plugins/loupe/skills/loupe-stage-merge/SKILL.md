@@ -1,6 +1,6 @@
 ---
 name: loupe-stage-merge
-description: "Use when a card's pull request is ready to merge or behind its base, from a merge, sync or epic preview work request of the workflow, or when a prompt names loupe-stage-merge."
+description: "Use when a card's pull request is ready to merge or behind its base, when a stacked pull request needs a new base, when an epic branch is behind its base, from a merge, sync, rebase-stacked, sync-epic or epic preview work request of the workflow, or when a prompt names loupe-stage-merge."
 ---
 
 # Merge stage
@@ -23,7 +23,7 @@ Merge one card's pull request when it is ready, or bring a branch that is behind
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
 2. Load `working-with-prs` when the profile `Instruction files` section names it.
-3. Read the prompt. The line `Loupe asks for epic preview work.` asks for an epic preview refresh. The card of the request is the epic itself. When its `type` is not `epic`, stop with `STAGE RESULT: blocked: not an epic`. Then take "Refresh the epic preview", and skip steps 4 to 8. The line `Pull request <url> is ready to merge at <sha>.` asks for a merge. The line `Pull request <url> is behind its base.` asks for an update. The line `Loupe asks for merge work.` asks for a merge, and `Loupe asks for sync work.` asks for an update. A merge or sync work request names no pull request, so take the one open pull request of the card `pullRequests`, and its head commit from the forge adapter as the SHA of the prompt. When the card has no open pull request, stop with `STAGE RESULT: no open pull request`. When it has more than one, stop with `STAGE RESULT: blocked: more than one open pull request`. Any other prompt: stop with `STAGE RESULT: blocked: no merge request in the prompt`.
+3. Read the prompt. The line `Loupe asks for epic preview work.` asks for an epic preview refresh. The card of the request is the epic itself. When its `type` is not `epic`, stop with `STAGE RESULT: blocked: not an epic`. Then take "Refresh the epic preview", and skip steps 4 to 8. The line `Pull request <url> is ready to merge at <sha>.` asks for a merge. The line `Pull request <url> is behind its base.` asks for an update. The line `Loupe asks for merge work.` asks for a merge, and `Loupe asks for sync work.` asks for an update. A merge or sync work request names no pull request, so take the one open pull request of the card `pullRequests`, and its head commit from the forge adapter as the SHA of the prompt. When the card has no open pull request, stop with `STAGE RESULT: no open pull request`. When it has more than one, stop with `STAGE RESULT: blocked: more than one open pull request`. The line `Its stacked pull request <url> needs a new base, because its parent merged.` asks for a base change: take "Change the base" after step 5, and skip steps 6 to 8. The line `The epic branch of its parent card is behind the base branch.` asks for an epic sync: take "Sync the epic branch", and skip steps 4 to 8. Any other prompt: stop with `STAGE RESULT: blocked: no merge request in the prompt`.
 4. The URL must be one of the card `pullRequests`. Otherwise stop with `STAGE RESULT: blocked: pull request not linked to the card`.
 5. Find and validate the pull request with the forge adapter. When it is outside this repository, stop with `STAGE RESULT: blocked: pull request outside this repository`. When its state is `merged`, stop with `STAGE RESULT: merged <url>`. When it is `closed`, stop with `STAGE RESULT: no open pull request`.
 6. Read the merge state with the forge adapter. Read its Report words only, as `../loupe-stage-implementation/references/commands.md` "Report words" lists them. From this step on, post the refusal comment before each `not ready` or `blocked:` stop. Follow "Post a refusal comment" in `../loupe-stage-implementation/references/commands.md`.
@@ -79,6 +79,24 @@ Then:
 3. Stop with `STAGE RESULT: merged <url>`.
 
 The app opens the epic pull request after the first child merge. The app asks for epic preview work when the epic is in review, no other work runs on it, and no refresh ended well at the head of its pull request. A fix round push, a sync and a child merge each give the pull request a new head.
+
+### Change the base
+
+The parent of a stacked pull request merged, so the pull request needs the base of its parent. This step serves a project whose forge has no connection that writes the base change.
+
+1. Read the base of the pull request, which is the head branch of its parent. Find the merged parent pull request with that head branch, as "Change the base" in the forge adapter says. When no parent merged, stop with `STAGE RESULT: not ready <url>: parent not merged`.
+2. Change the base of the pull request to the base of the parent, with the forge adapter. Never rebase, and never push.
+3. Stop with `STAGE RESULT: waiting <url>`. A conflict with the new base reaches a fix round as a fix request.
+
+### Sync the epic branch
+
+A blocker outside the epic merged code into the base branch, and the epic branch of the parent card does not hold it yet. This step serves a project whose forge has no connection that writes the merge. The card of the request is a child of the epic.
+
+1. When the card `parent` is null, or the profile has no `Epics` section, stop with `STAGE RESULT: unchanged`.
+2. Fill the epic branch pattern of the profile `Epics` section with `parent.number`. When the forge has no such branch, stop with `STAGE RESULT: unchanged`, because the children start from the base branch.
+3. Merge the base branch of the profile `Gate` section into the epic branch, with "Merge a branch into the epic branch" in the forge adapter. The forge makes the merge commit, so nothing changes in a local folder.
+4. When the forge reports a conflict, stop with `STAGE RESULT: blocked: merge conflict with <base> in <epic branch>`, and record the block on the card.
+5. Stop with `STAGE RESULT: epic branch synced <epic branch>`.
 
 ### Refresh the epic preview
 
