@@ -49,10 +49,10 @@ final readonly class GitIdentityLines
         $login = $identity->pushLogin;
         $state = match (true) {
             WorkshopGitIdentity::MODE_APP_TOKEN === $identity->mode => GitIdentityState::AppBot,
+            $this->isOwner($identity, $owner) => GitIdentityState::OwnerAccount,
             WorkshopGitIdentity::MODE_AGENT_ACCOUNT === $identity->mode => '' === $login ? GitIdentityState::AgentAccountUnverified : GitIdentityState::AgentAccount,
             '' === $login => GitIdentityState::Unknown,
             $this->isLoupeAppBot($login) => GitIdentityState::AppBot,
-            $this->isOwner($identity, $owner) => GitIdentityState::OwnerAccount,
             null !== $project->agentGitHubLogin && 0 === strcasecmp($login, $project->agentGitHubLogin) => GitIdentityState::Detected,
             default => GitIdentityState::MaybeOwnerAccount,
         };

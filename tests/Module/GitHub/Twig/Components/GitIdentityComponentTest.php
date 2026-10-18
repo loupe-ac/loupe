@@ -96,6 +96,28 @@ final class GitIdentityComponentTest extends WebTestCase
         self::assertStringNotContainsString('Managed', $line->text());
     }
 
+    public function test_an_agent_account_with_the_owner_login_warns_instead_of_showing_managed(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giagentaslogin', [['mode' => 'agent_account', 'commitName' => 'Riley', 'pushLogin' => 'Riley-Dev', 'githubUserId' => null]], ownerLogin: 'riley-dev', ownerGitHubId: 42);
+
+        $crawler = $this->connectPage($client, $project);
+
+        self::assertCount(0, $crawler->filter('[data-git-identity="agent-account"]'));
+        self::assertCount(1, $crawler->filter('[data-git-identity="owner-account"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="git-identity-warning"]'));
+    }
+
+    public function test_an_agent_account_with_the_owner_id_warns_instead_of_showing_managed(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giagentasid', [['mode' => 'agent_account', 'commitName' => 'Riley', 'pushLogin' => 'acme-agent', 'githubUserId' => 42]], ownerLogin: 'riley-dev', ownerGitHubId: 42);
+
+        $crawler = $this->connectPage($client, $project);
+
+        self::assertCount(0, $crawler->filter('[data-git-identity="agent-account"]'));
+        self::assertCount(1, $crawler->filter('[data-git-identity="owner-account"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="git-identity-warning"]'));
+    }
+
     public function test_a_managed_project_still_warns_about_a_machine_that_pushes_as_the_owner(): void
     {
         [$client, $project] = $this->managedProjectWith('gimachine', [['mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 42]], ownerLogin: 'riley-dev', ownerGitHubId: 42);
