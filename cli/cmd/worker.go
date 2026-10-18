@@ -149,12 +149,15 @@ type workerOps struct {
 	// adoptRuleCommand.
 	command      func(ctx context.Context, spec procSpec, onStart func(workerProc)) procResult
 	adoptCommand func(ctx context.Context, dir string) procResult
+	// worktree returns the worktree of a card of a project, and makes it first
+	// when it is missing. A nil one is ensureWorktree.
+	worktree func(ctx context.Context, projectDir, slug string, card int) (string, error)
 }
 
 func defaultWorkerOps() workerOps {
 	return workerOps{
 		run: runWorker, adopt: adoptWorker, sessionID: config.NewUUID, before: runBefore, adoptBefore: adoptBeforeProc,
-		command: runRuleCommand, adoptCommand: adoptRuleCommand,
+		command: runRuleCommand, adoptCommand: adoptRuleCommand, worktree: ensureWorktree,
 	}
 }
 

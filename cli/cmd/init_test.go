@@ -12,6 +12,7 @@ import (
 
 	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/mcpjson"
+	"github.com/ubermuda/loupe/cli/internal/profile"
 	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
@@ -438,5 +439,75 @@ func TestMcpAndNoMcpTogetherAreRefused(t *testing.T) {
 
 	if _, err := runInit(t, "", "--project", firstProject, "--mcp", "--no-mcp"); err == nil {
 		t.Fatal("init --mcp --no-mcp: got no error")
+	}
+}
+
+func TestInitWritesTheStarterProfileFromWhatItDetects(t *testing.T) {
+	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
+	dir := inRepo(t, server.URL)
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"scripts":{"test":"vitest"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInit(t, "")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if !strings.Contains(out, "Wrote "+profile.Path) {
+		t.Fatalf("output must say the profile was written, got %q", out)
+	}
+
+	body, err := os.ReadFile(filepath.Join(dir, profile.Path))
+	if err != nil {
+		t.Fatalf("read profile: %v", err)
+	}
+	if !strings.Contains(string(body), "Run `npm test` ("+profile.Marker+": package.json).") {
+		t.Fatalf("profile must hold the detected gate, got:\n%s", body)
+	}
+}
+
+func TestInitKeepsAProfileThatExists(t *testing.T) {
+	server := projectsServer(t, `{"id":"`+firstProject+`","slug":"dev","name":"Dev Project"}`)
+	dir := inRepo(t, server.URL)
+	path := filepath.Join(dir, profile.Path)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runInit(t, "")
+	if err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if !strings.Contains(out, profile.Path+" already exists") {
+		t.Fatalf("output must say the profile is kept, got %q", out)
+	}
+	if body, _ := os.ReadFile(path); string(body) != "mine\n" {
+		t.Fatalf("profile was replaced: %q", body)
+	}
+}
+
+func TestInitWritesTheProfileWhenTheProjectFileExists(t *testing.T) {
+	for _, args := range [][]string{nil, {"--mcp-json", "--mcp"}} {
+		dir := inRepo(t, "")
+		if err := projectfile.Write(dir, firstProject); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
+
+		_, err := runInit(t, "", args...)
+		if nil == args && (err == nil || !strings.Contains(err.Error(), "--force")) {
+			t.Fatalf("init %v over an existing file: got %v, want the --force refusal", args, err)
+		}
+		if nil != args && err != nil {
+			t.Fatalf("init %v: %v", args, err)
+		}
+		if _, err := os.Stat(filepath.Join(dir, profile.Path)); err != nil {
+			t.Fatalf("init %v must write the profile: %v", args, err)
+		}
+		if file, _ := projectfile.Load(dir); file.Project != firstProject {
+			t.Fatalf("init %v replaced the project file: %q", args, file.Project)
+		}
 	}
 }

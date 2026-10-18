@@ -12,7 +12,7 @@ The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Cod
 
 ## Pick the forge adapter
 
-The stage skills name forge operations. An adapter file maps them to commands for one forge. The operations are these: find and validate a pull request, list feedback items, reply to a thread, post a top-level comment, and post a refusal comment. Also read checks and failed logs, create a pull request, and check mergeability. The merge stage adds five more: read the merge state, check the approval covers the head, compare with the base, update the branch, and merge.
+The stage skills name forge operations. An adapter file maps them to commands for one forge. The operations are these: find and validate a pull request, list feedback items, reply to a thread, post a top-level comment, and post a refusal comment. Also read checks and failed logs, create a pull request, and check mergeability. The merge stage adds seven more: read the merge state, check the approval covers the head, compare with the base, update the branch, merge, change the base, and merge a branch into the epic branch.
 
 1. When the profile has a `Forge` section, its value is the forge. Take no other source.
 2. Otherwise read the forge from `pullRequests[].forge` in `card_get`: `github`, `gitlab`, `bitbucket` or `other`. The app stores `other` for every link it cannot parse, so `other` names no forge. Go on to item 3.
