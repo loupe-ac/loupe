@@ -2,14 +2,16 @@ package rules
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
 // Gaps names what a rule file lacks for dir to run work: a permission default,
-// a source of prompts, and a project that maps dir. The file may be valid and
-// still run nothing, so a gap is a note and never an error. An empty result
-// means the file lacks nothing.
-func Gaps(data []byte, dir string) ([]string, error) {
+// a source of prompts, and a project that maps dir. keys are the handles of the
+// project linked to dir, such as its slug and its id, and only an entry under
+// one of them counts. With no keys, any entry counts. The file may be valid
+// and still run nothing, so a gap is a note and never an error.
+func Gaps(data []byte, dir string, keys ...string) ([]string, error) {
 	m, err := decodeMap(data)
 	if err != nil {
 		return nil, err
@@ -21,7 +23,11 @@ func Gaps(data []byte, dir string) ([]string, error) {
 	if !hasPrompts(m) {
 		gaps = append(gaps, "it has no prompts: set appPrompts to true, or add a work entry")
 	}
-	if !mapsDir(m, dir) {
+	switch {
+	case mapsDir(m, dir, keys):
+	case len(keys) > 0:
+		gaps = append(gaps, "project "+keys[0]+" does not map "+dir+": add it under projects")
+	default:
 		gaps = append(gaps, "no project maps "+dir+": add it under projects")
 	}
 
@@ -55,10 +61,13 @@ func hasPrompts(m map[string]any) bool {
 	return len(work) > 0
 }
 
-func mapsDir(m map[string]any, dir string) bool {
+func mapsDir(m map[string]any, dir string, keys []string) bool {
 	want := canonical(dir)
 	projects, _ := m["projects"].(map[string]any)
-	for _, project := range projects {
+	for key, project := range projects {
+		if len(keys) > 0 && !slices.ContainsFunc(keys, func(k string) bool { return k != "" && strings.EqualFold(k, key) }) {
+			continue
+		}
 		fields, _ := project.(map[string]any)
 		dir := text(fields["dir"])
 		if dir == "" {

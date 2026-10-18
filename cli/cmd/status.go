@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -61,10 +62,10 @@ func newStatusCmd() *cobra.Command {
 			"status, because the error comes after the verdict when the two streams merge.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
-			err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
+			current, err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
 			noteClaudeCode(out)
 			err = errors.Join(err, checkStatusAccounts(cmd.Context(), out, rulesPath))
-			noteRuleGaps(out, rulesPath)
+			noteRuleGaps(out, rulesPath, current)
 			if err != nil {
 				fmt.Fprintln(out, statusFail)
 
@@ -81,18 +82,18 @@ func newStatusCmd() *cobra.Command {
 	return cmd
 }
 
-// checkStatus runs the checks that decide pass or fail, and prints what each
-// one found.
-func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.Writer) error {
+// checkStatus runs the checks that decide pass or fail, prints what each one
+// found, and returns the project that `loupe mcp` uses here.
+func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.Writer) (api.Site, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return api.Site{}, err
 	}
 	fmt.Fprintf(out, "Instance:    %s\n", cfg.BaseURL)
 
 	project, err := mcpProject(projectID, notes)
 	if err != nil {
-		return err
+		return api.Site{}, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, statusTimeout)
@@ -105,25 +106,25 @@ func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.
 	client := mcp.NewClient(&mcp.Implementation{Name: "loupe-status", Version: versionString()}, nil)
 	session, err := client.Connect(ctx, loupeTransport(cfg.BaseURL+mcpPath, hc), nil)
 	if err != nil {
-		return fmt.Errorf("could not open an MCP session with %s: %w\n\nCheck that the instance is up, or run `loupe login` again", cfg.BaseURL, err)
+		return api.Site{}, fmt.Errorf("could not open an MCP session with %s: %w\n\nCheck that the instance is up, or run `loupe login` again", cfg.BaseURL, err)
 	}
 	defer func() { _ = session.Close() }()
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "project_current"})
 	if err != nil {
-		return fmt.Errorf("project_current failed: %w\n\nCheck that the instance is up, or run `loupe login` again", err)
+		return api.Site{}, fmt.Errorf("project_current failed: %w\n\nCheck that the instance is up, or run `loupe login` again", err)
 	}
 	if res.IsError {
-		return fmt.Errorf("project_current refused: %s", toolText(res))
+		return api.Site{}, fmt.Errorf("project_current refused: %s", toolText(res))
 	}
 
 	current, err := readCurrentProject(res)
 	if err != nil {
-		return err
+		return api.Site{}, err
 	}
 	fmt.Fprintf(out, "Project:     %s\n", describe(current))
 
-	return nil
+	return current, nil
 }
 
 // checkStatusAccounts checks each account that the rule file uses, and prints
@@ -176,10 +177,11 @@ func checkStatusAccounts(ctx context.Context, out io.Writer, rulesPath string) e
 	return nil
 }
 
-// noteRuleGaps prints what the rule file lacks for this directory. It is a
-// note only. A missing or unreadable file prints nothing, because the account
-// check reports it.
-func noteRuleGaps(out io.Writer, rulesPath string) {
+// noteRuleGaps prints what the rule file lacks for this directory and its
+// linked project. It is a note only. A missing or unreadable file prints
+// nothing, because the account check reports it. A project that did not
+// resolve leaves any project that maps the directory enough.
+func noteRuleGaps(out io.Writer, rulesPath string, project api.Site) {
 	path, err := rulesPathOr(rulesPath)
 	if err != nil {
 		return
@@ -192,7 +194,11 @@ func noteRuleGaps(out io.Writer, rulesPath string) {
 	if err != nil {
 		return
 	}
-	gaps, err := rules.Gaps(data, dir)
+	var keys []string
+	if project.ID != "" {
+		keys = []string{cmp.Or(project.Slug, project.ID), project.ID}
+	}
+	gaps, err := rules.Gaps(data, dir, keys...)
 	if err != nil {
 		return
 	}

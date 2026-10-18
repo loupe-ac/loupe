@@ -89,6 +89,21 @@ func TestGapsNamesAnUnmappedDirectory(t *testing.T) {
 	}
 }
 
+func TestGapsChecksOnlyTheLinkedProject(t *testing.T) {
+	dir := t.TempDir()
+	body := "appPrompts: true\ndefaults:\n  permissions: workspace\nprojects:\n  b:\n    dir: " + dir + "\n"
+	gaps, err := Gaps([]byte(body), dir, "a", "01a0c0d9-905c-7922-a586-ccc8ce043704")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(gaps, "\n"); !strings.Contains(got, "project a does not map") {
+		t.Errorf("another project at the directory must not count, got:\n%s", got)
+	}
+	if gaps, _ := Gaps([]byte(body), dir, "a", "B"); len(gaps) != 0 {
+		t.Errorf("the key matches any handle of the project, got %v", gaps)
+	}
+}
+
 func TestGapsRefusesAFileThatDoesNotParse(t *testing.T) {
 	if _, err := Gaps([]byte("a: [\n"), t.TempDir()); err == nil {
 		t.Error("want an error")

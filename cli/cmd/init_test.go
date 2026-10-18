@@ -329,6 +329,40 @@ func TestInitRefusesAProjectFlagThatDiffersFromTheProjectFile(t *testing.T) {
 	}
 }
 
+func TestInitAcceptsAProjectSlug(t *testing.T) {
+	w := newInitWorld(t, devSite()+`,{"id":"`+secondProject+`","slug":"other","name":"Other"}`)
+	dir := inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--project", "other")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if file, _ := projectfile.Load(dir); file.Project != secondProject {
+		t.Errorf("project = %q, want %q", file.Project, secondProject)
+	}
+	path, _ := defaultRulesPath()
+	if body := readOrEmpty(t, path); !strings.Contains(body, "other:") {
+		t.Errorf("rule file must map the project by its slug:\n%s", body)
+	}
+
+	if err := projectfile.Write(dir, firstProject); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runInitCmd(t, "n\n", "--no-mcp", "--project", "dev"); err != nil || !strings.Contains(out, "Link: skipped") {
+		t.Errorf("a slug that names the linked project must pass: %v\n%s", err, out)
+	}
+}
+
+func TestInitRefusesAnUnknownProjectSlug(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp", "--project", "acme")
+	if err == nil || !strings.Contains(err.Error(), `"acme"`) {
+		t.Fatalf("err = %v, want a refusal that names the slug\n%s", err, out)
+	}
+}
+
 func TestInitWithProjectAndForceReplacesTheFile(t *testing.T) {
 	w := newInitWorld(t, devSite()+`,{"id":"`+secondProject+`","slug":"other","name":"Other"}`)
 	dir := inRepo(t, w.server.URL)

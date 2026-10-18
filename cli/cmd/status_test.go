@@ -161,11 +161,15 @@ func statusRules(t *testing.T, withOut bool) string {
 	return path
 }
 
+// passingStatus serves the project with the slug loupe, the key that
+// noteRules maps.
 func passingStatus(t *testing.T) {
 	t.Helper()
 	server, _ := statusServer(t, func() (currentProject, error) {
 		var p currentProject
+		slug := "loupe"
 		p.Project.ID = projectA
+		p.Project.Slug = &slug
 		p.Project.Name = "Acme site"
 
 		return p, nil
@@ -281,7 +285,7 @@ func TestStatusNotesWhatTheRuleFileLacksAndStillPasses(t *testing.T) {
 	if err != nil || lastLine(out) != statusPass {
 		t.Fatalf("a note must not fail the check: %v\n%s", err, out)
 	}
-	for _, want := range []string{"Rules:       note: it sets no permission default", "Rules:       note: no project maps "} {
+	for _, want := range []string{"Rules:       note: it sets no permission default", "Rules:       note: project loupe does not map "} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
@@ -312,5 +316,19 @@ func TestStatusNotesNothingWhenTheRuleFileHasWhatTheDirectoryNeeds(t *testing.T)
 	out, err := runStatus(t, "--project", projectA, "--rules", path)
 	if err != nil || strings.Contains(out, "Rules:       note") {
 		t.Fatalf("status: %v\n%s", err, out)
+	}
+}
+
+func TestStatusNotesARuleFileThatMapsTheDirectoryToAnotherProject(t *testing.T) {
+	passingStatus(t)
+	dir := readyProject(t)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := noteRules(t, readyProject(t), "  other:\n    dir: "+dir+"\ndefaults:\n  account: in\n  permissions: workspace\nwork:\n  plan:\n    prompt: go\n")
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	if err != nil || !strings.Contains(out, "Rules:       note: project loupe does not map ") {
+		t.Fatalf("want the linked project gap: %v\n%s", err, out)
 	}
 }

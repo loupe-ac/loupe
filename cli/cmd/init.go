@@ -97,7 +97,7 @@ func newInitCmd() *cobra.Command {
 		Long: "Runs the first-run steps in order. Each step skips itself when it is done already, " +
 			"so you can run the command again and nothing changes.\n\n" +
 			"1. Sign in with `loupe login`, when you are not signed in. --url names the instance. A login to another instance stops the command.\n" +
-			"2. Choose the project. --project names it. Else " + projectfile.Name + " in this directory " +
+			"2. Choose the project. --project names it by its id or its slug. Else " + projectfile.Name + " in this directory " +
 			"names it. Else the command lists your projects. When your login covers none, it " +
 			"creates one from the `origin` remote of this repository.\n" +
 			"3. Link this directory with `loupe project link`. That writes " + projectfile.Name + " and " +
@@ -123,7 +123,7 @@ func newInitCmd() *cobra.Command {
 			return runInit(cmd, o)
 		},
 	}
-	cmd.Flags().StringVar(&o.link.projectID, "project", "", "project id to use, instead of choosing from a list")
+	cmd.Flags().StringVar(&o.link.projectID, "project", "", "project id or slug to use, instead of choosing from a list")
 	cmd.Flags().BoolVar(&o.reset, "reset", false, "write the first-run rules again, and keep the projects map")
 	cmd.Flags().BoolVar(&o.link.force, "force", false, "replace an existing "+projectfile.Name)
 	cmd.Flags().BoolVar(&o.link.writeMcp, "mcp", false, "declare `loupe mcp` to Claude Code without asking")
@@ -221,14 +221,16 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 	if err != nil {
 		return api.Site{}, err
 	}
-	find := func(id string) api.Site {
+	// find takes an id or a slug, because the first-run command names the
+	// project by its slug. A handle that no listed project has stays as given.
+	find := func(handle string) api.Site {
 		for _, s := range sites {
-			if strings.EqualFold(s.ID, id) {
+			if strings.EqualFold(s.ID, handle) || (s.Slug != "" && s.Slug == handle) {
 				return s
 			}
 		}
 
-		return api.Site{ID: id}
+		return api.Site{ID: handle}
 	}
 
 	// init keeps a project file without --force, so the file decides the
@@ -246,10 +248,13 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 	}
 
 	if o.link.projectID != "" {
-		if linked != "" && !strings.EqualFold(linked, o.link.projectID) {
-			return api.Site{}, fmt.Errorf("%s names %s, not %s: pass --force to replace the file, or leave out --project", projectfile.Name, describe(find(linked)), describe(find(o.link.projectID)))
-		}
 		site := find(o.link.projectID)
+		if err := projectfile.Valid(site.ID); err != nil {
+			return api.Site{}, fmt.Errorf("no project of yours has the id or slug %q", o.link.projectID)
+		}
+		if linked != "" && !strings.EqualFold(linked, site.ID) {
+			return api.Site{}, fmt.Errorf("%s names %s, not %s: pass --force to replace the file, or leave out --project", projectfile.Name, describe(find(linked)), describe(site))
+		}
 		step(out, "Project", "done", "using "+describe(site))
 
 		return site, nil
