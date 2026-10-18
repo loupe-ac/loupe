@@ -38,6 +38,7 @@ type initWorld struct {
 	// execOut gives the output of a command, by its words.
 	execOut map[string]string
 	claude  bool
+	codex   bool
 
 	bridgeStarts int
 	bridgeErr    error
@@ -80,6 +81,9 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	initLookPath = func(name string) (string, error) {
 		if name == "claude" && w.claude {
 			return "/bin/claude", nil
+		}
+		if name == "codex" && w.codex {
+			return "/bin/codex", nil
 		}
 
 		return "", errors.New("not found")
@@ -964,5 +968,96 @@ func TestInitResetKeepsTheAutoUpdateKey(t *testing.T) {
 	}
 	if !strings.Contains(out, "Auto-update: skipped") {
 		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestInitDeclaresTheMcpServerToCodexWhenOnlyCodexIsInstalled(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execFail["codex mcp get"] = true
+	inRepo(t, w.server.URL)
+	path, _ := defaultRulesPath()
+
+	out, err := runInitCmd(t, "y\nn\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "to Claude Code?") {
+		t.Errorf("init offered a Claude Code declaration to a Codex account:\n%s", out)
+	}
+	if !w.called("codex mcp add loupe -- loupe mcp") {
+		t.Errorf("init did not declare the server to Codex: %v", w.execCalls)
+	}
+	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", `default_tools_approval_mode = "approve"`, "~/.agents/skills/"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if body := readOrEmpty(t, path); !strings.Contains(body, "harness: codex") {
+		t.Errorf("rule file has no codex account:\n%s", body)
+	}
+}
+
+func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("codex mcp add") {
+		t.Errorf("init declared the server again: %v", w.execCalls)
+	}
+	if !strings.Contains(out, "Codex: skipped, Codex declares") {
+		t.Errorf("output lacks the skip:\n%s", out)
+	}
+}
+
+func TestInitPrintsTheCodexCommandWithNoMcp(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execFail["codex mcp get"] = true
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("codex mcp add") {
+		t.Errorf("init declared the server despite --no-mcp: %v", w.execCalls)
+	}
+	if !strings.Contains(out, "run `codex mcp add loupe -- loupe mcp`") {
+		t.Errorf("output lacks the command:\n%s", out)
+	}
+}
+
+func TestInitPrintsTheCodexCommandWhenTheDeclarationFails(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execFail["codex mcp"] = true
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Codex: failed") || !strings.Contains(out, "run `codex mcp add loupe -- loupe mcp`") {
+		t.Errorf("output lacks the failure and the command:\n%s", out)
+	}
+}
+
+func TestInitSkipsCodexWhenClaudeIsInstalled(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.claude, w.codex = true, true
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("codex") || strings.Contains(out, "Codex:") {
+		t.Errorf("init ran the Codex step for a Claude Code account: %v\n%s", w.execCalls, out)
 	}
 }

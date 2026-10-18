@@ -31,6 +31,8 @@ const (
 	pluginMarketplace = "ubermuda/loupe"
 	pluginSpec        = "loupe@loupe"
 	playwrightCommand = "npx playwright install chromium"
+
+	codexSkillsRepository = "https://github.com/ubermuda/loupe"
 )
 
 // The programs init runs, and the checks it makes, are variables so a test
@@ -104,7 +106,9 @@ func newInitCmd() *cobra.Command {
 			profile.Path + ", and checks the `" + mcpjson.ServerKey + "` MCP server. --force, --mcp, " +
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
 			"4. Install the Loupe plugin in Claude Code, when `claude` is on your PATH and has no " +
-			"Loupe plugin. When a command fails, the step prints it for you to run.\n" +
+			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
+			"as --mcp and --no-mcp say, and print the approval line and the skills to add by hand. " +
+			"When a command fails, the step prints it for you to run.\n" +
 			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
 			"--reset writes the first-run rules again and keeps the projects map. A projects entry " +
@@ -156,6 +160,9 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 		return err
 	}
 	initPlugin(cmd, dir)
+	if codexAccount() {
+		initCodex(cmd, dir, o.link)
+	}
 
 	path, err := rulesPathOr(o.rulesPath)
 	if err != nil {
@@ -345,6 +352,11 @@ func withoutUserinfo(remote string) string {
 func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	out := cmd.OutOrStdout()
 	link := o.link
+	// A Codex account gets its server from initCodex, and `claude mcp` is
+	// missing, so the Claude Code declaration stays out of it.
+	if codexAccount() && !link.writeMcpJSON {
+		link.writeMcp, link.skipMcp = false, true
+	}
 
 	if _, err := os.Stat(filepath.Join(dir, projectfile.Name)); err == nil && !link.force {
 		if err := writeProfile(cmd, dir); err != nil {
@@ -398,6 +410,42 @@ func initPlugin(cmd *cobra.Command, dir string) {
 		return
 	}
 	step(out, "Plugin", "done", "installed "+pluginSpec+". Restart Claude Code to load it")
+}
+
+// codexAccount reports whether the first-run rules give the bridge a Codex
+// account.
+func codexAccount() bool {
+	return rules.FirstRunOptions{LookPath: initLookPath}.Harness() == rules.HarnessCodex
+}
+
+// initCodex connects Codex, when the rule file gives the bridge a Codex
+// account. It declares `loupe mcp` as --mcp and --no-mcp say, and prints the
+// approval line and the skills, which no codex command sets.
+func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
+	out := cmd.OutOrStdout()
+	add := "codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
+	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+	defer cancel()
+
+	_, getErr := initExec(ctx, dir, "codex", "mcp", "get", mcpjson.ServerKey, "--json")
+	switch {
+	case getErr == nil:
+		step(out, "Codex", "skipped", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already")
+	case link.skipMcp:
+		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
+	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex?"):
+		step(out, "Codex", "skipped", "to give Codex the Loupe tools, run `"+add+"`")
+	default:
+		if raw, err := initExec(ctx, dir, "codex", "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
+			step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), add))
+		} else {
+			step(out, "Codex", "done", "declared `loupe mcp`")
+		}
+	}
+
+	fmt.Fprintf(out, "Codex needs two more steps by hand. Add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in ~/.codex/config.toml, "+
+		"or the bridge turns its Codex account off. Copy the folders of plugins/loupe/skills/ from %s into ~/.agents/skills/, "+
+		"so the workers have the stage skills.\n", mcpjson.ServerKey, codexSkillsRepository)
 }
 
 // indented formats the output of a failed command as a block after a message.
