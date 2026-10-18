@@ -201,6 +201,24 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertStringContainsString('not installed', $notice->text());
     }
 
+    public function test_a_managed_project_on_an_instance_with_no_app_says_its_agents_cannot_push(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('pushnoapp');
+        $project = $this->projectOf($owner);
+        $this->em()->clear();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration(null, null, null, null, null, null));
+        static::getContainer()->set(HookSecretKey::class, new HookSecretKey(new EncryptionKeyProvider('')));
+
+        $client->loginUser($owner);
+        $crawler = $this->connectPage($client, $project);
+
+        $notice = $crawler->filter('#repositories [data-testid="github-push-refused"]');
+        self::assertCount(1, $notice);
+        self::assertStringContainsString('Agents of this project cannot push.', $notice->text());
+        self::assertStringContainsString('has not set up a GitHub App', $notice->text());
+    }
+
     public function test_a_project_that_keeps_its_own_git_setup_shows_no_push_notice(): void
     {
         $client = static::createClient();

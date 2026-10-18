@@ -4766,6 +4766,10 @@
     .lp-connect-hint {
         @apply text-fg-mute m-0 text-sm leading-normal;
     }
+    /* A notice inside a Connect page panel sits flush with the hints around it. */
+    .lp-connect-flash {
+        @apply m-0;
+    }
     /* Token row: white on the step's sunken fill, glyph + value + controls. */
     .lp-connect-field {
         @apply flex items-center gap-3 bg-app rounded-xl py-3.5 px-4;

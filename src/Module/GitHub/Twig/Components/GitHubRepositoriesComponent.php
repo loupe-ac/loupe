@@ -79,9 +79,11 @@ final class GitHubRepositoriesComponent
         $this->repositories = $this->forgeRepositories->findByProject($project);
         if ($this->appConfigured) {
             $this->installations = $this->gitHubInstallations->findByProject($project);
-            if ($project->gitIdentityManaged) {
-                $this->pushRefusal = $this->gitTokenIssuer->refusal($project);
-            }
+        }
+        if ($project->gitIdentityManaged) {
+            $this->pushRefusal = $this->appConfigured
+                ? $this->gitTokenIssuer->refusal($project)
+                : new GitHubGitTokenRefused(GitHubGitTokenRefused::APP_NOT_CONFIGURED);
         }
 
         // Loading a hook decrypts its secret, which throws without the key or with a wrong one.

@@ -2,6 +2,13 @@
 <twig:Ds:Panel as="section" id="repositories" data-testid="github-repositories">
     <twig:Ds:SectionHeading>{{ 'github.repositories.title'|trans }}</twig:Ds:SectionHeading>
 
+    {% if pushRefusal is not null %}
+    <twig:Ds:Flash severity="warning" class="lp-connect-flash" data-testid="github-push-refused">
+        <strong>{{ 'github.git_token.refused.title'|trans }}</strong>
+        {{ ('github.git_token.refused.' ~ pushRefusal.cause)|trans({'%grants%': pushRefusal.missingGrants|join(', ')}) }}
+    </twig:Ds:Flash>
+    {% endif %}
+
     {% if not appConfigured and not hookAvailable %}
     <p class="lp-connect-hint" data-testid="forge-connections-disabled">{{ 'github.repositories.disabled'|trans }}</p>
     {% else %}
@@ -47,12 +54,6 @@
         <div class="lp-connect-block" id="github-app">
             <p class="lp-eyebrow">{{ 'github.app.eyebrow'|trans }}</p>
             <p class="lp-connect-hint">{{ 'github.app.purpose'|trans }}</p>
-            {% if pushRefusal is not null %}
-            <p class="lp-connect-hint" data-testid="github-push-refused">
-                <strong>{{ 'github.git_token.refused.title'|trans }}</strong>
-                {{ ('github.git_token.refused.' ~ pushRefusal.cause)|trans({'%grants%': pushRefusal.missingGrants|join(', ')}) }}
-            </p>
-            {% endif %}
             {% for installation in installations %}
             <div class="lp-identity-row" data-github-installation="{{ installation.installationId }}">
                 <twig:ux:icon name="lucide:package" class="lp-icon lp-icon--md lp-identity-row__glyph" />
