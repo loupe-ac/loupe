@@ -16,6 +16,7 @@ use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardActivityFacts;
 use App\Module\Board\Workflow\CardTypeFactProvider;
 use App\Module\Board\Workflow\CardTypeFacts;
+use App\Module\Board\Workflow\ChildActivityFacts;
 use App\Module\Board\Workflow\ChildrenFactProvider;
 use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\DocumentsFactProvider;
@@ -107,7 +108,7 @@ final class FactsMother
             ...self::byClass(new DocumentReviewFacts([])),
             ...self::byClass(new WorkRequestFacts($run->activeWorkKinds, []), new RefusalFacts($run->lastRefusalCode), new WorkerRunFacts($run->activeWorkerKinds, []), new ParentWorkFacts($run->parentActiveKinds)),
             ...self::byClass(new FixRunFacts([]), new StaleApprovalFacts([]), new WorkAtHeadFacts([], []), new LatestWorkFacts($run->latestWorkState, $run->latestWorkKind, $run->latestWorkReason)),
-            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
+            ...self::byClass(new PauseFacts(null), new CardActivityFacts(null), new ChildActivityFacts(null, false), new StuckDelayFacts(BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES), new BlockerHoldFacts(null)),
             ...self::byClass(new RunStoppedFacts(null, null), new SessionFacts(null, null), new HoldFacts(null), new OpenQuestionFacts([]), new WorkTakerFacts([])),
         ];
         $prints = [
@@ -116,6 +117,7 @@ final class FactsMother
             WorkAtHeadFacts::class => [[], []],
             PauseFacts::class => null,
             CardActivityFacts::class => null,
+            ChildActivityFacts::class => [null, false],
             StuckDelayFacts::class => BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
             BlockerHoldFacts::class => null,
             RunStoppedFacts::class => null,
