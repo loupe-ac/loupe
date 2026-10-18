@@ -11,6 +11,7 @@ use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Workflow\Contract\CardEvaluations;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Ubermuda\AuditBundle\Auditor;
@@ -44,10 +45,24 @@ final readonly class FailDiscoveryRunHandler
             self::REVISE_RULE_ID => [DiscoveryRunState::Revising],
             default => [DiscoveryRunState::Requested, DiscoveryRunState::Revising],
         };
-        if (null === $run || !\in_array($run->state, $waitsFor, true) || !$run->fail($command->reason, $this->clock->now())) {
+        if (null === $run) {
             return false;
         }
-        $this->em->flush();
+
+        // The report and the verdict take the same project lock, so an approval that commits first leaves a Done run here, never a Failed one.
+        $failed = $this->em->wrapInTransaction(function () use ($run, $waitsFor, $command): bool {
+            $this->em->lock($run->project, LockMode::PESSIMISTIC_WRITE);
+            $run->state = $this->discoveryRuns->freshStateOf($run)['state'];
+            if (!\in_array($run->state, $waitsFor, true) || !$run->fail($command->reason, $this->clock->now())) {
+                return false;
+            }
+            $this->em->flush();
+
+            return true;
+        });
+        if (!$failed) {
+            return false;
+        }
 
         // The engine cancels a live request only when its card leaves the slot. A bridge that drops its claim lets the request open again.
         foreach ($this->workRequests->findLiveForCard($command->cardId) as $request) {
