@@ -39,6 +39,8 @@
 @import './components/auth-shell.css';
 @import './components/settings-layout.css';
 @import './components/drawer.css';
+@import './components/switch.css';
+@import './components/stepper.css';
 @plugin "@tailwindcss/typography";
 
 /* Structural admin-* CSS shipped by the admin bundle, compiled in this app's
@@ -5249,25 +5251,20 @@
 
     /* The input stays a real checkbox so form binding and keyboard access are
        untouched; only its box is redrawn as a track and knob. */
-    .admin-switch,
-    .lp-switch {
+    .admin-switch {
         @apply relative shrink-0 w-10 h-6 mt-px appearance-none rounded-full bg-line-strong cursor-pointer transition-colors;
     }
-    .admin-switch::after,
-    .lp-switch::after {
+    .admin-switch::after {
         @apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface-1 transition-all;
         content: '';
     }
-    .admin-switch:checked,
-    .lp-switch:checked {
+    .admin-switch:checked {
         @apply bg-accent;
     }
-    .admin-switch:checked::after,
-    .lp-switch:checked::after {
+    .admin-switch:checked::after {
         @apply left-4.5;
     }
-    .admin-switch:focus-visible,
-    .lp-switch:focus-visible {
+    .admin-switch:focus-visible {
         @apply outline-2 outline-offset-2 outline-accent-ink;
     }
 

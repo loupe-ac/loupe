@@ -1,0 +1,27 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+import React from 'react';
+
+export function {{ entry.name }}({ id, name, label, help, className: extra, ...rest }) {
+    const inputId = id || name;
+    const helpId = help && inputId ? inputId + '-help' : undefined;
+    const classes = ['{{ entry.rootClass }}'];
+    if (extra) {
+        classes.push(extra);
+    }
+    const input = <input type="checkbox" role="switch" id={inputId} name={name} aria-describedby={helpId} {...rest} className={classes.join(' ')} />;
+
+    if (label === undefined && help === undefined) {
+        return input;
+    }
+
+    return (
+        <div className="{{ entry.rootClass }}-field">
+            {input}
+            <div className="{{ entry.rootClass }}-field__text">
+                {label !== undefined && <label className="{{ entry.rootClass }}-field__label" htmlFor={inputId}>{label}</label>}
+                {help !== undefined && <span className="{{ entry.rootClass }}-field__help" id={helpId}>{help}</span>}
+            </div>
+        </div>
+    );
+}
+{% endautoescape %}

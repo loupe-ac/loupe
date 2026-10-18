@@ -1,0 +1,7 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+      <div className="row">
+        <{{ entry.name }} name="off" aria-label="Off" />
+        <{{ entry.name }} name="on" aria-label="On" defaultChecked />
+        <{{ entry.name }} name="field" defaultChecked label="Loupe manages the git identity" help="Agents push as the Loupe app." />
+      </div>
+{% endautoescape %}

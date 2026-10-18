@@ -1,0 +1,45 @@
+{#
+  Props:  @comment-budget-ignore
+    fieldView   FormView   A Symfony checkbox field. Its widget, label and errors are drawn. Optional.
+    name        string     Name of the input. Not used with fieldView.
+    id          string     Id of the input. Defaults to name. Not used with fieldView.
+    value       string     Submitted value. Defaults to 1.
+    checked     bool       The switch is on.
+    disabled    bool       The switch cannot change.
+    label       string     Text of the label. With a label, a field row wraps the switch. Optional.
+    help        string     A line under the label, tied to the input with aria-describedby. Optional.
+  With no label, no help and no fieldView, the tag is the bare input, for a row that has its own label.
+  Any other attribute, class included, is passed to the input. A null attribute is left out.
+#}
+{%- props fieldView = null, name = null, id = null, value = '1', checked = false, disabled = false, label = null, help = null -%}
+{%- for attributeName, attributeValue in attributes.all -%}
+    {%- if attributeValue is null -%}
+        {%- set attributes = attributes.remove(attributeName) -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- set inputId = fieldView ? fieldView.vars.id : (id ?? name) -%}
+{%- set helpId = help and inputId ? inputId ~ '-help' : null -%}
+{%- set labelled = label is not null or help is not null or fieldView is not null -%}
+{%- set switchInput -%}
+    {%- if fieldView -%}
+        {{ form_widget(fieldView, {attr: {class: 'lp-switch', role: 'switch', 'aria-describedby': helpId}|filter(v => v is not null)}) }}
+    {%- else -%}
+        <input{{ attributes.defaults({type: 'checkbox', class: 'lp-switch', role: 'switch', id: inputId, name: name, value: value, 'aria-describedby': helpId}|filter(v => v is not null)) }}{{ checked ? ' checked' }}{{ disabled ? ' disabled' }}>
+    {%- endif -%}
+{%- endset -%}
+{%- if labelled -%}
+    <div class="lp-switch-field">
+        {{ switchInput }}
+        <div class="lp-switch-field__text">
+            {%- if fieldView -%}
+                {{ form_label(fieldView, label, {label_attr: {class: 'lp-switch-field__label'}}) }}
+            {%- elseif label is not null -%}
+                <label class="lp-switch-field__label" for="{{ inputId }}">{{ label }}</label>
+            {%- endif -%}
+            {%- if help is not null %}<span class="lp-switch-field__help" id="{{ helpId }}">{{ help }}</span>{% endif -%}
+            {%- if fieldView %}<twig:Ds:FieldErrors :fieldView="fieldView" />{% endif -%}
+        </div>
+    </div>
+{%- else -%}
+    {{ switchInput }}
+{%- endif -%}
