@@ -1,0 +1,20 @@
+{#
+  Props:  @comment-budget-ignore
+    heading    string  The heading of the group. Without it the group has none.
+    moreLabel  string  The label of the "show more" row. Without it the group has no hidden rows.
+  Blocks:
+    content    The rows that show at once.
+    more       The rows that wait behind the "show more" row. Used only with moreLabel.
+  Any other attribute, class included, is passed to the group element.
+#}
+{%- props heading = null, moreLabel = null -%}
+<div{{ attributes.defaults({class: 'lp-menu__group'}) }}>
+    {%- if heading %}<twig:Ds:MenuHeading>{{ heading }}</twig:Ds:MenuHeading>{% endif -%}
+    {%- block content %}{% endblock -%}
+    {%- if moreLabel %}
+    <details class="lp-menu__more">
+        <summary class="lp-menu__more-toggle">{{ moreLabel }}</summary>
+        {% block more %}{% endblock %}
+    </details>
+    {%- endif -%}
+</div>

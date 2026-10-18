@@ -123,14 +123,45 @@ final class ShowInboxControllerTest extends WebTestCase
         $rows = $crawler->filter('[data-linked-pull-request]');
         self::assertCount(2, $rows);
         self::assertStringContainsString('example/app #42', $rows->text());
-        self::assertSame('Pull request', $rows->first()->filter('.lp-inbox-linked-panel__sub')->text());
+        self::assertSame('Pull request', $rows->first()->filter('.lp-menu__line')->text());
         self::assertSame('a', $rows->first()->nodeName());
         self::assertSame('https://github.com/example/app/pull/42', $rows->first()->attr('href'));
         self::assertSame('_blank', $rows->first()->attr('target'));
         self::assertSame('noopener noreferrer', $rows->first()->attr('rel'));
         self::assertStringContainsString('Not a web address', $rows->last()->text());
-        self::assertSame('div', $rows->last()->nodeName());
+        self::assertSame('button', $rows->last()->nodeName());
+        self::assertNotNull($rows->last()->attr('disabled'));
         self::assertNull($rows->last()->attr('href'));
+        self::assertCount(1, $crawler->filter('.lp-inbox-ask__byline > .lp-inbox-ask__byline-actions > [data-inbox-linked-menu]'));
+    }
+
+    public function test_the_linked_menu_shows_three_rows_of_a_kind_and_holds_the_rest_behind_show_more(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-linked-more');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $item = $this->question($this->em, $project, 1);
+        foreach ([1, 2, 3, 4] as $number) {
+            $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Linked work '.$number, body: 'Body', number: $number);
+            $this->em->persist($card);
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $this->em->flush();
+        $this->setInboxFlag(true);
+        $projectId = (string) $project->id;
+        $this->em->clear();
+
+        $this->client->loginUser($owner);
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$projectId.'/inbox');
+
+        self::assertResponseIsSuccessful();
+        $group = $crawler->filter('[data-inbox-linked-menu] [data-linked-group="card"]');
+        self::assertCount(1, $group);
+        self::assertSame('Linked cards (4)', trim($group->filter('.lp-menu__heading')->text()));
+        self::assertCount(3, $group->children('[data-linked-card]'));
+        self::assertSame('Show 1 more', trim($group->filter('.lp-menu__more-toggle')->text()));
+        self::assertCount(1, $group->filter('.lp-menu__more [data-linked-card]'));
+        self::assertCount(4, $group->filter('[data-linked-card]'));
     }
 
     public function test_the_pill_listens_on_the_owner_inbox_topic(): void
@@ -563,6 +594,72 @@ final class ShowInboxControllerTest extends WebTestCase
         $source = $crawler->filter('a.lp-list-row[data-inbox-request="'.$noCardAsk->id.'"] .lp-list-row__meta');
         self::assertSame('Agent', $source->filter('[data-inbox-source]')->text());
         self::assertCount(0, $source->filter('[data-inbox-card]'));
+    }
+
+    public function test_the_byline_of_a_blocking_ask_names_the_card_that_waits_and_a_non_blocking_one_does_not(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-byline-wait');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Checkout', body: 'Body', number: 7);
+        $this->em->persist($card);
+        $question = $this->question($this->em, $project, 1, title: 'Which format?');
+        $todo = $this->todo($this->em, $project, 2);
+        foreach ([$question, $todo] as $item) {
+            $item->cards->add(new InboxItemCard($item, $card));
+        }
+        $this->em->flush();
+        $questionAsk = $this->askHolding($this->em, $project, [$question]);
+        $todoAsk = $this->askHolding($this->em, $project, [$todo]);
+        $this->setInboxFlag(true);
+        $this->client->loginUser($owner);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$questionAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-inbox-ask__byline [data-inbox-kind-label]', 'Question');
+        $link = $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]');
+        self::assertSame('#7', $link->text());
+        self::assertSame('/projects/'.$project->id.'/board/cards/'.$card->id, $link->attr('href'));
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$todoAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('.lp-inbox-ask__title', 'Review pull request 482');
+        self::assertCount(0, $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]'));
+    }
+
+    public function test_the_byline_of_a_mixed_ask_names_the_card_of_its_blocking_item(): void
+    {
+        $owner = $this->signedUpUser($this->em, 'inbox-byline-mixed');
+        $project = $this->inboxProject($this->em, $owner);
+        $this->seedColumns($project);
+        $todoCard = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Checkout', body: 'Body', number: 7);
+        $questionCard = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Billing', body: 'Body', number: 8);
+        $this->em->persist($todoCard);
+        $this->em->persist($questionCard);
+        $todo = $this->todo($this->em, $project, 1);
+        $question = $this->question($this->em, $project, 2);
+        $todo->cards->add(new InboxItemCard($todo, $todoCard));
+        $question->cards->add(new InboxItemCard($question, $questionCard));
+        $bareTodo = $this->todo($this->em, $project, 3);
+        $bareQuestion = $this->question($this->em, $project, 4);
+        $bareTodo->cards->add(new InboxItemCard($bareTodo, $todoCard));
+        $this->em->flush();
+        $mixedAsk = $this->askHolding($this->em, $project, [$todo, $question]);
+        $bareAsk = $this->askHolding($this->em, $project, [$bareTodo, $bareQuestion]);
+        $this->setInboxFlag(true);
+        $this->client->loginUser($owner);
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$mixedAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(['#8'], $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]')->each(static fn ($link): string => $link->text()));
+
+        $crawler = $this->client->request(Request::METHOD_GET, '/projects/'.$project->id.'/inbox?ask='.$bareAsk->id);
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('.lp-inbox-ask__byline [data-inbox-wait-card]'));
     }
 
     public function test_the_row_icon_is_the_first_open_item_of_an_open_ask_and_the_first_item_of_a_closed_one(): void

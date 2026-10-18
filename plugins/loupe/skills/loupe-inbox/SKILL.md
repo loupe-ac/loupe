@@ -30,6 +30,8 @@ Set `blocking` on each item. A question blocks by default and a to-do does not. 
 
 A question needs `options`, `freeText` or both. A to-do takes neither. `multiple` needs two options. Each option is at most 500 characters.
 
+Add `suggestedActions` to a question or a to-do when the owner can take a built-in action next to the answer. Call `inbox_actions` for the list. A question that links the card of your run needs no other item to wait for the answer: the answer resumes you. Open no second item for the same wait.
+
 One session holds one open ask. A later `inbox_ask` or `inbox_join` adds to it. `inbox_ask` appends its `context`. The tools refuse a session whose open ask is in another project or holds another `bridgeId`.
 
 Link items with `cardIds` and `documentIds`. Pass the ids that `card_list` and `document_list` return, never a card number. A pull request has no link field, so name it in the `title`.

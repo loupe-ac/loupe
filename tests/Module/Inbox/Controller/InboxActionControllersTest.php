@@ -587,6 +587,38 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertCount(1, $crawler->filter('form#'.$formId));
     }
 
+    public function test_a_question_shows_its_suggested_actions_beside_the_answer_form_and_stays_open(): void
+    {
+        $item = $this->question($this->em(), $this->project, ++$this->number);
+        $item->suggestedActions = [['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]];
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->askHolding($this->em(), $this->project, [$item]);
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('form.lp-inbox-answer'));
+        self::assertSame('Read the card first.', trim($crawler->filter('[data-inbox-reply-heading]')->text()));
+        self::assertCount(1, $crawler->filter('.inbox-split [data-inbox-action="open"]'));
+        self::assertCount(0, $crawler->filter('[data-inbox-done]'));
+        self::assertCount(0, $crawler->filter('[data-inbox-action="start-session"]'));
+    }
+
+    public function test_a_question_with_no_suggestion_shows_no_split_button(): void
+    {
+        $item = $this->question($this->em(), $this->project, ++$this->number);
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $this->askHolding($this->em(), $this->project, [$item]);
+        $this->em()->flush();
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('form.lp-inbox-answer'));
+        self::assertCount(0, $crawler->filter('.inbox-split'));
+    }
+
     public function test_a_failed_command_shows_its_last_lines_with_run_again_and_mark_done(): void
     {
         $item = $this->commandTodo();

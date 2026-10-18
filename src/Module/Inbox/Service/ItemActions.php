@@ -225,7 +225,7 @@ final readonly class ItemActions
                 ? null
                 : $this->runCommands->view($item, $commandSuggestion, $this->askingBridgeOf($item, $waits, $runs), InboxItemKind::Wait === $item->kind ? ($watchedCards[self::key($item)] ?? null) : self::onlyCardOf($item), run: $commandRuns[self::key($item)] ?? null, addEntryLive: isset($addingEntry[self::key($item)]));
             $fitting = $this->fitting($item, $waits, $resumableRuns, $releasablePauses, isset($sendAgent[self::key($item)]), null !== $cardId && !isset($liveSessions[$cardId]), null !== $runCommand);
-            if (InboxItemKind::Todo === $item->kind) {
+            if (self::offersOnlySuggestions($item)) {
                 $fitting = array_values(array_filter($fitting, static fn (InboxActionKind $kind): bool => InboxActionKind::Dismiss !== $kind && isset($suggestions[$kind->value])));
             }
             $default = self::defaultKind($item, $waits, $fitting, $suggestions);
@@ -345,7 +345,7 @@ final readonly class ItemActions
     /** The prompt that the asking agent suggested for the session of a to-do or a question, or null. */
     public static function suggestedSessionPrompt(InboxItem $item): ?string
     {
-        return self::askedSuggestions($item)[InboxActionKind::StartSession->value]->prompt ?? null;
+        return self::storedSuggestions($item)[InboxActionKind::StartSession->value]->prompt ?? null;
     }
 
     /** The linked card that the stored suggestion of the kind names, or null. */
@@ -433,11 +433,11 @@ final readonly class ItemActions
     }
 
     /**
-     * The suggestions that the asking agent stored on a to-do or a question, keyed by action.
+     * The suggestions that the asking agent stored on a to-do or a question, keyed by action. The item offers only these.
      *
      * @return array<string, SuggestedAction>
      */
-    private static function askedSuggestions(InboxItem $item): array
+    private static function storedSuggestions(InboxItem $item): array
     {
         $suggestions = [];
         foreach ($item->suggestedActions ?? [] as $stored) {
@@ -457,7 +457,7 @@ final readonly class ItemActions
      */
     private static function defaultKind(InboxItem $item, array $waits, array $fitting, array $suggestions): ?InboxActionKind
     {
-        if (InboxItemKind::Wait !== $item->kind && !self::carriesAsked($item)) {
+        if (!\in_array($item->kind, [InboxItemKind::Wait, InboxItemKind::Todo, InboxItemKind::Question], true)) {
             return null;
         }
 
@@ -467,7 +467,7 @@ final readonly class ItemActions
             }
         }
 
-        if (InboxItemKind::Wait !== $item->kind) {
+        if (self::offersOnlySuggestions($item)) {
             return null;
         }
 
@@ -494,11 +494,11 @@ final readonly class ItemActions
      */
     private function suggestionsOf(InboxItem $item, array $waits, array $runs): array
     {
-        return self::carriesAsked($item) ? self::askedSuggestions($item) : self::suggestions($waits, $runs);
+        return self::offersOnlySuggestions($item) ? self::storedSuggestions($item) : self::suggestions($waits, $runs);
     }
 
-    /** A to-do or a question carries the suggestions of its asking agent. A to-do offers only those, and never Dismiss. */
-    private static function carriesAsked(InboxItem $item): bool
+    /** A to-do and a question offer only what their agent suggested. A question has a worker that waits for its answer, so no other action fits. */
+    private static function offersOnlySuggestions(InboxItem $item): bool
     {
         return \in_array($item->kind, [InboxItemKind::Todo, InboxItemKind::Question], true);
     }

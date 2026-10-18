@@ -42,6 +42,35 @@ class InboxAskRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * When each ask closed, or null for an open one. An ask that does not exist has no entry.
+     *
+     * @param list<string> $askIds RFC 4122 strings
+     *
+     * @return array<string, ?\DateTimeImmutable> keyed by the RFC 4122 ask id
+     */
+    public function findClosedAtByIds(array $askIds): array
+    {
+        if ([] === $askIds) {
+            return [];
+        }
+
+        /** @var list<array{id: Uuid, closedAt: ?\DateTimeImmutable}> $rows */
+        $rows = $this->createQueryBuilder('a')
+            ->select('a.id', 'a.closedAt')
+            ->andWhere('a.id IN (:ids)')
+            ->setParameter('ids', $askIds)
+            ->getQuery()
+            ->getArrayResult();
+
+        $closed = [];
+        foreach ($rows as $row) {
+            $closed[$row['id']->toRfc4122()] = $row['closedAt'];
+        }
+
+        return $closed;
+    }
+
     /** When the newest ask of the session on the bridge closed after the time, counting only an ask that held a blocking item. */
     public function findLatestBlockingCloseOfSessionAfter(Uuid $projectId, Uuid $sessionId, Uuid $bridgeId, \DateTimeImmutable $after): ?\DateTimeImmutable
     {

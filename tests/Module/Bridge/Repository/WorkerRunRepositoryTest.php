@@ -55,6 +55,9 @@ final class WorkerRunRepositoryTest extends KernelTestCase
 
         $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 10:00:00'), exitCode: 1, cardId: $closedCard);
         $newest = $this->seedRun($em, $project, $at, output: 'done', cardId: $closedCard);
+        $askId = Uuid::v7();
+        $newest->waitsOnAskId = $askId;
+        $em->flush();
         $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 10:00:00'), cardId: $openCard);
         $open = $this->seedRun($em, $project, $at, cardId: $openCard, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive);
         $first = $this->seedRun($em, $project, $at, cardId: $tieCard);
@@ -71,10 +74,12 @@ final class WorkerRunRepositoryTest extends KernelTestCase
             array_column($all, 'id'),
         );
         $byId = array_column($all, null, 'id');
+        $row = $byId[(string) $newest->id];
         self::assertSame(
-            ['id' => (string) $newest->id, 'card_id' => (string) $closedCard, 'state' => WorkerRunState::Succeeded->value, 'output' => 'done'],
-            $byId[(string) $newest->id],
+            ['id' => (string) $newest->id, 'card_id' => (string) $closedCard, 'state' => WorkerRunState::Succeeded->value, 'output' => 'done', 'waits_on_ask_id' => (string) $askId],
+            array_diff_key($row, ['ended_at' => true]),
         );
+        self::assertArrayHasKey('ended_at', $row);
         self::assertSame(WorkerRunState::Running->value, $byId[(string) $open->id]['state']);
 
         self::assertSame(

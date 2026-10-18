@@ -15,7 +15,8 @@ use Psr\Log\LoggerInterface;
  * Asks the bridge of a session to resume its newest run, once an ask of the
  * session closed. Loupe requests the resume, so it names no person. A run that
  * the request refuses, such as one that still runs, gets no resume. A run that
- * got a resume since the close gets no second one.
+ * got a resume since the close gets no second one. A resume that the request
+ * refuses removes the ask from the run, so the inbox then opens the stop item.
  */
 final readonly class ResumeAskingRunHandler
 {
@@ -23,6 +24,7 @@ final readonly class ResumeAskingRunHandler
         private WorkerRunRepository $workerRuns,
         private BridgeCommandRepository $bridgeCommands,
         private RequestBridgeCommandHandler $requestCommand,
+        private ClearRunAskHandler $clearRunAsk,
         private LoggerInterface $logger,
     ) {
     }
@@ -51,6 +53,10 @@ final readonly class ResumeAskingRunHandler
             ($this->requestCommand)(new RequestBridgeCommandCommand($run, BridgeCommandKind::ResumeRun, null, cause: BridgeCommandCause::AskClosed));
         } catch (DomainErrors $e) {
             $this->logger->info('bridge.ask_resume_skipped', $context + ['runId' => (string) $run->id, 'reason' => implode(',', $e->errors)]);
+            // A run that still runs gets its resume when it ends, so its question keeps standing for the stop.
+            if (!$run->state->isOpen()) {
+                ($this->clearRunAsk)(new ClearRunAskCommand($run));
+            }
         }
     }
 }

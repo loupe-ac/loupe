@@ -8,6 +8,7 @@ use App\Module\Bridge\Command\ResumeAskingRunCommand;
 use App\Module\Bridge\Command\ResumeAskingRunHandler;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Entity\BridgeCommand;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Service\BridgeCommandPayload;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
@@ -99,6 +100,50 @@ final class ResumeAskingRunHandlerTest extends KernelTestCase
         $this->resume($project, $bridge->id, $run->sessionId ?? throw new \LogicException('A worker run has a session.'), new \DateTimeImmutable('2026-10-01 12:00:00'));
 
         self::assertCount(2, $this->commands());
+    }
+
+    public function test_a_refused_resume_removes_the_ask_from_the_run(): void
+    {
+        self::bootKernel();
+        [$project, $bridge] = $this->scenario('ask-resume-clears', capabilities: []);
+        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Blocked);
+        $run->waitsOnAskId = Uuid::v7();
+        $this->em()->flush();
+
+        $this->resume($project, $bridge->id, $run->sessionId ?? throw new \LogicException('A worker run has a session.'));
+
+        $this->em()->clear();
+        self::assertNull($this->em()->find(WorkerRun::class, $run->id)?->waitsOnAskId);
+    }
+
+    public function test_a_run_that_still_runs_keeps_its_ask_for_the_resume_at_its_end(): void
+    {
+        self::bootKernel();
+        [$project, $bridge] = $this->scenario('ask-resume-keeps-running');
+        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Running);
+        $askId = Uuid::v7();
+        $run->waitsOnAskId = $askId;
+        $this->em()->flush();
+
+        $this->resume($project, $bridge->id, $run->sessionId ?? throw new \LogicException('A worker run has a session.'));
+
+        $this->em()->clear();
+        self::assertEquals($askId, $this->em()->find(WorkerRun::class, $run->id)?->waitsOnAskId);
+    }
+
+    public function test_a_requested_resume_keeps_the_ask_on_the_run(): void
+    {
+        self::bootKernel();
+        [$project, $bridge] = $this->scenario('ask-resume-keeps-requested');
+        $run = $this->seedRun($this->em(), $project, bridgeId: $bridge->id, state: WorkerRunState::Blocked);
+        $askId = Uuid::v7();
+        $run->waitsOnAskId = $askId;
+        $this->em()->flush();
+
+        $this->resume($project, $bridge->id, $run->sessionId ?? throw new \LogicException('A worker run has a session.'));
+
+        self::assertCount(1, $this->commands());
+        self::assertEquals($askId, $this->em()->find(WorkerRun::class, $run->id)?->waitsOnAskId);
     }
 
     /**

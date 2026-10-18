@@ -86,7 +86,7 @@
         {% set declineLabel = item.state.value == 'declined' ? 'inbox.decline.change' : 'inbox.decline.submit' %}
         {# A to-do with suggested actions puts Decline and Mark done beside its split button, in one reply card. #}
         {% set todoSplit = item.kind.value == 'todo' and (open or item.state.value != 'done') and not inbox_actions(item, hostCardId ?? null).isEmpty %}
-        {# A question that its agent gave suggestions offers its actions in a reply card below the answer form. The answer carries the owner's words, so the card takes no note. #}
+        {# A question that its agent gave suggestions offers its actions in a reply card below the answer form. The answer carries the owner's words, so the card takes no note. An action does not answer the question, so the item stays open. #}
         {% set questionSplit = item.kind.value == 'question' and open and item.suggestedActions and not inbox_actions(item, hostCardId ?? null).isEmpty %}
         {% if todoSplit %}
             {% set doneForm = inbox_done_form(item, refusedForm) %}

@@ -1,4 +1,4 @@
-{# The selected request: its title and byline, the message of its source, its items and the panel of what it links.
+{# The selected request: its title and byline, the message of its source, its items. The byline holds the menu of what it links.
    The list row beside it carries Blocking, so an item head here leaves it out.
    Params: row (InboxRow), inbox (InboxPageView), refusedForm, cardDrawer (whether the page hosts the card drawer). #}
 {% set ask = row.ask %}
@@ -11,7 +11,7 @@
         <header class="lp-inbox-ask__summary">
             {# An ask stores no title. Its first item names it, as the request list does. #}
             <h2 class="lp-inbox-ask__title">{{ row.title }}</h2>
-            <p class="lp-inbox-ask__byline">
+            <div class="lp-inbox-ask__byline">
                 {# Who and when, then what it is, in the order of the document review byline. #}
                 <span class="lp-inbox-ask__head">
                     {% include '@Inbox/_agent_presence.html.twig' with {ask: ask, bridge: ask ? inbox.bridgeStatus(ask) : null, origin: origin} only %}
@@ -23,23 +23,29 @@
                 <span class="lp-inbox-ask__kind">
                     {% include '@Inbox/_inbox_kind_icon.html.twig' with {kind: row.kind.value, class: 'lp-icon lp-icon--md'} only %}
                     {# A wait names the card that waits on the owner, as the document review byline does. #}
-                    {% set waitCard = row.kind.value == 'wait' ? row.firstCard : null %}
-                    {% if waitCard %}
-                        <span class="lp-inbox-ask__wait" data-inbox-kind-label>
-                            <a href="{{ path('app_board_card', {projectId: waitCard.project.id, cardId: waitCard.id}) }}" data-turbo-frame="card-drawer-frame" data-action="click->card-drawer#prepare" aria-describedby="inbox-wait-card-{{ waitCard.id }}" data-inbox-wait-card>#{{ waitCard.number }}</a>
-                            <twig:Ds:Tooltip id="inbox-wait-card-{{ waitCard.id }}">
-                                <span class="lp-tooltip__title">{{ 'inbox.wait.byline_tooltip'|trans({'%card%': waitCard.number}) }}</span>
-                                <span class="lp-tooltip__line">{{ waitCard.title }}</span>
-                            </twig:Ds:Tooltip>
-                        </span>
+                    {% set isWait = row.kind.value == 'wait' %}
+                    {% set waitCard = isWait ? row.firstCard : row.blockingCard %}
+                    {% if isWait and waitCard %}
+                        {% include '@Inbox/_ask_wait_card.html.twig' with {card: waitCard, kindLabel: true} only %}
                     {% else %}
                         <span data-inbox-kind-label>{{ ('inbox.item.kind.' ~ row.kind.value)|trans }}</span>
                     {% endif %}
                 </span>
+                {% if waitCard and not isWait %}
+                    {# A blocking ask holds its card too, so the byline names the card that waits. #}
+                    <span aria-hidden="true">·</span>
+                    <span class="lp-inbox-ask__kind">
+                        <twig:ux:icon name="lucide:hourglass" class="lp-icon lp-icon--md" aria-hidden="true" />
+                        {% include '@Inbox/_ask_wait_card.html.twig' with {card: waitCard, kindLabel: false} only %}
+                    </span>
+                {% endif %}
                 {% if ask and ask.closedAt %}
                     <twig:Ds:StatusChip modifier="resolved">{{ 'inbox.ask.closed'|trans({'%time%': ask.closedAt|relative_time}) }}</twig:Ds:StatusChip>{# @design-system-ignore #}
                 {% endif %}
-            </p>
+                <div class="lp-inbox-ask__byline-actions">
+                    {% include '@Inbox/_ask_linked.html.twig' with {items: items, menuId: ask ? ask.id : items|first.id} only %}
+                </div>
+            </div>
         </header>
         {% if ask and ask.context|trim is not empty %}
             <div class="lp-inbox-ask__message">
@@ -53,5 +59,4 @@
             {% endfor %}
         </div>
     </div>
-    {% include '@Inbox/_ask_linked.html.twig' with {items: items} only %}
 </section>

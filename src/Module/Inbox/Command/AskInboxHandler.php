@@ -7,8 +7,12 @@ namespace App\Module\Inbox\Command;
 use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Bridge\Command\RecordRunAskCommand;
+use App\Module\Bridge\Command\RecordRunAskHandler;
 use App\Module\Bridge\Entity\Bridge;
+use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Entity\InboxActionKind;
+use App\Module\Inbox\Entity\InboxAsk;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemDocument;
@@ -86,6 +90,8 @@ final readonly class AskInboxHandler
         private InboxChangedPublisher $inboxChanged,
         private CardWaitTrigger $cardWaits,
         private InboxCardTileRefresher $cardTiles,
+        private WorkerRunRepository $workerRuns,
+        private RecordRunAskHandler $recordRunAsk,
         private SessionPromptLimit $promptLimit,
     ) {
     }
@@ -157,6 +163,7 @@ final readonly class AskInboxHandler
                 }
 
                 $this->sessionAsks->closeWhenNothingBlocks($sessionAsk, $now);
+                $this->linkRunToAsk($sessionAsk->ask, $drafts);
                 $this->em->flush();
 
                 foreach ($created as $item) {
@@ -211,6 +218,29 @@ final readonly class AskInboxHandler
         );
 
         return $view;
+    }
+
+    /**
+     * A blocking question about the card of the run stands for the stop of that run, so the run records the ask.
+     * Only an ask with a bridge resumes the worker, and only a run that still runs can be the one that asks.
+     *
+     * @param list<AskInboxDraft> $drafts
+     */
+    private function linkRunToAsk(InboxAsk $ask, array $drafts): void
+    {
+        if (null === $ask->bridgeId || null === $ask->sessionId) {
+            return;
+        }
+        $run = $this->workerRuns->findLatestOfSessionOnBridge($ask->project, $ask->bridgeId, $ask->sessionId);
+        $cardId = $run?->cardId();
+        if (null === $run || null === $cardId || !$run->state->isOpen()) {
+            return;
+        }
+        if (!array_any($drafts, static fn (AskInboxDraft $draft): bool => InboxItemKind::Question === $draft->kind && $draft->blocking && array_any($draft->cards, static fn (Card $card): bool => $cardId->equals($card->id)))) {
+            return;
+        }
+
+        ($this->recordRunAsk)(new RecordRunAskCommand($run, $ask->id ?? throw new \LogicException('A persisted ask has an id.')));
     }
 
     private function draft(AskInboxCommand $command, int $index, AskInboxItem $input, ?Bridge $bridge): AskInboxDraft

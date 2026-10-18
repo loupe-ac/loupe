@@ -147,8 +147,8 @@ final class ShowDocumentControllerTest extends WebTestCase
         $group = $crawler->filter('#review-page-menu [data-page-menu-group="outgoing"]');
         self::assertSame('Links to (5)', trim($group->filter('.lp-menu__heading')->text()));
         self::assertCount(3, $group->children('.lp-menu__item'));
-        self::assertSame('Show 2 more', trim($group->filter('.lp-page-menu__more-toggle')->text()));
-        self::assertCount(2, $group->filter('.lp-page-menu__more .lp-menu__item'));
+        self::assertSame('Show 2 more', trim($group->filter('.lp-menu__more-toggle')->text()));
+        self::assertCount(2, $group->filter('.lp-menu__more .lp-menu__item'));
         self::assertSame('Links to · In review', trim($group->filter('.lp-menu__line')->first()->text()));
     }
 
