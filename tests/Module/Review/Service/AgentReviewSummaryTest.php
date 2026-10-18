@@ -85,10 +85,13 @@ final class AgentReviewSummaryTest extends TestCase
         self::assertSame('Kept.', $result['roundList'][2]['findings'][1]['reason']);
     }
 
-    public function test_three_failed_reviews_did_not_pass_and_name_the_open_important_findings(): void
+    public function test_six_failed_reviews_did_not_pass_and_name_the_open_important_findings(): void
     {
         $result = $this->summary->summarize([
-            $this->review(3, 'failure', [['important', null], ['important', null]]),
+            $this->review(6, 'failure', [['important', null], ['important', null]]),
+            $this->review(5, 'failure', [['important', 'fixed']]),
+            $this->review(4, 'failure', [['important', 'fixed']]),
+            $this->review(3, 'failure', [['important', 'fixed']]),
             $this->review(2, 'failure', [['important', 'fixed']]),
             $this->review(1, 'failure', [['important', 'fixed']]),
         ], DocumentStatus::InReview);
@@ -96,7 +99,21 @@ final class AgentReviewSummaryTest extends TestCase
         self::assertNotNull($result);
         self::assertSame('failed', $result['state']);
         self::assertSame(['important' => 2], $result['open']);
-        self::assertSame(2, $result['fixed']);
+        self::assertSame(5, $result['fixed']);
+    }
+
+    public function test_five_failed_reviews_have_not_used_the_loop_and_read_as_skipped(): void
+    {
+        $result = $this->summary->summarize([
+            $this->review(5, 'failure', [['important', null]]),
+            $this->review(4, 'failure', [['important', 'fixed']]),
+            $this->review(3, 'failure', [['important', 'fixed']]),
+            $this->review(2, 'failure', [['important', 'fixed']]),
+            $this->review(1, 'failure', [['important', 'fixed']]),
+        ], DocumentStatus::InReview);
+
+        self::assertNotNull($result);
+        self::assertSame('skipped', $result['state']);
     }
 
     public function test_a_published_document_with_a_failed_latest_review_is_skipped(): void
