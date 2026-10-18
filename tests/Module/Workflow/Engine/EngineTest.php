@@ -329,6 +329,86 @@ final class EngineTest extends KernelTestCase
         self::assertSame(1, $this->ruleState($card, 'fix')->fires);
     }
 
+    private const array ANY_BUG_OR_EPIC = ['any' => [['card.type' => ['type' => 'bug']], ['card.type' => ['type' => 'epic']]]];
+
+    public function test_a_request_that_ends_while_the_rule_holds_for_a_new_part_opens_a_second_request(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::ANY_BUG_OR_EPIC)]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+        self::assertSame(['card.type{"type":"bug"}'], $this->ruleState($card, 'fix')->causesAtOpen);
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($first->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+        self::assertSame(2, $this->ruleState($card, 'fix')->fires);
+    }
+
+    public function test_a_request_that_ends_while_the_rule_holds_for_the_same_parts_opens_no_second_request(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::ANY_BUG_OR_EPIC)]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+
+        $this->finish($this->liveRequests($card)[0], '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+        $this->evaluate($card, '2026-10-02 12:12:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
+        self::assertNull($this->ruleState($card, 'fix')->causesAtOpen);
+    }
+
+    public function test_a_part_that_arrives_after_a_false_pass_during_the_own_request_opens_a_second_request(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::ANY_BUG_OR_EPIC)]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:03:00');
+        self::assertFalse($this->ruleState($card, 'fix')->truth);
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        self::assertSame($first->id?->toRfc4122(), $this->ruleState($card, 'fix')->workRequestId?->toRfc4122());
+        self::assertSame(['card.type{"type":"bug"}'], $this->ruleState($card, 'fix')->causesAtOpen);
+
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($first->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+    }
+
+    public function test_a_second_request_waits_while_another_fix_rule_holds_the_slot(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('fix', self::ANY_BUG_OR_EPIC, kind: 'fix'),
+            self::requestRule('other', ['card.type' => ['type' => 'epic']], kind: 'fix'),
+        ]);
+        $this->setType($card, 'bug');
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+
+        $this->setType($card, 'epic');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        self::assertSame([$first->id?->toRfc4122()], array_map(static fn (WorkRequest $r): ?string => $r->id?->toRfc4122(), $this->liveRequests($card)));
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($first->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+    }
+
     public function test_a_rule_outside_the_slot_resets_cancels_its_request_and_fires_again_on_reentry(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
