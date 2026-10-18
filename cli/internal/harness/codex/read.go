@@ -202,8 +202,8 @@ type session struct {
 	provider string
 	model    string
 	// version is the cli_version of the session_meta line.
-	version  string
-	events   []tokenEvent
+	version string
+	events  []tokenEvent
 	// lines holds the time of each timed line, in file order, and contexts the
 	// input context of each token count.
 	lines    []time.Time

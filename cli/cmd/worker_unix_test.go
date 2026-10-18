@@ -119,7 +119,7 @@ func TestRunWorkerReadsTheExitCodeAndTheOutputFromItsRunDirectory(t *testing.T) 
 func TestTheRouterRemovesTheRunDirectoryOfAFinishedRun(t *testing.T) {
 	workerClaude(t, "echo '{\"type\":\"result\",\"structured_output\":{\"status\":\"finished\",\"summary\":\"ok\"}}'\n")
 	h := newHarness(t)
-	h.router.worker = defaultWorkerOps()
+	h.router.worker = withProjectFolder(defaultWorkerOps())
 
 	h.send(cardMoved(87))
 
