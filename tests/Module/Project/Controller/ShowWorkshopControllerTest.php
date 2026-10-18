@@ -366,7 +366,7 @@ final class ShowWorkshopControllerTest extends WebTestCase
         self::assertSelectorNotExists('[data-readiness-guide] button');
         self::assertSelectorNotExists('[data-readiness-hide]');
         self::assertSelectorNotExists('form[action$="/readiness/guide/hide"]');
-        self::assertSelectorTextContains('[data-workshop] .lp-workspace-desc', '0 of 5 required steps done');
+        self::assertSelectorTextContains('[data-workshop] .lp-workspace-desc', '0 of 4 required steps done');
         self::assertSame(['discovery', 'pull_requests', 'optional'], $crawler->filter('[data-readiness-group]')->extract(['data-readiness-group']));
         self::assertSame(['Ready for discovery', 'Ready for pull requests', 'Optional'], $crawler->filter('.lp-readiness-checklist__group')->each(static fn ($heading): string => trim($heading->text())));
         self::assertSame(['agent', 'bridge', 'repository', 'github', 'agent_account', 'widget'], $crawler->filter('[data-readiness-row]')->extract(['data-readiness-row']));

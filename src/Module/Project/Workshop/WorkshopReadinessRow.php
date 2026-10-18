@@ -27,11 +27,15 @@ final readonly class WorkshopReadinessRow
         public ?string $discoveryState = null,
         /** The section of the guide that holds the row. A row of the optional section does not count as a required step. */
         public string $group = self::GROUP_DISCOVERY,
+        /** An optional choice inside a required section, which does not count as a required step either. */
+        public bool $optional = false,
+        /** The last report of the machine that the row names, shown beside the status. */
+        public ?\DateTimeImmutable $seenAt = null,
     ) {
     }
 
     public function required(): bool
     {
-        return self::GROUP_OPTIONAL !== $this->group;
+        return !$this->optional && self::GROUP_OPTIONAL !== $this->group;
     }
 }

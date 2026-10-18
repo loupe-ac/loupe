@@ -174,14 +174,20 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
         );
     }
 
-    /** The same reading as the engine takes for the request, so the row and the failure agree. */
+    /** The same reading as the engine takes for the request, so the row and the failure agree. The row names the machine when the reading does. */
     private function bridgeRow(WorkTakerReading $takers, string $connect, string $agents): WorkshopReadinessRow
     {
+        $named = null !== $takers->bridgeLabel;
         [$done, $status, $actionLabel, $actionUrl] = match ($takers->state) {
             WorkTakerState::None => [false, 'readiness.row.bridge.open', 'readiness.row.bridge.action', $connect],
-            WorkTakerState::NotCapable => [false, $takers->appPromptsMissing ? 'readiness.row.bridge.not_capable_app_prompts' : 'readiness.row.bridge.not_capable', 'readiness.row.bridge.action', $connect],
+            WorkTakerState::NotCapable => [false, match (true) {
+                $takers->appPromptsMissing && $named => 'readiness.row.bridge.not_capable_app_prompts_on',
+                $takers->appPromptsMissing => 'readiness.row.bridge.not_capable_app_prompts',
+                $named => 'readiness.row.bridge.not_capable_on',
+                default => 'readiness.row.bridge.not_capable',
+            }, 'readiness.row.bridge.action', $connect],
             WorkTakerState::Paused => [false, 'readiness.row.bridge.paused', 'readiness.row.bridge.resume', $agents],
-            WorkTakerState::Available => [true, 'readiness.row.bridge.done', null, null],
+            WorkTakerState::Available => [true, $named ? 'readiness.row.bridge.done_on' : 'readiness.row.bridge.done', null, null],
         };
 
         return new WorkshopReadinessRow(
@@ -191,6 +197,8 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             $status,
             actionLabel: $actionLabel,
             actionUrl: $actionUrl,
+            statusParameters: null === $takers->bridgeLabel ? [] : ['%machine%' => $takers->bridgeLabel],
+            seenAt: $takers->bridgeSeenAt,
         );
     }
 
@@ -310,6 +318,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             actionUrl: $done ? null : $this->urls->generate('app_project_readiness_agent_account', ['id' => (string) $project->id]),
             statusParameters: null === $login ? [] : ['%login%' => $login],
             group: WorkshopReadinessRow::GROUP_PULL_REQUESTS,
+            optional: true,
         );
     }
 

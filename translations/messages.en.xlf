@@ -8688,6 +8688,10 @@
             <trans-unit id="readiness.row.bridge.open"><source>readiness.row.bridge.open</source><target>Not running</target></trans-unit>
             <trans-unit id="readiness.row.bridge.not_capable"><source>readiness.row.bridge.not_capable</source><target>Online, but it cannot run this work</target></trans-unit>
             <trans-unit id="readiness.row.bridge.not_capable_app_prompts"><source>readiness.row.bridge.not_capable_app_prompts</source><target>Online, but it cannot run this work. Run `loupe init` again</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.done_on"><source>readiness.row.bridge.done_on</source><target>%machine% runs Loupe's work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable_on"><source>readiness.row.bridge.not_capable_on</source><target>%machine% is online, but it cannot run this work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable_app_prompts_on"><source>readiness.row.bridge.not_capable_app_prompts_on</source><target>%machine% is online, but it does not run the prompts Loupe sends. Run `loupe init` again</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.seen"><source>readiness.row.bridge.seen</source><target>seen</target></trans-unit>
             <trans-unit id="readiness.row.bridge.paused"><source>readiness.row.bridge.paused</source><target>Paused, so it takes no new work</target></trans-unit>
             <trans-unit id="readiness.row.bridge.resume"><source>readiness.row.bridge.resume</source><target>Resume</target></trans-unit>
             <trans-unit id="readiness.row.bridge.action"><source>readiness.row.bridge.action</source><target>Start</target></trans-unit>

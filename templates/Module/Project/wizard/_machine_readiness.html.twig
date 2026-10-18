@@ -6,7 +6,7 @@
             <li class="lp-wizard-rows__row" data-readiness-row="{{ row.key }}" data-readiness-done="{{ row.done ? 1 : 0 }}">
                 <span class="lp-wizard-rows__text">
                     <strong>{{ row.label|trans }}</strong>
-                    <small>{{ row.detail is not null ? row.detail : row.status|trans(row.statusParameters) }}</small>
+                    <small>{{ row.detail is not null ? row.detail : row.status|trans(row.statusParameters) }}{% if row.seenAt is not null %} · {{ 'readiness.row.bridge.seen'|trans }} <twig:Ds:RelativeTime :datetime="row.seenAt" />{% endif %}</small>
                 </span>
                 <twig:Ds:StatusChip :modifier="row.done ? 'ok' : 'pending'" :label="(row.done ? 'project.wizard.connect.chip.done' : 'project.wizard.connect.chip.waiting')|trans" />
             </li>

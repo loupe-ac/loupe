@@ -126,6 +126,8 @@ final class ConnectAgentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#agent-connection'));
         self::assertCount(1, $crawler->filter('#site-review-widget'));
+        $panels = $crawler->filter('.lp-connect-settings > [id]')->each(static fn (\Symfony\Component\DomCrawler\Crawler $node): string => (string) $node->attr('id'));
+        self::assertSame(['agent-connection', 'repositories', 'site-review-widget'], $panels);
 
         // The global MCP endpoint path renders among the fields. The host differs
         // under test, so only the path is matched.

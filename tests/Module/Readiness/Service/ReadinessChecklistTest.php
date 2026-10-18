@@ -57,7 +57,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project = $this->newProject('readiness-rows-hidden@example.com');
         $project->readinessGuideHiddenAt = new \DateTimeImmutable();
 
-        self::assertSame(5, $this->checklist()->rows($project)->total());
+        self::assertSame(4, $this->checklist()->rows($project)->total());
     }
 
     public function test_discovery_with_no_run_waits_for_a_running_bridge(): void
@@ -219,7 +219,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame(['readiness.row.repository.done', 'done', true], [$doneRow->status, $doneRow->discoveryState, $doneRow->done]);
     }
 
-    public function test_a_new_project_lists_five_required_checks_and_one_optional_in_order(): void
+    public function test_a_new_project_lists_four_required_checks_and_two_optional_in_order(): void
     {
         $project = $this->newProject('readiness-new@example.com');
 
@@ -227,7 +227,7 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository', 'widget'], array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $readiness->rows));
         self::assertSame(0, $readiness->doneCount());
-        self::assertSame(5, $readiness->total());
+        self::assertSame(4, $readiness->total());
         $connect = '/projects/'.$project->id.'/connect';
         self::assertSame($connect, $this->row($readiness, 'agent')->actionUrl);
         self::assertSame($connect, $this->row($readiness, 'bridge')->actionUrl);
@@ -271,7 +271,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertTrue($this->row($readiness, 'widget')->done);
         self::assertSame(['%origins%' => 'https://acme.example'], $this->row($readiness, 'widget')->statusParameters);
         self::assertSame(0, $readiness->doneCount());
-        self::assertSame(5, $readiness->total());
+        self::assertSame(4, $readiness->total());
     }
 
     public function test_the_github_check_offers_the_install_when_the_instance_has_an_app(): void
@@ -376,7 +376,10 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         $readiness = $this->readiness($this->checklist(), $project);
 
-        self::assertSame(['readiness.row.bridge.not_capable_app_prompts', false], [$this->row($readiness, 'bridge')->status, $this->row($readiness, 'bridge')->done]);
+        $row = $this->row($readiness, 'bridge');
+        self::assertSame(['readiness.row.bridge.not_capable_app_prompts_on', false], [$row->status, $row->done]);
+        self::assertSame(['%machine%' => $bridge->label], $row->statusParameters);
+        self::assertEquals($bridge->lastSeenAt, $row->seenAt);
         self::assertSame('readiness.row.repository.no_capable_bridge', $this->row($readiness, 'repository')->status);
         self::assertSame('readiness.discovery.error.no_capable_bridge_app_prompts', $this->checklist()->startRefusal($project));
     }
@@ -391,7 +394,9 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         $row = $this->row($this->readiness($this->checklist(), $project), 'bridge');
 
-        self::assertSame(['readiness.row.bridge.done', true], [$row->status, $row->done]);
+        self::assertSame(['readiness.row.bridge.done_on', true], [$row->status, $row->done]);
+        self::assertSame(['%machine%' => $bridge->label], $row->statusParameters);
+        self::assertEquals($bridge->lastSeenAt, $row->seenAt);
         self::assertNull($this->checklist()->startRefusal($project));
     }
 
@@ -583,6 +588,54 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project->agentFirstSeenAt = new \DateTimeImmutable();
         $this->em()->flush();
         self::assertNotSame($linked, $checklist->wizardFingerprint($project));
+    }
+
+    public function test_the_separate_push_account_stays_out_of_the_required_count(): void
+    {
+        $project = $this->newProject('readiness-push-optional@example.com');
+        $project->agentGitHubLogin = 'Acme-Agent';
+        $this->seedPushingBridge($project, 'Acme-Agent');
+
+        $readiness = $this->readiness($this->checklist(), $project);
+
+        $row = $this->row($readiness, 'agent_account');
+        self::assertTrue($row->done);
+        self::assertFalse($row->required());
+        self::assertSame(WorkshopReadinessRow::GROUP_PULL_REQUESTS, $row->group);
+        self::assertSame(4, $readiness->total());
+        self::assertSame(1, $readiness->doneCount());
+    }
+
+    public function test_the_bridge_row_names_the_newest_capable_machine(): void
+    {
+        $project = $this->newProject('readiness-bridge-named@example.com');
+        $this->bind($project);
+        $old = $this->seedCapableBridge($project);
+        $old->lastSeenAt = new \DateTimeImmutable('-30 seconds');
+        $new = $this->seedCapableBridge($project);
+        $incapable = $this->seedBridge($this->em(), $project->owner, projects: [(string) $project->id]);
+        $incapable->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS];
+        $incapable->lastSeenAt = new \DateTimeImmutable('+1 second');
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'bridge');
+
+        self::assertSame(['%machine%' => $new->label], $row->statusParameters);
+        self::assertEquals($new->lastSeenAt, $row->seenAt);
+    }
+
+    public function test_the_wizard_fingerprint_ignores_the_seen_time(): void
+    {
+        $project = $this->newProject('wizard-fingerprint-seen@example.com');
+        $this->bind($project);
+        $bridge = $this->seedCapableBridge($project);
+        $checklist = $this->checklist();
+        $before = $checklist->wizardFingerprint($project);
+
+        $bridge->lastSeenAt = $bridge->lastSeenAt->modify('+5 seconds');
+        $this->em()->flush();
+
+        self::assertSame($before, $checklist->wizardFingerprint($project));
     }
 
     private function bind(Project $project): void

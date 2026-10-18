@@ -302,11 +302,17 @@ export async function hideReadinessGuide(
     page: Page,
     projectId: string,
 ): Promise<void> {
-    await page.goto(`/projects/${projectId}/settings/readiness`);
+    const path = `/projects/${projectId}/settings/readiness`;
+    await page.goto(path);
     const show = page.getByLabel('Show the readiness checklist');
     if (await show.isChecked()) {
         await show.uncheck();
-        await page.getByRole('button', { name: 'Save' }).click();
+        // The save must land before the caller leaves, or the next page still shows the guide.
+        await submitRedirectingForm(
+            page,
+            page.getByRole('button', { name: 'Save' }),
+            path,
+        );
         await expect(show).not.toBeChecked();
     }
 }

@@ -105,6 +105,7 @@ final readonly class WorkTakers
         $noTakerSince = self::later($narrowedAt, $waitStart);
         $newestUnpaused = null;
         $newestPaused = null;
+        $newestTaker = null;
         foreach ($takers as $taker) {
             $quietAt = $taker->lastSeenAt->modify(\sprintf('+%d seconds', $window));
             if ($quietAt > $noTakerSince) {
@@ -117,12 +118,15 @@ final readonly class WorkTakers
                 $newestPaused = self::later($newestPaused, $quietAt);
             } else {
                 $newestUnpaused = self::later($newestUnpaused, $quietAt);
+                if (null === $newestTaker || $taker->lastSeenAt > $newestTaker->lastSeenAt) {
+                    $newestTaker = $taker;
+                }
             }
         }
 
         // A taker is quiet from the second after its window ends, as BridgeLiveness counts whole seconds.
         return match (true) {
-            null !== $newestUnpaused => new WorkTakerReading(WorkTakerState::Available, $noTakerSince, $newestUnpaused->modify('+1 second')),
+            null !== $newestUnpaused => new WorkTakerReading(WorkTakerState::Available, $noTakerSince, $newestUnpaused->modify('+1 second'), bridgeLabel: $newestTaker?->label, bridgeSeenAt: $newestTaker?->lastSeenAt),
             null !== $newestPaused => new WorkTakerReading(WorkTakerState::Paused, $noTakerSince, $newestPaused->modify('+1 second')),
             default => self::withoutTaker($followers, $noTakerSince, $quietBefore, $hasPrompt),
         };
@@ -141,8 +145,9 @@ final readonly class WorkTakers
         }
 
         $missing = $hasPrompt && array_any($online, static fn (Bridge $bridge): bool => !\in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true));
+        usort($online, static fn (Bridge $a, Bridge $b): int => $b->lastSeenAt <=> $a->lastSeenAt);
 
-        return new WorkTakerReading(WorkTakerState::NotCapable, $noTakerSince, null, $missing);
+        return new WorkTakerReading(WorkTakerState::NotCapable, $noTakerSince, null, $missing, $online[0]->label, $online[0]->lastSeenAt);
     }
 
     private static function later(?\DateTimeImmutable $a, \DateTimeImmutable $b): \DateTimeImmutable

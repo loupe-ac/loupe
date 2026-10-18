@@ -52,6 +52,8 @@
         <a class="lp-workshop-text-link" href="{{ app_docs_url }}/using/mcp/#what-the-tools-do" target="_blank" rel="noopener noreferrer" data-connect-docs-link>{{ 'project.connect.docs_link'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
     </twig:Ds:Panel>
 
+    <twig:GitHubRepositories :project="project" />
+
     <twig:Ds:Panel as="section" id="site-review-widget">
         <twig:Ds:SectionHeading>{{ 'project.connect.card.widget.title'|trans }}</twig:Ds:SectionHeading>
         <p class="lp-connect-hint">
@@ -107,7 +109,5 @@
             {{ form_end(allowedOriginsForm) }}
         </div>
     </twig:Ds:Panel>
-
-    <twig:GitHubRepositories :project="project" />
 </div>
 {% endblock %}
