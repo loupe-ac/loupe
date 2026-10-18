@@ -52,8 +52,9 @@ final readonly class GitIdentityLines
             WorkshopGitIdentity::MODE_AGENT_ACCOUNT === $identity->mode => '' === $login ? GitIdentityState::AgentAccountUnverified : GitIdentityState::AgentAccount,
             '' === $login => GitIdentityState::Unknown,
             $this->isLoupeAppBot($login) => GitIdentityState::AppBot,
+            $this->isOwner($identity, $owner) => GitIdentityState::OwnerAccount,
             null !== $project->agentGitHubLogin && 0 === strcasecmp($login, $project->agentGitHubLogin) => GitIdentityState::Detected,
-            default => $this->ownerState($identity, $owner),
+            default => GitIdentityState::MaybeOwnerAccount,
         };
 
         return new GitIdentityLine($connection->label, $state, $identity->commitName, $login, $identity->reportedAt);
@@ -67,13 +68,11 @@ final readonly class GitIdentityLines
     }
 
     /** @param array{login: ?string, ids: list<int>} $owner */
-    private function ownerState(WorkshopGitIdentity $identity, array $owner): GitIdentityState
+    private function isOwner(WorkshopGitIdentity $identity, array $owner): bool
     {
-        $isOwner = null !== $identity->githubUserId && [] !== $owner['ids']
+        return null !== $identity->githubUserId && [] !== $owner['ids']
             ? \in_array($identity->githubUserId, $owner['ids'], true)
             : null !== $owner['login'] && 0 === strcasecmp($identity->pushLogin, $owner['login']);
-
-        return $isOwner ? GitIdentityState::OwnerAccount : GitIdentityState::MaybeOwnerAccount;
     }
 
     /** @return array{login: ?string, ids: list<int>} what Loupe holds of the GitHub account of the project owner */

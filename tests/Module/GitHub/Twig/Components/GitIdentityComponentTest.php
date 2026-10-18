@@ -228,6 +228,24 @@ final class GitIdentityComponentTest extends WebTestCase
         self::assertCount(0, $crawler->filter('[data-testid="git-identity-warning"]'));
     }
 
+    public function test_an_agent_login_that_is_also_the_owner_login_still_warns(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giagentowner', [['mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => null]], managed: false, ownerLogin: 'riley-dev', ownerGitHubId: 42, agentLogin: 'Riley-Dev');
+
+        $crawler = $this->connectPage($client, $project);
+
+        self::assertCount(1, $crawler->filter('[data-git-identity="owner-account"]'));
+        self::assertCount(0, $crawler->filter('[data-git-identity="detected"]'));
+        self::assertCount(1, $crawler->filter('[data-testid="git-identity-warning"]'));
+    }
+
+    public function test_an_agent_login_that_is_also_the_owner_id_still_warns(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giagentownerid', [['mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'acme-agent', 'githubUserId' => 42]], managed: false, ownerLogin: 'riley-dev', ownerGitHubId: 42, agentLogin: 'acme-agent');
+
+        self::assertCount(1, $this->connectPage($client, $project)->filter('[data-git-identity="owner-account"]'));
+    }
+
     public function test_a_quiet_bridge_is_left_out(): void
     {
         [$client, $project] = $this->managedProjectWith('giquiet', [['mode' => 'app_token', 'commitName' => 'x', 'pushLogin' => '', 'githubUserId' => null]], lastSeenAt: new \DateTimeImmutable('-3 days'));
