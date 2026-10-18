@@ -118,6 +118,7 @@ final class IssueGitTokenApiTest extends WebTestCase
     {
         $owner = $this->scenario->createUser('git-token-bare@example.com');
         $project = $this->scenario->createProject($owner, 'Bare site');
+        $this->useApi();
 
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
 
@@ -259,6 +260,19 @@ final class IssueGitTokenApiTest extends WebTestCase
         $owner = $this->scenario->createUser('git-token-no-key@example.com');
         $project = $this->scenario->createProject($owner, 'Site no-key');
         $this->installation($project, self::INSTALLATION, self::REPOSITORY);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('app_not_configured', $this->json()['error']);
+        self::assertSame([], $this->requests);
+    }
+
+    public function test_a_missing_app_signing_key_outranks_a_project_with_no_repository(): void
+    {
+        $owner = $this->scenario->createUser('git-token-no-key-bare@example.com');
+        $project = $this->scenario->createProject($owner, 'Bare no-key');
         static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
 
         $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);

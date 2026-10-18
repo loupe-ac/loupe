@@ -65,10 +65,11 @@ final readonly class GitHubGitTokenIssuer
      */
     private function resolve(Project $project, ?string $repositoryPath): array
     {
-        $candidates = $this->candidates($project, $repositoryPath);
         if (!$this->configuration->canReadForge()) {
             throw new GitHubGitTokenRefused(GitHubGitTokenRefused::APP_NOT_CONFIGURED);
         }
+
+        $candidates = $this->candidates($project, $repositoryPath);
 
         try {
             $installations = $this->api->installations();

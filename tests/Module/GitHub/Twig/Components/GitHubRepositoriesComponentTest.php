@@ -192,7 +192,7 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $project = $this->projectOf($owner);
         $this->em()->flush();
         $this->em()->clear();
-        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', '123456', 'key'));
 
         $client->loginUser($owner);
         $crawler = $this->connectPage($client, $project);
@@ -239,6 +239,24 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertCount(1, $notice);
         self::assertStringContainsString('has not finished the setup of the GitHub App', $notice->text());
         self::assertStringNotContainsString('GitHub did not answer', $notice->text());
+    }
+
+    public function test_a_project_with_no_repository_and_no_app_signing_key_names_the_setup_problem(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('pushnokeybare');
+        $project = $this->projectOf($owner);
+        $this->em()->flush();
+        $this->em()->clear();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $client->loginUser($owner);
+        $crawler = $this->connectPage($client, $project);
+
+        $notice = $crawler->filter('#repositories [data-testid="github-push-refused"]');
+        self::assertCount(1, $notice);
+        self::assertStringContainsString('has not finished the setup of the GitHub App', $notice->text());
+        self::assertStringNotContainsString('not installed', $notice->text());
     }
 
     public function test_a_project_that_keeps_its_own_git_setup_shows_no_push_notice(): void
