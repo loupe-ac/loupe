@@ -19,6 +19,8 @@ final readonly class WorkshopConnection
         public ?string $repositoryPath = null,
         /** The origin remote the bridge reported for that folder. Empty when git gave none, null when the bridge reported no folder. */
         public ?string $repositoryRemoteUrl = null,
+        /** Whether the CLI of the bridge reports git identities. An older CLI does not, and keeps the git setup of its machine. */
+        public bool $reportsGitIdentities = false,
     ) {
     }
 }

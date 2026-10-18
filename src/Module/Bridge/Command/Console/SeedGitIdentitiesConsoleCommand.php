@@ -17,7 +17,7 @@ use Symfony\Component\DependencyInjection\Attribute\When;
 
 #[AsCommand(
     name: 'app:dev:seed-git-identities',
-    description: 'Dev only: give a project five fake bridges that report a git identity, to preview the Git identity panel. Turn the setting on and off, set the Agent GitHub login or connect GitHub, then reload the Connect page. Safe to run again.',
+    description: 'Dev only: give a project six fake bridges, five that report a git identity and one on an older CLI, to preview the Git identity panel. Turn the setting on and off, set the Agent GitHub login or connect GitHub, then reload the Connect page. Safe to run again.',
 )]
 #[When('dev')]
 final class SeedGitIdentitiesConsoleCommand extends Command

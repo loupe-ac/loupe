@@ -33,11 +33,15 @@ final class SeedGitIdentitiesHandlerTest extends KernelTestCase
         $names = $handler(new SeedGitIdentitiesCommand((string) $project->id));
         $handler(new SeedGitIdentitiesCommand((string) $project->id));
 
-        self::assertSame(['seed-app', 'seed-agent', 'seed-separate', 'seed-owner', 'seed-unknown'], $names);
+        self::assertSame(['seed-app', 'seed-agent', 'seed-separate', 'seed-owner', 'seed-unknown', 'seed-older-cli'], $names);
         $bridges = self::getContainer()->get(BridgeRepository::class)->findFollowingProject($project);
-        self::assertCount(5, $bridges);
+        self::assertCount(6, $bridges);
         $modes = [];
         foreach ($bridges as $bridge) {
+            if ('seed-older-cli' === $bridge->name) {
+                self::assertNull($bridge->gitIdentities);
+                continue;
+            }
             $identities = $bridge->gitIdentities ?? [];
             self::assertCount(1, $identities);
             $modes[(string) $bridge->name] = $identities[0]['mode'] ?? null;

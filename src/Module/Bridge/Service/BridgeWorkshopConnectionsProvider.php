@@ -43,6 +43,7 @@ final readonly class BridgeWorkshopConnectionsProvider implements WorkshopConnec
                 null === $identity ? null : new WorkshopGitIdentity($identity['mode'], $identity['commitName'], $identity['pushLogin'], $identity['githubUserId'], $connection->bridge->gitIdentitiesReportedAt),
                 $repository['path'] ?? null,
                 $repository['remoteUrl'] ?? null,
+                null !== $connection->bridge->gitIdentities,
             );
         }
 

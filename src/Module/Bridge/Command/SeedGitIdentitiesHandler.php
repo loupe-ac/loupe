@@ -13,7 +13,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Dev preview: gives the owner of a project five fake bridges, each reporting a
+ * Dev preview: gives the owner of a project six fake bridges, each reporting a
  * different git identity for it, so the Git identity panel can show every state.
  */
 final readonly class SeedGitIdentitiesHandler
@@ -45,6 +45,7 @@ final readonly class SeedGitIdentitiesHandler
             'seed-separate' => ['mode' => 'machine', 'commitName' => 'Sam Separate', 'pushLogin' => $project->agentGitHubLogin, 'githubUserId' => 2_000_001],
             'seed-owner' => ['mode' => 'machine', 'commitName' => 'Owner Laptop', 'pushLogin' => $ownerConnection->login ?? 'seed-owner', 'githubUserId' => $ownerConnection?->githubUserId],
             'seed-unknown' => ['mode' => 'machine', 'commitName' => 'Unknown Box', 'pushLogin' => '', 'githubUserId' => null],
+            'seed-older-cli' => null,
         ];
 
         foreach ($rows as $name => $row) {
@@ -57,8 +58,8 @@ final readonly class SeedGitIdentitiesHandler
             }
             $bridge->lastSeenAt = $now;
             $bridge->projects = [(string) $project->id];
-            $bridge->gitIdentities = [['projectId' => (string) $project->id] + $row];
-            $bridge->gitIdentitiesReportedAt = $now;
+            $bridge->gitIdentities = null === $row ? null : [['projectId' => (string) $project->id] + $row];
+            $bridge->gitIdentitiesReportedAt = null === $row ? null : $now;
         }
         $this->em->flush();
 

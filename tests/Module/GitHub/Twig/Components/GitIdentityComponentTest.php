@@ -82,15 +82,61 @@ final class GitIdentityComponentTest extends WebTestCase
         self::assertSame('acme-agent', $line->filter('code')->text());
     }
 
-    public function test_a_managed_project_shows_a_machine_setup_as_not_managed_with_no_warning(): void
+    public function test_a_managed_project_still_warns_about_a_machine_that_pushes_as_the_owner(): void
     {
-        [$client, $project] = $this->managedProjectWith('gimachine', [['mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 7]]);
+        [$client, $project] = $this->managedProjectWith('gimachine', [['mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 42]], ownerLogin: 'riley-dev', ownerGitHubId: 42);
 
         $crawler = $this->connectPage($client, $project);
 
-        self::assertCount(1, $crawler->filter('[data-git-identity="not-managed"]'));
-        self::assertStringContainsString('Not managed', $crawler->filter('[data-git-identity="not-managed"]')->text());
+        self::assertCount(1, $crawler->filter('[data-git-identity="owner-account"]'));
+        self::assertStringContainsString('You cannot approve its pull requests.', $crawler->filter('[data-testid="git-identity-warning"]')->text());
+    }
+
+    public function test_a_managed_project_shows_a_bridge_on_an_older_cli_as_not_managed(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giolder', null);
+
+        $crawler = $this->connectPage($client, $project);
+
+        $line = $crawler->filter('[data-git-identity="not-managed"]');
+        self::assertCount(1, $line);
+        self::assertStringContainsString('This machine runs an older CLI', $line->text());
+        self::assertStringContainsString('Not managed', $line->text());
         self::assertCount(0, $crawler->filter('[data-testid="git-identity-warning"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="git-identity-empty"]'));
+    }
+
+    public function test_an_unmanaged_project_shows_no_line_for_a_bridge_on_an_older_cli(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giolderoff', null, managed: false);
+
+        self::assertCount(1, $this->connectPage($client, $project)->filter('[data-testid="git-identity-empty"]'));
+    }
+
+    public function test_a_bridge_that_reports_no_row_for_the_project_shows_no_line(): void
+    {
+        [$client, $project] = $this->managedProjectWith('ginorow', []);
+
+        self::assertCount(1, $this->connectPage($client, $project)->filter('[data-testid="git-identity-empty"]'));
+    }
+
+    public function test_only_the_bot_of_the_configured_app_is_the_loupe_app(): void
+    {
+        [$client, $project] = $this->managedProjectWith('gibots', [['mode' => 'machine', 'commitName' => 'Bot', 'pushLogin' => 'dependabot[bot]', 'githubUserId' => null]], managed: false);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $crawler = $this->connectPage($client, $project);
+
+        self::assertCount(0, $crawler->filter('[data-git-identity="app-bot"]'));
+        self::assertCount(1, $crawler->filter('[data-git-identity="maybe-owner-account"]'));
+    }
+
+    public function test_a_machine_that_pushes_as_the_configured_app_bot_is_the_loupe_app(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giownbot', [['mode' => 'machine', 'commitName' => 'Bot', 'pushLogin' => 'Loupe[bot]', 'githubUserId' => null]], managed: false);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        self::assertCount(1, $this->connectPage($client, $project)->filter('[data-git-identity="app-bot"]'));
     }
 
     public function test_a_machine_that_pushes_as_the_owner_gets_the_certain_warning(): void
@@ -280,11 +326,11 @@ final class GitIdentityComponentTest extends WebTestCase
     }
 
     /**
-     * @param list<array{mode: 'agent_account'|'app_token'|'machine', commitName: string, pushLogin: string, githubUserId: ?int}> $rows
+     * @param list<array{mode: 'agent_account'|'app_token'|'machine', commitName: string, pushLogin: string, githubUserId: ?int}>|null $rows null for a bridge on an older CLI
      *
      * @return array{\Symfony\Bundle\FrameworkBundle\KernelBrowser, Project}
      */
-    private function managedProjectWith(string $label, array $rows, bool $managed = true, ?string $ownerLogin = null, ?int $ownerGitHubId = null, ?string $signInId = null, ?string $agentLogin = null, ?\DateTimeImmutable $lastSeenAt = null): array
+    private function managedProjectWith(string $label, ?array $rows, bool $managed = true, ?string $ownerLogin = null, ?int $ownerGitHubId = null, ?string $signInId = null, ?string $agentLogin = null, ?\DateTimeImmutable $lastSeenAt = null): array
     {
         $client = static::createClient();
         $owner = $this->signedUpUser($label);
@@ -298,8 +344,10 @@ final class GitIdentityComponentTest extends WebTestCase
             $this->em()->persist(new ConnectedAccount($owner, SocialProvider::Github, $signInId));
         }
         $bridge = new Bridge(AgentCredential::managed($this->em(), $owner, $owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', $lastSeenAt ?? new \DateTimeImmutable());
-        $bridge->gitIdentities = array_map(static fn (array $row): array => ['projectId' => (string) $project->id] + $row, $rows);
-        $bridge->gitIdentitiesReportedAt = new \DateTimeImmutable('-12 seconds');
+        if (null !== $rows) {
+            $bridge->gitIdentities = array_map(static fn (array $row): array => ['projectId' => (string) $project->id] + $row, $rows);
+            $bridge->gitIdentitiesReportedAt = new \DateTimeImmutable('-12 seconds');
+        }
         $this->em()->persist($bridge);
         $this->em()->flush();
         $this->em()->clear();

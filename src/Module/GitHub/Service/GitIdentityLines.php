@@ -19,6 +19,7 @@ final readonly class GitIdentityLines
         private WorkshopConnectionsProviderInterface $connections,
         private GitHubUserConnectionRepository $gitHubUserConnections,
         private ConnectedAccountRepository $connectedAccounts,
+        private GitHubAppConfiguration $appConfiguration,
     ) {
     }
 
@@ -28,11 +29,15 @@ final readonly class GitIdentityLines
         $owner = $this->ownerGitHub($project);
         $lines = [];
         foreach ($this->connections->forProject($project) as $connection) {
-            if ($connection->quiet || null === $connection->gitIdentity) {
+            if ($connection->quiet) {
                 continue;
             }
 
-            $lines[] = $this->lineOf($project, $connection, $connection->gitIdentity, $owner);
+            if (null !== $connection->gitIdentity) {
+                $lines[] = $this->lineOf($project, $connection, $connection->gitIdentity, $owner);
+            } elseif ($project->gitIdentityManaged && !$connection->reportsGitIdentities) {
+                $lines[] = new GitIdentityLine($connection->label, GitIdentityState::NotManaged, '', '', null);
+            }
         }
 
         return $lines;
@@ -46,14 +51,19 @@ final readonly class GitIdentityLines
             WorkshopGitIdentity::MODE_APP_TOKEN === $identity->mode => GitIdentityState::AppBot,
             WorkshopGitIdentity::MODE_AGENT_ACCOUNT === $identity->mode => GitIdentityState::AgentAccount,
             '' === $login => GitIdentityState::Unknown,
-            // A machine whose setup the project does not manage keeps its own account, so nothing is wrong with it.
-            $project->gitIdentityManaged => GitIdentityState::NotManaged,
-            str_ends_with($login, '[bot]') => GitIdentityState::AppBot,
+            $this->isLoupeAppBot($login) => GitIdentityState::AppBot,
             null !== $project->agentGitHubLogin && 0 === strcasecmp($login, $project->agentGitHubLogin) => GitIdentityState::Detected,
             default => $this->ownerState($identity, $owner),
         };
 
         return new GitIdentityLine($connection->label, $state, $identity->commitName, $login, $identity->reportedAt);
+    }
+
+    private function isLoupeAppBot(string $login): bool
+    {
+        $slug = $this->appConfiguration->slug;
+
+        return null !== $slug && '' !== $slug && 0 === strcasecmp($login, $slug.'[bot]');
     }
 
     /** @param array{login: ?string, ids: list<int>} $owner */
