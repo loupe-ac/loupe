@@ -114,7 +114,8 @@ The Repository row shows the state of the latest run:
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
 | Running on card #N | A run is open. A second start is refused until it ends | Open card |
 | Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no bridge claimed the request in time. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
-| The report waits for your review | The worker reported. The run is in the Reported state | None |
+| A worker revises the report on card #N | You asked for changes to the report. The run is in the Revising state | Open report |
+| The report waits for your review | The worker reported. The run is in the Reported state | Open report |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
 
 ## Review the report
@@ -134,4 +135,11 @@ Loupe then moves the discovery card to the first done column, and the run is Don
 Proposals you leave unticked create no card.
 
 A second approval of the same report creates no second card.
-A verdict of changes requested creates no card, and the run stays Reported.
+
+A verdict of changes requested creates no card. The run moves to Revising, and the `discovery-revise` rule asks a worker to revise the same report.
+The worker submits a new version of the report document. Loupe replaces the proposals that made no card, and the run goes back to Reported.
+Review the new version, and approve it or ask for changes again.
+
+When you approve the report while a worker revises it, the approval wins.
+Loupe stops the revision, and creates the cards from the version you approved.
+While the run is Requested or Revising, the discovery card takes no manual move.

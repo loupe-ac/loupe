@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Readiness\EventListener;
 
+use App\Exception\DomainErrors;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Bridge\Entity\WorkRequest;
+use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
+use App\Module\Readiness\Command\FailDiscoveryRunHandler;
 use App\Module\Readiness\Command\ReportFinding;
 use App\Module\Readiness\Command\ReportProposal;
 use App\Module\Readiness\Command\SubmitReadinessReportCommand;
@@ -94,15 +99,47 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         self::assertTrue($this->run->card->column->terminal);
     }
 
-    public function test_a_changes_requested_verdict_does_nothing(): void
+    public function test_a_changes_requested_verdict_creates_no_card_and_sends_the_run_to_revising(): void
     {
         $this->tick(0);
 
         $this->submitVerdict('changes-requested', 'Not yet.');
 
         self::assertSame([], $this->createdCards());
-        self::assertSame(DiscoveryRunState::Reported, $this->run->state);
+        self::assertSame(DiscoveryRunState::Revising, $this->run->state);
         self::assertFalse($this->run->card->column->terminal);
+    }
+
+    public function test_an_approval_during_a_revision_wins_and_makes_the_cards_of_the_approved_version(): void
+    {
+        $this->tick(0, 2);
+        $requested = $this->submitVerdict('changes-requested', 'Not yet.');
+        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->run->card->id ?? throw new \LogicException('Stored.'), $this->run->card->number, 'discovery-revise', 'discovery-revise', FailDiscoveryRunHandler::REVISE_RULE_ID, new \DateTimeImmutable());
+        $this->em()->persist($request);
+        $this->em()->flush();
+        self::assertSame(DiscoveryRunState::Revising, $this->run->state);
+
+        $this->approve(previous: $requested);
+
+        self::assertSame(['Add tests', 'Add a linter'], array_map(static fn (Card $card): string => $card->title, $this->createdCards()));
+        self::assertSame(DiscoveryRunState::Done, $this->run->state);
+        self::assertTrue($this->run->card->column->terminal);
+        self::assertSame(WorkRequestState::Cancelled, $request->state);
+    }
+
+    public function test_a_revision_that_submits_after_the_approval_is_refused(): void
+    {
+        $requested = $this->submitVerdict('changes-requested', 'Not yet.');
+        $this->approve(previous: $requested);
+
+        $handler = self::getContainer()->get(SubmitReadinessReportHandler::class);
+        self::assertInstanceOf(SubmitReadinessReportHandler::class, $handler);
+        try {
+            $handler(new SubmitReadinessReportCommand($this->project, (string) $this->run->id, 'lifecycle', [new ReportFinding('Tests run', 'gap', 'None.')]));
+            self::fail('A finished run takes no revision.');
+        } catch (DomainErrors $e) {
+            self::assertSame([SubmitReadinessReportHandler::ALREADY_REPORTED], array_values($e->errors));
+        }
     }
 
     public function test_a_second_approval_creates_no_duplicate_card(): void
@@ -211,17 +248,17 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         $this->em()->flush();
     }
 
-    private function approve(?Document $document = null, ?Project $project = null): Review
+    private function approve(?Document $document = null, ?Project $project = null, ?Review $previous = null): Review
     {
-        return $this->submitVerdict('approved', null, $document, $project);
+        return $this->submitVerdict('approved', null, $document, $project, previous: $previous);
     }
 
-    private function submitVerdict(string $verdict, ?string $note, ?Document $document = null, ?Project $project = null, int $version = 1): Review
+    private function submitVerdict(string $verdict, ?string $note, ?Document $document = null, ?Project $project = null, int $version = 1, ?Review $previous = null): Review
     {
         $handler = self::getContainer()->get(SubmitReviewHandler::class);
         self::assertInstanceOf(SubmitReviewHandler::class, $handler);
 
-        return $handler(new SubmitReviewCommand(($project ?? $this->project)->owner, $document ?? $this->report, $verdict, $version, $note));
+        return $handler(new SubmitReviewCommand(($project ?? $this->project)->owner, $document ?? $this->report, $verdict, $version, $note, $previous?->id?->toRfc4122()));
     }
 
     private function dispatch(Review $review): void

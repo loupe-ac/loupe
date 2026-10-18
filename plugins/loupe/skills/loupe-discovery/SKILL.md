@@ -21,7 +21,7 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 
 1. Call `readiness_get`. Each of its `rows` has a `key`, `done` and `status`. The keys are `agent`, `workflow`, `bridge`, `github`, `agent_account` and `repository`. These rows tell you what Loupe sees of the setup.
 2. Read the `discovery` field of `readiness_get`. It is the latest run of the project. Its `cardNumber` must be the card number of your prompt. If it is not, stop and report the mismatch.
-3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is not `requested`, the run takes no report, so stop and report the state.
+3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is `revising`, follow "Revising a report" below. When it is neither `requested` nor `revising`, the run takes no report, so stop and report the state.
 4. Call `workflow_get`. It returns the `template` with its `key` and `version`, and the `columns`. Its `kinds` list each kind of work that the workflow asks a bridge to do. Each kind has an `origin` of `template` or `app`, the `rules` that ask for it, and its `checks`. The checks name what that work needs.
 5. Read the repository. Find the build and test commands, the CI config and the agent instruction files, such as `AGENTS.md` or `CLAUDE.md`. Read `.loupe/lifecycle.md` and its sections when the file exists. Read the git remote.
 6. Apply the generic checks.
@@ -44,8 +44,19 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 12. Open a review of the report in the inbox. Call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`, and `cardIds` set to the `cardId`. Pass `sessionId` and `bridgeId` from the footer line "Your session id is … and your bridge id is …". Leave `blocking` false, so the ask closes at once. Loupe does not put the report in the inbox for you. When the prompt has no such line, the inbox is off, so skip this step.
 13. End with a short reply that gives the report `url` and the number of gaps.
 
+## Revising a report
+
+The prompt of a revision names the kind `discovery-revise`. The owner asked for changes to the report, and the run is `revising`.
+
+1. Read the report document with `document_get`. The `discovery` field of `readiness_get` names the card, and the card links the document with the tag `readiness-report`.
+2. Read the comments with `document_get_review`. Address each comment, and check the repository again where a comment asks for it.
+3. Call `readiness_report_submit` with the same `runId`, and the whole revised `workflow`, `findings`, `proposals` and `summary`. Loupe stores a new version of the same document, and replaces the proposals that made no card.
+4. End with the report `url`. Skip step 12 of the steps above: the owner already has the report in the inbox.
+
+If the owner approves the report while you revise it, the tool refuses your submit. Report the refusal and stop.
+
 ## When something fails
 
 A tool refusal names its fix. When the fix is a change that discovery must not make, stop and report the refusal in your final reply.
 
-Two refusals of `readiness_report_submit` mean that the run takes no report: "This run does not wait for a report now" and "This run has a report already". Do not retry, and do not start a new run. Report the refusal and stop.
+Two refusals of `readiness_report_submit` mean that the run takes no report: "This run does not wait for a report now" and "This run has a report already". A revising run takes a report. Do not retry, and do not start a new run. Report the refusal and stop.
