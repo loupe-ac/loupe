@@ -6281,13 +6281,17 @@
        reads the final place of each part while the head height still moves. */
     .lp-board-lane__heading {
         @apply grid self-start min-w-0 items-center gap-x-2 gap-y-1 pt-5;
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: auto auto minmax(0, 1fr);
         grid-template-areas:
-            'number progress'
-            'title title';
+            'number status progress'
+            'title title title';
     }
     .lp-board-lane__number {
         grid-area: number;
+    }
+    .lp-board-lane__status {
+        grid-area: status;
+        @apply inline-flex items-center gap-1.5 whitespace-nowrap;
     }
     .lp-board-lane__title {
         grid-area: title;
@@ -6559,15 +6563,15 @@
         @apply flex gap-3.5 min-h-0;
     }
 
-    /* A collapsed lane is a slim bar: the number, the title and the progress.
+    /* A collapsed lane is a slim bar: the number, the state mark and column, the title and the progress.
        It shows no deck, no lane button and no cells. */
     .lp-board-lane--collapsed .lp-board-lane__head {
         @apply h-13 rounded-xl bg-surface-3 px-1.5;
     }
     .lp-board-lane--collapsed .lp-board-lane__heading {
         @apply pt-3.5 max-w-none;
-        grid-template-columns: auto minmax(0, max-content) auto;
-        grid-template-areas: 'number title progress';
+        grid-template-columns: auto auto minmax(0, max-content) auto;
+        grid-template-areas: 'number status title progress';
     }
     .lp-board-lane--collapsed .lp-board-lane__title {
         @apply block text-base leading-normal truncate;

@@ -353,6 +353,31 @@ test('an epic in the Backlog keeps its lane on the board', async ({
     await expect(page.locator(`#board-row-${epic.id}`)).toHaveCount(0);
 });
 
+test('a lane head shows the column tag of its epic', async ({
+    page,
+    board,
+}) => {
+    const epic = await board.create(`Tagged epic ${RUN}`, { type: 'epic' });
+    const waiting = await board.create(`Waiting tagged epic ${RUN}`, {
+        type: 'epic',
+        status: 'backlog',
+    });
+
+    await page.goto(board.boardUrl);
+    await expect(page.locator(READY)).toBeAttached();
+
+    await expect(
+        lane(page, epic.id).locator(
+            '.lp-board-lane__head .lp-board-lane__status',
+        ),
+    ).toContainText('Next');
+    await expect(
+        lane(page, waiting.id).locator(
+            '.lp-board-lane__head .lp-board-lane__status',
+        ),
+    ).toContainText('Backlog');
+});
+
 test('a lane switched off shows the parent tag and the progress', async ({
     livePage: page,
     board,
