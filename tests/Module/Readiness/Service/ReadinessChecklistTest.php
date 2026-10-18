@@ -14,7 +14,6 @@ use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\Project\Entity\Project;
-use App\Module\Project\Service\WorkflowTemplateChoices;
 use App\Module\Project\Workshop\WorkshopConnectionsProviderInterface;
 use App\Module\Project\Workshop\WorkshopReadiness;
 use App\Module\Project\Workshop\WorkshopReadinessRow;
@@ -54,7 +53,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         $project = $this->newProject('readiness-rows-hidden@example.com');
         $project->readinessGuideHiddenAt = new \DateTimeImmutable();
 
-        self::assertSame(6, $this->checklist()->rows($project)->total());
+        self::assertSame(5, $this->checklist()->rows($project)->total());
     }
 
     public function test_discovery_with_no_run_waits_for_a_running_bridge(): void
@@ -186,20 +185,18 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame(['readiness.row.repository.done', 'done', true], [$doneRow->status, $doneRow->discoveryState, $doneRow->done]);
     }
 
-    public function test_a_new_project_lists_six_open_checks_in_order(): void
+    public function test_a_new_project_lists_five_open_checks_in_order(): void
     {
         $project = $this->newProject('readiness-new@example.com');
 
         $readiness = $this->readiness($this->checklist(), $project);
 
-        self::assertSame(['agent', 'workflow', 'bridge', 'github', 'agent_account', 'repository'], array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $readiness->rows));
+        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository'], array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $readiness->rows));
         self::assertSame(0, $readiness->doneCount());
-        self::assertSame(6, $readiness->total());
+        self::assertSame(5, $readiness->total());
         $connect = '/projects/'.$project->id.'/connect';
         self::assertSame($connect, $this->row($readiness, 'agent')->actionUrl);
         self::assertSame($connect, $this->row($readiness, 'bridge')->actionUrl);
-        self::assertNull($this->row($readiness, 'workflow')->actionUrl);
-        self::assertNull($this->row($readiness, 'workflow')->detail);
         self::assertNull($this->row($readiness, 'github')->actionUrl);
         self::assertSame('/projects/'.$project->id.'/readiness/agent-account', $this->row($readiness, 'agent_account')->actionUrl);
         self::assertNull($this->row($readiness, 'repository')->actionUrl);
@@ -216,7 +213,7 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame('readiness.row.github.action', $row->actionLabel);
     }
 
-    public function test_a_ready_project_marks_the_first_four_checks_done(): void
+    public function test_a_ready_project_marks_the_first_three_checks_done(): void
     {
         $em = $this->em();
         $project = $this->newProject('readiness-ready@example.com');
@@ -229,10 +226,9 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         $readiness = $this->readiness($this->checklist(configured: true), $project);
 
-        self::assertSame([true, true, true, true, false, false], array_map(static fn (WorkshopReadinessRow $row): bool => $row->done, $readiness->rows));
-        self::assertSame(4, $readiness->doneCount());
-        self::assertSame('workflow.template.simple.label', $this->row($readiness, 'workflow')->detail);
-        foreach (array_slice($readiness->rows, 0, 4) as $row) {
+        self::assertSame([true, true, true, false, false], array_map(static fn (WorkshopReadinessRow $row): bool => $row->done, $readiness->rows));
+        self::assertSame(3, $readiness->doneCount());
+        foreach (array_slice($readiness->rows, 0, 3) as $row) {
             self::assertNull($row->actionUrl, $row->key);
         }
     }
@@ -296,16 +292,6 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame('readiness.row.agent_account.done', $row->status);
         self::assertSame(['%login%' => 'Acme-Agent'], $row->statusParameters);
         self::assertNull($row->actionUrl);
-    }
-
-    public function test_a_template_with_no_label_shows_its_key(): void
-    {
-        $em = $this->em();
-        $project = $this->newProject('readiness-custom@example.com');
-        $em->persist(new WorkflowBinding($project, 'house-rules', 1, []));
-        $em->flush();
-
-        self::assertSame('house-rules', $this->row($this->readiness($this->checklist(), $project), 'workflow')->detail);
     }
 
     public function test_a_quiet_bridge_does_not_count_as_running(): void
@@ -400,7 +386,6 @@ final class ReadinessChecklistTest extends KernelTestCase
         return new ReadinessChecklist(
             $container->get(WorkshopConnectionsProviderInterface::class),
             $container->get(WorkflowBindingRepository::class),
-            $container->get(WorkflowTemplateChoices::class),
             $container->get(GitHubInstallationRepository::class),
             $container->get(ForgeRepositoryRepository::class),
             new GitHubAppConfiguration($value, $value, $value, $value, $value, $value),

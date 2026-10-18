@@ -25,13 +25,6 @@
             {{ form_widget(form.domain, {attr: {class: ds_input_class()}}) }}
             <twig:Ds:FieldErrors :fieldView="form.domain" />
         </twig:Ds:FormField>
-        <twig:Ds:FormField>
-            {{ form_label(form.searchLanguage, null, {label_attr: {class: ds_label_class()}}) }}
-            {{ form_widget(form.searchLanguage, {attr: {class: ds_input_class('select')}}) }}
-            <twig:Ds:FieldErrors :fieldView="form.searchLanguage" />
-            <twig:Ds:Hint>{{ 'project.form.create_project_form.search_language.hint'|trans }}</twig:Ds:Hint>
-        </twig:Ds:FormField>
-        {% include '@Project/_workflow_template_field.html.twig' with {field: form.workflowTemplate} only %}
         <twig:Ds:FormActions>
             {# Submits the skip form below via `form=`: the action row sits inside
                the project form, and a nested <form> is invalid HTML. #}
