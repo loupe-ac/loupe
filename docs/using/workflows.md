@@ -767,7 +767,9 @@ The rule `discovery-revise` also watches the Backlog. It asks for work of kind
 `discovery-revise` when you asked for changes to the report of a
 [discovery run](workshop.md#review-the-report), and it sends the revision prompt
 with the request. The worker submits a new version of the same report. An
-approval of the report while the worker revises it cancels the request.
+approval of the report while the worker revises it cancels the request. The rule
+also sets `onNoTaker: fail`, so the run fails at once with the cause when no
+online bridge can take the revision.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the

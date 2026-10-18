@@ -37,7 +37,7 @@ final class AppRulesTest extends KernelTestCase
         self::assertSame('@backlog', $rules[0]->slot);
         self::assertSame(['kind' => 'discovery', 'onTimeout' => 'expire', 'onNoTaker' => 'fail', 'prompt' => 'discovery'], $rules[0]->then->params);
         self::assertSame('@backlog', $rules[1]->slot);
-        self::assertSame(['kind' => 'discovery-revise', 'onTimeout' => 'expire', 'prompt' => 'discovery-revise'], $rules[1]->then->params);
+        self::assertSame(['kind' => 'discovery-revise', 'onTimeout' => 'expire', 'onNoTaker' => 'fail', 'prompt' => 'discovery-revise'], $rules[1]->then->params);
         self::assertNull($rules[2]->slot);
         self::assertSame(['write' => 'post-review'], $rules[2]->then->params);
         self::assertNull($rules[3]->slot);
