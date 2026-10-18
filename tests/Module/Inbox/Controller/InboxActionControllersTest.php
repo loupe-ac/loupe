@@ -469,6 +469,22 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertCount(0, $item->filter('textarea[data-inbox-session-prompt]'));
     }
 
+    public function test_a_menu_with_no_enabled_action_opens_from_a_whole_labelled_button(): void
+    {
+        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']]);
+
+        $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
+
+        self::assertResponseIsSuccessful();
+        $split = $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread] .inbox-split');
+        self::assertCount(0, $split->filter('.inbox-split__main'));
+        self::assertCount(1, $split->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
+        $toggle = $split->filter('.inbox-split__toggle');
+        self::assertStringContainsString('inbox-split__toggle--alone', (string) $toggle->attr('class'));
+        self::assertSame('Other actions', trim($toggle->text()));
+        self::assertNull($toggle->attr('aria-label'));
+    }
+
     public function test_a_session_prompt_in_the_menu_stays_hidden_until_the_owner_picks_start_session(): void
     {
         $this->sessionBridge();

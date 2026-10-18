@@ -8343,7 +8343,7 @@
 .inbox-split__main {
     @apply rounded-r-none;
 }
-.inbox-split__toggle {
+.inbox-split__toggle:not(.inbox-split__toggle--alone) {
     @apply rounded-l-none px-2;
     border-left-color: color-mix(in oklab, var(--accent-ink) 40%, transparent);
 }
