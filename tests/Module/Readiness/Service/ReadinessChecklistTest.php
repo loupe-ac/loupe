@@ -25,6 +25,7 @@ use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\EventListener\FailDiscoveryOnRequestWithdrawn;
 use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ReadinessChecklist;
+use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
@@ -172,6 +173,36 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         self::assertSame(['%reason%' => 'lost'], $row->statusParameters);
         self::assertNull($row->actionUrl);
+    }
+
+    public function test_a_revising_run_links_its_report(): void
+    {
+        $project = $this->newProject('readiness-discovery-revising@example.com');
+        $run = $this->discoveryRun($project, DiscoveryRunState::Revising);
+        $run->reportDocument = new Document($project->owner, $project, 'Report');
+        $this->em()->persist($run->reportDocument);
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame(['readiness.row.repository.revising', 'revising', false], [$row->status, $row->discoveryState, $row->done]);
+        self::assertSame(['%number%' => (string) $run->card->number], $row->statusParameters);
+        self::assertSame('readiness.row.repository.open_report', $row->actionLabel);
+        self::assertSame('/projects/'.$project->id.'/documents/'.$run->reportDocument->id.'/review', $row->actionUrl);
+    }
+
+    public function test_a_reported_run_links_its_report(): void
+    {
+        $project = $this->newProject('readiness-discovery-report-link@example.com');
+        $run = $this->discoveryRun($project, DiscoveryRunState::Reported);
+        $run->reportDocument = new Document($project->owner, $project, 'Report');
+        $this->em()->persist($run->reportDocument);
+        $this->em()->flush();
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'repository');
+
+        self::assertSame('readiness.row.repository.open_report', $row->actionLabel);
+        self::assertSame('/projects/'.$project->id.'/documents/'.$run->reportDocument->id.'/review', $row->actionUrl);
     }
 
     public function test_a_reported_run_waits_for_review_and_a_done_run_marks_the_check_done(): void

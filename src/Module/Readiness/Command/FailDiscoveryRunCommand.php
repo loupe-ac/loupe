@@ -12,6 +12,8 @@ final readonly class FailDiscoveryRunCommand
         public Uuid $cardId,
         /** A short code such as no-taker, or the failure reason a bridge reported. */
         public string $reason,
+        /** The rule whose work ended. A run fails only while it waits for that rule's work, and null accepts either. */
+        public ?string $ruleId = null,
     ) {
     }
 }

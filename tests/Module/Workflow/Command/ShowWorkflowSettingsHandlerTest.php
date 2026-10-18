@@ -97,6 +97,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
 
         self::assertEquals([
             new WorkflowRuleView('discovery', 'workflow.settings.where.backlog', 'workflow.settings.action.request', null, 'discovery', [new WorkflowConditionGroupView('workflow.source.readiness', [new WorkflowConditionView('card.discovery.requested', false, '')])], [], [], []),
+            new WorkflowRuleView('discovery-revise', 'workflow.settings.where.backlog', 'workflow.settings.action.request', null, 'discovery-revise', [new WorkflowConditionGroupView('workflow.source.readiness', [new WorkflowConditionView('card.discovery.revising', false, '')])], [], [], []),
             new WorkflowRuleView('post-widget-review', 'workflow.settings.where.any', 'workflow.settings.action.forge_write', null, 'post-review', [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.site_review.verdict_unsent', false, '')])], [], [], []),
             new WorkflowRuleView('sync-site-review-check', 'workflow.settings.where.any', 'workflow.settings.action.forge_write', null, 'site-review-check', [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.site_review.check_stale', false, '')])], [], [], []),
             new WorkflowRuleView('sync-agent-review-check', 'workflow.settings.where.any', 'workflow.settings.action.forge_write', null, 'agent-review-check', [new WorkflowConditionGroupView('workflow.source.agent_review', [new WorkflowConditionView('agent_review.unposted', false, '')])], [], [], []),

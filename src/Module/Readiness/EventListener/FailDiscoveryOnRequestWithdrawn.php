@@ -32,13 +32,13 @@ final readonly class FailDiscoveryOnRequestWithdrawn
             return;
         }
         $request = $this->workRequests->find($event->workRequestId);
-        if (FailDiscoveryRunHandler::RULE_ID !== $request?->ruleId) {
+        if (null === $request || !\in_array($request->ruleId, [FailDiscoveryRunHandler::RULE_ID, FailDiscoveryRunHandler::REVISE_RULE_ID], true)) {
             return;
         }
         // An expiry that names why no bridge could take the request keeps that reason.
         $reason = WorkRequestState::Expired === $event->state ? ($request->reason ?? self::NO_TAKER) : self::CARD_MOVED;
 
         // The handler cancels the request after it fails the run, so that cancel finds no requested run.
-        ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($cardId, $reason));
+        ($this->failDiscoveryRun)(new FailDiscoveryRunCommand($cardId, $reason, $request->ruleId));
     }
 }

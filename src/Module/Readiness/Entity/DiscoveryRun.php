@@ -54,10 +54,10 @@ class DiscoveryRun
     ) {
     }
 
-    /** Answers whether the run failed now. Only a requested run fails. */
+    /** Answers whether the run failed now. Only a requested or revising run fails. */
     public function fail(string $reason, \DateTimeImmutable $at): bool
     {
-        if (DiscoveryRunState::Requested !== $this->state) {
+        if (!\in_array($this->state, [DiscoveryRunState::Requested, DiscoveryRunState::Revising], true)) {
             return false;
         }
         $this->state = DiscoveryRunState::Failed;

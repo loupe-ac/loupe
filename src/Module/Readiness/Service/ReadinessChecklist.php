@@ -254,7 +254,17 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 parameters: ['%reason%' => $this->failureReason($run)],
                 csrf: $canStart ? self::START_TOKEN : null,
             ),
-            DiscoveryRunState::Reported => $row('readiness.row.repository.reported'),
+            DiscoveryRunState::Revising => $row(
+                'readiness.row.repository.revising',
+                actionLabel: null === $run->reportDocument ? null : 'readiness.row.repository.open_report',
+                actionUrl: null === $run->reportDocument ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $run->reportDocument->id]),
+                parameters: ['%number%' => (string) $run->card->number],
+            ),
+            DiscoveryRunState::Reported => $row(
+                'readiness.row.repository.reported',
+                actionLabel: null === $run->reportDocument ? null : 'readiness.row.repository.open_report',
+                actionUrl: null === $run->reportDocument ? null : $this->urls->generate('app_document_review', ['projectId' => (string) $project->id, 'documentId' => (string) $run->reportDocument->id]),
+            ),
             DiscoveryRunState::Done => $row('readiness.row.repository.done', done: true),
         };
     }

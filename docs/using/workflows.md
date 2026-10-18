@@ -752,7 +752,7 @@ ships for its kind. This covers all 17 kinds, such as `tech-design`, `implement`
 `fix`, `merge` and `repair`. A `work:` entry of the bridge rule file still wins
 over the shipped prompt.
 
-The app adds five rules.
+The app adds six rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
@@ -762,6 +762,14 @@ when no online bridge could take it, and the run fails with the cause: no bridge
 serves the project, or a bridge is online and cannot run discovery. A request
 that a capable bridge does not claim in time expires, and the run fails with the
 reason that no bridge took the work.
+
+The rule `discovery-revise` also watches the Backlog. It asks for work of kind
+`discovery-revise` when you asked for changes to the report of a
+[discovery run](workshop.md#review-the-report), and it sends the revision prompt
+with the request. The worker submits a new version of the same report. An
+approval of the report while the worker revises it cancels the request. The rule
+also sets `onNoTaker: fail`, so the run fails at once with the cause when no
+online bridge can take the revision.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the

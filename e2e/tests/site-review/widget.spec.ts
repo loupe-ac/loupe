@@ -2228,13 +2228,20 @@ test('the composer keeps Save reachable at the anchor cap', async ({
     expect(overflows).toBe(true);
 
     // Save stays inside the composer's clipped box, so it can still be clicked.
-    const composerBox = await page.locator('#lp-composer').boundingBox();
-    const saveBox = await page
-        .getByRole('button', { name: 'Save note' })
-        .boundingBox();
-    expect(saveBox!.y + saveBox!.height).toBeLessThanOrEqual(
-        composerBox!.y + composerBox!.height + 1,
-    );
+    // The panel animates its height, so both boxes come from one frame.
+    await expect
+        .poll(() =>
+            page
+                .locator('#lp-composer')
+                .evaluate(
+                    (composer) =>
+                        composer
+                            .querySelector('#lp-save')!
+                            .getBoundingClientRect().bottom -
+                        composer.getBoundingClientRect().bottom,
+                ),
+        )
+        .toBeLessThanOrEqual(1);
 
     // The real proof: the comment saves.
     await page
