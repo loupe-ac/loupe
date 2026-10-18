@@ -6,6 +6,7 @@ namespace App\Tests\Module\Bridge\Workflow\Condition;
 
 use App\Module\Bridge\ValueObject\WorkTakerReading;
 use App\Module\Bridge\ValueObject\WorkTakerState;
+use App\Module\Bridge\Workflow\Condition\RunWorkNoCapableTaker;
 use App\Module\Bridge\Workflow\Condition\RunWorkNoTaker;
 use App\Module\Bridge\Workflow\Condition\RunWorkTakerPaused;
 use App\Module\Bridge\Workflow\WorkTakerFacts;
@@ -57,6 +58,16 @@ final class WorkTakerConditionsTest extends TestCase
         self::assertFalse(new RunWorkTakerPaused()->evaluate($facts, []));
     }
 
+    public function test_a_request_with_an_online_bridge_that_cannot_run_it_holds_both_no_taker_conditions(): void
+    {
+        $facts = self::facts(['implement' => self::reading(WorkTakerState::NotCapable)]);
+
+        self::assertTrue(new RunWorkNoCapableTaker()->evaluate($facts, []));
+        self::assertTrue(new RunWorkNoTaker()->evaluate($facts, []));
+        self::assertFalse(new RunWorkTakerPaused()->evaluate($facts, []));
+        self::assertFalse(new RunWorkNoCapableTaker()->evaluate(self::facts(['implement' => self::reading(WorkTakerState::None)]), []));
+    }
+
     public function test_the_evidence_starts_at_the_longest_wait_without_a_taker(): void
     {
         $facts = self::facts([
@@ -89,7 +100,7 @@ final class WorkTakerConditionsTest extends TestCase
 
     public function test_the_conditions_name_their_facts_and_their_waiting_sentences(): void
     {
-        foreach ([[new RunWorkNoTaker(), 'run_work_no_taker'], [new RunWorkTakerPaused(), 'run_work_taker_paused']] as [$condition, $suffix]) {
+        foreach ([[new RunWorkNoTaker(), 'run_work_no_taker'], [new RunWorkNoCapableTaker(), 'run_work_no_capable_taker'], [new RunWorkTakerPaused(), 'run_work_taker_paused']] as [$condition, $suffix]) {
             self::assertSame([WorkTakerFacts::class], $condition->reads([]));
             self::assertSame('workflow.waiting.'.$suffix, $condition->waitingFor([])->getMessage());
             self::assertSame('workflow.waiting.not.'.$suffix, $condition->waitingFor([], negated: true)->getMessage());

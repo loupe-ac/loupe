@@ -43,6 +43,7 @@ class ShowWelcomeController extends AppController
         }
 
         $form = $this->createForm(CreateProjectFormType::class, new CreateProjectRequest(), [
+            'search_language' => false,
             'action' => $this->generateUrl('app_welcome_create_project'),
         ]);
 

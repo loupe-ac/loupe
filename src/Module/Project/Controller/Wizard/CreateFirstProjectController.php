@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Project\Controller\Wizard;
 
 use App\Controller\AppController;
+use App\Doctrine\SearchLanguage;
 use App\Exception\DomainErrors;
 use App\Module\Account\Entity\User;
 use App\Module\Project\Command\CreateProjectCommand;
@@ -44,8 +45,9 @@ class CreateFirstProjectController extends AppController
             return $this->redirectToRoute('app_welcome_connect');
         }
 
-        $data = new CreateProjectRequest();
+        $data = new CreateProjectRequest(searchLanguage: SearchLanguage::fromPreferred(array_values($request->getLanguages())));
         $form = $this->createForm(CreateProjectFormType::class, $data, [
+            'search_language' => false,
             'action' => $this->generateUrl('app_welcome_create_project'),
         ]);
         $form->handleRequest($request);
@@ -63,7 +65,6 @@ class CreateFirstProjectController extends AppController
                     domain: trim($data->domain ?? '') ?: null,
                     searchLanguage: $data->searchLanguage ?? throw new \LogicException('search language required after validation'),
                     description: $data->description,
-                    workflowTemplate: $data->workflowTemplate ?? throw new \LogicException('workflow template required after validation'),
                 ));
 
                 return $this->redirectToRoute('app_welcome_connect');

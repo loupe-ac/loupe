@@ -13,6 +13,9 @@ enum WorkTakerState: string
     /** Every online bridge that could take the work is paused. */
     case Paused = 'paused';
 
-    /** No online bridge could take the work. */
+    /** No online bridge follows the project. */
     case None = 'none';
+
+    /** An online bridge follows the project, and none of them could take the work. */
+    case NotCapable = 'not-capable';
 }

@@ -2129,7 +2129,6 @@
                 <target>Add project</target>
             </trans-unit>
             <trans-unit id="project.form.create_project_form.description.label"><source>project.form.create_project_form.description.label</source><target>Description (optional)</target></trans-unit>
-            <trans-unit id="project.form.create_project_form.workflow_template.label"><source>project.form.create_project_form.workflow_template.label</source><target>Workflow</target></trans-unit>
             <trans-unit id="project.form.create_project_form.name.label">
                 <source>project.form.create_project_form.name.label</source>
                 <target>Project name</target>
@@ -8511,6 +8510,8 @@
             <trans-unit id="workflow.waiting.not.run_work_active"><source>workflow.waiting.not.run_work_active</source><target>Waiting: a matching work request is still active.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_no_taker"><source>workflow.waiting.run_work_no_taker</source><target>Waiting: every open work request has an online bridge that could take it.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_no_taker"><source>workflow.waiting.not.run_work_no_taker</source><target>Waiting: an open work request has no online bridge that could take it.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_no_capable_taker"><source>workflow.waiting.run_work_no_capable_taker</source><target>Waiting: no online bridge is unable to run an open work request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_no_capable_taker"><source>workflow.waiting.not.run_work_no_capable_taker</source><target>Waiting: an online bridge cannot run an open work request.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_taker_paused"><source>workflow.waiting.run_work_taker_paused</source><target>Waiting: the bridges that could take the open work are not all paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
@@ -8700,12 +8701,13 @@
             <trans-unit id="readiness.row.agent.done"><source>readiness.row.agent.done</source><target>Connected</target></trans-unit>
             <trans-unit id="readiness.row.agent.open"><source>readiness.row.agent.open</source><target>No agent yet</target></trans-unit>
             <trans-unit id="readiness.row.agent.action"><source>readiness.row.agent.action</source><target>Connect</target></trans-unit>
-            <trans-unit id="readiness.row.workflow.label"><source>readiness.row.workflow.label</source><target>Workflow</target></trans-unit>
-            <trans-unit id="readiness.row.workflow.done"><source>readiness.row.workflow.done</source><target>Chosen</target></trans-unit>
-            <trans-unit id="readiness.row.workflow.open"><source>readiness.row.workflow.open</source><target>Not chosen</target></trans-unit>
             <trans-unit id="readiness.row.bridge.label"><source>readiness.row.bridge.label</source><target>Bridge running</target></trans-unit>
             <trans-unit id="readiness.row.bridge.done"><source>readiness.row.bridge.done</source><target>Running</target></trans-unit>
             <trans-unit id="readiness.row.bridge.open"><source>readiness.row.bridge.open</source><target>Not running</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable"><source>readiness.row.bridge.not_capable</source><target>Online, but it cannot run this work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable_app_prompts"><source>readiness.row.bridge.not_capable_app_prompts</source><target>Online, but it cannot run this work. Run `loupe init` again</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.paused"><source>readiness.row.bridge.paused</source><target>Paused, so it takes no new work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.resume"><source>readiness.row.bridge.resume</source><target>Resume</target></trans-unit>
             <trans-unit id="readiness.row.bridge.action"><source>readiness.row.bridge.action</source><target>Start</target></trans-unit>
             <trans-unit id="readiness.row.github.label"><source>readiness.row.github.label</source><target>GitHub App</target></trans-unit>
             <trans-unit id="readiness.row.github.done"><source>readiness.row.github.done</source><target>Installed</target></trans-unit>
@@ -8720,6 +8722,8 @@
             <trans-unit id="readiness.row.repository.open"><source>readiness.row.repository.open</source><target>Not run</target></trans-unit>
             <trans-unit id="readiness.row.repository.action"><source>readiness.row.repository.action</source><target>Run discovery</target></trans-unit>
             <trans-unit id="readiness.row.repository.no_bridge"><source>readiness.row.repository.no_bridge</source><target>Discovery waits for a running bridge</target></trans-unit>
+            <trans-unit id="readiness.row.repository.no_capable_bridge"><source>readiness.row.repository.no_capable_bridge</source><target>Discovery waits for a bridge that can run it</target></trans-unit>
+            <trans-unit id="readiness.row.repository.bridge_paused"><source>readiness.row.repository.bridge_paused</source><target>Discovery waits for a bridge that is not paused</target></trans-unit>
             <trans-unit id="readiness.row.repository.no_workflow"><source>readiness.row.repository.no_workflow</source><target>Discovery waits for a workflow</target></trans-unit>
             <trans-unit id="readiness.row.repository.automation_off"><source>readiness.row.repository.automation_off</source><target>Discovery waits for board automation</target></trans-unit>
             <trans-unit id="readiness.row.repository.running"><source>readiness.row.repository.running</source><target>Running on card #%number%</target></trans-unit>
@@ -8729,6 +8733,9 @@
             <trans-unit id="readiness.row.repository.reported"><source>readiness.row.repository.reported</source><target>The report waits for your review</target></trans-unit>
             <trans-unit id="readiness.row.repository.done"><source>readiness.row.repository.done</source><target>Reviewed</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_bridge"><source>readiness.discovery.error.no_bridge</source><target>No bridge serves this project now. Start a bridge that serves this project, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.no_capable_bridge"><source>readiness.discovery.error.no_capable_bridge</source><target>A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.no_capable_bridge_app_prompts"><source>readiness.discovery.error.no_capable_bridge_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.bridge_paused"><source>readiness.discovery.error.bridge_paused</source><target>Every bridge that can run discovery is paused. Resume new work on a bridge on the Agents page, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_workflow"><source>readiness.discovery.error.no_workflow</source><target>This project has no workflow. Choose a workflow for this project, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.automation_off"><source>readiness.discovery.error.automation_off</source><target>Board automation is off for this project. Switch on "Run the workflow of the board" on the Automation tab of the project settings, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.running"><source>readiness.discovery.error.running</source><target>Discovery already runs on card #%number%. Wait until that run ends.</target></trans-unit>
@@ -8760,6 +8767,9 @@
             <trans-unit id="readiness.form.update_agent_account_form.login.help"><source>readiness.form.update_agent_account_form.login.help</source><target>Leave it empty to clear the recorded login.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.no_taker"><source>readiness.discovery.reason.no_taker</source><target>No bridge took the work.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.card_moved"><source>readiness.discovery.reason.card_moved</source><target>The discovery card left Backlog before the work ended.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.no_capable_taker"><source>readiness.discovery.reason.no_capable_taker</source><target>A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.no_capable_taker_app_prompts"><source>readiness.discovery.reason.no_capable_taker_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, so the bridge reports the app-prompts capability.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.worker_ended"><source>readiness.discovery.reason.worker_ended</source><target>The worker ended without a report. Open card #%number% to see its run.</target></trans-unit>
             <trans-unit id="board.verdict.action.post_review"><source>board.verdict.action.post_review</source><target>Posts your verdict as a review on the pull requests you pick.</target></trans-unit>
             <trans-unit id="board.verdict.review.source"><source>board.verdict.review.source</source><target>Sent from the Loupe site review of card %number%. [Open the notes in Loupe](%card_url%)</target></trans-unit>
             <trans-unit id="board.verdict.review.preview"><source>board.verdict.review.preview</source><target>· [Open the preview](%preview_url%)</target></trans-unit>
@@ -8900,6 +8910,8 @@
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>

@@ -175,7 +175,9 @@ final class StartDiscoveryHandlerTest extends KernelTestCase
     private function bridge(Project $project, \DateTimeImmutable $lastSeenAt): void
     {
         $em = $this->em();
-        $em->persist(new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', $lastSeenAt));
+        $bridge = new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', $lastSeenAt);
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $em->persist($bridge);
         $em->flush();
     }
 

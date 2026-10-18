@@ -54,7 +54,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
-        'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-bridge-online', 'bridge-paused', 'work-requested',
+        'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-capable-bridge', 'no-bridge-online', 'bridge-paused', 'work-requested',
         'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks', 'unmanaged',
     ];
 
@@ -171,6 +171,16 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(MarkerKind::Stuck, $this->written('no-bridge-online')->kind);
         self::assertSame(MarkerLink::Agents, $this->written('no-bridge-online')->link);
         self::assertEquals(new \DateTimeImmutable('2026-10-01 11:00:00'), $this->written('no-bridge-online')->since);
+    }
+
+    #[DataProvider('shippedKeys')]
+    public function test_queued_work_with_an_online_bridge_that_cannot_run_it_says_so_and_links_to_the_agents_page(string $key): void
+    {
+        $template = $this->template($key);
+
+        self::assertSame(['no-capable-bridge'], $this->passKeys($template, $this->takerFacts(WorkTakerState::NotCapable, ['implement'])));
+        self::assertSame(MarkerKind::Stuck, $this->written('no-capable-bridge')->kind);
+        self::assertSame(MarkerLink::Agents, $this->written('no-capable-bridge')->link);
     }
 
     #[DataProvider('shippedKeys')]

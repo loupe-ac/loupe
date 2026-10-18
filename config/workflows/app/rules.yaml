@@ -9,6 +9,7 @@ rules:
           request:
               kind: discovery
               onTimeout: expire
+              onNoTaker: fail
               prompt: discovery
               checks:
                   - The Loupe plugin skills are installed for the agent, with the loupe-discovery skill
