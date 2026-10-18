@@ -17,7 +17,7 @@ use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
-/** A card is managed while the engine runs for its project, its project has a template, and nobody holds it. A card with work of the app on it takes no manual move. */
+/** A card is managed while the engine runs for its project, its project has a template, and nobody holds it. A card with work of the app on it takes no manual move, also while it is unmanaged. */
 #[AsAlias(CardMoveGuard::class)]
 final readonly class WorkflowCardMoveGuard implements CardMoveGuard
 {
@@ -39,10 +39,19 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
     #[\Override]
     public function allows(CardSnapshot $card, ColumnRef $to, Actor $actor, ?CardEventCause $cause): bool
     {
+        if (Actor::System === $actor || $to->id->equals($card->column->id)) {
+            return true;
+        }
+
+        // Before the engine, template and hold checks, because the work of the app runs on the card in each of those states.
+        foreach ($this->locks as $lock) {
+            if ($lock->locks($card->id)) {
+                return false;
+            }
+        }
+
         $project = $this->projects->find($card->projectId) ?? throw new \LogicException('A stored card has a project.');
-        if (!$this->automation->runsFor($project)
-            || Actor::System === $actor
-            || $to->id->equals($card->column->id)) {
+        if (!$this->automation->runsFor($project)) {
             return true;
         }
 
@@ -54,12 +63,6 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
 
         if ($this->ledger->isHeld($card->projectId, $card->id)) {
             return true;
-        }
-
-        foreach ($this->locks as $lock) {
-            if ($lock->locks($card->id)) {
-                return false;
-            }
         }
 
         $from = $this->facts->slotOfRef($project, $card->column);
