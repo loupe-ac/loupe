@@ -1924,3 +1924,35 @@ columns endpoint, and `cardId` is the card's uuid.
 | 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
 | 404 | `{"error":"card_not_found"}` | the project holds no card with that id, or `cardId` is not a uuid. A card of another project counts as none |
 | 429 | | more than 60 reads in one minute from one token, counted together with the columns endpoint |
+
+## Git token endpoint
+
+`POST /api/projects/{handle}/git-token` returns a GitHub App token for the
+repository of one project. The token opens that repository and no other, with
+Contents and Pull requests write access, and Workflows write access when the
+installation grants it. GitHub ends it after one hour. The request takes no
+body. The handle follows the same rules as the columns endpoint. Loupe reads the
+repository from the project, so a caller cannot name another one.
+
+```json
+{ "token": "ghs_example", "expiresAt": "2026-10-18T14:00:00+00:00" }
+```
+
+A project holds the setting "Loupe manages the git identity of agents". It is on
+for every project. With the setting off, the endpoint hands out no token.
+
+| Status | Body | When |
+|---|---|---|
+| 201 | the object above | the user owns the project, the setting is on, and the installation grants the access |
+| 401 | | the request carries no token |
+| 403 | `{"error":"insufficient_scope"}` | the token carries another scope, such as `site-review` |
+| 403 | `{"error":"git_identity_not_managed"}` | the setting is off for the project |
+| 404 | `{"error":"project_not_found"}` | the user has no project with that handle, and another user's project counts as none |
+| 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` and `no_repository` name the other causes |
+| 409 | `{"error":"missing_grant","missing":["contents"]}` | the installation lacks write access to the permissions that `missing` names |
+| 429 | | more than 60 requests in one minute from one token |
+| 502 | `{"error":"github_unavailable","missing":[]}` | GitHub did not answer |
+
+The Connect page of the project shows the same cause under "Agents of this
+project cannot push", so the owner can install the App, grant the permission, or
+turn the setting off.

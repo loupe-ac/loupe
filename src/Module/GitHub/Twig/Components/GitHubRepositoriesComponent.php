@@ -12,6 +12,8 @@ use App\Module\GitHub\Repository\GitHubHookRepository;
 use App\Module\GitHub\Repository\GitHubInstallationRepository;
 use App\Module\GitHub\Security\GitHubConnectionVoter;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
+use App\Module\GitHub\Service\GitHubGitTokenIssuer;
+use App\Module\GitHub\Service\GitHubGitTokenRefused;
 use App\Module\GitHub\Service\HookSecretKey;
 use App\Module\GitHub\Service\OneTimeHookSecret;
 use App\Module\Project\Entity\Project;
@@ -46,6 +48,9 @@ final class GitHubRepositoriesComponent
     /** @var list<GitHubInstallation> */
     public array $installations = [];
 
+    /** Why the agents of the project cannot get a push token, when the project asks for one. */
+    public ?GitHubGitTokenRefused $pushRefusal = null;
+
     public \DateTimeImmutable $now;
 
     public function __construct(
@@ -56,6 +61,7 @@ final class GitHubRepositoriesComponent
         private readonly GitHubAppConfiguration $appConfiguration,
         private readonly HookSecretKey $hookSecretKey,
         private readonly OneTimeHookSecret $oneTimeHookSecret,
+        private readonly GitHubGitTokenIssuer $gitTokenIssuer,
     ) {
     }
 
@@ -73,6 +79,9 @@ final class GitHubRepositoriesComponent
         $this->repositories = $this->forgeRepositories->findByProject($project);
         if ($this->appConfigured) {
             $this->installations = $this->gitHubInstallations->findByProject($project);
+            if ($project->gitIdentityManaged) {
+                $this->pushRefusal = $this->gitTokenIssuer->refusal($project);
+            }
         }
 
         // Loading a hook decrypts its secret, which throws without the key or with a wrong one.

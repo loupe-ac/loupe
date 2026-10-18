@@ -87,6 +87,8 @@ The repositories of the installation that your GitHub account can reach join the
 When you add or remove a repository in the App settings on GitHub, the list follows.
 The section says when GitHub suspends the installation or when someone uninstalls it.
 
+When the project lets Loupe manage the git identity of agents, the section also says when agents cannot push. Agents push with a token of the App that opens the repository of the project and no other. The message names the missing installation or the missing write access.
+
 ### The list
 
 Each repository shows a state.

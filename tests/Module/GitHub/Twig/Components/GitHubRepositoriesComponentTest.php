@@ -183,6 +183,40 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         self::assertStringContainsString('The App was uninstalled, so its repositories left this list', $rows['gone-org']);
     }
 
+    public function test_a_managed_project_with_no_usable_installation_says_its_agents_cannot_push(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('pushrefused');
+        $project = $this->projectOf($owner);
+        $this->em()->flush();
+        $this->em()->clear();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $client->loginUser($owner);
+        $crawler = $this->connectPage($client, $project);
+
+        $notice = $crawler->filter('#repositories [data-testid="github-push-refused"]');
+        self::assertCount(1, $notice);
+        self::assertStringContainsString('Agents of this project cannot push.', $notice->text());
+        self::assertStringContainsString('not installed', $notice->text());
+    }
+
+    public function test_a_project_that_keeps_its_own_git_setup_shows_no_push_notice(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('pushunmanaged');
+        $project = $this->projectOf($owner);
+        $project->gitIdentityManaged = false;
+        $this->em()->flush();
+        $this->em()->clear();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $client->loginUser($owner);
+        $crawler = $this->connectPage($client, $project);
+
+        self::assertCount(0, $crawler->filter('#repositories [data-testid="github-push-refused"]'));
+    }
+
     public function test_with_the_app_configured_an_unreadable_key_turns_off_the_hook_alone(): void
     {
         $client = static::createClient();

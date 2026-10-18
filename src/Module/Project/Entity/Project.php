@@ -81,6 +81,13 @@ class Project implements ProjectScopedSubject
     #[ORM\Column(name: 'agent_github_login', length: GitHubLogin::MAX_LENGTH, nullable: true)]
     public ?string $agentGitHubLogin = null;
 
+    /**
+     * Whether Loupe hands the agents of this project a push token of its GitHub
+     * App, so they push as the App bot. On for every project.
+     */
+    #[ORM\Column(options: ['default' => true])]
+    public bool $gitIdentityManaged = true;
+
     public function __construct(
         #[ORM\JoinColumn(nullable: false)]
         #[ORM\ManyToOne(targetEntity: User::class)]
