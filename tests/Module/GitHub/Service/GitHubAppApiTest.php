@@ -382,6 +382,47 @@ final class GitHubAppApiTest extends TestCase
         self::assertSame(404, $failure->status);
     }
 
+    public function test_a_repository_token_names_one_repository_and_its_permissions(): void
+    {
+        $api = $this->api([$this->created(['token' => 'ghs_scoped', 'expires_at' => '2026-09-27T13:00:00Z'])]);
+
+        $token = $api->repositoryToken(42, 9001, ['pull_requests' => 'write', 'contents' => 'write']);
+
+        self::assertSame('ghs_scoped', $token->token);
+        self::assertSame('2026-09-27T13:00:00+00:00', $token->expiresAt->format(\DATE_ATOM));
+        self::assertSame('https://api.github.com/app/installations/42/access_tokens', $this->requests[0]['url']);
+        self::assertSame('{"repository_ids":[9001],"permissions":{"contents":"write","pull_requests":"write"}}', $this->requests[0]['options']['body']);
+    }
+
+    public function test_a_repository_token_is_reused_until_five_minutes_remain_and_never_for_another_repository(): void
+    {
+        $clock = new MockClock(self::NOW);
+        $api = $this->api([
+            $this->created(['token' => 'ghs_a', 'expires_at' => '2026-09-27T13:00:00Z']),
+            $this->created(['token' => 'ghs_b', 'expires_at' => '2026-09-27T13:00:00Z']),
+            $this->created(['token' => 'ghs_c', 'expires_at' => '2026-09-27T14:00:00Z']),
+            $this->created(['token' => 'ghs_d', 'expires_at' => '2026-09-27T14:00:00Z']),
+        ], clock: $clock);
+        $grants = ['contents' => 'write'];
+
+        self::assertSame('ghs_a', $api->repositoryToken(42, 1, $grants)->token);
+        self::assertSame('ghs_a', $api->repositoryToken(42, 1, $grants)->token);
+        self::assertSame('ghs_b', $api->repositoryToken(42, 2, $grants)->token);
+        self::assertSame('ghs_c', $api->repositoryToken(42, 1, $grants + ['workflows' => 'write'])->token);
+        self::assertCount(3, $this->requests);
+
+        $clock->modify('+56 minutes');
+        self::assertSame('ghs_d', $api->repositoryToken(42, 1, $grants)->token);
+        self::assertCount(4, $this->requests);
+    }
+
+    public function test_a_repository_token_without_an_expiry_is_malformed(): void
+    {
+        $api = $this->api([$this->created(['token' => 'ghs_scoped'])]);
+
+        self::assertSame('malformed_body', $this->failure(fn () => $api->repositoryToken(42, 1, ['contents' => 'write']))->reason);
+    }
+
     /** @param list<MockResponse> $responses */
     private function api(array $responses, ?string $appId = '123456', ?string $key = null, ?MockClock $clock = null): GitHubAppApi
     {
