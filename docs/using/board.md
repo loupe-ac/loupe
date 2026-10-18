@@ -566,7 +566,9 @@ has, the board scrolls down.
 The lane header shows the epic number, the state mark of the epic, a tag with
 the column of the epic, a progress bar and the "3/7 done" count above the epic
 title. The state mark is the same one that a card shows: stuck, needs you, working
-or waiting. A collapse button and a lane toggle sit to its left. An epic
+or waiting. The mark includes the state of the children. For example, a stuck
+child makes its epic show stuck, and a child with a running worker makes its
+epic show working. A collapse button and a lane toggle sit to its left. An epic
 with its lane on shows as the lane header only, not as a card in its column.
 
 A new child of an epic moves from Backlog to Next at once. A person parks a

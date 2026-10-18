@@ -97,7 +97,7 @@ The shipped markers are:
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
-| `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay |
+| `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | An inbox question names the card |
@@ -112,7 +112,17 @@ The shipped markers are:
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
 | `waits-for-parent-branch` | Waiting | A pull request waits for a branch that no card owns |
 | `waiting-on-checks` | Waiting | The checks of a pull request run |
+| `child-stuck` | Stuck | An open child of the epic shows a stuck marker. The label names the child |
+| `child-needs-you` | Needs you | An open child of the epic shows a needs-you marker. The label names the child |
+| `child-working` | Working | An open child of the epic shows a working marker. The label names the child |
+| `child-waiting` | Waiting | An open child of the epic shows a waiting marker. The label names the child |
 | `unmanaged` | Chip | A person or an agent made the card unmanaged |
+
+An epic shows the state of its children through the four `child-` markers. The
+epic then has one state on the lane head, the card face, the card page and in
+the MCP tools. When the markers of a child change, the engine checks its epic
+again. Each `child-` marker names the child whose marker of that kind began
+first, and counts from that time.
 
 The Simple template declares all of these markers except `pull-request-idle`,
 `nothing-happened`, `document-in-review` and `design-review-running`, because Simple has no slots.
@@ -159,6 +169,9 @@ markers:
   match only a non-blocking one, such as a to-do. With no `blocking`, any open
   ask matches. Lifecycle and Simple set `blocking: true`, so a non-blocking
   to-do does not show "Needs you".
+- `card.children.marked` with a `kind`: an open child of the card shows a
+  marker of that kind. The `kind` is `stuck`, `needs-you`, `working` or
+  `waiting`. A chip does not count.
 - `pr.checks_pending`: the pull request is open, and its checks run.
 - `pr.waits_for_approval`: the pull request is open, not a draft, green and
   into the default branch, and no current approval covers its head.

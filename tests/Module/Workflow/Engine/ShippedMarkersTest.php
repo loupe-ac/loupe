@@ -7,6 +7,8 @@ namespace App\Tests\Module\Workflow\Engine;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\Board\Workflow\CardActivityFacts;
+use App\Module\Board\Workflow\ChildMark;
+use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\PauseFacts;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkTakerReading;
@@ -55,7 +57,8 @@ final class ShippedMarkersTest extends KernelTestCase
     private const array LIFECYCLE_KEYS = [
         'paused', 'run-stopped', 'checks-failed', 'conflicting', 'ready-not-merged', 'pull-request-idle', 'nothing-happened',
         'document-in-review', 'waits-for-approval', 'open-question', 'design-review-running', 'session-open', 'run-open', 'no-bridge-online', 'bridge-paused', 'work-requested',
-        'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks', 'unmanaged',
+        'forge-request-pending', 'held-by-blocker', 'waits-for-parent-card', 'waits-for-parent-branch', 'waiting-on-checks',
+        'child-stuck', 'child-needs-you', 'child-working', 'child-waiting', 'unmanaged',
     ];
 
     public function test_the_lifecycle_template_ships_its_markers_in_order(): void
@@ -265,6 +268,75 @@ final class ShippedMarkersTest extends KernelTestCase
         self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'tech-design'), provided: $quiet)));
         self::assertSame([], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'next'), provided: $quiet)), 'the Next column stays silent');
         self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: FactsMother::card(slot: 'implementation', childCount: 1, openChildCount: 1), pullRequest: $pullRequest, pullRequests: [$pullRequest], provided: $quiet)), 'an open child hides the pull request idle marker only');
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function childKinds(): iterable
+    {
+        foreach (['lifecycle', 'simple'] as $template) {
+            yield $template.', stuck' => [$template, 'stuck', 'child-stuck'];
+            yield $template.', needs you' => [$template, 'needs-you', 'child-needs-you'];
+            yield $template.', working' => [$template, 'working', 'child-working'];
+            yield $template.', waiting' => [$template, 'waiting', 'child-waiting'];
+        }
+    }
+
+    #[DataProvider('childKinds')]
+    public function test_an_epic_shows_the_state_kind_of_a_child_with_the_child_and_its_start(string $template, string $kind, string $key): void
+    {
+        $since = new \DateTimeImmutable('2026-10-01 10:00:00');
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', childCount: 2, openChildCount: 2), provided: [
+            ChildrenFacts::class => new ChildrenFacts(2, 2, childMarks: [$kind => new ChildMark(31, 'Build it', $since)]),
+        ]);
+
+        $this->pass($this->template($template), $facts);
+
+        self::assertSame([$key], $this->writtenKeys());
+        self::assertSame(['%number%' => 31, '%title%' => 'Build it'], $this->written($key)->params);
+        self::assertEquals($since, $this->written($key)->since);
+    }
+
+    public function test_an_epic_with_children_in_several_states_shows_the_stuck_one_first(): void
+    {
+        $mark = new ChildMark(31, 'Build it', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $facts = FactsMother::facts(card: FactsMother::card(slot: 'implementation', type: 'epic', childCount: 2, openChildCount: 2), provided: [
+            ChildrenFacts::class => new ChildrenFacts(2, 2, childMarks: ['working' => $mark, 'stuck' => $mark]),
+        ]);
+
+        self::assertSame(['child-stuck', 'child-working'], $this->keys($facts));
+    }
+
+    /** @return iterable<string, array{string, list<string>}> */
+    public static function busyChildKinds(): iterable
+    {
+        yield 'working' => ['working', ['child-working']];
+        yield 'waiting' => ['waiting', ['child-waiting']];
+    }
+
+    /** @param list<string> $expected */
+    #[DataProvider('busyChildKinds')]
+    public function test_a_quiet_epic_with_a_busy_child_is_not_called_idle(string $kind, array $expected): void
+    {
+        $quiet = new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00'));
+        $mark = new ChildMark(31, 'Build it', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $epic = FactsMother::card(slot: 'implementation', type: 'epic', childCount: 1, openChildCount: 1);
+
+        self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: $epic, provided: [CardActivityFacts::class => $quiet])), 'a quiet epic with quiet children is idle');
+        self::assertSame($expected, $this->keys(FactsMother::facts(card: $epic, provided: [CardActivityFacts::class => $quiet, ChildrenFacts::class => new ChildrenFacts(1, 1, childMarks: [$kind => $mark])])));
+    }
+
+    public function test_the_idle_marker_gives_way_to_a_busy_child_on_its_own_condition(): void
+    {
+        $marker = array_find($this->template('lifecycle')->markers, static fn ($marker): bool => 'nothing-happened' === $marker->key);
+        self::assertNotNull($marker);
+        $quiet = new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00'));
+        $mark = new ChildMark(31, 'Build it', new \DateTimeImmutable('2026-10-01 10:00:00'));
+        $epic = FactsMother::card(slot: 'implementation', type: 'epic', childCount: 1, openChildCount: 1);
+
+        foreach (['working' => false, 'waiting' => false, 'stuck' => true, 'needs-you' => true] as $kind => $idle) {
+            $facts = FactsMother::facts(card: $epic, provided: [CardActivityFacts::class => $quiet, ChildrenFacts::class => new ChildrenFacts(1, 1, childMarks: [$kind => $mark])]);
+            self::assertSame($idle, $marker->when->evaluate($facts), $kind);
+        }
     }
 
     public function test_a_held_card_is_not_called_idle_and_shows_the_chip(): void

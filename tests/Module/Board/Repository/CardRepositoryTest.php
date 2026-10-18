@@ -183,6 +183,41 @@ final class CardRepositoryTest extends KernelTestCase
         );
     }
 
+    public function test_child_marks_are_the_earliest_open_child_of_each_state_kind(): void
+    {
+        $project = $this->makeProject('repo-child-marks');
+        $epic = $this->epicIn($project, 'Epic', 'in-progress', 0);
+        $late = $this->childIn($epic, 'Late', 'in-progress', [self::marker('stuck', '2026-10-18T10:00:00+00:00'), self::marker('working', '2026-10-18T11:00:00+00:00')]);
+        $early = $this->childIn($epic, 'Early', 'in-progress', [self::marker('stuck', '2026-10-18T09:00:00+00:00'), self::marker('chip', '2026-10-18T08:00:00+00:00')]);
+        $this->childIn($epic, 'Done', 'done', [self::marker('needs-you', '2026-10-18T08:00:00+00:00')]);
+        $this->childIn($this->epicIn($project, 'Other', 'in-progress', 1), 'Elsewhere', 'in-progress', [self::marker('waiting', '2026-10-18T08:00:00+00:00')]);
+
+        $marks = $this->cards->childMarksOf($epic);
+
+        self::assertSame(['stuck', 'working'], array_keys($marks), 'a chip, a finished child and the child of another epic add no kind');
+        self::assertSame([$early->number, 'Early'], [$marks['stuck']->number, $marks['stuck']->title]);
+        self::assertEquals(new \DateTimeImmutable('2026-10-18T09:00:00+00:00'), $marks['stuck']->since);
+        self::assertSame($late->number, $marks['working']->number);
+        self::assertSame([], $this->cards->childMarksOf($early));
+    }
+
+    /** @param list<array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string}> $markers */
+    private function childIn(Card $epic, string $title, string $slug, array $markers): Card
+    {
+        $child = $this->epicIn($epic->project, $title, $slug, 0, 'feature');
+        $child->parent = $epic;
+        $child->markers = $markers;
+        $this->em->flush();
+
+        return $child;
+    }
+
+    /** @return array{key: string, kind: string, label: string, remedy: ?string, params: array<string, string|int>, since: string} */
+    private static function marker(string $kind, string $since): array
+    {
+        return ['key' => $kind.'-marker', 'kind' => $kind, 'label' => 'marker.'.$kind, 'remedy' => null, 'params' => [], 'since' => $since];
+    }
+
     private function epicIn(Project $project, string $title, string $slug, int $position, string $type = 'epic'): Card
     {
         $column = $this->column($project, $slug);
