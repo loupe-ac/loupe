@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -156,7 +157,9 @@ func newBridgeStopCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			lock, err := lockPath(abs)
+			// The rule path may resolve to another file than the one the bridge
+			// locked, so read its locks from the files that name its socket.
+			locks, err := locksNaming(sock)
 			if err != nil {
 				return err
 			}
@@ -170,8 +173,10 @@ func newBridgeStopCmd() *cobra.Command {
 			if !res.OK {
 				return fmt.Errorf("the bridge did not stop: %s", strings.Join(res.Problems, "; "))
 			}
-			if err := waitUnlocked(lock, stopTimeout); err != nil {
-				return err
+			for _, lock := range locks {
+				if err := waitUnlocked(lock, stopTimeout); err != nil {
+					return err
+				}
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "stopped the bridge that reads "+abs)
 
@@ -181,6 +186,19 @@ func newBridgeStopCmd() *cobra.Command {
 	cmd.Flags().StringVar(&rulesPath, "rules", "", "stop the bridge that reads this `path`; empty uses rules.yaml in your config directory")
 
 	return cmd
+}
+
+// locksNaming lists the held bridge locks whose file names sock.
+func locksNaming(sock string) ([]string, error) {
+	bridges, err := heldBridges()
+	if err != nil {
+		return nil, err
+	}
+	if i := slices.IndexFunc(bridges, func(b heldBridge) bool { return b.sock == sock }); i >= 0 {
+		return bridges[i].locks, nil
+	}
+
+	return nil, nil
 }
 
 // waitUnlocked waits until no process holds the bridge lock at path. The

@@ -5,6 +5,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -115,6 +116,63 @@ func TestBridgeStopWaitsForTheLockAfterTheSocketCloses(t *testing.T) {
 	returned := make(chan error, 1)
 	go func() {
 		_, err := stopCmd(t, "--rules", "rules.yaml")
+		returned <- err
+	}()
+	<-done
+	select {
+	case err := <-returned:
+		t.Fatalf("stop returned while the bridge held its lock: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
+	lock.Close()
+	select {
+	case err := <-returned:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("stop did not return after the lock was released")
+	}
+}
+
+func TestBridgeStopWaitsForTheLockOfTheBridgeAfterItsSymlinkMoved(t *testing.T) {
+	shortConfigHome(t)
+	dir := t.TempDir()
+	link := filepath.Join(dir, "rules.yaml")
+	for _, name := range []string{"a.yaml", "b.yaml"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(dir, "a.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+	path, err := socketPath(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := lockBridge(link, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	ln, err := listenControl(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := serveControl(ctx, ln, controlOps{stop: cancel})
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "b.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+
+	returned := make(chan error, 1)
+	go func() {
+		_, err := stopCmd(t, "--rules", link)
 		returned <- err
 	}()
 	<-done
