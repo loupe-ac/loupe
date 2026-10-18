@@ -114,8 +114,12 @@ func lockBridge(rulesPath, sock string) (*bridgeLock, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := lockFileAt(path, sock)
-	if err != nil {
+	var f *os.File
+	if err := withMoveGuard(true, func() (err error) {
+		f, err = lockFileAt(path, sock)
+
+		return err
+	}); err != nil {
 		return nil, err
 	}
 
@@ -141,20 +145,58 @@ func (l *bridgeLock) follow() (check func() error, done func(applied bool), err 
 	if path == l.path {
 		return check, func(bool) {}, nil
 	}
-	f, err := lockFileAt(path, l.sock)
-	if err != nil {
+	var f *os.File
+	if err := withMoveGuard(true, func() (err error) {
+		f, err = lockFileAt(path, l.sock)
+
+		return err
+	}); err != nil {
 		return nil, nil, err
 	}
 
 	return check, func(applied bool) {
-		if !applied {
-			f.Close()
+		released := false
+		release := func() error {
+			released = true
+			if !applied {
+				f.Close()
 
-			return
+				return nil
+			}
+			l.f.Close()
+			l.f, l.path = f, path
+
+			return nil
 		}
-		l.f.Close()
-		l.f, l.path = f, path
+		if withMoveGuard(true, release) != nil && !released {
+			release()
+		}
 	}, nil
+}
+
+// withMoveGuard runs fn while it holds the lock of the guard file, alone when
+// exclusive. A bridge holds it alone while it takes or moves its lock, and a
+// scan of the lock files shares it. A scan thus never sees a move half done,
+// and its probe of a lock file never makes a bridge fail to take that lock.
+func withMoveGuard(exclusive bool, fn func() error) error {
+	dir, err := config.Dir()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+	path := filepath.Join(dir, "bridge.guard")
+	g, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return fmt.Errorf("open the bridge guard: %w", err)
+	}
+	defer g.Close()
+	if err := waitLockFile(g, exclusive); err != nil {
+		return fmt.Errorf("lock %s: %w", path, err)
+	}
+
+	return fn()
 }
 
 func (l *bridgeLock) Close() error {

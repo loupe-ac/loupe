@@ -197,7 +197,7 @@ func locksNaming(sock string) ([]string, error) {
 // its socket as soon as it stops, and releases its lock only after its workers
 // end, or when it dies. A reload can move the lock to another file, and it
 // takes the new lock before it releases the old one, so each poll reads the
-// lock files again.
+// lock files again, and heldBridges orders that read against a move.
 func waitReleased(sock string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {

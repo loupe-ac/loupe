@@ -257,6 +257,69 @@ func TestBridgeStopWaitsForTheLockThatAReloadMovedAfterTheStop(t *testing.T) {
 	}
 }
 
+// A move that runs between the listing of the lock files and their checks
+// waits for the scan, so the scan still sees the old lock.
+func TestHeldBridgesSeesALockThatMovesDuringTheScan(t *testing.T) {
+	shortConfigHome(t)
+	dir := t.TempDir()
+	link := filepath.Join(dir, "rules.yaml")
+	for _, name := range []string{"a.yaml", "b.yaml"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(dir, "a.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+	sock, err := socketPath(link)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := lockBridge(link, sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "b.yaml"), link); err != nil {
+		t.Fatal(err)
+	}
+
+	moved := make(chan error, 1)
+	afterLockGlob = func() {
+		afterLockGlob = func() {}
+		go func() {
+			_, apply, err := lock.follow()
+			if err == nil {
+				apply(true)
+			}
+			moved <- err
+		}()
+		select {
+		case err := <-moved:
+			moved <- err
+		case <-time.After(300 * time.Millisecond):
+		}
+	}
+	t.Cleanup(func() { afterLockGlob = func() {} })
+
+	locks, err := locksNaming(sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(locks) == 0 {
+		t.Fatal("the scan missed the lock that moved while it ran")
+	}
+	if err := <-moved; err != nil {
+		t.Fatal(err)
+	}
+	if locks, err := locksNaming(sock); err != nil || len(locks) != 1 || locks[0] != lock.path {
+		t.Fatalf("locks after the move = %v, %v; want %s", locks, err, lock.path)
+	}
+}
+
 func TestDaemonArgsKeepTheFlagsThatWereSetAndDropTheDaemonFlag(t *testing.T) {
 	cmd := newBridgeRunCmd()
 	if err := cmd.ParseFlags([]string{"-d", "--rules", "r.yaml", "--model", "opus"}); err != nil {
