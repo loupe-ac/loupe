@@ -459,7 +459,7 @@ final class InboxActionControllersTest extends WebTestCase
 
     public function test_a_session_prompt_shows_no_field_while_start_session_is_off(): void
     {
-        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']]);
+        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.'], ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => false, 'cardId' => null]]);
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
@@ -472,7 +472,7 @@ final class InboxActionControllersTest extends WebTestCase
     public function test_a_session_prompt_in_the_menu_stays_hidden_until_the_owner_picks_start_session(): void
     {
         $this->sessionBridge();
-        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => false, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.']]);
+        $question = $this->sessionQuestion([['action' => 'start-session', 'reason' => 'Pair on the answer.', 'recommended' => false, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the skill.'], ['action' => 'open', 'reason' => 'Read the card first.', 'recommended' => true, 'cardId' => null]]);
 
         $crawler = $this->client->request(Request::METHOD_GET, $this->pageUrl());
 
