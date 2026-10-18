@@ -23,7 +23,7 @@ and follow the steps it prints, in order. Use curl, not a web fetch tool.
 `/setup.md` is public and returns Markdown steps for an agent. The steps
 install the CLI with `/install.sh` when `loupe version` fails, and stop on
 Windows, which has no build. They sign in with `loupe login` and bind the repository with
-`loupe init`. Then they connect the MCP server, install the skills, and check
+`loupe project link`. Then they connect the MCP server, install the skills, and check
 the result with `loupe status`. When your rule file holds worker entries under
 `work:`, the steps then ask whether each bridge worker gets its own folder.
 If it does, the agent adds a
@@ -33,13 +33,13 @@ as the browser approval of the sign-in. It never writes a token or a password.
 
 The `project` parameter fills the project id into the commands. The page
 accepts only a UUID and ignores any other value. With no valid id, the steps
-run `loupe init` and ask you which project to use.
+run `loupe project link` and ask you which project to use.
 
 The two agents differ in two steps:
 
 | Step | Claude Code | Codex |
 |---|---|---|
-| MCP server | `loupe init --mcp` declares `loupe mcp` at user scope | `codex mcp add loupe -- loupe mcp --project <project id>` |
+| MCP server | `loupe project link --mcp` declares `loupe mcp` at user scope | `codex mcp add loupe -- loupe mcp --project <project id>` |
 | Skills | The Claude Code plugin, see [below](#the-claude-code-plugin) | A copy of `plugins/loupe/skills/` in `~/.agents/skills/` |
 
 Codex gets the project id in its server declaration, and Claude Code reads it
@@ -67,14 +67,14 @@ curl -fsSL https://<your Loupe>/install.sh | sh
 # or, with Homebrew: brew install ubermuda/tap/loupe
 loupe login                  # a browser sign-in, once per machine
 cd ~/code/my-project
-loupe init                   # writes .loupe.yaml, choosing from your projects
+loupe project link           # writes .loupe.yaml, choosing from your projects
 ```
 
-`loupe init` also writes `.loupe/lifecycle.md` when the repository has none, also
+`loupe project link` also writes `.loupe/lifecycle.md` when the repository has none, also
 when `.loupe.yaml` exists already.
 [Getting started](../getting-started/index.md) says what the file holds.
 
-`loupe init` then checks how Claude Code starts the `loupe` server. When nothing
+`loupe project link` then checks how Claude Code starts the `loupe` server. When nothing
 does, it offers to declare it for every project:
 
 ```bash
@@ -87,7 +87,7 @@ there, so the project comes from the repository rather than from the
 declaration. A worktree gets it for free. A repository with no `.loupe.yaml`
 still starts the server, with no project: your login then acts on your single
 project, or refuses and asks which one when you own several. The refusal
-names `loupe init` as the fix.
+names `loupe project link` as the fix.
 
 `loupe mcp` reads `.loupe.yaml` again when the file changes, so a new project
 reaches the agent at its next request. A file that fails to parse keeps the last
@@ -95,18 +95,18 @@ good project. A removed file sends no project, as if the repository had no
 file. Each change writes one line to stderr, which an agent shows as this
 server's log. With `--project`, the command never reads the file.
 
-When something else already answers to the name, `loupe init` says what it
+When something else already answers to the name, `loupe project link` says what it
 starts and offers to remove it. Removing always asks, whatever flags you passed,
 so a script never drops a declaration you made by hand. `--mcp` and `--no-mcp`
 answer the create offer without being asked.
 
-`loupe init` never edits Claude Code's configuration file. Claude Code owns it,
+`loupe project link` never edits Claude Code's configuration file. Claude Code owns it,
 rewrites it while it runs, and keeps its own backups beside it, so every change
 runs `claude mcp` and lets Claude Code edit its own file.
 
 ### Committing the server to the repository
 
-`loupe init --mcp-json` writes `.mcp.json` instead, so everyone who clones the
+`loupe project link --mcp-json` writes `.mcp.json` instead, so everyone who clones the
 repository gets the server:
 
 ```json
@@ -124,7 +124,7 @@ project id, which is not a secret either.
 Two things come with it. An agent asks you to approve the server the first time,
 because the file names programs to run and travels with the repository. And
 `.mcp.json` is the lowest of Claude Code's three scopes, so a local or user
-declaration of the same name hides it. `loupe init` reports that rather than
+declaration of the same name hides it. `loupe project link` reports that rather than
 leaving you to find it.
 
 The command adds one thing a direct HTTP connection cannot. Loupe keeps each MCP

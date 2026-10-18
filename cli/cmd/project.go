@@ -21,6 +21,10 @@ import (
 	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
+// errLinkExists marks a directory that already holds the project file, when
+// the link was not forced.
+var errLinkExists = fmt.Errorf("%s already exists", projectfile.Name)
+
 // projectLinkOptions are the flags of `loupe project link`.
 type projectLinkOptions struct {
 	projectID    string
@@ -98,7 +102,7 @@ func runProjectLink(cmd *cobra.Command, o projectLinkOptions) error {
 			return err
 		}
 		if !o.writeMcp && !o.writeMcpJSON {
-			return fmt.Errorf("%s already exists: pass --force to replace it", projectfile.Name)
+			return fmt.Errorf("%w: pass --force to replace it", errLinkExists)
 		}
 
 		// --mcp on a repository that already names its project asks for
@@ -181,7 +185,7 @@ func offerServer(cmd *cobra.Command, dir string, write, skip, useFile bool) erro
 		got, err := claudecode.Effective(dir, mcpjson.ServerKey, "")
 		if err != nil {
 			// Claude Code owns its configuration. Failing to read it says
-			// nothing about whether loupe init did its job, so it is a note.
+			// nothing about whether loupe project link did its job, so it is a note.
 			fmt.Fprintf(out, "Could not check how Claude Code starts %q: %v\n", mcpjson.ServerKey, err)
 
 			return nil
@@ -313,14 +317,28 @@ func apply(cmd *cobra.Command, change func(context.Context) error, done, byHand 
 // read that fails. A script that passed no flag therefore leaves the file alone
 // rather than hanging on a prompt nobody can see.
 func confirm(out io.Writer, in io.Reader, question string) bool {
+	return askYesNo(out, in, question, true)
+}
+
+// confirmNo is confirm with Enter meaning no, for a change that nobody
+// expects without asking.
+func confirmNo(out io.Writer, in io.Reader, question string) bool {
+	return askYesNo(out, in, question, false)
+}
+
+func askYesNo(out io.Writer, in io.Reader, question string, defaultYes bool) bool {
 	if f, ok := in.(*os.File); ok {
 		if info, err := f.Stat(); err != nil || 0 == info.Mode()&os.ModeCharDevice {
 			return false
 		}
 	}
 
-	fmt.Fprintf(out, "%s [Y/n]: ", question)
-	line, err := bufio.NewReader(in).ReadString('\n')
+	hint := "[Y/n]"
+	if !defaultYes {
+		hint = "[y/N]"
+	}
+	fmt.Fprintf(out, "%s %s: ", question, hint)
+	line, err := lineReader(in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return false
 	}
@@ -331,11 +349,23 @@ func confirm(out io.Writer, in io.Reader, question string) bool {
 	}
 
 	switch strings.ToLower(strings.TrimSpace(line)) {
-	case "", "y", "yes":
+	case "":
+		return defaultYes
+	case "y", "yes":
 		return true
 	default:
 		return false
 	}
+}
+
+// lineReader reads lines from in. A reader that already buffers is used as it
+// is, so several questions in a row do not lose the answers to the later ones.
+func lineReader(in io.Reader) *bufio.Reader {
+	if br, ok := in.(*bufio.Reader); ok {
+		return br
+	}
+
+	return bufio.NewReader(in)
 }
 
 // chooseProject asks which project the file should name. One project needs no
@@ -356,7 +386,7 @@ func chooseProject(out io.Writer, in io.Reader, sites []api.Site) (string, error
 	}
 	fmt.Fprintf(out, "Choose 1 to %d: ", len(sites))
 
-	line, err := bufio.NewReader(in).ReadString('\n')
+	line, err := lineReader(in).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return "", err
 	}

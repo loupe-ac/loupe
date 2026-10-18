@@ -22,7 +22,7 @@ func Render(d Detection) string {
 
 	b.WriteString("# Lifecycle profile\n\n")
 	b.WriteString("The Loupe stage skills read this file. It holds the values that belong to this repository.\n")
-	b.WriteString("`loupe init` wrote the first version. A value marked \"" + Marker + "\" is a guess, so read it before you commit this file.\n\n")
+	b.WriteString("`loupe project link` wrote the first version. A value marked \"" + Marker + "\" is a guess, so read it before you commit this file.\n\n")
 
 	b.WriteString("## Instruction files\n\n")
 	if len(d.AgentFiles) == 0 {

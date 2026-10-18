@@ -56,7 +56,7 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $body = (string) $client->getResponse()->getContent();
 
-        self::assertStringContainsString('loupe init --project '.self::PROJECT_ID.' --mcp', $body);
+        self::assertStringContainsString('loupe project link --project '.self::PROJECT_ID.' --mcp', $body);
         self::assertStringContainsString('codex mcp add loupe -- loupe mcp --project '.self::PROJECT_ID, $body);
         self::assertStringNotContainsString('<project id>', $body);
     }

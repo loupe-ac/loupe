@@ -158,16 +158,60 @@ login.
 
 ## `loupe init`
 
-Writes `.loupe.yaml`, the file that names the Loupe project a repository
-belongs to.
+Sets Loupe up for the repository you stand in. Run it once after you install the
+CLI, and run it again whenever you want to repair the setup. Each step skips
+itself when it is done already, so a second run changes nothing.
 
 ```bash
-loupe init                       # choose from the projects your login covers
+loupe init                       # every step, asking only what it must
 loupe init --project <uuid>      # name the project yourself
-loupe init --force               # replace an existing file
-loupe init --mcp                 # declare `loupe mcp` to Claude Code without asking
-loupe init --no-mcp              # leave the MCP server alone without asking
-loupe init --mcp-json            # write .mcp.json instead, to commit the server
+loupe init --url https://loupe.example.com   # sign in to a self-hosted instance
+loupe init --rules ~/loupe-rules.yaml        # read and write another rule file
+loupe init --reset               # write the first-run rules again
+```
+
+`--force`, `--mcp`, `--no-mcp` and `--mcp-json` work as they do for
+`loupe project link`. The command prints one line for each step, which says
+`done` or `skipped` and why.
+
+1. Sign in with `loupe login`, when you are not signed in.
+2. Choose the project. `--project` names it. Else `.loupe.yaml` names it. Else
+   the command lists your projects. When your login covers none, it creates one
+   from the `origin` remote of the repository. With no remote, it stops and asks
+   for `--project`.
+3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
+4. Install the Loupe plugin in Claude Code, when `claude` is on your `PATH` and
+   `claude plugin list` shows no Loupe plugin. A failed command is printed for
+   you to run, and never fails the step.
+5. Write the rule file. A new file holds the first-run rules: app prompts on,
+   one account for the agent it finds, the project, and, where it knows a
+   terminal, a product-design entry. An existing file gets only the keys it
+   lacks, and its comments stay. `--reset` writes the first-run rules again and
+   keeps the `projects` map.
+6. Ask `Turn on automatic updates? [y/N]`, when the rule file has no
+   `autoUpdate` key. A session with no terminal answers no, and the command
+   writes `autoUpdate: false`.
+7. Start the bridge in the background, as `loupe bridge run -d` does. A bridge
+   that runs already is left alone. A bridge that fails to start is reported,
+   the later steps still run, and the command exits with an error.
+8. Install the Playwright browser, when `package.json` lists `@playwright/test`
+   or `playwright` and the Playwright cache holds no Chromium. The command asks
+   first, and runs `npx playwright install chromium`.
+9. Print the page to open next, `/projects/<id>/connect` on your instance, and
+   remind you to commit `.loupe/lifecycle.md`.
+
+## `loupe project link`
+
+Writes `.loupe.yaml`, the file that names the Loupe project a repository
+belongs to. `loupe init` runs it for you.
+
+```bash
+loupe project link                       # choose from the projects your login covers
+loupe project link --project <uuid>      # name the project yourself
+loupe project link --force               # replace an existing file
+loupe project link --mcp                 # declare `loupe mcp` to Claude Code without asking
+loupe project link --no-mcp              # leave the MCP server alone without asking
+loupe project link --mcp-json            # write .mcp.json instead, to commit the server
 ```
 
 With no `--project` it lists the projects your login covers and asks which one.
@@ -192,7 +236,7 @@ keeps backups of.
 
 `--mcp-json` writes `.mcp.json` instead, which commits the server to the
 repository. That file is the lowest of the three scopes, and an agent asks you to
-approve it once, so `loupe init` reports when a higher declaration hides it.
+approve it once, so `loupe project link` reports when a higher declaration hides it.
 
 The file holds one key:
 
@@ -358,13 +402,18 @@ the check, and the next line says how to fix it. With no rule file at the
 default path, it checks no account. A `--rules` path with no file fails. The bridge runs no work on a failing account until a reload or a
 restart finds it ready.
 
+The `Rules:` lines are notes too. When the rule file exists, the check notes a
+file that sets no permission default, one that has no `appPrompts` and no `work`
+entry, and one that maps no project to the current directory. `~` and symlinks
+in a `dir` are resolved before the comparison. `loupe init` fixes each note.
+
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. A
 failure exits with status 1, and the error on stderr says what to run next.
 Read the exit status, because the error comes after the verdict when you merge
 the two streams:
 
 ```text
-Claude Code: does not declare "loupe". Run `loupe init --mcp` to declare it. Other agents keep their own configuration.
+Claude Code: does not declare "loupe". Run `loupe project link --mcp` to declare it. Other agents keep their own configuration.
 loupe status: FAIL
 error: not logged in: run `loupe login` first
 ```

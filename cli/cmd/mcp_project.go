@@ -31,7 +31,7 @@ func mcpProject(flag string, notes io.Writer) (func() string, error) {
 	}
 	src := &projectSource{dir: dir, notes: notes}
 	if err := src.start(); err != nil {
-		return nil, fmt.Errorf("%w\n\nWrite the file with `loupe init`", err)
+		return nil, fmt.Errorf("%w\n\nWrite the file with `loupe project link`", err)
 	}
 
 	return src.project, nil
