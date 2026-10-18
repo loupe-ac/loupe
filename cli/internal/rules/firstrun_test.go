@@ -313,6 +313,44 @@ func TestMergeAddsAnAccountToAFileWithNone(t *testing.T) {
 	}
 }
 
+func TestMergeSetsTheDefaultAccountOfAFileWithOneAccount(t *testing.T) {
+	o := firstRunOptions(t, "linux", "claude")
+	for name, body := range map[string]string{
+		"no defaults":      "accounts:\n  work:\n    harness: codex\n",
+		"no account key":   "accounts:\n  work:\n    harness: codex\ndefaults:\n  permissions: workspace\n",
+		"an empty account": "accounts:\n  work:\n    harness: codex\ndefaults:\n  account: \"\"\n",
+		"a null account":   "accounts:\n  work:\n    harness: codex\ndefaults:\n  account: ~\n",
+	} {
+		out, added, err := Merge([]byte(body), o)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !slices.Contains(added, "defaults.account") || slices.Contains(added, "accounts.claude-code") {
+			t.Errorf("%s: added = %v, want defaults.account and no new account", name, added)
+		}
+		set, err := Parse(out, Defaults{})
+		if err != nil {
+			t.Fatalf("%s: the merged file does not load: %v\n%s", name, err, out)
+		}
+		if !slices.Equal(set.DeclaredAccounts(), []string{"work"}) {
+			t.Errorf("%s: accounts %v, want work\n%s", name, set.DeclaredAccounts(), out)
+		}
+	}
+}
+
+func TestMergeRefusesToWriteAFileThatDoesNotLoad(t *testing.T) {
+	o := firstRunOptions(t, "linux", "claude")
+	for name, body := range map[string]string{
+		"several accounts, no default": "accounts:\n  a:\n    harness: codex\n  b:\n    harness: claude-code\n",
+		"a default naming no account":  "accounts:\n  a:\n    harness: codex\ndefaults:\n  account: b\n",
+	} {
+		out, _, err := Merge([]byte(body), o)
+		if err == nil || !strings.Contains(err.Error(), "defaults.account") {
+			t.Errorf("%s: err = %v, want a refusal that names defaults.account; wrote:\n%s", name, err, out)
+		}
+	}
+}
+
 func TestMergeAndResetRefuseAProjectMappedToAnotherDirectory(t *testing.T) {
 	o := firstRunOptions(t, "darwin", "claude")
 	other := t.TempDir()

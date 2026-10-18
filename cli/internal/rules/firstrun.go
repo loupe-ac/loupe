@@ -102,10 +102,12 @@ func FirstRun(o FirstRunOptions) ([]byte, error) {
 }
 
 // Merge adds to an existing rule file what first-run needs and the file lacks:
-// the appPrompts key, an account when the file has none, defaults.permissions,
-// the project, the launch command and the product-design entry. A key that is present stays as it is. The second
-// result names what Merge added, and is empty when the file needed nothing, in
-// which case the first result is the input. Comments and layout stay.
+// the appPrompts key, an account when the file has none, defaults.account when
+// it has one account and no default, defaults.permissions, the project, the
+// launch command and the product-design entry. A key that is present stays as
+// it is. The second result names what Merge added, and is empty when the file
+// needed nothing, in which case the first result is the input. A merged file
+// that does not load fails. Comments and layout stay.
 func Merge(existing []byte, o FirstRunOptions) ([]byte, []string, error) {
 	if len(bytes.TrimSpace(existing)) == 0 {
 		out, err := FirstRun(o)
@@ -128,12 +130,10 @@ func Merge(existing []byte, o FirstRunOptions) ([]byte, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	// A file the bridge refuses already is not ours to judge. A file that
-	// loaded and no longer does is a bug in the merge.
-	if _, before := Parse(existing, Defaults{}); before == nil {
-		if _, err := Parse(out, Defaults{}); err != nil {
-			return nil, nil, fmt.Errorf("the merged rule file does not load, so it is not written: %w", err)
-		}
+	// Writing a file the bridge cannot load would report a success that the
+	// next bridge start contradicts.
+	if _, err := Parse(out, Defaults{}); err != nil {
+		return nil, nil, fmt.Errorf("the merged rule file does not load, so it is not written: fix the file, then run loupe init again: %w", err)
 	}
 
 	return out, added, nil
@@ -207,14 +207,19 @@ func addMissing(top *yaml.Node, o FirstRunOptions, launch []string) ([]string, e
 	if len(accounts.Content) == 0 {
 		harness := o.Harness()
 		name := harness
-		if n, ok := lookup(defaults, "account"); ok && n.Kind == yaml.ScalarNode && n.Value != "" {
+		if n, ok := lookup(defaults, "account"); ok && n.Kind == yaml.ScalarNode && !isNull(n) && n.Value != "" {
 			name = n.Value
 		} else {
-			defaults.Content = append(defaults.Content, scalarNode("account"), scalarNode(harness))
+			setKey(defaults, "account", scalarNode(harness))
 			added = append(added, "defaults.account")
 		}
 		accounts.Content = append(accounts.Content, scalarNode(name), mappingNode("harness", scalarNode(harness)))
 		added = append(added, "accounts."+name)
+	} else if n, ok := lookup(defaults, "account"); (!ok || isNull(n) || n.Value == "") && len(accounts.Content) == 2 {
+		// One account is the only default the bridge can take. With several,
+		// the choice stays with the person and Parse names it.
+		setKey(defaults, "account", scalarNode(accounts.Content[0].Value))
+		added = append(added, "defaults.account")
 	}
 
 	projects, err := childMapping(top, "projects")
@@ -315,6 +320,16 @@ func index(m *yaml.Node, key string) (int, bool) {
 	}
 
 	return 0, false
+}
+
+// setKey replaces the value of key in the mapping, or appends the key.
+func setKey(m *yaml.Node, key string, value *yaml.Node) {
+	if i, ok := index(m, key); ok {
+		m.Content[i+1] = value
+
+		return
+	}
+	m.Content = append(m.Content, scalarNode(key), value)
 }
 
 func lookup(m *yaml.Node, key string) (*yaml.Node, bool) {
