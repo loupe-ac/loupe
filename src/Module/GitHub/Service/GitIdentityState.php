@@ -9,6 +9,7 @@ enum GitIdentityState: string
 {
     case AppBot = 'app-bot';
     case AgentAccount = 'agent-account';
+    case AgentAccountUnverified = 'agent-account-unverified';
     case NotManaged = 'not-managed';
     case Detected = 'detected';
     case OwnerAccount = 'owner-account';
@@ -21,7 +22,7 @@ enum GitIdentityState: string
         return match ($this) {
             self::AppBot, self::AgentAccount => 'ok',
             self::Detected => 'active',
-            self::OwnerAccount, self::MaybeOwnerAccount => 'pending',
+            self::OwnerAccount, self::MaybeOwnerAccount, self::AgentAccountUnverified => 'pending',
             self::NotManaged, self::Unknown => 'neutral',
         };
     }
@@ -33,7 +34,7 @@ enum GitIdentityState: string
             self::AppBot, self::AgentAccount => 'managed',
             self::NotManaged => 'not_managed',
             self::Detected => 'detected',
-            self::OwnerAccount, self::MaybeOwnerAccount => 'check',
+            self::OwnerAccount, self::MaybeOwnerAccount, self::AgentAccountUnverified => 'check',
             self::Unknown => 'unknown',
         };
     }

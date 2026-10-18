@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
@@ -56,10 +57,11 @@ type identityProbes struct {
 type identityReporter struct {
 	ctx context.Context
 	log *slog.Logger
-	// agent and login are the stored agent account and the login GitHub gave
-	// for its token at start ("" when the check failed).
-	agent *config.AgentAccount
-	login string
+	// agent is the stored agent account. login and agentID are what GitHub
+	// gave for its token at the last refresh ("" and 0 when the check failed).
+	agent   *config.AgentAccount
+	login   string
+	agentID int64
 	// managed says whether Loupe manages the project, and may be nil.
 	managed func(ctx context.Context, handle, dir string) bool
 	probes  identityProbes
@@ -76,6 +78,9 @@ type identityReporter struct {
 
 func newIdentityReporter(ctx context.Context, agent *config.AgentAccount, login string, broker *credentialBroker, log *slog.Logger) *identityReporter {
 	r := &identityReporter{ctx: ctx, log: log, agent: agent, login: login, probes: defaultIdentityProbes(), now: time.Now}
+	if agent != nil && login != "" {
+		r.agentID = agent.ID
+	}
 	if broker != nil {
 		r.managed = func(ctx context.Context, handle, dir string) bool {
 			managed, _ := broker.manages(ctx, handle, dir)
@@ -177,6 +182,12 @@ func (r *identityReporter) run(ctx context.Context, targets []identityTarget) {
 
 	ctx, cancel := context.WithTimeout(ctx, identityTimeout)
 	defer cancel()
+	if r.agent != nil {
+		login, id := r.checkAgent(ctx)
+		r.mu.Lock()
+		r.login, r.agentID = login, id
+		r.mu.Unlock()
+	}
 	rows := make([]api.GitIdentityReport, len(targets))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, identityParallel)
@@ -203,12 +214,15 @@ func (r *identityReporter) identity(ctx context.Context, t identityTarget) api.G
 	row := api.GitIdentityReport{ProjectID: t.id, Mode: api.GitModeMachine}
 	switch {
 	case r.agent != nil:
+		r.mu.Lock()
+		login, id := r.login, r.agentID
+		r.mu.Unlock()
 		row.Mode = api.GitModeAgentAccount
 		row.CommitName = capRunes(r.agent.Login, maxCommitName)
-		if r.login != "" {
-			row.PushLogin = r.login
-			if r.agent.ID > 0 {
-				row.GitHubUserID = &r.agent.ID
+		if login != "" {
+			row.PushLogin = login
+			if id > 0 {
+				row.GitHubUserID = &id
 			}
 		}
 	case r.managed != nil && r.managed(ctx, t.slug, t.dir):
@@ -218,6 +232,19 @@ func (r *identityReporter) identity(ctx context.Context, t identityTarget) api.G
 	}
 
 	return row
+}
+
+// checkAgent asks GitHub who the agent account token belongs to, so a token
+// revoked after start stops showing as a verified push account.
+func (r *identityReporter) checkAgent(ctx context.Context) (string, int64) {
+	login, id, err := r.probes.user(ctx, r.agent.Token)
+	if err != nil || !validLogin(login) {
+		r.log.Warn("agent_account_check_failed", "login", r.agent.Login, "error", fmt.Sprint(err))
+
+		return "", 0
+	}
+
+	return login, id
 }
 
 // machine reads what git on this machine commits and pushes as.

@@ -55,7 +55,41 @@ func machineProbes(pushURL string) identityProbes {
 }
 
 func newTestReporter(agent *config.AgentAccount, login string, probes identityProbes) *identityReporter {
-	return &identityReporter{ctx: context.Background(), log: quietLog(), agent: agent, login: login, probes: probes, now: time.Now}
+	r := &identityReporter{ctx: context.Background(), log: quietLog(), agent: agent, login: login, probes: probes, now: time.Now}
+	if agent != nil && login != "" {
+		r.agentID = agent.ID
+	}
+
+	return r
+}
+
+func TestARefreshRechecksTheAgentAccount(t *testing.T) {
+	var refused atomic.Bool
+	probes := machineProbes("")
+	probes.user = func(_ context.Context, token string) (string, int64, error) {
+		if token != "tok" {
+			t.Errorf("token = %q", token)
+		}
+		if refused.Load() {
+			return "", 0, io.EOF
+		}
+
+		return "bot", 42, nil
+	}
+	r := newTestReporter(&config.AgentAccount{Login: "bot", ID: 42, Token: "tok"}, "bot", probes)
+	targets := targetOne("/x")
+
+	refused.Store(true)
+	r.refresh(context.Background(), targets)
+	if got := r.rows(targets); len(got) != 1 || got[0].Mode != api.GitModeAgentAccount || got[0].PushLogin != "" || got[0].GitHubUserID != nil {
+		t.Fatalf("a refused token gave %+v", got)
+	}
+
+	refused.Store(false)
+	r.refresh(context.Background(), targets)
+	if got := r.rows(targets); len(got) != 1 || got[0].PushLogin != "bot" || got[0].GitHubUserID == nil || *got[0].GitHubUserID != 42 {
+		t.Fatalf("an accepted token gave %+v", got)
+	}
 }
 
 func TestIdentityModeSelection(t *testing.T) {

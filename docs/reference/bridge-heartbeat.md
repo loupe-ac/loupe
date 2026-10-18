@@ -229,6 +229,11 @@ For a `machine` row, the bridge reads the push address with
 and reads the login from the greeting "Hi <login>!". When neither probe gives a
 login, `pushLogin` is empty, and the Connect page says the login is unknown.
 
+For an `agent_account` row, the bridge asks GitHub for the login of the agent
+account token at each refresh. When GitHub refuses the token or does not answer,
+`pushLogin` is empty, and the Connect page says that GitHub did not confirm the
+token.
+
 The Git identity panel of the Connect page shows one line for each machine. The
 Who pushes the code row of the
 [readiness guide](../using/workshop.md#the-readiness-guide) is done when a

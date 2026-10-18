@@ -49,7 +49,7 @@ final readonly class GitIdentityLines
         $login = $identity->pushLogin;
         $state = match (true) {
             WorkshopGitIdentity::MODE_APP_TOKEN === $identity->mode => GitIdentityState::AppBot,
-            WorkshopGitIdentity::MODE_AGENT_ACCOUNT === $identity->mode => GitIdentityState::AgentAccount,
+            WorkshopGitIdentity::MODE_AGENT_ACCOUNT === $identity->mode => '' === $login ? GitIdentityState::AgentAccountUnverified : GitIdentityState::AgentAccount,
             '' === $login => GitIdentityState::Unknown,
             $this->isLoupeAppBot($login) => GitIdentityState::AppBot,
             null !== $project->agentGitHubLogin && 0 === strcasecmp($login, $project->agentGitHubLogin) => GitIdentityState::Detected,

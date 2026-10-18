@@ -82,6 +82,20 @@ final class GitIdentityComponentTest extends WebTestCase
         self::assertSame('acme-agent', $line->filter('code')->text());
     }
 
+    public function test_an_agent_account_that_github_did_not_confirm_is_not_shown_as_managed(): void
+    {
+        [$client, $project] = $this->managedProjectWith('giagentfail', [['mode' => 'agent_account', 'commitName' => 'Acme Agent', 'pushLogin' => '', 'githubUserId' => null]]);
+
+        $crawler = $this->connectPage($client, $project);
+        $line = $crawler->filter('[data-git-identity="agent-account-unverified"]');
+
+        self::assertCount(0, $crawler->filter('[data-git-identity="agent-account"]'));
+        self::assertCount(1, $line);
+        self::assertStringContainsString('GitHub did not confirm its token', $line->text());
+        self::assertStringContainsString('Check', $line->text());
+        self::assertStringNotContainsString('Managed', $line->text());
+    }
+
     public function test_a_managed_project_still_warns_about_a_machine_that_pushes_as_the_owner(): void
     {
         [$client, $project] = $this->managedProjectWith('gimachine', [['mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 42]], ownerLogin: 'riley-dev', ownerGitHubId: 42);
