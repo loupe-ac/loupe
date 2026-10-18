@@ -85,9 +85,11 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
                 $github ? 'readiness.row.github.done' : 'readiness.row.github.open',
                 actionLabel: null === $installUrl ? null : 'readiness.row.github.action',
                 actionUrl: $installUrl,
+                group: WorkshopReadinessRow::GROUP_PULL_REQUESTS,
             ),
             $this->agentAccountRow($project, $running),
             $this->repositoryRow($project, $discovery, $this->refusal($project, $takers, $binding)),
+            $this->widgetRow($project, $connect.'#site-review-widget'),
         ], $discovery?->card->number);
     }
 
@@ -97,6 +99,7 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
      *
      * @return list<WorkshopReadinessRow>
      */
+    #[\Override]
     public function wizardRows(Project $project): array
     {
         $projectId = $project->id ?? throw new \LogicException('A stored project has an id.');
@@ -296,6 +299,24 @@ final readonly class ReadinessChecklist implements WorkshopReadinessProviderInte
             actionLabel: $done ? null : 'readiness.row.agent_account.action',
             actionUrl: $done ? null : $this->urls->generate('app_project_readiness_agent_account', ['id' => (string) $project->id]),
             statusParameters: null === $login ? [] : ['%login%' => $login],
+            group: WorkshopReadinessRow::GROUP_PULL_REQUESTS,
+        );
+    }
+
+    /** Optional: done once the project names a site that may sign in to the review widget. */
+    private function widgetRow(Project $project, string $setup): WorkshopReadinessRow
+    {
+        $done = [] !== $project->allowedOrigins;
+
+        return new WorkshopReadinessRow(
+            'widget',
+            'readiness.row.widget.label',
+            $done,
+            $done ? 'readiness.row.widget.done' : 'readiness.row.widget.open',
+            actionLabel: 'readiness.row.widget.action',
+            actionUrl: $setup,
+            statusParameters: $done ? ['%origins%' => implode(', ', $project->allowedOrigins)] : [],
+            group: WorkshopReadinessRow::GROUP_OPTIONAL,
         );
     }
 

@@ -43,7 +43,7 @@ final class ReadinessToolsTest extends KernelTestCase
         $answer = $this->readinessGet()();
 
         self::assertTrue($answer['guideHidden']);
-        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository'], array_column($answer['rows'], 'key'));
+        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository', 'widget'], array_column($answer['rows'], 'key'));
         self::assertSame(['key' => 'repository', 'done' => false, 'status' => 'Discovery waits for a running bridge'], $answer['rows'][4]);
         self::assertNull($answer['discovery']);
     }

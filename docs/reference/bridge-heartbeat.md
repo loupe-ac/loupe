@@ -205,7 +205,7 @@ changes it. Bridges of different accounts never clash.
 
 A bridge with an [agent GitHub account](../getting-started/agent-github-account.md)
 sends the login of that account as `pushLogin`. The server stores it on the
-row of the bridge. The Agent GitHub account row of the
+row of the bridge. The Who pushes the code row of the
 [readiness guide](../using/workshop.md#the-readiness-guide) is done when a
 running bridge of the project sends the login that the owner recorded. The
 server compares the two logins without regard to case. The token of the

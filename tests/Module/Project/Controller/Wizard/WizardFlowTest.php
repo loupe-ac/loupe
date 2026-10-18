@@ -52,7 +52,7 @@ final class WizardFlowTest extends WebTestCase
         self::assertResponseRedirects('/');
     }
 
-    public function test_connect_renders_shared_mcp_instructions(): void
+    public function test_connect_names_the_install_and_init_commands_of_the_project(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -65,76 +65,85 @@ final class WizardFlowTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/welcome/connect');
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('claude mcp add', $crawler->text());
-        self::assertSelectorTextContains('[data-testid="setup-prompt"]', '/setup.md?project='.$project->id);
+        self::assertSelectorExists('ol[data-wizard-step="2"]');
+        self::assertCount(3, $crawler->filter('ol[data-wizard-step] > li.lp-stepper__step'));
+        self::assertSame('curl -fsSL http://localhost/install.sh | sh', trim($crawler->filter('[data-testid="wizard-install-command"]')->text()));
+        self::assertSame('loupe init --project '.$project->id, trim($crawler->filter('[data-testid="wizard-init-command"]')->text()));
         self::assertSelectorExists('form[action$="/welcome/skip"]');
+        self::assertStringNotContainsString('YOUR_TOKEN', $crawler->text());
+        self::assertStringNotContainsString('Authorization: Bearer', $crawler->text());
     }
 
-    /** The step hands out no credential, so it shows the endpoint and the ways in. */
-    public function test_the_connect_step_names_the_endpoint_and_carries_no_credential(): void
+    public function test_connect_shows_four_waiting_rows_and_a_disabled_continue_before_any_bridge(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->createUser($em, 'flowmint', 'flow-mint@example.com');
-        $em->persist(new Project($user, 'flow-mint-project'));
+        $user = $this->createUser($em, 'flowrows', 'flow-rows@example.com');
+        $em->persist(new Project($user, 'flow-rows-project'));
         $em->flush();
 
         $client->loginUser($user);
         $crawler = $client->request(Request::METHOD_GET, '/welcome/connect');
 
         self::assertResponseIsSuccessful();
-        self::assertCount(3, $crawler->filter('details.lp-install'));
-        self::assertStringNotContainsString('YOUR_TOKEN', $crawler->text());
-        self::assertStringNotContainsString('Authorization: Bearer', $crawler->text());
+        $panel = $crawler->filter('[data-wizard-readiness][aria-live="polite"]');
+        self::assertCount(1, $panel);
+        self::assertSame(['cli', 'repository_linked', 'agent', 'bridge'], $panel->filter('[data-readiness-row]')->extract(['data-readiness-row']));
+        self::assertSame(['0', '0', '0', '0'], $panel->filter('[data-readiness-row]')->extract(['data-readiness-done']));
+        self::assertSame(['Waiting', 'Waiting', 'Waiting', 'Waiting'], $panel->filter('.lp-status-chip')->each(static fn ($chip): string => trim($chip->text())));
+        self::assertNotNull($crawler->filter('[data-wizard-continue]')->attr('disabled'));
+
+        $live = $crawler->filter('[data-controller="worker-run-refresh"]');
+        self::assertCount(1, $live);
+        self::assertSame('/welcome/connect/readiness', $live->attr('data-worker-run-refresh-url-value'));
+        self::assertSame('["bridge.readiness_changed"]', $live->attr('data-worker-run-refresh-events-value'));
     }
 
-    public function test_widget_step_without_project_bounces_to_step_one(): void
+    public function test_the_readiness_partial_renders_the_panel_alone(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->createUser($em, 'flowwidgetnop', 'flow-widget-nop@example.com');
+        $user = $this->createUser($em, 'flowpartial', 'flow-partial@example.com');
+        $em->persist(new Project($user, 'flow-partial-project'));
         $em->flush();
 
         $client->loginUser($user);
-        $client->request(Request::METHOD_GET, '/welcome/widget');
+        $crawler = $client->request(Request::METHOD_GET, '/welcome/connect/readiness');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('turbo-frame#wizard-machine-rows'));
+        self::assertCount(4, $crawler->filter('[data-readiness-row]'));
+        self::assertCount(0, $crawler->filter('ol[data-wizard-step]'));
+    }
+
+    public function test_the_readiness_partial_bounces_a_user_with_no_project_to_step_one(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $user = $this->createUser($em, 'flowpartialnop', 'flow-partial-nop@example.com');
+        $em->flush();
+
+        $client->loginUser($user);
+        $client->request(Request::METHOD_GET, '/welcome/connect/readiness');
 
         self::assertResponseRedirects('/welcome');
     }
 
-    public function test_the_widget_step_offers_an_embed_that_names_the_project(): void
+    public function test_the_widget_and_done_steps_are_gone(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->createUser($em, 'flowwidget', 'flow-widget@example.com');
-        $em->persist(new Project($user, 'flow-widget-project'));
+        $user = $this->createUser($em, 'flowgone', 'flow-gone@example.com');
+        $em->persist(new Project($user, 'flow-gone-project'));
         $em->flush();
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/welcome/widget');
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('ol[data-wizard-step="3"]');
-        $snippet = $crawler->filter('[data-testid="wizard-widget-snippet"]')->text();
-        self::assertStringContainsString('site-review/widget.js', $snippet);
-        self::assertStringContainsString('data-project=', $snippet);
-        self::assertStringNotContainsString('data-token', $snippet);
-    }
-
-    public function test_done_renders_the_final_step_with_finish_only(): void
-    {
-        $client = static::createClient();
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->createUser($em, 'flowdone', 'flow-done@example.com');
-        $em->persist(new Project($user, 'flow-done-project'));
-        $em->flush();
-
-        $client->loginUser($user);
-        $client->request(Request::METHOD_GET, '/welcome/done');
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('ol[data-wizard-step="4"]');
-        self::assertSelectorNotExists('form[action$="/welcome/skip"]');
-        self::assertSelectorExists('form[action$="/welcome/done/finish"]');
+        foreach (['/welcome/widget', '/welcome/done'] as $url) {
+            $client->request(Request::METHOD_GET, $url);
+            self::assertResponseStatusCodeSame(404, $url);
+        }
+        $client->request(Request::METHOD_POST, '/welcome/done/finish');
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function test_skip_from_connect_completes_and_lands_on_projects(): void
@@ -147,7 +156,7 @@ final class WizardFlowTest extends WebTestCase
 
         $client->loginUser($user);
         $client->request(Request::METHOD_GET, '/welcome/connect');
-        $client->submitForm('Skip setup');
+        $client->submitForm('Skip for now');
 
         self::assertResponseRedirects('/projects');
 
@@ -157,24 +166,61 @@ final class WizardFlowTest extends WebTestCase
         self::assertNotNull($fresh->wizardCompletedAt);
     }
 
-    public function test_finish_completes_and_lands_home(): void
+    public function test_continue_completes_the_wizard_and_lands_on_the_workshop(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->createUser($em, 'flowfinish', 'flow-finish@example.com');
-        $em->persist(new Project($user, 'flow-finish-project'));
+        $user = $this->createUser($em, 'flowcontinue', 'flow-continue@example.com');
+        $project = new Project($user, 'flow-continue-project');
+        $em->persist($project);
         $em->flush();
 
         $client->loginUser($user);
-        $client->request(Request::METHOD_GET, '/welcome/done');
-        $client->submitForm('Go to dashboard');
+        $client->request(Request::METHOD_GET, '/welcome/connect');
+        // The button is disabled until a bridge is ready, so the form is posted by hand.
+        $token = $client->getCrawler()->filter('form[action$="/welcome/continue"] input[name="_csrf_token"]')->attr('value');
+        $client->request(Request::METHOD_POST, '/welcome/continue', ['_csrf_token' => $token]);
 
-        self::assertResponseRedirects('/');
+        self::assertResponseRedirects('/projects/'.$project->id);
 
         $em->clear();
         $fresh = $em->find(User::class, $user->id);
         self::assertInstanceOf(User::class, $fresh);
         self::assertNotNull($fresh->wizardCompletedAt);
+    }
+
+    public function test_continue_for_completed_user_redirects_home(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $user = $this->createUser($em, 'flowcontinuedone', 'flow-continue-done@example.com');
+        $em->persist(new Project($user, 'flow-continue-done-project'));
+        $user->wizardCompletedAt = new \DateTimeImmutable();
+        $em->flush();
+
+        $client->loginUser($user);
+        $client->request(Request::METHOD_GET, '/projects');
+        $client->request(Request::METHOD_POST, '/welcome/continue', ['_csrf_token' => 'csrf-token']);
+
+        self::assertResponseRedirects('/');
+    }
+
+    public function test_continue_without_a_project_goes_back_to_step_one(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $user = $this->createUser($em, 'flowcontinuenop', 'flow-continue-nop@example.com');
+        $em->flush();
+
+        $client->loginUser($user);
+        $client->request(Request::METHOD_GET, '/projects');
+        $client->request(Request::METHOD_POST, '/welcome/continue', ['_csrf_token' => 'csrf-token']);
+
+        self::assertResponseRedirects('/welcome');
+        $em->clear();
+        $fresh = $em->find(User::class, $user->id);
+        self::assertInstanceOf(User::class, $fresh);
+        self::assertNull($fresh->wizardCompletedAt);
     }
 
     public function test_skip_for_completed_user_redirects_home_without_error(): void

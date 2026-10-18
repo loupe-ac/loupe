@@ -1,5 +1,6 @@
 import { expect, type Locator } from '@playwright/test';
 import { createTest } from '../fixtures';
+import { hideReadinessGuide } from '../helpers';
 
 const test = createTest({
     email: 'e2e-text-contrast@example.com',
@@ -150,17 +151,9 @@ test('secondary text and active navigation counts remain legible on their render
         expect.soft(await contrast(text), selector).toBeGreaterThanOrEqual(4.5);
     }
     // The harness project outlives a run, so an earlier run may have hidden the readiness guide already.
-    // The hide submission can stall, or a live reload of the guide can cancel it, so a failed attempt loads the page again.
-    await expect(async () => {
-        await page.goto(`/projects/${projectId}`);
-        const hideGuide = page.locator(
-            '[data-readiness-layout="full"] [data-readiness-hide]',
-        );
-        if ((await hideGuide.count()) > 0) {
-            await hideGuide.click({ timeout: 5000 });
-        }
-        await expect(page.locator('.lp-workshop-layout')).toBeVisible();
-    }).toPass({ timeout: 30_000 });
+    await hideReadinessGuide(page, projectId);
+    await page.goto(`/projects/${projectId}`);
+    await expect(page.locator('.lp-workshop-layout')).toBeVisible();
     const descriptions = page.locator('.lp-empty-state--compact');
     expect(await descriptions.count()).toBeGreaterThan(0);
     for (const description of await descriptions.all()) {

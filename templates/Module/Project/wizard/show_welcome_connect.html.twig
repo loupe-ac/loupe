@@ -3,31 +3,43 @@
 {% block title %}{{ 'project.wizard.connect.page.title'|trans }} — {{ 'app.name'|trans }}{% endblock %}
 
 {% block body %}
-<twig:Ds:Workspace width="narrow">
-    {% include '@Project/wizard/_wizard_progress.html.twig' with {step: 2} only %}
+{% do mercure_subscribe(board_topic(wizardProject)) %}
+<twig:Ds:Workspace>
+    <twig:Ds:Stepper class="lp-wizard-stepper" :steps="['project.wizard.progress.step_1'|trans, 'project.wizard.progress.step_2'|trans, 'project.wizard.progress.step_3'|trans]" :current="2" :aria-label="'project.wizard.progress.label'|trans" />
 
-    <h1 class="lp-workspace-title">{{ 'project.wizard.connect.heading'|trans }}</h1>
-    <p class="lp-workspace-desc">{{ 'project.wizard.connect.lead'|trans }}</p>
-
-    <div class="flex flex-col gap-5">
-        <section class="lp-connect-step">
-            <div class="lp-connect-step__header">
-                <span class="lp-connect-step__badge">1</span>
-                <div>
-                    <h2 class="lp-connect-step__heading">{{ 'project.wizard.connect.step.point.heading'|trans }}</h2>
-                    <p class="lp-connect-step__purpose">{{ 'project.wizard.connect.step.point.purpose'|trans }}</p>
-                </div>
+    <div class="lp-wizard-machine">
+        <div class="lp-wizard-machine__guide">
+            <h1 class="lp-workspace-title">{{ 'project.wizard.connect.heading'|trans }}</h1>
+            <p class="lp-workspace-desc">{{ 'project.wizard.connect.lead'|trans }}</p>
+            <span class="lp-wizard-machine__label">{{ 'project.wizard.connect.install.heading'|trans }}</span>
+            <twig:Ds:CodeBlock
+                :label="'project.wizard.connect.install.label'|trans"
+                :text="'curl -fsSL ' ~ url('app_install_script') ~ ' | sh'"
+                :copyLabel="'project.connect.copy'|trans"
+                :copiedLabel="'project.connect.copied'|trans"
+                testid="wizard-install-command" />
+            <span class="lp-wizard-machine__label">{{ 'project.wizard.connect.init.heading'|trans }}</span>
+            <twig:Ds:CodeBlock
+                :label="'project.wizard.connect.init.label'|trans"
+                :text="'loupe init --project ' ~ wizardProject.id"
+                :copyLabel="'project.connect.copy'|trans"
+                :copiedLabel="'project.connect.copied'|trans"
+                testid="wizard-init-command" />
+            <twig:Ds:Hint>{{ 'project.wizard.connect.init.hint'|trans }}</twig:Ds:Hint>
+        </div>
+        <div class="lp-wizard-machine__sees">
+            <div class="lp-wizard-machine__sees-header">
+                <h2 class="lp-wizard-machine__sees-title">{{ 'project.wizard.connect.sees.heading'|trans }}</h2>
+                <twig:Ds:Hint>{{ 'project.wizard.connect.sees.hint'|trans }}</twig:Ds:Hint>
             </div>
-
-            {% include '@Project/_connect_instructions.html.twig' with {mcpServerName: mcpServerName, projectId: wizardProject.id} only %}
-        </section>
+            <div class="lp-live-frame"
+                 data-controller="worker-run-refresh"
+                 data-worker-run-refresh-url-value="{{ path('app_welcome_readiness') }}"
+                 data-worker-run-refresh-project-value="{{ wizardProject.id }}"
+                 data-worker-run-refresh-events-value="{{ ['bridge.readiness_changed']|json_encode }}">
+                {% include '@Project/wizard/_machine_readiness.html.twig' with {wizardRows: wizardRows, wizardReady: wizardReady} only %}
+            </div>
+        </div>
     </div>
-
-    <twig:Ds:FormActions>
-        <twig:Ds:ActionForm :action="path('app_welcome_skip')" token="wizard-skip">
-            <twig:Ds:Button variant="ghost" type="submit">{{ 'project.wizard.skip'|trans }}</twig:Ds:Button>
-        </twig:Ds:ActionForm>
-        <twig:Ds:Button variant="primary" href="{{ path('app_welcome_widget') }}">{{ 'project.wizard.connect.continue'|trans }}</twig:Ds:Button>
-    </twig:Ds:FormActions>
 </twig:Ds:Workspace>
 {% endblock %}

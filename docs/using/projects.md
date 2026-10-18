@@ -51,9 +51,9 @@ Only a token that carries the agent scope and covers every project of its owner 
 ## Agent readiness
 
 Project settings has an Agent readiness tab. Only the project owner can open it.
-The Discovery part shows the state of the latest discovery run, with the same status as the Repository row of the [readiness guide](workshop.md#run-discovery).
+The Discovery part shows the state of the latest discovery run, with the same status as the Run discovery row of the [readiness guide](workshop.md#run-discovery).
 The Agent GitHub account part links to the page that sets up a [GitHub user for the agents](../getting-started/agent-github-account.md).
-The Workshop guide part has one switch, "Show the readiness checklist on the Workshop".
+The Workshop guide part has one switch, "Show the readiness checklist".
 Turn it on and select Save to show the [readiness guide](workshop.md#the-readiness-guide) on the Workshop again.
 Turn it off and select Save to hide the guide.
 While the guide is hidden, the tab shows the date it was hidden.

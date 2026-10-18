@@ -1,0 +1,24 @@
+{#- The panel and the actions of the machine step. The page and its reload route both render it. Props: wizardRows, wizardReady. -#}
+<turbo-frame id="wizard-machine-rows" class="lp-wizard-machine__frame" data-worker-run-refresh-target="frame">
+    <twig:Ds:Panel aria-live="polite" data-wizard-readiness>
+        <ul class="lp-wizard-rows">
+            {% for row in wizardRows %}
+            <li class="lp-wizard-rows__row" data-readiness-row="{{ row.key }}" data-readiness-done="{{ row.done ? 1 : 0 }}">
+                <span class="lp-wizard-rows__text">
+                    <strong>{{ row.label|trans }}</strong>
+                    <small>{{ row.detail is not null ? row.detail : row.status|trans(row.statusParameters) }}</small>
+                </span>
+                <twig:Ds:StatusChip :modifier="row.done ? 'ok' : 'pending'" :label="(row.done ? 'project.wizard.connect.chip.done' : 'project.wizard.connect.chip.waiting')|trans" />
+            </li>
+            {% endfor %}
+        </ul>
+    </twig:Ds:Panel>
+    <twig:Ds:FormActions>
+        <twig:Ds:ActionForm :action="path('app_welcome_skip')" token="wizard-skip" frame="_top">
+            <twig:Ds:Button variant="ghost" type="submit">{{ 'project.wizard.connect.skip'|trans }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+        <twig:Ds:ActionForm :action="path('app_welcome_continue')" token="wizard-continue" frame="_top">
+            <twig:Ds:Button variant="primary" type="submit" :disabled="wizardReady ? null : true" data-wizard-continue>{{ 'project.wizard.connect.continue'|trans }}</twig:Ds:Button>
+        </twig:Ds:ActionForm>
+    </twig:Ds:FormActions>
+</turbo-frame>

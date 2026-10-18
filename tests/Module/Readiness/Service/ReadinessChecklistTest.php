@@ -188,13 +188,13 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertSame(['readiness.row.repository.done', 'done', true], [$doneRow->status, $doneRow->discoveryState, $doneRow->done]);
     }
 
-    public function test_a_new_project_lists_five_open_checks_in_order(): void
+    public function test_a_new_project_lists_five_required_checks_and_one_optional_in_order(): void
     {
         $project = $this->newProject('readiness-new@example.com');
 
         $readiness = $this->readiness($this->checklist(), $project);
 
-        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository'], array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $readiness->rows));
+        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository', 'widget'], array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $readiness->rows));
         self::assertSame(0, $readiness->doneCount());
         self::assertSame(5, $readiness->total());
         $connect = '/projects/'.$project->id.'/connect';
@@ -203,6 +203,44 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertNull($this->row($readiness, 'github')->actionUrl);
         self::assertSame('/projects/'.$project->id.'/readiness/agent-account', $this->row($readiness, 'agent_account')->actionUrl);
         self::assertNull($this->row($readiness, 'repository')->actionUrl);
+    }
+
+    public function test_the_rows_fall_into_three_sections_and_the_widget_is_optional(): void
+    {
+        $project = $this->newProject('readiness-groups@example.com');
+
+        $readiness = $this->readiness($this->checklist(), $project);
+
+        self::assertSame(
+            ['discovery' => ['agent', 'bridge', 'repository'], 'pull_requests' => ['github', 'agent_account'], 'optional' => ['widget']],
+            array_map(static fn (array $rows): array => array_map(static fn (WorkshopReadinessRow $row): string => $row->key, $rows), $readiness->groups()),
+        );
+        self::assertFalse($this->row($readiness, 'widget')->required());
+        self::assertTrue($this->row($readiness, 'agent')->required());
+    }
+
+    public function test_the_widget_row_sends_the_owner_to_the_widget_panel(): void
+    {
+        $project = $this->newProject('readiness-widget-open@example.com');
+
+        $row = $this->row($this->readiness($this->checklist(), $project), 'widget');
+
+        self::assertFalse($row->done);
+        self::assertSame('readiness.row.widget.open', $row->status);
+        self::assertSame('/projects/'.$project->id.'/connect#site-review-widget', $row->actionUrl);
+    }
+
+    public function test_the_widget_row_is_done_without_changing_the_required_count(): void
+    {
+        $project = $this->newProject('readiness-widget-done@example.com');
+        $project->allowedOrigins = ['https://acme.example'];
+
+        $readiness = $this->readiness($this->checklist(), $project);
+
+        self::assertTrue($this->row($readiness, 'widget')->done);
+        self::assertSame(['%origins%' => 'https://acme.example'], $this->row($readiness, 'widget')->statusParameters);
+        self::assertSame(0, $readiness->doneCount());
+        self::assertSame(5, $readiness->total());
     }
 
     public function test_the_github_check_offers_the_install_when_the_instance_has_an_app(): void
@@ -229,7 +267,7 @@ final class ReadinessChecklistTest extends KernelTestCase
 
         $readiness = $this->readiness($this->checklist(configured: true), $project);
 
-        self::assertSame([true, true, true, false, false], array_map(static fn (WorkshopReadinessRow $row): bool => $row->done, $readiness->rows));
+        self::assertSame([true, true, true, false, false, false], array_map(static fn (WorkshopReadinessRow $row): bool => $row->done, $readiness->rows));
         self::assertSame(3, $readiness->doneCount());
         foreach (array_slice($readiness->rows, 0, 3) as $row) {
             self::assertNull($row->actionUrl, $row->key);

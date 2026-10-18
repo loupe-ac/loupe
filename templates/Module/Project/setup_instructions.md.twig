@@ -58,6 +58,8 @@ Read `/tmp/loupe-login.log` until it shows a page URL and a code. Show both to t
 
 Run the commands in this step and the next steps from the root of the repository.
 
+`loupe init` writes `.loupe.yaml`, which names the project of the repository. It writes the starter profile `.loupe/lifecycle.md` when the repository has none, and it can declare the `loupe` MCP server to Claude Code. It does not install the agent skills or start the bridge, so steps 6 to 9 stay.
+
 {% if projectId -%}
 The project id is `{{ id }}`.
 
