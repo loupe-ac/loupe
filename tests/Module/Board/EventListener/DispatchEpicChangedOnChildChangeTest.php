@@ -188,6 +188,31 @@ final class DispatchEpicChangedOnChildChangeTest extends KernelTestCase
         self::assertFalse($this->epicChanged($epic));
     }
 
+    public function test_a_renamed_open_child_changes_its_epic_so_its_child_marker_reads_the_new_title(): void
+    {
+        $project = $this->makeProject('epic-face-rename');
+        $epic = $this->card($project, column: 'next', type: 'epic');
+        $child = $this->card($project, column: 'in-progress', parent: $epic);
+        $this->changes = [];
+
+        $this->update($child, title: 'Renamed child');
+
+        self::assertTrue($this->epicChanged($epic));
+    }
+
+    public function test_a_renamed_finished_child_leaves_its_epic_alone(): void
+    {
+        $project = $this->makeProject('epic-face-rename-done');
+        $epic = $this->card($project, column: 'next', type: 'epic');
+        $child = $this->card($project, column: 'done', parent: $epic);
+        $this->changes = [];
+
+        $this->update($child, title: 'Renamed child');
+
+        self::assertCount(1, array_filter($this->changes, static fn (CardChanged $change): bool => $change->cardId->equals($child->id)));
+        self::assertFalse($this->epicChanged($epic));
+    }
+
     private function epicChanged(Card $epic): bool
     {
         foreach ($this->changes as $change) {
@@ -216,12 +241,13 @@ final class DispatchEpicChangedOnChildChangeTest extends KernelTestCase
         return $card;
     }
 
-    private function update(Card $card, ?string $column = null, ?string $parentCardId = null, ?int $position = null): void
+    private function update(Card $card, ?string $column = null, ?string $parentCardId = null, ?int $position = null, ?string $title = null): void
     {
         $fresh = $this->reload($card);
         ($this->updateCard)(new UpdateCardCommand(
             $fresh,
             Actor::Human,
+            title: $title,
             column: null === $column ? null : $this->column($fresh->project, $column),
             position: $position,
             parentCardId: $parentCardId,

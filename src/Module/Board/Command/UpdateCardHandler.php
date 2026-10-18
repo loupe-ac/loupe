@@ -358,6 +358,15 @@ final readonly class UpdateCardHandler
                     false,
                 ));
             }
+            // An open child lends its title to the child marker of its epic.
+            if (null !== $card->parent) {
+                $this->events->dispatch(new CardChanged(
+                    $card->project->id ?? throw new \LogicException('Project has no id.'),
+                    $card->parent->id ?? throw new \LogicException('Card has no id.'),
+                    CardChanged::UPDATED,
+                    false,
+                ));
+            }
         }
         // A lane adds or removes a board row, which no placement of one card shows.
         if ($outcome->laneShownChanged) {
