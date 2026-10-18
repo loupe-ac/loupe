@@ -5,22 +5,28 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Service;
 
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Messenger\ResumeAskingSession;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Inbox\Entity\InboxAsk;
+use App\Module\Inbox\Entity\InboxAskItem;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\InboxEventType;
 use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxItemRepository;
+use App\Module\Workflow\Contract\Actor;
 use App\Outbox\OutboxWriter;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * Closes each open ask that a closed item leaves with no open blocking item,
  * writes one inbox.ask_closed row for an ask a bridge can resume, and queues
- * the resume of its session.
+ * the resume of its session. When one answer closes several asks of sessions
+ * on the same card, only the session that took the item first resumes.
  *
  * InboxItemCloser calls it, so the caller holds the project lock and the
  * transaction. It does not flush and throws no domain error, because it runs
@@ -33,8 +39,10 @@ final readonly class InboxAskCloser
         private InboxItemRepository $inboxItems,
         private WorkerRunRepository $workerRuns,
         private CardRepository $cards,
+        private CardEventRepository $cardEvents,
         private OutboxWriter $outbox,
         private MessageBusInterface $bus,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -46,6 +54,7 @@ final readonly class InboxAskCloser
             return;
         }
 
+        $closing = [];
         foreach ($this->inboxAsks->findOpenHolding($item) as $ask) {
             // Closed earlier in this unit of work and not flushed yet.
             if (null !== $ask->closedAt || $this->holdsOpenBlockingItem($ask)) {
@@ -56,8 +65,67 @@ final readonly class InboxAskCloser
             if (null !== $ask->bridgeId) {
                 $ask->card = $this->cardOfSession($ask);
                 $this->writeEvent($ask, $actor);
-                $this->resumeSession($ask, $now);
+                $closing[] = $ask;
             }
+        }
+
+        $winners = $this->winnersOf($item, $closing);
+        foreach ($closing as $ask) {
+            if (\in_array($ask, $winners, true)) {
+                $this->resumeSession($ask, $now);
+            } else {
+                $this->skipResume($ask, $item, $now);
+            }
+        }
+    }
+
+    /**
+     * One ask for each card: the one that took the item first. An ask with no card stands alone.
+     *
+     * @param list<InboxAsk> $closing
+     *
+     * @return list<InboxAsk>
+     */
+    private function winnersOf(InboxItem $item, array $closing): array
+    {
+        $byCard = [];
+        foreach ($closing as $ask) {
+            $key = null === $ask->card ? 'ask:'.$ask->id : 'card:'.$ask->card->id;
+            $held = $byCard[$key] ?? null;
+            if (null === $held || $this->tookFirst($ask, $held, $item)) {
+                $byCard[$key] = $ask;
+            }
+        }
+
+        return array_values($byCard);
+    }
+
+    /** The earliest link to the item wins, and the lower link id breaks a tie. */
+    private function tookFirst(InboxAsk $candidate, InboxAsk $held, InboxItem $item): bool
+    {
+        $mine = $this->linkTo($candidate, $item);
+        $theirs = $this->linkTo($held, $item);
+
+        return [$mine->addedAt, (string) $mine->id] < [$theirs->addedAt, (string) $theirs->id];
+    }
+
+    private function linkTo(InboxAsk $ask, InboxItem $item): InboxAskItem
+    {
+        return array_find($ask->items->toArray(), static fn (InboxAskItem $link): bool => $link->item === $item) ?? throw new \LogicException('A closing ask holds the item that closed it.');
+    }
+
+    private function skipResume(InboxAsk $ask, InboxItem $item, \DateTimeImmutable $now): void
+    {
+        $ask->resumeSkipped = true;
+        $this->logger->info('inbox.ask_resume_skipped', [
+            'projectId' => (string) $ask->project->id,
+            'askId' => (string) $ask->id,
+            'sessionId' => (string) $ask->sessionId,
+            'itemId' => (string) $item->id,
+            'cardId' => (string) $ask->card?->id,
+        ]);
+        if (null !== $ask->card) {
+            $this->cardEvents->record($ask->card, CardEventKind::ResumeSkipped, Actor::System, null, ['number' => $item->number, 'sessionId' => (string) $ask->sessionId], $now);
         }
     }
 

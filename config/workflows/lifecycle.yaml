@@ -1,5 +1,5 @@
 key: lifecycle
-version: 6
+version: 7
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -275,6 +275,7 @@ rules:
       slot: implementation
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - any:
                     - pr.checks_failed: {}
@@ -317,6 +318,7 @@ rules:
       slot: implementation
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - agent_review.failed: {}
       then:
@@ -349,6 +351,7 @@ rules:
       slot: in-review
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - any:
                     - pr.checks_failed: {}
@@ -399,6 +402,7 @@ rules:
       slot: in-review
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - agent_review.failed: {}
       then:
