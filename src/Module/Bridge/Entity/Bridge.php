@@ -9,7 +9,6 @@ use App\Module\Bridge\Repository\BridgeRepository;
 use App\Module\Bridge\ValueObject\CliInstallMethod;
 use App\Module\Bridge\ValueObject\CliUpdateState;
 use App\Module\Bridge\ValueObject\WorkSubject;
-use App\Utils\GitHubLogin;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -30,6 +29,7 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-type CommandEntryRow array{name: string, description: ?string, params: list<CommandParamRow>, run: list<string>, timeout: string}
  * @phpstan-type WorktreeRow array{projectId: string, branch: string, path: string}
  * @phpstan-type RepositoryRow array{projectId: string, path: string, remoteUrl: string}
+ * @phpstan-type GitIdentityRow array{projectId: string, mode: 'agent_account'|'app_token'|'machine', commitName: string, pushLogin: string, githubUserId: ?int}
  */
 #[ORM\Entity(repositoryClass: BridgeRepository::class)]
 #[ORM\Table(name: 'bridges')]
@@ -60,6 +60,9 @@ class Bridge
 
     /** The capability of a bridge that reports the usage of an interactive run from the session transcript. */
     public const string CAPABILITY_SESSION_USAGE = 'session-usage';
+
+    /** The capability of a bridge that reports its git identities, so a heartbeat without it clears the stored rows. */
+    public const string CAPABILITY_GIT_IDENTITIES = 'git-identities';
 
     /** The capability of a bridge that claims work requests. */
     public const string CAPABILITY_WORK_REQUESTS = 'work-requests';
@@ -163,6 +166,18 @@ class Bridge
     #[ORM\Column(name: 'repositories_reported_at', nullable: true)]
     public ?\DateTimeImmutable $repositoriesReportedAt = null;
 
+    /**
+     * The git identity of each followed project on the machine, as the last heartbeat reported it. Null until a bridge sends a report.
+     *
+     * @var list<GitIdentityRow>|null
+     */
+    #[ORM\Column(name: 'git_identities', type: Types::JSON, nullable: true)]
+    public ?array $gitIdentities = null;
+
+    /** When the bridge read the git identity rows, on the server clock: the heartbeat time less the age the bridge reported. */
+    #[ORM\Column(name: 'git_identities_reported_at', nullable: true)]
+    public ?\DateTimeImmutable $gitIdentitiesReportedAt = null;
+
     /** Whether a person asked the bridge to start no new work. It stays until a person clears it. */
     #[ORM\Column(name: 'pause_requested', options: ['default' => false])]
     public bool $pauseRequested = false;
@@ -206,10 +221,6 @@ class Bridge
     /** The name the last heartbeat asked for. */
     #[ORM\Column(name: 'requested_name', length: self::MAX_NAME_LENGTH, nullable: true)]
     public ?string $requestedName = null;
-
-    /** The GitHub user the bridge pushes as, as its last heartbeat reported it. */
-    #[ORM\Column(name: 'push_login', length: GitHubLogin::MAX_LENGTH, nullable: true)]
-    public ?string $pushLogin = null;
 
     /** What a page calls the bridge. */
     public string $label {

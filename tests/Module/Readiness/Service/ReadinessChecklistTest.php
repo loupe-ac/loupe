@@ -340,6 +340,15 @@ final class ReadinessChecklistTest extends KernelTestCase
         self::assertFalse($this->row($this->readiness($this->checklist(), $project), 'agent_account')->done);
     }
 
+    public function test_a_machine_setup_that_pushes_as_the_login_does_not_count(): void
+    {
+        $project = $this->newProject('readiness-account-machine@example.com');
+        $project->agentGitHubLogin = 'acme-agent';
+        $this->seedPushingBridge($project, 'acme-agent', mode: 'machine');
+
+        self::assertFalse($this->row($this->readiness($this->checklist(), $project), 'agent_account')->done);
+    }
+
     public function test_a_quiet_bridge_that_pushes_as_the_login_does_not_count(): void
     {
         $project = $this->newProject('readiness-account-quiet@example.com');
@@ -653,11 +662,12 @@ final class ReadinessChecklistTest extends KernelTestCase
         return $bridge;
     }
 
-    private function seedPushingBridge(Project $project, string $login, \DateTimeImmutable $lastSeenAt = new \DateTimeImmutable()): void
+    /** @param 'agent_account'|'app_token'|'machine' $mode */
+    private function seedPushingBridge(Project $project, string $login, \DateTimeImmutable $lastSeenAt = new \DateTimeImmutable(), string $mode = 'agent_account'): void
     {
         $bridge = $this->seedCapableBridge($project);
         $bridge->lastSeenAt = $lastSeenAt;
-        $bridge->pushLogin = $login;
+        $bridge->gitIdentities = [['projectId' => (string) $project->id, 'mode' => $mode, 'commitName' => 'Agent', 'pushLogin' => $login, 'githubUserId' => null]];
         $this->em()->flush();
     }
 

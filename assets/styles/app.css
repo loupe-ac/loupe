@@ -4771,6 +4771,13 @@
     .lp-identity-row__meta--plain {
         @apply font-sans;
     }
+    /* A line that holds a sentence wraps instead of cutting it off. */
+    .lp-identity-row__meta--wrap {
+        @apply whitespace-normal overflow-visible;
+    }
+    .lp-identity-row > .lp-status-chip {
+        @apply shrink-0 whitespace-nowrap;
+    }
 
     /* An app row with sub-rows under it: the site review widget and its live
        preview tokens on Connected apps. */

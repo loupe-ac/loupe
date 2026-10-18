@@ -127,8 +127,13 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->capabilities = $command->capabilities;
             }
             $bridge->workKinds = $command->workKinds;
-            if (null !== $command->pushLogin) {
-                $bridge->pushLogin = '' === $command->pushLogin ? null : $command->pushLogin;
+            if (null !== $command->gitIdentities) {
+                $bridge->gitIdentities = $command->gitIdentities;
+                $bridge->gitIdentitiesReportedAt = $now->modify(\sprintf('-%d seconds', $command->gitIdentitiesAge));
+            } elseif (!\in_array(Bridge::CAPABILITY_GIT_IDENTITIES, $command->capabilities ?? [], true)) {
+                // An older CLI pushes with the git setup of the machine, so the rows of a newer one no longer hold.
+                $bridge->gitIdentities = null;
+                $bridge->gitIdentitiesReportedAt = null;
             }
             // A new bridge and a bridge back from quiet change what the waiting cards can expect.
             $availabilityChanged = $created

@@ -874,10 +874,11 @@ stays on the machine, and Loupe never receives it. `show` prints the login and
 the id, and `clear` removes the account.
 
 When the bridge starts, it calls `GET /user` on the GitHub API with the stored
-token. It sends the login that GitHub gives as `pushLogin` in each heartbeat.
-With no account, the bridge sends `""`. When the call fails, the bridge logs
-`agent_account_check_failed` and sends `""`, so a revoked token never shows as
-set up. The bridge does not check again until it restarts.
+token. It reports the login that GitHub gives in the `gitIdentities` rows of
+each heartbeat, with the mode `agent_account`. When the call fails, the bridge
+logs `agent_account_check_failed` and reports an empty login, so a revoked token
+never shows as set up. The bridge checks again at each reload and every ten
+minutes.
 
 Each worker gets these variables when an account is stored. The bridge
 first removes the inherited `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_AUTHOR_NAME`,
@@ -1259,7 +1260,7 @@ its fields, the failure events included.
 The server can pause a bridge, stop or resume one of its runs, run a failed
 command run again, and ask for the usage of an interactive run. Each heartbeat
 tells the server that the bridge takes these commands, with
-`capabilities: ["commands", "rerun-command", "session-usage"]`.
+`capabilities: ["commands", "rerun-command", "session-usage"]`. It also names `git-identities`, because it reports its git identity.
 [Pause and commands](../reference/bridge-heartbeat.md#pause-and-commands)
 describes the protocol.
 

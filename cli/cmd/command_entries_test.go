@@ -71,10 +71,10 @@ func TestCommandEntryReportsAreSortedWithTheirParams(t *testing.T) {
 }
 
 func TestHeartbeatBodyAddsTheEntryCapabilityOnOptIn(t *testing.T) {
-	if slices.Contains(heartbeatBody(commandSet(t, ""), "").Capabilities, rules.CapabilityAddEntry) {
+	if slices.Contains(heartbeatBody(commandSet(t, "")).Capabilities, rules.CapabilityAddEntry) {
 		t.Error("add-entry without acceptEntries")
 	}
-	hb := heartbeatBody(commandSet(t, "acceptEntries: true\n"), "")
+	hb := heartbeatBody(commandSet(t, "acceptEntries: true\n"))
 	if !slices.Contains(hb.Capabilities, rules.CapabilityAddEntry) || len(hb.CommandEntries) != 2 {
 		t.Fatalf("body = %+v", hb)
 	}

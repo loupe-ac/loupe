@@ -47,7 +47,7 @@ final class EditAgentAccountControllerTest extends WebTestCase
         $project = $this->project($owner, 'Agent account done');
         $project->agentGitHubLogin = 'Acme-Agent';
         $bridge = new Bridge($owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
-        $bridge->pushLogin = 'acme-agent';
+        $bridge->gitIdentities = [['projectId' => (string) $project->id, 'mode' => 'agent_account', 'commitName' => 'Agent', 'pushLogin' => 'acme-agent', 'githubUserId' => null]];
         $this->em()->persist($bridge);
         $this->em()->flush();
         $this->em()->clear();
