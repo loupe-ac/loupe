@@ -254,6 +254,20 @@ final class IssueGitTokenApiTest extends WebTestCase
         self::assertSame('github_unavailable', $this->json()['error']);
     }
 
+    public function test_it_names_a_missing_app_signing_key_as_a_setup_problem(): void
+    {
+        $owner = $this->scenario->createUser('git-token-no-key@example.com');
+        $project = $this->scenario->createProject($owner, 'Site no-key');
+        $this->installation($project, self::INSTALLATION, self::REPOSITORY);
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), (string) $project->id);
+
+        self::assertResponseStatusCodeSame(409);
+        self::assertSame('app_not_configured', $this->json()['error']);
+        self::assertSame([], $this->requests);
+    }
+
     /**
      * @param array<string, string> $permissions
      *
@@ -299,11 +313,9 @@ final class IssueGitTokenApiTest extends WebTestCase
 
             return array_shift($this->responses) ?? throw new \LogicException('Unexpected request '.$method.' '.$url);
         }, 'https://api.github.com');
-        static::getContainer()->set(GitHubAppApi::class, new GitHubAppApi(
-            $http,
-            new GitHubAppConfiguration(null, null, null, null, '123456', $pem),
-            new MockClock('2026-10-18 13:00:00'),
-        ));
+        $configuration = new GitHubAppConfiguration(null, null, null, null, '123456', $pem);
+        static::getContainer()->set(GitHubAppConfiguration::class, $configuration);
+        static::getContainer()->set(GitHubAppApi::class, new GitHubAppApi($http, $configuration, new MockClock('2026-10-18 13:00:00')));
     }
 
     /** @param ?string $repository the repository to ask for, or null to send an empty object */

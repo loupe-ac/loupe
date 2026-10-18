@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\GitHub\Twig\Components;
 
+use App\Module\Forge\Entity\ForgeRepository;
+use App\Module\Forge\Entity\ForgeRepositorySource;
 use App\Module\GitHub\Entity\GitHubInstallation;
 use App\Module\GitHub\Entity\GitHubRepositorySelection;
 use App\Module\GitHub\Service\GitHubAppConfiguration;
@@ -216,7 +218,27 @@ final class GitHubRepositoriesComponentTest extends WebTestCase
         $notice = $crawler->filter('#repositories [data-testid="github-push-refused"]');
         self::assertCount(1, $notice);
         self::assertStringContainsString('Agents of this project cannot push.', $notice->text());
-        self::assertStringContainsString('has not set up a GitHub App', $notice->text());
+        self::assertStringContainsString('has not finished the setup of the GitHub App', $notice->text());
+    }
+
+    public function test_an_installed_project_with_no_app_signing_key_names_the_setup_problem(): void
+    {
+        $client = static::createClient();
+        $owner = $this->signedUpUser('pushnokey');
+        $project = $this->projectOf($owner);
+        $this->em()->persist(new GitHubInstallation($project, 15, 'acme', GitHubRepositorySelection::Selected));
+        $this->em()->persist(new ForgeRepository($project, 'github', '9015', 'acme/site', ForgeRepositorySource::Installation, '15'));
+        $this->em()->flush();
+        $this->em()->clear();
+        static::getContainer()->set(GitHubAppConfiguration::class, new GitHubAppConfiguration('loupe', 'client', 'secret', 'hook', null, null));
+
+        $client->loginUser($owner);
+        $crawler = $this->connectPage($client, $project);
+
+        $notice = $crawler->filter('#repositories [data-testid="github-push-refused"]');
+        self::assertCount(1, $notice);
+        self::assertStringContainsString('has not finished the setup of the GitHub App', $notice->text());
+        self::assertStringNotContainsString('GitHub did not answer', $notice->text());
     }
 
     public function test_a_project_that_keeps_its_own_git_setup_shows_no_push_notice(): void

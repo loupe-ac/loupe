@@ -25,6 +25,7 @@ final readonly class GitHubGitTokenIssuer
         private ForgeRepositoryRepository $forgeRepositories,
         private GitHubInstallationRepository $gitHubInstallations,
         private GitHubAppApi $api,
+        private GitHubAppConfiguration $configuration,
     ) {
     }
 
@@ -65,6 +66,9 @@ final readonly class GitHubGitTokenIssuer
     private function resolve(Project $project, ?string $repositoryPath): array
     {
         $candidates = $this->candidates($project, $repositoryPath);
+        if (!$this->configuration->canReadForge()) {
+            throw new GitHubGitTokenRefused(GitHubGitTokenRefused::APP_NOT_CONFIGURED);
+        }
 
         try {
             $installations = $this->api->installations();

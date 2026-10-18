@@ -2009,6 +2009,7 @@ for every project. With the setting off, the endpoint hands out no token.
 | 409 | `{"error":"no_installation","missing":[]}` | no live installation of the GitHub App delivers a repository to the project. `installation_suspended` names a suspended installation |
 | 409 | `{"error":"no_repository","missing":[]}` | the project has installed repositories, and the named one is not among them |
 | 422 | | the body names no repository, or a value that is not `owner/name` |
+| 409 | `{"error":"app_not_configured","missing":[]}` | the instance has no `GITHUB_APP_ID` or `GITHUB_APP_PRIVATE_KEY`, so Loupe cannot sign as the App |
 | 409 | `{"error":"missing_grant","missing":["contents"]}` | the installation lacks write access to the permissions that `missing` names |
 | 429 | | more than 60 requests in one minute from one token |
 | 502 | `{"error":"github_unavailable","missing":[]}` | GitHub did not answer |
