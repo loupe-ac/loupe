@@ -500,7 +500,9 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		hb.onReply, hb.onLost = r.onHeartbeatReply, r.loseClaims
 		hb.worktrees = func(ctx context.Context) []api.WorktreeReport { return worktreeReports(ctx, r.rules()) }
 		hb.repositories = func(ctx context.Context) []api.RepositoryReport { return repositoryReports(ctx, r.rules()) }
-		hb.gitIdentities = func(context.Context) []api.GitIdentityReport { return r.identities.rows(identityTargets(r.rules())) }
+		hb.gitIdentities = func(context.Context) ([]api.GitIdentityReport, time.Duration) {
+			return r.identities.rows(identityTargets(r.rules()))
+		}
 		// Adopted runs can end on their own goroutines, and read heartbeat
 		// under mu.
 		r.mu.Lock()

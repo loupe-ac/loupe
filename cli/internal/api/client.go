@@ -540,6 +540,9 @@ type Heartbeat struct {
 	// GitIdentities follows the same rule as Repositories: nil sends no key
 	// and keeps the rows the server holds, and an empty list sends [].
 	GitIdentities []GitIdentityReport `json:"gitIdentities,omitzero"`
+	// GitIdentitiesAge is the number of seconds since the bridge read the
+	// GitIdentities rows, so the server dates them from the read.
+	GitIdentitiesAge int64 `json:"gitIdentitiesAge,omitzero"`
 	// Accounts is nil until the bridge checked its accounts, which sends no
 	// key and keeps the rows the server holds.
 	Accounts []AccountReport `json:"accounts,omitzero"`
@@ -558,7 +561,7 @@ const (
 	MaxCommandEntries = 50
 	MaxWorktrees      = 200
 	MaxRepositories   = 500
-	MaxGitIdentities  = 50
+	MaxGitIdentities  = 500
 )
 
 // CommandEntryReport is one command entry of the rule file. Run holds the

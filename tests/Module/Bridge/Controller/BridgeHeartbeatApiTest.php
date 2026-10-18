@@ -1160,6 +1160,8 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a git identity with a user id that is not a number' => [['gitIdentities' => [self::identity(['githubUserId' => 'abc'])]]];
         yield 'git identities that are not a list' => [['gitIdentities' => 'loupe']];
         yield 'too many git identities' => [['gitIdentities' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_GIT_IDENTITIES + 1, self::identity())]];
+        yield 'a negative git identities age' => [['gitIdentitiesAge' => -1]];
+        yield 'a git identities age that is too large' => [['gitIdentitiesAge' => RecordBridgeHeartbeatRequest::MAX_GIT_IDENTITIES_AGE + 1]];
     }
 
     /** @param array<string, mixed> $overrides */
@@ -1442,6 +1444,37 @@ final class BridgeHeartbeatApiTest extends WebTestCase
             ['projectId' => '0199f3a4-0000-7000-8000-000000000001', 'mode' => 'agent_account', 'commitName' => '', 'pushLogin' => '', 'githubUserId' => null],
         ], $bridge->gitIdentities);
         self::assertNotNull($bridge->gitIdentitiesReportedAt);
+    }
+
+    public function test_the_git_identities_are_dated_from_the_read_of_the_bridge(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $clock = new MockClock('2026-10-18 16:00:00');
+        static::getContainer()->set('clock', $clock);
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-age@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()]]);
+        $clock->modify('2026-10-18 16:09:00');
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()], 'gitIdentitiesAge' => 540]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('2026-10-18 16:00:00', $this->bridge($owner, $bridgeId)->gitIdentitiesReportedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_heartbeat_carries_a_git_identity_for_each_project_it_can_name(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-many@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_PROJECTS, self::identity())]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertCount(RecordBridgeHeartbeatRequest::MAX_PROJECTS, $this->bridge($owner, $bridgeId)->gitIdentities ?? []);
     }
 
     public function test_a_heartbeat_without_git_identities_keeps_the_stored_rows(): void

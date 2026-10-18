@@ -23,20 +23,21 @@ use Symfony\Component\Uid\Uuid;
 final readonly class RecordBridgeHeartbeatCommand
 {
     /**
-     * @param list<string>                 $projects       project ids as the bridge sent them, which may name projects the owner does not hold
-     * @param list<HookRow>|null           $hooks          null keeps the stored rows, because a bridge that predates hooks sends none
-     * @param list<WorkerPoolRow>|null     $workerPools    null keeps the stored rows, because a bridge that predates worker pools sends none
-     * @param bool|null                    $paused         null keeps the stored value, because a bridge that predates the pause sends none
-     * @param list<string>|null            $capabilities   null keeps the stored names, because a bridge that predates capabilities sends none
-     * @param list<array{Uuid, Uuid}>|null $workClaims     pairs of a request id and its claim token. Null from a bridge that predates work requests, which renews nothing
-     * @param string|null                  $name           null keeps the stored names, because a bridge that predates names sends none; '' clears both; any other value claims the name
-     * @param list<BridgeHostSampleReport> $hostSamples    stored only while host sampling is on
-     * @param list<AccountRow>|null        $accounts       null keeps the stored rows, because a bridge that predates account checks sends none
-     * @param list<CommandEntryRow>|null   $commandEntries null keeps the stored rows, because a bridge that predates command entries sends none
-     * @param list<WorktreeRow>|null       $worktrees      null keeps the stored rows, because a bridge that predates worktrees sends none
-     * @param list<RepositoryRow>|null     $repositories   null keeps the stored rows, because a bridge that predates repositories sends none
-     * @param list<string>                 $workKinds      empty from a bridge that predates work kinds, which then runs no kind
-     * @param list<GitIdentityRow>|null    $gitIdentities  null keeps the stored rows when the capabilities name git-identities, and clears them otherwise
+     * @param list<string>                 $projects         project ids as the bridge sent them, which may name projects the owner does not hold
+     * @param list<HookRow>|null           $hooks            null keeps the stored rows, because a bridge that predates hooks sends none
+     * @param list<WorkerPoolRow>|null     $workerPools      null keeps the stored rows, because a bridge that predates worker pools sends none
+     * @param bool|null                    $paused           null keeps the stored value, because a bridge that predates the pause sends none
+     * @param list<string>|null            $capabilities     null keeps the stored names, because a bridge that predates capabilities sends none
+     * @param list<array{Uuid, Uuid}>|null $workClaims       pairs of a request id and its claim token. Null from a bridge that predates work requests, which renews nothing
+     * @param string|null                  $name             null keeps the stored names, because a bridge that predates names sends none; '' clears both; any other value claims the name
+     * @param list<BridgeHostSampleReport> $hostSamples      stored only while host sampling is on
+     * @param list<AccountRow>|null        $accounts         null keeps the stored rows, because a bridge that predates account checks sends none
+     * @param list<CommandEntryRow>|null   $commandEntries   null keeps the stored rows, because a bridge that predates command entries sends none
+     * @param list<WorktreeRow>|null       $worktrees        null keeps the stored rows, because a bridge that predates worktrees sends none
+     * @param list<RepositoryRow>|null     $repositories     null keeps the stored rows, because a bridge that predates repositories sends none
+     * @param list<string>                 $workKinds        empty from a bridge that predates work kinds, which then runs no kind
+     * @param list<GitIdentityRow>|null    $gitIdentities    null keeps the stored rows when the capabilities name git-identities, and clears them otherwise
+     * @param int                          $gitIdentitiesAge the seconds since the bridge read $gitIdentities, which dates the rows
      */
     public function __construct(
         public User $owner,
@@ -59,6 +60,7 @@ final readonly class RecordBridgeHeartbeatCommand
         public array $workKinds = [],
         public ?array $repositories = null,
         public ?array $gitIdentities = null,
+        public int $gitIdentitiesAge = 0,
     ) {
     }
 }

@@ -62,7 +62,8 @@ The path holds no project, because one bridge follows several projects.
 | `projects` | required. A list of at most 500 project ids, which may be empty. The server keeps the ids of projects the token's user owns, and drops every other id |
 | `cliVersion` | required. The version of a release build, such as `1.0.0`, or the commit of a development build. 1 to 100 characters after trimming |
 | `name` | optional. The name the web UI shows for the bridge. 1 to 40 characters after trimming, with no control character. A missing or `null` value keeps the name the server holds, and an empty or blank value clears it. See [The bridge name](#the-bridge-name) |
-| `gitIdentities` | optional. A list of at most 50 rows, one for each followed project. A missing or `null` value keeps the rows the server holds when `capabilities` names `git-identities`, and clears them otherwise. An empty list clears them too. See [The git identity](#the-git-identity) |
+| `gitIdentities` | optional. A list of at most 500 rows, one for each followed project. A missing or `null` value keeps the rows the server holds when `capabilities` names `git-identities`, and clears them otherwise. An empty list clears them too. See [The git identity](#the-git-identity) |
+| `gitIdentitiesAge` | optional. The number of seconds since the bridge read the `gitIdentities` rows, from 0 to 86400. The server dates the rows from that read, so the Connect page shows when the bridge checked the machine. A missing or `null` value is 0 |
 | `pushLogin` | ignored. Older bridges send the login of their agent account. The server accepts the field and stores nothing from it |
 | `update` | optional. The state of the bridge's own [update](../extending/cli-bridge.md#updates) |
 | `update.state` | required in `update`. One of the states below |
@@ -223,9 +224,11 @@ never reaches the server.
 | `githubUserId` | optional. The numeric GitHub user id of the login, or `null` when the bridge has none |
 
 For a `machine` row, the bridge reads the push address with
-`git remote get-url --push origin`. For an HTTPS address, it asks
-`git credential fill` for a credential without a prompt, and calls
-`GET /user` with it. For an SSH address, it runs `ssh -T -o BatchMode=yes`
+`git remote get-url --push origin`. For an HTTPS address that holds a password,
+such as `https://owner:<token>@github.com/acme/app.git`, it calls `GET /user`
+with that password, because git pushes with it. For any other HTTPS address, it
+asks `git credential fill` for a credential without a prompt, with the user
+name of the address when it has one, and calls `GET /user` with it. For an SSH address, it runs `ssh -T -o BatchMode=yes`
 and reads the login from the greeting "Hi <login>!". When neither probe gives a
 login, `pushLogin` is empty, and the Connect page says the login is unknown.
 

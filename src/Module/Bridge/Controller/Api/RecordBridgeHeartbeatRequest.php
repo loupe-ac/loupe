@@ -43,8 +43,11 @@ final class RecordBridgeHeartbeatRequest
     /** Far above the projects one bridge follows, and small enough to bound the JSON column. */
     public const int MAX_REPOSITORIES = 500;
 
-    /** Far above the projects one bridge follows on a machine, and small enough to bound the JSON column. */
-    public const int MAX_GIT_IDENTITIES = 50;
+    /** One row for each project a heartbeat can name. */
+    public const int MAX_GIT_IDENTITIES = self::MAX_PROJECTS;
+
+    /** Far above the ten minutes a bridge keeps a read of its git identities. */
+    public const int MAX_GIT_IDENTITIES_AGE = 86400;
 
     /** Far above the features one bridge reports, and small enough to bound the JSON column. */
     public const int MAX_CAPABILITIES = 20;
@@ -60,20 +63,21 @@ final class RecordBridgeHeartbeatRequest
 
     /**
      * @param list<string>|null                  $projects
-     * @param list<BridgeHookInput>|null         $hooks          null from a bridge that predates hooks
-     * @param list<BridgeWorkerPoolInput>|null   $workerPools    null from a bridge that predates worker pools
-     * @param bool|null                          $paused         null from a bridge that predates the pause
-     * @param list<string>|null                  $capabilities   null from a bridge that predates capabilities
-     * @param list<BridgeWorkClaimInput>|null    $workClaims     null from a bridge that predates work requests
-     * @param string|null                        $name           null from a bridge that predates names; blank clears the name
-     * @param list<BridgeHostSampleInput>|null   $hostSamples    null from a bridge that predates host samples
-     * @param string|null                        $pushLogin      sent by an old bridge, and ignored; the git identity rows replace it
-     * @param list<BridgeAccountInput>|null      $accounts       null from a bridge that predates account checks
-     * @param list<BridgeCommandEntryInput>|null $commandEntries null from a bridge that predates command entries
-     * @param list<BridgeWorktreeInput>|null     $worktrees      null from a bridge that predates worktrees
-     * @param list<BridgeRepositoryInput>|null   $repositories   null from a bridge that predates repositories
-     * @param list<string>|null                  $workKinds      null from a bridge that predates work kinds
-     * @param list<BridgeGitIdentityInput>|null  $gitIdentities  null from a bridge that predates git identities
+     * @param list<BridgeHookInput>|null         $hooks            null from a bridge that predates hooks
+     * @param list<BridgeWorkerPoolInput>|null   $workerPools      null from a bridge that predates worker pools
+     * @param bool|null                          $paused           null from a bridge that predates the pause
+     * @param list<string>|null                  $capabilities     null from a bridge that predates capabilities
+     * @param list<BridgeWorkClaimInput>|null    $workClaims       null from a bridge that predates work requests
+     * @param string|null                        $name             null from a bridge that predates names; blank clears the name
+     * @param list<BridgeHostSampleInput>|null   $hostSamples      null from a bridge that predates host samples
+     * @param string|null                        $pushLogin        sent by an old bridge, and ignored; the git identity rows replace it
+     * @param list<BridgeAccountInput>|null      $accounts         null from a bridge that predates account checks
+     * @param list<BridgeCommandEntryInput>|null $commandEntries   null from a bridge that predates command entries
+     * @param list<BridgeWorktreeInput>|null     $worktrees        null from a bridge that predates worktrees
+     * @param list<BridgeRepositoryInput>|null   $repositories     null from a bridge that predates repositories
+     * @param list<string>|null                  $workKinds        null from a bridge that predates work kinds
+     * @param list<BridgeGitIdentityInput>|null  $gitIdentities    null from a bridge that predates git identities
+     * @param int|null                           $gitIdentitiesAge the seconds since the bridge read $gitIdentities, null for a fresh read
      */
     public function __construct(
         #[Assert\All([new Assert\NotBlank(), new Assert\Uuid()])]
@@ -158,6 +162,9 @@ final class RecordBridgeHeartbeatRequest
         #[Assert\Type('list')]
         #[Assert\Valid]
         public ?array $gitIdentities = null,
+
+        #[Assert\Range(min: 0, max: self::MAX_GIT_IDENTITIES_AGE)]
+        public ?int $gitIdentitiesAge = null,
     ) {
     }
 

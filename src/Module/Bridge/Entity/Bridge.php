@@ -174,7 +174,7 @@ class Bridge
     #[ORM\Column(name: 'git_identities', type: Types::JSON, nullable: true)]
     public ?array $gitIdentities = null;
 
-    /** The server clock at the heartbeat that carried the git identity rows. */
+    /** When the bridge read the git identity rows, on the server clock: the heartbeat time less the age the bridge reported. */
     #[ORM\Column(name: 'git_identities_reported_at', nullable: true)]
     public ?\DateTimeImmutable $gitIdentitiesReportedAt = null;
 

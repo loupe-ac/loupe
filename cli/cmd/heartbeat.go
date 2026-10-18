@@ -69,7 +69,7 @@ type heartbeater struct {
 	repositories func(context.Context) []api.RepositoryReport
 	// gitIdentities reads the cached git identities when a heartbeat goes out.
 	// It may be nil.
-	gitIdentities func(context.Context) []api.GitIdentityReport
+	gitIdentities func(context.Context) ([]api.GitIdentityReport, time.Duration)
 
 	mu   sync.Mutex
 	body api.Heartbeat
@@ -353,7 +353,9 @@ func (h *heartbeater) send() {
 			body.Repositories = h.repositories(ctx)
 		}
 		if h.gitIdentities != nil {
-			body.GitIdentities = h.gitIdentities(ctx)
+			var age time.Duration
+			body.GitIdentities, age = h.gitIdentities(ctx)
+			body.GitIdentitiesAge = int64(age / time.Second)
 		}
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {

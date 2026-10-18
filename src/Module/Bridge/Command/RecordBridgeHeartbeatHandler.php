@@ -129,7 +129,7 @@ final readonly class RecordBridgeHeartbeatHandler
             $bridge->workKinds = $command->workKinds;
             if (null !== $command->gitIdentities) {
                 $bridge->gitIdentities = $command->gitIdentities;
-                $bridge->gitIdentitiesReportedAt = $now;
+                $bridge->gitIdentitiesReportedAt = $now->modify(\sprintf('-%d seconds', $command->gitIdentitiesAge));
             } elseif (!\in_array(Bridge::CAPABILITY_GIT_IDENTITIES, $command->capabilities ?? [], true)) {
                 // An older CLI pushes with the git setup of the machine, so the rows of a newer one no longer hold.
                 $bridge->gitIdentities = null;

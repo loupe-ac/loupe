@@ -877,7 +877,8 @@ When the bridge starts, it calls `GET /user` on the GitHub API with the stored
 token. It reports the login that GitHub gives in the `gitIdentities` rows of
 each heartbeat, with the mode `agent_account`. When the call fails, the bridge
 logs `agent_account_check_failed` and reports an empty login, so a revoked token
-never shows as set up. The bridge does not check again until it restarts.
+never shows as set up. The bridge checks again at each reload and every ten
+minutes.
 
 Each worker gets these variables when an account is stored. The bridge
 first removes the inherited `GH_TOKEN`, `GITHUB_TOKEN`, `GIT_AUTHOR_NAME`,

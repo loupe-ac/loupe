@@ -95,8 +95,7 @@ func newIdentityReporter(ctx context.Context, agent *config.AgentAccount, login 
 // identityTarget is one followed project to read.
 type identityTarget struct{ id, slug, dir string }
 
-// identityTargets lists the followed projects of set that have an id, at most
-// api.MaxGitIdentities of them.
+// identityTargets lists the followed projects of set that have an id.
 func identityTargets(set *rules.Set) []identityTarget {
 	var out []identityTarget
 	for _, slug := range set.Projects() {
@@ -116,8 +115,9 @@ func (r *identityReporter) start(ctx context.Context, set *rules.Set) []api.GitI
 	}
 	targets := identityTargets(set)
 	r.refresh(ctx, targets)
+	rows, _ := r.rows(targets)
 
-	return r.rows(targets)
+	return rows
 }
 
 // refreshAsync reads the identities of set in the background.
@@ -128,20 +128,21 @@ func (r *identityReporter) refreshAsync(set *rules.Set) {
 	go r.refresh(r.ctx, identityTargets(set))
 }
 
-// rows returns the cached identities of the targets, and nil before the first
-// read. A stale cache starts one background refresh and stays in use
-// meanwhile.
-func (r *identityReporter) rows(targets []identityTarget) []api.GitIdentityReport {
+// rows returns the cached identities of the targets and the time since the
+// read that made them, and nil before the first read. A stale cache starts one
+// background refresh and stays in use meanwhile.
+func (r *identityReporter) rows(targets []identityTarget) ([]api.GitIdentityReport, time.Duration) {
 	if r == nil {
-		return nil
+		return nil, 0
 	}
 	r.mu.Lock()
 	if !r.have {
 		r.mu.Unlock()
 
-		return nil
+		return nil, 0
 	}
-	stale := r.inflight == 0 && r.now().Sub(r.at) >= identityTTL
+	age := max(r.now().Sub(r.at), 0)
+	stale := r.inflight == 0 && age >= identityTTL
 	byProject := make(map[string]api.GitIdentityReport, len(r.cache))
 	for _, row := range r.cache {
 		byProject[row.ProjectID] = row
@@ -161,7 +162,7 @@ func (r *identityReporter) rows(targets []identityTarget) []api.GitIdentityRepor
 		}
 	}
 
-	return out
+	return out, age
 }
 
 // refresh reads the identity of each target, and replaces the cache unless a
@@ -188,6 +189,8 @@ func (r *identityReporter) run(ctx context.Context, targets []identityTarget) {
 		r.login, r.agentID = login, id
 		r.mu.Unlock()
 	}
+	// Projects often share a token or an ssh host, so one refresh asks each once.
+	look := r.sharedLookups(ctx)
 	rows := make([]api.GitIdentityReport, len(targets))
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, identityParallel)
@@ -196,7 +199,7 @@ func (r *identityReporter) run(ctx context.Context, targets []identityTarget) {
 		sem <- struct{}{}
 		go func() {
 			defer func() { <-sem; wg.Done() }()
-			rows[i] = r.identity(ctx, t)
+			rows[i] = r.identityWith(ctx, t, look)
 		}()
 	}
 	wg.Wait()
@@ -209,8 +212,63 @@ func (r *identityReporter) run(ctx context.Context, targets []identityTarget) {
 	}
 }
 
+// identityLookups are the probes that ask GitHub, which a refresh shares
+// between its projects.
+type identityLookups struct {
+	user func(ctx context.Context, token string) (string, int64, error)
+	ssh  func(ctx context.Context, remote gitRemote) string
+}
+
+// memo calls f once for each key, and gives every later caller of the key the
+// same answer.
+func memo[K comparable, V any](f func(K) V) func(K) V {
+	var mu sync.Mutex
+	calls := map[K]func() V{}
+
+	return func(key K) V {
+		mu.Lock()
+		call, ok := calls[key]
+		if !ok {
+			call = sync.OnceValue(func() V { return f(key) })
+			calls[key] = call
+		}
+		mu.Unlock()
+
+		return call()
+	}
+}
+
+type userAnswer struct {
+	login string
+	id    int64
+	err   error
+}
+
+// sharedLookups gives the lookups of one refresh, which run under ctx.
+func (r *identityReporter) sharedLookups(ctx context.Context) identityLookups {
+	user := memo(func(token string) userAnswer {
+		login, id, err := r.probes.user(ctx, token)
+
+		return userAnswer{login, id, err}
+	})
+	ssh := memo(func(remote gitRemote) string { return r.probes.ssh(ctx, remote) })
+
+	return identityLookups{
+		user: func(_ context.Context, token string) (string, int64, error) {
+			a := user(token)
+
+			return a.login, a.id, a.err
+		},
+		ssh: func(_ context.Context, remote gitRemote) string { return ssh(remote) },
+	}
+}
+
 // identity decides the mode of one project and reads its identity.
 func (r *identityReporter) identity(ctx context.Context, t identityTarget) api.GitIdentityReport {
+	return r.identityWith(ctx, t, identityLookups{user: r.probes.user, ssh: r.probes.ssh})
+}
+
+func (r *identityReporter) identityWith(ctx context.Context, t identityTarget, look identityLookups) api.GitIdentityReport {
 	row := api.GitIdentityReport{ProjectID: t.id, Mode: api.GitModeMachine}
 	switch {
 	case r.agent != nil:
@@ -228,7 +286,7 @@ func (r *identityReporter) identity(ctx context.Context, t identityTarget) api.G
 	case r.managed != nil && r.managed(ctx, t.slug, t.dir):
 		row.Mode = api.GitModeAppToken
 	default:
-		r.machine(ctx, t.dir, &row)
+		r.machine(ctx, t.dir, look, &row)
 	}
 
 	return row
@@ -248,16 +306,20 @@ func (r *identityReporter) checkAgent(ctx context.Context) (string, int64) {
 }
 
 // machine reads what git on this machine commits and pushes as.
-func (r *identityReporter) machine(ctx context.Context, dir string, row *api.GitIdentityReport) {
+func (r *identityReporter) machine(ctx context.Context, dir string, look identityLookups, row *api.GitIdentityReport) {
 	row.CommitName = capRunes(strings.TrimSpace(r.probes.commitName(ctx, dir)), maxCommitName)
 	remote := parseGitRemote(r.probes.pushURL(ctx, dir))
 	switch remote.kind {
 	case remoteHTTPS:
-		token := r.probes.credential(ctx, dir, remote)
+		// Git pushes with a password in the address before it asks a helper.
+		token := remote.password
+		if token == "" {
+			token = r.probes.credential(ctx, dir, remote)
+		}
 		if token == "" {
 			return
 		}
-		login, id, err := r.probes.user(ctx, token)
+		login, id, err := look.user(ctx, token)
 		if err != nil || !validLogin(login) {
 			return
 		}
@@ -266,7 +328,7 @@ func (r *identityReporter) machine(ctx context.Context, dir string, row *api.Git
 			row.GitHubUserID = &id
 		}
 	case remoteSSH:
-		if m := sshGreeting.FindStringSubmatch(r.probes.ssh(ctx, remote)); m != nil && validLogin(m[1]) {
+		if m := sshGreeting.FindStringSubmatch(look.ssh(ctx, remote)); m != nil && validLogin(m[1]) {
 			row.PushLogin = m[1]
 		}
 	}
@@ -293,11 +355,14 @@ const (
 )
 
 // gitRemote is a push address that a probe can use. Only GitHub hosts count.
+// username and password come from the address itself.
 type gitRemote struct {
-	kind remoteKind
-	host string
-	port string
-	path string
+	kind     remoteKind
+	host     string
+	port     string
+	path     string
+	username string
+	password string
 }
 
 // parseGitRemote classifies a push address. Anything that is not a GitHub
@@ -312,8 +377,11 @@ func parseGitRemote(raw string) gitRemote {
 		host := strings.ToLower(u.Hostname())
 		switch scheme {
 		case "https":
-			if host == "github.com" && (u.Port() == "" || u.Port() == "443") {
-				return gitRemote{kind: remoteHTTPS, host: host, path: strings.TrimPrefix(u.Path, "/")}
+			password, _ := u.User.Password()
+			remote := gitRemote{kind: remoteHTTPS, host: host, path: strings.TrimPrefix(u.Path, "/"), username: u.User.Username(), password: password}
+			// A line break would add a line to the question for the credential helper.
+			if host == "github.com" && (u.Port() == "" || u.Port() == "443") && !strings.ContainsAny(remote.path+remote.username, "\n\r\x00") {
+				return remote
 			}
 		case "ssh", "git+ssh", "ssh+git":
 			if githubSSHHost(host) {
@@ -372,6 +440,9 @@ func gitCredentialToken(ctx context.Context, dir string, remote gitRemote) strin
 	question := "protocol=https\nhost=" + remote.host + "\n"
 	if remote.path != "" {
 		question += "path=" + remote.path + "\n"
+	}
+	if remote.username != "" {
+		question += "username=" + remote.username + "\n"
 	}
 	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GCM_INTERACTIVE=never", "GIT_ASKPASS=false")
 	out, _ := runProbe(ctx, env, strings.NewReader(question+"\n"), "git", "-C", dir, "credential", "fill")
