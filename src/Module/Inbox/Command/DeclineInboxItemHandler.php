@@ -41,10 +41,11 @@ final readonly class DeclineInboxItemHandler
         $note = trim($command->note);
 
         $dismissedCardId = null;
-        $this->closer->respond($item, InboxItemState::Declined, 'closeNote', function (InboxItem $item) use ($note, &$dismissedCardId): ?array {
+        $this->closer->respond($item, InboxItemState::Declined, 'closeNote', function (InboxItem $item) use ($command, $note, &$dismissedCardId): ?array {
             $item->selectedOptions = [];
             $item->answerText = null;
             $item->closeNote = '' === $note ? null : $note;
+            $item->respondedThroughAgent = $command->throughAgent;
             if (InboxItemKind::Wait === $item->kind) {
                 $dismissedCardId = $this->dismiss($item);
             }

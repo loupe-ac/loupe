@@ -5653,6 +5653,10 @@
                 <source>inbox.item.editable</source>
                 <target>You can still change this response. It becomes final when an ask that holds this item closes.</target>
             </trans-unit>
+            <trans-unit id="inbox.item.through_agent">
+                <source>inbox.item.through_agent</source>
+                <target>An agent recorded this response for the owner.</target>
+            </trans-unit>
             <trans-unit id="inbox.item.final">
                 <source>inbox.item.final</source>
                 <target>This response is final, because an ask that holds this item has closed.</target>

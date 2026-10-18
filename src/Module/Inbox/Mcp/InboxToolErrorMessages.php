@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Mcp;
 
 use App\Exception\DomainErrors;
+use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\AskInboxHandler;
+use App\Module\Inbox\Command\DeclineInboxItemHandler;
+use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Command\SearchInboxHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
 use App\Module\Inbox\Entity\InboxItem;
@@ -23,6 +26,7 @@ use Mcp\Exception\ToolCallException;
  */
 final readonly class InboxToolErrorMessages
 {
+    public const string REVIEW_ON_PAGE = 'inbox.mcp.error.review_on_page';
     public const string UNMAPPED = 'The request was rejected. The error has been logged.';
 
     public function forAgent(DomainErrors $errors): ToolCallException
@@ -80,6 +84,19 @@ final readonly class InboxToolErrorMessages
             WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE => 'Loupe opened this item for a card that waits for a person, so no agent can withdraw it. It closes when the card no longer waits.',
             WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE => 'Loupe opened this notice for a fact about the project, so no agent can withdraw it. It closes when the fact ends.',
             SearchInboxHandler::QUERY_BLANK => 'Pass a query to search for. To read the inbox page by page instead, call inbox_list.',
+            AnswerInboxItemHandler::NOT_A_QUESTION => 'Only a question takes an answer.',
+            AnswerInboxItemHandler::UNKNOWN_OPTION => 'Each selected option must be an index into the options of the item, counting from 0.',
+            AnswerInboxItemHandler::ONE_OPTION => 'This question takes one option.',
+            AnswerInboxItemHandler::NO_FREE_TEXT => 'This question takes no free text.',
+            AnswerInboxItemHandler::EMPTY => 'Pass at least one selected option or an answer text.',
+            MarkInboxItemDoneHandler::NOT_A_TODO => 'Only a todo can be marked done.',
+            MarkInboxItemDoneHandler::ALREADY_DONE => 'The todo is already done.',
+            DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE => 'A workflow question cannot be declined. Answer it with inbox_answer.',
+            InboxItemCloser::ERROR_FINAL => 'The response is final, because an ask that holds this item has closed.',
+            InboxItemCloser::ERROR_CLOSED_BY_AGENT => 'An agent closed this item, so it takes no response.',
+            InboxItemCloser::ERROR_CLOSED_BY_LOUPE => 'Loupe closed this item, so it takes no response.',
+            InboxItemCloser::ERROR_NOTICE => 'A notice takes no response.',
+            self::REVIEW_ON_PAGE => 'A review verdict stays on the inbox page. Ask the owner to give it there.',
             default => self::UNMAPPED,
         };
     }

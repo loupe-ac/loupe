@@ -50,6 +50,7 @@
         {% endif %}
         {% if item.answerText is not null %}<p class="lp-inbox-item__answer-text">{{ item.answerText }}</p>{% endif %}
         {% if item.closeNote is not null %}<p class="lp-inbox-item__note">{{ item.closeNote }}</p>{% endif %}
+        {% if item.respondedThroughAgent %}<p class="lp-inbox-item__note" data-inbox-through-agent>{{ 'inbox.item.through_agent'|trans }}</p>{% endif %}
         <p class="lp-inbox-item__editable" data-inbox-editable="{{ inbox.acceptsResponse(item) ? 'yes' : 'no' }}">
             {%- if item.origin.value == 'loupe' and item.state.value in ['done', 'obsolete'] -%}
                 {{ 'inbox.item.closed_by_loupe'|trans }}
