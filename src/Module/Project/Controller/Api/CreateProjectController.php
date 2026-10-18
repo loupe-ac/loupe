@@ -21,8 +21,9 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 /**
  * Creates a project for the owner of the credential. The firewall grants the
- * path to agent-scoped tokens alone. A credential bound to one project is
- * refused too, because such a credential must never reach past its project.
+ * path to agent-scoped tokens alone. The credential must also cover every
+ * project of its owner: a credential bound to one project, or one with no
+ * project grant, must never reach past what it covers.
  *
  * The rate limit key expression sees only the request, the arguments and this
  * controller, so the key service rides on a public property.
@@ -50,8 +51,8 @@ final class CreateProjectController extends AppController
         }
 
         $credential = AuthenticatedCredential::of($this->tokenStorage->getToken());
-        if (null === $credential || null !== $credential->projectId) {
-            return $this->json(['error' => 'credential_bound_to_project'], JsonResponse::HTTP_FORBIDDEN);
+        if (null === $credential || !$credential->allProjects) {
+            return $this->json(['error' => 'credential_not_owner_wide'], JsonResponse::HTTP_FORBIDDEN);
         }
 
         $name = $payload->name();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Project\Api;
 
+use App\Module\Account\Entity\User;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Tests\Support\AgentCredential;
@@ -37,18 +38,30 @@ final class CreateProjectApiTest extends WebTestCase
     {
         $owner = $this->scenario->createUser('create-project-bound@example.com');
         $project = $this->scenario->createProject($owner, 'Bound site');
-        $token = AgentCredential::tokenFor(static::getContainer(), $owner, 'site-review', $project);
+        $token = AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp', $project);
 
         $this->call($token, '{"name":"Shop"}');
 
         self::assertResponseStatusCodeSame(403);
+        self::assertSame(['error' => 'credential_not_owner_wide'], $this->json());
         self::assertSame(0, $this->countNamed('Shop'));
     }
 
-    public function test_an_agent_token_creates_a_project_with_the_lifecycle_binding(): void
+    public function test_an_agent_token_with_no_project_grant_is_refused_and_creates_nothing(): void
+    {
+        $owner = $this->scenario->createUser('create-project-agent-only@example.com');
+
+        $this->call(AgentCredential::agentToken(static::getContainer(), $owner), '{"name":"Shop"}');
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame(['error' => 'credential_not_owner_wide'], $this->json());
+        self::assertSame(0, $this->countNamed('Shop'));
+    }
+
+    public function test_an_owner_wide_token_creates_a_project_with_the_lifecycle_binding(): void
     {
         $owner = $this->scenario->createUser('create-project-owner@example.com');
-        $token = AgentCredential::agentToken(static::getContainer(), $owner);
+        $token = $this->ownerWideToken($owner);
 
         $this->call($token, '{"name":"Shop","website":"https://shop.example.com","remote":"git@github.com:acme/shop.git"}');
 
@@ -67,7 +80,7 @@ final class CreateProjectApiTest extends WebTestCase
     public function test_a_remote_alone_names_the_project_after_the_repository(): void
     {
         $owner = $this->scenario->createUser('create-project-remote@example.com');
-        $token = AgentCredential::agentToken(static::getContainer(), $owner);
+        $token = $this->ownerWideToken($owner);
 
         $this->call($token, '{"remote":"https://github.com/acme/billing-api.git"}');
 
@@ -78,7 +91,7 @@ final class CreateProjectApiTest extends WebTestCase
     public function test_a_second_project_with_the_same_name_is_a_conflict(): void
     {
         $owner = $this->scenario->createUser('create-project-twice@example.com');
-        $token = AgentCredential::agentToken(static::getContainer(), $owner);
+        $token = $this->ownerWideToken($owner);
 
         $this->call($token, '{"name":"Shop"}');
         $this->call($token, '{"name":"Shop"}');
@@ -93,8 +106,8 @@ final class CreateProjectApiTest extends WebTestCase
         $first = $this->scenario->createUser('create-project-first@example.com');
         $second = $this->scenario->createUser('create-project-second@example.com');
 
-        $this->call(AgentCredential::agentToken(static::getContainer(), $first), '{"name":"Shop"}');
-        $this->call(AgentCredential::agentToken(static::getContainer(), $second), '{"name":"Shop"}');
+        $this->call($this->ownerWideToken($first), '{"name":"Shop"}');
+        $this->call($this->ownerWideToken($second), '{"name":"Shop"}');
 
         self::assertResponseStatusCodeSame(201);
         self::assertSame(2, $this->countNamed('Shop'));
@@ -102,7 +115,7 @@ final class CreateProjectApiTest extends WebTestCase
 
     public function test_a_request_with_no_name_and_no_remote_is_refused(): void
     {
-        $token = AgentCredential::agentToken(static::getContainer(), $this->scenario->createUser('create-project-empty@example.com'));
+        $token = $this->ownerWideToken($this->scenario->createUser('create-project-empty@example.com'));
 
         $this->call($token, '{"website":"https://shop.example.com"}');
 
@@ -112,7 +125,7 @@ final class CreateProjectApiTest extends WebTestCase
 
     public function test_a_name_with_no_letters_is_refused(): void
     {
-        $token = AgentCredential::agentToken(static::getContainer(), $this->scenario->createUser('create-project-symbols@example.com'));
+        $token = $this->ownerWideToken($this->scenario->createUser('create-project-symbols@example.com'));
 
         $this->call($token, '{"name":"!!!"}');
 
@@ -122,7 +135,7 @@ final class CreateProjectApiTest extends WebTestCase
 
     public function test_a_remote_that_is_not_a_git_url_is_refused(): void
     {
-        $token = AgentCredential::agentToken(static::getContainer(), $this->scenario->createUser('create-project-badremote@example.com'));
+        $token = $this->ownerWideToken($this->scenario->createUser('create-project-badremote@example.com'));
 
         $this->call($token, '{"name":"Shop","remote":"not a url"}');
 
@@ -140,6 +153,12 @@ final class CreateProjectApiTest extends WebTestCase
         self::assertTrue($factory->create('credential')->consume()->isAccepted());
         self::assertTrue($factory->create('credential')->consume()->isAccepted());
         self::assertFalse($factory->create('credential')->consume()->isAccepted());
+    }
+
+    /** The scopes `loupe login` asks for: `mcp` with no project named covers every project of the owner. */
+    private function ownerWideToken(User $owner): string
+    {
+        return AgentCredential::tokenFor(static::getContainer(), $owner, 'agent mcp');
     }
 
     private function call(string $token, string $body): void
