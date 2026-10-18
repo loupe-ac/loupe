@@ -34,6 +34,7 @@ const (
 	playwrightCommand = "npx playwright install chromium"
 
 	codexSkillsRepository = "https://github.com/ubermuda/loupe"
+	codexSkillsPath       = "plugins/loupe/skills"
 )
 
 // The programs init runs, and the checks it makes, are variables so a test
@@ -108,7 +109,8 @@ func newInitCmd() *cobra.Command {
 			"--no-mcp and --mcp-json work as they do there. An existing " + projectfile.Name + " is kept.\n" +
 			"4. Install the Loupe plugin in Claude Code, when `claude` is on your PATH and has no " +
 			"Loupe plugin. When only `codex` is on your PATH, declare `loupe mcp` to Codex instead, " +
-			"as --mcp and --no-mcp say, and print the approval line and the skills to add by hand. " +
+			"as --mcp and --no-mcp say. Then set default_tools_approval_mode = \"approve\" for it in " +
+			"~/.codex/config.toml, and copy the Loupe skills into ~/.agents/skills/. " +
 			"When a command fails, the step prints it for you to run.\n" +
 			"5. Write the rule file, rules.yaml in your config directory, or --rules. A new file gets " +
 			"the first-run rules. An existing file gets only the keys it lacks, and its comments stay. " +
@@ -420,25 +422,28 @@ func codexAccount() bool {
 }
 
 // initCodex connects Codex, when the rule file gives the bridge a Codex
-// account. It declares `loupe mcp` as --mcp and --no-mcp say, and prints the
-// approval line and the skills, which no codex command sets.
+// account. It declares `loupe mcp` as --mcp and --no-mcp say, approves the
+// Loupe tools of a declaration that starts `loupe mcp`, and installs the skills.
 func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
 	out := cmd.OutOrStdout()
 	add := "codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
-	ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
 
+	connected := false
 	raw, getErr := initExec(ctx, dir, "codex", "mcp", "get", mcpjson.ServerKey, "--json")
 	decl, parseErr := codex.ParseDeclaration(raw)
 	switch {
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp() && decl.Enabled:
 		step(out, "Codex", "skipped", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already")
+		connected = true
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp():
 		step(out, "Codex", "skipped", "the `"+mcpjson.ServerKey+"` MCP server is disabled; set enabled = true under [mcp_servers."+mcpjson.ServerKey+"] in ~/.codex/config.toml")
+		connected = true
 	case getErr == nil && link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; Codex starts `"+mcpjson.ServerKey+"` as something other than `loupe mcp`")
 	case getErr == nil:
-		replaceCodexServer(ctx, cmd, dir, decl, parseErr)
+		connected = replaceCodexServer(ctx, cmd, dir, decl, parseErr)
 	case link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
 	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex?"):
@@ -448,18 +453,20 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions) {
 			step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), add))
 		} else {
 			step(out, "Codex", "done", "declared `loupe mcp`")
+			connected = true
 		}
 	}
 
-	fmt.Fprintf(out, "Codex needs two more steps by hand. Add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in ~/.codex/config.toml, "+
-		"or the bridge turns its Codex account off. Copy the folders of plugins/loupe/skills/ from %s into ~/.agents/skills/, "+
-		"so the workers have the stage skills.\n", mcpjson.ServerKey, codexSkillsRepository)
+	if connected {
+		initCodexApproval(out)
+	}
+	initCodexSkills(ctx, out, dir)
 }
 
 // replaceCodexServer offers to replace a declaration that does not start
-// `loupe mcp`. It always asks, because a script must not remove a declaration
-// somebody made by hand.
-func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, decl codex.Declaration, parseErr error) {
+// `loupe mcp`, and reports whether it did. It always asks, because a script
+// must not remove a declaration somebody made by hand.
+func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, decl codex.Declaration, parseErr error) bool {
 	out := cmd.OutOrStdout()
 	fix := "codex mcp remove " + mcpjson.ServerKey + " && codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
 	shown := decl.Summary()
@@ -470,19 +477,115 @@ func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, dec
 	if !confirm(out, cmd.InOrStdin(), "Replace it with `loupe mcp`?") {
 		step(out, "Codex", "skipped", "to replace it, run `"+fix+"`")
 
-		return
+		return false
 	}
 	if raw, err := initExec(ctx, dir, "codex", "mcp", "remove", mcpjson.ServerKey); err != nil {
 		step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), fix))
 
-		return
+		return false
 	}
 	if raw, err := initExec(ctx, dir, "codex", "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
 		step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), fix))
 
-		return
+		return false
 	}
 	step(out, "Codex", "done", "replaced the declaration with `loupe mcp`")
+
+	return true
+}
+
+// initCodexApproval lets the workers call the Loupe tools without a prompt.
+// Without it, the bridge check turns the Codex account off.
+func initCodexApproval(out io.Writer) {
+	byHand := "add `default_tools_approval_mode = \"approve\"` under [mcp_servers." + mcpjson.ServerKey + "] in ~/.codex/config.toml"
+	home, err := codex.Home()
+	if err != nil {
+		step(out, "Codex approval", "failed", fmt.Sprintf("%v; %s", err, byHand))
+
+		return
+	}
+	changed, err := codex.ApproveTools(home)
+	switch {
+	case err != nil:
+		step(out, "Codex approval", "failed", fmt.Sprintf("%v; %s", err, byHand))
+	case changed:
+		step(out, "Codex approval", "done", "Codex runs the Loupe tools without asking")
+	default:
+		step(out, "Codex approval", "skipped", "Codex runs the Loupe tools without asking already")
+	}
+}
+
+// initCodexSkills copies the Loupe skills into ~/.agents/skills, where Codex
+// finds them. It takes them from a sparse clone of the repository, and replaces
+// a Loupe skill folder of the same name, so a second run updates them.
+func initCodexSkills(ctx context.Context, out io.Writer, dir string) {
+	byHand := "copy the folders of " + codexSkillsPath + "/ from " + codexSkillsRepository + " into ~/.agents/skills/"
+	fail := func(err error, raw []byte) {
+		step(out, "Codex skills", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fail(err, nil)
+
+		return
+	}
+	tmp, err := os.MkdirTemp("", "loupe-skills-")
+	if err != nil {
+		fail(err, nil)
+
+		return
+	}
+	defer os.RemoveAll(tmp)
+
+	clone := filepath.Join(tmp, "loupe")
+	if raw, err := initExec(ctx, dir, "git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", codexSkillsRepository, clone); err != nil {
+		fail(err, raw)
+
+		return
+	}
+	if raw, err := initExec(ctx, dir, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath); err != nil {
+		fail(err, raw)
+
+		return
+	}
+	n, err := copySkills(filepath.Join(clone, filepath.FromSlash(codexSkillsPath)), filepath.Join(home, ".agents", "skills"))
+	if err != nil {
+		fail(err, nil)
+
+		return
+	}
+	step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills", n))
+}
+
+// copySkills copies each skill folder of src into dst, and replaces a folder
+// of the same name. It reports how many it copied.
+func copySkills(src, dst string) (int, error) {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return 0, err
+	}
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		target := filepath.Join(dst, e.Name())
+		if err := os.RemoveAll(target); err != nil {
+			return n, err
+		}
+		if err := os.CopyFS(target, os.DirFS(filepath.Join(src, e.Name()))); err != nil {
+			return n, err
+		}
+		n++
+	}
+	if n == 0 {
+		return 0, errors.New("the clone holds no skills")
+	}
+
+	return n, nil
 }
 
 // indented formats the output of a failed command as a block after a message.

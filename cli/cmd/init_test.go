@@ -39,6 +39,8 @@ type initWorld struct {
 	execOut map[string]string
 	claude  bool
 	codex   bool
+	// codexHome is CODEX_HOME, where the fake `codex mcp add` writes.
+	codexHome string
 
 	bridgeStarts int
 	bridgeErr    error
@@ -88,6 +90,8 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 
 		return "", errors.New("not found")
 	}
+	w.codexHome = t.TempDir()
+	t.Setenv("CODEX_HOME", w.codexHome)
 	initExec = func(_ context.Context, _ string, name string, args ...string) ([]byte, error) {
 		line := strings.Join(append([]string{name}, args...), " ")
 		w.execCalls = append(w.execCalls, line)
@@ -95,6 +99,14 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 		for prefix := range w.execFail {
 			if strings.HasPrefix(line, prefix) {
 				return []byte(out), errors.New("exit status 1")
+			}
+		}
+		switch {
+		case strings.HasPrefix(line, "codex mcp add loupe"):
+			writeFile(t, filepath.Join(w.codexHome, "config.toml"), "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n")
+		case name == "git" && len(args) > 2 && args[2] == "sparse-checkout":
+			for _, skill := range []string{"loupe-board", "loupe-inbox"} {
+				writeFile(t, filepath.Join(args[1], "plugins", "loupe", "skills", skill, "SKILL.md"), "# "+skill+"\n")
 			}
 		}
 
@@ -144,6 +156,17 @@ func runInitCmd(t *testing.T, answers string, args ...string) (string, error) {
 	err := cmd.Execute()
 
 	return out.String(), err
+}
+
+// writeFile writes a file and the folders it needs.
+func writeFile(t *testing.T, path, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func readOrEmpty(t *testing.T, path string) string {
@@ -988,10 +1011,17 @@ func TestInitDeclaresTheMcpServerToCodexWhenOnlyCodexIsInstalled(t *testing.T) {
 	if !w.called("codex mcp add loupe -- loupe mcp") {
 		t.Errorf("init did not declare the server to Codex: %v", w.execCalls)
 	}
-	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", `default_tools_approval_mode = "approve"`, "~/.agents/skills/"} {
+	for _, want := range []string{"Declare `loupe mcp` to Codex?", "Codex: done", "Codex approval: done", "Codex skills: done, installed 2 skills"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
+	}
+	if body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml")); !strings.Contains(body, "# mine\n[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n") {
+		t.Errorf("config.toml lacks the approval mode, or lost its comment:\n%s", body)
+	}
+	home, _ := os.UserHomeDir()
+	if body := readOrEmpty(t, filepath.Join(home, ".agents", "skills", "loupe-board", "SKILL.md")); body != "# loupe-board\n" {
+		t.Errorf("the skills were not installed, got %q", body)
 	}
 	if body := readOrEmpty(t, path); !strings.Contains(body, "harness: codex") {
 		t.Errorf("rule file has no codex account:\n%s", body)
@@ -1007,6 +1037,7 @@ func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.codex = true
 	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "/usr/local/bin/loupe")
+	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n")
 	inRepo(t, w.server.URL)
 
 	out, err := runInitCmd(t, "n\n", "--mcp")
@@ -1016,7 +1047,7 @@ func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 	if w.called("codex mcp add") {
 		t.Errorf("init declared the server again: %v", w.execCalls)
 	}
-	if !strings.Contains(out, "Codex: skipped, Codex declares") {
+	if !strings.Contains(out, "Codex: skipped, Codex declares") || !strings.Contains(out, "Codex approval: skipped") {
 		t.Errorf("output lacks the skip:\n%s", out)
 	}
 }
@@ -1077,6 +1108,42 @@ func TestInitSaysADisabledCodexServerIsDisabled(t *testing.T) {
 	}
 	if !strings.Contains(out, "is disabled; set enabled = true") {
 		t.Errorf("output lacks the fix:\n%s", out)
+	}
+}
+
+// A declaration that somebody declined to make has no table to approve, so the
+// approval step stays out of it.
+func TestInitApprovesNoCodexToolsWhenTheDeclarationIsDeclined(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execFail["codex mcp get"] = true
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\nn\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "Codex approval") {
+		t.Errorf("init ran the approval step with no declaration:\n%s", out)
+	}
+	if !strings.Contains(out, "Codex skills: done") {
+		t.Errorf("the skills do not need the declaration:\n%s", out)
+	}
+}
+
+func TestInitPrintsTheSkillsStepWhenTheCloneFails(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execFail["git clone"] = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Codex skills: failed") || !strings.Contains(out, "into ~/.agents/skills/") {
+		t.Errorf("output lacks the failure and the manual step:\n%s", out)
 	}
 }
 
