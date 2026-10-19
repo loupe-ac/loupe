@@ -779,7 +779,7 @@ An interactive prompt gets none.
 The last five come from the context of the request, a snapshot taken when the
 request opened. A push after that leaves `{headSha}` behind. A value the request
 does not hold fills as an empty string. A request from an older server holds
-none. A worker entry that runs `bin/worktrees/bridge-before.sh` can pass
+none. A worker entry whose `before` command takes arguments can pass
 `{pullRequestNumber}` as its third argument, and an empty value means no pull
 request. A person's rerun or resume of a run fills them from the context that
 the command carries, which is the context of the run's work request. A command
@@ -1027,10 +1027,10 @@ such as `{out}`. Each parameter has a `pattern`, and an optional `description`.
 work:
   design-export:
     action: command
-    description: Export the design system for Claude Design
+    description: Export the weekly report
     params:
       out: { pattern: "var/[a-z-]+", description: The export folder }
-    run: [bin/console, app:design-system:export, "{out}"]
+    run: [scripts/export-report, "{out}"]
 ```
 
 The pattern is RE2 syntax, as Go reads it. It has no lookahead and no

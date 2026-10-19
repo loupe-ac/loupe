@@ -81,6 +81,8 @@ and its log.
 This step still applies, to a resolution that a bridge worker pushed. Read the
 pushed merge commit, and run the `comm` proof yourself, as
 `references/git-traps.md` says. Then run `scripts/merge-ready.sh <n>` on the new
-head. The owner's approval covers a resolution that passes the `comm` check, so
-merge without asking him again. A fix that is not a conflict is new content, and
+head. When `workflow_get` returns `approvalCoversConflictResolution` as `true`,
+the owner's approval covers a resolution that passes the `comm` check, so
+merge a pull request that no workflow rule reaches without asking him again.
+When the value is `false`, the resolution needs a new approval. A fix that is not a conflict is new content, and
 it needs a new approval.

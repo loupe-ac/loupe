@@ -7,7 +7,10 @@ description: "Use when one session holds the merge queue while other sessions pu
 
 One session holds the queue. Other sessions own their branches and push to them.
 The queue holder verifies and merges, and merges nothing it has not checked
-itself. Bridge workers fix branches, conflicts included.
+itself. It hand-merges only a pull request that no workflow rule reaches. A pull
+request linked to a card merges through the workflow `merge-ready` rule, so the
+queue watches it and never merges it. Bridge workers fix branches, conflicts
+included.
 
 The queue is the part that shrinks. The owner said on 2026-09-28: "I want all 3
 reasons and the merge queue should stop fixing conflicts", and "basically we're
@@ -70,8 +73,9 @@ It prints one line, `READY` or `HOLD` with every reason, and exits 0 only on
 `READY`. It counts the required buckets, checks the base, the draft flag and the
 merge state, and reads the owner's approval by time. It also reads the head
 twice, and holds if the head moved during the read. Run it on the head you are
-about to merge. Merge on `READY` only, unless the skill below says a `HOLD`
-reason is covered.
+about to hand-merge. Merge on `READY` only, unless the skill below says a `HOLD`
+reason is covered. A `READY` pull request linked to a card stays with the
+`merge-ready` rule, so never merge it by hand.
 
 ### Count, never infer from absence
 
@@ -118,18 +122,25 @@ the time of the owner's last approving or blocking review with each commit's
 time. A later comment from the owner does not hide the approval.
 
 The owner said on 2026-09-27 that an approval survives a sync, a rebase and a
-conflict resolution: "I don't want to need to re-approve everything". Merge
-after any of those three without asking. A commit that adds new content still
-needs a fresh approval. A review fix and a test fix are new content. That answer
-replaced the 2026-09-22 one, which covered `gh pr update-branch` only.
+conflict resolution: "I don't want to need to re-approve everything". A commit
+that adds new content still needs a fresh approval. A review fix and a test fix
+are new content. That answer replaced the 2026-09-22 one, which covered
+`gh pr update-branch` only.
+
+The workflow template holds the rule as the value `approvalCoversConflictResolution`.
+`workflow_get` returns it. This project keeps the default, `true`. Read the value
+with `workflow_get` before you accept a conflict resolution after an approval.
+`merge-ready.sh` does not read it, so this check is yours. When the value is
+`false`, the resolution needs a new approval, and a passing `comm` proof does
+not replace it.
 
 `merge-ready.sh` sorts each commit after the approval into one of three kinds:
 
 - A merge from `main` that `git merge-tree` re-creates exactly is a sync. It
   passes, and the script counts it. A sync is always later than the approval.
 - A merge from `main` that git cannot re-create holds as a conflict resolution.
-  Prove it with the `comm` check in `references/git-traps.md`. When it passes,
-  the approval covers it.
+  Prove it with the `comm` check in `references/git-traps.md`. When it passes
+  and `approvalCoversConflictResolution` is `true`, the approval covers it.
 - Any other commit holds as "commits after approval". A rebase rewrites every
   commit, so it lands here too. Read the commits and decide which case it is.
 
@@ -162,8 +173,11 @@ peer report is a claim until you find the failing run.
 ## After each merge
 
 1. Tell the owning session that its pull request merged, with the squash SHA.
-2. Move the board card to a terminal column. The owner asked on 2026-09-25:
-   "whenever you merge a PR move its card to done". Invoke `loupe-board`, then:
+2. Check the board card. A repository connected through the GitHub App, with
+   the board automation on, moves the card to a terminal column by the `merged`
+   rule, so move nothing. Otherwise move it yourself. The owner asked on
+   2026-09-25: "whenever you merge a PR move its card to done". Invoke
+   `loupe-board`, then:
    - Find the card. A branch named `card-<n>-...` carries its number, or the
      body carries the card URL. A pull request that names no card needs no move.
    - Read the terminal column with `board_columns`. Do not assume `done`.
@@ -245,18 +259,23 @@ request for changes. That worker resolves the conflict with the
 waits for that worker. When no worker comes, report the pull request to the
 owner as held.
 
-Verify the worker's resolution before you merge. Read its merge commit: the
-`# Conflicts:` block lists the files, and one line per file says how it was
-resolved. Run the `comm` proof in `references/git-traps.md` yourself, then run
-`merge-ready.sh` on the new head. The approval covers a resolution that passes.
+Verify the worker's resolution before you hand-merge a pull request that no
+rule reaches. Read its merge commit: the `# Conflicts:` block lists the files,
+and one line per file says how it was resolved. Run the `comm` proof in
+`references/git-traps.md` yourself, then run `merge-ready.sh` on the new head.
+Read `approvalCoversConflictResolution` with `workflow_get`. The approval covers
+a resolution that passes only when the value is `true`.
 
-The bridge's `merge-ready` rule runs the `loupe-stage-merge` skill, and that
-worker reads the approval by time as `merge-ready.sh` does. It compares push
-times, where `merge-ready.sh` compares commit times. It merges after a sync. It never merges after a conflict resolution, because it cannot run the
-`comm` proof as well as a person. It reports `not ready <url>: conflict
-resolution after approval` and leaves that merge to you. Any other commit after
-the approval holds as `not ready <url>: commits after approval` until the owner
-approves again.
+The workflow `merge-ready` rule merges a pull request that is approved and
+green, through the GitHub App or through a `loupe-stage-merge` worker. Never
+merge such a pull request by hand, because a hand merge races the rule. Hold a
+pull request only when you need it to wait. The worker reads the approval by
+time as `merge-ready.sh` does. It compares push times, where `merge-ready.sh`
+compares commit times. With `approvalCoversConflictResolution` set to `true`, it
+merges after a sync and after a conflict resolution. With `false`, it reports
+`not ready <url>: conflict resolution after approval` and leaves that merge to
+the owner. Any other commit after the approval holds as
+`not ready <url>: commits after approval` until the owner approves again.
 
 A fix that is not a conflict goes to the bridge too. Follow
 `references/dispatch.md` only when no bridge worker picks it up and the
