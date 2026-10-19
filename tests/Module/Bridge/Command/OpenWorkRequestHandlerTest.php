@@ -118,6 +118,19 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         self::assertSame($context->toArray(), $this->outboxPayloads()[0]['context']);
     }
 
+    public function test_the_role_is_stored(): void
+    {
+        $this->boot();
+        $project = $this->scenario('open-role');
+
+        $request = $this->open($project, Uuid::v7(), kind: 'review', role: 'code-review');
+
+        $this->em()->clear();
+        $stored = $this->em()->find(WorkRequest::class, $request->id);
+        self::assertInstanceOf(WorkRequest::class, $stored);
+        self::assertSame('code-review', $stored->role);
+    }
+
     public function test_the_prompt_is_stored_and_written_to_the_outbox(): void
     {
         $this->boot();
@@ -617,10 +630,11 @@ final class OpenWorkRequestHandlerTest extends KernelTestCase
         bool $fresh = false,
         ?Uuid $inboxActionId = null,
         ?int $inboxItemNumber = null,
+        ?string $role = null,
     ): WorkRequest {
         $handler = $this->handler();
 
-        return $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, $kind, $capability, $ruleId, $context, $model, $effort, $prompt, $fresh, $inboxActionId, $inboxItemNumber));
+        return $handler(new OpenWorkRequestCommand($project, WorkSubject::card($cardId), 7, $kind, $capability, $ruleId, $context, $model, $effort, $prompt, $fresh, $inboxActionId, $inboxItemNumber, role: $role));
     }
 
     private function unfinishedRunOf(

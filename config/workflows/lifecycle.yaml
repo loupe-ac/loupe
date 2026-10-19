@@ -1,5 +1,5 @@
 key: lifecycle
-version: 8
+version: 9
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -59,6 +59,7 @@ rules:
       then:
           request:
               kind: product-design-revise
+              role: design-revise
               document: { tag: product-design, status: changes-requested }
               checks:
                   - The Loupe plugin skills are installed for the agent
@@ -76,6 +77,7 @@ rules:
       then:
           request:
               kind: design-review
+              role: design-review
               stillTrue: retry
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
               document: { tag: product-design, status: draft }
@@ -89,6 +91,7 @@ rules:
       then:
           request:
               kind: product-design-revise
+              role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
               limit: 5
@@ -130,6 +133,7 @@ rules:
       then:
           request:
               kind: tech-design-revise
+              role: design-revise
               document: { tag: tech-design, status: changes-requested }
               checks:
                   - The agent can read the whole repository
@@ -148,6 +152,7 @@ rules:
       then:
           request:
               kind: design-review
+              role: design-review
               stillTrue: retry
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
               document: { tag: tech-design, status: draft }
@@ -162,6 +167,7 @@ rules:
       then:
           request:
               kind: tech-design-revise
+              role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
               limit: 5
@@ -285,6 +291,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               limit: 3
               checks:
                   - The worktree of the card is still available, or the agent can make it again
@@ -310,6 +317,7 @@ rules:
       then:
           request:
               kind: review
+              role: code-review
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
@@ -325,6 +333,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               reason: agent-review
               limit: 10
               checks:
@@ -361,6 +370,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               limit: 3
               checks:
                   - The worktree of the card is still available, or the agent can make it again
@@ -394,6 +404,7 @@ rules:
       then:
           request:
               kind: review
+              role: code-review
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
@@ -409,6 +420,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               reason: agent-review
               limit: 10
               checks:
@@ -640,7 +652,7 @@ rules:
               - card.pr.all_finished_one_merged: {}
               - card.children.finished: {}
               - any: [{ not: { card.type: { type: epic } } }, { not: { card.run.worker_active: {} } }]
-      then: { move: { to: '@terminal' } }
+      then: { move: { to: '@terminal', outcome: merged } }
 
     # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
     # The truth outlives a move: a child that a person moves back to the Backlog makes no edge and stays parked.

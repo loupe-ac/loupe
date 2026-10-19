@@ -22,8 +22,6 @@ use Ubermuda\AuditBundle\AuditSubject;
 /** Stores the answer of a running fix worker of the card to each finding of the latest agent review of a design of the card. */
 final readonly class AnswerDocumentReviewHandler
 {
-    public const array FIX_WORK_KINDS = ['product-design-revise', 'tech-design-revise'];
-
     public const string NO_FIX_RUN = 'agent_review.error.no_design_fix_run';
     public const string NOT_LINKED = 'agent_review.error.document_not_linked';
     public const string NO_REVIEW = 'agent_review.error.document_has_no_review';
@@ -54,12 +52,7 @@ final readonly class AnswerDocumentReviewHandler
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
         $projectId = $card->project->id ?? throw new \LogicException('A stored project has an id.');
 
-        $run = null;
-        if (null !== $command->sessionId) {
-            foreach (self::FIX_WORK_KINDS as $kind) {
-                $run ??= $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, $kind);
-            }
-        }
+        $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, 'design-revise');
         if (null === $run) {
             throw new DomainErrors(['session' => self::NO_FIX_RUN]);
         }

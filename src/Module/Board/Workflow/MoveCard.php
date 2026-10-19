@@ -26,6 +26,8 @@ final readonly class MoveCard implements Action
 {
     public const string KEY = 'move';
 
+    public const string OUTCOME_MERGED = 'merged';
+
     public function __construct(
         private CardRepository $cards,
         private BoardColumnRepository $boardColumns,
@@ -51,6 +53,7 @@ final readonly class MoveCard implements Action
         return [
             new Parameter('to', ParameterType::Slot),
             new Parameter('from', ParameterType::Slot, required: false),
+            new Parameter('outcome', ParameterType::String, required: false, choices: [self::OUTCOME_MERGED]),
         ];
     }
 
@@ -102,7 +105,7 @@ final readonly class MoveCard implements Action
                 actor: Actor::System,
                 column: $column,
                 onlyFromColumn: $card->column,
-                cause: CardEventCause::workflowRule($context->ruleId),
+                cause: CardEventCause::workflowRule($context->ruleId, $context->optionalString('outcome')),
             ));
         } catch (DomainErrors) {
             return ActionOutcome::refused('move-refused');

@@ -93,10 +93,10 @@ final class RequestWorkTest extends KernelTestCase
     {
         self::bootKernel();
         $card = $this->card($this->workflowProject('request-live'), 'next');
-        $rule = $this->rule('request', ['kind' => 'fix']);
+        $rule = $this->rule('request', ['kind' => 'fix', 'role' => 'fix']);
 
         $this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card));
-        $outcome = $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix'], 'other-fix'), $card->snapshot(), FactsMother::facts(), $this->state($card));
+        $outcome = $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix', 'role' => 'fix'], 'other-fix'), $card->snapshot(), FactsMother::facts(), $this->state($card));
 
         self::assertEquals(ActionOutcome::alreadyLive($rule->id), $outcome);
         self::assertNotEquals(ActionOutcome::done(), $outcome);
@@ -117,7 +117,7 @@ final class RequestWorkTest extends KernelTestCase
     {
         self::bootKernel();
         $card = $this->card($this->workflowProject('request-limit'), 'next');
-        $rule = $this->rule('request', ['kind' => 'fix', 'limit' => 3]);
+        $rule = $this->rule('request', ['kind' => 'fix', 'role' => 'fix', 'limit' => 3]);
         $state = $this->state($card);
         $state->fires = 2;
 
@@ -145,7 +145,7 @@ final class RequestWorkTest extends KernelTestCase
         self::bootKernel();
         $card = $this->card($this->workflowProject('request-fix-event'), 'in-progress');
         $pullRequest = $this->pullRequest($card);
-        $rule = $this->rule('request', ['kind' => 'fix', 'limit' => 3]);
+        $rule = $this->rule('request', ['kind' => 'fix', 'role' => 'fix', 'limit' => 3]);
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: $checks, conflicting: $conflicting, changesRequested: $changesRequested));
 
         $this->runAction($this->action(), $rule, $card->snapshot(), $facts, $this->state($card));
@@ -154,13 +154,61 @@ final class RequestWorkTest extends KernelTestCase
         self::assertSame([['reason' => $reason, 'pullRequest' => $pullRequest->number]], $this->fixEvents($card));
     }
 
+    public function test_a_request_stores_its_role(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('request-role'), 'in-progress');
+        $rule = $this->rule('request', ['kind' => 'my-review', 'role' => 'code-review']);
+
+        self::assertOpenedWork($this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card)));
+
+        self::assertSame('code-review', $this->liveRequest($card)->role);
+    }
+
+    public function test_a_request_with_no_role_stores_none(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('request-no-role'), 'in-progress');
+
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'groom']), $card->snapshot(), FactsMother::facts(), $this->state($card));
+
+        self::assertNull($this->liveRequest($card)->role);
+    }
+
+    public function test_the_fix_role_and_not_the_fix_kind_records_the_fix_requested_event(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('request-fix-role'), 'in-progress');
+        $this->pullRequest($card);
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed));
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'repair-by-hand', 'role' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+        $this->em()->flush();
+
+        self::assertCount(1, $this->fixEvents($card));
+    }
+
+    public function test_a_request_of_the_fix_kind_with_no_role_records_no_fix_event(): void
+    {
+        self::bootKernel();
+        $card = $this->card($this->workflowProject('request-fix-kind-only'), 'in-progress');
+        $this->pullRequest($card);
+        $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed));
+
+        $outcome = $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+
+        $this->em()->flush();
+
+        self::assertOpenedWork($outcome);
+        self::assertSame([], $this->fixEvents($card));
+    }
+
     public function test_a_reason_parameter_replaces_the_fix_reason_of_the_pull_request(): void
     {
         self::bootKernel();
         $card = $this->card($this->workflowProject('request-reason'), 'in-progress');
         $pullRequest = $this->pullRequest($card);
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed));
-        $rule = $this->rule('request', ['kind' => 'fix', 'reason' => 'agent-review']);
+        $rule = $this->rule('request', ['kind' => 'fix', 'role' => 'fix', 'reason' => 'agent-review']);
 
         $this->runAction($this->action(), $rule, $card->snapshot(), $facts, $this->state($card));
         $this->em()->flush();
@@ -177,9 +225,9 @@ final class RequestWorkTest extends KernelTestCase
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed));
 
         $this->runAction($this->action(), $this->rule('request', ['kind' => 'implement']), $card->snapshot(), $facts, $this->state($card));
-        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix', 'role' => 'fix']), $card->snapshot(), $facts, $this->state($card));
         $this->em()->flush();
-        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix', 'role' => 'fix']), $card->snapshot(), $facts, $this->state($card));
         $this->em()->flush();
 
         self::assertCount(1, $this->fixEvents($card));
@@ -193,7 +241,7 @@ final class RequestWorkTest extends KernelTestCase
         $primary = $this->pullRequest($card, headSha: 'ABC1234');
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, changesRequested: true));
 
-        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix', 'role' => 'fix']), $card->snapshot(), $facts, $this->state($card));
 
         self::assertEquals(
             new WorkRequestContext($primary->number, 'https://github.com/acme/widgets/pull/'.$primary->number, 'abc1234', 'checks-failed'),
@@ -212,7 +260,7 @@ final class RequestWorkTest extends KernelTestCase
         $this->em()->flush();
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(conflicting: true, id: $base->id));
 
-        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix', 'role' => 'fix']), $card->snapshot(), $facts, $this->state($card));
         $this->em()->flush();
 
         self::assertEquals(
@@ -229,7 +277,7 @@ final class RequestWorkTest extends KernelTestCase
         $this->pullRequest($card);
         $facts = FactsMother::facts(pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed, id: Uuid::v7()));
 
-        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix']), $card->snapshot(), $facts, $this->state($card));
+        $this->runAction($this->action(), $this->rule('request', ['kind' => 'fix', 'role' => 'fix']), $card->snapshot(), $facts, $this->state($card));
         $this->em()->flush();
 
         self::assertEquals(new WorkRequestContext(reason: 'checks-failed'), $this->liveRequest($card)->context);

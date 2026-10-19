@@ -10,6 +10,7 @@ use App\Module\Bridge\Event\ResumableWorkerRunEnded;
 use App\Module\Bridge\Event\WorkerRunChanged;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkerRunStateChangeRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\WorkerRunChangedPublisher;
 use App\Module\Bridge\Service\WorkerRunSearchIndexer;
 use App\Module\Bridge\Service\WorkerRunUsageRecorder;
@@ -37,6 +38,7 @@ final readonly class ReportWorkerRunStateHandler
     public function __construct(
         private ProjectRepository $projects,
         private WorkerRunRepository $workerRuns,
+        private WorkRequestRepository $workRequests,
         private WorkerRunStateChangeRepository $workerRunStateChanges,
         private WorkerRunSearchIndexer $searchIndexer,
         private EntityManagerInterface $em,
@@ -80,6 +82,7 @@ final readonly class ReportWorkerRunStateHandler
                     kind: $command->kind,
                     workRequestId: $command->workRequestId,
                     ruleId: $command->ruleId,
+                    role: null === $command->workRequestId ? null : $this->workRequests->find($command->workRequestId)?->role,
                 );
                 $this->em->persist($run);
                 $moves = true;

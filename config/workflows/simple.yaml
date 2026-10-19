@@ -1,5 +1,5 @@
 key: simple
-version: 6
+version: 7
 defaultType: feature
 epicBranch: 'epic/{number}'
 types:
@@ -22,7 +22,7 @@ rules:
               - not: { card.in_slot: { slot: '@terminal' } }
               - card.pr.all_finished_one_merged: {}
               - card.children.finished: {}
-      then: { move: { to: '@terminal' } }
+      then: { move: { to: '@terminal', outcome: merged } }
 
     - id: teardown
       slot: '@terminal'

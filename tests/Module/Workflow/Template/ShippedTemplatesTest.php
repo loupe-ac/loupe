@@ -92,6 +92,22 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame(['merged'], array_map(static fn ($rule) => $rule->id, $simple->rulesFor(null)));
     }
 
+    public function test_the_merged_rule_of_each_shipped_template_moves_with_the_merged_outcome(): void
+    {
+        foreach (['lifecycle', 'simple'] as $key) {
+            $rule = array_find($this->template($key)->rules, static fn ($rule): bool => 'merged' === $rule->id) ?? throw new \LogicException($key);
+
+            self::assertSame('move', $rule->then->key);
+            self::assertSame(['to' => '@terminal', 'outcome' => 'merged'], $rule->then->params, $key);
+        }
+    }
+
+    public function test_the_lifecycle_design_review_tags_are_the_product_and_tech_design_tags(): void
+    {
+        self::assertSame(['product-design', 'tech-design'], $this->lifecycle()->designReviewTags());
+        self::assertSame([], $this->template('simple')->designReviewTags());
+    }
+
     public function test_every_slot_label_has_an_english_string(): void
     {
         $translator = static::getContainer()->get('translator');
@@ -208,7 +224,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         $rule = $this->ruleOf($slot, $slot.'-review');
 
         self::assertTrue($rule->when->evaluate($facts));
-        self::assertSame(['kind' => 'design-review'], \array_slice($rule->then->params, 0, 1));
+        self::assertSame(['kind' => 'design-review', 'role' => 'design-review'], \array_slice($rule->then->params, 0, 2));
         self::assertSame('retry', $rule->then->params['stillTrue']);
         self::assertSame($tag, $rule->then->params['document.tag']);
         self::assertSame('draft', $rule->then->params['document.status']);
@@ -250,7 +266,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertTrue($rule->when->evaluate($facts));
         self::assertFalse($this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
-        self::assertSame(['kind' => $tag.'-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->then->params, 0, 3));
+        self::assertSame(['kind' => $tag.'-revise', 'role' => 'design-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->then->params, 0, 4));
         self::assertNotNull($rule->then->cancelWhen);
     }
 
@@ -333,6 +349,32 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
     }
 
+    public function test_every_review_revision_and_fix_rule_names_its_role(): void
+    {
+        $roles = [];
+        foreach ($this->lifecycle()->rules as $rule) {
+            $role = $rule->then->params['role'] ?? null;
+            if (null !== $role) {
+                $roles[$rule->id] = $role;
+            }
+        }
+
+        self::assertSame([
+            'product-design-revise' => 'design-revise',
+            'product-design-review' => 'design-review',
+            'product-design-review-fix' => 'design-revise',
+            'tech-design-revise' => 'design-revise',
+            'tech-design-review' => 'design-review',
+            'tech-design-review-fix' => 'design-revise',
+            'fix-in-implementation' => 'fix',
+            'agent-review' => 'code-review',
+            'fix-agent-review' => 'fix',
+            'fix-in-review' => 'fix',
+            'agent-review-in-review' => 'code-review',
+            'fix-agent-review-in-review' => 'fix',
+        ], $roles);
+    }
+
     /** @param list<string> $activeWorkKinds */
     #[DataProvider('activeWorkDuringReview')]
     public function test_a_head_waits_for_its_review_until_work_that_pushes_to_its_branch_ends(string $slot, array $activeWorkKinds, bool $asks): void
@@ -354,7 +396,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertNotNull($rule);
         self::assertTrue($rule->when->evaluate($facts));
-        self::assertSame(['kind' => 'fix', 'reason' => 'agent-review', 'limit' => 10], \array_slice($rule->then->params, 0, 3));
+        self::assertSame(['kind' => 'fix', 'role' => 'fix', 'reason' => 'agent-review', 'limit' => 10], \array_slice($rule->then->params, 0, 4));
         self::assertNotContains('agent-review'.$suffix, $this->firingRuleIds($facts));
     }
 
@@ -731,7 +773,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
     public function test_a_merged_epic_waits_for_its_open_run_and_a_merged_card_does_not(): void
     {
-        $toTerminal = $this->call('move', ['to' => '@terminal']);
+        $toTerminal = $this->call('move', ['to' => '@terminal', 'outcome' => 'merged']);
         $merged = FactsMother::pullRequest(state: PullRequestState::Merged, closedAt: new \DateTimeImmutable('2026-10-01 11:00:00'));
         $epic = FactsMother::card(slot: 'in-review', type: 'epic', childCount: 2);
         $feature = FactsMother::card(slot: 'in-review');

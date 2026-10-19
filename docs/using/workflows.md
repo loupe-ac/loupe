@@ -707,6 +707,13 @@ document of the card that has one of the tags. A document that is not a draft
 stays as it is. When the app refuses to publish a document, the action is
 refused with `document-publish-refused`, and the pause rules apply.
 
+The documents that get a design review are the documents whose tags the
+template names. The app collects the `document` tag of each request rule that
+has the role `design-review`. It reads the tags from the template copy of the
+project, so a draft with a tag of your own gets its first review when you
+change the tag in those rules. A template with no such rule asks for no design
+review, and no draft gets one.
+
 To turn the design review off, remove the six rules and the marker
 `design-review-running` from the template. The writer then has to publish its
 own draft.
@@ -878,11 +885,22 @@ so a rule whose condition reads no pull request never refills.
 | Reason | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request, or the code that the optional `reason` parameter of the request rule sets, such as `agent-review`. A `repair` request holds the refusal code of the failed work |
 | Document | the id of the document that a revision works on |
 
-A fix request also writes a `fix-requested` event to the card history. The event
+A request rule can set the optional `role` parameter: `code-review`,
+`design-review`, `design-revise` or `fix`. The role says what the work does,
+whatever its kind. The request and its worker runs keep it. The review and fix
+MCP tools find the running worker by its role, so a project can give the work
+another kind and keep the role. A fix request, one with the role `fix`, also
+writes a `fix-requested` event to the card history. The event
 holds the same reason. A request rule can set the reason with the optional
 `reason` parameter. The parameter replaces the reason that the state of the
 pull request gives, in the context and in the event. The fix rules for the
 [agent review](#agent-review) use `reason: agent-review`.
+
+The `move` action takes the optional parameter `outcome`. It has one value,
+`merged`. A move that sets it records in the card history that the card moved
+because its pull request merged. The reports of an experiment count a merge
+from this value, whatever the id of the rule. The `merged` rule of the
+Lifecycle and Simple templates sets it.
 
 A request rule can set the optional `cancelWhen` parameter. It holds a
 condition. While the condition is true, the engine withdraws the live request

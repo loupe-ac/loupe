@@ -624,6 +624,7 @@ final readonly class ProjectShowcaseSeeder
             hasResult: true,
             output: 'The failing test now passes. The run pushed one commit.',
             receivedAt: $endedAt,
+            role: 'fix',
         );
         $startedAt = new \DateTimeImmutable('-4 minutes');
         $open = new WorkerRun(
@@ -747,6 +748,7 @@ final readonly class ProjectShowcaseSeeder
             hasResult: true,
             output: 'STAGE RESULT: blocked: cannot reach github.com: DNS lookup failed [reason: needs-person]. Restore the network of the worker, then resume the card.',
             receivedAt: $endedAt,
+            role: 'code-review',
         );
         $run->resultFields = ['title' => 'Restore the network of the review worker'];
         $this->em->persist($run);
