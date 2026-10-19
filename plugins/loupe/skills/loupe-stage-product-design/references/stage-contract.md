@@ -97,7 +97,7 @@ Set the reason code from the `STAGE RESULT:` form. A form takes the code of the 
 | `delivered-without-code` | `delivered without code <document url>` |
 | `waiting-checks` | `waiting <pr url>`, and a `not ready` item for a failed or pending check, or for a head that moved after the event or during a review request |
 | `not-approved` | `not ready: not approved`, `product document not approved` |
-| `approval-stale` | `not ready: commits after approval`, `not ready: conflict resolution after approval` |
+| `approval-stale` | `not ready: commits after approval` |
 | `stacked` | `not ready: stacked on <base>` |
 | `conflicting` | `not ready: conflicting`, `blocked: merge conflict with <base>` |
 | `not-behind` | `not ready: not behind` |

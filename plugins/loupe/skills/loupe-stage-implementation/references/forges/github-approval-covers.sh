@@ -8,7 +8,7 @@ url=${1:?usage: github-approval-covers.sh <pull request url> <sha>}
 sha=${2:?usage: github-approval-covers.sh <pull request url> <sha>}
 [[ $url =~ ^https://([^/]+)/([^/]+)/([^/]+)/pull/([0-9]+)/?$ ]] || { echo "UNREAD: not a GitHub pull request URL: $url"; exit 2; }
 host=${BASH_REMATCH[1]} repo="${BASH_REMATCH[2]}/${BASH_REMATCH[3]}" pr=${BASH_REMATCH[4]}
-gh auth status --hostname "$host" >/dev/null 2>&1 || { echo "UNREAD: gh is not signed in to $host"; exit 2; }
+auth=$(gh auth status --hostname "$host" 2>&1) || { echo "UNREAD: gh auth status failed for $host: $(head -n1 <<<"$auth")"; exit 2; }
 export GH_HOST=$host
 
 view=$(gh pr view "$url" --json headRefOid,headRefName,baseRefName 2>/dev/null) || { echo "UNREAD: gh pr view failed"; exit 2; }
