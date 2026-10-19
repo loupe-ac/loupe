@@ -1,5 +1,5 @@
 key: lifecycle
-version: 6
+version: 7
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -792,7 +792,7 @@ markers:
       link: agents
       when: { card.run.work_taker_paused: {} }
     - key: work-requested
-      kind: working
+      kind: waiting
       label: marker.work_requested
       remedy: marker.work_requested.remedy
       when:
