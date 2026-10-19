@@ -58,7 +58,7 @@ Merge only when every item holds. The first item that fails ends the run with `S
 1. The head commit equals the SHA of the prompt.
 2. The pull request is not a draft.
 3. The review is `approved`.
-4. Every current approval covers every commit up to the SHA of the prompt. Check it with the forge adapter. When the profile `Merge` section names an approver, only that reviewer's approval counts.
+4. Every current approval covers every commit up to the SHA of the prompt. Call `workflow_get` and read `approvalCoversConflictResolution`. Check the approval with the forge adapter, and pass it that value. When the profile `Merge` section names an approver, only that reviewer's approval counts.
 5. The checks are `passed`: every required check passes, and none fails or is pending. Count the checks against the required count of the profile `Gate` section. An epic branch has no required checks of its own. For an epic child, check by name the required checks of the base branch of the profile `Merge` section, as the forge adapter says.
 6. The mergeability is `mergeable`.
 7. An epic child is not behind its base. Compare the SHA of the prompt with the base, as the forge adapter says. When the behind count is above 0, take "Update" from item 4. The app sends no behind event for a base with no strict rule, so this item replaces it. A sync of the epic branch with a merge of its base puts each open child behind, and the forge adapter's update merges the epic branch into the child.
@@ -67,7 +67,7 @@ An epic child skips items 3 and 4.
 
 Item 4 reads the approval by time. A forge can keep the review `approved` after new commits arrive, so item 3 alone is not enough. A commit counts as later when it reached the branch after the earliest current approval. The forge adapter sorts each later commit:
 
-- A merge from the base is a sync, with or without a conflict resolution. The approval covers it.
+- A merge from the base is a sync. When `approvalCoversConflictResolution` is true, the approval covers it, with or without a conflict resolution. When it is false, the approval covers only a merge that git makes again with no conflict. A merge that holds a conflict resolution stops the run with `STAGE RESULT: not ready <url>: conflict resolution after approval`.
 - Any other commit is new content, such as a review fix or a test fix. Stop with `STAGE RESULT: not ready <url>: commits after approval`.
 
 When the adapter cannot read the approval, stop with `STAGE RESULT: blocked: approval unreadable <url>`.
@@ -100,11 +100,13 @@ A blocker outside the epic merged code into the base branch, and the epic branch
 
 ### Refresh the epic preview
 
-The epic preview serves the code of the epic branch, so the owner can try every merged child in one place. When the profile `Epics` section names no epic preview, stop with `STAGE RESULT: blocked: no epic preview in .loupe/lifecycle.md`.
+The epic preview serves the code of the epic branch, so the owner can try every merged child in one place.
 
-Read the epic with `card_get` on the card of the request. A refresh and a teardown can run this section at the same time. Take the epic preview lock of the profile `Epics` section before step 1, and release it before each stop, also when a step fails. When the lock does not come, record the block, and stop with `STAGE RESULT: blocked: epic preview lock`. With the lock held, read the epic with `card_get` again. When its `status` is a terminal column, release the lock and stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
+The `before` command of the `epic-preview` work entry creates or refreshes the epic preview, and the worker starts in that folder. This stage never creates, refreshes or locks it. When the worker folder is not the preview of the epic, stop with `STAGE RESULT: blocked: no epic preview folder`.
 
-1. Create the epic preview, or refresh it when it exists, as the profile says. Run a long command as the harness adapter says. Never bind writes to the preview.
+Read the epic with `card_get` on the card of the request. When its `status` is a terminal column, stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
+
+1. Check that the worker folder is the preview of the epic: `git rev-parse --show-toplevel` ends in `/.worktrees/epic-<n>`, and `git rev-parse HEAD` equals `git rev-parse origin/<epic branch>`. Never bind writes to the preview.
 2. When the epic `pullRequestUrls` has no open epic pull request, stop with `STAGE RESULT: preview refreshed <epic preview url>`. The app can link the epic pull request after this run starts. The next refresh writes the lines that the body lacks.
 3. Read the body of the epic pull request with the forge adapter. List each child of the epic `children` in a terminal column that has no line in the preview section. Read each listed child with `card_get`, and take its pull request that merged into the epic branch. Leave out a child with no such pull request.
 4. Read the body of each merged child pull request with the forge adapter. In the preview section that the profile `Pull request` section names, take each link of the form that the profile `Epics` section carries, with its label and its marker. A child with no such link carries nothing. When no listed child carries a link, stop with `STAGE RESULT: preview refreshed <epic pull request url>`.

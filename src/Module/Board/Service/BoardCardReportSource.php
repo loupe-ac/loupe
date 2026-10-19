@@ -8,6 +8,7 @@ use App\Module\Board\Entity\CardEventKind;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
+use App\Module\Board\Workflow\MoveCard;
 use App\Module\Bridge\Experiment\CardColumn;
 use App\Module\Bridge\Experiment\CardOutcome;
 use App\Module\Bridge\Experiment\CardReportSourceInterface;
@@ -58,7 +59,7 @@ final readonly class BoardCardReportSource implements CardReportSourceInterface
                 case CardEventKind::Moved:
                     // A move by hand to a terminal column carries no cause, so it is no merge.
                     $cause = $detail['cause'] ?? null;
-                    if (\is_array($cause) && ('merged' === ($cause['type'] ?? null) || ('workflow-rule' === ($cause['type'] ?? null) && 'merged' === ($cause['rule'] ?? null)))) {
+                    if (\is_array($cause) && self::isMergeCause($cause)) {
                         $card['merged'] = true;
                     }
                     break;
@@ -81,6 +82,17 @@ final readonly class BoardCardReportSource implements CardReportSourceInterface
         }
 
         return $outcomes;
+    }
+
+    /**
+     * An older stored cause names the merge by its type, or by the id of the rule that moved the card.
+     *
+     * @param array<mixed> $cause
+     */
+    private static function isMergeCause(array $cause): bool
+    {
+        return 'merged' === ($cause['type'] ?? null)
+            || ('workflow-rule' === ($cause['type'] ?? null) && (MoveCard::OUTCOME_MERGED === ($cause['outcome'] ?? null) || 'merged' === ($cause['rule'] ?? null)));
     }
 
     #[\Override]

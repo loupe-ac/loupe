@@ -30,7 +30,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  */
 final readonly class FixRunCommentQueue
 {
-    private const string FIX_KIND = 'fix';
+    private const string FIX_ROLE = 'fix';
 
     /** A run received in this window counts after it ends, and an older closed run is history. */
     private const string RECENT = '-1 hour';
@@ -60,7 +60,7 @@ final readonly class FixRunCommentQueue
             return [];
         }
 
-        return $this->pullRequestComments->findUncommentedRecentRuns($card->id ?? throw new \LogicException('A stored card has an id.'), self::FIX_KIND, $this->clock->now()->modify(self::RECENT));
+        return $this->pullRequestComments->findUncommentedRecentRuns($card->id ?? throw new \LogicException('A stored card has an id.'), self::FIX_ROLE, $this->clock->now()->modify(self::RECENT));
     }
 
     /** Answers whether it stored a comment. One savepoint holds the reads too, so a failed statement leaves the transaction of the caller usable. */
@@ -77,7 +77,7 @@ final readonly class FixRunCommentQueue
         }
         $projectId = $card->project->id ?? throw new \LogicException('A stored card has a project id.');
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
-        $runs = $this->pullRequestComments->findUncommentedRecentRuns($cardId, self::FIX_KIND, $this->clock->now()->modify(self::RECENT));
+        $runs = $this->pullRequestComments->findUncommentedRecentRuns($cardId, self::FIX_ROLE, $this->clock->now()->modify(self::RECENT));
         if ([] === $runs) {
             return false;
         }

@@ -217,6 +217,10 @@ The kind must be the kind that a rule of the same slot requests. Lifecycle sets
 it for Tech design and for Implementation. The inbox action **Send an agent**
 reads it. A card in a column with no `stageWork` gets no such action.
 
+A slot can name a `tone`, the colour of its column when a new project gets the
+template. The value is one of the label tones, such as `lime` or `sky`. A slot
+with no `tone` gets a neutral column.
+
 ## Managed cards
 
 A card is managed by default. A managed card follows the template, and a person
@@ -274,8 +278,8 @@ Each escalation starts one repair at most. A repair request is never retried
 and never repaired. A release of the pause starts a new escalation, so the
 next failure can start one more repair. A bridge with no `repair` entry lets
 the request expire after the work timeout, and the card then pauses with "no
-bridge took the work". [The development
-lifecycle](../contributing/lifecycle.md) shows a `repair` entry.
+bridge took the work". [The repair
+entry](../extending/cli-bridge.md#repair-entry) shows one.
 
 A resumed run ends the pause of its card. When a person resumes a run, or a
 closed [inbox](inbox.md) ask resumes it, the workflow releases the pause as soon
@@ -589,6 +593,20 @@ conflict. A child pull request into its epic branch also waits while any
 worker run of the epic is open. A merge from the base after the approval keeps
 the approval. New commits need a new approval.
 
+The template value `approvalCoversConflictResolution` decides what a merge from
+the base keeps. It is `true` in the Lifecycle template, so the approval covers
+every merge from the base, also one in which an agent resolved a conflict. When
+a project sets it to `false`, the approval covers only a merge that git writes
+with no human edit. A merge that resolves a conflict, or changes any other file,
+needs a new approval. Loupe tests this from the file lists of the GitHub compare
+API, so a merge that touches 300 files or more needs a new approval too. The
+value belongs to the copy of the template that the project holds, and a new
+release of the template keeps it. A person asks their agent to change it, which
+calls the `automation_settings_update` MCP tool with the argument
+`approvalCoversConflictResolution`. A change of the value judges the approval
+of each open pull request of the project again. The `workflow_get` MCP tool
+returns the value.
+
 Some rules act from any slot:
 
 1. A card whose pull requests all finished, with one merged, moves to the
@@ -716,6 +734,13 @@ document of the card that has one of the tags. A document that is not a draft
 stays as it is. When the app refuses to publish a document, the action is
 refused with `document-publish-refused`, and the pause rules apply.
 
+The documents that get a design review are the documents whose tags the
+template names. The app collects the `document` tag of each request rule that
+has the role `design-review`. It reads the tags from the template copy of the
+project, so a draft with a tag of your own gets its first review when you
+change the tag in those rules. A template with no such rule asks for no design
+review, and no draft gets one.
+
 To turn the design review off, remove the six rules and the marker
 `design-review-running` from the template. The writer then has to publish its
 own draft.
@@ -794,7 +819,7 @@ ships for its kind. This covers all 17 kinds, such as `tech-design`, `implement`
 `fix`, `merge` and `repair`. A `work:` entry of the bridge rule file still wins
 over the shipped prompt.
 
-The app adds six rules.
+The app adds seven rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
@@ -812,6 +837,11 @@ with the request. The worker submits a new version of the same report. An
 approval of the report while the worker revises it cancels the request. The rule
 also sets `onNoTaker: fail`, so the run fails at once with the cause when no
 online bridge can take the revision.
+
+The rule `discovery-approved` also watches the Backlog. It moves the card to the
+first terminal column when the owner approved the report of the discovery run.
+The file of the app rules also names the slot where the cards of the ticked
+proposals land, with the key `proposalSlot`. Loupe ships it as `next`.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the
@@ -898,7 +928,12 @@ so a rule whose condition reads no pull request never refills.
 | Reason | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request, or the code that the optional `reason` parameter of the request rule sets, such as `agent-review`. A `repair` request holds the refusal code of the failed work |
 | Document | the id of the document that a revision works on |
 
-A fix request also writes a `fix-requested` event to the card history. The event
+A request rule can set the optional `role` parameter: `code-review`,
+`design-review`, `design-revise` or `fix`. The role says what the work does,
+whatever its kind. The request and its worker runs keep it. The review and fix
+MCP tools find the running worker by its role, so a project can give the work
+another kind and keep the role. A fix request, one with the role `fix`, also
+writes a `fix-requested` event to the card history. The event
 holds the same reason. A request rule can set the reason with the optional
 `reason` parameter. The parameter replaces the reason that the state of the
 pull request gives, in the context and in the event. The fix rules for the
@@ -910,11 +945,25 @@ follows the project could take it. The card does not pause, and the module that
 owns the work reads the cause from the reason of the request. A request without
 the parameter waits for the work timeout instead.
 
+The `move` action takes the optional parameter `outcome`. It has one value,
+`merged`. A move that sets it records in the card history that the card moved
+because its pull request merged. The reports of an experiment count a merge
+from this value, whatever the id of the rule. The `merged` rule of the
+Lifecycle and Simple templates sets it.
+
 A request rule can set the optional `cancelWhen` parameter. It holds a
 condition. While the condition is true, the engine withdraws the live request
 of the rule. The design review
 rules use it, so that a person who publishes or reviews the draft cancels the
 agent work on it.
+
+A request rule can name a prompt with the optional `prompt` parameter. The value
+is a name of lowercase letters, digits and hyphens, such as `implement`. The
+engine reads the text from `config/workflows/<template key>/prompts/<name>.md`
+and sends it with the request. A bridge runs it for a kind that its `work:` map
+does not hold, when it sets `appPrompts: true`. A template that names a prompt
+with no file is refused when it is bound. A project bound earlier keeps its copy.
+The request then carries no prompt when the file is gone.
 
 A request rule names its document with the optional `document` parameter. It is
 a map with the key `tag`, and an optional `status`: `in-review`, `approved`,

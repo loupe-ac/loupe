@@ -99,6 +99,22 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         self::assertNull($review->postedAt);
     }
 
+    public function test_the_role_of_the_run_decides_and_its_kind_does_not(): void
+    {
+        $this->reviewRun(workKind: 'my-own-review');
+        $this->sendSession($this->sessionId);
+
+        self::assertSame('success', $this->submit([])['conclusion']);
+    }
+
+    public function test_a_run_of_the_review_kind_with_no_role_is_refused(): void
+    {
+        $this->reviewRun(role: null);
+        $this->sendSession($this->sessionId);
+
+        $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
+    }
+
     public function test_it_evaluates_every_card_that_links_the_reviewed_pull_request(): void
     {
         $other = $this->card($this->project, 2);
@@ -251,7 +267,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
 
     public function test_a_run_of_other_work_is_refused(): void
     {
-        $this->reviewRun(workKind: 'implement');
+        $this->reviewRun(workKind: 'implement', role: null);
         $this->sendSession($this->sessionId);
 
         $this->assertRefused(self::NO_RUN, fn () => $this->submit([]));
@@ -344,7 +360,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
         return ['path' => 'src/Foo.php', 'startLine' => 3, 'endLine' => 5, 'severity' => $severity, 'title' => 'Null read', 'body' => 'The value can be null here.'];
     }
 
-    private function reviewRun(?Uuid $cardId = null, string $workKind = 'review', WorkerRunState $state = WorkerRunState::Running): WorkerRun
+    private function reviewRun(?Uuid $cardId = null, string $workKind = 'review', WorkerRunState $state = WorkerRunState::Running, ?string $role = 'code-review'): WorkerRun
     {
         $run = new WorkerRun(
             project: $this->project,
@@ -356,6 +372,7 @@ final class AgentReviewSubmitToolTest extends KernelTestCase
             state: $state,
             sessionId: $this->sessionId,
             workRequestId: Uuid::v7(),
+            role: $role,
         );
         $this->em->persist($run);
         $this->em->flush();

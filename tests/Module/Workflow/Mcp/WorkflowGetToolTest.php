@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Mcp;
 
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
+use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use App\Module\Workflow\Mcp\WorkflowGetTool;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\McpTokenScenario;
@@ -22,7 +23,6 @@ final class WorkflowGetToolTest extends KernelTestCase
         'Read access to the CI check logs',
     ];
 
-    private const string TEARDOWN_CHECK = 'A command that removes the worktree and the preview of a finished card';
     private const string DISCOVERY_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-discovery skill';
     private const string ANALYSIS_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-analysis skill';
     private const string ANALYSIS_BRIDGE_CHECK = 'The bridge rule file maps the analysis kind, or sets appPrompts to true';
@@ -43,7 +43,9 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 8], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => 10], $answer['template']);
+        self::assertTrue($answer['approvalCoversConflictResolution']);
+        self::assertSame('epic/{number}', $answer['epicBranch']);
         $kinds = array_column($answer['kinds'], null, 'kind');
         self::assertSame([
             'product-design', 'product-design-revise', 'design-review', 'tech-design', 'tech-design-revise', 'tech-design-recheck', 'implement', 'breakdown',
@@ -51,8 +53,8 @@ final class WorkflowGetToolTest extends KernelTestCase
         ], array_column($answer['kinds'], 'kind'));
         self::assertSame('template', $kinds['implement']['origin']);
         self::assertSame(['implement'], $kinds['implement']['rules']);
-        self::assertContains('The agent pushes as its own GitHub account', $kinds['implement']['checks']);
-        self::assertCount(6, $kinds['implement']['checks']);
+        self::assertNotContains('The agent pushes as its own GitHub account', $kinds['implement']['checks']);
+        self::assertCount(5, $kinds['implement']['checks']);
         self::assertSame(['kind' => 'fix', 'origin' => 'template', 'rules' => ['fix-in-implementation', 'fix-agent-review', 'fix-in-review', 'fix-agent-review-in-review'], 'checks' => self::CODE_CHECKS], $kinds['fix']);
         self::assertSame(['kind' => 'review', 'origin' => 'template', 'rules' => ['agent-review', 'agent-review-in-review'], 'checks' => ['A bridge work entry for the review kind', 'The Loupe plugin skills are installed for the agent']], $kinds['review']);
         self::assertSame(['kind' => 'sync', 'origin' => 'template', 'rules' => ['update-behind'], 'checks' => []], $kinds['sync']);
@@ -77,7 +79,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertSame(['slug' => 'done', 'label' => 'Done', 'slot' => null, 'backlog' => false, 'terminal' => true], $columns[3]);
     }
 
-    public function test_a_simple_project_lists_teardown_with_its_check(): void
+    public function test_a_simple_project_lists_teardown_with_no_check(): void
     {
         $project = $this->workflowProject('workflow-get-simple');
         $this->bindHandler()(new BindWorkflowTemplateCommand($project, 'simple', []));
@@ -85,14 +87,27 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'simple', 'version' => 7], $answer['template']);
+        self::assertSame(['key' => 'simple', 'version' => 8], $answer['template']);
+        self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame([
-            ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => [self::TEARDOWN_CHECK]],
+            ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => []],
             ['kind' => 'discovery', 'origin' => 'app', 'rules' => ['discovery'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_BRIDGE_CHECK]],
             ['kind' => 'discovery-revise', 'origin' => 'app', 'rules' => ['discovery-revise'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_REVISE_BRIDGE_CHECK]],
             ['kind' => 'analysis', 'origin' => 'app', 'rules' => ['insights.analysis'], 'checks' => [self::ANALYSIS_CHECK, self::ANALYSIS_BRIDGE_CHECK]],
         ], $answer['kinds']);
         self::assertSame([null], array_values(array_unique(array_column($answer['columns'], 'slot'))));
+    }
+
+    public function test_it_returns_the_approval_rule_a_project_changed(): void
+    {
+        $project = $this->workflowProject('workflow-get-approval');
+        $this->bindLifecycle($project);
+        $writer = self::getContainer()->get(ApprovalRuleWriter::class);
+        self::assertInstanceOf(ApprovalRuleWriter::class, $writer);
+        self::assertTrue($writer->setCoversConflictResolution($project->id ?? throw new \LogicException('Not flushed.'), false));
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertFalse($this->tool()()['approvalCoversConflictResolution']);
     }
 
     public function test_a_project_with_no_workflow_is_refused(): void

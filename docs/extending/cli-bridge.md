@@ -1439,6 +1439,48 @@ does not retry a failed command. With a bridge worktree and no `teardown`
 entry, the bridge removes the folder itself. [Before command](#before-command)
 and [Command action](#command-action) give the details.
 
+## Refresh and reset commands
+
+A worker entry can set `refresh` and `reset` next to `before`. They have the
+same shape as `before`, and neither prints a folder. A worker runs
+`loupe env refresh` or `loupe env reset`, and the bridge runs that command of
+the worker's entry in the worker's folder. A skill can therefore ask for an
+environment refresh after a merge, while the command itself stays in the rule
+file. Exit code 0 means the command ran or the entry names none, 1 means it
+failed, and 2 means the process is not a bridge worker.
+[The refresh and reset commands](../../cli/README.md#the-refresh-and-reset-commands)
+in `cli/README.md` gives the details.
+
+## Repair entry
+
+The workflow opens a `repair` request after the work of a rule fails and its
+retries run out. The request names the failed rule in `{ruleId}` and the refusal
+code in `{reason}`. A worker entry for it needs the `loupe-stage-repair` skill
+and a folder that holds the card branch. This entry makes that folder with git
+alone, so a broken app setup cannot stop the repair:
+
+```yaml
+work:
+  repair:
+    permissions: full
+    before:
+      run: ["scripts/git-worktree", "{cardNumber}"]
+      timeout: 5m
+    reset:
+      run: ["scripts/remove-worktree", "{cardNumber}"]
+    prompt: |
+      Use the loupe-stage-repair skill.
+      Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
+      Rule {ruleId} failed with {reason}.
+```
+
+`scripts/git-worktree` runs `git worktree add` for the card branch and prints
+the folder. `scripts/remove-worktree` removes a folder that is broken, and the
+worker asks for it with `loupe env reset`. Both scripts belong to your
+repository. The repair ends done when it fixes the cause, and the failed rule
+then gets one last try. [Workflows](../using/workflows.md#pauses-and-retries)
+describes the escalation.
+
 ## Command action
 
 An entry with `action: command` runs a command for the card, and starts no
@@ -1456,7 +1498,7 @@ work:
 placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
-`permissions`, `variants`, `metrics`, `workerPool` and `before` on a command
+`permissions`, `variants`, `metrics`, `workerPool`, `before`, `refresh` and `reset` on a command
 entry. A worker or interactive entry cannot set `params` or `description`.
 
 ### Command parameters
@@ -1468,10 +1510,10 @@ as a placeholder, such as `{out}`:
 work:
   design-export:
     action: command
-    description: Export the design system for Claude Design
+    description: Export the weekly report
     params:
       out: { pattern: "var/[a-z-]+", description: The export folder }
-    run: ["bin/console", "app:design-system:export", "{out}"]
+    run: ["scripts/export-report", "{out}"]
 ```
 
 Each parameter needs a `pattern` in RE2 syntax, with no lookahead and no

@@ -208,6 +208,26 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertFalse(new AgentReviewFailed()->evaluate($facts, []));
     }
 
+    public function test_a_done_request_with_the_fix_role_answers_the_review_whatever_its_kind(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->fix($card, 7, '+1 hour', kind: 'repair-by-hand');
+
+        self::assertTrue($this->build($card)->heads[0]->answered);
+    }
+
+    public function test_a_request_of_the_fix_kind_with_no_role_answers_nothing(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->linked($card, 7);
+        $this->review($card, $pullRequest);
+        $this->fix($card, 7, '+1 hour', role: null);
+
+        self::assertFalse($this->build($card)->heads[0]->answered);
+    }
+
     /** @return iterable<string, array{string, WorkRequestState, int, string}> */
     public static function fixesThatAnswerNothing(): iterable
     {
@@ -232,10 +252,11 @@ final class AgentReviewFactProviderTest extends KernelTestCase
         self::assertTrue(new AgentReviewFailed()->evaluate($facts, []));
     }
 
-    private function fix(Card $card, int $number, string $settledAt, string $reason = 'agent-review', WorkRequestState $state = WorkRequestState::Done): void
+    private function fix(Card $card, int $number, string $settledAt, string $reason = 'agent-review', WorkRequestState $state = WorkRequestState::Done, string $kind = 'fix', ?string $role = 'fix'): void
     {
         $subject = WorkSubject::card($card->id ?? throw new \LogicException('The card is flushed.'));
-        $request = new WorkRequest(AgentCredential::managed($this->em, $this->project, $this->project->id), $subject->type, $subject->id, $card->number, 'fix', null, 'fix-agent-review', new \DateTimeImmutable());
+        $request = new WorkRequest(AgentCredential::managed($this->em, $this->project, $this->project->id), $subject->type, $subject->id, $card->number, $kind, null, 'fix-agent-review', new \DateTimeImmutable());
+        $request->role = $role;
         $request->state = $state;
         $request->settledAt = new \DateTimeImmutable($settledAt);
         $request->context = new WorkRequestContext(pullRequestNumber: $number, reason: $reason);

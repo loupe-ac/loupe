@@ -78,7 +78,7 @@ func TestEveryGitHubSSHAddressIsRefusedOrSentThroughHTTPS(t *testing.T) {
 		"github.com:acme/site", "deploy@github.com:acme/site", "ssh.github.com:acme/site", "[git@github.com:22]:acme/site",
 		"[github.com:22]:acme/site",
 	}
-	env := workerEnv(os.Environ(), "s1", nil, credEnvFixture())
+	env := workerEnv(os.Environ(), "s1", "", nil, credEnvFixture())
 	for _, remote := range remotes {
 		_, err := parseGitHubRemote(remote)
 		if errors.Is(err, errNotGitHub) {
@@ -201,7 +201,7 @@ func TestAnAcceptedOriginPushesOverHTTPSUnderMachineRewrites(t *testing.T) {
 		{"url.https://github.com/.insteadOf", "git@github.com:"},
 		{"url.https://evil.example/.pushInsteadOf", "https://github.com/acme/"},
 	}
-	env := workerEnv(os.Environ(), "s1", nil, credEnvFixture())
+	env := workerEnv(os.Environ(), "s1", "", nil, credEnvFixture())
 	for _, origin := range origins {
 		for _, rewrite := range rewrites {
 			dir := gitFolder(t, []string{"remote", "add", "origin", origin}, append([]string{"config"}, rewrite...))

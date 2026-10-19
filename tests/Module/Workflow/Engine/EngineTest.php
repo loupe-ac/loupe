@@ -338,7 +338,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_conflict_seen_with_the_fix_push_opens_a_second_fix_when_the_first_ends(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
         $this->requestChangesOnHead($pullRequest);
         $this->evaluate($card);
@@ -362,7 +362,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_conflict_after_a_false_pass_during_the_own_fix_opens_a_second_fix_when_the_first_ends(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
         $this->requestChangesOnHead($pullRequest);
         $this->evaluate($card);
@@ -412,7 +412,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_fix_that_ends_with_the_same_causes_opens_no_second_fix(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $this->requestChangesOnHead($this->pullRequest($card, headSha: 'a'));
         $this->evaluate($card);
 
@@ -2042,7 +2042,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_fix_rule_on_a_stack_fixes_the_base_first_and_then_the_pull_request_stacked_on_it(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]], limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]], limit: 3, role: 'fix')]);
         [$base, $upper] = $this->stack($card);
         $base->checks = PullRequestChecks::Failed;
         $upper->checks = PullRequestChecks::Failed;
@@ -4341,12 +4341,12 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([['id' => 'comment-fix-run', 'when' => ['card.fix_run.uncommented' => []], 'then' => ['forge-write' => ['write' => 'comment', 'comment' => 'fix-run']]]]);
         $this->pullRequest($card);
-        $first = $this->workerRun($card, 'fix', WorkerRunState::Queued);
+        $first = $this->workerRun($card, 'fix', WorkerRunState::Queued, role: 'fix');
 
         $this->evaluate($card);
         self::assertCount(1, $this->service(PullRequestCommentRepository::class)->findBy(['cardId' => $card->id]));
 
-        $second = $this->workerRun($card, 'fix', WorkerRunState::Queued);
+        $second = $this->workerRun($card, 'fix', WorkerRunState::Queued, role: 'fix');
         $this->evaluate($card, '2026-10-02 12:01:00');
 
         $runIds = array_map(static fn (PullRequestComment $comment): string => (string) $comment->runId, $this->service(PullRequestCommentRepository::class)->findBy(['cardId' => $card->id]));
@@ -4446,9 +4446,12 @@ final class EngineTest extends KernelTestCase
      *
      * @return array<string, mixed>
      */
-    private static function requestRule(string $id, array $when, ?int $limit = null, bool $refill = false, ?string $kind = null): array
+    private static function requestRule(string $id, array $when, ?int $limit = null, bool $refill = false, ?string $kind = null, ?string $role = null): array
     {
         $request = ['kind' => $kind ?? $id];
+        if (null !== $role) {
+            $request['role'] = $role;
+        }
         if (null !== $limit) {
             $request['limit'] = $limit;
         }
@@ -4672,7 +4675,7 @@ final class EngineTest extends KernelTestCase
         return $this->workerRun($card, 'work', $state, $this->workerRun($card, 'work', WorkerRunState::Blocked), $receivedAt, $ruleId);
     }
 
-    private function workerRun(Card $card, string $workKind, WorkerRunState $state, ?WorkerRun $continues = null, ?\DateTimeImmutable $receivedAt = null, ?string $ruleId = null): WorkerRun
+    private function workerRun(Card $card, string $workKind, WorkerRunState $state, ?WorkerRun $continues = null, ?\DateTimeImmutable $receivedAt = null, ?string $ruleId = null, ?string $role = null): WorkerRun
     {
         $run = new WorkerRun(
             project: $card->project,
@@ -4685,6 +4688,7 @@ final class EngineTest extends KernelTestCase
             receivedAt: $receivedAt ?? new \DateTimeImmutable(),
             continuesRun: $continues,
             ruleId: $ruleId,
+            role: $role,
         );
         $this->em()->persist($run);
         $this->em()->flush();

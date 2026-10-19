@@ -7,9 +7,6 @@ namespace App\Module\Readiness\EventListener;
 use App\Exception\DomainErrors;
 use App\Module\Board\Command\CreateCardCommand;
 use App\Module\Board\Command\CreateCardHandler;
-use App\Module\Board\Command\EpicChildrenOpen;
-use App\Module\Board\Command\UpdateCardCommand;
-use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\CardSource;
 use App\Module\Board\Entity\CardSourceKind;
 use App\Module\Board\Repository\BoardColumnRepository;
@@ -30,6 +27,8 @@ use App\Module\Review\Repository\DecisionSelectionRepository;
 use App\Module\Review\Service\DecisionBlockService;
 use App\Module\Review\ValueObject\Decision;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\CardEvaluations;
+use App\Module\Workflow\Contract\ProposalSlot;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -37,14 +36,12 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * The owner approved a discovery report, also while a worker revises it. Each proposal they ticked becomes a card in Next, and the discovery card moves to done.
+ * The owner approved a discovery report, also while a worker revises it. Each proposal they ticked becomes a card in the proposal column. The workflow moves the discovery card to done once the run is done.
  * The event fires inside the verdict transaction, so the card handlers join it, and a failure here undoes the verdict.
  */
 #[AsEventListener]
 final readonly class CreateTickedCardsOnReviewSubmitted
 {
-    public const string NEXT_SLOT = 'next';
-
     public function __construct(
         private DiscoveryRunRepository $discoveryRuns,
         private DiscoveryProposalRepository $discoveryProposals,
@@ -52,7 +49,8 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private BoardColumnRepository $boardColumns,
         private CreateCardHandler $createCard,
-        private UpdateCardHandler $updateCard,
+        private CardEvaluations $evaluations,
+        private ProposalSlot $proposalSlot,
         private DecisionBlockService $decisionBlocks,
         private WorkRequestRepository $workRequests,
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
@@ -109,7 +107,8 @@ final readonly class CreateTickedCardsOnReviewSubmitted
         $ticked = $this->tickedLabels($event, $document);
 
         // A missing link, a deleted column and a project with no slot all leave the column null, and the card then lands in Backlog.
-        $nextId = $this->workflowSlotLinks->findColumnIdForSlot($project, self::NEXT_SLOT);
+        $slot = $this->proposalSlot->proposalSlot();
+        $nextId = null === $slot ? null : $this->workflowSlotLinks->findColumnIdForSlot($project, $slot);
         $next = null === $nextId ? null : $this->boardColumns->find($nextId);
         $created = 0;
         foreach ($this->discoveryProposals->findForRun($run) as $proposal) {
@@ -139,18 +138,12 @@ final readonly class CreateTickedCardsOnReviewSubmitted
             ++$created;
         }
 
-        $terminal = $this->boardColumns->findFirstTerminalForProjectId((string) $project->id);
-        if (null !== $terminal && $terminal !== $run->card->column) {
-            try {
-                ($this->updateCard)(new UpdateCardCommand(card: $run->card, actor: Actor::System, column: $terminal));
-            } catch (DomainErrors|EpicChildrenOpen $e) {
-                $this->logger->warning('readiness.discovery_card_not_moved', ['discoveryRunId' => (string) $run->id, 'cardId' => (string) $run->card->id, 'reason' => $e::class]);
-            }
-        }
-
         $run->state = DiscoveryRunState::Done;
         $run->endedAt = $this->clock->now();
         $this->em->flush();
+        if ($this->evaluations->isOn()) {
+            $this->evaluations->forCards([$run->card->id ?? throw new \LogicException('A stored card has an id.')]);
+        }
 
         // The approval wins over a revision under way. The run is Done first, so the cancel of the request fails no run.
         if ($wasRevising) {

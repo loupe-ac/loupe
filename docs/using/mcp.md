@@ -281,7 +281,7 @@ Roughly in the order an agent uses them:
 | `readiness_get` | Read the readiness checks of the project, each with its status, and the state and the `runId` of the latest discovery run. `readiness_report_submit` takes that `runId`. It works while the Workshop guide is hidden |
 | `discovery_start` | Start a read-only [discovery run](workshop.md#run-discovery) on a new Backlog card. A running bridge must serve the project, the project needs a workflow with board automation on, and one run can be open at a time |
 | `readiness_report_submit` | Submit the report of a [discovery run](workshop.md#review-the-report): the findings, and the cards it proposes. Loupe writes the report as a document for review. When the owner approves it, each ticked proposal becomes a card in Next. A run takes one report, and one revised version for each time you ask for changes |
-| `workflow_get` | Read the [workflow](workflows.md) of the project: its template and version, the board columns with the slot of each, and each kind of work with the rules that ask for it and its `checks` |
+| `workflow_get` | Read the [workflow](workflows.md) of the project: its template and version, whether an approval covers a conflict resolution, the epic branch pattern, the board columns with the slot of each, and each kind of work with the rules that ask for it and its `checks` |
 | `document_create` | Submit Markdown as a new document, or as a draft with `draft`; returns a review URL, the language it was stored in and its status |
 | `document_revise` | Submit a new version, described by what changed |
 | `document_publish` | Send a draft to review, so it reaches the reviewer's inbox |
@@ -299,9 +299,9 @@ Roughly in the order an agent uses them:
 | `series_rename` | Rename a series; every document in it keeps its position |
 | `feedback_list` | The project's site-review feedback, each item with the card it belongs to (off with the board, see below) |
 | `feedback_mark_addressed` | Mark feedback items acted on, so the next `feedback_list` skips them (off with the board, see below) |
-| `agent_review_submit` | Submit the review of a pull request of a card, with findings on file lines. A finding has the category `code` (the default) or `spec`, a gap between the pull request and the approved design. Only a `spec` finding can leave out the file and the lines. A `spec` finding can set `needsPerson` when a worker cannot settle it from the design and the code alone. The fix worker then asks the owner. Only a running `review` worker of the card can call it. Loupe stores the review against the commit it names, and the `agent-review-check` forge write shows it as a check on the pull request. The result field `current` says whether that commit matches the last head commit that Loupe read from the forge |
-| `document_review_submit` | Submit the review of a draft design document of a card, with findings that name no file. A finding can set `needsPerson` for a gap that only the owner can settle, and such a finding does not fail the review. Only a running `design-review` worker of the card can call it, and only for a draft that the card links. Loupe stores the review against the version number it names. The result field `current` says whether that version is still the newest |
-| `document_review_answer` | Answer each finding of the latest agent review that the card got for a draft design document as `fixed`, `not-changed` with a reason, or `to-owner`. Only a running `product-design-revise` or `tech-design-revise` worker of the card can call it, once for each review, with one answer for every finding |
+| `agent_review_submit` | Submit the review of a pull request of a card, with findings on file lines. A finding has the category `code` (the default) or `spec`, a gap between the pull request and the approved design. Only a `spec` finding can leave out the file and the lines. A `spec` finding can set `needsPerson` when a worker cannot settle it from the design and the code alone. The fix worker then asks the owner. Only a running worker of the card with the `code-review` role can call it. Loupe stores the review against the commit it names, and the `agent-review-check` forge write shows it as a check on the pull request. The result field `current` says whether that commit matches the last head commit that Loupe read from the forge |
+| `document_review_submit` | Submit the review of a draft design document of a card, with findings that name no file. A finding can set `needsPerson` for a gap that only the owner can settle, and such a finding does not fail the review. Only a running worker of the card with the `design-review` role can call it, and only for a draft that the card links. Loupe stores the review against the version number it names. The result field `current` says whether that version is still the newest |
+| `document_review_answer` | Answer each finding of the latest agent review that the card got for a draft design document as `fixed`, `not-changed` with a reason, or `to-owner`. Only a running worker of the card with the `design-revise` role can call it, once for each review, with one answer for every finding |
 | `card_create` | Put a card on the project board (off with the board, see below) |
 | `card_list` | Read a page of the board, filtered by status, type, reporter or parent, with the board's columns |
 | `board_columns` | List the board's columns, each with its slug, label, terminal flag, default flag and backlog flag, and the card types of the project |
@@ -525,6 +525,11 @@ settings refuses, and the error says what the agent can fix. For example, a
 delete of a column that holds cards needs `targetColumn`.
 `automation_settings_update` turns the workflow of the board on or off with
 `enabled`, as the **Automation** tab does. A call that omits it keeps the value.
+The argument `approvalCoversConflictResolution` sets whether an approval still
+covers a merge from the base that resolves a conflict. It changes the template
+value of the same name, which only an agent can change. See
+[Lifecycle](workflows.md#the-lifecycle-template). The result of the tool holds
+the value, and so does the result of `workflow_get`.
 
 The board has no delete tool. An agent moves a card to a terminal column; only a
 person removes one. `card_update` also refuses to change `reporter`, because

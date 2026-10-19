@@ -9,6 +9,8 @@ use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Event\BoardAutomationSettingsSaved;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\BoardAutomation;
+use App\Module\Workflow\Contract\ApprovalRules;
+use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -24,15 +26,26 @@ final readonly class SaveBoardAutomationSettingsHandler
         private EventDispatcherInterface $events,
         private CardRepository $cards,
         private ClockInterface $clock,
+        private ApprovalRules $approvalRules,
+        private ApprovalRuleWriter $approvalRuleWriter,
     ) {
     }
 
     public const string STUCK_DELAY_INVALID = 'board.automation.error.stuck_delay_invalid';
 
+    public const string NO_WORKFLOW = 'board.automation.error.no_workflow';
+
     public function __invoke(SaveBoardAutomationSettingsCommand $command): void
     {
         if ($command->stuckDelayMinutes < BoardAutomationSettings::MIN_STUCK_DELAY_MINUTES || $command->stuckDelayMinutes > BoardAutomationSettings::MAX_STUCK_DELAY_MINUTES) {
             throw new DomainErrors(['stuckDelayMinutes' => self::STUCK_DELAY_INVALID]);
+        }
+
+        $projectId = $command->project->id ?? throw new \LogicException('The project is not persisted.');
+        $approvalChanged = null !== $command->approvalCoversConflictResolution
+            && $command->approvalCoversConflictResolution !== $this->approvalRules->coversConflictResolution($projectId);
+        if ($approvalChanged && !$this->approvalRuleWriter->setCoversConflictResolution($projectId, $command->approvalCoversConflictResolution)) {
+            throw new DomainErrors(['approvalCoversConflictResolution' => self::NO_WORKFLOW]);
         }
 
         $settings = $this->automation->settingsForUpdate($command->project);
@@ -54,6 +67,7 @@ final readonly class SaveBoardAutomationSettingsHandler
             'projectId' => (string) $command->project->id,
             'enabled' => $command->enabled,
             'stuckDelayMinutes' => $settings->stuckDelayMinutes,
+            'approvalCoversConflictResolution' => $this->approvalRules->coversConflictResolution($projectId),
         ]);
     }
 }

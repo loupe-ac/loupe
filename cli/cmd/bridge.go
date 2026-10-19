@@ -535,6 +535,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 				return r.credentials.answer(ctx, runID)
 			},
+			env:    r.runEnv,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					return updateResult{From: version, Outcome: outcomeFailed, Problem: "this bridge runs no update checks"}

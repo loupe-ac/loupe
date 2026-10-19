@@ -143,6 +143,12 @@ type handoverRun struct {
 	ConfigDir      string   `json:"configDir,omitempty"`
 	Profile        string   `json:"profile,omitempty"`
 	EnvFiles       []string `json:"envFiles,omitempty"`
+	// WorkerDir is the folder the worker runs in. Refresh and Reset are the
+	// commands of `loupe env`, and Socket the control socket it reaches.
+	WorkerDir string        `json:"workerDir,omitempty"`
+	Refresh   *rules.Before `json:"refresh,omitempty"`
+	Reset     *rules.Before `json:"reset,omitempty"`
+	Socket    string        `json:"socket,omitempty"`
 	// Work is the work request of the run, and ClaimToken its claim. Origin
 	// is the work of the run a person's resume or rerun continues.
 	Work       *api.WorkRequest `json:"work,omitempty"`
@@ -371,6 +377,7 @@ func (r *router) freeze() handoverState {
 		if !run.p.isCommand() {
 			s := run.p.spec
 			h.PermissionMode, h.Model, h.Effort, h.Harness, h.Account, h.ConfigDir, h.Profile, h.EnvFiles = s.permissionMode, s.model, s.effort, s.harnessName, s.account, s.configDir, s.profile, s.envFiles
+			h.WorkerDir, h.Refresh, h.Reset, h.Socket = s.dir, s.refresh, s.reset, s.socket
 		}
 		st.Live = append(st.Live, h)
 	}
@@ -482,6 +489,8 @@ func (r *router) adoptLocked(run handoverRun) {
 		Model: run.Model, PermissionMode: run.PermissionMode,
 	})
 	p.spec.effort = run.Effort
+	p.spec.dir, p.spec.refresh, p.spec.reset = cmp.Or(run.WorkerDir, p.spec.dir), run.Refresh, run.Reset
+	p.spec.socket = run.Socket
 	// The harness of a run in its before phase starts under this image.
 	p.adopted, p.cliVersion = run.Phase != phaseBefore, run.CLIVersion
 	// A command run takes no slot.

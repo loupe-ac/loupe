@@ -26,10 +26,11 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `project-tech-design` | A technical design that settles an architecture, an entity model, a module boundary, or a subsystem |
 | `loupe-site-review` | Acting on site-review feedback through the `loupe` MCP: `feedback_list` or `card_get`, fixing feedback, `feedback_mark_addressed` |
 | `loupe-board` | Working a project board through the `loupe` MCP: `card_create`, `card_list`, `card_get`, `card_update`, writing a card, linking a pull request |
+| `loupe-discovery` | A discovery run of the project: `readiness_get`, `workflow_get`, `readiness_report_submit`, the readiness report |
 | `loupe-inbox` | Asking the project owner through the `loupe` MCP: `inbox_search`, `inbox_join`, `inbox_ask`, `inbox_list`, `inbox_get`, `inbox_withdraw`, ending a turn after a blocking ask |
 | `loupe-workers` | Reading worker runs and bridges, or stopping, resuming and cancelling workers through the `loupe` MCP: `worker_run_list`, `worker_run_get`, `bridge_list`, `worker_run_resume`, `worker_run_stop`, `card_hold`, `card_release`, `card_pause_release`, `bridge_command_cancel`, recovering workers after an outage |
 | `loupe-analysis` | Running an analysis of a project's worker runs through the `loupe` MCP: `analysis_get`, `metric_query`, `analysis_report`, the cost report and its proposals |
-| `product-design` | An interactive product design session with the owner through the `loupe` MCP, from a card or a one-line idea: `/loupe:product-design` |
+| `loupe-product-design` | An interactive product design session with the owner through the `loupe` MCP, from a card or a one-line idea: `/loupe:product-design` |
 | `loupe-stage-product-design` | One review round on a card's product document, or a prompt that names the skill |
 | `loupe-stage-tech-design` | A card entering the Tech design column, or a prompt that names the skill: write or revise the tech design |
 | `loupe-stage-implementation` | A card entering the Implementation column, or a prompt that names the skill: build the approved tech design into a ready pull request, or break an epic down into child cards |
@@ -42,6 +43,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `symfony-entity-route-mapping` | Routes that resolve entities from URL parameters: `{param:variable}` notation, `#[MapEntity]`, multi-entity routes |
 | `project-comments` | Writing or reviewing code comments and docblocks anywhere in `src/`, `assets/` or `tests/` |
 | `project-mutation-and-coverage` | Mutation testing, code coverage, fetching a weekly report artifact, or a test that asserts on elapsed time |
+| `holding-a-merge-queue` | One session holds the merge queue, watches several pull requests, or verifies and merges branches that other sessions push |
 | `loupe-recommendations` | Recommending, choosing or reviewing a solution: a design decision, a fix, a plan, a review finding, a patch against a correct fix |
 | `working-with-prs` | Opening, gating, reviewing or merging a pull request |
 
@@ -71,13 +73,9 @@ Finish a card by moving it to a terminal column, which is `done` on a board with
 
 The bridge is the `loupe bridge` process from `cli/`. It runs on the owner's machine, watches the board, and starts a Claude Code worker for each work request. The workflow rules in the app decide which work a card needs. The bridge decides how to run it.
 
-The bridge rule file is local and not in git. On macOS it is `~/Library/Application Support/loupe/rules.yaml`, next to `config.json` and the `runs/` directory of each worker run. Its `work:` map has one entry per kind of work, such as `tech-design`, `implement`, `fix` or `merge`. Each entry sets the prompt, and optionally the `model`, `workerPool`, `before` command and `variants`. An entry with no `model` uses `defaults.model`.
+The bridge rule file is local and not in git. On macOS it is `~/Library/Application Support/loupe/rules.yaml`. Run `loupe bridge reload` after you edit it, and `loupe update` to install a new CLI release.
 
-Run `loupe bridge reload` after you edit the file. It applies the change without a restart and lists the entries that changed.
-
-Run `loupe update` to install a new CLI release. It asks each running bridge to check for a release and hand over to it, and replaces the binary in place when no bridge runs. Automatic updates are off unless the rule file sets `autoUpdate: true`. A binary from Homebrew updates through `brew upgrade` instead.
-
-`docs/extending/cli-bridge.md` describes the full format, and the `loupe-workers` skill covers the runs.
+`docs/extending/cli-bridge.md` describes the full format and the `loupe-workers` skill covers the runs.
 
 ## Git worktrees
 
@@ -159,7 +157,7 @@ Invoke the `working-with-prs` skill before you open, gate or merge a pull reques
 - The local gate is `just cs`, then `just phpstan`, `just arkitect` and `just gamache`. Then run PHPUnit on the tests for what changed, with `just phpunit tests/<path>` or `just phpunit --filter <name>`. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed. Run no Codex review. Open the pull request as a draft, and push. A review worker reviews it, and Loupe marks it ready when the review passes and the checks are green. CI's required checks, e2e included, are the full gate: read them on the pull request, and fix every failure, including pre-existing ones. A `PreToolUse` hook, `.agents/hooks/no-full-ci.sh`, refuses `just ci` and a full PHPUnit run.
 - A branch whose every changed file ends in `.md` runs `just cs` and pushes, and says so in the body. Verify with `git diff --name-only origin/main...HEAD | grep -v '\.md$'`. Any output means the full gate applies.
 - `main` is protected and takes `--squash` only. **Put the reasoning in the commit messages, not only in the PR body.** GitHub's squash default concatenates the branch's commit messages, so what survives in `git log` is what the commits said; the body survives only on the pull request page unless you pass `gh pr merge <n> --squash --body-file <file>`. A branch with substantive commit messages loses only the body's framing. A branch with thin ones loses everything. It requires one approving review and twelve CI checks. On 2026-10-06 the ruleset named `lint`, `cs-check`, `phpstan`, `arkitect`, `gamache`, `audit`, `phpunit`, `js-test`, `cli-test`, `e2e-chromium`, `e2e-rest` and `e2e-chromium-2`. Read that list from the ruleset rather than from here, because nothing in the repository fails when it goes stale. `working-with-prs` carries the command. An approval in chat is not a GitHub approval.
-- Never approve your own work, because the review stays with a human. Merging does not: a PR that is approved with all required checks green is good to merge, without asking. Never merge one that is unapproved, has a failing or pending check, or would need `--admin`. A stacked pull request has no required checks, so never merge it while it targets its parent's branch.
+- Never approve your own work, because the review stays with a human. Merging does not: a PR that is approved with all required checks green is good to merge, without asking, when no workflow rule will merge it. A PR linked to a card belongs to the `merge-ready` rule of the workflow, so leave it to that rule. Hand-merge only a PR that no rule reaches. Never merge one that is unapproved, has a failing or pending check, or would need `--admin`. A stacked pull request has no required checks, so never merge it while it targets its parent's branch.
 - A green gate is not evidence the change is correct. Read the diff.
 - Stack a branch on an unmerged pull request rather than waiting for it, and keep working until you are genuinely blocked. An unapproved pull request is not a blocker. A stacked pull request targets its parent's branch, never `main`: `gh pr create --base <parent-branch>`. Against `main`, its diff also shows every commit of the parent. `working-with-prs` carries what to watch for, which is a merge git reports as clean and is not, and what to do when the parent merges.
 

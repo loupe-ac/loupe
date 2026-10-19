@@ -176,8 +176,10 @@ For an epic child, replace the second command with the by-name read of "Read the
 GitHub keeps `reviewDecision` at `APPROVED` after a push when the branch rules do not dismiss a stale review. A review's `commit_id` does not show what the reviewer saw either, because GitHub moves it onto the head that a later merge creates. So read the approval by time with the script that sits next to this file. `<forge dir>` is the directory of this file:
 
 ```bash
-APPROVER=<login> <forge dir>/github-approval-covers.sh <url> <sha>
+APPROVER=<login> <forge dir>/github-approval-covers.sh --conflicts <covered|hold> <url> <sha>
 ```
+
+Set `--conflicts` from the project rule: `hold` when `workflow_get` returns `approvalCoversConflictResolution` false, and `covered` otherwise. A flag left out means `covered`.
 
 Set `APPROVER` when the profile `Merge` section names an approver. Then only that reviewer's approval counts. Otherwise omit it, and every reviewer counts.
 
@@ -185,8 +187,9 @@ The script takes each reviewer's last approving or blocking review. The earliest
 
 | Line | Exit | Meaning |
 |---|---|---|
-| `COVERED ...` | 0 | Every later commit is a merge from the base, with or without a conflict resolution. |
+| `COVERED ...` | 0 | Every later commit is a merge from the base. With `--conflicts hold`, git also makes each merge again with no conflict. |
 | `HOLD commits after approval: ...` | 1 | A later commit adds new content. |
+| `HOLD conflict resolution after approval: ...` | 1 | With `--conflicts hold`, a merge from the base holds a conflict resolution or a hand edit. |
 | `HOLD head moved`, `HOLD no approval`, `HOLD no push ...`, `HOLD 250 commits or more ...` | 1 | The item fails for that reason. |
 | `UNREAD: ...` | 2 | A read failed. |
 

@@ -7681,6 +7681,10 @@
                 <source>board.automation.error.stuck_delay_invalid</source>
                 <target>The stuck delay must be a number of minutes from 1 to 1440.</target>
             </trans-unit>
+            <trans-unit id="board.automation.error.no_workflow">
+                <source>board.automation.error.no_workflow</source>
+                <target>This project has no workflow yet, so it has no approval rule to change.</target>
+            </trans-unit>
             <trans-unit id="board.fix_run_comment.intro">
                 <source>board.fix_run_comment.intro</source>
                 <target>Loupe queued a fix run for this pull request.</target>
@@ -8428,6 +8432,8 @@
             <trans-unit id="workflow.waiting.not.card_is_child"><source>workflow.waiting.not.card_is_child</source><target>Waiting: the card is a child of an epic.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_discovery_requested"><source>workflow.waiting.card_discovery_requested</source><target>Waiting: the card has no requested discovery.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_discovery_requested"><source>workflow.waiting.not.card_discovery_requested</source><target>Waiting: the card has a requested discovery.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_discovery_approved"><source>workflow.waiting.card_discovery_approved</source><target>Waiting: the owner has not approved the discovery report of the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_discovery_approved"><source>workflow.waiting.not.card_discovery_approved</source><target>Waiting: the owner approved the discovery report of the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_discovery_revising"><source>workflow.waiting.card_discovery_revising</source><target>Waiting: no discovery report of the card needs a revision.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_discovery_revising"><source>workflow.waiting.not.card_discovery_revising</source><target>Waiting: a discovery report of the card needs a revision.</target></trans-unit>
             <trans-unit id="workflow.waiting.site_review_verdict_unsent"><source>workflow.waiting.site_review_verdict_unsent</source><target>Waiting: no verdict of the card waits to be sent.</target></trans-unit>

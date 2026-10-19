@@ -41,6 +41,35 @@ final class MoveCardTest extends KernelTestCase
         self::assertSame(['type' => 'workflow-rule', 'rule' => 'tech-design-approved'], $moves[0]->detail['cause']);
     }
 
+    public function test_a_move_with_an_outcome_records_it_in_the_cause(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('move-outcome');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'in-progress');
+        $rule = $this->rule('move', ['to' => '@terminal', 'outcome' => 'merged'], 'merged');
+
+        $outcome = $this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card, $rule->id));
+
+        self::assertEquals(ActionOutcome::done(), $outcome);
+        self::assertTrue($card->column->terminal);
+        $moves = array_values(array_filter(
+            $this->service(CardEventRepository::class)->findForCard($card),
+            static fn ($event): bool => CardEventKind::Moved === $event->kind,
+        ));
+        self::assertCount(1, $moves);
+        self::assertSame(['type' => 'workflow-rule', 'rule' => 'merged', 'outcome' => 'merged'], $moves[0]->detail['cause']);
+    }
+
+    public function test_the_outcome_parameter_takes_only_merged(): void
+    {
+        $outcome = array_values(array_filter(MoveCard::parameters(), static fn ($parameter): bool => 'outcome' === $parameter->name));
+
+        self::assertCount(1, $outcome);
+        self::assertSame(['merged'], $outcome[0]->choices);
+        self::assertFalse($outcome[0]->required);
+    }
+
     public function test_it_resolves_the_backlog_and_the_first_terminal_column(): void
     {
         self::bootKernel();

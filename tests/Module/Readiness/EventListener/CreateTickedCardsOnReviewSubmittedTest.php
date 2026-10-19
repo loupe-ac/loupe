@@ -31,10 +31,12 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Review;
 use App\Module\Review\Event\ReviewSubmitted;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Module\Workflow\Repository\WorkflowSlotLinkRepository;
 use App\Tests\Module\Readiness\DiscoveryScenario;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 {
@@ -84,7 +86,6 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         self::assertSame(['feature', 'tooling'], array_map(static fn (Card $card): string => $card->type, $created));
         self::assertSame('Write the first tests.', $created[0]->body);
         self::assertSame([(string) $created[0]->id, null, (string) $created[1]->id, null], array_map(static fn (DiscoveryProposal $proposal): ?string => $proposal->createdCardId?->toRfc4122(), $this->proposals()));
-        self::assertTrue($this->run->card->column->terminal);
         self::assertSame([DiscoveryRunState::Done], [$this->run->state]);
         self::assertNotNull($this->run->endedAt);
         self::assertSame(DocumentStatus::Approved, $this->report->status);
@@ -96,7 +97,18 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
         self::assertSame([], $this->createdCards());
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
-        self::assertTrue($this->run->card->column->terminal);
+    }
+
+    public function test_an_approval_leaves_the_discovery_card_in_place_and_queues_its_evaluation(): void
+    {
+        $column = $this->run->card->column;
+        $this->transport()->reset();
+
+        $this->approve();
+
+        self::assertSame($column, $this->run->card->column);
+        self::assertFalse($this->run->card->column->terminal);
+        self::assertContains((string) $this->run->card->id, array_map(static fn ($envelope): ?string => ($message = $envelope->getMessage()) instanceof EvaluateCard ? $message->cardId : null, $this->transport()->getSent()));
     }
 
     public function test_a_changes_requested_verdict_creates_no_card_and_sends_the_run_to_revising(): void
@@ -237,6 +249,14 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
         $this->approve($other);
 
         self::assertSame(DiscoveryRunState::Reported, $this->run->state);
+    }
+
+    private function transport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
     }
 
     private function tick(int ...$positions): void

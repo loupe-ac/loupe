@@ -42,11 +42,12 @@ trait DocumentReviewScenario
         return $document;
     }
 
-    private function workRun(Project $project, Card $card, Uuid $sessionId, string $workKind, WorkerRunState $state = WorkerRunState::Running, ?WorkRequestState $requestState = null): WorkerRun
+    private function workRun(Project $project, Card $card, Uuid $sessionId, string $workKind, WorkerRunState $state = WorkerRunState::Running, ?WorkRequestState $requestState = null, ?string $role = null): WorkerRun
     {
         $requestId = Uuid::v7();
         if (null !== $requestState) {
             $request = new WorkRequest($project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), 1, $workKind, null, 'rule', new \DateTimeImmutable());
+            $request->role = $role;
             $request->state = $requestState;
             $this->em->persist($request);
             $this->em->flush();
@@ -62,6 +63,7 @@ trait DocumentReviewScenario
             state: $state,
             sessionId: $sessionId,
             workRequestId: $requestId,
+            role: $role,
         );
         $this->em->persist($run);
         $this->em->flush();

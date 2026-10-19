@@ -117,6 +117,7 @@ final readonly class OpenWorkRequestHandler
                 $request->branch = $command->branch;
                 $request->params = $command->params;
                 $request->run = $command->run;
+                $request->role = $command->role;
                 $this->em->persist($request);
                 // The payload names the request, so the row needs its id first.
                 $this->em->flush();
@@ -146,6 +147,7 @@ final readonly class OpenWorkRequestHandler
                 'subjectType' => $request->subjectType,
                 'subjectId' => (string) $request->subjectId,
                 'kind' => $request->kind,
+                'role' => $request->role,
                 'capability' => $request->capability,
                 'ruleId' => $request->ruleId,
                 'model' => $request->model,

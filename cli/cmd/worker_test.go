@@ -28,7 +28,7 @@ const (
 func TestWorkerEnvReplacesAnInheritedSession(t *testing.T) {
 	base := []string{sessionVar + "outer", "HOME=/home/a", sessionVar + "again"}
 
-	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", nil, nil)).Env
+	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", "", nil, nil)).Env
 	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0", "MCP_TIMEOUT=150000"}) {
 		t.Fatalf("workerEnv = %q", got)
 	}
@@ -61,6 +61,20 @@ func gitConfigEntries(count int, start int) []string {
 	}
 }
 
+// A worker finds the control socket of its bridge in the environment, and an
+// inherited value names another bridge.
+func TestWorkerEnvGivesTheControlSocket(t *testing.T) {
+	base := []string{"HOME=/home/a", "LOUPE_BRIDGE_SOCKET=/other.sock"}
+
+	got := workerEnv(base, "s1", "/tmp/bridge.sock", nil, nil)
+	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", "LOUPE_BRIDGE_SOCKET=/tmp/bridge.sock"}) {
+		t.Fatalf("workerEnv = %q", got)
+	}
+	if got := workerEnv(base, "s1", "", nil, nil); !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1"}) {
+		t.Fatalf("workerEnv with no socket = %q", got)
+	}
+}
+
 func TestWorkerEnvPushesAsTheAgentAccount(t *testing.T) {
 	base := []string{
 		"HOME=/home/a", "PATH=/usr/bin:/bin", "GH_TOKEN=owner", "GITHUB_TOKEN=owner", "GIT_AUTHOR_NAME=Owner",
@@ -68,7 +82,7 @@ func TestWorkerEnvPushesAsTheAgentAccount(t *testing.T) {
 	}
 	account := &config.AgentAccount{Token: "ghp_agent", Login: "loupe-bot", ID: 4242}
 
-	got := workerEnv(base, "s1", account, credEnvFixture())
+	got := workerEnv(base, "s1", "", account, credEnvFixture())
 	want := append([]string{
 		"HOME=/home/a", sessionVar + "s1",
 		"LOUPE_RUN_ID=r1", "LOUPE_CONTROL_SOCKET=" + credSocket,
@@ -91,7 +105,7 @@ func TestWorkerEnvManagedWorkerKeepsItsIdentity(t *testing.T) {
 		"LOUPE_RUN_ID=old", "GIT_TERMINAL_PROMPT=1", "GIT_ASKPASS=/usr/bin/owner-askpass",
 	}
 
-	got := workerEnv(base, "s1", nil, credEnvFixture())
+	got := workerEnv(base, "s1", "", nil, credEnvFixture())
 	want := append([]string{
 		"HOME=/home/a", "GIT_AUTHOR_NAME=Owner", sessionVar + "s1",
 		"LOUPE_RUN_ID=r1", "LOUPE_CONTROL_SOCKET=" + credSocket,
@@ -104,7 +118,7 @@ func TestWorkerEnvManagedWorkerKeepsItsIdentity(t *testing.T) {
 }
 
 func TestWorkerEnvWithoutAPathStillPutsTheWrapperFirst(t *testing.T) {
-	got := workerEnv([]string{"HOME=/h"}, "s1", nil, credEnvFixture())
+	got := workerEnv([]string{"HOME=/h"}, "s1", "", nil, credEnvFixture())
 	if !slices.Contains(got, "PATH="+credBinDir+":/usr/local/bin:/usr/bin:/bin") {
 		t.Fatalf("workerEnv = %q", got)
 	}
@@ -117,7 +131,7 @@ func TestWorkerEnvKeepsTheInheritedGitConfig(t *testing.T) {
 
 	for name, agent := range map[string]*config.AgentAccount{"agent": account, "managed": nil} {
 		t.Run(name, func(t *testing.T) {
-			got := workerEnv(base, "s1", agent, credEnvFixture())
+			got := workerEnv(base, "s1", "", agent, credEnvFixture())
 			for _, e := range append([]string{"GIT_CONFIG_KEY_0=core.editor", "GIT_CONFIG_VALUE_0=vi"}, gitConfigEntries(5, 1)...) {
 				if !slices.Contains(got, e) {
 					t.Fatalf("workerEnv = %q, want %q in it", got, e)
@@ -140,7 +154,7 @@ func TestWorkerEnvKeepsTheInheritedGitConfig(t *testing.T) {
 func TestWorkerEnvPlainWorkerKeepsTheEnvironment(t *testing.T) {
 	base := []string{"HOME=/h", "PATH=/bin", "GH_TOKEN=owner", "GIT_CONFIG_COUNT=2"}
 
-	got := workerEnv(base, "s1", nil, nil)
+	got := workerEnv(base, "s1", "", nil, nil)
 	if !slices.Equal(got, append(slices.Clone(base), sessionVar+"s1")) {
 		t.Fatalf("workerEnv = %q", got)
 	}
@@ -174,7 +188,7 @@ func TestWorkerEnvHelperRunsInGit(t *testing.T) {
 	creds := &credentialEnv{runID: "r1", socket: credSocket, loupe: loupe, binDir: filepath.Join(dir, "bin")}
 
 	cmd := exec.Command(git, "credential", "fill")
-	cmd.Env = workerEnv([]string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1"}, "s1", nil, creds)
+	cmd.Env = workerEnv([]string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1"}, "s1", "", nil, creds)
 	cmd.Stdin = strings.NewReader("protocol=https\nhost=github.com\n\n")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -204,7 +218,7 @@ func TestEveryAcceptedRemoteAsksTheBridgeHelper(t *testing.T) {
 		}
 	}
 	creds := &credentialEnv{runID: "r1", socket: credSocket, loupe: loupe, binDir: filepath.Join(dir, "bin")}
-	env := workerEnv([]string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1"}, "s1", nil, creds)
+	env := workerEnv([]string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1"}, "s1", "", nil, creds)
 
 	remotes := []string{
 		"https://github.com/acme/site", "https://GitHub.com/acme/site", "https://user@github.com/acme/site",
@@ -242,7 +256,7 @@ func TestWorkerEnvFailingHelperUsesNoMachineAskpass(t *testing.T) {
 	base := []string{"HOME=" + dir, "PATH=" + os.Getenv("PATH"), "GIT_CONFIG_NOSYSTEM=1", "GIT_ASKPASS=" + askpass, "SSH_ASKPASS=" + askpass}
 
 	cmd := exec.Command(git, "-c", "core.askPass="+askpass, "credential", "fill")
-	cmd.Env = workerEnv(base, "s1", nil, creds)
+	cmd.Env = workerEnv(base, "s1", "", nil, creds)
 	cmd.Stdin = strings.NewReader("protocol=https\nhost=github.com\n\n")
 	out, err := cmd.CombinedOutput()
 	if err == nil || strings.Contains(string(out), "machine-secret") {

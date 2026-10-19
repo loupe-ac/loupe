@@ -281,6 +281,8 @@ type controlOps struct {
 	// credential answers a worker's request for the GitHub credentials of its
 	// run.
 	credential func(ctx context.Context, runID string) credentialResult
+	// env runs the refresh or the reset command of the worker of a session.
+	env func(ctx context.Context, op, session string) envResult
 }
 
 // serveControl answers each connection on ln with ops until ctx ends. The
@@ -350,8 +352,9 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	}
 	send := func(res any) { write(res, true) }
 	var req struct {
-		Op    string `json:"op"`
-		RunID string `json:"runId"`
+		Op        string `json:"op"`
+		RunID     string `json:"runId"`
+		SessionID string `json:"sessionId"`
 	}
 	switch {
 	case err != nil:
@@ -370,8 +373,17 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 		ops.stop()
 	case req.Op == "credential" && ops.credential != nil:
 		send(ops.credential(ctx, req.RunID))
+	case (req.Op == opRefresh || req.Op == opReset) && ops.env != nil:
+		// The command of an entry runs longer than the deadline.
+		conn.SetDeadline(time.Time{})
+		if req.SessionID == "" {
+			send(envResult{Problem: "the request names no session"})
+
+			break
+		}
+		send(ops.env(ctx, req.Op, req.SessionID))
 	default:
-		send(refused(fmt.Sprintf("unknown op %q: only reload, update, stop and credential are known", req.Op)))
+		send(refused(fmt.Sprintf("unknown op %q: only reload, update, stop, credential, refresh and reset are known", req.Op)))
 	}
 }
 

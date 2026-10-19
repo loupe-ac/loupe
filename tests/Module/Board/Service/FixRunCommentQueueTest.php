@@ -251,7 +251,7 @@ final class FixRunCommentQueueTest extends KernelTestCase
     {
         $card = $this->linkedCard();
         $this->workerRun($card, state: WorkerRunState::Succeeded, receivedAt: $this->ago('2 hours'));
-        $this->workerRun($card, workKind: 'implement');
+        $this->workerRun($card, workKind: 'implement', role: null);
         // The guard: an open fix run of the same card is found, so the query reads the card.
         $open = $this->workerRun($card);
 
@@ -420,7 +420,7 @@ final class FixRunCommentQueueTest extends KernelTestCase
         return $clock->now()->modify('-'.$interval);
     }
 
-    private function workerRun(Card $card, WorkerRunState $state = WorkerRunState::Queued, string $workKind = 'fix', ?WorkRequest $request = null, ?\DateTimeImmutable $receivedAt = null, ?\DateTimeImmutable $endedAt = null): WorkerRun
+    private function workerRun(Card $card, WorkerRunState $state = WorkerRunState::Queued, string $workKind = 'fix', ?WorkRequest $request = null, ?\DateTimeImmutable $receivedAt = null, ?\DateTimeImmutable $endedAt = null, ?string $role = 'fix'): WorkerRun
     {
         $run = new WorkerRun(
             project: $this->project,
@@ -435,6 +435,7 @@ final class FixRunCommentQueueTest extends KernelTestCase
             receivedAt: $receivedAt ?? new \DateTimeImmutable(),
             workRequestId: $request?->id,
             ruleId: $request?->ruleId,
+            role: $role,
         );
         $this->em->persist($run);
         $this->em->flush();

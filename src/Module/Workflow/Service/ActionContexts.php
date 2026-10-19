@@ -18,6 +18,8 @@ use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\TemplatePrompts;
+use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\Uid\Uuid;
 
 /** Builds what an action reads when it runs, with the column of each slot parameter that has one. */
@@ -29,14 +31,26 @@ final readonly class ActionContexts
         private BoardColumns $boardColumns,
         private WorkflowSlotLinkRepository $workflowSlotLinks,
         private AppRules $appRules,
+        private TemplateSource $templates,
+        private TemplatePrompts $templatePrompts,
     ) {
     }
 
     public function for(Rule $rule, CardSnapshot $card, Facts $facts, int $fires): ActionContext
     {
-        $name = RuleOrigin::App === $rule->origin ? $rule->then->params[TemplateParser::PROMPT] ?? null : null;
+        return $rule->context($card, $facts, $fires, $this->columns($rule, $card->projectId), $this->prompt($rule, $card->projectId));
+    }
 
-        return $rule->context($card, $facts, $fires, $this->columns($rule, $card->projectId), \is_string($name) ? $this->appRules->prompt($name) : null);
+    private function prompt(Rule $rule, Uuid $projectId): ?string
+    {
+        $name = $rule->then->params[TemplateParser::PROMPT] ?? null;
+        if (!\is_string($name)) {
+            return null;
+        }
+
+        return RuleOrigin::App === $rule->origin
+            ? $this->appRules->prompt($name)
+            : $this->templatePrompts->read($this->templates->forProject($projectId)->key, $name);
     }
 
     /** @return array<string, ColumnRef> the column of each slot parameter of the action, by parameter name; a slot with no column stays out */

@@ -36,7 +36,7 @@ final readonly class WorkRequestOpener implements WorkOpener
     }
 
     #[\Override]
-    public function open(ActionContext $context, string $kind, ?string $capability, ?string $reason = null): ActionOutcome
+    public function open(ActionContext $context, string $kind, ?string $capability, ?string $reason = null, ?string $role = null): ActionOutcome
     {
         $facts = $context->facts;
         $card = $this->cards->find($context->card->id) ?? throw new \LogicException('A stored card has an id.');
@@ -68,6 +68,7 @@ final readonly class WorkRequestOpener implements WorkOpener
                 inboxActionId: $retry?->actionId,
                 inboxItemNumber: $retry?->itemNumber,
                 inboxItemId: $retry?->itemId,
+                role: $role,
             ));
         } catch (WorkRequestAlreadyLive $e) {
             return ActionOutcome::alreadyLive($e->ruleId);

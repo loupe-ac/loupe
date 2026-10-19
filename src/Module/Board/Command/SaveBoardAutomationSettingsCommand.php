@@ -13,6 +13,7 @@ final readonly class SaveBoardAutomationSettingsCommand
         public Project $project,
         public bool $enabled,
         public int $stuckDelayMinutes = BoardAutomationSettings::DEFAULT_STUCK_DELAY_MINUTES,
+        public ?bool $approvalCoversConflictResolution = null,
     ) {
     }
 }

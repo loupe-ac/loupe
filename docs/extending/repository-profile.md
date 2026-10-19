@@ -22,12 +22,12 @@ rules as instructions, so write each one as a short, direct sentence.
 | Section | What it holds | Read by |
 |---|---|---|
 | `Instruction files` | The files and skills a worker loads before it changes code, such as `AGENTS.md` or `CONTRIBUTING.md`, and the writing style | Every stage |
-| `Environment` | A check that the worker is in its own folder, and a refresh to run after a sync brings new commits | Implementation, fix round |
+| `Environment` | A check that the worker is in its own folder | Implementation, fix round |
 | `Gate` | The base branch, and the commands to run before a push, in order | Implementation, fix round, merge, breakdown |
 | `Code review` | A review step before the push, and the rule that it passed. Write "none" when the gate has no review step | Implementation |
 | `Changelog` | Where a change records its changelog entry, and how to check it. Write "none" when the repository keeps no changelog | Implementation |
-| `Pull request` | The title format, the body rules, and whether a pull request opens as a draft or as ready | Implementation, merge |
-| `Board` | The column slugs that a stage reads or moves a card to | Implementation, breakdown, product design |
+| `Pull request` | The title format, the body rules, whether a pull request opens as a draft or as ready, and an optional branch pattern, with `card-<number>-<slug>` as the default | Implementation, merge |
+| `Board` | The column slugs that a stage reads or moves a card to: product design, tech design, implementation, review, default and terminal. A missing line means `product-design`, `tech-design`, `implementation` and `in-review` | Implementation, breakdown, product design |
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
 | `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
 
@@ -36,10 +36,16 @@ Four sections are optional. A missing optional section blocks nothing.
 1. `Forge` names the forge with one value, such as `github`. Without it, the
    worker reads the forge from the pull request link of the card, then from
    the host of the git remote.
-2. `Visual check` tells a worker how to screenshot a changed page: the paths
+2. `Documents` names the tags that mark a design document. The first line
+   gives the tag of the product design, and the second gives the tags of the
+   tech design. Without the section, the tags are `product-design`, and
+   `tech-design` with `decisions`. Workflow rules match these tags, so set
+   them only when your workflow template matches other tags.
+3. `Visual check` tells a worker how to screenshot a changed page: the paths
    that trigger the check, the app URL, how to sign in, the browser and the
-   widths.
-3. `Epics` holds the epic branch pattern, how a child of an epic merges, and
+   widths. Discovery also reads the browser tool from it, and checks for
+   Playwright when the section names none.
+4. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
    branches.
 4. `Decision records` names where the project keeps its decision records and
@@ -66,15 +72,11 @@ entry, and removes it with a `teardown` entry. The
 [command-line bridge](cli-bridge.md) describes both. The profile does not
 create or remove the folder.
 
-The `Environment` section holds two optional steps that run inside a stage:
+The `Environment` section holds one optional step that runs inside a stage: a folder check, which proves that the worker is not in the main checkout. For git worktrees, the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ.
 
-1. A folder check, which proves that the worker is not in the main checkout.
-   For git worktrees, the two lines of
-   `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ.
-2. A refresh, which the stage runs after a sync brings new commits, such as a
-   dependency install or a database migration.
+The refresh after a sync that brings new commits, such as a dependency install or a database migration, is not a profile step. Set the `refresh` field of the work entry in the bridge rule file. The stage runs `loupe env refresh`, and the bridge runs that command in the worker folder. See [refresh and reset commands](cli-bridge.md#refresh-and-reset-commands).
 
-Write "none" for a step that your repository does not need.
+Write "none" for the folder check when your repository does not need it.
 
 ## A starter profile
 
@@ -92,7 +94,6 @@ Lifecycle workflow and its default column slugs.
 ## Environment
 
 1. Folder check: none.
-2. Refresh after a sync that brings commits: run `npm ci`.
 
 ## Gate
 

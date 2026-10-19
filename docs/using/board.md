@@ -666,7 +666,7 @@ where it is, as for any card.
 
 A repository profile can give each epic its own branch. Its `.loupe/lifecycle.md`
 file then holds an `Epics` section. Under that profile, the breakdown of epic
-number n pushes a branch `epic/<n>` from `main`. It pushes the branch only when
+number n pushes a branch `epic/<n>` from the base branch of the profile. It pushes the branch only when
 no child of the epic links a pull request yet.
 
 The workflow template of the project names the branch in its top-level
@@ -925,7 +925,7 @@ An agent drives the board through the MCP endpoint. See
 | `column_update` | `slug` is required. `label` and `terminal` are optional. |
 | `column_reorder` | `order` is required: the slugs of every column except Backlog, in the new order. |
 | `column_delete` | `slug` is required. `targetColumn` is required when the column holds cards. |
-| `automation_settings_update` | Every argument is optional. `enabled` turns the workflow of the board on or off. |
+| `automation_settings_update` | Every argument is optional. `enabled` turns the workflow of the board on or off. `stuckDelayMinutes` sets the stuck delay. `approvalCoversConflictResolution` sets whether an approval still covers a merge from the base that resolves a conflict |
 
 `board_columns` lists the columns of the board in board order. Each entry
 carries `slug`, `label`, `terminal`, `default` and `backlog`. The Backlog row

@@ -1438,6 +1438,10 @@ type Match struct {
 	Experiment *Experiment
 	// Before is the command that runs ahead of claude, or nil.
 	Before *Before
+	// Refresh and Reset are the commands a worker asks the bridge to run in
+	// its folder with `loupe env`, or nil.
+	Refresh *Before
+	Reset   *Before
 	// Command is the command of a command entry, and nil for any other entry.
 	Command *Command
 }

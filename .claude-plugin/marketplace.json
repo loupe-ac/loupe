@@ -4,7 +4,7 @@
     "name": "Geoffrey Bachelet",
     "url": "https://github.com/ubermuda"
   },
-  "description": "The Loupe plugin for Claude Code \u2014 skills for documents, the board, the inbox, site review, the workers and the card stages.",
+  "description": "The Loupe plugin for Claude Code \u2014 skills for documents, the board, the inbox, site review, the workers, the analyses, discovery and the card stages.",
   "version": "0.42.0",
   "plugins": [
     {
@@ -12,7 +12,7 @@
       "displayName": "Loupe",
       "source": "./plugins/loupe",
       "version": "0.42.0",
-      "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, site review, the workers and the card stages.",
+      "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, site review, the workers, the analyses, discovery and the card stages.",
       "author": {
         "name": "Geoffrey Bachelet",
         "url": "https://github.com/ubermuda"

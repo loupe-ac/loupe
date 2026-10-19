@@ -12,14 +12,14 @@ Answer one round of feedback on the current stage of a card.
 1. Read `../loupe-stage-product-design/references/stage-contract.md`. Load the harness adapter, read the repository profile, and connect to the Loupe tools, as it says.
 2. Load the `loupe-board` instruction.
 3. Call `card_get`, and run the contract's column check.
-4. Read the card `status`, and take one branch:
-   - `product-design` or `tech-design`: the design round for the product document or the tech design, under the stage contract rules.
-   - `in-review` or `implementation`: the code round, under the contract of `../loupe-stage-implementation/SKILL.md` instead.
-   - Any other column: stop with `STAGE RESULT: no fix round for column <status>; expected product-design, tech-design, implementation or in-review`.
+4. Read the four column slugs from the profile `Board` section: product design, tech design, implementation and review. With no line for one, use `product-design`, `tech-design`, `implementation` or `in-review`. Read the card `status`, and take one branch:
+   - The product design or tech design slug: the design round for the product document or the tech design, under the stage contract rules.
+   - The implementation or review slug: the code round, under the contract of `../loupe-stage-implementation/SKILL.md` instead.
+   - Any other column: stop with `STAGE RESULT: no fix round for column <status>; expected <the four slugs>`.
 
 ### Design round
 
-1. Skip the tech design of the parent card in this whole round, even when the prompt names its id, as `../loupe-stage-implementation/references/breakdown.md` "Build a child" says. When the prompt names a document id, the document is the linked document with that id. Otherwise find the document among the linked documents. The product document has the tag `product-design`, or a title that starts `Product design`. The tech design has the tags `tech-design` and `decisions`, or a title that starts `Tech design`.
+1. Skip the tech design of the parent card in this whole round, even when the prompt names its id, as `../loupe-stage-implementation/references/breakdown.md` "Build a child" says. When the prompt names a document id, the document is the linked document with that id. Otherwise find the document among the linked documents. The product document has the product design tag, or a title that starts `Product design`. The tech design has the tech design tags, or a title that starts `Tech design`.
 2. When the card links no such document, stop with `STAGE RESULT: no linked <document>`. Skip the contract's `document_list` search, and never create a document.
 3. When its `status` is `approved`, stop with `STAGE RESULT: <document> already approved`.
 3a. The prompt line `Fix reason: <reason>.` names the prompt reason. Take "Answer an agent review" below instead of steps 4 to 7 when the prompt reason is `agent-review`. Without that line, take it when the document is a draft and `document_get_review` lists an unanswered agent review of this card.

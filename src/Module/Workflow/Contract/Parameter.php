@@ -13,7 +13,6 @@ final readonly class Parameter
      * @param ?string       $pattern     the regular expression a string parameter matches, or null for any
      * @param ?string       $patternHint what the error says about the pattern
      * @param ?string       $needs       the name of the parameter that this one cannot be given without
-     * @param bool          $appOnly     true when only the rules the app adds may carry the parameter
      */
     public function __construct(
         public string $name,
@@ -25,7 +24,6 @@ final readonly class Parameter
         public ?string $pattern = null,
         public ?string $patternHint = null,
         public ?string $needs = null,
-        public bool $appOnly = false,
     ) {
     }
 }
