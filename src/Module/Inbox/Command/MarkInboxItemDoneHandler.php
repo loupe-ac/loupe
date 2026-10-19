@@ -18,7 +18,7 @@ final readonly class MarkInboxItemDoneHandler
     /** The done form has no field, so its errors name the item itself. */
     private const string ERROR_FIELD = 'item';
 
-    public const string NOT_A_TODO = 'inbox.done.error.not_a_todo';
+    public const string NOT_A_TO_DO = 'inbox.done.error.not_a_todo';
     public const string ALREADY_DONE = 'inbox.done.error.already_done';
 
     public function __construct(
@@ -31,7 +31,7 @@ final readonly class MarkInboxItemDoneHandler
     {
         $item = $command->item;
         if (InboxItemKind::Todo !== $item->kind) {
-            throw new DomainErrors([self::ERROR_FIELD => self::NOT_A_TODO]);
+            throw new DomainErrors([self::ERROR_FIELD => self::NOT_A_TO_DO]);
         }
 
         // A second done from an older page would only move updatedAt.

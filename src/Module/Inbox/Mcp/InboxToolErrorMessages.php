@@ -92,7 +92,7 @@ final readonly class InboxToolErrorMessages
             AnswerInboxItemHandler::ONE_OPTION => 'This question takes one option.',
             AnswerInboxItemHandler::NO_FREE_TEXT => 'This question takes no free text.',
             AnswerInboxItemHandler::EMPTY => 'Pass at least one selected option or an answer text.',
-            MarkInboxItemDoneHandler::NOT_A_TODO => 'Only a todo can be marked done.',
+            MarkInboxItemDoneHandler::NOT_A_TO_DO => 'Only a todo can be marked done.',
             MarkInboxItemDoneHandler::ALREADY_DONE => 'The todo is already done.',
             DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE => 'A workflow question cannot be declined. Answer it with inbox_answer.',
             InboxItemCloser::ERROR_FINAL => 'The response is final, because an ask that holds this item has closed.',

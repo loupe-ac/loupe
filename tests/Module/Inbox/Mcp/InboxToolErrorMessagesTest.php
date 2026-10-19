@@ -23,7 +23,7 @@ final class InboxToolErrorMessagesTest extends TestCase
         yield 'one option' => [AnswerInboxItemHandler::ONE_OPTION, 'This question takes one option.'];
         yield 'no free text' => [AnswerInboxItemHandler::NO_FREE_TEXT, 'This question takes no free text.'];
         yield 'empty answer' => [AnswerInboxItemHandler::EMPTY, 'Pass at least one selected option or an answer text.'];
-        yield 'not a todo' => [MarkInboxItemDoneHandler::NOT_A_TODO, 'Only a todo can be marked done.'];
+        yield 'not a todo' => [MarkInboxItemDoneHandler::NOT_A_TO_DO, 'Only a todo can be marked done.'];
         yield 'already done' => [MarkInboxItemDoneHandler::ALREADY_DONE, 'The todo is already done.'];
         yield 'workflow not declinable' => [DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE, 'A workflow question cannot be declined. Answer it with inbox_answer.'];
         yield 'final' => [InboxItemCloser::ERROR_FINAL, 'The response is final, because an ask that holds this item has closed.'];
