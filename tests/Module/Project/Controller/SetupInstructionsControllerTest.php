@@ -20,17 +20,17 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertResponseHeaderSame('Content-Type', 'text/markdown; charset=utf-8');
         $body = (string) $client->getResponse()->getContent();
 
-        self::assertStringContainsString('loupe login --url http://localhost ', $body);
+        self::assertStringContainsString('loupe init --url http://localhost --mcp', $body);
         self::assertStringContainsString('curl -fsSL http://localhost/install.sh | LOUPE_INSTALL_NO_TTY=1 sh', $body);
         self::assertStringContainsString('<project id>', $body);
         // Shell redirections in the steps prove the text is not HTML-escaped.
-        self::assertStringContainsString('> /tmp/loupe-login.log 2>&1 &', $body);
+        self::assertStringContainsString('> /tmp/loupe-init.log 2>&1 < /dev/null &', $body);
         self::assertStringNotContainsString('&gt;', $body);
         self::assertStringNotContainsString('&amp;', $body);
         self::assertStringNotContainsString('&lt;', $body);
     }
 
-    public function test_the_steps_ask_about_worker_folders_before_the_finish(): void
+    public function test_the_steps_run_loupe_init_then_check_then_finish(): void
     {
         $client = static::createClient();
         $client->request(Request::METHOD_GET, '/setup.md');
@@ -38,14 +38,31 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $body = (string) $client->getResponse()->getContent();
 
-        self::assertStringContainsString("\n## 9. Worker folders\n", $body);
-        self::assertStringContainsString("\n## 10. Finish\n", $body);
-        self::assertLessThan(strpos($body, '## 10. Finish'), strpos($body, '## 9. Worker folders'));
-        self::assertStringContainsString('before:', $body);
-        self::assertStringContainsString('action: command', $body);
-        self::assertStringContainsString("work:\n  implement:", $body);
-        self::assertStringNotContainsString('on: board.card_moved', $body);
-        self::assertStringContainsString('Go to step 8.', $body);
+        self::assertStringContainsString("\n## 3. Run loupe init\n", $body);
+        self::assertStringContainsString("\n## 4. Check\n", $body);
+        self::assertStringContainsString("\n## 5. Finish\n", $body);
+        self::assertLessThan(strpos($body, '## 4. Check'), strpos($body, '## 3. Run loupe init'));
+        self::assertLessThan(strpos($body, '## 5. Finish'), strpos($body, '## 4. Check'));
+        self::assertStringContainsString('loupe status', $body);
+        self::assertStringContainsString('.loupe/lifecycle.md', $body);
+    }
+
+    public function test_the_steps_no_longer_hand_write_what_loupe_init_does(): void
+    {
+        $client = static::createClient();
+        $client->request(Request::METHOD_GET, '/setup.md?project='.self::PROJECT_ID);
+
+        self::assertResponseIsSuccessful();
+        $body = (string) $client->getResponse()->getContent();
+
+        self::assertStringNotContainsString('Worker folders', $body);
+        self::assertStringNotContainsString('appPrompts', $body);
+        self::assertStringNotContainsString('action: command', $body);
+        self::assertStringNotContainsString('loupe login', $body);
+        self::assertStringNotContainsString('loupe project link', $body);
+        self::assertStringNotContainsString('codex mcp add', $body);
+        self::assertStringNotContainsString('Claude Code only', $body);
+        self::assertStringNotContainsString('Codex only', $body);
     }
 
     public function test_a_valid_project_id_fills_the_commands(): void
@@ -56,8 +73,7 @@ final class SetupInstructionsControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $body = (string) $client->getResponse()->getContent();
 
-        self::assertStringContainsString('loupe project link --project '.self::PROJECT_ID.' --mcp', $body);
-        self::assertStringContainsString('codex mcp add loupe -- loupe mcp --project '.self::PROJECT_ID, $body);
+        self::assertStringContainsString('loupe init --url http://localhost --project '.self::PROJECT_ID.' --mcp', $body);
         self::assertStringNotContainsString('<project id>', $body);
     }
 

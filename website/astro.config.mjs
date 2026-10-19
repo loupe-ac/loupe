@@ -66,7 +66,7 @@ export default defineConfig({
           items: [
             { label: 'First steps', slug: 'getting-started' },
             { slug: 'getting-started/cli' },
-            { slug: 'getting-started/owners-and-teams' },
+            { slug: 'getting-started/run-the-bridge' },
             { slug: 'getting-started/agent-github-account' },
           ],
         },
@@ -75,6 +75,7 @@ export default defineConfig({
           collapsed: true,
           items: [
             { slug: 'using/projects' },
+            { slug: 'using/workshop' },
             { slug: 'using/documents' },
             { slug: 'using/mcp' },
             { slug: 'using/connected-apps' },
@@ -98,7 +99,6 @@ export default defineConfig({
               ],
             },
             { slug: 'using/search' },
-            { slug: 'using/workshop' },
             { slug: 'using/admin' },
             { slug: 'using/data-exports' },
             { slug: 'using/billing' },
@@ -151,6 +151,7 @@ export default defineConfig({
           items: [
             { slug: 'reference/environment' },
             { slug: 'reference/commands' },
+            { slug: 'reference/cli' },
             { slug: 'reference/worker-runs' },
             { slug: 'reference/bridge-heartbeat' },
           ],

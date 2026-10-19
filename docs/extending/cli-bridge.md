@@ -1388,6 +1388,57 @@ in the project folder, and starts no agent. A folder that is already gone is not
 an error. The run reports as a command run. A `teardown` entry of your own wins,
 including an entry with `action: command`.
 
+## Worker folders
+
+Each card gets a folder of its own with no setup from you. With the default
+`defaults.isolation: worktree`, the bridge makes a git worktree for the card at
+`<config dir>/loupe/worktrees/<project slug>/card-<number>`, as
+[Worker isolation](#worker-isolation) says. Set `defaults.isolation: none` to
+run every worker in the project folder.
+
+Write a `before` command when the folder needs setup that the bridge does not
+do. Examples are an install step, a branch name of your own, or a folder that
+lies somewhere else. The folder of the command wins over the worktree of the
+bridge. Add `before` to each worker entry that edits code, usually `implement`
+and `fix`:
+
+```yaml
+work:
+  implement:
+    before:
+      run: [bin/worktree-for-card.sh, "{cardNumber}", "{cardId}"]
+    prompt: |
+      Loupe asks for {kind} work on card {cardNumber}.
+```
+
+The command follows this contract:
+
+- The bridge runs it as an argv list, with no shell, in the project `dir`.
+- Its elements can use `{cardNumber}` and `{cardId}`.
+- The last line of standard output that is not empty must be the folder path. A relative path resolves against the project `dir`.
+- An exit code that is not 0 fails the run, and no agent starts.
+- It runs again before each resume, so it must work when the folder already exists.
+- The timeout is `15m` by default and `60m` at most.
+
+A resumed session still starts in the folder where it began. A session that
+began in the project folder stays there, and new workers use the new folders.
+
+A folder from your own command needs your own cleanup. The workflow asks for
+`teardown` each time a card reaches a terminal column. Add an entry that removes
+the folder:
+
+```yaml
+work:
+  teardown:
+    action: command
+    run: [bin/remove-worktree.sh, "{cardNumber}"]
+```
+
+A command entry waits until a running worker of the same card ends. The bridge
+does not retry a failed command. With a bridge worktree and no `teardown`
+entry, the bridge removes the folder itself. [Before command](#before-command)
+and [Command action](#command-action) give the details.
+
 ## Command action
 
 An entry with `action: command` runs a command for the card, and starts no
