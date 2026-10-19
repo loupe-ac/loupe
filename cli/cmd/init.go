@@ -1079,6 +1079,11 @@ func playwrightPackage(dir string) (string, bool) {
 
 // listsPlaywright reports whether package.json in dir depends on Playwright.
 func listsPlaywright(dir string) bool {
+	return listsPackage(dir, "@playwright/test") || listsPackage(dir, "playwright")
+}
+
+// listsPackage reports whether package.json in dir depends on name.
+func listsPackage(dir, name string) bool {
 	raw, err := os.ReadFile(filepath.Join(dir, "package.json"))
 	if err != nil {
 		return false
@@ -1090,15 +1095,10 @@ func listsPlaywright(dir string) bool {
 	if json.Unmarshal(raw, &pkg) != nil {
 		return false
 	}
-	for _, deps := range []map[string]any{pkg.Dependencies, pkg.DevDependencies} {
-		for _, name := range []string{"@playwright/test", "playwright"} {
-			if _, ok := deps[name]; ok {
-				return true
-			}
-		}
-	}
+	_, dep := pkg.Dependencies[name]
+	_, dev := pkg.DevDependencies[name]
 
-	return false
+	return dep || dev
 }
 
 // playwrightBrowserInstalled reports whether the browser cache of Playwright
@@ -1129,31 +1129,58 @@ func playwrightBrowserInstalled(pkg string) bool {
 	return err == nil
 }
 
-// playwrightChromiumRevision finds the playwright-core that Node resolves from
-// pkg, and reads the Chromium revision from its browsers.json.
+// playwrightChromiumRevision follows the chain that Node resolves from pkg,
+// @playwright/test when pkg lists it, then playwright, then playwright-core,
+// so a core nested under the Playwright package wins over a hoisted one. It
+// reads the Chromium revision from the browsers.json of that core.
 func playwrightChromiumRevision(pkg string) (string, string, bool) {
-	for dir := pkg; ; dir = filepath.Dir(dir) {
-		core := filepath.Join(dir, "node_modules", "playwright-core")
-		if raw, err := os.ReadFile(filepath.Join(core, "browsers.json")); err == nil {
-			var list struct {
-				Browsers []struct {
-					Name     string `json:"name"`
-					Revision string `json:"revision"`
-				} `json:"browsers"`
-			}
-			if json.Unmarshal(raw, &list) != nil {
-				return "", "", false
-			}
-			for _, b := range list.Browsers {
-				if b.Name == "chromium" && b.Revision != "" {
-					return core, b.Revision, true
-				}
-			}
+	from := pkg
+	if listsPackage(pkg, "@playwright/test") {
+		if dir, ok := resolveNodePackage(from, "@playwright/test"); ok {
+			from = dir
+		}
+	}
+	if dir, ok := resolveNodePackage(from, "playwright"); ok {
+		from = dir
+	}
+	core, ok := resolveNodePackage(from, "playwright-core")
+	if !ok {
+		return "", "", false
+	}
+	raw, err := os.ReadFile(filepath.Join(core, "browsers.json"))
+	if err != nil {
+		return "", "", false
+	}
+	var list struct {
+		Browsers []struct {
+			Name     string `json:"name"`
+			Revision string `json:"revision"`
+		} `json:"browsers"`
+	}
+	if json.Unmarshal(raw, &list) != nil {
+		return "", "", false
+	}
+	for _, b := range list.Browsers {
+		if b.Name == "chromium" && b.Revision != "" {
+			return core, b.Revision, true
+		}
+	}
 
-			return "", "", false
+	return "", "", false
+}
+
+// resolveNodePackage finds the folder of package name as Node resolves it
+// from the folder from: node_modules/<name> in from and each parent folder.
+func resolveNodePackage(from, name string) (string, bool) {
+	for dir := from; ; dir = filepath.Dir(dir) {
+		if filepath.Base(dir) != "node_modules" {
+			candidate := filepath.Join(dir, "node_modules", filepath.FromSlash(name))
+			if _, err := os.Stat(filepath.Join(candidate, "package.json")); err == nil {
+				return candidate, true
+			}
 		}
 		if filepath.Dir(dir) == dir {
-			return "", "", false
+			return "", false
 		}
 	}
 }
