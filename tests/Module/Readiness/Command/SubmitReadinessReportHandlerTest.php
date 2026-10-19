@@ -51,7 +51,7 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         $this->run->card->syncDocuments($existing);
         $this->em()->flush();
 
-        $document = $this->submit(findings: [new ReportFinding('Tests run', 'gap', 'None found.')], proposals: [
+        $document = $this->submit(findings: [new ReportFinding('Tests run', 'suggested', 'None found.')], proposals: [
             $this->proposal('tests', 'Add tests'),
             $this->proposal('ci', 'Add CI', openCardNumber: $covering->number),
             $this->proposal('docs', 'Write docs', type: 'docs'),

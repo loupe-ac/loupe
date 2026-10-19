@@ -150,7 +150,7 @@ final class ReadinessToolsTest extends KernelTestCase
         $answer = $this->reportSubmit()(
             (string) $run->id,
             'lifecycle',
-            [['check' => 'Tests run', 'status' => 'gap', 'evidence' => 'None found.']],
+            [['check' => 'Tests run', 'status' => 'suggested', 'evidence' => 'None found.']],
             [['key' => 'tests', 'title' => 'Add tests', 'type' => 'feature', 'body' => 'Write them.']],
             'A short summary.',
         );

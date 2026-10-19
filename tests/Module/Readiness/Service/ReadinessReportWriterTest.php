@@ -29,7 +29,8 @@ final class ReadinessReportWriterTest extends KernelTestCase
     {
         $markdown = $this->write('Use the lifecycle workflow.', [
             new ReportFinding('Tests run', 'ready', 'CI runs PHPUnit.'),
-            new ReportFinding('Docs exist', 'gap', 'No README.'),
+            new ReportFinding('Docs exist', 'suggested', 'No README.'),
+            new ReportFinding('Old plugin', 'gap', 'Sent as gap.'),
             new ReportFinding('Linter', 'ready', 'php-cs-fixer.'),
         ], []);
 
@@ -37,7 +38,7 @@ final class ReadinessReportWriterTest extends KernelTestCase
         self::assertDoesNotMatchRegularExpression('~^# ~m', $markdown);
         self::assertStringContainsString('Use the lifecycle workflow.', $markdown);
         self::assertMatchesRegularExpression('~### Ready\n\n1\. \*\*Tests run\*\*: CI runs PHPUnit\.\n2\. \*\*Linter\*\*: php-cs-fixer\.\n~', $markdown);
-        self::assertMatchesRegularExpression('~### Gaps\n\n1\. \*\*Docs exist\*\*: No README\.\n~', $markdown);
+        self::assertMatchesRegularExpression('~### Suggested\n\n1\. \*\*Docs exist\*\*: No README\.\n2\. \*\*Old plugin\*\*: Sent as gap\.\n~', $markdown);
     }
 
     public function test_a_report_with_no_tick_box_writes_no_decision_block(): void

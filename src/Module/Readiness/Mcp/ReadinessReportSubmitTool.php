@@ -17,7 +17,7 @@ use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\ToolCallException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-#[McpTool(name: self::NAME, description: 'Submit the readiness report of a discovery run. Loupe writes the report as a document for the owner to review, and links it to the discovery card. runId is the run that discovery_start or readiness_get named. workflow names the workflow the project uses. findings lists the checks you made, each with a check name, a status of ready or gap, and the evidence you found. proposals lists cards that would close a gap, each with a key that is unique in the report, a title, a type and a body. The type is a type key from board_columns that has no children capability. When an open card of this project covers a proposal already, pass its number as openCardNumber, and the report shows that card instead of a tick box. The owner ticks the proposals to keep and approves the report, and Loupe then creates one card in Next for each ticked proposal. One report is allowed for each run, and only while the run waits for it.')]
+#[McpTool(name: self::NAME, description: 'Submit the readiness report of a discovery run. Loupe writes the report as a document for the owner to review, and links it to the discovery card. runId is the run that discovery_start or readiness_get named. workflow names the workflow the project uses. findings lists the checks you made, each with a check name, a status of ready or suggested, and the evidence you found. Use suggested for a check that the project does not meet yet, and gap is accepted as an alias. proposals lists cards that would close a suggestion, each with a key that is unique in the report, a title, a type and a body. The type is a type key from board_columns that has no children capability. When an open card of this project covers a proposal already, pass its number as openCardNumber, and the report shows that card instead of a tick box. The owner ticks the proposals to keep and approves the report, and Loupe then creates one card in Next for each ticked proposal. One report is allowed for each run, and only while the run waits for it.')]
 final readonly class ReadinessReportSubmitTool
 {
     use ResolvesBoundProject;
@@ -28,7 +28,7 @@ final readonly class ReadinessReportSubmitTool
         'type' => 'object',
         'properties' => [
             'check' => ['type' => 'string', 'description' => 'the name of the check'],
-            'status' => ['type' => 'string', 'enum' => ['ready', 'gap'], 'description' => 'ready when the project meets the check, gap when it does not'],
+            'status' => ['type' => 'string', 'enum' => ['ready', 'suggested', 'gap'], 'description' => 'ready when the project meets the check, suggested when Loupe would work better with it; gap is an alias of suggested'],
             'evidence' => ['type' => 'string', 'description' => 'what you found, as short Markdown'],
         ],
         'required' => ['check', 'status', 'evidence'],
@@ -99,7 +99,7 @@ final readonly class ReadinessReportSubmitTool
                 SubmitReadinessReportHandler::RUN_UNKNOWN => 'No discovery run of this project has that runId. Call readiness_get or discovery_start for the runId, then call readiness_report_submit again.',
                 SubmitReadinessReportHandler::RUN_NOT_REQUESTED => 'This run does not wait for a report now. It failed, or it reported already. Call readiness_get to read its state, or discovery_start to open a new run.',
                 SubmitReadinessReportHandler::ALREADY_REPORTED => 'This run has a report already. Call readiness_get to read it, or discovery_start to open a new run.',
-                SubmitReadinessReportHandler::FINDING_INVALID => 'Each finding needs a check, an evidence text, and a status of ready or gap. Fix the findings, then call readiness_report_submit again.',
+                SubmitReadinessReportHandler::FINDING_INVALID => 'Each finding needs a check, an evidence text, and a status of ready or suggested. Fix the findings, then call readiness_report_submit again.',
                 SubmitReadinessReportHandler::PROPOSAL_INVALID => 'Each proposal needs a key of up to 64 characters, a title of up to 255 characters, and a type. Fix the proposals, then call readiness_report_submit again.',
                 SubmitReadinessReportHandler::PROPOSAL_TYPE => \sprintf(
                     'A proposal type must be one of %s. Call board_columns for the types of this project. Fix the type, then call readiness_report_submit again.',
