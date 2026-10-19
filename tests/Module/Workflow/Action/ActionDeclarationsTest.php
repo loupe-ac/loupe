@@ -105,11 +105,12 @@ final class ActionDeclarationsTest extends TestCase
         }
     }
 
-    public function test_only_a_request_takes_the_prompt_of_an_app_rule(): void
+    public function test_only_a_request_takes_a_prompt(): void
     {
-        $prompts = array_filter(RequestWork::parameters(), static fn (Parameter $parameter): bool => $parameter->appOnly);
+        $names = static fn (string $class): array => array_map(static fn (Parameter $parameter): string => $parameter->name, $class::parameters());
 
-        self::assertSame([TemplateParser::PROMPT], array_map(static fn (Parameter $parameter): string => $parameter->name, array_values($prompts)));
+        self::assertContains(TemplateParser::PROMPT, $names(RequestWork::class));
+        self::assertNotContains(TemplateParser::PROMPT, $names(ForgeWrite::class));
     }
 
     public function test_a_forge_write_needs_a_fallback_unless_it_writes_a_state_or_opens_an_epic(): void
