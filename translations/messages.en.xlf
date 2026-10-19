@@ -7199,6 +7199,7 @@
             <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the site-review widget: %verdict%.</target></trans-unit>
             <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
+            <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.approve"><source>board.card.history.verdict_kind.approve</source><target>approve</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.request_changes"><source>board.card.history.verdict_kind.request_changes</source><target>request changes</target></trans-unit>
             <trans-unit id="board.card.history.verdict_kind.comment"><source>board.card.history.verdict_kind.comment</source><target>comment</target></trans-unit>
@@ -8493,6 +8494,8 @@
             <trans-unit id="workflow.waiting.not.card_run_session_open"><source>workflow.waiting.not.card_run_session_open</source><target>Waiting: an interactive session is open on the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_held"><source>workflow.waiting.card_held</source><target>Waiting: the agents of the card are not held.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_held"><source>workflow.waiting.not.card_held</source><target>Waiting: a person held the agents of the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_run_waits_on_answer"><source>workflow.waiting.card_run_waits_on_answer</source><target>Waiting: no session of the card waits for the answer to a blocking question.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_run_waits_on_answer"><source>workflow.waiting.not.card_run_waits_on_answer</source><target>Waiting: a session of the card waits for the answer to a blocking question.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_inbox_open_question"><source>workflow.waiting.card_inbox_open_question</source><target>Waiting: no open inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_inbox_open_question"><source>workflow.waiting.not.card_inbox_open_question</source><target>Waiting: an open inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_inbox_open_question_blocking"><source>workflow.waiting.card_inbox_open_question_blocking</source><target>Waiting: no open blocking inbox question names the card.</target></trans-unit>

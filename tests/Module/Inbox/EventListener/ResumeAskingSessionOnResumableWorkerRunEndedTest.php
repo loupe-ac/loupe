@@ -102,6 +102,16 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
         self::assertSame([], $this->queued());
     }
 
+    public function test_an_ask_whose_resume_was_skipped_queues_nothing(): void
+    {
+        [$project, $bridge, $run] = $this->runningRun('late-resume-skipped');
+        $this->closedAsk($project, $bridge, $run, new \DateTimeImmutable('2026-01-01 10:02:00'), skipped: true);
+
+        $this->end($project, $run, WorkerRunState::Blocked);
+
+        self::assertSame([], $this->queued());
+    }
+
     public function test_an_ask_of_another_bridge_queues_nothing(): void
     {
         [$project, $bridge, $run] = $this->runningRun('late-resume-other-bridge');
@@ -147,12 +157,13 @@ final class ResumeAskingSessionOnResumableWorkerRunEndedTest extends KernelTestC
         return [$project, $bridge, $run];
     }
 
-    private function closedAsk(Project $project, Bridge $bridge, WorkerRun $run, \DateTimeImmutable $closedAt, bool $blocking = true): void
+    private function closedAsk(Project $project, Bridge $bridge, WorkerRun $run, \DateTimeImmutable $closedAt, bool $blocking = true, bool $skipped = false): void
     {
         $item = new InboxItem(project: $project, number: 1, kind: InboxItemKind::Question, title: 'Which column?', blocking: $blocking);
         $ask = new InboxAsk(project: $project, sessionId: $run->sessionId, bridgeId: $bridge->id);
         $ask->items->add(new InboxAskItem($ask, $item));
         $ask->closedAt = $closedAt;
+        $ask->resumeSkipped = $skipped;
         $this->em()->persist($item);
         $this->em()->persist($ask);
         $this->em()->flush();
