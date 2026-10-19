@@ -226,6 +226,25 @@ final class InboxActionRunToolTest extends KernelTestCase
         $this->assertCommandChanged((string) $item->id, $preview['runDigest']);
     }
 
+    public function test_a_digest_does_not_cover_the_same_command_on_another_bridge(): void
+    {
+        $item = $this->commandTodo();
+        $this->readyTool();
+        $preview = $this->previewOf(($this->tool)((string) $item->id, 'run-command'));
+        $other = new Bridge($this->project->owner, Uuid::v4(), [], 'c5f40bb8', new \DateTimeImmutable());
+        $other->capabilities = $this->bridge->capabilities;
+        $other->projects = $this->bridge->projects;
+        $other->lastSeenAt = $this->bridge->lastSeenAt;
+        $other->commandEntries = $this->bridge->commandEntries;
+        $other->worktrees = $this->bridge->worktrees;
+        $this->em->persist($other);
+        $ask = $this->lastAsk ?? throw new \LogicException('The item has an ask.');
+        $ask->bridgeId = $other->id;
+        $this->em->flush();
+
+        $this->assertCommandChanged((string) $item->id, $preview['runDigest']);
+    }
+
     public function test_an_add_entry_queues_the_request_for_the_asking_bridge(): void
     {
         $item = $this->commandTodo(self::PROPOSED_ENTRY);
@@ -488,6 +507,8 @@ final class InboxActionRunToolTest extends KernelTestCase
         return $item;
     }
 
+    private ?InboxAsk $lastAsk = null;
+
     private function hold(InboxItem $item): InboxAsk
     {
         $ask = new InboxAsk(project: $this->project, sessionId: Uuid::v4(), bridgeId: Uuid::v4());
@@ -495,6 +516,6 @@ final class InboxActionRunToolTest extends KernelTestCase
         $this->em->persist($ask);
         $this->em->flush();
 
-        return $ask;
+        return $this->lastAsk = $ask;
     }
 }

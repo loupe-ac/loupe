@@ -128,7 +128,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
     }
 
     /**
-     * Binds the digest of the preview to the item, the entry, the branch and the values it showed, because the digest of the view names none of them.
+     * Binds the digest of the preview to the item, the entry, the bridge, the branch and the values it showed, because the digest of the view names none of them.
      *
      * @param array<string, string>|null $params
      */
@@ -147,7 +147,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
 
     private static function confirmation(InboxItem $item, RunCommandView $view): string
     {
-        return hash('sha256', json_encode([(string) $item->id, $view->entry, $view->runDigest(), $view->branch, $view->values()], \JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([(string) $item->id, $view->entry, $view->bridgeId, $view->runDigest(), $view->branch, $view->values()], \JSON_THROW_ON_ERROR));
     }
 
     private function requireKind(string $action): InboxActionKind
