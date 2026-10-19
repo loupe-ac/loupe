@@ -98,6 +98,7 @@ final class AppRules implements ProposalSlot
             $template->epicBranch,
             $template->agentReviewFailingSeverities,
             $template->markers,
+            $template->approvalCoversConflictResolution,
         );
     }
 

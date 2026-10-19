@@ -15,7 +15,7 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[McpTool(name: self::NAME, description: 'Read the workflow of this project. template is the key and the version of the workflow template. columns lists the board columns in board order, each with the key of its workflow slot, or null when no slot links to it. kinds lists each kind of work the workflow can ask a bridge for, with the ids of the rules that ask for it and whether the template or the app adds it. checks names what that work needs from the project. A discovery run reads checks to know what to look for before it calls readiness_report_submit.')]
+#[McpTool(name: self::NAME, description: 'Read the workflow of this project. template is the key and the version of the workflow template. approvalCoversConflictResolution says whether an approval of a pull request still covers a merge from the base that holds a conflict resolution, and epicBranch is the epic branch pattern with {number} for the card number, or null when the template has no epic branches. columns lists the board columns in board order, each with the key of its workflow slot, or null when no slot links to it. kinds lists each kind of work the workflow can ask a bridge for, with the ids of the rules that ask for it and whether the template or the app adds it. checks names what that work needs from the project. A discovery run reads checks to know what to look for before it calls readiness_report_submit.')]
 final readonly class WorkflowGetTool
 {
     use ResolvesBoundProject;
@@ -32,6 +32,8 @@ final readonly class WorkflowGetTool
     /**
      * @return array{
      *     template: array{key: string, version: int},
+     *     approvalCoversConflictResolution: bool,
+     *     epicBranch: string|null,
      *     columns: list<array{slug: string, label: string, slot: string|null, backlog: bool, terminal: bool}>,
      *     kinds: list<array{kind: string, origin: string, rules: list<string>, checks: list<string>}>,
      * }
@@ -43,6 +45,8 @@ final readonly class WorkflowGetTool
 
             return [
                 'template' => ['key' => $view->templateKey, 'version' => $view->templateVersion],
+                'approvalCoversConflictResolution' => $view->approvalCoversConflictResolution,
+                'epicBranch' => $view->epicBranch,
                 'columns' => array_map(fn (WorkflowColumnView $column): array => [
                     'slug' => $column->column->slug,
                     // A seeded label is a translation key, and a renamed one is text that no key matches.

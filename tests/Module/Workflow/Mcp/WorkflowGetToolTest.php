@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Workflow\Mcp;
 
 use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
+use App\Module\Workflow\Contract\ApprovalRuleWriter;
 use App\Module\Workflow\Mcp\WorkflowGetTool;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use App\Tests\Support\McpTokenScenario;
@@ -42,6 +43,8 @@ final class WorkflowGetToolTest extends KernelTestCase
         $answer = $this->tool()();
 
         self::assertSame(['key' => 'lifecycle', 'version' => 8], $answer['template']);
+        self::assertTrue($answer['approvalCoversConflictResolution']);
+        self::assertSame('epic/{number}', $answer['epicBranch']);
         $kinds = array_column($answer['kinds'], null, 'kind');
         self::assertSame([
             'product-design', 'product-design-revise', 'design-review', 'tech-design', 'tech-design-revise', 'tech-design-recheck', 'implement', 'breakdown',
@@ -84,12 +87,25 @@ final class WorkflowGetToolTest extends KernelTestCase
         $answer = $this->tool()();
 
         self::assertSame(['key' => 'simple', 'version' => 6], $answer['template']);
+        self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => [self::TEARDOWN_CHECK]],
             ['kind' => 'discovery', 'origin' => 'app', 'rules' => ['discovery'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_BRIDGE_CHECK]],
             ['kind' => 'analysis', 'origin' => 'app', 'rules' => ['insights.analysis'], 'checks' => [self::ANALYSIS_CHECK, self::ANALYSIS_BRIDGE_CHECK]],
         ], $answer['kinds']);
         self::assertSame([null], array_values(array_unique(array_column($answer['columns'], 'slot'))));
+    }
+
+    public function test_it_returns_the_approval_rule_a_project_changed(): void
+    {
+        $project = $this->workflowProject('workflow-get-approval');
+        $this->bindLifecycle($project);
+        $writer = self::getContainer()->get(ApprovalRuleWriter::class);
+        self::assertInstanceOf(ApprovalRuleWriter::class, $writer);
+        self::assertTrue($writer->setCoversConflictResolution($project->id ?? throw new \LogicException('Not flushed.'), false));
+        $this->actAsMcpTokenBoundTo($project);
+
+        self::assertFalse($this->tool()()['approvalCoversConflictResolution']);
     }
 
     public function test_a_project_with_no_workflow_is_refused(): void

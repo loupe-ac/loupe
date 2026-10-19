@@ -157,6 +157,34 @@ final class ForgePullRequestRepository extends ServiceEntityRepository
         return $this->toUuids($query->getQuery()->getSingleColumnResult());
     }
 
+    /**
+     * Points the coverage of each open approved row of one project back at its approval, so the next read judges
+     * the head again, and answers the ids of those rows. A fresh approval resets the coverage the same way.
+     *
+     * @return list<Uuid>
+     */
+    public function resetApprovalCoverage(Uuid $projectId): array
+    {
+        $this->getEntityManager()->createQuery(
+            'UPDATE App\Module\Forge\Entity\ForgePullRequest pr SET pr.coveredSha = pr.approvalSha, pr.uncoveredSha = NULL'
+            .' WHERE pr.project = :project AND pr.state = :open AND pr.approvalId IS NOT NULL',
+        )
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->setParameter('open', PullRequestState::Open->value)
+            ->execute();
+
+        return $this->toUuids($this->createQueryBuilder('pr')
+            ->select('pr.id')
+            ->andWhere('pr.project = :project')
+            ->andWhere('pr.state = :open')
+            ->andWhere('pr.approvalId IS NOT NULL')
+            ->setParameter('project', $projectId, UuidType::NAME)
+            ->setParameter('open', PullRequestState::Open->value)
+            ->orderBy('pr.id', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult());
+    }
+
     /** @return list<ForgePullRequest> the rows of one repository in one project whose head is that branch, in id order */
     public function findByHeadBranch(Uuid $projectId, string $forge, string $repository, string $headBranch): array
     {

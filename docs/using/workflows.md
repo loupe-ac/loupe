@@ -572,6 +572,20 @@ conflict. A child pull request into its epic branch also waits while any
 worker run of the epic is open. A merge from the base after the approval keeps
 the approval. New commits need a new approval.
 
+The template value `approvalCoversConflictResolution` decides what a merge from
+the base keeps. It is `true` in the Lifecycle template, so the approval covers
+every merge from the base, also one in which an agent resolved a conflict. When
+a project sets it to `false`, the approval covers only a merge that git writes
+with no human edit. A merge that resolves a conflict, or changes any other file,
+needs a new approval. Loupe tests this from the file lists of the GitHub compare
+API, so a merge that touches 300 files or more needs a new approval too. The
+value belongs to the copy of the template that the project holds, and a new
+release of the template keeps it. A person asks their agent to change it, which
+calls the `automation_settings_update` MCP tool with the argument
+`approvalCoversConflictResolution`. A change of the value judges the approval
+of each open pull request of the project again. The `workflow_get` MCP tool
+returns the value.
+
 Some rules act from any slot:
 
 1. A card whose pull requests all finished, with one merged, moves to the
