@@ -58,7 +58,7 @@ Merge only when every item holds. The first item that fails ends the run with `S
 1. The head commit equals the SHA of the prompt.
 2. The pull request is not a draft.
 3. The review is `approved`.
-4. Every current approval covers every commit up to the SHA of the prompt. Check it with the forge adapter. When the profile `Merge` section names an approver, only that reviewer's approval counts.
+4. Every current approval covers every commit up to the SHA of the prompt. Call `workflow_get` and read `approvalCoversConflictResolution`. Check the approval with the forge adapter, and pass it that value. When the profile `Merge` section names an approver, only that reviewer's approval counts.
 5. The checks are `passed`: every required check passes, and none fails or is pending. Count the checks against the required count of the profile `Gate` section. An epic branch has no required checks of its own. For an epic child, check by name the required checks of the base branch of the profile `Merge` section, as the forge adapter says.
 6. The mergeability is `mergeable`.
 7. An epic child is not behind its base. Compare the SHA of the prompt with the base, as the forge adapter says. When the behind count is above 0, take "Update" from item 4. The app sends no behind event for a base with no strict rule, so this item replaces it. A sync of the epic branch with a merge of its base puts each open child behind, and the forge adapter's update merges the epic branch into the child.
@@ -67,7 +67,7 @@ An epic child skips items 3 and 4.
 
 Item 4 reads the approval by time. A forge can keep the review `approved` after new commits arrive, so item 3 alone is not enough. A commit counts as later when it reached the branch after the earliest current approval. The forge adapter sorts each later commit:
 
-- A merge from the base is a sync, with or without a conflict resolution. The approval covers it.
+- A merge from the base is a sync. When `approvalCoversConflictResolution` is true, the approval covers it, with or without a conflict resolution. When it is false, the approval covers only a merge that git makes again with no conflict. A merge that holds a conflict resolution stops the run with `STAGE RESULT: not ready <url>: conflict resolution after approval`.
 - Any other commit is new content, such as a review fix or a test fix. Stop with `STAGE RESULT: not ready <url>: commits after approval`.
 
 When the adapter cannot read the approval, stop with `STAGE RESULT: blocked: approval unreadable <url>`.
