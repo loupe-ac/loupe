@@ -255,7 +255,7 @@ DATABASE_URL="postgresql://app:!ChangeMe!@db.loupe.dev.localhost:5432/app?server
 
 From inside the php-fpm container (`just shell`), use the `database` Docker service hostname directly. `compose.yaml` sets `DATABASE_URL` to `database:5432` for the container, so this is automatic.
 
-**The dev database runs without durability.** The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt the dev database. To rebuild it, remove the `database_data` volume, run the migrations, and run `bin/console app:dev:seed`.
+**The dev database runs without durability.** The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt the dev database. The volume holds every worktree database too. To rebuild, remove the `database_data` volume, run the migrations and `bin/console app:dev:seed`, then run `just worktree-up <name>` for each worktree.
 
 **Database test isolation.** `dama/doctrine-test-bundle` wraps each test in a database transaction and rolls it back, so no custom schema-reset code is needed. Schema creation runs once in `tests/bootstrap.php`, which drops, creates and migrates. Never write a `resetSchema()` method that drops and recreates the schema per test.
 
