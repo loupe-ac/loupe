@@ -25,7 +25,7 @@ The optional profile section `Documents` has two lines: the tag of the product d
 
 ## First steps
 
-1. Connect to the Loupe tools as the harness adapter says. When that fails, stop with `STAGE RESULT: loupe MCP unavailable`.
+1. Connect to the Loupe tools as the harness adapter says. When that fails, the run changed nothing. Stop with `STAGE RESULT: loupe MCP unreachable`, which the structured result reports as `unfinished`. The workflow then retries the run.
 2. Load the `loupe-board` instruction.
 3. Call `card_get`.
 4. When the prompt names a column, turn it into a slug: lowercase, with hyphens for spaces. When that slug differs from the card `status`, stop with `STAGE RESULT: card left <column>`.
@@ -87,9 +87,9 @@ A `blocked`, `unfinished` or `waiting` result can also carry two optional fields
 | `STAGE RESULT:` form | `status` |
 |---|---|
 | `merged`, `preview refreshed`, `breakdown`, `tech design current`, `nothing to build`, `delivered without code`, `created`, `revised`, `comments answered`, `unchanged`, `nothing to fix`, `no open pull request`, `already approved`, `card left`, `repaired`, `reviewed` | `finished` |
-| `blocked:`, `loupe MCP unavailable`, `not approved`, `no approved tech design`, `no product document`, `no linked`, `open pull request exists`, `no fix round for column` | `blocked` |
+| `blocked:`, `not approved`, `no approved tech design`, `no product document`, `no linked`, `open pull request exists`, `no fix round for column` | `blocked` |
 | `waiting` or `not ready`, because the work waits on the forge, such as checks on a pushed pull request | `waiting` |
-| No form yet, because work still runs or remains | `unfinished` |
+| `loupe MCP unreachable`, or no form yet because work still runs or remains | `unfinished` |
 
 Set the reason code from the `STAGE RESULT:` form. A form takes the code of the most specific row that names it.
 
@@ -108,7 +108,8 @@ Set the reason code from the `STAGE RESULT:` form. A form takes the code of the 
 | `no-design` | `no approved tech design`, `blocked: needs its own tech design`, `no product document`, `no linked <document>`, `blocked: no breakdown item` |
 | `open-pull-request` | `open pull request exists` |
 | `no-pull-request` | `no open pull request`, `blocked: pull request not linked to the card`, `blocked: no merge request in the prompt`, `blocked: no merged epic child` |
-| `tool-unavailable` | `loupe MCP unavailable`, `blocked: no forge adapter`, `blocked: no <section> in .loupe/lifecycle.md` |
+| `mcp-unreachable` | `loupe MCP unreachable` |
+| `tool-unavailable` | `blocked: no forge adapter`, `blocked: no <section> in .loupe/lifecycle.md` |
 | `worktree-failed` | `blocked: worker folder is not on the PR branch`, `blocked: worker folder on branch <branch>`, `blocked: no worker folder`, `blocked: local branch diverged from origin` |
 | `merge-refused` | `blocked: merge refused` |
 | `needs-person` | `blocked: prototype unreadable`, every other `blocked:` form, and every other `not ready` item, such as a draft |

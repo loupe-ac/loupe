@@ -32,6 +32,7 @@ use App\Module\Workflow\Contract\WithdrawKind;
 use App\Module\Workflow\Contract\WorkLedger;
 use App\Module\Workflow\Contract\WorkOpener;
 use App\Module\Workflow\Contract\WorkState;
+use App\Module\Workflow\Contract\WorkView;
 use App\Module\Workflow\Entity\WorkflowRuleState;
 use App\Module\Workflow\Event\CardPaused;
 use App\Module\Workflow\Repository\WorkflowPendingBaselineRepository;
@@ -204,6 +205,7 @@ final readonly class Engine
         // A pause ends the pass, so it is never released in the pass that made it.
         if (!$run->ended && (!$this->stillPaused($run) || $this->releasedByRule($run))) {
             // After the release, so a refusal that settled during a pause counts in the pass that ends it.
+            $this->readNewCauses($run);
             $this->readSettledRequests($run);
             $this->readResumedRun($run);
             if (!$run->ended) {
@@ -278,6 +280,47 @@ final readonly class Engine
                 $state->repaired = false;
             });
         }
+    }
+
+    /**
+     * A request that ended done while its rule still holds asks again when a part of the condition holds that did not hold at the open.
+     * The false truth makes runRules() fire the rule in this pass. A fix that ends with the same parts asks for nothing.
+     */
+    private function readNewCauses(Evaluation $run): void
+    {
+        foreach ($run->template->rules as $rule) {
+            $state = $run->states[$rule->id] ?? null;
+            if ($run->ended || null === $state || null === $state->workRequestId || null === $state->causesAtOpen || !$run->applies($rule) || $this->waits($run, $rule) || $this->retriesWhileTrue($rule)) {
+                continue;
+            }
+            $request = $this->ledger->find($state->workRequestId);
+            $bound = $this->ruleSubject->bind($rule, $run->facts);
+            if (null === $request || WorkState::Done !== $request->state || !$bound->truth || $request->kind === $run->template->onWorkFailed?->repairKind) {
+                continue;
+            }
+            $stored = $state->subjectPullRequestId;
+            if ($bound->binds && null !== $stored && null !== $bound->subject && !$stored->equals($bound->subject)) {
+                continue;
+            }
+            $this->write($run, $state, static function (WorkflowRuleState $state) use ($rule, $bound): void {
+                $new = array_diff($rule->when->holdingParts($bound->facts), $state->causesAtOpen ?? []);
+                if ([] !== $new) {
+                    $state->truth = false;
+                }
+                $state->causesAtOpen = null;
+            });
+        }
+    }
+
+    private function ownLiveRequest(Evaluation $run, Rule $rule): ?WorkView
+    {
+        foreach ($this->ledger->live($run->card->id) as $request) {
+            if ($request->ruleId === $rule->id) {
+                return $request;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -732,8 +775,12 @@ final readonly class Engine
                 $state->lastRefusalAt = null;
                 if (null !== $outcome->requestId) {
                     $state->workRequestId = $outcome->requestId;
+                    $state->causesAtOpen = $rule->when->holdingParts($bound->facts);
                 } elseif (!$outcome->alreadyLive) {
                     $state->workRequestId = null;
+                } elseif (null === $state->workRequestId && $outcome->liveRuleId === $rule->id) {
+                    // The rule turned false and true again while its own request ran, so it takes that request back.
+                    $state->workRequestId = $this->ownLiveRequest($run, $rule)?->id;
                 }
                 if (null !== $outcome->askItemId) {
                     $state->askItemId = $outcome->askItemId;
@@ -920,7 +967,7 @@ final readonly class Engine
     /** @return list<mixed> */
     private static function snapshot(WorkflowRuleState $state): array
     {
-        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u')];
+        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u')];
     }
 
     private function pause(Evaluation $run, PauseKind $kind, string $code, string $ruleId): void

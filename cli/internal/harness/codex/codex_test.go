@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -86,7 +87,7 @@ func TestWorkerArgs(t *testing.T) {
 	spec := harness.Spec{Dir: t.TempDir(), Model: "openrouter/free", Schema: `{"type":"object"}`, SessionID: runID, Prompt: "- go", RunDir: run, PermissionMode: "workspace-write"}
 	tail := []string{"--json", "--skip-git-repo-check", "--output-schema", filepath.Join(run, schemaFile), "-o", filepath.Join(run, lastMessageFile)}
 	net := []string{"-c", "sandbox_workspace_write.network_access=true"}
-	sess := []string{"-c", `mcp_servers.loupe.env.LOUPE_SESSION_ID="` + runID + `"`}
+	sess := []string{"-c", `mcp_servers.loupe.env.LOUPE_SESSION_ID="` + runID + `"`, "-c", connectTimeoutArg, "-c", connectGraceArg}
 	tail = append(sess, tail...)
 
 	for name, tc := range map[string]struct {
@@ -126,9 +127,74 @@ func TestWorkerArgs(t *testing.T) {
 	}
 }
 
+// connectArgsOf is the connect limit arguments of a worker whose Codex home
+// holds the files given by name.
+func connectArgsOf(t *testing.T, profile string, files map[string]string) []string {
+	t.Helper()
+	fakeGit(t, "")
+	home := t.TempDir()
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(home, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	args := New(home, profile, "").Worker(harness.Spec{Dir: t.TempDir(), Prompt: "go"}).Args
+	var got []string
+	for i, a := range args {
+		if a == connectTimeoutArg || a == connectGraceArg {
+			got = append(got, args[i-1], a)
+		}
+	}
+
+	return got
+}
+
+func TestTheConnectLimitIsOnTheWorkerAndResumePathsOnly(t *testing.T) {
+	want := []string{"-c", connectTimeoutArg, "-c", connectGraceArg}
+	if got := connectArgsOf(t, "", nil); !reflect.DeepEqual(got, want) {
+		t.Fatalf("Worker = %q", got)
+	}
+	h := newHarness(t, "")
+	if err := h.remember(runID, thread); err != nil {
+		t.Fatal(err)
+	}
+	fakeGit(t, "")
+	if args := h.Resume(harness.Spec{Dir: t.TempDir(), SessionID: runID, Prompt: "go"}).Args; !slices.Contains(args, connectTimeoutArg) || !slices.Contains(args, connectGraceArg) {
+		t.Fatalf("Resume = %q", args)
+	}
+	script := New("", "", "").Interactive("codex", harness.Spec{SessionID: runID, Dir: "/w", Prompt: "go"})
+	if strings.Contains(script, "startup_timeout") || strings.Contains(script, "mcp_optional_startup_grace_ms") {
+		t.Fatalf("Interactive = %q", script)
+	}
+}
+
+func TestAnOperatorConnectSettingStays(t *testing.T) {
+	timeout, grace := []string{"-c", connectTimeoutArg}, []string{"-c", connectGraceArg}
+	for name, tc := range map[string]struct {
+		profile string
+		files   map[string]string
+		want    []string
+	}{
+		"seconds in config.toml":      {"", map[string]string{"config.toml": "[mcp_servers.loupe]\nstartup_timeout_sec = 200\n"}, grace},
+		"milliseconds in config.toml": {"", map[string]string{"config.toml": "[mcp_servers.loupe]\nstartup_timeout_ms = 200000\n"}, grace},
+		"seconds in the profile":      {"p", map[string]string{"p.config.toml": "[mcp_servers.loupe]\nstartup_timeout_sec = 12.5\n"}, grace},
+		"milliseconds in the profile": {"p", map[string]string{"p.config.toml": "[mcp_servers.loupe]\nstartup_timeout_ms = 9000\n"}, grace},
+		"grace in config.toml":        {"", map[string]string{"config.toml": "mcp_optional_startup_grace_ms = 5000\n"}, timeout},
+		"grace in the profile":        {"p", map[string]string{"p.config.toml": "mcp_optional_startup_grace_ms = 5000.0\n"}, timeout},
+		"another server":              {"", map[string]string{"config.toml": "[mcp_servers.docs]\nstartup_timeout_sec = 200\n"}, append(append([]string{}, timeout...), grace...)},
+		"a file that does not parse":  {"", map[string]string{"config.toml": "[[[\n"}, append(append([]string{}, timeout...), grace...)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := connectArgsOf(t, tc.profile, tc.files); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("args = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestARunWithNoSessionPassesNoSessionToTheMcpServer(t *testing.T) {
 	cmd := New("", "", "").Worker(harness.Spec{Dir: t.TempDir(), Prompt: "go"})
-	if args := strings.Join(cmd.Args, " "); strings.Contains(args, "mcp_servers") {
+	if args := strings.Join(cmd.Args, " "); strings.Contains(args, "LOUPE_SESSION_ID") {
 		t.Fatalf("args = %q", cmd.Args)
 	}
 }

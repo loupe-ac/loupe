@@ -54,14 +54,27 @@ final class RequestWorkTest extends KernelTestCase
         self::assertSame("Groom the card.\n", $this->liveRequest($card)->prompt);
     }
 
-    public function test_a_template_rule_sends_no_prompt(): void
+    public function test_a_template_rule_that_names_a_prompt_sends_the_text_of_its_template_file(): void
     {
         self::bootKernel();
-        $card = $this->card($this->workflowProject('request-no-prompt'), 'next');
+        $project = $this->workflowProject('request-template-prompt');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'next');
         $rule = $this->rule('request', ['kind' => 'groom', TemplateParser::PROMPT => 'groom-card']);
 
-        $this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card));
+        self::assertOpenedWork($this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card)));
+        self::assertSame("Groom card {cardNumber} of the lifecycle.\n", $this->liveRequest($card)->prompt);
+    }
 
+    public function test_a_template_rule_whose_prompt_has_no_file_sends_no_prompt(): void
+    {
+        self::bootKernel();
+        $project = $this->workflowProject('request-template-no-file');
+        $this->bindLifecycle($project);
+        $card = $this->card($project, 'next');
+        $rule = $this->rule('request', ['kind' => 'groom', TemplateParser::PROMPT => 'no-such-prompt']);
+
+        self::assertOpenedWork($this->runAction($this->action(), $rule, $card->snapshot(), FactsMother::facts(), $this->state($card)));
         self::assertNull($this->liveRequest($card)->prompt);
     }
 

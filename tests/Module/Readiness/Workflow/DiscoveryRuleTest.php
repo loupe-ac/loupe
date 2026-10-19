@@ -93,6 +93,42 @@ final class DiscoveryRuleTest extends KernelTestCase
         self::assertNotContains('discovery', array_map(static fn (WorkRequest $request): string => $request->kind, $this->requests($card)));
     }
 
+    #[DataProvider('templates')]
+    public function test_an_approved_run_moves_the_discovery_card_to_the_terminal_column(string $template): void
+    {
+        self::bootKernel();
+        $card = $this->discoveryCard($this->boundProject($template));
+        $this->discoveryRun($card, DiscoveryRunState::Done);
+
+        $this->evaluate($card, '2026-10-02 12:00:00');
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        self::assertTrue($card->column->terminal);
+        self::assertNotContains('discovery', array_map(static fn (WorkRequest $request): string => $request->kind, $this->requests($card)));
+    }
+
+    #[DataProvider('unapprovedStates')]
+    public function test_a_run_that_is_not_approved_leaves_the_discovery_card_in_the_backlog(string $template, DiscoveryRunState $state): void
+    {
+        self::bootKernel();
+        $card = $this->discoveryCard($this->boundProject($template));
+        $this->discoveryRun($card, $state);
+
+        $this->evaluate($card, '2026-10-02 12:00:00');
+
+        self::assertTrue($card->column->backlog);
+    }
+
+    /** @return iterable<string, array{string, DiscoveryRunState}> */
+    public static function unapprovedStates(): iterable
+    {
+        foreach (self::templates() as $template => [$key]) {
+            foreach ([DiscoveryRunState::Requested, DiscoveryRunState::Reported, DiscoveryRunState::Failed] as $state) {
+                yield $template.' '.$state->value => [$key, $state];
+            }
+        }
+    }
+
     /** @return iterable<string, array{string}> */
     public static function templates(): iterable
     {

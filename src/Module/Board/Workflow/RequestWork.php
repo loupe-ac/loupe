@@ -63,7 +63,7 @@ final readonly class RequestWork implements Action, RetriesWhileTrue
             new Parameter('stillTrue', ParameterType::String, required: false, choices: ['retry']),
             new Parameter('document', ParameterType::Document, required: false),
             new Parameter('checks', ParameterType::List, required: false),
-            new Parameter(ParameterNames::PROMPT, ParameterType::String, required: false, pattern: ParameterNames::PROMPT_PATTERN, patternHint: '[a-z][a-z0-9-], at most 40 characters', appOnly: true),
+            new Parameter(ParameterNames::PROMPT, ParameterType::String, required: false, pattern: ParameterNames::PROMPT_PATTERN, patternHint: '[a-z][a-z0-9-], at most 40 characters'),
         ];
     }
 

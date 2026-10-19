@@ -14,6 +14,7 @@ use App\Module\Board\Workflow\FixRunFacts;
 use App\Module\Board\Workflow\StaleApprovalFacts;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\Workflow\SessionFacts;
+use App\Module\Inbox\Workflow\WaitingAskFacts;
 use App\Module\Workflow\Action\Actions;
 use App\Module\Workflow\Contract\ChecksState;
 use App\Module\Workflow\Contract\DocumentFacts;
@@ -322,6 +323,19 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertNotContains('fix-agent-review'.$suffix, $this->firingRuleIds($facts));
     }
 
+    #[DataProvider('reviewSlots')]
+    public function test_a_fix_rule_waits_while_a_session_of_the_card_waits_for_an_answer(string $slot): void
+    {
+        $suffix = 'in-review' === $slot ? '-in-review' : '';
+        $waiting = ['0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7'];
+        $checksRule = 'in-review' === $slot ? 'fix-in-review' : 'fix-in-implementation';
+
+        self::assertContains($checksRule, $this->firingRuleIds(self::withFailedChecks($slot, [])));
+        self::assertNotContains($checksRule, $this->firingRuleIds(self::withFailedChecks($slot, $waiting)));
+        self::assertContains('fix-agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Failure])));
+        self::assertNotContains('fix-agent-review'.$suffix, $this->firingRuleIds(self::withAgentReview($slot, [AgentReviewConclusion::Failure], waitingAskIds: $waiting)));
+    }
+
     /** @return iterable<string, array{string, list<string>, bool}> */
     public static function activeWorkDuringReview(): iterable
     {
@@ -465,11 +479,22 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertContainsEquals($merge, $this->actions(self::withAgentReview('in-review', [AgentReviewConclusion::Success], epicBranch: true)));
     }
 
+    /** @param list<string> $waitingAskIds */
+    private static function withFailedChecks(string $slot, array $waitingAskIds): Facts
+    {
+        return FactsMother::facts(
+            card: FactsMother::card(slot: $slot),
+            pullRequest: FactsMother::pullRequest(checks: ChecksState::Failed),
+            provided: [WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
+        );
+    }
+
     /**
      * @param list<AgentReviewConclusion|null> $conclusions     the newest review conclusion of each open pull request head
      * @param list<string>                     $activeWorkKinds
+     * @param list<string>                     $waitingAskIds
      */
-    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null): Facts
+    private static function withAgentReview(string $slot, array $conclusions, bool $draft = false, bool $epic = false, int $approvals = 0, bool $epicBranch = false, bool $changesRequested = false, array $activeWorkKinds = [], ?string $overriddenBy = null, array $waitingAskIds = []): Facts
     {
         $id = Uuid::v7();
         $heads = array_map(static fn (?AgentReviewConclusion $conclusion): ReviewedHead => new ReviewedHead((string) $id, str_repeat('a', 40), $conclusion, overriddenBy: $overriddenBy), $conclusions);
@@ -478,7 +503,7 @@ final class ShippedTemplatesTest extends KernelTestCase
             card: FactsMother::card(slot: $slot, type: $epic ? 'epic' : 'feature'),
             pullRequest: FactsMother::pullRequest(draft: $draft, checks: ChecksState::Passed, approvalsCoveringHead: $approvals, changesRequested: $changesRequested, baseIsMergeTarget: !$epicBranch, baseIsEpicBranch: $epicBranch, id: $id),
             run: FactsMother::run(activeWorkKinds: $activeWorkKinds),
-            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false, uncommented: [])],
+            provided: [AgentReviewFacts::class => new AgentReviewFacts($heads, epic: $epic, unposted: false, uncommented: []), WaitingAskFacts::class => new WaitingAskFacts($waitingAskIds)],
         );
     }
 

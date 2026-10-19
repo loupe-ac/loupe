@@ -19,4 +19,5 @@ enum CardEventKind: string
     case Verdict = 'verdict';
     case ReviewOverridden = 'review-overridden';
     case ReviewOverrideEnded = 'override-ended';
+    case ResumeSkipped = 'resume-skipped';
 }
