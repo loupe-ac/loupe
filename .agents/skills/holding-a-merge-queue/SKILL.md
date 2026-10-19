@@ -7,7 +7,10 @@ description: "Use when one session holds the merge queue while other sessions pu
 
 One session holds the queue. Other sessions own their branches and push to them.
 The queue holder verifies and merges, and merges nothing it has not checked
-itself. Bridge workers fix branches, conflicts included.
+itself. It hand-merges only a pull request that no workflow rule reaches. A pull
+request linked to a card merges through the workflow `merge-ready` rule, so the
+queue watches it and never merges it. Bridge workers fix branches, conflicts
+included.
 
 The queue is the part that shrinks. The owner said on 2026-09-28: "I want all 3
 reasons and the merge queue should stop fixing conflicts", and "basically we're
@@ -70,8 +73,9 @@ It prints one line, `READY` or `HOLD` with every reason, and exits 0 only on
 `READY`. It counts the required buckets, checks the base, the draft flag and the
 merge state, and reads the owner's approval by time. It also reads the head
 twice, and holds if the head moved during the read. Run it on the head you are
-about to merge. Merge on `READY` only, unless the skill below says a `HOLD`
-reason is covered.
+about to hand-merge. Merge on `READY` only, unless the skill below says a `HOLD`
+reason is covered. A `READY` pull request linked to a card stays with the
+`merge-ready` rule, so never merge it by hand.
 
 ### Count, never infer from absence
 
@@ -124,17 +128,19 @@ are new content. That answer replaced the 2026-09-22 one, which covered
 `gh pr update-branch` only.
 
 The workflow template holds the rule as the value `approvalCoversConflictResolution`.
-`workflow_get` returns it. This project keeps the default, `true`. A project that
-sets it to `false` gets a hold on every conflict resolution after an approval,
-and the steps below that cover one then do not apply.
+`workflow_get` returns it. This project keeps the default, `true`. Read the value
+with `workflow_get` before you accept a conflict resolution after an approval.
+`merge-ready.sh` does not read it, so this check is yours. When the value is
+`false`, the resolution needs a new approval, and a passing `comm` proof does
+not replace it.
 
 `merge-ready.sh` sorts each commit after the approval into one of three kinds:
 
 - A merge from `main` that `git merge-tree` re-creates exactly is a sync. It
   passes, and the script counts it. A sync is always later than the approval.
 - A merge from `main` that git cannot re-create holds as a conflict resolution.
-  Prove it with the `comm` check in `references/git-traps.md`. When it passes,
-  the approval covers it.
+  Prove it with the `comm` check in `references/git-traps.md`. When it passes
+  and `approvalCoversConflictResolution` is `true`, the approval covers it.
 - Any other commit holds as "commits after approval". A rebase rewrites every
   commit, so it lands here too. Read the commits and decide which case it is.
 
@@ -253,13 +259,16 @@ request for changes. That worker resolves the conflict with the
 waits for that worker. When no worker comes, report the pull request to the
 owner as held.
 
-Verify the worker's resolution before you merge. Read its merge commit: the
-`# Conflicts:` block lists the files, and one line per file says how it was
-resolved. Run the `comm` proof in `references/git-traps.md` yourself, then run
-`merge-ready.sh` on the new head. The approval covers a resolution that passes.
+Verify the worker's resolution before you hand-merge a pull request that no
+rule reaches. Read its merge commit: the `# Conflicts:` block lists the files,
+and one line per file says how it was resolved. Run the `comm` proof in
+`references/git-traps.md` yourself, then run `merge-ready.sh` on the new head.
+Read `approvalCoversConflictResolution` with `workflow_get`. The approval covers
+a resolution that passes only when the value is `true`.
 
 The workflow `merge-ready` rule merges a pull request that is approved and
-green, through the GitHub App or through a `loupe-stage-merge` worker. Hold a
+green, through the GitHub App or through a `loupe-stage-merge` worker. Never
+merge such a pull request by hand, because a hand merge races the rule. Hold a
 pull request only when you need it to wait. The worker reads the approval by
 time as `merge-ready.sh` does. It compares push times, where `merge-ready.sh`
 compares commit times. With `approvalCoversConflictResolution` set to `true`, it
