@@ -13,28 +13,37 @@
 {% block settings_content %}
 <div class="lp-connect-settings">
     <twig:Ds:Panel as="section" id="agent-connection">
-        <twig:Ds:SectionHeading>{{ 'project.connect.card.agent.title'|trans }}</twig:Ds:SectionHeading>
-        <p class="lp-connect-hint">{{ 'project.connect.step.agent.purpose'|trans }}</p>
-
-        <div data-controller="modal">
-            <twig:Ds:Button variant="primary" type="button" data-action="click->modal#open">
-                <twig:ux:icon name="lucide:link" />{{ 'project.connect.configure'|trans }}
-            </twig:Ds:Button>
-            <twig:Ds:Dialog size="document" class="lp-connect-dialog" aria-labelledby="connect-agent-title">
-                <header class="lp-connect-dialog__header">
-                    <div>
-                        <h2 class="lp-dialog-title" id="connect-agent-title">{{ 'project.connect.step.agent.heading'|trans }}</h2>
-                        <p class="lp-dialog-desc">{{ 'project.connect.step.agent.purpose'|trans }}</p>
-                    </div>
-                    <twig:Ds:Button variant="icon" type="button" data-action="modal#close" aria-label="{{ 'project.connect.dialog.close'|trans }}"><twig:ux:icon name="lucide:x" /></twig:Ds:Button>
-                </header>
+        <twig:Ds:SectionHeading>{{ 'project.connect.machines.title'|trans }}</twig:Ds:SectionHeading>
+        {% for machine in machines %}
+        <a class="lp-connect-machine" href="{{ machine.url }}" data-connect-machine="{{ machine.id }}">
+            <span class="lp-connect-machine__text">
+                <strong data-bridge-label>{{ machine.label }}</strong>
+                <small>{{ 'project.connect.machines.version'|trans({'%version%': machine.cliVersion|short_sha}) }}</small>
+            </span>
+            <twig:Ds:StatusChip :modifier="machine.quiet ? 'pending' : 'ok'" :label="(machine.quiet ? 'bridge.agents.status.stale' : 'bridge.agents.status.healthy')|trans" />
+        </a>
+        {% endfor %}
+        <twig:Ds:SectionHeading :level="3">{{ 'project.connect.machines.add.title'|trans }}</twig:Ds:SectionHeading>
+        <twig:Ds:Hint>{{ 'project.connect.machines.add.hint'|trans }}</twig:Ds:Hint>
+        <twig:Ds:CodeBlock
+            :label="'project.connect.machines.add.label'|trans"
+            :text="'loupe init --project ' ~ project.id"
+            :copyLabel="'project.connect.copy'|trans"
+            :copiedLabel="'project.connect.copied'|trans"
+            testid="connect-init-command" />
+        <details class="lp-connect-other" data-testid="connect-other-ways" data-controller="disclosure">
+            <summary class="lp-connect-other__summary" data-action="click->disclosure#toggle">
+                <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-connect-other__caret" />
+                {{ 'project.connect.other.summary'|trans }}
+            </summary>
+            <div class="lp-connect-other__body" data-disclosure-target="content">
                 {% include '@Project/_connect_instructions.html.twig' with {mcpServerName: mcpServerName, projectId: project.id} only %}
-                <details class="lp-tools-disclosure">
-                    <summary class="lp-tools-disclosure__summary">
+                <details class="lp-tools-disclosure" data-controller="disclosure">
+                    <summary class="lp-tools-disclosure__summary" data-action="click->disclosure#toggle">
                         <twig:ux:icon name="lucide:chevron-right" class="lp-tools-disclosure__caret" />
                         {{ 'project.connect.tools.summary'|trans({'%count%': tools|length}) }}
                     </summary>
-                    <div class="lp-tools">
+                    <div class="lp-tools" data-disclosure-target="content">
                         {% for tool in tools %}
                         <div class="lp-tools__row">
                             <code class="lp-tools__name">{{ tool.name }}</code>
@@ -43,12 +52,14 @@
                         {% endfor %}
                     </div>
                 </details>
-                <twig:Ds:FormActions>
-                    <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'project.connect.dialog.close'|trans }}</twig:Ds:Button>
-                </twig:Ds:FormActions>
-            </twig:Ds:Dialog>
-        </div>
+            </div>
+        </details>
+        <a class="lp-workshop-text-link" href="{{ app_docs_url }}/using/mcp/#what-the-tools-do" target="_blank" rel="noopener noreferrer" data-connect-docs-link>{{ 'project.connect.docs_link'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
     </twig:Ds:Panel>
+
+    <twig:GitHubRepositories :project="project" />
+
+    <twig:GitIdentity :project="project" />
 
     <twig:Ds:Panel as="section" id="site-review-widget">
         <twig:Ds:SectionHeading>{{ 'project.connect.card.widget.title'|trans }}</twig:Ds:SectionHeading>
@@ -105,7 +116,5 @@
             {{ form_end(allowedOriginsForm) }}
         </div>
     </twig:Ds:Panel>
-
-    <twig:GitHubRepositories :project="project" />
 </div>
 {% endblock %}

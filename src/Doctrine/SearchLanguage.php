@@ -52,6 +52,54 @@ enum SearchLanguage: string
     /** What a document gets when nothing states a language, and what every row held before this column existed. */
     public const self DEFAULT = self::English;
 
+    /**
+     * The first language of an Accept-Language list that PostgreSQL can stem, or the default.
+     *
+     * @param list<string> $languages locale codes in order of preference, such as `de_CH`
+     */
+    public static function fromPreferred(array $languages): self
+    {
+        foreach ($languages as $language) {
+            $primary = strtolower(explode('_', str_replace('-', '_', $language))[0]);
+            $match = match ($primary) {
+                'ar' => self::Arabic,
+                'hy' => self::Armenian,
+                'eu' => self::Basque,
+                'ca' => self::Catalan,
+                'da' => self::Danish,
+                'nl' => self::Dutch,
+                'en' => self::English,
+                'fi' => self::Finnish,
+                'fr' => self::French,
+                'de' => self::German,
+                'el' => self::Greek,
+                'hi' => self::Hindi,
+                'hu' => self::Hungarian,
+                'id' => self::Indonesian,
+                'ga' => self::Irish,
+                'it' => self::Italian,
+                'lt' => self::Lithuanian,
+                'ne' => self::Nepali,
+                'no', 'nb', 'nn' => self::Norwegian,
+                'pt' => self::Portuguese,
+                'ro' => self::Romanian,
+                'ru' => self::Russian,
+                'sr' => self::Serbian,
+                'es' => self::Spanish,
+                'sv' => self::Swedish,
+                'ta' => self::Tamil,
+                'tr' => self::Turkish,
+                'yi' => self::Yiddish,
+                default => null,
+            };
+            if (null !== $match) {
+                return $match;
+            }
+        }
+
+        return self::DEFAULT;
+    }
+
     /** @return list<string> */
     public static function values(): array
     {

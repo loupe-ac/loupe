@@ -7,5 +7,5 @@ Loupe's flash message. {{ entry.summary }}
 <{{ name }} severity="error" dismissLabel="Dismiss">Upload failed</{{ name }}>
 ```
 
-Pass `severity` as `success`, `error`, `warning` or `info`. Pass `dismissLabel` to draw a dismiss button. Messages are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
+Pass `severity` as `success`, `error`, `warning` or `info`. Pass `dismissLabel` to draw a dismiss button. Pass `title` and `actions` for a notice that needs a heading and buttons: the dot then stays on the first line. Messages are sentence case and never end in a full stop. The component emits the real `{{ entry.rootClass }}` classes of the app.
 {% endautoescape %}

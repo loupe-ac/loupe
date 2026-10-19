@@ -10,9 +10,11 @@ a terminal.
 
 ## Set up with one prompt
 
-A coding agent can do the whole setup for you. A project's Connect page and
-the first-run wizard at `/welcome/connect` show a short prompt with a Copy
-button. Paste it into Claude Code or Codex, in the repository of the project:
+The Connect page of a project leads with `loupe init --project <project id>`, and
+you can run it yourself. See [Run the bridge](../getting-started/run-the-bridge.md).
+A coding agent can also do the setup for you. Open "Other ways to connect" on
+the Connect page to find a short prompt with a Copy button. Paste
+it into Claude Code or Codex, in the repository of the project:
 
 ```text
 Set up Loupe for this repository. Run
@@ -22,25 +24,22 @@ and follow the steps it prints, in order. Use curl, not a web fetch tool.
 
 `/setup.md` is public and returns Markdown steps for an agent. The steps
 install the CLI with `/install.sh` when `loupe version` fails, and stop on
-Windows, which has no build. They sign in with `loupe login` and bind the repository with
-`loupe init`. Then they connect the MCP server, install the skills, and check
-the result with `loupe status`. When your rule file holds worker entries under
-`work:`, the steps then ask whether each bridge worker gets its own folder.
-If it does, the agent adds a
-[`before` command](../extending/cli-bridge.md#before-command) to those entries,
-and a teardown entry. The agent asks you when a step needs you, such
-as the browser approval of the sign-in. It never writes a token or a password.
+Windows, which has no build. Then they run `loupe init`. That one command signs
+in, links the repository to the project, connects the MCP server, installs the
+skills, writes the rule file and starts the bridge. The agent asks you when a
+step needs you, such as the browser approval of the sign-in. It never writes a
+token or a password.
 
-The `project` parameter fills the project id into the commands. The page
-accepts only a UUID and ignores any other value. With no valid id, the steps
-run `loupe init` and ask you which project to use.
+The `project` parameter fills the project id into the `loupe init` command. The
+page accepts only a UUID and ignores any other value. With no valid id, `loupe init`
+asks you which project to use.
 
-The two agents differ in two steps:
+`loupe init` treats the two agents differently in two steps:
 
 | Step | Claude Code | Codex |
 |---|---|---|
-| MCP server | `loupe init --mcp` declares `loupe mcp` at user scope | `codex mcp add loupe -- loupe mcp --project <project id>` |
-| Skills | The Claude Code plugin, see [below](#the-claude-code-plugin) | A copy of `plugins/loupe/skills/` in `~/.agents/skills/` |
+| MCP server | `loupe project link --mcp` declares `loupe mcp` at user scope | `loupe mcp` is declared to Codex with the project id |
+| Skills | The Claude Code plugin, see [below](#the-claude-code-plugin) | A copy of the Loupe skills in `~/.agents/skills/` |
 
 Codex gets the project id in its server declaration, and Claude Code reads it
 from `.loupe.yaml`. At the end, the agent tells you to restart it. The new
@@ -67,10 +66,14 @@ curl -fsSL https://<your Loupe>/install.sh | sh
 # or, with Homebrew: brew install ubermuda/tap/loupe
 loupe login                  # a browser sign-in, once per machine
 cd ~/code/my-project
-loupe init                   # writes .loupe.yaml, choosing from your projects
+loupe project link           # writes .loupe.yaml, choosing from your projects
 ```
 
-`loupe init` then checks how Claude Code starts the `loupe` server. When nothing
+`loupe project link` also writes `.loupe/lifecycle.md` when the repository has none, also
+when `.loupe.yaml` exists already.
+[Getting started](../getting-started/index.md) says what the file holds.
+
+`loupe project link` then checks how Claude Code starts the `loupe` server. When nothing
 does, it offers to declare it for every project:
 
 ```bash
@@ -83,7 +86,7 @@ there, so the project comes from the repository rather than from the
 declaration. A worktree gets it for free. A repository with no `.loupe.yaml`
 still starts the server, with no project: your login then acts on your single
 project, or refuses and asks which one when you own several. The refusal
-names `loupe init` as the fix.
+names `loupe project link` as the fix.
 
 `loupe mcp` reads `.loupe.yaml` again when the file changes, so a new project
 reaches the agent at its next request. A file that fails to parse keeps the last
@@ -91,18 +94,18 @@ good project. A removed file sends no project, as if the repository had no
 file. Each change writes one line to stderr, which an agent shows as this
 server's log. With `--project`, the command never reads the file.
 
-When something else already answers to the name, `loupe init` says what it
+When something else already answers to the name, `loupe project link` says what it
 starts and offers to remove it. Removing always asks, whatever flags you passed,
 so a script never drops a declaration you made by hand. `--mcp` and `--no-mcp`
 answer the create offer without being asked.
 
-`loupe init` never edits Claude Code's configuration file. Claude Code owns it,
+`loupe project link` never edits Claude Code's configuration file. Claude Code owns it,
 rewrites it while it runs, and keeps its own backups beside it, so every change
 runs `claude mcp` and lets Claude Code edit its own file.
 
 ### Committing the server to the repository
 
-`loupe init --mcp-json` writes `.mcp.json` instead, so everyone who clones the
+`loupe project link --mcp-json` writes `.mcp.json` instead, so everyone who clones the
 repository gets the server:
 
 ```json
@@ -120,7 +123,7 @@ project id, which is not a secret either.
 Two things come with it. An agent asks you to approve the server the first time,
 because the file names programs to run and travels with the repository. And
 `.mcp.json` is the lowest of Claude Code's three scopes, so a local or user
-declaration of the same name hides it. `loupe init` reports that rather than
+declaration of the same name hides it. `loupe project link` reports that rather than
 leaving you to find it.
 
 The command adds one thing a direct HTTP connection cannot. Loupe keeps each MCP
@@ -212,8 +215,12 @@ table and for how to revoke a connection.
 `403 insufficient_scope` means the sign-in is valid and carries the wrong scope
 for that endpoint. Connect the client again with the scope the endpoint needs.
 
-A project's Connect page shows the command for each way on this page. The
-first-run wizard shows the same commands at `/welcome/connect`.
+A project's Connect page leads with `loupe init --project <project id>` and
+lists the machines of the owner. It keeps the commands for the other ways on
+this page in the "Other ways to connect" block, and links to the tools below.
+The machine step of the first-run wizard at `/welcome/connect` shows the
+install command and `loupe init --project <project id>`, and it lists what
+Loupe sees of the machine, live.
 
 ## The Claude Code plugin
 
@@ -273,7 +280,7 @@ Roughly in the order an agent uses them:
 | `readiness_guide_set` | Show or hide the readiness checklist on the Workshop |
 | `readiness_get` | Read the readiness checks of the project, each with its status, and the state and the `runId` of the latest discovery run. `readiness_report_submit` takes that `runId`. It works while the Workshop guide is hidden |
 | `discovery_start` | Start a read-only [discovery run](workshop.md#run-discovery) on a new Backlog card. A running bridge must serve the project, the project needs a workflow with board automation on, and one run can be open at a time |
-| `readiness_report_submit` | Submit the report of a [discovery run](workshop.md#review-the-report): the findings, and the cards it proposes. Loupe writes the report as a document for review. When the owner approves it, each ticked proposal becomes a card in Next. A run takes one report |
+| `readiness_report_submit` | Submit the report of a [discovery run](workshop.md#review-the-report): the findings, and the cards it proposes. Loupe writes the report as a document for review. When the owner approves it, each ticked proposal becomes a card in Next. A run takes one report, and one revised version for each time you ask for changes |
 | `workflow_get` | Read the [workflow](workflows.md) of the project: its template and version, whether an approval covers a conflict resolution, the epic branch pattern, the board columns with the slot of each, and each kind of work with the rules that ask for it and its `checks` |
 | `document_create` | Submit Markdown as a new document, or as a draft with `draft`; returns a review URL, the language it was stored in and its status |
 | `document_revise` | Submit a new version, described by what changed |

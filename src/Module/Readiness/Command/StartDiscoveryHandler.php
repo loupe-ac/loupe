@@ -24,6 +24,9 @@ final readonly class StartDiscoveryHandler
     private const string CARD_TYPE = 'tooling';
 
     public const string NO_LIVE_BRIDGE = 'readiness.discovery.error.no_bridge';
+    public const string NO_CAPABLE_BRIDGE = 'readiness.discovery.error.no_capable_bridge';
+    public const string NO_CAPABLE_BRIDGE_APP_PROMPTS = 'readiness.discovery.error.no_capable_bridge_app_prompts';
+    public const string BRIDGE_PAUSED = 'readiness.discovery.error.bridge_paused';
 
     public const string NO_WORKFLOW = 'readiness.discovery.error.no_workflow';
 
@@ -57,7 +60,7 @@ final readonly class StartDiscoveryHandler
         $run = $this->em->wrapInTransaction(function () use ($command, $project): DiscoveryRun|DiscoveryRunning {
             $this->em->lock($project, LockMode::PESSIMISTIC_WRITE);
             $latest = $this->discoveryRuns->latestForProject($project);
-            if (DiscoveryRunState::Requested === $latest?->state) {
+            if (null !== $latest && \in_array($latest->state, [DiscoveryRunState::Requested, DiscoveryRunState::Revising], true)) {
                 return new DiscoveryRunning($latest->card->number);
             }
 

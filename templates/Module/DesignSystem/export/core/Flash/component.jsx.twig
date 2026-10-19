@@ -3,8 +3,11 @@ import React from 'react';
 
 export const {{ entry.name|upper }}_SEVERITIES = [{{ entry.variants|map(v => "'" ~ v ~ "'")|join(', ') }}];
 
-export function {{ entry.name }}({ severity = 'info', dismissLabel, dot = true, className: extra, children, ...rest }) {
+export function {{ entry.name }}({ severity = 'info', dismissLabel, title, actions, dot = true, className: extra, children, ...rest }) {
     const classes = ['{{ entry.rootClass }}', '{{ entry.rootClass }}--' + severity];
+    if (title || actions) {
+        classes.push('{{ entry.rootClass }}--block');
+    }
     if (extra) {
         classes.push(extra);
     }
@@ -13,7 +16,7 @@ export function {{ entry.name }}({ severity = 'info', dismissLabel, dot = true, 
     return (
         <div role="status" data-controller="flash" {...rest} className={className}>
             {dot && <span className="{{ entry.rootClass }}__dot"></span>}
-            <span className="{{ entry.rootClass }}__message">{children}</span>
+            <span className="{{ entry.rootClass }}__message">{title && <strong className="{{ entry.rootClass }}__title">{title}</strong>}{children}{actions && <span className="{{ entry.rootClass }}__actions">{actions}</span>}</span>
             {dismissLabel && <button type="button" className="{{ entry.rootClass }}__dismiss" data-action="click->flash#dismiss">{dismissLabel}</button>}
         </div>
     );

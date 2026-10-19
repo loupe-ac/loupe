@@ -11,6 +11,9 @@
     .lp-btn:active {
         @apply translate-y-px scale-97;
     }
+    .lp-btn:disabled {
+        @apply opacity-60 cursor-not-allowed pointer-events-none;
+    }
     .lp-btn--primary {
         @apply border-accent-border bg-accent text-ink font-semibold;
     }

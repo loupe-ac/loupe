@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\DesignSystem;
 
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 use Twig\Environment;
 
 final class FilterBarComponentTest extends KernelTestCase
@@ -68,7 +69,14 @@ final class FilterBarComponentTest extends KernelTestCase
         $html = $this->render('<twig:Ds:FilterBar action="/list" :switch="{name: \'archived\', label: \'Show archived\', checked: true, attributes: {\'data-toggle\': true}}" clearHref="/list" clearLabel="Clear" count="5 of 7" countFrame="frame-1" :countAttributes="{id: \'c\'}" />');
 
         self::assertStringContainsString('<label class="lp-filter-switch">', $html);
-        self::assertMatchesRegularExpression('/<input type="checkbox"\s+class="lp-switch"\s+role="switch"\s+name="archived"\s+value="1"\s+checked data-toggle\s+data-action="change->autosearch#search">/', $html);
+        $input = new Crawler($html)->filter('label.lp-filter-switch input.lp-switch');
+        self::assertCount(1, $input);
+        self::assertSame('checkbox', $input->attr('type'));
+        self::assertSame('switch', $input->attr('role'));
+        self::assertSame('archived', $input->attr('name'));
+        self::assertNotNull($input->attr('checked'));
+        self::assertNotNull($input->attr('data-toggle'));
+        self::assertSame('change->autosearch#search', $input->attr('data-action'));
         self::assertStringContainsString('<a href="/list" data-autosearch-target="clearButton" class="lp-filter-clear">Clear</a>', $html);
         self::assertStringContainsString('<turbo-frame id="frame-1" class="lp-live-frame"><span class="lp-filter-count" id="c">5 of 7</span></turbo-frame>', $html);
         self::assertLessThan(strpos($html, 'lp-filter-clear'), strpos($html, 'lp-filter-switch'));

@@ -37,6 +37,21 @@ dies with the command:
 ( cd .worktrees/<name> && just worktree-up )
 ```
 
+## The preview token of a worktree
+
+`just worktree-up` mints a [preview token](../using/site-review.md#preview-sites)
+for the worktree. It writes the token to `SITE_REVIEW_WIDGET_PREVIEW_TOKEN` in
+the `.env.local` of the worktree. The widget then signs in with no popup.
+`just worktree-down` revokes the token.
+
+The scripts pass the widget backend as `--instance`. A CLI that is signed in to
+another instance mints nothing.
+
+A failed mint never stops `just worktree-up`. The script prints one warning line
+and writes an empty token, and the widget shows its Sign in button. The warning
+appears when the CLI is missing, signed out, or signed in to another instance
+than `SITE_REVIEW_WIDGET_BACKEND`.
+
 ## Running tests in parallel
 
 PHPUnit's database is `app_test<TEST_TOKEN>`. `just worktree-up` writes a unique

@@ -16,8 +16,15 @@ class UpdateProjectAllowedOriginsRequest
     ) {
     }
 
+    /** A project with a website and no origin yet starts with its website, which nothing saves until the owner submits. */
     public static function fromProject(Project $project): self
     {
+        if ([] === $project->allowedOrigins && null !== $project->domain) {
+            $website = SiteOrigins::normalise($project->domain) ?? SiteOrigins::normalise('https://'.$project->domain);
+
+            return new self($website);
+        }
+
         return new self(implode("\n", $project->allowedOrigins));
     }
 }

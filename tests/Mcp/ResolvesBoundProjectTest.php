@@ -27,7 +27,7 @@ final class ResolvesBoundProjectTest extends TestCase
         ));
 
         self::assertSame(
-            'This login covers several projects, and this request names none. Run `loupe init` in the repository to choose one, then call the tool again. An HTTP client names the project in the X-Loupe-Project header instead. It covers: Board ('.self::BOARD_ID.'), Site ('.self::SITE_ID.').',
+            'This login covers several projects, and this request names none. Run `loupe project link` in the repository to choose one, then call the tool again. An HTTP client names the project in the X-Loupe-Project header instead. It covers: Board ('.self::BOARD_ID.'), Site ('.self::SITE_ID.').',
             $message,
         );
     }
@@ -49,7 +49,7 @@ final class ResolvesBoundProjectTest extends TestCase
         ));
 
         self::assertSame(
-            'This login does not cover the project this request names ("'.self::SITE_ID.'"). Run `loupe init --force` in the repository to choose a project it covers. `loupe mcp` takes the project from `.loupe.yaml`, or from its `--project` option. An HTTP client sets the X-Loupe-Project header. It covers: Board ('.self::BOARD_ID.').',
+            'This login does not cover the project this request names ("'.self::SITE_ID.'"). Run `loupe project link --force` in the repository to choose a project it covers. `loupe mcp` takes the project from `.loupe.yaml`, or from its `--project` option. An HTTP client sets the X-Loupe-Project header. It covers: Board ('.self::BOARD_ID.').',
             $message,
         );
     }
@@ -78,7 +78,7 @@ final class ResolvesBoundProjectTest extends TestCase
     public function test_header_malformed_names_loupe_init_and_an_example_id(): void
     {
         self::assertSame(
-            'The project this request names is not a project id ("the-board"). Run `loupe init` in the repository to choose one. `loupe mcp --project` and the X-Loupe-Project header take an id such as 0192f3c4-5d6e-7f80-9123-456789abcdef.',
+            'The project this request names is not a project id ("the-board"). Run `loupe project link` in the repository to choose one. `loupe mcp --project` and the X-Loupe-Project header take an id such as 0192f3c4-5d6e-7f80-9123-456789abcdef.',
             self::message(ProjectResolution::refused(ProjectRefusal::HeaderMalformed, [], 'the-board')),
         );
     }

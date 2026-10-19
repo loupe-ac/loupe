@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -53,15 +54,18 @@ func newStatusCmd() *cobra.Command {
 			"the `" + mcpjson.ServerKey + "` MCP server and, for Claude Code, the Loupe skills. " +
 			"An account that no rule runs on is labelled `unused`. A failing account that a rule runs on " +
 			"fails the check. A failing unused account is printed and does not fail it. " +
-			"With no rule file, it checks no account.\n\n" +
+			"With no rule file, it checks no account. It also notes what the rule file lacks to run work " +
+			"in this directory: a permission default, a prompt source, or a project that maps this " +
+			"directory. A note never fails the check, and `loupe init` fixes it.\n\n" +
 			"The last line on stdout is `" + statusPass + "` or `" + statusFail + "`. A failure " +
 			"exits non-zero, and the error on stderr says what to run next. Read the exit " +
 			"status, because the error comes after the verdict when the two streams merge.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
-			err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
+			current, err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
 			noteClaudeCode(out)
 			err = errors.Join(err, checkStatusAccounts(cmd.Context(), out, rulesPath))
+			noteRuleGaps(out, rulesPath, current)
 			if err != nil {
 				fmt.Fprintln(out, statusFail)
 
@@ -78,18 +82,18 @@ func newStatusCmd() *cobra.Command {
 	return cmd
 }
 
-// checkStatus runs the checks that decide pass or fail, and prints what each
-// one found.
-func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.Writer) error {
+// checkStatus runs the checks that decide pass or fail, prints what each one
+// found, and returns the project that `loupe mcp` uses here.
+func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.Writer) (api.Site, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return err
+		return api.Site{}, err
 	}
 	fmt.Fprintf(out, "Instance:    %s\n", cfg.BaseURL)
 
 	project, err := mcpProject(projectID, notes)
 	if err != nil {
-		return err
+		return api.Site{}, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, statusTimeout)
@@ -102,25 +106,25 @@ func checkStatus(ctx context.Context, out io.Writer, projectID string, notes io.
 	client := mcp.NewClient(&mcp.Implementation{Name: "loupe-status", Version: versionString()}, nil)
 	session, err := client.Connect(ctx, loupeTransport(cfg.BaseURL+mcpPath, hc), nil)
 	if err != nil {
-		return fmt.Errorf("could not open an MCP session with %s: %w\n\nCheck that the instance is up, or run `loupe login` again", cfg.BaseURL, err)
+		return api.Site{}, fmt.Errorf("could not open an MCP session with %s: %w\n\nCheck that the instance is up, or run `loupe login` again", cfg.BaseURL, err)
 	}
 	defer func() { _ = session.Close() }()
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "project_current"})
 	if err != nil {
-		return fmt.Errorf("project_current failed: %w\n\nCheck that the instance is up, or run `loupe login` again", err)
+		return api.Site{}, fmt.Errorf("project_current failed: %w\n\nCheck that the instance is up, or run `loupe login` again", err)
 	}
 	if res.IsError {
-		return fmt.Errorf("project_current refused: %s", toolText(res))
+		return api.Site{}, fmt.Errorf("project_current refused: %s", toolText(res))
 	}
 
 	current, err := readCurrentProject(res)
 	if err != nil {
-		return err
+		return api.Site{}, err
 	}
 	fmt.Fprintf(out, "Project:     %s\n", describe(current))
 
-	return nil
+	return current, nil
 }
 
 // checkStatusAccounts checks each account that the rule file uses, and prints
@@ -171,6 +175,36 @@ func checkStatusAccounts(ctx context.Context, out io.Writer, rulesPath string) e
 	}
 
 	return nil
+}
+
+// noteRuleGaps prints what the rule file lacks for this directory and its
+// linked project. It is a note only. A missing or unreadable file prints
+// nothing, because the account check reports it. A project that did not
+// resolve leaves any project that maps the directory enough.
+func noteRuleGaps(out io.Writer, rulesPath string, project api.Site) {
+	path, err := rulesPathOr(rulesPath)
+	if err != nil {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	var keys []string
+	if project.ID != "" {
+		keys = []string{cmp.Or(project.Slug, project.ID), project.ID}
+	}
+	gaps, err := rules.Gaps(data, dir, keys...)
+	if err != nil {
+		return
+	}
+	for _, gap := range gaps {
+		fmt.Fprintf(out, "Rules:       note: %s. Run `loupe init` to fix it.\n", gap)
+	}
 }
 
 // readCurrentProject takes the project from the structured content, or from a
@@ -230,8 +264,8 @@ func noteClaudeCode(out io.Writer) {
 	case got.Correct():
 		fmt.Fprintf(out, "Claude Code: starts `loupe mcp` for %s.\n", got.Where())
 	case got.Declared():
-		fmt.Fprintf(out, "Claude Code: starts %q from %s as %s, which is not `loupe mcp`. Run `loupe init --mcp` to fix it.\n", mcpjson.ServerKey, got.Where(), got.Entry.Summary())
+		fmt.Fprintf(out, "Claude Code: starts %q from %s as %s, which is not `loupe mcp`. Run `loupe project link --mcp` to fix it.\n", mcpjson.ServerKey, got.Where(), got.Entry.Summary())
 	default:
-		fmt.Fprintf(out, "Claude Code: does not declare %q. Run `loupe init --mcp` to declare it. Other agents keep their own configuration.\n", mcpjson.ServerKey)
+		fmt.Fprintf(out, "Claude Code: does not declare %q. Run `loupe project link --mcp` to declare it. Other agents keep their own configuration.\n", mcpjson.ServerKey)
 	}
 }

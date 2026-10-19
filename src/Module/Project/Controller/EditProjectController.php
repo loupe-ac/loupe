@@ -34,10 +34,8 @@ class EditProjectController extends AppController
 
     public function __invoke(Request $request, Project $project): Response
     {
-        // The edit form reuses the create form without the workflow template, which is
-        // picked once at creation.
         $data = UpdateProjectRequest::fromProject($project);
-        $form = $this->createForm(CreateProjectFormType::class, $data, ['workflow_template' => false]);
+        $form = $this->createForm(CreateProjectFormType::class, $data);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {

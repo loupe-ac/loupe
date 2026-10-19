@@ -292,30 +292,38 @@ func heldBridges() ([]heldBridge, error) {
 	if err != nil {
 		return nil, err
 	}
-	locks, err := filepath.Glob(filepath.Join(dir, "bridge-*.lock"))
-	if err != nil {
-		return nil, err
-	}
-
 	var bridges []heldBridge
-	for _, path := range locks {
-		sock, err := lockHolder(path)
+	err = withMoveGuard(false, func() error {
+		locks, err := filepath.Glob(filepath.Join(dir, "bridge-*.lock"))
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if sock == "" {
-			continue
-		}
-		if i := slices.IndexFunc(bridges, func(b heldBridge) bool { return b.sock == sock }); i >= 0 {
-			bridges[i].locks = append(bridges[i].locks, path)
+		afterLockGlob()
+		for _, path := range locks {
+			sock, err := lockHolder(path)
+			if err != nil {
+				return err
+			}
+			if sock == "" {
+				continue
+			}
+			if i := slices.IndexFunc(bridges, func(b heldBridge) bool { return b.sock == sock }); i >= 0 {
+				bridges[i].locks = append(bridges[i].locks, path)
 
-			continue
+				continue
+			}
+			bridges = append(bridges, heldBridge{sock: sock, locks: []string{path}})
 		}
-		bridges = append(bridges, heldBridge{sock: sock, locks: []string{path}})
-	}
 
-	return bridges, nil
+		return nil
+	})
+
+	return bridges, err
 }
+
+// afterLockGlob runs between the listing of the lock files and their checks.
+// Tests move a lock there.
+var afterLockGlob = func() {}
 
 // lockHolder gives the socket written in the lock file at path while a bridge
 // holds its lock, and "" when no bridge holds it.

@@ -537,9 +537,12 @@ type Heartbeat struct {
 	// HostSamples sends no key when empty. The client sends the oldest
 	// HostSamplesPerHeartbeat of them.
 	HostSamples []HostSample `json:"hostSamples,omitempty"`
-	// PushLogin is the GitHub login that workers push as. It follows Name:
-	// nil keeps the stored login, and "" clears it.
-	PushLogin *string `json:"pushLogin,omitempty"`
+	// GitIdentities follows the same rule as Repositories: nil sends no key
+	// and keeps the rows the server holds, and an empty list sends [].
+	GitIdentities []GitIdentityReport `json:"gitIdentities,omitzero"`
+	// GitIdentitiesAge is the number of seconds since the bridge read the
+	// GitIdentities rows, so the server dates them from the read.
+	GitIdentitiesAge int64 `json:"gitIdentitiesAge,omitzero"`
 	// Accounts is nil until the bridge checked its accounts, which sends no
 	// key and keeps the rows the server holds.
 	Accounts []AccountReport `json:"accounts,omitzero"`
@@ -548,12 +551,17 @@ type Heartbeat struct {
 	// them.
 	CommandEntries []CommandEntryReport `json:"commandEntries,omitzero"`
 	Worktrees      []WorktreeReport     `json:"worktrees,omitzero"`
+	// Repositories follows the same rule: nil sends no key and keeps the rows
+	// the server holds.
+	Repositories []RepositoryReport `json:"repositories,omitzero"`
 }
 
 // The most rows of each list a heartbeat carries.
 const (
 	MaxCommandEntries = 50
 	MaxWorktrees      = 200
+	MaxRepositories   = 500
+	MaxGitIdentities  = 500
 )
 
 // CommandEntryReport is one command entry of the rule file. Run holds the
@@ -578,6 +586,32 @@ type WorktreeReport struct {
 	ProjectID string `json:"projectId"`
 	Branch    string `json:"branch"`
 	Path      string `json:"path"`
+}
+
+// RepositoryReport is the folder of one followed project and its origin
+// remote. RemoteURL is empty when git has none to give.
+type RepositoryReport struct {
+	ProjectID string `json:"projectId"`
+	Path      string `json:"path"`
+	RemoteURL string `json:"remoteUrl"`
+}
+
+// The modes of a git identity row.
+const (
+	GitModeAgentAccount = "agent_account"
+	GitModeAppToken     = "app_token"
+	GitModeMachine      = "machine"
+)
+
+// GitIdentityReport is the git identity that a worker of one followed project
+// pushes as. CommitName and PushLogin are empty when unknown, and GitHubUserID
+// is nil then. The row holds no token.
+type GitIdentityReport struct {
+	ProjectID    string `json:"projectId"`
+	Mode         string `json:"mode"`
+	CommitName   string `json:"commitName"`
+	PushLogin    string `json:"pushLogin"`
+	GitHubUserID *int64 `json:"githubUserId"`
 }
 
 // The states of an account row.
@@ -704,6 +738,12 @@ func (c *Client) Heartbeat(ctx context.Context, bridgeID string, hb Heartbeat) (
 	}
 	if len(hb.Worktrees) > MaxWorktrees {
 		hb.Worktrees = hb.Worktrees[:MaxWorktrees]
+	}
+	if len(hb.Repositories) > MaxRepositories {
+		hb.Repositories = hb.Repositories[:MaxRepositories]
+	}
+	if len(hb.GitIdentities) > MaxGitIdentities {
+		hb.GitIdentities = hb.GitIdentities[:MaxGitIdentities]
 	}
 	if len(hb.HostSamples) > HostSamplesPerHeartbeat {
 		hb.HostSamples = hb.HostSamples[:HostSamplesPerHeartbeat]

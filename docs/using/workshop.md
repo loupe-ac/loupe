@@ -46,20 +46,29 @@ Workshop does not infer running agents from open cards or bridge heartbeats.
 
 The readiness guide shows the project owner what the project needs before agents can work on it.
 Other members do not see it.
-The guide is a checklist named Ready for agents. It counts the rows that are done, for example "2 of 6".
+The guide is a checklist named Ready for agents. It counts the required rows that are done, for example "2 of 4 required steps done". It groups the rows in three sections.
+
+Ready for discovery:
 
 - Agent connected is done after an agent first calls the MCP server for this project. Connect opens the Connect page.
-- Workflow is done when the project has a workflow. The row shows the name of the workflow template.
-- Bridge running is done when a bridge that serves the project sends heartbeats. Start opens the Connect page.
-- GitHub App is done when a repository connects to the project through the GitHub App. Install starts the install when the instance has a GitHub App.
-- Agent GitHub account is done when the owner records the login of the agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the [agent account page](../getting-started/agent-github-account.md).
-- Repository shows the latest [discovery](#run-discovery) of the project. It is done when the owner reviewed the discovery report.
+- Bridge ready is done when a bridge that serves the project sends heartbeats and can run the discovery work. With no running bridge, the row shows "Not running". Start opens the Connect page, which shows the `loupe init` command. `loupe init` starts the bridge. To start it again later, run `loupe bridge run -d`. See [Run the bridge](../getting-started/run-the-bridge.md). A bridge that is online but cannot run it shows "Online, but it cannot run this work", and Start opens the Connect page again. A bridge that is paused shows "Paused, so it takes no new work", and Resume opens the Agents page.
+- Run discovery shows the latest [discovery](#run-discovery) of the project. It is done when the owner reviewed the discovery report.
+
+Ready for pull requests:
+
+- Install the GitHub App is done when a repository connects to the project through the GitHub App. Install starts the install when the instance has a GitHub App.
+- Who pushes the code is optional, so the count leaves it out. Loupe manages the [git identity of agents](../getting-started/agent-github-account.md) by default, and the agents push as the Loupe GitHub App. The row is done when the owner records the login of an agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the agent account page.
+
+Optional, which the count leaves out:
+
+- Review widget is done when the project lists at least one site that may sign in to the widget. Set up opens the review widget panel of the Connect page. When the project has a website and no site yet, the field starts with the website. Loupe saves nothing until you select Save.
 
 When Needs you is empty and nothing is in motion, the guide is the only content of the Workshop.
 Its heading names the project, for example "Get Acme ready for agents".
-A Run discovery panel comes first and shows the status of the Repository row. The checklist and the Hide this guide control follow it.
+The page has no Hide button. To hide the guide, use the [Agent readiness](projects.md#agent-readiness) tab of Project settings.
 Open cards with no worker run, such as cards in Backlog or Next, do not change this layout.
 The worker run of the discovery card does not change it either, so the guide stays in front while discovery runs.
+The page reloads when a bridge reports a change that alters the rows, so a bridge that comes online turns its row to done without a reload by hand.
 
 When an item needs you or a card is in motion, the Workshop shows its normal layout.
 The checklist then sits at the top of the right column. Its × control hides the guide.
@@ -73,7 +82,7 @@ When an instance upgrades, a project that has a card outside Backlog starts with
 Discovery reads the repository and the workflow of the project, and writes a readiness report.
 The worker only reads. It changes no file and opens no pull request.
 
-To start it, select **Run discovery** in the Repository row.
+To start it, select **Run discovery** in the Run discovery row.
 Loupe creates a new tooling card in the Backlog, named "Discover what Acme needs for agents".
 The card tracks the run, and Loupe moves it. Each run gets a new card.
 The [`discovery` rule](workflows.md#rules-the-app-adds) then asks a bridge for the work.
@@ -104,17 +113,20 @@ Otherwise the workflow cannot ask a bridge for the work, so Loupe refuses the st
 The bridge must set `appPrompts: true` in its `rules.yaml`, and its CLI must support app prompts.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
-The Repository row shows the state of the latest run:
+The Run discovery row shows the state of the latest run:
 
 | Status | What it means | Action |
 |---|---|---|
 | Not run | Discovery never ran on this project | Run discovery |
-| Discovery waits for a running bridge | Discovery never ran, and no bridge serves the project now | None. The Bridge running row links to the setup |
+| Discovery waits for a running bridge | Discovery never ran, and no bridge serves the project now | None. The Bridge ready row links to the setup |
+| Discovery waits for a bridge that can run it | Discovery never ran, and a bridge is online but cannot run the discovery work | None. Map the `discovery` kind in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again when the bridge is old |
+| Discovery waits for a bridge that is not paused | Discovery never ran, and every bridge that can run it is paused | None. Resume new work on a bridge on the Agents page |
 | Discovery waits for a workflow | Discovery never ran, and the project has no workflow | None. Choose a workflow for the project |
 | Discovery waits for board automation | Discovery never ran, and the workflow of the board is off | None. Switch on **Run the workflow of the board** |
 | Running on card #N | A run is open. A second start is refused until it ends | Open card |
-| Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no bridge claimed the request in time. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
-| The report waits for your review | The worker reported. The run is in the Reported state | None |
+| Discovery failed: reason | The run ended with no report. "No bridge took the work." means that no bridge claimed the request in time. "A bridge is online, but none can run discovery." means that the request failed at once, because no online bridge could take it. "The worker ended without a report." means that the worker stopped before it reported. "The discovery card left Backlog before the work ended." means that the work stopped because the card moved | Run again, when discovery can start |
+| A worker revises the report on card #N | You asked for changes to the report. The run is in the Revising state | Open report |
+| The report waits for your review | The worker reported. The run is in the Reported state | Open report |
 | Reviewed | The owner approved the report. The run is in the Done state, and the row is done | None |
 
 ## Review the report
@@ -136,4 +148,11 @@ A discovery card in another column stays there.
 Proposals you leave unticked create no card.
 
 A second approval of the same report creates no second card.
-A verdict of changes requested creates no card, and the run stays Reported.
+
+A verdict of changes requested creates no card. The run moves to Revising, and the `discovery-revise` rule asks a worker to revise the same report.
+The worker submits a new version of the report document. Loupe replaces the proposals that made no card, and the run goes back to Reported.
+Review the new version, and approve it or ask for changes again.
+
+When you approve the report while a worker revises it, the approval wins.
+Loupe stops the revision, and creates the cards from the version you approved.
+While the run is Requested or Revising, the discovery card takes no manual move.

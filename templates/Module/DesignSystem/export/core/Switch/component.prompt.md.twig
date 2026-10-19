@@ -1,0 +1,11 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+{% set name = entry.name %}
+Loupe's switch. {{ entry.summary }}
+
+```jsx
+<{{ name }} name="managed" defaultChecked label="Loupe manages the git identity" help="Agents push as the Loupe app." />
+<{{ name }} name="archived" aria-label="Show archived" />
+```
+
+Use a switch for a setting that takes effect at once. Give it a label, or an `aria-label` when a row draws the label. The component emits the real `{{ entry.rootClass }}` classes of the app.
+{% endautoescape %}
