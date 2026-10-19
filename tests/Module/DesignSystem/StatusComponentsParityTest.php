@@ -4,35 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\DesignSystem;
 
-use App\Module\DesignSystem\Command\ExportDesignSystemCommand;
-use App\Module\DesignSystem\Command\ExportDesignSystemHandler;
+use App\Module\DesignSystem\Catalog;
+use App\Tests\Support\ComponentSourceReader;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 
 final class StatusComponentsParityTest extends KernelTestCase
 {
-    /** The export runs once for the class, because each run compiles the stylesheet. A test must not change it. */
-    private static string $directory;
-
-    #[\Override]
-    public static function setUpBeforeClass(): void
-    {
-        self::bootKernel();
-        self::$directory = sys_get_temp_dir().'/ds-export-parity-'.bin2hex(random_bytes(4));
-        $handler = static::getContainer()->get(ExportDesignSystemHandler::class);
-        self::assertInstanceOf(ExportDesignSystemHandler::class, $handler);
-        $handler(new ExportDesignSystemCommand(self::$directory));
-        self::ensureKernelShutdown();
-    }
-
-    #[\Override]
-    public static function tearDownAfterClass(): void
-    {
-        new Filesystem()->remove(self::$directory);
-        parent::tearDownAfterClass();
-    }
+    use ComponentSourceReader;
 
     /** @return iterable<string, array{string, string}> name, the Twig that draws every inner part */
     public static function components(): iterable
@@ -92,21 +72,24 @@ final class StatusComponentsParityTest extends KernelTestCase
         self::assertStringContainsString('{other.lead}', $jsx);
     }
 
-    public function test_each_wrapper_has_its_own_folder_with_a_card_and_its_types(): void
+    public function test_each_wrapper_has_its_own_source_types_readme_and_preview(): void
     {
-        foreach (['StatusChip', 'StateMark', 'StatusBox'] as $name) {
-            $base = self::$directory.'/components/core/'.$name.'/'.$name;
+        $source = self::componentSource();
+        $names = array_map(static fn ($entry): string => $entry->name, new Catalog()->entries());
 
-            foreach (['.jsx', '.d.ts', '.prompt.md', '.card.html'] as $extension) {
-                self::assertFileExists($base.$extension);
-            }
-            self::assertStringContainsString('<'.$name.' ', (string) file_get_contents($base.'.card.html'));
+        foreach (['StatusChip', 'StateMark', 'StatusBox'] as $name) {
+            $entry = self::catalogEntry($name);
+
+            self::assertNotSame('', $source->jsx($entry));
+            self::assertNotSame('', $source->types($entry));
+            self::assertNotSame('', $source->readme($entry));
+            self::assertStringContainsString('<'.$name.' ', $source->preview($entry, $names));
         }
     }
 
     private function wrapper(string $name): string
     {
-        return (string) file_get_contents(self::$directory.'/components/core/'.$name.'/'.$name.'.jsx');
+        return self::componentJsx($name);
     }
 
     private function render(string $template): string

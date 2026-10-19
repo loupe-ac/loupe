@@ -3,7 +3,7 @@ framework:
         # The paths to make available to the asset mapper.
         paths:
             - assets/
-        # A Tailwind input for the Claude Design export, never served.
+        # A Tailwind input for the Design System artifact export, never served.
         excluded_patterns:
             - '*/assets/styles/design-system.css'
         missing_import_mode: strict

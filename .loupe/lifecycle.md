@@ -12,7 +12,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 6. Product document: answer the documentation and landing page checks of AGENTS.md "Planning and shipping a feature". It names the `docs/` sections and the landing page templates.
 7. Tech design: load `project-tech-design`. Read the AGENTS.md section "What a new entity or feature must also register", with its table and the list "Four more that no registry covers".
 8. Deploy notes: `project-deploy` "What deploy notes hold" lists the deploy items of this project.
-9. Design system: the catalog in `src/Module/DesignSystem/Catalog.php`, drawn at `/styleguide` and listed in `docs/contributing/design-system.md`. `project-frontend` "Building blocks" holds the rule for a component that does not fit. The project "Loupe Design System" mirrors the design system. A product design session has no starter: it mounts the shell components `AppShell`, `AuthShell` and `SettingsLayout` of the design system.
+9. Design system: the catalog in `src/Module/DesignSystem/Catalog.php`, drawn at `/styleguide` and listed in `docs/contributing/design-system.md`. `project-frontend` "Building blocks" holds the rule for a component that does not fit. The Design System artifact "Loupe Design System" mirrors the design system. A product design session has no starter: it mounts the shell components `AppShell`, `AuthShell` and `SettingsLayout` of the design system.
 
 ## Environment
 
@@ -34,7 +34,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 5. Run `just js-test` when JavaScript changed, and `just cli-test` when `cli/` or `hooks/` changed.
 6. CI's required checks are the full gate. Run no Codex review. Push, then read them on the pull request. The board `checks-failed` fix round covers a failed one.
 7. Never run the full e2e suite on this machine, and a hook refuses it. The eight `e2e-*` CI checks gate it: `e2e-chromium`, `e2e-chromium-2` to `e2e-chromium-6`, `e2e-rest` and `e2e-global-flags`. One named spec is still fine while you debug it.
-8. Run `bin/agents/design-system-changed origin/<base>` after the checks above, before the push. When it prints a path, follow `working-with-prs` "The Claude Design rebuild".
+8. Run `bin/agents/design-system-changed origin/<base>` after the checks above, before the push. When it prints a path, follow `working-with-prs` "The Design System artifact rebuild".
 9. Fix every failure, including one that pre-dates the branch.
 10. The required checks come from the ruleset command in `working-with-prs` "What the ruleset actually requires".
 
