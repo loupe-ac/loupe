@@ -16,12 +16,9 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 ## Environment
 
-1. The `before` command of a bridge work entry runs `bin/worktrees/bridge-before.sh`, and the worker starts in `.worktrees/card-<number>`. That worker folder is a full app of its own. A stage never creates or removes it. The `teardown` work entry removes it when the card reaches `done`.
+1. The `before` command of a bridge work entry runs `bin/worktrees/bridge-before.sh`, and the worker starts in `.worktrees/card-<number>`. Its `refresh` command runs `bin/worktrees/bridge-refresh.sh card-<number> <cardId>`, with the `{cardNumber}` and `{cardId}` placeholders, and a stage starts it with `loupe env refresh`. That worker folder is a full app of its own. A stage never creates or removes it. The `teardown` work entry removes it when the card reaches `done`.
 2. Folder check: the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` must differ. They are equal in the main checkout, where a worker must never work.
-3. Refresh after a sync that brings commits: from the worker folder, run `( cd <main checkout> && just worktree-up card-<number> card:<cardId> )`. The main checkout is the first `worktree` line of `git worktree list --porcelain`. Then run `bin/worktrees/compose-exec.sh bin/console cache:clear`, and the same command with `--env=test`.
-4. `<cardId>` is the card id from the prompt line `Card <number> (cardId <id>)`. When the prompt has no such line, take `cardId` from `card_get`. Never derive it from a branch name, a folder name or a card number.
-5. The second argument of `just worktree-up` writes the card marker `SITE_REVIEW_WIDGET_CONTEXT=card:<cardId>` into `.env.local`. The site-review widget then links each preview comment to the card. Pass it on every refresh. A branch that points `SITE_REVIEW_WIDGET_BACKEND` at its own worktree host passes no marker, or a card id from its own database. `project-worktrees` "The card marker" says more.
-6. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree.
+3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree.
 
 ## Gate
 
