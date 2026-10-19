@@ -13,6 +13,12 @@ enum MarkerKind: string
     case Waiting = 'waiting';
     case Chip = 'chip';
 
+    /** @return list<self> the kinds that are a state, which leaves out the chip */
+    public static function states(): array
+    {
+        return [self::Stuck, self::NeedsYou, self::Working, self::Waiting];
+    }
+
     /** The translation key of the kind title, such as Stuck or Note. */
     public function translationKey(): string
     {

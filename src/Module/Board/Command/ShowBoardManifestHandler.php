@@ -24,7 +24,7 @@ final readonly class ShowBoardManifestHandler
         foreach (array_filter([...$board->lanes, $board->otherCards]) as $lane) {
             $laneKey = null === $lane->epic ? BoardLanes::OTHER : (string) $lane->epic->id;
             if (null !== $lane->epic) {
-                $laneHeads[$laneKey] = $this->digest->forLaneHead($lane->epic, $board->progress[$laneKey] ?? null, $board->decks[$laneKey] ?? null);
+                $laneHeads[$laneKey] = $this->digest->forLaneHead($lane->epic, $board->progress[$laneKey] ?? null, $board->decks[$laneKey] ?? null, $board->markers[$laneKey] ?? null);
                 $laneKeys[$laneKey] = $laneKey;
             }
             foreach ($lane->cells as $cards) {
