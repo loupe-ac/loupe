@@ -55,6 +55,32 @@ async function seedTwoAsks(
     return { first, second };
 }
 
+/**
+ * A frame that advances the address ends in a page visit, which caches the
+ * old page one repaint after its turbo:load. A Back before that cache aborts.
+ */
+async function watchAdvance(page: Page): Promise<() => Promise<void>> {
+    await page.evaluate(() => {
+        (window as unknown as { advanced: Promise<void> }).advanced =
+            new Promise((resolve) => {
+                document.addEventListener(
+                    'turbo:load',
+                    () =>
+                        requestAnimationFrame(() =>
+                            requestAnimationFrame(() => resolve()),
+                        ),
+                    { once: true },
+                );
+            });
+    });
+
+    return async () => {
+        await page.evaluate(
+            () => (window as unknown as { advanced: Promise<void> }).advanced,
+        );
+    };
+}
+
 test.use({
     storageState: { cookies: [], origins: [] },
     viewport: { width: 1440, height: 900 },
@@ -80,6 +106,7 @@ test('a row click moves the address without a page load, and back returns', asyn
     await page.evaluate(() => {
         (window as unknown as { stayed: boolean }).stayed = true;
     });
+    const advanced = await watchAdvance(page);
 
     await page
         .locator(`a.lp-list-row[data-inbox-request="${second.askId}"]`)
@@ -97,6 +124,7 @@ test('a row click moves the address without a page load, and back returns', asyn
         ),
     ).toBe(true);
 
+    await advanced();
     await page.goBack();
     await expect(page).toHaveURL(inboxUrl);
     await expect(
