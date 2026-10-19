@@ -102,11 +102,11 @@ The shipped markers are:
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | An inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
-| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 3 |
+| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 6 |
 | `run-open` | Working | A worker runs on the card |
 | `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
-| `work-requested` | Working | Work waits for a bridge to take it, and a bridge could take it |
+| `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
@@ -245,6 +245,12 @@ rule reads changes after the refusal, such as a new head commit. The work then
 starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay.
+
+A request can end while its rule still holds for a new reason. An example is a
+fix run that ends after the pull request became conflicting. The workflow then
+asks for one more fix at once. A part of the rule's condition that holds now, and
+did not hold when the request opened, counts as a new reason. A request that ends
+with the same reasons it started with asks for nothing more.
 
 When the retries run out, the workflow opens one `repair` work request for the
 card. The request names the failed rule in `{ruleId}`, and the last refusal

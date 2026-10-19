@@ -796,7 +796,7 @@ markers:
       link: agents
       when: { card.run.work_taker_paused: {} }
     - key: work-requested
-      kind: working
+      kind: waiting
       label: marker.work_requested
       remedy: marker.work_requested.remedy
       when:
