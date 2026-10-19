@@ -148,6 +148,8 @@ markers:
 - `card.document.in_review` with a `tag`: a linked document with that tag is in
   review.
 - `card.quiet_for`: nothing happened on the card for the `delay`, in minutes.
+  With `children: true`, the newest history event of any child counts too, and
+  the condition is false while a child has an open worker run.
 - `card.rule.held_by_blocker`: an open blocker alone holds a move rule of the
   card.
 - `card.run.stopped`: the latest run of the card ended with a warning, and the
