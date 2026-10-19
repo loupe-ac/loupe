@@ -219,7 +219,9 @@ final readonly class TemplateParser
         $onWorkFailed = self::onWorkFailed($source['onWorkFailed'] ?? null, $errors);
         $epicBranch = self::epicBranch($source['epicBranch'] ?? null, $lenient, $errors);
         $failingSeverities = self::agentReviewFailingSeverities($source['agentReviewFailingSeverities'] ?? null, $lenient, $errors);
-        $approvalCoversConflictResolution = self::approvalCoversConflictResolution($source['approvalCoversConflictResolution'] ?? null, $lenient, $errors);
+        $approvalCoversConflictResolution = \array_key_exists('approvalCoversConflictResolution', $source)
+            ? self::approvalCoversConflictResolution($source['approvalCoversConflictResolution'], $lenient, $errors)
+            : true;
 
         $slots = $this->slots(self::topLevelList($source, 'slots', $errors), $errors);
         $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $slots);
@@ -1163,9 +1165,6 @@ final readonly class TemplateParser
      */
     private static function approvalCoversConflictResolution(mixed $value, bool $lenient, array &$errors): bool
     {
-        if (null === $value) {
-            return true;
-        }
         if (!\is_bool($value)) {
             if (!$lenient) {
                 $errors[] = 'approvalCoversConflictResolution: must be true or false';

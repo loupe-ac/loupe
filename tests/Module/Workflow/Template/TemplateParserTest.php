@@ -302,6 +302,7 @@ final class TemplateParserTest extends TestCase
         yield 'a string' => ['false'];
         yield 'an integer' => [0];
         yield 'a list' => [[false]];
+        yield 'an explicit null' => [null];
     }
 
     #[DataProvider('invalidEpicBranches')]
