@@ -23,6 +23,11 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 5. The second argument of `just worktree-up` writes the card marker `SITE_REVIEW_WIDGET_CONTEXT=card:<cardId>` into `.env.local`. The site-review widget then links each preview comment to the card. Pass it on every refresh. A branch that points `SITE_REVIEW_WIDGET_BACKEND` at its own worktree host passes no marker, or a card id from its own database. `project-worktrees` "The card marker" says more.
 6. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree.
 
+## Decision records
+
+1. Decision records: `docs/adr/`. `docs/adr/index.md` lists them.
+2. Priorities: `docs/contributing/architectural-priorities.md`.
+
 ## Gate
 
 1. Base branch: `main`. A child of an epic with an epic branch uses `epic/<n>` instead, as the `Epics` section says. A branch that stacks on an open pull request uses that pull request's head branch instead, as the stage `commands.md` says.

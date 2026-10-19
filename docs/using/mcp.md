@@ -237,10 +237,13 @@ It installs one skill for each part of working a Loupe project:
 | `loupe:loupe-analysis` | Running an analysis: a cost report, or a comparison of the variants of an experiment, with proposals |
 | `loupe:loupe-discovery` | A read-only discovery run that writes the readiness report of a project |
 | `loupe:product-design` | An interactive product design session with the owner, from a card or a one-line idea |
+| `loupe:loupe-recommendations` | Choosing and reviewing a solution: a correct fix beats a patch, and effort alone never ranks a patch higher |
 | `loupe:loupe-stage-product-design` | One review round on a product document |
 | `loupe:loupe-stage-tech-design` | A card entering the tech design column |
 | `loupe:loupe-stage-implementation` | Building an approved design into a pull request |
 | `loupe:loupe-stage-fix-round` | One round of review feedback, from a fix request or run by hand |
+| `loupe:loupe-stage-review` | Reviewing the pull request of a card at its head commit |
+| `loupe:loupe-stage-design-review` | Reviewing a draft product design or tech design |
 | `loupe:loupe-stage-merge` | Merging a ready pull request, or updating one that is behind its base |
 | `loupe:loupe-stage-repair` | Fixing the cause of failed work, after its retries run out |
 

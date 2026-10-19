@@ -44,6 +44,8 @@ performance. This split settles two of the collisions below.
 
 Correctness wins. Accept more code when the simpler form can be wrong.
 
+A patch that hides a symptom is not the simpler form. The `loupe-recommendations` skill says how to tell a patch from a correct fix.
+
 `.php-cs-fixer.dist.php` shows the shape. `ignoreVCSIgnored(true)` was one line,
 and it matched zero files inside a gitignored worktree. `just cs` then fixed
 nothing, and the style leg of `just ci` passed with nothing inspected. The file
@@ -67,6 +69,8 @@ and the example only shows correctness winning without a contest.
 ### Correctness against shipping speed
 
 Correctness wins. Ship late, and ship right.
+
+A new release step is a cost to report, never a reason to pick a patch. The `loupe-recommendations` skill says how to weigh it.
 
 The pull request gate says so. `working-with-prs` tells you to fix every failure
 the gate reports, including the failures that pre-date your change. The only

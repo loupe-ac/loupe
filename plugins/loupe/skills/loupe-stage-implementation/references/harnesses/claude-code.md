@@ -56,7 +56,7 @@ Dispatch a sub-agent with the Agent tool. When the repository defines a `senior-
 
 - Rank correctness first, then simplicity, then performance, then shipping speed.
 - Read the instruction files of the repository before you change a file.
-- Make the smallest change that meets the task.
+- Add nothing the task does not ask for. Load `loupe-recommendations` before you choose between a patch and a fix.
 - Write a failing test first, then the code that makes it pass.
 - Report a blocker and stop.
 - End with the status, the changed files, the tests and their result, and any concern.

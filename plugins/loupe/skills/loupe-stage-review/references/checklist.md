@@ -9,7 +9,7 @@ Look for these, most important first:
 1. A bug: wrong logic, a missing case, a failure that no test catches, a race, a security hole.
 2. A break of a convention that an instruction file of the repository names.
 3. A missing test for new behaviour.
-4. Dead code and needless complexity.
+4. Dead code and needless complexity. A branch or a condition that a correct fix needs is not needless: `loupe-recommendations` "In a review" says what counts.
 5. The spec pass of the review stage. Run it for each pull request, after the checks above. Its requirement source is the approved designs and the prototype of the card, or the card body when the card has no design and no prototype.
 
 ## Name the rule, then find every site
