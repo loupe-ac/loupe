@@ -378,7 +378,7 @@ final readonly class Engine
     /**
      * Counts the stop of a resumed run that answered a stop of the rule, because a resumed run holds no work request that could settle as refused.
      * The answered stop cleared the attempts, so the run earns the retries of a fresh budget.
-     * A run that is still open waits. Any other end, or a run that is gone, clears the stored run and counts nothing.
+     * A run that is still open waits. Any other end, a run that is gone, or a change of subject clears the stored run and counts nothing.
      * A run that never started counts as a stop.
      */
     private function readAnsweringRuns(Evaluation $run): void
@@ -394,6 +394,14 @@ final readonly class Engine
             }
             $bound = $this->ruleSubject->bind($rule, $run->facts);
             if (!$bound->truth) {
+                continue;
+            }
+            // The rule now acts on another pull request, so the run answered a stop of the old one and counts for nothing.
+            $stored = $state->subjectPullRequestId;
+            if ($bound->binds && null !== $stored && null !== $bound->subject && !$stored->equals($bound->subject)) {
+                $this->write($run, $state, static function (WorkflowRuleState $state): void {
+                    $state->answeringRunId = null;
+                });
                 continue;
             }
             $answering = $this->ledger->run($state->answeringRunId);

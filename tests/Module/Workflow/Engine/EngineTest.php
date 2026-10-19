@@ -918,6 +918,30 @@ final class EngineTest extends KernelTestCase
         self::assertNull($this->activePause($card));
     }
 
+    public function test_a_resumed_worker_that_blocks_while_the_subject_changes_does_not_pause_the_request_of_the_new_subject(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]], limit: 3)], onWorkFailed: self::RETRY_ONCE);
+        [$base, $upper] = $this->stack($card);
+        $base->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $this->refuse($this->liveRequests($card)[0], 'needs-person', '2026-10-02 12:20:00');
+        $run = $this->workerRun($card, 'fix', WorkerRunState::Running, $this->workerRun($card, 'fix', WorkerRunState::Blocked));
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertSame($run->id?->toRfc4122(), $this->ruleState($card, 'fix')->answeringRunId?->toRfc4122());
+
+        $run->state = WorkerRunState::Blocked;
+        $base->checks = PullRequestChecks::Passed;
+        $upper->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertNull($this->activePause($card));
+        self::assertCount(1, $this->liveRequests($card));
+        $state = $this->ruleState($card, 'fix');
+        self::assertSame([null, 0, null, $upper->id?->toRfc4122()], [$state->answeringRunId, $state->attempts, $state->lastRefusal, $state->subjectPullRequestId?->toRfc4122()]);
+    }
+
     public function test_a_rule_that_leaves_its_slot_forgets_its_answering_run(): void
     {
         $card = $this->twoRuleCard();
