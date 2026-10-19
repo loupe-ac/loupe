@@ -128,7 +128,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
     }
 
     /**
-     * Binds the digest of the preview to the branch and the values it showed, because the digest of the view names neither.
+     * Binds the digest of the preview to the item, the entry, the branch and the values it showed, because the digest of the view names none of them.
      *
      * @param array<string, string>|null $params
      */
@@ -138,16 +138,16 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
         if (null === $view) {
             throw $this->errorMessages->forAgent(new DomainErrors(['action' => RunInboxActionHandler::NOT_AVAILABLE]));
         }
-        if (!hash_equals(self::confirmation($view), $given)) {
+        if (!hash_equals(self::confirmation($item, $view), $given)) {
             throw $this->errorMessages->forAgent(new DomainErrors(['action' => RunInboxActionHandler::COMMAND_CHANGED]));
         }
 
         return $view->runDigest();
     }
 
-    private static function confirmation(RunCommandView $view): string
+    private static function confirmation(InboxItem $item, RunCommandView $view): string
     {
-        return hash('sha256', json_encode([$view->runDigest(), $view->branch, $view->values()], \JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([(string) $item->id, $view->entry, $view->runDigest(), $view->branch, $view->values()], \JSON_THROW_ON_ERROR));
     }
 
     private function requireKind(string $action): InboxActionKind
@@ -208,7 +208,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
             'runList' => $view->runList,
             'argv' => $view->argv,
             'params' => $view->values(),
-            'runDigest' => self::confirmation($view),
+            'runDigest' => self::confirmation($item, $view),
             'disabledReason' => null === $view->disabledReasonKey ? null : InboxToolErrorMessages::sentence($view->disabledReasonKey),
         ];
     }

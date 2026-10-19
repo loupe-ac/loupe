@@ -49,6 +49,8 @@ final class InboxActionRunToolTest extends KernelTestCase
     use McpTokenScenario;
     use WorkflowProjects;
 
+    private const string PROPOSED_ENTRY = "action: command\nparams:\n  out: { pattern: '[a-z/]+' }\nrun: [make, export]";
+
     private EntityManagerInterface $em;
     private InboxActionRunTool $tool;
     private Project $project;
@@ -202,6 +204,62 @@ final class InboxActionRunToolTest extends KernelTestCase
         self::assertSame(0, $this->workRequestCount());
     }
 
+    public function test_a_digest_of_one_item_does_not_cover_another_item_with_the_same_command(): void
+    {
+        $previewed = $this->commandTodo();
+        $other = $this->commandTodo();
+        $this->readyTool();
+        $preview = $this->previewOf(($this->tool)((string) $previewed->id, 'run-command'));
+
+        $this->assertCommandChanged((string) $other->id, $preview['runDigest']);
+    }
+
+    public function test_a_digest_does_not_cover_another_entry_with_the_same_run_list(): void
+    {
+        $item = $this->commandTodo();
+        $this->readyTool();
+        $preview = $this->previewOf(($this->tool)((string) $item->id, 'run-command'));
+        $this->bridge->commandEntries = [...$this->bridge->commandEntries ?? [], ['name' => 'design-copy', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '{out}'], 'timeout' => '10m']];
+        $item->suggestedActions = [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-copy', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => null]];
+        $this->em->flush();
+
+        $this->assertCommandChanged((string) $item->id, $preview['runDigest']);
+    }
+
+    public function test_an_add_entry_queues_the_request_for_the_asking_bridge(): void
+    {
+        $item = $this->commandTodo(self::PROPOSED_ENTRY);
+        $this->bridge->commandEntries = [];
+        $this->bridge->capabilities = [...$this->bridge->capabilities ?? [], Bridge::CAPABILITY_ADD_ENTRY];
+        $this->em->flush();
+        $this->readyTool();
+
+        $result = $this->runOf(($this->tool)((string) $item->id, 'add-entry', 'Add it.'));
+
+        $action = $this->em->find(InboxAction::class, Uuid::fromString($result['actionId'] ?? ''));
+        $request = $this->em->find(WorkRequest::class, $action?->workRequestId);
+        self::assertSame(['Add it.', 'add-entry', (string) $this->bridge->id, (string) $item->id], [$action?->note, $request?->kind, (string) $request?->targetBridgeId, (string) $request?->inboxItemId]);
+        self::assertStringContainsString('design-export:', (string) $request?->prompt);
+    }
+
+    public function test_an_add_entry_the_bridge_cannot_take_is_refused_and_queues_nothing(): void
+    {
+        $item = $this->commandTodo(self::PROPOSED_ENTRY);
+        $this->bridge->commandEntries = [];
+        $this->em->flush();
+        $this->readyTool();
+
+        try {
+            ($this->tool)((string) $item->id, 'add-entry');
+            self::fail('Expected a refusal for a bridge that takes no entry.');
+        } catch (ToolCallException $e) {
+            self::assertStringStartsWith('action: This action does not fit the item now.', $e->getMessage());
+        }
+
+        self::assertSame(0, $this->workRequestCount());
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM inbox_actions'));
+    }
+
     public function test_a_run_command_with_a_bad_value_is_refused_and_queues_nothing(): void
     {
         $item = $this->commandTodo();
@@ -338,6 +396,18 @@ final class InboxActionRunToolTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($this->project);
     }
 
+    private function assertCommandChanged(string $itemId, string $runDigest): void
+    {
+        try {
+            ($this->tool)($itemId, 'run-command', runDigest: $runDigest);
+            self::fail('Expected a refusal for a digest of another command.');
+        } catch (ToolCallException $e) {
+            self::assertStringContainsString('action: The command changed on the bridge', $e->getMessage());
+        }
+
+        self::assertSame(0, $this->workRequestCount());
+    }
+
     private function workRequestCount(): int
     {
         return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests');
@@ -397,7 +467,7 @@ final class InboxActionRunToolTest extends KernelTestCase
             ?? throw new \LogicException('The card had no pause.');
     }
 
-    private function commandTodo(): InboxItem
+    private function commandTodo(?string $proposedEntry = null): InboxItem
     {
         $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_RUN_COMMAND];
         $this->bridge->projects = [(string) $this->project->id];
@@ -408,7 +478,7 @@ final class InboxActionRunToolTest extends KernelTestCase
             ['projectId' => (string) $this->project->id, 'branch' => 'epic/42', 'path' => '/work/loupe/.worktrees/card-42'],
         ];
         $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Export the design system', blocking: false);
-        $item->suggestedActions = [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => null]];
+        $item->suggestedActions = [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'cardId' => null, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']], 'proposedEntry' => $proposedEntry]];
         $item->cards->add(new InboxItemCard($item, $this->card));
         $this->em->persist($item);
         $this->em->flush();
