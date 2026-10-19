@@ -1,0 +1,38 @@
+import React from 'react';
+
+export function SettingsLayout({ title, description, items = [], navLabel, columns, children, className: extra, ...rest }) {
+    const classes = ['lp-settings'];
+    if (columns) {
+        classes.push('lp-settings--columns');
+    }
+    if (extra) {
+        classes.push(extra);
+    }
+
+    return (
+        <div {...rest} className={classes.join(' ')}>
+            <header className="lp-page-header">
+                <div className="lp-page-header__copy">
+                    <h1 className="lp-workspace-title">{title}</h1>
+                    {description && <p className="lp-workspace-desc">{description}</p>}
+                </div>
+            </header>
+            <div className={'lp-settings-layout' + (columns ? ' lp-settings-layout--columns' : '')}>
+                <nav className="lp-settings-nav" aria-label={navLabel}>
+                    {items.map((item) => (
+                        <a
+                            key={item.label}
+                            href={item.href}
+                            className={'lp-settings-nav__item' + (item.active ? ' lp-settings-nav__item--active' : '')}
+                            aria-current={item.active ? 'page' : undefined}
+                        >
+                            {item.icon}
+                            {item.label}
+                        </a>
+                    ))}
+                </nav>
+                <div className="lp-settings-content">{children}</div>
+            </div>
+        </div>
+    );
+}
