@@ -713,7 +713,9 @@ the PR body that requiring it is still owed, or the job is decoration.
 **Never approve your own work.** The review itself stays with a human.
 
 **Merging does not.** A PR that is *approved* with *all required checks green*
-is good to merge, so merge it without asking. The approval already carried the
+is good to merge, so merge it without asking, when no workflow rule will merge
+it. A PR linked to a card belongs to the `merge-ready` rule, so leave it to that
+rule. Hand-merge only a PR that no rule reaches. The approval already carried the
 decision, and waiting for a second confirmation parks finished work in a queue. Follow the merge protocol above when you do:
 sync with current main, let the checks re-run on the synced head, merge, then
 run `just cs` on main.

@@ -1,6 +1,6 @@
 # Lifecycle profile
 
-The Loupe stage skills read this file. It holds the values that belong to this repository. `working-with-prs` stays the authority when it disagrees with this file.
+The Loupe stage skills read this file. It holds the values that belong to this repository.
 
 ## Instruction files
 
@@ -99,10 +99,10 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 1. The merge method is `squash`, because the `main` ruleset allows no other.
 2. Pass no body. GitHub builds the squash message from the commit messages, which carry the reasoning.
 3. Merge only a pull request whose base is `main`, or an epic child whose base is its `epic/<n>`, as the `Epics` section says. Any other stacked pull request waits until its parent merges and a person retargets it.
-4. `working-with-prs` "Merging" and "What the ruleset actually requires" stay the authority for the checks and the approval.
+4. `working-with-prs` "Merging" and "What the ruleset actually requires" hold the checks and the approval.
 5. The merge stage skips the `just cs` on `main` after the merge, and the person who holds the merge queue runs it. The `teardown` rule removes the card worktree when the card reaches `done`.
 6. An update of a branch keeps its approval, because the ruleset does not dismiss a stale review. The ruleset has no merge queue, so `gh pr merge` never turns on auto-merge here.
-7. The approver is `ubermuda`. The merge stage counts that reviewer's approval only, and reads it by time. A sync after the approval keeps it. A conflict resolution or any other commit after it needs the owner or the merge queue.
+7. The approver is `ubermuda`. The merge stage counts that reviewer's approval only, and reads it by time. A sync after the approval keeps it. Whether a conflict resolution keeps it is the template value `approvalCoversConflictResolution`, which `workflow_get` returns. This project keeps the default, `true`, so the approval covers a conflict resolution. Any other commit after the approval needs a new approval.
 
 ## Repair
 

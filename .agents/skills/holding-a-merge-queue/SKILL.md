@@ -118,10 +118,15 @@ the time of the owner's last approving or blocking review with each commit's
 time. A later comment from the owner does not hide the approval.
 
 The owner said on 2026-09-27 that an approval survives a sync, a rebase and a
-conflict resolution: "I don't want to need to re-approve everything". Merge
-after any of those three without asking. A commit that adds new content still
-needs a fresh approval. A review fix and a test fix are new content. That answer
-replaced the 2026-09-22 one, which covered `gh pr update-branch` only.
+conflict resolution: "I don't want to need to re-approve everything". A commit
+that adds new content still needs a fresh approval. A review fix and a test fix
+are new content. That answer replaced the 2026-09-22 one, which covered
+`gh pr update-branch` only.
+
+The workflow template holds the rule as the value `approvalCoversConflictResolution`.
+`workflow_get` returns it. This project keeps the default, `true`. A project that
+sets it to `false` gets a hold on every conflict resolution after an approval,
+and the steps below that cover one then do not apply.
 
 `merge-ready.sh` sorts each commit after the approval into one of three kinds:
 
@@ -162,8 +167,11 @@ peer report is a claim until you find the failing run.
 ## After each merge
 
 1. Tell the owning session that its pull request merged, with the squash SHA.
-2. Move the board card to a terminal column. The owner asked on 2026-09-25:
-   "whenever you merge a PR move its card to done". Invoke `loupe-board`, then:
+2. Check the board card. A repository connected through the GitHub App, with
+   the board automation on, moves the card to a terminal column by the `merged`
+   rule, so move nothing. Otherwise move it yourself. The owner asked on
+   2026-09-25: "whenever you merge a PR move its card to done". Invoke
+   `loupe-board`, then:
    - Find the card. A branch named `card-<n>-...` carries its number, or the
      body carries the card URL. A pull request that names no card needs no move.
    - Read the terminal column with `board_columns`. Do not assume `done`.
@@ -250,13 +258,15 @@ Verify the worker's resolution before you merge. Read its merge commit: the
 resolved. Run the `comm` proof in `references/git-traps.md` yourself, then run
 `merge-ready.sh` on the new head. The approval covers a resolution that passes.
 
-The bridge's `merge-ready` rule runs the `loupe-stage-merge` skill, and that
-worker reads the approval by time as `merge-ready.sh` does. It compares push
-times, where `merge-ready.sh` compares commit times. It merges after a sync. It never merges after a conflict resolution, because it cannot run the
-`comm` proof as well as a person. It reports `not ready <url>: conflict
-resolution after approval` and leaves that merge to you. Any other commit after
-the approval holds as `not ready <url>: commits after approval` until the owner
-approves again.
+The workflow `merge-ready` rule merges a pull request that is approved and
+green, through the GitHub App or through a `loupe-stage-merge` worker. Hold a
+pull request only when you need it to wait. The worker reads the approval by
+time as `merge-ready.sh` does. It compares push times, where `merge-ready.sh`
+compares commit times. With `approvalCoversConflictResolution` set to `true`, it
+merges after a sync and after a conflict resolution. With `false`, it reports
+`not ready <url>: conflict resolution after approval` and leaves that merge to
+the owner. Any other commit after the approval holds as
+`not ready <url>: commits after approval` until the owner approves again.
 
 A fix that is not a conflict goes to the bridge too. Follow
 `references/dispatch.md` only when no bridge worker picks it up and the

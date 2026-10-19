@@ -261,8 +261,8 @@ Each escalation starts one repair at most. A repair request is never retried
 and never repaired. A release of the pause starts a new escalation, so the
 next failure can start one more repair. A bridge with no `repair` entry lets
 the request expire after the work timeout, and the card then pauses with "no
-bridge took the work". [The development
-lifecycle](../contributing/lifecycle.md) shows a `repair` entry.
+bridge took the work". [The repair
+entry](../extending/cli-bridge.md#repair-entry) shows one.
 
 A resumed run ends the pause of its card. When a person resumes a run, or a
 closed [inbox](inbox.md) ask resumes it, the workflow releases the pause as soon

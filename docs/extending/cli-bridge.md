@@ -1267,6 +1267,36 @@ failed, and 2 means the process is not a bridge worker.
 [The refresh and reset commands](../../cli/README.md#the-refresh-and-reset-commands)
 in `cli/README.md` gives the details.
 
+## Repair entry
+
+The workflow opens a `repair` request after the work of a rule fails and its
+retries run out. The request names the failed rule in `{ruleId}` and the refusal
+code in `{reason}`. A worker entry for it needs the `loupe-stage-repair` skill
+and a folder that holds the card branch. This entry makes that folder with git
+alone, so a broken app setup cannot stop the repair:
+
+```yaml
+work:
+  repair:
+    permissions: full
+    before:
+      run: ["scripts/git-worktree", "{cardNumber}"]
+      timeout: 5m
+    reset:
+      run: ["scripts/remove-worktree", "{cardNumber}"]
+    prompt: |
+      Use the loupe-stage-repair skill.
+      Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
+      Rule {ruleId} failed with {reason}.
+```
+
+`scripts/git-worktree` runs `git worktree add` for the card branch and prints
+the folder. `scripts/remove-worktree` removes a folder that is broken, and the
+worker asks for it with `loupe env reset`. Both scripts belong to your
+repository. The repair ends done when it fixes the cause, and the failed rule
+then gets one last try. [Workflows](../using/workflows.md#pauses-and-retries)
+describes the escalation.
+
 ## Command action
 
 An entry with `action: command` runs a command for the card, and starts no
@@ -1296,10 +1326,10 @@ as a placeholder, such as `{out}`:
 work:
   design-export:
     action: command
-    description: Export the design system for Claude Design
+    description: Export the weekly report
     params:
       out: { pattern: "var/[a-z-]+", description: The export folder }
-    run: ["bin/console", "app:design-system:export", "{out}"]
+    run: ["scripts/export-report", "{out}"]
 ```
 
 Each parameter needs a `pattern` in RE2 syntax, with no lookahead and no
