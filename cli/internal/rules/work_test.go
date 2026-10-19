@@ -133,6 +133,14 @@ func TestParseRefusesAnInvalidWorkEntry(t *testing.T) {
 		"unknown param field":          {entry("x", command+"params:\n  out: {pattern: a, flag: b}"), "field flag not found"},
 		"worker with params":           {entry("x", "prompt: x\nparams:\n  out: {pattern: a}"), "params belongs to action command"},
 		"worker with description":      {entry("x", "prompt: x\ndescription: d"), "description belongs to action command"},
+		"interactive with refresh":     {entry("x", interactive+"refresh:\n  run: [x]"), "refresh names worker behaviour, and action interactive launches no worker"},
+		"interactive with reset":       {entry("x", interactive+"reset:\n  run: [x]"), "reset names worker behaviour, and action interactive launches no worker"},
+		"command with refresh":         {entry("x", command+"refresh:\n  run: [x]"), "refresh names agent behaviour"},
+		"command with reset":           {entry("x", command+"reset:\n  run: [x]"), "reset names agent behaviour"},
+		"unknown refresh placeholder":  {entry("x", "prompt: x\nrefresh:\n  run: [up, '{title}']"), "refresh.run: unknown placeholder {title}"},
+		"refresh without run":          {entry("x", "prompt: x\nrefresh:\n  timeout: 1m"), "refresh.run is required"},
+		"reset timeout too long":       {entry("x", "prompt: x\nreset:\n  run: [down]\n  timeout: 2h"), "reset.timeout is 2h, and the most it takes is 1h0m0s"},
+		"cardId in reset off card":     {entry("x", "subject: analysis\nprompt: x\nreset:\n  run: [down, '{cardId}']"), "reset.run uses {cardId}, which names a card"},
 		"interactive with params":      {entry("x", interactive+"params:\n  out: {pattern: a}"), "params belongs to action command"},
 		"session not interactive":      {entry("session", "prompt: x"), "the session entry needs action interactive"},
 		"session as a command":         {entry("session", command), "the session entry needs action interactive"},
@@ -729,5 +737,38 @@ func TestCheckReportSizes(t *testing.T) {
 	w := &WorkEntry{Action: ActionCommand, Run: []string{"x"}, Description: strings.Repeat("a", maxReportText+1)}
 	if err := checkWork("export", w); err == nil || !strings.Contains(err.Error(), "description is longer") {
 		t.Fatalf("want a size error, got %v", err)
+	}
+}
+
+const envFile = claudeAccount + claudeDefaults + `
+projects:
+  loupe:
+    dir: {dir}
+work:
+  implement:
+    prompt: Implement {cardNumber}.
+    refresh:
+      run: [up, 'card-{cardNumber}', 'card:{cardId}']
+      timeout: 20m
+    reset:
+      run: [down, 'card-{cardNumber}']
+  plain:
+    prompt: Plain.
+`
+
+func TestMatchWorkFillsTheRefreshAndTheReset(t *testing.T) {
+	s := checked(t, envFile)
+
+	m := s.MatchWork(workRequest("implement"))
+	if m.Refresh == nil || !slices.Equal(m.Refresh.Argv, []string{"up", "card-87", "card:" + cardID}) || m.Refresh.Timeout != 20*time.Minute {
+		t.Fatalf("refresh = %+v", m.Refresh)
+	}
+	if m.Reset == nil || !slices.Equal(m.Reset.Argv, []string{"down", "card-87"}) || m.Reset.Timeout != DefaultBeforeTimeout {
+		t.Fatalf("reset = %+v", m.Reset)
+	}
+
+	m = s.MatchWork(workRequest("plain"))
+	if m.Refresh != nil || m.Reset != nil {
+		t.Fatalf("refresh = %+v, reset = %+v, want none", m.Refresh, m.Reset)
 	}
 }

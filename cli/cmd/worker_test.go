@@ -26,12 +26,26 @@ const (
 func TestWorkerEnvReplacesAnInheritedSession(t *testing.T) {
 	base := []string{sessionVar + "outer", "HOME=/home/a", sessionVar + "again"}
 
-	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", nil)).Env
+	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", "", nil)).Env
 	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0"}) {
 		t.Fatalf("workerEnv = %q", got)
 	}
 	if !slices.Equal(base, []string{sessionVar + "outer", "HOME=/home/a", sessionVar + "again"}) {
 		t.Fatalf("workerEnv changed the caller's array: %q", base)
+	}
+}
+
+// A worker finds the control socket of its bridge in the environment, and an
+// inherited value names another bridge.
+func TestWorkerEnvGivesTheControlSocket(t *testing.T) {
+	base := []string{"HOME=/home/a", "LOUPE_BRIDGE_SOCKET=/other.sock"}
+
+	got := workerEnv(base, "s1", "/tmp/bridge.sock", nil)
+	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", "LOUPE_BRIDGE_SOCKET=/tmp/bridge.sock"}) {
+		t.Fatalf("workerEnv = %q", got)
+	}
+	if got := workerEnv(base, "s1", "", nil); !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1"}) {
+		t.Fatalf("workerEnv with no socket = %q", got)
 	}
 }
 
@@ -46,7 +60,7 @@ func TestWorkerEnvPushesAsTheAgentAccount(t *testing.T) {
 	}
 	account := &config.AgentAccount{Token: "ghp_agent", Login: "loupe-bot", ID: 4242}
 
-	got := workerEnv(base, "s1", account)
+	got := workerEnv(base, "s1", "", account)
 	want := []string{
 		"HOME=/home/a", sessionVar + "s1",
 		"GH_TOKEN=ghp_agent",
@@ -69,7 +83,7 @@ func TestWorkerEnvKeepsTheInheritedGitConfig(t *testing.T) {
 	base := []string{"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=core.editor", "GIT_CONFIG_VALUE_0=vi"}
 	account := &config.AgentAccount{Token: "ghp_agent", Login: "loupe-bot", ID: 4242}
 
-	got := workerEnv(base, "s1", account)
+	got := workerEnv(base, "s1", "", account)
 	for _, e := range []string{
 		"GIT_CONFIG_KEY_0=core.editor", "GIT_CONFIG_VALUE_0=vi",
 		"GIT_CONFIG_KEY_1=credential.https://github.com.helper", "GIT_CONFIG_VALUE_1=",
