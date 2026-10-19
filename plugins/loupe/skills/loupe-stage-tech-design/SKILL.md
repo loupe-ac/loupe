@@ -31,7 +31,7 @@ The workflow asks for a recheck when an approved design waited for a blocker, an
 
 1. Read `card_get` `relatedCards`. A recheck needs a `blocked-by` entry whose `status` is a terminal column. Otherwise stop with `STAGE RESULT: blocked: no closed blocker to recheck against`.
 2. Read the design and its answers, as the contract "Read the answers of a design" says. Do not change an answer.
-3. Read the code on `main`, also for an epic child whose base branch is `epic/<n>`. The epic branch can lack the code of the closed blocker until the epic sync runs. List each checked fact of the design: each class, method, field, route, file and behaviour that it names. Read each one. Pay most attention to the parts that the closed blocker builds, which the design could only assume.
+3. Read the code on the base branch of the profile `Gate` section, also for an epic child whose base branch is `epic/<n>`. The epic branch can lack the code of the closed blocker until the epic sync runs. List each checked fact of the design: each class, method, field, route, file and behaviour that it names. Read each one. Pay most attention to the parts that the closed blocker builds, which the design could only assume.
 4. When every fact holds, stop with `STAGE RESULT: tech design current [reason: done]`. Change no document.
 5. When a fact no longer holds, revise the design with `document_revise`. Change only what the new code makes wrong, and keep each ID and each answered decision. Say in the first section what changed and why. A revision sets the design back to In review. Update the deploy notes when a deploy item changed, and record each new dependency, as Revise steps 6 and 7 say. Stop with `STAGE RESULT: tech design revised <id> [reason: done]`.
 6. When a decision of the owner no longer works with the new code, do not change that decision. Add a new open decision with its own ID, then revise as in step 5.
@@ -69,7 +69,7 @@ A dependency is a part that the design needs, that is missing on the base branch
 3. A card that already carries the link needs no write.
 4. Name the dependency in the Solution section, on the line `Depends on: card N (title), which builds X`, above the deploy line. With no dependency, write `Depends on: none`.
 5. A revision that finds a new dependency adds the link, as Revise step 7 says. A revision that no longer needs a dependency says so in the design and leaves the link. Only a person removes a link, because the stage cannot tell a link it wrote from a link a person added.
-6. An epic with the link waits in Tech design after the owner approves the design, until the blocker is done. The breakdown then cuts the epic branch from a `main` that holds the blocker's code.
+6. An epic with the link waits in Tech design after the owner approves the design, until the blocker is done. The breakdown then cuts the epic branch from a base branch that holds the blocker's code.
 
 ### Judge the size
 

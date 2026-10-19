@@ -12,10 +12,10 @@ Answer one round of feedback on the current stage of a card.
 1. Read `../loupe-stage-product-design/references/stage-contract.md`. Load the harness adapter, read the repository profile, and connect to the Loupe tools, as it says.
 2. Load the `loupe-board` instruction.
 3. Call `card_get`, and run the contract's column check.
-4. Read the card `status`, and take one branch:
-   - `product-design` or `tech-design`: the design round for the product document or the tech design, under the stage contract rules.
-   - `in-review` or `implementation`: the code round, under the contract of `../loupe-stage-implementation/SKILL.md` instead.
-   - Any other column: stop with `STAGE RESULT: no fix round for column <status>; expected product-design, tech-design, implementation or in-review`.
+4. Read the four column slugs from the profile `Board` section: product design, tech design, implementation and review. With no line for one, use `product-design`, `tech-design`, `implementation` or `in-review`. Read the card `status`, and take one branch:
+   - The product design or tech design slug: the design round for the product document or the tech design, under the stage contract rules.
+   - The implementation or review slug: the code round, under the contract of `../loupe-stage-implementation/SKILL.md` instead.
+   - Any other column: stop with `STAGE RESULT: no fix round for column <status>; expected <the four slugs>`.
 
 ### Design round
 
