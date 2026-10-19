@@ -31,7 +31,7 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
 | `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
 
-Three sections are optional. A missing optional section blocks nothing.
+Four sections are optional. A missing optional section blocks nothing.
 
 1. `Forge` names the forge with one value, such as `github`. Without it, the
    worker reads the forge from the pull request link of the card, then from
@@ -42,6 +42,10 @@ Three sections are optional. A missing optional section blocks nothing.
 3. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
    branches.
+4. `Decision records` names where the project keeps its decision records and
+   its priorities. The `loupe-recommendations` skill reads them to judge whether
+   an option agrees with an accepted decision, and to settle a choice between
+   options that are all correct. Without the section the skill skips that check.
 
 ## Draft pull requests and the agent review
 
