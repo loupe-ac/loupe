@@ -4951,7 +4951,7 @@
             </trans-unit>
             <trans-unit id="landing.works_with.claude_design.name">
                 <source>landing.works_with.claude_design.name</source>
-                <target>Claude Design</target>
+                <target>Design canvas</target>
             </trans-unit>
             <trans-unit id="landing.works_with.claude_design.text">
                 <source>landing.works_with.claude_design.text</source>
