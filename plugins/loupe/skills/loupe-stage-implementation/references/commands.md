@@ -8,7 +8,7 @@
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`.
 3. Pick the forge adapter as the next section says.
 
-The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold an optional `Forge` section with one value, the forge name, such as `github`, and an optional `Visual check` section that `visual-check.md` reads. A missing optional section blocks nothing. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write a plan, and run the plan task by task.
+The profile has these sections: `Instruction files`, `Environment`, `Gate`, `Code review`, `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile can also hold an optional `Forge` section with one value, the forge name, such as `github`, an optional `Decision records` section that `loupe-recommendations` reads, and an optional `Visual check` section that `visual-check.md` reads. A missing optional section blocks nothing. The harness adapter covers these steps: connect to the Loupe tools, load an instruction, run a long command, dispatch a sub-agent, write a plan, and run the plan task by task.
 
 ## Pick the forge adapter
 

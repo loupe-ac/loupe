@@ -11,6 +11,7 @@ final readonly class DeclineInboxItemCommand
     public function __construct(
         public InboxItem $item,
         public string $note,
+        public bool $throughAgent = false,
     ) {
     }
 }

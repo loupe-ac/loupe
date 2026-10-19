@@ -688,6 +688,12 @@ ends the loop:
 | `design_review.finished` | each draft with the tag has a finished loop, and at least one such draft exists. A loop is finished when the review of the current version passed, or a fix round answered a passed review with a question for the owner and revised the draft when an answer is fixed or for the owner, or the draft used all its failed reviews |
 | `design_review.running` | a draft with the tag has a loop that is not finished. The marker `design-review-running` reads it |
 
+The summary below a published design reads its limit from the same setting. It takes the `rounds` of a
+`design_review.finished` check that a `publish-documents` rule for the tag requires: the whole condition, or an entry of
+an `all:` list. A check under `not:` or `any:` does not count. A document with both design tags takes the smaller limit.
+A workflow with no such check gives no limit, so the summary never says that the review did not pass. The summary counts
+only the failed reviews of the card that holds the newest review.
+
 Lifecycle uses them in these rules, for the slots Product design and Tech
 design. Each name starts with the slot key, `product-design` or `tech-design`:
 

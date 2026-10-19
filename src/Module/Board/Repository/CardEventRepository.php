@@ -141,7 +141,7 @@ class CardEventRepository extends ServiceEntityRepository
 
     /**
      * Each of the project's cards with these ids, with its rows of the kinds.
-     * A card with no such row comes back once with a null kind.
+     * A card with no such row comes back once with a null kind. Rows come oldest first per card.
      *
      * @param list<Uuid>          $cardIds
      * @param list<CardEventKind> $kinds
@@ -159,7 +159,8 @@ class CardEventRepository extends ServiceEntityRepository
             'SELECT c.id AS card_id, e.kind, e.detail
             FROM board_cards c
             LEFT JOIN board_card_events e ON e.card_id = c.id AND e.kind IN (:kinds)
-            WHERE c.project_id = :project AND c.id IN (:cards)',
+            WHERE c.project_id = :project AND c.id IN (:cards)
+            ORDER BY c.id, e.occurred_at, e.id',
             [
                 'project' => ($project->id ?? throw new \LogicException('Project has no id.'))->toRfc4122(),
                 'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
