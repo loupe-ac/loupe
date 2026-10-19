@@ -16,6 +16,14 @@ import (
 // worker mid-task and exits 0.
 const ceilingEnv = "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS"
 
+// connectTimeoutEnv is how long claude waits for an MCP server to finish its
+// handshake. Its default of 30 seconds is shorter than the retries of
+// `loupe mcp`.
+const (
+	connectTimeoutEnv = "MCP_TIMEOUT"
+	connectTimeoutMs  = "150000"
+)
+
 // Harness is Claude Code. configDir is the folder that holds its sessions,
 // and "" is the folder of the bridge's own environment.
 type Harness struct {
@@ -59,19 +67,25 @@ func args(spec harness.Spec, session string) []string {
 	return append(args, "-p", session, spec.SessionID, "--", spec.Prompt)
 }
 
-// env is claude's environment. A ceiling the operator set, empty included,
-// stays as set.
+// env is claude's environment. A ceiling or a connect timeout the operator
+// set, empty included, stays as set.
 func env(environ []string) []string {
-	env := make([]string, 0, len(environ)+1)
-	ceiling := false
+	env := make([]string, 0, len(environ)+2)
+	ceiling, connect := false, false
 	for _, e := range environ {
 		if strings.HasPrefix(e, ceilingEnv+"=") {
 			ceiling = true
+		}
+		if strings.HasPrefix(e, connectTimeoutEnv+"=") {
+			connect = true
 		}
 		env = append(env, e)
 	}
 	if !ceiling {
 		env = append(env, ceilingEnv+"=0")
+	}
+	if !connect {
+		env = append(env, connectTimeoutEnv+"="+connectTimeoutMs)
 	}
 
 	return env

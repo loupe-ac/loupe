@@ -31,10 +31,16 @@ type tomlConfig struct {
 	ModelProvider  string                  `toml:"model_provider"`
 	ModelProviders map[string]providerConf `toml:"model_providers"`
 	McpServers     map[string]serverConf   `toml:"mcp_servers"`
+
+	// The startup settings are any, because an operator can write an integer
+	// or a float, and only whether the key is set matters.
+	McpOptionalStartupGraceMs any `toml:"mcp_optional_startup_grace_ms"`
 }
 
 type serverConf struct {
 	DefaultToolsApprovalMode string `toml:"default_tools_approval_mode"`
+	StartupTimeoutSec        any    `toml:"startup_timeout_sec"`
+	StartupTimeoutMs         any    `toml:"startup_timeout_ms"`
 }
 
 type providerConf struct {
