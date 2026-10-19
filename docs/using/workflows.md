@@ -559,8 +559,9 @@ API, so a merge that touches 300 files or more needs a new approval too. The
 value belongs to the copy of the template that the project holds, and a new
 release of the template keeps it. A person asks their agent to change it, which
 calls the `automation_settings_update` MCP tool with the argument
-`approvalCoversConflictResolution`. The `workflow_get` MCP tool returns the
-value.
+`approvalCoversConflictResolution`. A change of the value judges the approval
+of each open pull request of the project again. The `workflow_get` MCP tool
+returns the value.
 
 Some rules act from any slot:
 

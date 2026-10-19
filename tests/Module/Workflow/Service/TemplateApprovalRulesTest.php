@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Service;
 
+use App\Module\Workflow\Contract\ApprovalRuleChanged;
 use App\Module\Workflow\Entity\WorkflowBinding;
 use App\Module\Workflow\Repository\WorkflowBindingRepository;
 use App\Module\Workflow\Service\TemplateApprovalRules;
 use App\Tests\Module\Workflow\WorkflowProjects;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class TemplateApprovalRulesTest extends KernelTestCase
@@ -49,6 +51,26 @@ final class TemplateApprovalRulesTest extends KernelTestCase
         self::assertInstanceOf(WorkflowBinding::class, $binding);
         self::assertFalse($binding->definition[TemplateApprovalRules::KEY]);
         self::assertSame(8, $binding->templateVersion);
+    }
+
+    public function test_a_write_announces_a_change_of_the_value_only(): void
+    {
+        $project = $this->workflowProject('approval-rules-announce');
+        $this->bindLifecycle($project);
+        $id = $this->id($project->id);
+        $announced = [];
+        $dispatcher = self::getContainer()->get(EventDispatcherInterface::class);
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(ApprovalRuleChanged::class, static function (ApprovalRuleChanged $event) use (&$announced): void {
+            $announced[] = (string) $event->projectId;
+        });
+
+        $this->rules()->setCoversConflictResolution($id, true);
+        $this->rules()->setCoversConflictResolution($id, false);
+        $this->rules()->setCoversConflictResolution($id, false);
+        $this->rules()->setCoversConflictResolution($id, true);
+
+        self::assertSame([(string) $id, (string) $id], $announced);
     }
 
     private function rules(): TemplateApprovalRules
