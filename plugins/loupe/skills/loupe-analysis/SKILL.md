@@ -40,7 +40,7 @@ Pass `scope.range` as the `range` of each `metric_query`. Call `metric_list` fir
 | Many resumes | `runs` of `worker_run_get` holds the whole series |
 | Long polling or waiting | `metrics.idleGapMs` against `metrics.durationMs` |
 | Big subagent work | `metrics.subagentMs` |
-| Repeated gate runs | `worker_run_tool_calls`, the same `signatures` many times, such as `just phpunit` |
+| Repeated gate runs | `worker_run_tool_calls`, the same `signatures` many times, such as a test command |
 | A large model on easy work | `model` and `usage` against the work kind |
 
 ## Find where the time goes

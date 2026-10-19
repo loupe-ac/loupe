@@ -22,14 +22,6 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 #[AsEventListener(priority: 10)]
 final readonly class BindTemplateOnProjectCreating
 {
-    private const array SLOT_TONES = [
-        'next' => LabelTone::Lime,
-        'product-design' => LabelTone::Sky,
-        'tech-design' => LabelTone::Indigo,
-        'implementation' => LabelTone::Purple,
-        'in-review' => LabelTone::Amber,
-    ];
-
     public function __construct(
         private ShippedTemplates $shippedTemplates,
         private ShippedTemplateChoices $choices,
@@ -54,7 +46,7 @@ final readonly class BindTemplateOnProjectCreating
                 static fn (Slot $slot): array => [
                     'slug' => '' !== $slot->key ? $slot->key : throw new \LogicException('A slot key is never empty.'),
                     'label' => $slot->label,
-                    'tone' => self::SLOT_TONES[$slot->key] ?? LabelTone::Neutral,
+                    'tone' => $slot->tone ?? LabelTone::Neutral,
                 ],
                 $template->slots,
             ));

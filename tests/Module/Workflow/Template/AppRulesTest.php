@@ -32,19 +32,31 @@ final class AppRulesTest extends KernelTestCase
     {
         $rules = $this->shippedAppRules()->rules();
 
-        self::assertSame(['discovery', 'post-widget-review', 'sync-site-review-check', 'sync-agent-review-check', 'comment-agent-review'], array_map(static fn (Rule $rule): string => $rule->id, $rules));
+        self::assertSame(['discovery', 'discovery-approved', 'post-widget-review', 'sync-site-review-check', 'sync-agent-review-check', 'comment-agent-review'], array_map(static fn (Rule $rule): string => $rule->id, $rules));
         self::assertSame(RuleOrigin::App, $rules[0]->origin);
         self::assertSame('@backlog', $rules[0]->slot);
         self::assertSame(['kind' => 'discovery', 'onTimeout' => 'expire', 'prompt' => 'discovery'], $rules[0]->then->params);
-        self::assertNull($rules[1]->slot);
-        self::assertSame(['write' => 'post-review'], $rules[1]->then->params);
+        self::assertSame('@backlog', $rules[1]->slot);
+        self::assertSame(['to' => '@terminal'], $rules[1]->then->params);
         self::assertNull($rules[2]->slot);
-        self::assertSame(['write' => 'site-review-check'], $rules[2]->then->params);
+        self::assertSame(['write' => 'post-review'], $rules[2]->then->params);
         self::assertNull($rules[3]->slot);
-        self::assertSame(['write' => 'agent-review-check'], $rules[3]->then->params);
+        self::assertSame(['write' => 'site-review-check'], $rules[3]->then->params);
         self::assertNull($rules[4]->slot);
-        self::assertSame(['write' => 'comment', 'comment' => 'agent-review'], $rules[4]->then->params);
+        self::assertSame(['write' => 'agent-review-check'], $rules[4]->then->params);
+        self::assertNull($rules[5]->slot);
+        self::assertSame(['write' => 'comment', 'comment' => 'agent-review'], $rules[5]->then->params);
         self::assertSame(file_get_contents(\dirname(__DIR__, 4).'/config/workflows/app/prompts/discovery.md'), $this->shippedAppRules()->prompt('discovery'));
+    }
+
+    public function test_the_shipped_file_names_the_slot_of_the_proposal_cards(): void
+    {
+        self::assertSame('next', $this->shippedAppRules()->proposalSlot());
+    }
+
+    public function test_a_file_with_no_proposal_slot_names_none(): void
+    {
+        self::assertNull(new AppRules($this->parser(), self::FIXTURE)->proposalSlot());
     }
 
     public function test_the_shipped_file_holds_the_analysis_request(): void

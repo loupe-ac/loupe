@@ -218,6 +218,19 @@ it, `claude -p` ends a worker 600 seconds after its main turn when a background
 subagent still runs, and exits 0. An operator who sets the variable, even to an
 empty value, keeps that value.
 
+The bridge also gives each worker a connect limit of 150 seconds for its MCP
+servers. Claude Code waits 30 seconds by default, which is less than the
+retries of `loupe mcp` can need. The bridge sets `MCP_TIMEOUT=150000`, and an
+operator value, even an empty one, stays. For a Codex worker the bridge passes
+`mcp_servers.loupe.startup_timeout_sec=150.0` and
+`mcp_optional_startup_grace_ms=0`. The second setting stops Codex from hiding
+the tools of a server that still starts after one second. A value of
+`startup_timeout_sec` or `startup_timeout_ms` for the `loupe` server, or of
+`mcp_optional_startup_grace_ms`, in `config.toml` or in the profile file, stays
+and stops the matching setting of the bridge. Interactive sessions keep their
+launch. A worker that still cannot connect reports `mcp-unreachable`, and the
+[workflow](../using/workflows.md) retries the run.
+
 Each outcome carries the tokens the worker process spent, per model, as the
 `usage` field of the [Worker run API](../reference/worker-runs.md#usage). The
 rest of this section covers a Claude Code worker.

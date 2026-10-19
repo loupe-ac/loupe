@@ -27,7 +27,7 @@ func TestWorkerEnvReplacesAnInheritedSession(t *testing.T) {
 	base := []string{sessionVar + "outer", "HOME=/home/a", sessionVar + "again"}
 
 	got := workerSpec{sessionID: "s1"}.harnessCommand(workerEnv(base, "s1", "", nil)).Env
-	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0"}) {
+	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0", "MCP_TIMEOUT=150000"}) {
 		t.Fatalf("workerEnv = %q", got)
 	}
 	if !slices.Equal(base, []string{sessionVar + "outer", "HOME=/home/a", sessionVar + "again"}) {

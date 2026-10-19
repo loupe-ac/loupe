@@ -79,6 +79,9 @@ final readonly class CardHistoryEntry
             CardEventKind::ReviewOverrideEnded => \is_int($detail['pullRequest'] ?? null) && \is_string($detail['headSha'] ?? null)
                 ? new self('lucide:shield-off', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => $detail['pullRequest'], '%sha%' => mb_substr($detail['headSha'], 0, 7)]))
                 : null,
+            CardEventKind::ResumeSkipped => \is_int($detail['number'] ?? null)
+                ? new self('lucide:circle-slash', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => $detail['number']]))
+                : null,
         };
 
         return $entry ?? new self('lucide:history', $event->occurredAt, $actor, new TranslatableMessage('board.card.history.changed', ['%actor%' => $actor]));
