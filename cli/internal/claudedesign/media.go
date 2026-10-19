@@ -81,19 +81,23 @@ func mediaRule(prelude, body string, width int) string {
 	}
 	list := strings.TrimSpace(head[len("@media"):])
 	var keep []string
-	queries := splitTop(list, ',')
-	for _, q := range queries {
-		switch evalQuery(q, width) {
+	changed := false
+	for _, q := range splitTop(list, ',') {
+		got, rest := evalQuery(q, width)
+		switch got {
 		case triTrue:
 			return "@media all{" + body + "}"
 		case triUnknown:
-			keep = append(keep, strings.TrimSpace(q))
+			keep = append(keep, rest)
+			changed = changed || rest != strings.TrimSpace(q)
+		default:
+			changed = true
 		}
 	}
 	if len(keep) == 0 {
 		return ""
 	}
-	if len(keep) == len(queries) {
+	if !changed {
 		return prelude + "{" + body + "}"
 	}
 
@@ -102,22 +106,23 @@ func mediaRule(prelude, body string, width int) string {
 
 // evalQuery answers one media query. A query that holds anything but width
 // conditions and the screen types is unknown, unless one width condition
-// makes it false.
-func evalQuery(q string, width int) tri {
+// makes it false. An unknown query comes back without its true terms.
+func evalQuery(q string, width int) (tri, string) {
 	q = strings.TrimSpace(q)
-	negate := false
+	negate, only := false, false
 	if notPrefixRe.MatchString(q) {
 		negate = true
 		q = strings.TrimSpace(notPrefixRe.ReplaceAllString(q, ""))
-	} else {
+	} else if onlyPrefixRe.MatchString(q) {
+		only = true
 		q = strings.TrimSpace(onlyPrefixRe.ReplaceAllString(q, ""))
 	}
 	if q == "" {
-		return triUnknown
+		return triUnknown, q
 	}
 	res := triTrue
-	for _, part := range splitAnd(q) {
-		part = strings.TrimSpace(part)
+	var rest []string
+	for _, part := range flattenAnd(splitAnd(q)) {
 		var got tri
 		switch lower := strings.ToLower(part); {
 		case lower == "all" || lower == "screen":
@@ -127,28 +132,34 @@ func evalQuery(q string, width int) tri {
 		default:
 			got = triUnknown
 		}
-		switch {
-		case got == triFalse:
+		if got == triFalse {
 			res = triFalse
-		case got == triUnknown && res == triTrue:
-			res = triUnknown
-		}
-		if res == triFalse {
+
 			break
 		}
-	}
-	if negate && res != triUnknown {
-		if res == triTrue {
-			return triFalse
+		if got == triUnknown {
+			res = triUnknown
+			rest = append(rest, part)
 		}
-
-		return triTrue
 	}
-	if negate {
-		return triUnknown
+	switch {
+	case res != triUnknown && negate:
+		return boolTri(res == triFalse), ""
+	case res != triUnknown:
+		return res, ""
+	}
+	typed := !strings.HasPrefix(rest[0], "(")
+	joined := strings.Join(rest, " and ")
+	switch {
+	case negate && typed:
+		return triUnknown, "not " + joined
+	case negate:
+		return triUnknown, "not all and " + joined
+	case only && typed:
+		return triUnknown, "only " + joined
 	}
 
-	return res
+	return triUnknown, joined
 }
 
 // evalCondition answers one condition without its parentheses.
@@ -308,6 +319,36 @@ func splitAnd(q string) []string {
 	}
 
 	return append(out, q[start:])
+}
+
+// flattenAnd trims each term, and lifts the terms of a group that only joins
+// groups with "and", so each width term resolves on its own.
+func flattenAnd(parts []string) []string {
+	var out []string
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if closes(part) {
+			inner := splitAnd(strings.TrimSpace(part[1 : len(part)-1]))
+			if len(inner) > 1 && allGroups(inner) {
+				out = append(out, flattenAnd(inner)...)
+
+				continue
+			}
+		}
+		out = append(out, part)
+	}
+
+	return out
+}
+
+func allGroups(parts []string) bool {
+	for _, p := range parts {
+		if !closes(strings.TrimSpace(p)) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // splitTop splits s at sep outside parentheses.
