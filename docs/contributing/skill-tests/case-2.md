@@ -20,5 +20,5 @@ Team note: a release takes a full day of manual steps and we release once a mont
 Bug: a user who deletes their account keeps receiving marketing email, which is a legal problem. Demonstrated in test_deleted_user_still_mailed.
 Cause: the mailer reads the `users` table, but deletion only sets `deleted_at` on `accounts`. The two tables are not linked.
 Option A (patch): filter the mailer's send loop with a hard-coded list of known deleted emails from a text file. No migration, no release step beyond a config push. New deletions still get mailed until someone edits the file.
-Option B (fix): a migration that adds `users.deleted_at` and a backfill, a change to the deletion command, and a release in two steps (migrate, then deploy). Removes the cause for every future deletion.
+Option B (fix): a migration that adds `users.deleted_at` and a backfill from `accounts`, a change to the deletion command so it also sets `users.deleted_at`, a mailer query that skips rows where `users.deleted_at` is set, and a release in two steps (migrate, then deploy). Removes the cause for every future deletion.
 ```

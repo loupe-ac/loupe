@@ -19,9 +19,9 @@ These pages are not published on the documentation site. They hold the six cases
 4. To test with the skill, start the prompt with: "First load the skill loupe-recommendations with the Skill tool and follow it."
 5. Run it with `printf "%s" "$PROMPT" | claude -p --plugin-dir <checkout>/plugins/loupe --permission-mode bypassPermissions` from the fixture folder. Run each case three times, because answers vary.
 
-## Result of the first run (2026-10-19)
+## Result of the run (2026-10-19)
 
-One run per case without the skill (baseline), then three runs per case with it. Every case passed in every run.
+One run per case without the skill (baseline), then three runs per case with it. Every case passed in every run. [The answers page](results-2026-10-19.md) holds all 24 answers verbatim.
 
 | Case | Baseline | With the skill |
 |---|---|---|
@@ -32,4 +32,8 @@ One run per case without the skill (baseline), then three runs per case with it.
 | 5. Reviewer reads a needed branch | pass | 3 of 3 |
 | 6. Reviewer reads a patch | pass | 3 of 3 |
 
-The baseline also passed, so these cases guard against a regression. They do not prove that the skill changed the answer. One difference shows: in cases 1, 2 and 4 every run with the skill calls the weaker option "a patch" and names what it leaves behind. No baseline run used the word. A harder fixture is the next step when a model fails a case without the skill.
+The baseline also passed, so these cases guard against a regression. They do not prove that the skill changed the answer. One difference shows: in cases 1, 2 and 4 every run with the skill calls the weaker option "a patch" and names what it leaves behind. No baseline answer of those three cases used the word. A harder fixture is the next step when a model fails a case without the skill.
+
+In case 5, two runs with the skill report a possible race in the cache fill. That finding is outside the rule under test. No run reports the needed branch as needless complexity.
+
+This run replaced an earlier one, after a review found that option B of case 2 did not filter the mailer. The earlier run recorded only pass counts.
