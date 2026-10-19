@@ -370,8 +370,8 @@ The actions are:
   earlier session. It fits only when the column of the card names stage work,
   no request for that work is live, and no worker runs on the card. See
   [Workflow templates](workflows.md).
-- "Open" opens the card, or the document. A card page offers no link to
-  itself.
+- "Open the card" or "Open the document" opens the card or the document of the
+  item. A card page offers no link to itself.
 - "Start an interactive session" opens a terminal on your machine. See
   [Start an interactive session](#start-an-interactive-session).
 - "Run a command" runs a command of your rule file on your machine. See
@@ -403,8 +403,9 @@ and Mark done. The button offers the suggested actions that fit the to-do now,
 and the recommended one is the main action. A to-do with no suggestion that
 fits shows no split button. A question works the same way, with its split button
 under the answer form. A question offers only the actions that its agent
-suggested, because a worker waits for the answer. An action on a question does not
-answer it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
+suggested, because a worker waits for the answer. Its reply card takes no note,
+because the answer carries your words. An action on a question does not answer
+it, so the question stays open. See [MCP](mcp.md#what-the-tools-do).
 
 Neither action asks for a confirmation. Retry the card acts at once, and its
 status line reads "Retried at" and the time. Resume the run asks the bridge to
@@ -700,7 +701,17 @@ with an agent in a terminal on your machine. The action needs an online bridge
 with a `session` entry in its rule file. Without one, the action stays grey and
 says that no bridge can open a session. The bridge opens a new session on the
 card. The prompt names the inbox item, and the agent reads your note with
-`inbox_get`. You can cancel the action until a bridge takes it. A request that
+`inbox_get`.
+
+An agent can suggest the action with a prompt for the session. When the action
+is the main button, the inbox shows the prompt in a text field above it. When
+the action is in the menu, choose it to show the field and its own start
+button. A grey action shows no field. You can edit the text. The
+session runs the text that you leave in the field. When you clear the field,
+the session starts with no suggested prompt. The limit is 2000
+characters, and an admin changes it with the `inbox.session_prompt_max_length`
+flag on the flags page. The action hides only while a session request of the
+same card is live. You can cancel the action until a bridge takes it. A request that
 no bridge takes within 2 minutes expires. See
 [Session entry](../extending/cli-bridge.md#session-entry).
 
@@ -805,3 +816,6 @@ items the project has open.
 
 The install wizard writes the flag row on a fresh install, and a database
 migration writes it on an instance that upgrades. A missing row reads as off.
+
+The `inbox.session_prompt_max_length` flag sets the longest prompt that an agent
+can suggest for a session. It is an integer, and it defaults to 2000.

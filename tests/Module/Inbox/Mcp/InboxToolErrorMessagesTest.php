@@ -10,8 +10,10 @@ use App\Module\Inbox\Command\DeclineInboxItemHandler;
 use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
 use App\Module\Inbox\Mcp\InboxToolErrorMessages;
 use App\Module\Inbox\Service\InboxItemCloser;
+use App\Module\Inbox\Service\SessionPromptLimit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
 
 final class InboxToolErrorMessagesTest extends TestCase
 {
@@ -36,15 +38,20 @@ final class InboxToolErrorMessagesTest extends TestCase
     #[DataProvider('responseKeys')]
     public function test_a_response_key_reads_as_a_sentence_for_the_agent(string $key, string $sentence): void
     {
-        $exception = new InboxToolErrorMessages()->forAgent(new DomainErrors(['selectedOptions' => $key]));
+        $exception = $this->messages()->forAgent(new DomainErrors(['selectedOptions' => $key]));
 
         self::assertSame('selectedOptions: '.$sentence, $exception->getMessage());
     }
 
     public function test_an_unmapped_key_gets_the_generic_message(): void
     {
-        $exception = new InboxToolErrorMessages()->forAgent(new DomainErrors(['item' => 'inbox.no.such.key']));
+        $exception = $this->messages()->forAgent(new DomainErrors(['item' => 'inbox.no.such.key']));
 
         self::assertSame('item: '.InboxToolErrorMessages::UNMAPPED, $exception->getMessage());
+    }
+
+    private function messages(): InboxToolErrorMessages
+    {
+        return new InboxToolErrorMessages(new SessionPromptLimit($this->createStub(FeatureFlagService::class)));
     }
 }

@@ -236,6 +236,7 @@ final readonly class ItemActions
                     InboxActionKind::StartSession === $kind && !($sessionOnline[(string) $item->project->id] ?? false) ? 'inbox.action.start-session.disabled' : self::commandReason($kind, $runCommand),
                     $suggestions[$kind->value]->reason ?? null,
                     InboxActionKind::RunCommand === $kind ? $runCommand : null,
+                    InboxActionKind::StartSession === $kind ? ($suggestions[$kind->value]->prompt ?? null) : null,
                 ),
                 $fitting,
             );
@@ -341,6 +342,12 @@ final readonly class ItemActions
         );
     }
 
+    /** The prompt that the asking agent suggested for the session of a to-do or a question, or null. */
+    public static function suggestedSessionPrompt(InboxItem $item): ?string
+    {
+        return self::storedSuggestions($item)[InboxActionKind::StartSession->value]->prompt ?? null;
+    }
+
     /** The linked card that the stored suggestion of the kind names, or null. */
     private static function suggestedCardOf(InboxItem $item, InboxActionKind $kind): ?Uuid
     {
@@ -434,7 +441,7 @@ final readonly class ItemActions
     {
         $suggestions = [];
         foreach ($item->suggestedActions ?? [] as $stored) {
-            $suggestions[$stored['action']] = new SuggestedAction($stored['action'], $stored['reason'], $stored['recommended'], $stored['command'] ?? null, $stored['proposedEntry'] ?? null);
+            $suggestions[$stored['action']] = new SuggestedAction($stored['action'], $stored['reason'], $stored['recommended'], $stored['command'] ?? null, $stored['proposedEntry'] ?? null, $stored['prompt'] ?? null);
         }
 
         return $suggestions;

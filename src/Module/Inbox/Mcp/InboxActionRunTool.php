@@ -209,7 +209,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
             'argv' => $view->argv,
             'params' => $view->values(),
             'runDigest' => self::confirmation($item, $view),
-            'disabledReason' => null === $view->disabledReasonKey ? null : InboxToolErrorMessages::sentence($view->disabledReasonKey),
+            'disabledReason' => null === $view->disabledReasonKey ? null : $this->errorMessages->sentence($view->disabledReasonKey),
         ];
     }
 }

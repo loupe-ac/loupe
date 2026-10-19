@@ -27,6 +27,8 @@ final readonly class RunInboxActionCommand
         public ?string $runDigest = null,
         /** An agent ran the action on behalf of the owner. */
         public bool $throughAgent = false,
+        /** The prompt the owner confirmed for a start-session action. Null or blank starts the session with no prompt. */
+        public ?string $sessionPrompt = null,
     ) {
     }
 }
