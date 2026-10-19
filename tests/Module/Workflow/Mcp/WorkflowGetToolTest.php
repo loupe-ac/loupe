@@ -83,7 +83,7 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'simple', 'version' => 5], $answer['template']);
+        self::assertSame(['key' => 'simple', 'version' => 6], $answer['template']);
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => [self::TEARDOWN_CHECK]],
             ['kind' => 'discovery', 'origin' => 'app', 'rules' => ['discovery'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_BRIDGE_CHECK]],
