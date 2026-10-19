@@ -7678,6 +7678,10 @@
                 <source>board.automation.error.stuck_delay_invalid</source>
                 <target>The stuck delay must be a number of minutes from 1 to 1440.</target>
             </trans-unit>
+            <trans-unit id="board.automation.error.no_workflow">
+                <source>board.automation.error.no_workflow</source>
+                <target>This project has no workflow yet, so it has no approval rule to change.</target>
+            </trans-unit>
             <trans-unit id="board.fix_run_comment.intro">
                 <source>board.fix_run_comment.intro</source>
                 <target>Loupe queued a fix run for this pull request.</target>

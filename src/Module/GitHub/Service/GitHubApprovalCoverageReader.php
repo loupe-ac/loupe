@@ -8,11 +8,14 @@ use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Service\ApprovalCoverage;
 use App\Module\Forge\Service\ApprovalCoverageReader;
 use App\Module\GitHub\GitHubDelivery;
+use App\Module\Workflow\Contract\ApprovalRules;
 use Psr\Log\LoggerInterface;
 
 /**
  * The approval covers the head when every commit since the covered head that
- * is not on the base is a merge that brings in a commit of the base.
+ * is not on the base is a merge that brings in a commit of the base. When the
+ * template of the project says an approval does not cover a conflict
+ * resolution, such a merge must also equal what git writes with no human edit.
  */
 final readonly class GitHubApprovalCoverageReader implements ApprovalCoverageReader
 {
@@ -20,6 +23,7 @@ final readonly class GitHubApprovalCoverageReader implements ApprovalCoverageRea
         private GitHubAppApi $api,
         private GitHubPullRequestInstallations $installations,
         private LoggerInterface $logger,
+        private ApprovalRules $approvalRules,
     ) {
     }
 
@@ -28,6 +32,9 @@ final readonly class GitHubApprovalCoverageReader implements ApprovalCoverageRea
     {
         return GitHubDelivery::FORGE === $forge;
     }
+
+    /** The compare API lists at most this many files, so a list this long may be cut. */
+    private const int COMPARE_FILE_LIMIT = 300;
 
     #[\Override]
     public function read(ForgePullRequest $pullRequest): ApprovalCoverage
@@ -54,24 +61,90 @@ final readonly class GitHubApprovalCoverageReader implements ApprovalCoverageRea
             if (!$againstBase['complete']) {
                 return ApprovalCoverage::NotCovered;
             }
+
+            $strict = !$this->approvalRules->coversConflictResolution($pullRequest->project->id ?? throw new \LogicException('The project is not persisted.'));
+            $offBase = array_flip(array_column($againstBase['commits'], 'sha'));
+            foreach ($sinceApproval['commits'] as $commit) {
+                if (!isset($offBase[$commit['sha']])) {
+                    continue;
+                }
+                $fromBase = array_values(array_filter($commit['parents'], static fn (string $parent): bool => !isset($offBase[$parent])));
+                if (\count($commit['parents']) < 2 || [] === $fromBase) {
+                    return ApprovalCoverage::NotCovered;
+                }
+                if ($strict && !$this->isMachineMerge($installationId, $path, $commit, $fromBase[0])) {
+                    return ApprovalCoverage::NotCovered;
+                }
+            }
         } catch (GitHubInstallationUnavailable|GitHubAppApiFailed $e) {
             return $this->unknown($pullRequest, $e->reason);
         } catch (\UnexpectedValueException) {
             return $this->unknown($pullRequest, 'malformed_body');
         }
 
-        $offBase = array_flip(array_column($againstBase['commits'], 'sha'));
-        foreach ($sinceApproval['commits'] as $commit) {
-            if (!isset($offBase[$commit['sha']])) {
-                continue;
+        return ApprovalCoverage::Covered;
+    }
+
+    /**
+     * A merge is a machine merge when the two sides changed no common file, and the merge differs from each side
+     * only in files that the other side changed. A conflict resolution or a hand edit breaks one of the three tests.
+     *
+     * @param array{sha: string, parents: list<string>} $merge
+     *
+     * @throws GitHubAppApiFailed
+     * @throws \UnexpectedValueException
+     */
+    private function isMachineMerge(int $installationId, string $path, array $merge, string $baseSide): bool
+    {
+        $headSides = array_values(array_diff($merge['parents'], [$baseSide]));
+        if (2 !== \count($merge['parents']) || 1 !== \count($headSides)) {
+            return false;
+        }
+        $headSide = $headSides[0];
+
+        $mergeBase = $this->compareFiles($installationId, $path, $baseSide, $headSide)['mergeBase'];
+        $headChanged = $this->compareFiles($installationId, $path, $mergeBase, $headSide)['files'];
+        $baseChanged = $this->compareFiles($installationId, $path, $mergeBase, $baseSide)['files'];
+        $againstHead = $this->compareFiles($installationId, $path, $headSide, $merge['sha'])['files'];
+        $againstBase = $this->compareFiles($installationId, $path, $baseSide, $merge['sha'])['files'];
+        if (null === $headChanged || null === $baseChanged || null === $againstHead || null === $againstBase) {
+            return false;
+        }
+
+        return [] === array_intersect($headChanged, $baseChanged)
+            && [] === array_diff($againstHead, $baseChanged)
+            && [] === array_diff($againstBase, $headChanged);
+    }
+
+    /**
+     * @return array{mergeBase: string, files: ?list<string>} files is null when the list may be cut
+     *
+     * @throws GitHubAppApiFailed
+     * @throws \UnexpectedValueException
+     */
+    private function compareFiles(int $installationId, string $path, string $from, string $to): array
+    {
+        $body = $this->api->get($installationId, GitHubPullRequestInstallations::repositoryPath($path).'/compare/'.rawurlencode($from).'...'.rawurlencode($to));
+        $mergeBase = \is_array($body['merge_base_commit'] ?? null) ? ($body['merge_base_commit']['sha'] ?? null) : null;
+        $items = $body['files'] ?? [];
+        if (!\is_string($mergeBase) || !\is_array($items) || !array_is_list($items)) {
+            throw new \UnexpectedValueException('The compare answer has no merge base or file list.');
+        }
+
+        $files = [];
+        foreach ($items as $item) {
+            $name = \is_array($item) ? ($item['filename'] ?? null) : null;
+            $previous = \is_array($item) ? ($item['previous_filename'] ?? null) : null;
+            if (!\is_string($name) || (null !== $previous && !\is_string($previous))) {
+                throw new \UnexpectedValueException('A compared file has no name.');
             }
-            $fromBase = array_filter($commit['parents'], static fn (string $parent): bool => !isset($offBase[$parent]));
-            if (\count($commit['parents']) < 2 || [] === $fromBase) {
-                return ApprovalCoverage::NotCovered;
+            $files[] = $name;
+            if (null !== $previous) {
+                $files[] = $previous;
             }
         }
 
-        return ApprovalCoverage::Covered;
+        return ['mergeBase' => $mergeBase, 'files' => \count($items) >= self::COMPARE_FILE_LIMIT ? null : array_values(array_unique($files))];
     }
 
     /**

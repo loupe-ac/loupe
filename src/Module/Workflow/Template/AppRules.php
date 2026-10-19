@@ -80,6 +80,7 @@ final class AppRules
             $template->epicBranch,
             $template->agentReviewFailingSeverities,
             $template->markers,
+            $template->approvalCoversConflictResolution,
         );
     }
 

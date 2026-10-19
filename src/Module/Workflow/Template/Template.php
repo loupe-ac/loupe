@@ -26,10 +26,11 @@ final readonly class Template
      * @param list<Rule>                      $rules
      * @param list<ManualMove>                $manualMoves
      * @param list<int>                       $backoffMinutes
-     * @param array<string, list<ActionCall>> $childChoices                 the actions of each choice an agent states for a card it files under a parent, by `inherit` or `own`
-     * @param ?string                         $epicBranch                   the branch of an epic, with the card number as the placeholder, or null when the template has no epic branches
-     * @param list<string>                    $agentReviewFailingSeverities the severities of a finding that fail an agent review
-     * @param list<TemplateMarker>            $markers                      the card markers, in template order
+     * @param array<string, list<ActionCall>> $childChoices                     the actions of each choice an agent states for a card it files under a parent, by `inherit` or `own`
+     * @param ?string                         $epicBranch                       the branch of an epic, with the card number as the placeholder, or null when the template has no epic branches
+     * @param list<string>                    $agentReviewFailingSeverities     the severities of a finding that fail an agent review
+     * @param list<TemplateMarker>            $markers                          the card markers, in template order
+     * @param bool                            $approvalCoversConflictResolution whether an approval still covers a merge from the base that holds a conflict resolution
      */
     public function __construct(
         public string $key,
@@ -46,6 +47,7 @@ final readonly class Template
         public ?string $epicBranch = null,
         public array $agentReviewFailingSeverities = self::DEFAULT_AGENT_REVIEW_FAILING_SEVERITIES,
         public array $markers = [],
+        public bool $approvalCoversConflictResolution = true,
     ) {
     }
 

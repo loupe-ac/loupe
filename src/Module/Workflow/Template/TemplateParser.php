@@ -219,6 +219,7 @@ final readonly class TemplateParser
         $onWorkFailed = self::onWorkFailed($source['onWorkFailed'] ?? null, $errors);
         $epicBranch = self::epicBranch($source['epicBranch'] ?? null, $lenient, $errors);
         $failingSeverities = self::agentReviewFailingSeverities($source['agentReviewFailingSeverities'] ?? null, $lenient, $errors);
+        $approvalCoversConflictResolution = self::approvalCoversConflictResolution($source['approvalCoversConflictResolution'] ?? null, $lenient, $errors);
 
         $slots = $this->slots(self::topLevelList($source, 'slots', $errors), $errors);
         $slotKeys = array_map(static fn (Slot $slot): string => $slot->key, $slots);
@@ -244,7 +245,7 @@ final readonly class TemplateParser
             throw new InvalidTemplate($errors);
         }
 
-        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers);
+        return new Template($key, $version, $slots, $rules, $manualMoves, $backoffMinutes, $workTimeoutMinutes, array_values($types ?? []), $defaultType, $onWorkFailed, $childChoices, $epicBranch, $failingSeverities, $markers, $approvalCoversConflictResolution);
     }
 
     /**
@@ -1153,6 +1154,27 @@ final readonly class TemplateParser
         }
 
         return array_values(array_intersect(Template::AGENT_REVIEW_SEVERITIES, $value));
+    }
+
+    /**
+     * A template with no value lets an approval cover a conflict resolution. A stored copy with a value that is not a boolean does too.
+     *
+     * @param list<string> $errors
+     */
+    private static function approvalCoversConflictResolution(mixed $value, bool $lenient, array &$errors): bool
+    {
+        if (null === $value) {
+            return true;
+        }
+        if (!\is_bool($value)) {
+            if (!$lenient) {
+                $errors[] = 'approvalCoversConflictResolution: must be true or false';
+            }
+
+            return true;
+        }
+
+        return $value;
     }
 
     /** @return ?list<int> */

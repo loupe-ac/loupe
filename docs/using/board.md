@@ -921,7 +921,7 @@ An agent drives the board through the MCP endpoint. See
 | `column_update` | `slug` is required. `label` and `terminal` are optional. |
 | `column_reorder` | `order` is required: the slugs of every column except Backlog, in the new order. |
 | `column_delete` | `slug` is required. `targetColumn` is required when the column holds cards. |
-| `automation_settings_update` | Every argument is optional. `enabled` turns the workflow of the board on or off. |
+| `automation_settings_update` | Every argument is optional. `enabled` turns the workflow of the board on or off. `stuckDelayMinutes` sets the stuck delay. `approvalCoversConflictResolution` sets whether an approval still covers a merge from the base that resolves a conflict |
 
 `board_columns` lists the columns of the board in board order. Each entry
 carries `slug`, `label`, `terminal`, `default` and `backlog`. The Backlog row
