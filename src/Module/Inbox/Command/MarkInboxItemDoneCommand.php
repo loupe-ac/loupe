@@ -10,6 +10,7 @@ final readonly class MarkInboxItemDoneCommand
 {
     public function __construct(
         public InboxItem $item,
+        public bool $throughAgent = false,
     ) {
     }
 }

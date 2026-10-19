@@ -362,7 +362,7 @@ final readonly class RunInboxActionHandler
 
     private function dismiss(RunInboxActionCommand $command, string $note): null
     {
-        ($this->declineItem)(new DeclineInboxItemCommand($command->item, $note));
+        ($this->declineItem)(new DeclineInboxItemCommand($command->item, $note, $command->throughAgent));
 
         return null;
     }

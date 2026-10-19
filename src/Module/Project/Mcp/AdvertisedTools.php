@@ -105,6 +105,10 @@ final class AdvertisedTools
         'inbox_list',
         'inbox_get',
         'inbox_withdraw',
+        'inbox_answer',
+        'inbox_decline',
+        'inbox_done',
+        'inbox_action_run',
         'inbox_settings_update',
     ];
 

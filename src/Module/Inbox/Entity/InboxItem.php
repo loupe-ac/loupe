@@ -52,6 +52,9 @@ class InboxItem implements ProjectScopedSubject
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $closeNote = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    public bool $respondedThroughAgent = false;
+
     /** @var list<array{action: string, reason: string, recommended: bool, cardId: ?string, command?: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry?: string|null, prompt?: string|null}>|null what the asking agent suggests, in the order it sent. A row stored before run-command lacks the command keys, and one stored before the prompt lacks prompt. */
     #[ORM\Column(type: Types::JSON, nullable: true)]
     public ?array $suggestedActions = null;
