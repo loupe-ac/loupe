@@ -37,6 +37,9 @@ abstract readonly class Expression
     /** @return list<ConditionLeaf> every leaf, in template order */
     abstract public function leaves(): array;
 
+    /** @return list<ConditionLeaf> the leaves that must be true for the expression to be true */
+    abstract public function requiredLeaves(): array;
+
     /** @return list<string> the key of every condition this instance no longer has, in template order */
     abstract public function missingKeys(): array;
 

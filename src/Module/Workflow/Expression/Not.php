@@ -52,6 +52,12 @@ final readonly class Not extends Expression
     }
 
     #[\Override]
+    public function requiredLeaves(): array
+    {
+        return [];
+    }
+
+    #[\Override]
     public function missingKeys(): array
     {
         return $this->inner->missingKeys();

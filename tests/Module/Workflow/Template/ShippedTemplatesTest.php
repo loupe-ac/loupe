@@ -930,6 +930,16 @@ final class ShippedTemplatesTest extends KernelTestCase
         self::assertSame([], $this->template('simple')->documentTagsFor(null));
     }
 
+    public function test_the_shipped_lifecycle_ends_each_design_review_loop_after_six_failed_reviews(): void
+    {
+        $lifecycle = $this->lifecycle();
+
+        self::assertSame(6, $lifecycle->reviewRoundLimit(['product-design']));
+        self::assertSame(6, $lifecycle->reviewRoundLimit(['tech-design', 'deploy-notes']));
+        self::assertNull($lifecycle->reviewRoundLimit(['plan']));
+        self::assertNull($this->template('simple')->reviewRoundLimit(['tech-design']));
+    }
+
     public function test_a_revision_request_names_the_document_it_revises_by_the_tag_its_rule_reads(): void
     {
         $params = [];

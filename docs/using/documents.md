@@ -547,7 +547,7 @@ A design that went through the agent review shows a summary below its last secti
 The summary has three states:
 
 1. **Agent review passed.** The newest review passed. When it left a question for you, its fix round also wrote that question into the draft.
-2. **Agent review did not pass.** Three reviews failed, so the document reached you anyway.
+2. **Agent review did not pass.** The review loop used all its failed reviews, so the document reached you anyway. The limit is a setting of the project workflow, with a default of 6. A workflow with no such limit never shows this state.
 3. **Agent review skipped.** You published the draft while the loop still ran. This includes a publish before the fix round wrote the question of a passed review into the draft.
 
 A document with no agent review shows no summary. A draft shows none either, also after its loop ends. The summary appears when the draft is published.
