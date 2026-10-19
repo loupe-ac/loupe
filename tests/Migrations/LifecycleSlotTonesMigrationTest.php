@@ -19,7 +19,7 @@ final class LifecycleSlotTonesMigrationTest extends KernelTestCase
 {
     use ActionScenario;
 
-    public function test_a_lifecycle_binding_gets_the_slot_tones_and_keeps_its_epic_branch_and_a_simple_binding_is_left_alone(): void
+    public function test_a_lifecycle_binding_gets_the_slot_tones_and_keeps_its_epic_branch_and_approval_rule_and_a_simple_binding_is_left_alone(): void
     {
         self::bootKernel();
         $lifecycle = $this->workflowProject('migration-slot-tones-lifecycle');
@@ -32,6 +32,7 @@ final class LifecycleSlotTonesMigrationTest extends KernelTestCase
         $old = $this->row($connection, $lifecycleId);
         $old['version'] = 7;
         $old['epicBranch'] = 'feature/epic-{number}';
+        $old['approvalCoversConflictResolution'] = false;
         $old['slots'] = array_map(static fn (mixed $slot): mixed => \is_array($slot) ? array_diff_key($slot, ['tone' => true]) : $slot, $old['slots']);
         $connection->executeStatement('UPDATE workflow_bindings SET template_version = 7, definition = CAST(? AS JSONB) WHERE project_id = ?', [json_encode($old, \JSON_THROW_ON_ERROR), $lifecycleId]);
         $simpleBefore = $this->row($connection, $simpleId);
@@ -41,7 +42,7 @@ final class LifecycleSlotTonesMigrationTest extends KernelTestCase
         $this->migrate($connection);
         $this->migrate($connection);
 
-        self::assertEquals([...$shipped->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $this->row($connection, $lifecycleId));
+        self::assertEquals([...$shipped->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $lifecycleId));
         self::assertSame($shipped->source('lifecycle')['version'], (int) $connection->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$lifecycleId]));
         self::assertSame(['lime', 'sky', 'indigo', 'purple', 'amber'], array_column($this->row($connection, $lifecycleId)['slots'], 'tone'));
         self::assertEquals($simpleBefore, $this->row($connection, $simpleId));
