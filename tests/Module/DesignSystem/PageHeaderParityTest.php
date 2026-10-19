@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Tests\Module\DesignSystem;
 
 use App\Module\DesignSystem\Catalog;
-use App\Module\DesignSystem\Command\ExportDesignSystemCommand;
-use App\Module\DesignSystem\Command\ExportDesignSystemHandler;
+use App\Tests\Support\ComponentSourceReader;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 
 final class PageHeaderParityTest extends KernelTestCase
 {
+    use ComponentSourceReader;
+
     private function render(string $template): string
     {
         self::bootKernel();
@@ -58,16 +58,7 @@ final class PageHeaderParityTest extends KernelTestCase
             .'<twig:Ds:PageHeader variant="workshop" title="C" />',
         );
 
-        $directory = sys_get_temp_dir().'/ds-export-parity-'.bin2hex(random_bytes(4));
-        $handler = static::getContainer()->get(ExportDesignSystemHandler::class);
-        self::assertInstanceOf(ExportDesignSystemHandler::class, $handler);
-
-        try {
-            $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/PageHeader/PageHeader.jsx');
-        } finally {
-            new Filesystem()->remove($directory);
-        }
+        $jsx = self::componentJsx('PageHeader');
 
         $variants = [];
         foreach (new Catalog()->entries() as $entry) {

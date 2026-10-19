@@ -35,14 +35,14 @@ final class OpenQuestionConditionTest extends TestCase
 
     public function test_with_no_blocking_parameter_a_non_blocking_to_do_matches(): void
     {
-        $facts = self::facts(new OpenQuestion(929, 'Rebuild the Claude Design project', new \DateTimeImmutable('2026-10-02 09:15:00'), blocking: false));
+        $facts = self::facts(new OpenQuestion(929, 'Rebuild the Design System artifact', new \DateTimeImmutable('2026-10-02 09:15:00'), blocking: false));
 
         self::assertTrue(new CardHasOpenQuestion()->evaluate($facts, []));
     }
 
     public function test_a_blocking_condition_skips_a_non_blocking_to_do_alone(): void
     {
-        $facts = self::facts(new OpenQuestion(929, 'Rebuild the Claude Design project', new \DateTimeImmutable('2026-10-02 09:15:00'), blocking: false));
+        $facts = self::facts(new OpenQuestion(929, 'Rebuild the Design System artifact', new \DateTimeImmutable('2026-10-02 09:15:00'), blocking: false));
 
         self::assertFalse(new CardHasOpenQuestion()->evaluate($facts, ['blocking' => true]));
         self::assertNull(new CardHasOpenQuestion()->evidence($facts, ['blocking' => true]));
@@ -60,10 +60,10 @@ final class OpenQuestionConditionTest extends TestCase
         $todoSince = new \DateTimeImmutable('2026-10-02 09:00:00');
         $questionSince = new \DateTimeImmutable('2026-10-02 09:30:00');
         $facts = self::facts(
-            new OpenQuestion(929, 'Rebuild the Claude Design project', $todoSince, blocking: false),
+            new OpenQuestion(929, 'Rebuild the Design System artifact', $todoSince, blocking: false),
             new OpenQuestion(931, 'Which option?', $questionSince, blocking: true),
         );
-        $todo = new Evidence($todoSince, ['%number%' => 929, '%title%' => 'Rebuild the Claude Design project']);
+        $todo = new Evidence($todoSince, ['%number%' => 929, '%title%' => 'Rebuild the Design System artifact']);
 
         self::assertTrue(new CardHasOpenQuestion()->evaluate($facts, ['blocking' => true]));
         self::assertEquals(new Evidence($questionSince, ['%number%' => 931, '%title%' => 'Which option?']), new CardHasOpenQuestion()->evidence($facts, ['blocking' => true]));
