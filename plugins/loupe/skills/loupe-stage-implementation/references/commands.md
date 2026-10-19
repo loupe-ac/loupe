@@ -82,8 +82,9 @@ A stage refreshes the environment after a branch switch or a merge brings commit
 
 1. Run `loupe env refresh` in the worker folder. The bridge runs the `refresh` command of the entry of this run, in this folder.
 2. Exit 0 means the command ran, or the entry names none. Go on.
-3. Exit 1 means the command failed. Stop with `STAGE RESULT: blocked: environment refresh failed`, and name the tail of its output in the sentences after it.
-4. Exit 2 means this process is not a worker of a running bridge. A CLI with no `env` command also fails. Go on, and write `Environment refresh: skipped, no bridge` in the final reply.
+3. A CLI older than the `env` command exits 1 and prints `unknown command "env"`. Treat that output as item 5.
+4. Any other exit 1 means the command failed. Stop with `STAGE RESULT: blocked: environment refresh failed`, and name the tail of its output in the sentences after it.
+5. Exit 2 means this process is not a worker of a running bridge. Go on, and write `Environment refresh: skipped, no bridge` in the final reply.
 
 ## Sync with the pull request branch
 
