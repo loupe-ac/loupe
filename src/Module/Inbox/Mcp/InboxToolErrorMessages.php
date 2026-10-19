@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace App\Module\Inbox\Mcp;
 
 use App\Exception\DomainErrors;
+use App\Module\Inbox\Command\AnswerInboxItemHandler;
 use App\Module\Inbox\Command\AskInboxHandler;
+use App\Module\Inbox\Command\DeclineInboxItemHandler;
+use App\Module\Inbox\Command\MarkInboxItemDoneHandler;
+use App\Module\Inbox\Command\RunInboxActionHandler;
 use App\Module\Inbox\Command\SearchInboxHandler;
 use App\Module\Inbox\Command\WithdrawInboxItemHandler;
+use App\Module\Inbox\Entity\InboxAction;
 use App\Module\Inbox\Entity\InboxItem;
 use App\Module\Inbox\InboxLimits;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Inbox\Service\InboxLinkResolver;
 use App\Module\Inbox\Service\InboxSessionAsks;
+use App\Module\Inbox\Service\RunCommandResolver;
 use App\Module\Inbox\Service\RunSuggestions;
 use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Inbox\Service\SuggestedCommandCheck;
@@ -24,6 +30,7 @@ use Mcp\Exception\ToolCallException;
  */
 final readonly class InboxToolErrorMessages
 {
+    public const string REVIEW_ON_PAGE = 'inbox.mcp.error.review_on_page';
     public const string UNMAPPED = 'The request was rejected. The error has been logged.';
 
     public function __construct(
@@ -41,7 +48,7 @@ final readonly class InboxToolErrorMessages
         return new ToolCallException(implode("\n", $lines), previous: $errors);
     }
 
-    private function sentence(string $key): string
+    public function sentence(string $key): string
     {
         return match ($key) {
             AskInboxHandler::ITEMS_EMPTY => 'Pass at least one item.',
@@ -89,6 +96,32 @@ final readonly class InboxToolErrorMessages
             WithdrawInboxItemHandler::WAIT_NOT_WITHDRAWABLE => 'Loupe opened this item for a card that waits for a person, so no agent can withdraw it. It closes when the card no longer waits.',
             WithdrawInboxItemHandler::NOTICE_NOT_WITHDRAWABLE => 'Loupe opened this notice for a fact about the project, so no agent can withdraw it. It closes when the fact ends.',
             SearchInboxHandler::QUERY_BLANK => 'Pass a query to search for. To read the inbox page by page instead, call inbox_list.',
+            AnswerInboxItemHandler::NOT_A_QUESTION => 'Only a question takes an answer.',
+            AnswerInboxItemHandler::UNKNOWN_OPTION => 'Each selected option must be an index into the options of the item, counting from 0.',
+            AnswerInboxItemHandler::ONE_OPTION => 'This question takes one option.',
+            AnswerInboxItemHandler::NO_FREE_TEXT => 'This question takes no free text.',
+            AnswerInboxItemHandler::EMPTY => 'Pass at least one selected option or an answer text.',
+            MarkInboxItemDoneHandler::NOT_A_TO_DO => 'Only a todo can be marked done.',
+            MarkInboxItemDoneHandler::ALREADY_DONE => 'The todo is already done.',
+            DeclineInboxItemHandler::WORKFLOW_NOT_DECLINABLE => 'A workflow question cannot be declined. Answer it with inbox_answer.',
+            InboxItemCloser::ERROR_FINAL => 'The response is final, because an ask that holds this item has closed.',
+            InboxItemCloser::ERROR_CLOSED_BY_AGENT => 'An agent closed this item, so it takes no response.',
+            InboxItemCloser::ERROR_CLOSED_BY_LOUPE => 'Loupe closed this item, so it takes no response.',
+            InboxItemCloser::ERROR_NOTICE => 'A notice takes no response.',
+            RunInboxActionHandler::NOT_AVAILABLE => 'This action does not fit the item now. The item may be closed, or the state it waits on changed. Read the item with inbox_get.',
+            RunInboxActionHandler::NOTE_TOO_LONG => \sprintf('A note must be at most %d characters.', InboxAction::MAX_NOTE_LENGTH),
+            RunInboxActionHandler::SESSION_PROMPT_TOO_LONG => \sprintf('A session prompt must be at most %d characters on this instance.', $this->promptLimit->maxLength()),
+            RunInboxActionHandler::COMMAND_LIVE => 'This command is already queued or running for this item.',
+            RunInboxActionHandler::COMMAND_CHANGED => 'The command changed on the bridge, or the digest is not the one of the last preview. Call again without runDigest, show the new preview to the owner, then call with the new digest.',
+            RunCommandResolver::RUNNING => 'This command is queued or running.',
+            RunCommandResolver::NO_BRIDGE => 'No bridge that follows this project asked for this command.',
+            RunCommandResolver::UNSUPPORTED => 'The bridge cannot run commands from the inbox. The owner must update the CLI.',
+            RunCommandResolver::ENTRY_MISSING => 'The rule file of the bridge has no such command.',
+            RunCommandResolver::PARAM_INVALID => 'A param value does not fit the pattern of its param.',
+            RunCommandResolver::NO_WORKTREE => 'The bridge has no worktree for this branch.',
+            RunCommandResolver::PLACEHOLDER_MISSING => 'The command needs a card, and this item has no single card.',
+            RunCommandResolver::PLACEHOLDER_UNKNOWN => 'The command uses a value that the bridge fills only at the run, so Loupe cannot show the command before it runs.',
+            self::REVIEW_ON_PAGE => 'A review verdict stays on the inbox page. Ask the owner to give it there.',
             default => self::UNMAPPED,
         };
     }

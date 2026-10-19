@@ -9,7 +9,7 @@ final readonly class ReportFinding
 {
     public function __construct(
         public string $check,
-        /** Either ready or gap. */
+        /** Ready or suggested. An older plugin sends gap for suggested. */
         public string $status,
         public string $evidence,
     ) {

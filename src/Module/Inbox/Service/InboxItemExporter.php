@@ -58,6 +58,7 @@ final readonly class InboxItemExporter implements UserDataExporterInterface
                 'selectedOptions' => $item->selectedOptions,
                 'answerText' => $item->answerText,
                 'closeNote' => $item->closeNote,
+                'respondedThroughAgent' => $item->respondedThroughAgent,
                 'createdAt' => $item->createdAt->format(\DateTimeInterface::ATOM),
                 'updatedAt' => $item->updatedAt->format(\DateTimeInterface::ATOM),
                 'closedAt' => $item->closedAt?->format(\DateTimeInterface::ATOM),

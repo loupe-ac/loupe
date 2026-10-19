@@ -522,7 +522,7 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->commandTodo();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'branch' => 'main', 'params' => ['out' => 'other/folder'], 'runDigest' => self::shownDigest()]);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'branch' => 'main', 'params' => ['out' => 'other/folder'], 'runDigest' => $this->shownDigest()]);
 
         self::assertStringStartsWith($this->pageUrl().'?ask=', (string) $this->client->getResponse()->headers->get('Location'));
         $action = $this->onlyAction($item);
@@ -538,7 +538,7 @@ final class InboxActionControllersTest extends WebTestCase
         $this->bridge->commandEntries = [['name' => 'design-export', 'description' => null, 'params' => [['name' => 'out', 'pattern' => '[a-z/]+', 'description' => null]], 'run' => ['bin/console', 'app:export', '--force', '{out}'], 'timeout' => '10m']];
         $this->em()->flush();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => self::shownDigest()]);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => $this->shownDigest()]);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('#inbox-item-'.$item->number, 'The command changed on the bridge since you opened this dialog.');
@@ -550,7 +550,7 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->commandTodo();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => self::shownDigest()]);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => $this->shownDigest()]);
 
         $request = $this->em()->find(WorkRequest::class, $this->onlyAction($item)->workRequestId);
         self::assertSame(['epic/42', ['out' => 'var/out']], [$request?->branch, $request?->params]);
@@ -560,7 +560,7 @@ final class InboxActionControllersTest extends WebTestCase
     {
         $item = $this->commandTodo();
 
-        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'params' => ['out' => '--exec=1'], 'runDigest' => self::shownDigest()]);
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'params' => ['out' => '--exec=1'], 'runDigest' => $this->shownDigest()]);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('#inbox-item-'.$item->number, 'A value does not fit its pattern.');
@@ -592,7 +592,7 @@ final class InboxActionControllersTest extends WebTestCase
         self::assertSame('/work/loupe/.worktrees/card-42', $options->first()->attr('data-folder'));
         self::assertSame('var/out', $dialog->filter('input[name="'.$formId.'[params][out]"]')->attr('value'));
         $digest = $dialog->filter('input[name="'.$formId.'[runDigest]"]');
-        self::assertSame([self::shownDigest(), $formId], [$digest->attr('value'), $digest->attr('form')]);
+        self::assertSame([$this->shownDigest(), $formId], [$digest->attr('value'), $digest->attr('form')]);
         self::assertSame('bin/console app:export var/out', trim($dialog->filter('[data-testid="run-command-argv"]')->text()));
         self::assertSame('Command, in /work/loupe/.worktrees/card-42', trim($dialog->filter('.lp-code-dark__label')->text()));
         self::assertStringContainsString('A success marks the to-do done.', $dialog->text());
@@ -1126,11 +1126,11 @@ final class InboxActionControllersTest extends WebTestCase
     }
 
     /** The digest of the run list of the design-export entry that the dialog shows. */
-    private static function shownDigest(): string
+    private function shownDigest(): string
     {
         $run = ['bin/console', 'app:export', '{out}'];
 
-        return hash('sha256', json_encode([$run, $run], \JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$run, $run, (string) $this->bridge->id], \JSON_THROW_ON_ERROR));
     }
 
     private function sessionBridge(): void

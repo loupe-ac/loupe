@@ -201,25 +201,76 @@ final class InboxResponseHandlersTest extends KernelTestCase
         self::assertSame('Changed my mind.', $stored->closeNote);
     }
 
-    private function answer(InboxItem $item, string $selected, string $text): void
+    public function test_a_response_through_an_agent_sets_the_mark_and_a_page_response_clears_it(): void
+    {
+        $item = $this->question($this->em, $this->project, 1);
+
+        $this->answer($item, '0', '', throughAgent: true);
+        $stored = $this->reload($item);
+        self::assertTrue($stored->respondedThroughAgent);
+
+        $this->answer($stored, '1', '');
+        self::assertFalse($this->reload($item)->respondedThroughAgent);
+    }
+
+    public function test_a_page_response_leaves_the_mark_unset(): void
+    {
+        $item = $this->question($this->em, $this->project, 1);
+
+        $this->answer($item, '0', '');
+
+        self::assertFalse($this->reload($item)->respondedThroughAgent);
+    }
+
+    public function test_a_decline_through_an_agent_sets_the_mark_and_a_page_decline_clears_it(): void
+    {
+        $item = $this->question($this->em, $this->project, 1);
+
+        $this->decline($item, 'No.', throughAgent: true);
+        $stored = $this->reload($item);
+        self::assertTrue($stored->respondedThroughAgent);
+
+        $this->decline($stored, 'Still no.');
+        self::assertFalse($this->reload($item)->respondedThroughAgent);
+    }
+
+    public function test_a_to_do_marked_done_through_an_agent_carries_the_mark(): void
+    {
+        $item = $this->todo($this->em, $this->project, 1);
+
+        $this->markDone($item, throughAgent: true);
+
+        self::assertTrue($this->reload($item)->respondedThroughAgent);
+    }
+
+    public function test_a_refused_response_leaves_the_mark_as_stored(): void
+    {
+        $item = $this->question($this->em, $this->project, 1);
+
+        $this->refusal(fn () => $this->answer($item, '9', '', throughAgent: true));
+
+        self::assertFalse($this->reload($item)->respondedThroughAgent);
+    }
+
+    private function answer(InboxItem $item, string $selected, string $text, bool $throughAgent = false): void
     {
         $handler = self::getContainer()->get(AnswerInboxItemHandler::class);
         self::assertInstanceOf(AnswerInboxItemHandler::class, $handler);
-        $handler(new AnswerInboxItemCommand($item, $selected, $text));
+        $handler(new AnswerInboxItemCommand($item, $selected, $text, $throughAgent));
     }
 
-    private function markDone(InboxItem $item): void
+    private function markDone(InboxItem $item, bool $throughAgent = false): void
     {
         $handler = self::getContainer()->get(MarkInboxItemDoneHandler::class);
         self::assertInstanceOf(MarkInboxItemDoneHandler::class, $handler);
-        $handler(new MarkInboxItemDoneCommand($item));
+        $handler(new MarkInboxItemDoneCommand($item, $throughAgent));
     }
 
-    private function decline(InboxItem $item, string $note): void
+    private function decline(InboxItem $item, string $note, bool $throughAgent = false): void
     {
         $handler = self::getContainer()->get(DeclineInboxItemHandler::class);
         self::assertInstanceOf(DeclineInboxItemHandler::class, $handler);
-        $handler(new DeclineInboxItemCommand($item, $note));
+        $handler(new DeclineInboxItemCommand($item, $note, $throughAgent));
     }
 
     /**
