@@ -161,8 +161,9 @@ final readonly class UpdateCardHandler
                     return $refusal;
                 }
                 $card->parent = $parent;
-            } elseif (null !== $command->laneEnabled || null !== $command->column) {
+            } elseif (null !== $command->laneEnabled || null !== $command->column || null !== $title) {
                 // A lane toggle or a move decides whether a lane shows, from the committed setting.
+                // A rename tells the committed parent, which a concurrent reparent may have changed.
                 $this->cards->refreshTypeAndParent($card);
             }
             // After the parent step, so the guard reads the parent the move keeps or sets.

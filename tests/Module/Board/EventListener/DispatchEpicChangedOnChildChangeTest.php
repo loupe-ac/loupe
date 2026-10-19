@@ -200,6 +200,25 @@ final class DispatchEpicChangedOnChildChangeTest extends KernelTestCase
         self::assertTrue($this->epicChanged($epic));
     }
 
+    public function test_a_rename_loaded_before_a_reparent_commits_changes_the_new_epic(): void
+    {
+        $project = $this->makeProject('epic-face-rename-moved');
+        $oldEpic = $this->card($project, column: 'next', type: 'epic');
+        $newEpic = $this->card($project, column: 'next', type: 'epic');
+        $child = $this->card($project, column: 'in-progress', parent: $oldEpic);
+        $stale = $this->reload($child);
+        $this->em->getConnection()->executeStatement(
+            'UPDATE board_cards SET parent_card_id = :parent WHERE id = :id',
+            ['parent' => (string) $newEpic->id, 'id' => (string) $child->id],
+        );
+        $this->changes = [];
+
+        ($this->updateCard)(new UpdateCardCommand($stale, Actor::Human, title: 'Renamed child'));
+
+        self::assertTrue($this->epicChanged($newEpic));
+        self::assertFalse($this->epicChanged($oldEpic));
+    }
+
     public function test_a_renamed_finished_child_leaves_its_epic_alone(): void
     {
         $project = $this->makeProject('epic-face-rename-done');
