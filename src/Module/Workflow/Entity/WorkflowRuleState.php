@@ -54,6 +54,14 @@ class WorkflowRuleState
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $workRequestId = null;
 
+    /**
+     * The condition parts that held when the rule opened its live request. Null when no value was saved.
+     *
+     * @var list<string>|null
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    public ?array $causesAtOpen = null;
+
     /** True while the engine has started the repair of the current escalation. */
     #[ORM\Column(options: ['default' => false])]
     public bool $repaired = false;
@@ -98,6 +106,7 @@ class WorkflowRuleState
         $this->lastRefusalAt = null;
         $this->subjectPullRequestId = null;
         $this->workRequestId = null;
+        $this->causesAtOpen = null;
         $this->repaired = false;
         $this->askItemId = null;
         $this->answeringRunId = null;
