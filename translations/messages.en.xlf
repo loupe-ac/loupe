@@ -2621,9 +2621,9 @@
                 <source>readiness.report.ready</source>
                 <target>Ready</target>
             </trans-unit>
-            <trans-unit id="readiness.report.gaps">
-                <source>readiness.report.gaps</source>
-                <target>Gaps</target>
+            <trans-unit id="readiness.report.suggested">
+                <source>readiness.report.suggested</source>
+                <target>Suggested</target>
             </trans-unit>
             <trans-unit id="readiness.report.none">
                 <source>readiness.report.none</source>
@@ -2836,6 +2836,22 @@
             <trans-unit id="project.connect.tool.inbox_withdraw">
                 <source>project.connect.tool.inbox_withdraw</source>
                 <target>Withdraw an open item that is no longer needed, with a reason the owner reads.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_answer">
+                <source>project.connect.tool.inbox_answer</source>
+                <target>Answer an inbox question for the owner, after the owner decided in chat. The item shows it was answered through an agent.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_decline">
+                <source>project.connect.tool.inbox_decline</source>
+                <target>Decline an inbox question or to-do, or dismiss a wait item, for the owner after the owner decided in chat. A review stays on the inbox page.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_done">
+                <source>project.connect.tool.inbox_done</source>
+                <target>Mark an inbox to-do done for the owner, after the owner said in chat that it is done.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_action_run">
+                <source>project.connect.tool.inbox_action_run</source>
+                <target>Run a built-in action of an inbox item for the owner, such as resume-run, retry-card or run-command. A run-command shows a preview first.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.inbox_settings_update">
                 <source>project.connect.tool.inbox_settings_update</source>
@@ -5634,6 +5650,10 @@
             <trans-unit id="inbox.item.editable">
                 <source>inbox.item.editable</source>
                 <target>You can still change this response. It becomes final when an ask that holds this item closes.</target>
+            </trans-unit>
+            <trans-unit id="inbox.item.through_agent">
+                <source>inbox.item.through_agent</source>
+                <target>An agent recorded this response for the owner.</target>
             </trans-unit>
             <trans-unit id="inbox.item.final">
                 <source>inbox.item.final</source>
@@ -8444,6 +8464,8 @@
             <trans-unit id="workflow.waiting.not.card_has_children"><source>workflow.waiting.not.card_has_children</source><target>Waiting: the card has child cards.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_children_finished"><source>workflow.waiting.card_children_finished</source><target>Waiting: a child card is still open.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_children_finished"><source>workflow.waiting.not.card_children_finished</source><target>Waiting: no child card is open.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_children_marked"><source>workflow.waiting.card_children_marked</source><target>Waiting: no open child card has a %kind% marker.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_children_marked"><source>workflow.waiting.not.card_children_marked</source><target>Waiting: an open child card has a %kind% marker.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document"><source>workflow.waiting.card_document</source><target>Waiting: the card has no %tag% document.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_document"><source>workflow.waiting.not.card_document</source><target>Waiting: the card has a %tag% document.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_document_status"><source>workflow.waiting.card_document_status</source><target>Waiting: the card has no %tag% document with the status "%status%".</target></trans-unit>
@@ -8966,6 +8988,14 @@
             <trans-unit id="marker.waits_for_parent_branch.remedy"><source>marker.waits_for_parent_branch.remedy</source><target>Merge the branch, or change the base of the pull request.</target></trans-unit>
             <trans-unit id="marker.waiting_on_checks"><source>marker.waiting_on_checks</source><target>Waiting for the checks of pull request #%number% to end.</target></trans-unit>
             <trans-unit id="marker.waiting_on_checks.remedy"><source>marker.waiting_on_checks.remedy</source><target>Nothing. The card moves on when the checks end.</target></trans-unit>
+            <trans-unit id="marker.child_stuck"><source>marker.child_stuck</source><target>Child card #%number% is stuck: %title%</target></trans-unit>
+            <trans-unit id="marker.child_stuck.remedy"><source>marker.child_stuck.remedy</source><target>Open the child card, and clear what holds it.</target></trans-unit>
+            <trans-unit id="marker.child_needs_you"><source>marker.child_needs_you</source><target>Child card #%number% needs you: %title%</target></trans-unit>
+            <trans-unit id="marker.child_needs_you.remedy"><source>marker.child_needs_you.remedy</source><target>Open the child card, and do what it asks.</target></trans-unit>
+            <trans-unit id="marker.child_working"><source>marker.child_working</source><target>Work is under way on child card #%number%: %title%</target></trans-unit>
+            <trans-unit id="marker.child_working.remedy"><source>marker.child_working.remedy</source><target>Nothing. The epic moves on when its children finish.</target></trans-unit>
+            <trans-unit id="marker.child_waiting"><source>marker.child_waiting</source><target>Child card #%number% waits: %title%</target></trans-unit>
+            <trans-unit id="marker.child_waiting.remedy"><source>marker.child_waiting.remedy</source><target>Nothing. The child moves on when its wait ends.</target></trans-unit>
             <trans-unit id="marker.unmanaged"><source>marker.unmanaged</source><target>Unmanaged: the workflow does not act on this card.</target></trans-unit>
             <trans-unit id="marker.unmanaged.remedy"><source>marker.unmanaged.remedy</source><target>Release the hold on the card, so that the workflow acts on it again.</target></trans-unit>
         </body>

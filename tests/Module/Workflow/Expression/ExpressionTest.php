@@ -349,6 +349,21 @@ final class ExpressionTest extends TestCase
         self::assertSame(2, new AllOf([$missing, $blocker])->countAgainst(FactsMother::facts(), true));
     }
 
+    public function test_the_required_leaves_are_the_leaves_that_must_be_true(): void
+    {
+        $first = new ConditionLeaf(new CardHasType(), ['type' => 'epic']);
+        $second = new ConditionLeaf(new CardParentExists(), []);
+        $third = new ConditionLeaf(new CardHasOpenBlocker(), []);
+
+        self::assertSame([$first], $first->requiredLeaves());
+        self::assertSame([$first, $second, $third], new AllOf([$first, new AllOf([$second, $third])])->requiredLeaves());
+        self::assertSame([], new AllOf([])->requiredLeaves());
+        self::assertSame([], new AnyOf([$first, $second])->requiredLeaves());
+        self::assertSame([], new Not($first)->requiredLeaves());
+        self::assertSame([], new MissingConditionLeaf('gone', [])->requiredLeaves());
+        self::assertSame([$first], new AllOf([$first, new AnyOf([$second, $third])])->requiredLeaves());
+    }
+
     public function test_the_holding_parts_list_each_holding_leaf_and_each_holding_negation_whole(): void
     {
         $child = new ConditionLeaf(new CardParentExists(), []);

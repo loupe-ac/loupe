@@ -26,7 +26,6 @@ permissions:
 
 jobs:
   hunt:
-    # Playwright 1.60 ships no Chromium for Ubuntu 26.04, the image of ubuntu-latest.
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:

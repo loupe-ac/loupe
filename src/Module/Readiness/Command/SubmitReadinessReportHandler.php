@@ -126,7 +126,7 @@ final readonly class SubmitReadinessReportHandler
 
         $cardId = $run->card->id ?? throw new \LogicException('A stored card has an id.');
         $action = $revised ? 'readiness.report_revised' : 'readiness.report_submitted';
-        $gaps = \count(array_filter($command->findings, static fn (ReportFinding $finding): bool => ReadinessReportWriter::GAP === $finding->status));
+        $suggested = \count(array_filter($command->findings, static fn (ReportFinding $finding): bool => ReadinessReportWriter::isSuggested($finding->status)));
         $this->auditor->record(
             $action,
             AuditOutcome::Success,
@@ -136,7 +136,7 @@ final readonly class SubmitReadinessReportHandler
                 'cardId' => (string) $cardId,
                 'documentId' => (string) $document->id,
                 'findingCount' => \count($command->findings),
-                'gapCount' => $gaps,
+                'suggestedCount' => $suggested,
                 'proposalCount' => \count($command->proposals),
                 'tickableCount' => \count(array_filter($command->proposals, static fn (ReportProposal $proposal): bool => null === $proposal->openCardNumber)),
             ],
@@ -223,7 +223,7 @@ final readonly class SubmitReadinessReportHandler
         $texts = [$command->workflow, $command->summary];
         foreach ($command->findings as $finding) {
             if ('' === trim($finding->check) || '' === trim($finding->evidence)
-                || !\in_array($finding->status, [ReadinessReportWriter::READY, ReadinessReportWriter::GAP], true)) {
+                || !\in_array($finding->status, [ReadinessReportWriter::READY, ReadinessReportWriter::SUGGESTED, ReadinessReportWriter::GAP], true)) {
                 throw new DomainErrors(['findings' => self::FINDING_INVALID]);
             }
             array_push($texts, $finding->check, $finding->evidence);

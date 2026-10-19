@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Review\Service;
 
+use App\Module\Account\Entity\User;
+use App\Module\Project\Entity\Project;
+use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Review\Entity\Tag;
 use App\Module\Review\Service\AgentReviewSummary;
 use App\Module\Review\Service\DocumentAgentReviews;
+use App\Module\Workflow\Contract\DesignReviewRoundLimit;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @phpstan-import-type DocumentAgentReviewSummary from DocumentAgentReviews
@@ -18,7 +24,7 @@ final class AgentReviewSummaryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->summary = new AgentReviewSummary($this->createStub(DocumentAgentReviews::class));
+        $this->summary = new AgentReviewSummary($this->createStub(DocumentAgentReviews::class), $this->createStub(DesignReviewRoundLimit::class));
     }
 
     /**
@@ -26,11 +32,11 @@ final class AgentReviewSummaryTest extends TestCase
      *
      * @return DocumentAgentReviewSummary
      */
-    private function review(int $version, string $conclusion, array $findings = [], bool $needsPerson = false, bool $answered = true): array
+    private function review(int $version, string $conclusion, array $findings = [], bool $needsPerson = false, bool $answered = true, string $card = 'card'): array
     {
         return [
             'reviewId' => 'review-'.$version,
-            'cardId' => 'card',
+            'cardId' => $card,
             'versionNumber' => $version,
             'conclusion' => $conclusion,
             'summary' => 'Summary.',
@@ -50,7 +56,7 @@ final class AgentReviewSummaryTest extends TestCase
 
     public function test_a_document_with_no_review_has_no_summary(): void
     {
-        self::assertNull($this->summary->summarize([], DocumentStatus::InReview));
+        self::assertNull($this->summary->summarize([], DocumentStatus::InReview, 6));
     }
 
     public function test_a_passed_review_counts_what_the_rounds_fixed_kept_and_left_open(): void
@@ -58,7 +64,7 @@ final class AgentReviewSummaryTest extends TestCase
         $result = $this->summary->summarize([
             $this->review(2, 'success', [['nit', null]]),
             $this->review(1, 'failure', [['important', 'fixed'], ['important', 'fixed'], ['important', 'not-changed', 'Decision 6 changed.'], ['nit', 'fixed']]),
-        ], DocumentStatus::InReview);
+        ], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('passed', $result['state']);
@@ -75,7 +81,7 @@ final class AgentReviewSummaryTest extends TestCase
             $this->review(3, 'success'),
             $this->review(2, 'failure', [['important', 'fixed'], ['important', 'fixed']]),
             $this->review(1, 'failure', [['important', 'fixed'], ['important', 'not-changed', 'Kept.']]),
-        ], DocumentStatus::InReview);
+        ], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame([true, false, true], array_column($result['roundList'], 'listed'));
@@ -94,7 +100,7 @@ final class AgentReviewSummaryTest extends TestCase
             $this->review(3, 'failure', [['important', 'fixed']]),
             $this->review(2, 'failure', [['important', 'fixed']]),
             $this->review(1, 'failure', [['important', 'fixed']]),
-        ], DocumentStatus::InReview);
+        ], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('failed', $result['state']);
@@ -110,7 +116,7 @@ final class AgentReviewSummaryTest extends TestCase
             $this->review(3, 'failure', [['important', 'fixed']]),
             $this->review(2, 'failure', [['important', 'fixed']]),
             $this->review(1, 'failure', [['important', 'fixed']]),
-        ], DocumentStatus::InReview);
+        ], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('skipped', $result['state']);
@@ -118,7 +124,7 @@ final class AgentReviewSummaryTest extends TestCase
 
     public function test_a_published_document_with_a_failed_latest_review_is_skipped(): void
     {
-        $result = $this->summary->summarize([$this->review(1, 'failure', [['important', null], ['important', null]])], DocumentStatus::Approved);
+        $result = $this->summary->summarize([$this->review(1, 'failure', [['important', null], ['important', null]])], DocumentStatus::Approved, 6);
 
         self::assertNotNull($result);
         self::assertSame('skipped', $result['state']);
@@ -128,12 +134,12 @@ final class AgentReviewSummaryTest extends TestCase
 
     public function test_a_draft_still_in_its_loop_has_no_summary(): void
     {
-        self::assertNull($this->summary->summarize([$this->review(1, 'failure', [['important', null]])], DocumentStatus::Draft));
+        self::assertNull($this->summary->summarize([$this->review(1, 'failure', [['important', null]])], DocumentStatus::Draft, 6));
     }
 
     public function test_a_draft_has_no_summary_after_a_passed_review(): void
     {
-        self::assertNull($this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::Draft));
+        self::assertNull($this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::Draft, 6));
     }
 
     public function test_a_draft_has_no_summary_after_three_failed_reviews(): void
@@ -142,12 +148,12 @@ final class AgentReviewSummaryTest extends TestCase
             $this->review(3, 'failure', [['important', null]]),
             $this->review(2, 'failure', [['important', 'fixed']]),
             $this->review(1, 'failure', [['important', 'fixed']]),
-        ], DocumentStatus::Draft));
+        ], DocumentStatus::Draft, 6));
     }
 
     public function test_a_finding_for_the_owner_stays_open(): void
     {
-        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::InReview);
+        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', 'to-owner', 'Pick one.']])], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('passed', $result['state']);
@@ -157,7 +163,7 @@ final class AgentReviewSummaryTest extends TestCase
 
     public function test_a_publish_before_the_fix_round_answers_a_question_for_the_owner_is_skipped(): void
     {
-        $result = $this->summary->summarize([$this->review(1, 'success', [['important', null]], needsPerson: true, answered: false)], DocumentStatus::InReview);
+        $result = $this->summary->summarize([$this->review(1, 'success', [['important', null]], needsPerson: true, answered: false)], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('skipped', $result['state']);
@@ -166,7 +172,7 @@ final class AgentReviewSummaryTest extends TestCase
 
     public function test_a_passed_review_whose_question_for_the_owner_is_answered_passed(): void
     {
-        $result = $this->summary->summarize([$this->review(1, 'success', [['important', 'to-owner']], needsPerson: true)], DocumentStatus::InReview);
+        $result = $this->summary->summarize([$this->review(1, 'success', [['important', 'to-owner']], needsPerson: true)], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('passed', $result['state']);
@@ -174,9 +180,82 @@ final class AgentReviewSummaryTest extends TestCase
 
     public function test_an_unanswered_passed_review_with_no_question_for_the_owner_passed(): void
     {
-        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', null]], answered: false)], DocumentStatus::InReview);
+        $result = $this->summary->summarize([$this->review(1, 'success', [['nit', null]], answered: false)], DocumentStatus::InReview, 6);
 
         self::assertNotNull($result);
         self::assertSame('passed', $result['state']);
+    }
+
+    public function test_the_limit_of_the_project_decides_when_the_loop_gave_up(): void
+    {
+        $reviews = [
+            $this->review(3, 'failure', [['important', null]]),
+            $this->review(2, 'failure', [['important', 'fixed']]),
+            $this->review(1, 'failure', [['important', 'fixed']]),
+        ];
+
+        self::assertSame('failed', $this->summary->summarize($reviews, DocumentStatus::InReview, 3)['state'] ?? null);
+        self::assertSame('skipped', $this->summary->summarize($reviews, DocumentStatus::InReview, 4)['state'] ?? null);
+    }
+
+    public function test_a_workflow_with_no_limit_never_says_the_loop_failed(): void
+    {
+        $reviews = array_map(fn (int $version): array => $this->review($version, 'failure', [['important', null]]), [6, 5, 4, 3, 2, 1]);
+
+        self::assertSame('skipped', $this->summary->summarize($reviews, DocumentStatus::InReview, null)['state'] ?? null);
+    }
+
+    public function test_only_the_failed_reviews_of_the_newest_reviews_card_count(): void
+    {
+        $reviews = [
+            $this->review(3, 'failure', [['important', null]], card: 'card-b'),
+            $this->review(2, 'failure', [['important', 'fixed']], card: 'card-b'),
+            $this->review(1, 'failure', [['important', 'fixed']], card: 'card-a'),
+        ];
+
+        $result = $this->summary->summarize($reviews, DocumentStatus::InReview, 3);
+
+        self::assertNotNull($result);
+        self::assertSame('skipped', $result['state']);
+        self::assertCount(3, $result['roundList']);
+    }
+
+    public function test_for_document_asks_the_workflow_with_the_project_and_the_tags_of_the_document(): void
+    {
+        $document = $this->document(DocumentStatus::InReview, ['tech-design', 'plan']);
+        $reviews = $this->createStub(DocumentAgentReviews::class);
+        $reviews->method('forDocument')->willReturn([$this->review(1, 'failure', [['important', null]])]);
+        $limit = $this->createMock(DesignReviewRoundLimit::class);
+        $limit->expects($this->once())->method('of')->with($document->project->id, ['tech-design', 'plan'])->willReturn(1);
+
+        $result = new AgentReviewSummary($reviews, $limit)->forDocument($document);
+
+        self::assertSame('failed', $result['state'] ?? null);
+    }
+
+    public function test_for_document_does_not_ask_the_workflow_for_a_draft_or_an_unreviewed_document(): void
+    {
+        $reviews = $this->createStub(DocumentAgentReviews::class);
+        $reviews->method('forDocument')->willReturnOnConsecutiveCalls([$this->review(1, 'failure')], []);
+        $limit = $this->createMock(DesignReviewRoundLimit::class);
+        $limit->expects($this->never())->method('of');
+        $summary = new AgentReviewSummary($reviews, $limit);
+
+        self::assertNull($summary->forDocument($this->document(DocumentStatus::Draft, ['tech-design'])));
+        self::assertNull($summary->forDocument($this->document(DocumentStatus::InReview, ['tech-design'])));
+    }
+
+    /** @param list<string> $tags */
+    private function document(DocumentStatus $status, array $tags): Document
+    {
+        $project = new Project(new User(fullName: 'Riley Chen', email: 'riley@example.com', password: 'x'), 'Loupe');
+        new \ReflectionProperty(Project::class, 'id')->setValue($project, Uuid::v7());
+        $document = new Document($project->owner, $project, 'Design');
+        $document->status = $status;
+        foreach ($tags as $name) {
+            $document->tags->add(new Tag($project, $name));
+        }
+
+        return $document;
     }
 }

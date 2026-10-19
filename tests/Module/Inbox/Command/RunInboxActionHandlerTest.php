@@ -58,6 +58,7 @@ use App\Module\Inbox\Entity\InboxItemCard;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxActionRepository;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Inbox\Repository\InboxCardWatchRepository;
 use App\Module\Inbox\Service\AskingBridge;
 use App\Module\Inbox\Service\ItemActions;
@@ -894,7 +895,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->commandBridge();
         $item = $this->commandTodo();
 
-        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, 'main', ['out' => 'other/folder'], self::shownDigest())) ?? throw new \LogicException('A command records a row.');
+        $action = ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, 'main', ['out' => 'other/folder'], $this->shownDigest())) ?? throw new \LogicException('A command records a row.');
 
         $request = $this->em()->find(WorkRequest::class, $action->workRequestId) ?? throw new \LogicException('The request is stored.');
         self::assertSame(['main', ['out' => 'other/folder'], ['bin/console', 'app:export', '{out}']], [$request->branch, $request->params, $request->run]);
@@ -961,6 +962,34 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame(str_repeat('b', 40), $request->context->headSha);
     }
 
+    public function test_an_ask_that_moved_to_another_bridge_after_the_dialog_opened_is_refused_and_leaves_no_request(): void
+    {
+        $this->commandBridge();
+        $item = $this->commandTodo();
+        $shown = $this->itemActions()->runCommandFor($item) ?? throw new \LogicException('The item has a command.');
+        $other = new Bridge($this->project->owner, Uuid::v4(), [], 'c5f40bb8', new \DateTimeImmutable());
+        $other->capabilities = $this->bridge->capabilities;
+        $other->projects = $this->bridge->projects;
+        $other->lastSeenAt = $this->bridge->lastSeenAt;
+        $other->commandEntries = $this->bridge->commandEntries;
+        $other->worktrees = $this->bridge->worktrees;
+        $this->em()->persist($other);
+        foreach ($this->service(InboxAskRepository::class)->findBy(['project' => $this->project]) as $ask) {
+            $ask->bridgeId = $other->id;
+        }
+        $this->em()->flush();
+
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $shown->runDigest()));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::COMMAND_CHANGED], $e->errors);
+        }
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
     public function test_a_quiet_bridge_takes_the_run_as_a_request_that_waits_for_it(): void
     {
         $this->commandBridge();
@@ -1002,7 +1031,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->flush();
 
         try {
-            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, $branch, $params, self::shownDigest()));
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, $branch, $params, $this->shownDigest()));
             self::fail('Expected a refusal.');
         } catch (DomainErrors $e) {
             self::assertSame(['action' => $key], $e->errors);
@@ -1318,15 +1347,15 @@ final class RunInboxActionHandlerTest extends KernelTestCase
 
     private function runAction(InboxItem $item, InboxActionKind $kind, string $note = '', ?string $sessionPrompt = null): ?InboxAction
     {
-        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner, runDigest: InboxActionKind::RunCommand === $kind ? self::shownDigest() : null, sessionPrompt: $sessionPrompt));
+        return ($this->runHandler())(new RunInboxActionCommand($item, $kind, $note, $this->project->owner, runDigest: InboxActionKind::RunCommand === $kind ? $this->shownDigest() : null, sessionPrompt: $sessionPrompt));
     }
 
     /** The digest of the run list of the entry that commandBridge() reports, as the dialog shows it. */
-    private static function shownDigest(): string
+    private function shownDigest(): string
     {
         $run = ['bin/console', 'app:export', '{out}'];
 
-        return hash('sha256', json_encode([$run, $run], \JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$run, $run, (string) $this->bridge->id], \JSON_THROW_ON_ERROR));
     }
 
     /** Built by hand, because nothing injects the handlers yet and the compiler drops an unused private service. */

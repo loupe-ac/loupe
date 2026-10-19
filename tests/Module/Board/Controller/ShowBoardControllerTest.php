@@ -461,6 +461,35 @@ final class ShowBoardControllerTest extends WebTestCase
         self::assertSame($boardDigest, $placement->filter('#board-row-'.$epic->id)->attr('data-card-digest'));
     }
 
+    public function test_a_lane_head_shows_the_mark_and_the_column_of_its_epic_also_in_the_backlog(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'board-lane-head-marks@example.com');
+        $project = $this->project($em, $owner);
+        $open = $this->typed($em, $this->card($em, $project, 'Open epic', 'in-progress'), 'epic');
+        $this->store($em, $open, [$this->entry('checks_failed', 'stuck', ['%number%' => 5])]);
+        $waiting = $this->typed($em, $this->card($em, $project, 'Waiting epic', 'backlog'), 'epic');
+        $this->store($em, $waiting, [$this->entry('run_open', 'working')]);
+        $plain = $this->typed($em, $this->card($em, $project, 'Plain epic', 'in-progress', 1), 'epic');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board');
+        self::assertResponseIsSuccessful();
+
+        $openHead = $crawler->filter('#board-lane-'.$open->id.' .lp-board-lane__head');
+        self::assertCount(1, $openHead->filter('.lp-board-lane__status .lp-state-mark--stuck'));
+        self::assertStringContainsString('In progress', $openHead->filter('.lp-board-lane__status')->text());
+        $waitingHead = $crawler->filter('#board-lane-'.$waiting->id.' .lp-board-lane__head');
+        self::assertCount(1, $waitingHead->filter('.lp-board-lane__status .lp-state-mark--working'));
+        self::assertStringContainsString('Backlog', $waitingHead->filter('.lp-board-lane__status')->text());
+        $plainHead = $crawler->filter('#board-lane-'.$plain->id.' .lp-board-lane__head');
+        self::assertCount(0, $plainHead->filter('.lp-state-mark'));
+        self::assertStringContainsString('In progress', $plainHead->filter('.lp-board-lane__status')->text());
+    }
+
     public function test_a_card_shows_the_one_mark_of_its_stored_markers_on_its_face_its_row_and_its_placement(): void
     {
         $client = static::createClient();

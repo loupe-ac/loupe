@@ -13,6 +13,7 @@ final readonly class AnswerInboxItemCommand
         /** Comma-separated option indexes, as the answer form posts them. */
         public string $selectedOptions,
         public string $answerText,
+        public bool $throughAgent = false,
     ) {
     }
 }

@@ -245,10 +245,13 @@ It installs one skill for each part of working a Loupe project:
 | `loupe:loupe-analysis` | Running an analysis: a cost report, or a comparison of the variants of an experiment, with proposals |
 | `loupe:loupe-discovery` | A read-only discovery run that writes the readiness report of a project |
 | `loupe:product-design` | An interactive product design session with the owner, from a card or a one-line idea |
+| `loupe:loupe-recommendations` | Choosing and reviewing a solution: a correct fix beats a patch, and effort alone never ranks a patch higher |
 | `loupe:loupe-stage-product-design` | One review round on a product document |
 | `loupe:loupe-stage-tech-design` | A card entering the tech design column |
 | `loupe:loupe-stage-implementation` | Building an approved design into a pull request |
 | `loupe:loupe-stage-fix-round` | One round of review feedback, from a fix request or run by hand |
+| `loupe:loupe-stage-review` | Reviewing the pull request of a card at its head commit |
+| `loupe:loupe-stage-design-review` | Reviewing a draft product design or tech design |
 | `loupe:loupe-stage-merge` | Merging a ready pull request, or updating one that is behind its base |
 | `loupe:loupe-stage-repair` | Fixing the cause of failed work, after its retries run out |
 
@@ -325,6 +328,10 @@ Roughly in the order an agent uses them:
 | `inbox_actions` | List the built-in actions an ask can suggest, and with a `cardId` the ones that fit that card now |
 | `inbox_get` | Read one inbox item, with its answer and its links |
 | `inbox_withdraw` | Withdraw an open item that is no longer needed, with a reason |
+| `inbox_answer` | Answer an inbox question for the owner, after the owner decided in chat. A bridge worker session is refused |
+| `inbox_decline` | Decline an inbox question or to-do, or dismiss a wait item, for the owner. A review stays on the inbox page |
+| `inbox_done` | Mark an inbox to-do done for the owner |
+| `inbox_action_run` | Run a built-in action of an inbox item for the owner. A `run-command` shows a preview first, and runs only with the `runDigest` of that preview. A `start-session` takes `sessionPrompt`, the prompt the owner confirmed |
 | `inbox_settings_update` | Turn the inbox wait switches on or off (off with the inbox) |
 | `worker_run_list` | Read a page of the worker runs, newest first, filtered by state, card, work kind, bridge, harness, account, model, words or the time a run ended. Each row gives the reason the run ended, its harness and account, its usage per model, its model, its experiment and variant, and its metrics. The metrics hold the sums of the run and its timing: the tool time, the model time, the idle gaps, the subagent time, and the count, failures and longest duration of its tool calls. They also hold the host of the run: the mean CPU use, the peak memory and swap, the count of runs that overlapped it on its bridge, and whether its machine ran on battery |
 | `worker_run_get` | Read one worker run in full, with every run of its series, its state changes, its output, its metrics and the commands sent to its bridge |

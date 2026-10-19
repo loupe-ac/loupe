@@ -104,7 +104,8 @@ A project with no user interface, such as a library or a CLI, gets no finding fo
 A third check applies to a project that has a Claude Design mirror.
 It looks for a starter Claude Design project for product design sessions, named in `.loupe/lifecycle.md` or the agent instructions.
 A starter holds the full stylesheet, the fonts, one shell for each main page with one empty slot, and no hidden element that shows.
-A gap becomes a proposed card that leaves the method open.
+A check that the project does not meet is a suggestion, never a failure.
+A suggestion becomes a proposed card that leaves the method open.
 
 Discovery needs a running bridge that serves the project.
 The project must also have a workflow, and **Run the workflow of the board** must be on, on the [Automation](board.md#automation) tab.
@@ -132,7 +133,7 @@ The Run discovery row shows the state of the latest run:
 
 The worker submits its report with the `readiness_report_submit` MCP tool.
 Loupe writes the report as a document with the tag `readiness-report`, and links it to the discovery card.
-The document lists the checks that are ready, the checks that are gaps, and one section for each card the worker proposes.
+The document lists the checks that are ready under **Ready**, the other checks under **Suggested**, and one section for each card the worker proposes.
 
 A proposal that has no open card gets a tick box in a **Decision** block at the end of the report.
 A proposal that names an open card shows "Card N covers this" and has no tick box.

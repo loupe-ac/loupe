@@ -17,9 +17,9 @@
 {{ 'readiness.report.none'|trans }}
 {% endfor %}
 
-### {{ 'readiness.report.gaps'|trans }}
+### {{ 'readiness.report.suggested'|trans }}
 
-{% for finding in gaps %}
+{% for finding in suggested %}
 {{ loop.index }}. **{{ finding.check }}**: {{ finding.evidence }}
 {% else %}
 {{ 'readiness.report.none'|trans }}
