@@ -29,6 +29,7 @@ use App\Module\Inbox\Service\InboxRefusal;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
 use App\Module\Inbox\Service\RunSuggestions;
+use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Inbox\Service\SuggestedCommandCheck;
 use App\Module\Review\Entity\Document;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -74,6 +75,9 @@ final readonly class AskInboxHandler
     public const string SUGGESTION_BRANCH_INVALID = 'inbox.item.error.suggestion_branch_invalid';
     public const string SUGGESTION_PARAM_INVALID = 'inbox.item.error.suggestion_param_invalid';
     public const string SUGGESTION_ENTRY_INVALID = 'inbox.item.error.suggestion_entry_invalid';
+    public const string SUGGESTION_PROMPT_UNEXPECTED = 'inbox.item.error.suggestion_prompt_unexpected';
+    public const string SUGGESTION_PROMPT_TOO_LONG = 'inbox.item.error.suggestion_prompt_too_long';
+    public const string SUGGESTION_PROMPT_BLANK = 'inbox.item.error.suggestion_prompt_blank';
 
     public function __construct(
         private InboxItemRepository $inboxItems,
@@ -88,6 +92,7 @@ final readonly class AskInboxHandler
         private InboxCardTileRefresher $cardTiles,
         private WorkerRunRepository $workerRuns,
         private RecordRunAskHandler $recordRunAsk,
+        private SessionPromptLimit $promptLimit,
     ) {
     }
 
@@ -342,7 +347,7 @@ final readonly class AskInboxHandler
      * @param list<AskInboxSuggestion> $suggestions
      * @param list<string>             $linkedCardIds
      *
-     * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry: ?string}>
+     * @return list<array{action: string, reason: string, recommended: bool, cardId: ?string, command: array{entry: string, branch: string, params: array<string, string>}|null, proposedEntry: ?string, prompt: ?string}>
      */
     private function suggestions(array $suggestions, InboxItemKind $kind, array $linkedCardIds, string $field, ?Bridge $bridge): array
     {
@@ -371,6 +376,19 @@ final readonly class AskInboxHandler
             if (null !== $suggestion->cardId && !\in_array(strtolower($suggestion->cardId), $linkedCardIds, true)) {
                 throw new DomainErrors([$field => self::SUGGESTION_CARD_NOT_LINKED]);
             }
+            $prompt = null;
+            if (null !== $suggestion->prompt) {
+                if (InboxActionKind::StartSession->value !== $suggestion->action) {
+                    throw new DomainErrors([$field => self::SUGGESTION_PROMPT_UNEXPECTED]);
+                }
+                if (mb_strlen($suggestion->prompt) > $this->promptLimit->maxLength()) {
+                    throw new DomainErrors([$field => self::SUGGESTION_PROMPT_TOO_LONG]);
+                }
+                $prompt = trim($suggestion->prompt);
+                if ('' === $prompt) {
+                    throw new DomainErrors([$field => self::SUGGESTION_PROMPT_BLANK]);
+                }
+            }
             $command = null;
             if (InboxActionKind::RunCommand->value !== $suggestion->action) {
                 if (null !== $suggestion->command || null !== $suggestion->proposedEntry) {
@@ -396,6 +414,7 @@ final readonly class AskInboxHandler
                 'cardId' => null === $suggestion->cardId ? null : strtolower($suggestion->cardId),
                 'command' => null === $command ? null : ['entry' => $command->entry, 'branch' => $command->branch, 'params' => $command->params],
                 'proposedEntry' => null === $command ? null : $suggestion->proposedEntry,
+                'prompt' => $prompt,
             ];
         }
 

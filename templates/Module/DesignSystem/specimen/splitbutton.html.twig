@@ -1,0 +1,19 @@
+{# twig-cs-fixer-disable #}
+{# Dev-only specimen of the SplitButton for the styleguide, so it is intentionally untranslated. #}
+<twig:Ds:SplitButton id="styleguide-split-button" toggleLabel="Other actions" menuSize="sm">
+    <twig:block name="main">
+        <twig:Ds:Button variant="primary" size="sm" type="button">Resume the run</twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuItem role="menuitem">Open the card</twig:Ds:MenuItem>
+        <twig:Ds:MenuItem role="menuitem" aria-disabled="true">Start session</twig:Ds:MenuItem>
+        <twig:Ds:MenuDivider />
+        <twig:Ds:MenuItem role="menuitem">Dismiss</twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:SplitButton>
+<twig:Ds:SplitButton id="styleguide-split-button-alone" toggleLabel="Other actions" menuSize="sm">
+    <twig:block name="content">
+        <twig:Ds:MenuItem role="menuitem" aria-disabled="true">Start session</twig:Ds:MenuItem>
+        <twig:Ds:MenuItem role="menuitem">Dismiss</twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:SplitButton>
