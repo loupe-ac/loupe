@@ -73,6 +73,7 @@ Use `inbox_answer`, `inbox_decline`, `inbox_done` and `inbox_action_run` only wh
 2. `inbox_decline` takes an optional `note`. It refuses a review. The review verdict stays on the inbox page.
 3. `inbox_done` marks a to-do done.
 4. `inbox_action_run` runs one action. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
+5. For `start-session`, show the owner the `prompt` of the suggestion. Pass `sessionPrompt` with the prompt the owner confirms, or an empty string when the owner clears it. Leave it out to send the suggested prompt unchanged.
 
 The item shows that an agent typed the response. The answer to a workflow question is final and runs its action at once.
 

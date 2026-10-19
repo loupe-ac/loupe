@@ -163,6 +163,53 @@ final class InboxActionRunToolTest extends KernelTestCase
         self::assertSame('Use the skill.', $this->em->find(WorkRequest::class, $action->workRequestId)?->prompt);
     }
 
+    public function test_a_session_sends_the_prompt_that_the_owner_edited_in_chat(): void
+    {
+        $item = $this->sessionTodo();
+
+        $result = $this->runOf(($this->tool)((string) $item->id, 'start-session', sessionPrompt: 'Read the plan first.'));
+
+        $action = $this->em->find(InboxAction::class, Uuid::fromString($result['actionId'] ?? throw new \LogicException('A session records a row.')));
+        self::assertInstanceOf(InboxAction::class, $action);
+        self::assertSame('Read the plan first.', $action->sessionPrompt);
+        self::assertSame('Read the plan first.', $this->em->find(WorkRequest::class, $action->workRequestId)?->prompt);
+    }
+
+    public function test_a_session_whose_prompt_the_owner_cleared_sends_no_prompt(): void
+    {
+        $item = $this->sessionTodo();
+
+        $result = $this->runOf(($this->tool)((string) $item->id, 'start-session', sessionPrompt: ''));
+
+        $action = $this->em->find(InboxAction::class, Uuid::fromString($result['actionId'] ?? throw new \LogicException('A session records a row.')));
+        self::assertInstanceOf(InboxAction::class, $action);
+        self::assertNull($action->sessionPrompt);
+        self::assertNull($this->em->find(WorkRequest::class, $action->workRequestId)?->prompt);
+    }
+
+    public function test_a_session_prompt_over_the_limit_is_refused(): void
+    {
+        $item = $this->sessionTodo();
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('sessionPrompt: A session prompt must be at most 2000 characters on this instance.');
+        ($this->tool)((string) $item->id, 'start-session', sessionPrompt: str_repeat('a', 2001));
+    }
+
+    private function sessionTodo(): InboxItem
+    {
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->projects = [(string) $this->project->id];
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => (string) $this->card->id, 'prompt' => 'Use the skill.']];
+        $this->em->persist($item);
+        $this->em->flush();
+        $this->readyTool();
+
+        return $item;
+    }
+
     public function test_a_run_command_without_a_digest_runs_nothing_and_returns_the_preview(): void
     {
         $item = $this->commandTodo();

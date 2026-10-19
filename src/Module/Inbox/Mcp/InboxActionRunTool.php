@@ -30,7 +30,7 @@ use Symfony\Bundle\SecurityBundle\Security;
  * @phpstan-type InboxActionPreview array{preview: true, message: string, itemId: string, entry: string, bridge: ?string, branch: string, runList: list<string>, argv: list<string>, params: array<string, string>, runDigest: string, disabledReason: ?string}
  * @phpstan-type InboxActionRun array{preview: false, actionId: ?string, item: InboxItemListSummary}
  */
-#[McpTool(name: self::NAME, description: 'Run a built-in action of an open inbox item for the owner, only after the owner told you in chat to run it. Pass action: resume-run, retry-card, send-agent, start-session, run-command, add-entry or dismiss. The action must fit the item now; inbox_get lists the actions that fit. The open and review actions are links on the inbox page, so this tool refuses them, and a review verdict stays on the inbox page. A bridge worker session is refused, because a worker has no owner beside it. Pass note, a short text the action keeps; it stays in Loupe. A dismiss closes the item and shows it was closed through an agent. For run-command, call first without runDigest. Nothing runs. The response is a preview with the entry, the branch, the params, the run list and a runDigest. Show the preview to the owner, and let the owner confirm it in chat. Then call again with the same branch and params and with that runDigest. The command runs only when the digest matches the command the bridge reports now; otherwise call again without runDigest and show the new preview. branch and params apply to run-command only. The response of a run is the id of the recorded action, if the action records one, and the item\'s summary.')]
+#[McpTool(name: self::NAME, description: 'Run a built-in action of an open inbox item for the owner, only after the owner told you in chat to run it. Pass action: resume-run, retry-card, send-agent, start-session, run-command, add-entry or dismiss. The action must fit the item now; inbox_get lists the actions that fit. The open and review actions are links on the inbox page, so this tool refuses them, and a review verdict stays on the inbox page. A bridge worker session is refused, because a worker has no owner beside it. Pass note, a short text the action keeps; it stays in Loupe. A dismiss closes the item and shows it was closed through an agent. For run-command, call first without runDigest. Nothing runs. The response is a preview with the entry, the branch, the params, the run list and a runDigest. Show the preview to the owner, and let the owner confirm it in chat. Then call again with the same branch and params and with that runDigest. The command runs only when the digest matches the command the bridge reports now; otherwise call again without runDigest and show the new preview. branch and params apply to run-command only. For start-session, show the owner the prompt that inbox_get lists on the suggestion. Pass sessionPrompt with the prompt the owner confirmed in chat, and an empty string when the owner cleared it; leave it out to send the suggestion\'s prompt unchanged. The response of a run is the id of the recorded action, if the action records one, and the item\'s summary.')]
 final readonly class InboxActionRunTool implements FlagGatedToolInterface
 {
     public const string NAME = 'inbox_action_run';
@@ -71,12 +71,13 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
     }
 
     /**
-     * @param string                     $itemId    the id of the item
-     * @param string                     $action    the action to run
-     * @param string                     $note      a short text the action keeps
-     * @param ?string                    $branch    the branch to run a run-command on; the suggestion's branch when you leave it out
-     * @param array<string, string>|null $params    the value of each param of a run-command; the suggestion's values when you leave it out
-     * @param ?string                    $runDigest the runDigest of the preview the owner confirmed, for run-command
+     * @param string                     $itemId        the id of the item
+     * @param string                     $action        the action to run
+     * @param string                     $note          a short text the action keeps
+     * @param ?string                    $branch        the branch to run a run-command on; the suggestion's branch when you leave it out
+     * @param array<string, string>|null $params        the value of each param of a run-command; the suggestion's values when you leave it out
+     * @param ?string                    $runDigest     the runDigest of the preview the owner confirmed, for run-command
+     * @param ?string                    $sessionPrompt the prompt the owner confirmed, for start-session; an empty string sends none, and the suggestion's prompt when you leave it out
      *
      * @return InboxActionPreview|InboxActionRun
      */
@@ -90,6 +91,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
         #[Schema(type: 'object', additionalProperties: ['type' => 'string'])]
         ?array $params = null,
         ?string $runDigest = null,
+        ?string $sessionPrompt = null,
     ): array {
         $this->gate->requireEnabled();
 
@@ -114,12 +116,15 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
                 branch: $branch,
                 params: $values,
                 runDigest: $handlerDigest,
-                sessionPrompt: InboxActionKind::StartSession === $kind ? ItemActions::suggestedSessionPrompt($item) : null,
+                sessionPrompt: InboxActionKind::StartSession === $kind ? ($sessionPrompt ?? ItemActions::suggestedSessionPrompt($item)) : null,
                 throughAgent: true,
             ));
 
             return ['preview' => false, 'actionId' => null === $recorded?->id ? null : (string) $recorded->id, 'item' => $this->payload->forListItem($item)];
         } catch (DomainErrors $e) {
+            if (RunInboxActionHandler::SESSION_PROMPT_TOO_LONG === ($e->errors['action'] ?? null)) {
+                throw $this->errorMessages->forAgent(new DomainErrors(['sessionPrompt' => RunInboxActionHandler::SESSION_PROMPT_TOO_LONG]));
+            }
             throw $this->errorMessages->forAgent($e);
         } catch (ToolCallException $e) {
             throw $e;

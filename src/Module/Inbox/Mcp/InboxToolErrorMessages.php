@@ -110,6 +110,7 @@ final readonly class InboxToolErrorMessages
             InboxItemCloser::ERROR_NOTICE => 'A notice takes no response.',
             RunInboxActionHandler::NOT_AVAILABLE => 'This action does not fit the item now. The item may be closed, or the state it waits on changed. Read the item with inbox_get.',
             RunInboxActionHandler::NOTE_TOO_LONG => \sprintf('A note must be at most %d characters.', InboxAction::MAX_NOTE_LENGTH),
+            RunInboxActionHandler::SESSION_PROMPT_TOO_LONG => \sprintf('A session prompt must be at most %d characters on this instance.', $this->promptLimit->maxLength()),
             RunInboxActionHandler::COMMAND_LIVE => 'This command is already queued or running for this item.',
             RunInboxActionHandler::COMMAND_CHANGED => 'The command changed on the bridge, or the digest is not the one of the last preview. Call again without runDigest, show the new preview to the owner, then call with the new digest.',
             RunCommandResolver::RUNNING => 'This command is queued or running.',
