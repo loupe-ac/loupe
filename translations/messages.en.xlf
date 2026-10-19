@@ -2638,9 +2638,9 @@
                 <source>readiness.report.ready</source>
                 <target>Ready</target>
             </trans-unit>
-            <trans-unit id="readiness.report.gaps">
-                <source>readiness.report.gaps</source>
-                <target>Gaps</target>
+            <trans-unit id="readiness.report.suggested">
+                <source>readiness.report.suggested</source>
+                <target>Suggested</target>
             </trans-unit>
             <trans-unit id="readiness.report.none">
                 <source>readiness.report.none</source>

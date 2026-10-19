@@ -15,6 +15,9 @@ final readonly class ReadinessReportWriter
 
     public const string READY = 'ready';
 
+    public const string SUGGESTED = 'suggested';
+
+    /** The status that an older plugin sends for a suggested finding. */
     public const string GAP = 'gap';
 
     /** Every ASCII punctuation mark that CommonMark lets a backslash escape and that can change how a line reads. */
@@ -40,6 +43,12 @@ final readonly class ReadinessReportWriter
         return trim(preg_replace('~\s*\(recommended:\s*(?:high|moderate|low)\)$~i', '', self::optionLabel($title)) ?? $title);
     }
 
+    /** A suggested finding, or a gap finding that an older plugin sends. */
+    public static function isSuggested(string $status): bool
+    {
+        return self::SUGGESTED === $status || self::GAP === $status;
+    }
+
     /**
      * @param list<ReportFinding>     $findings
      * @param list<DiscoveryProposal> $proposals each proposal with a position is a tick box, in position order
@@ -58,7 +67,7 @@ final readonly class ReadinessReportWriter
             'workflow' => $workflow,
             'summary' => trim($summary),
             'ready' => array_values(array_filter($findings, static fn (ReportFinding $finding): bool => self::READY === $finding->status)),
-            'gaps' => array_values(array_filter($findings, static fn (ReportFinding $finding): bool => self::GAP === $finding->status)),
+            'suggested' => array_values(array_filter($findings, static fn (ReportFinding $finding): bool => self::isSuggested($finding->status))),
             'proposals' => array_map(static fn (DiscoveryProposal $proposal): array => [
                 'title' => self::optionLabel($proposal->title),
                 'type' => $proposal->type,
