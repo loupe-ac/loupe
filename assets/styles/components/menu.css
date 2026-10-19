@@ -47,7 +47,8 @@
     .lp-menu__item {
         @apply flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg border-0 bg-transparent px-2.5 text-left text-sm text-ink no-underline transition-colors hover:bg-tint-strong;
     }
-    .lp-menu__item:disabled {
+    .lp-menu__item:disabled,
+    .lp-menu__item[aria-disabled='true'] {
         @apply cursor-not-allowed text-fg-dim hover:bg-transparent;
     }
     /* A current item says so with its weight and a check, so colour is not the only sign. */
