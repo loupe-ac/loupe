@@ -95,10 +95,10 @@ gh run view <run id> --log-failed
 ```bash
 git push -u origin HEAD
 gh pr list --head <branch> --state open --json url
-gh pr create --base <base> --title "<title>" --body-file <file>
+gh pr create --base <base> --title "<title>" --body-file <file> [--draft]
 ```
 
-Link a pull request that `gh pr list` returns, and create none.
+Link a pull request that `gh pr list` returns, and create none. Pass `--draft` when the profile `Pull request` section says to open a draft.
 
 To open a pull request from a branch that the checkout is not on, such as an epic branch, skip the push, and name the head:
 

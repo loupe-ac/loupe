@@ -1745,7 +1745,8 @@ that each worker gets.
 ## `loupe preview-token`
 
 Mints and revokes the preview token that signs the site-review widget in on a
-preview site. `just worktree-up` and `just worktree-down` call it.
+preview site. A preview script calls `mint` when it creates a preview site,
+and `revoke` when it removes the site.
 
 ```bash
 loupe preview-token mint   --project <id> --label <worktree> [--card <cardId>] [--instance <url>]
