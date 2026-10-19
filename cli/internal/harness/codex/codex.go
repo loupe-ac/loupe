@@ -26,6 +26,15 @@ const (
 	modeFull      = "danger-full-access"
 )
 
+// The connect limit of a worker for the loupe MCP server. It is longer than
+// the two minutes of waits between the retries of `loupe mcp`. Codex also
+// leaves out an optional server that still starts after a grace of one
+// second, so the grace is turned off.
+const (
+	connectTimeoutArg = "mcp_servers.loupe.startup_timeout_sec=150.0"
+	connectGraceArg   = "mcp_optional_startup_grace_ms=0"
+)
+
 const networkAccess = "sandbox_workspace_write.network_access=true"
 
 // Harness is Codex. home is the Codex home folder and "" is the one of the
@@ -78,6 +87,7 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 	}
 	args = append(args, sandboxArgs(spec, resume)...)
 	args = append(args, sessionArgs(spec)...)
+	args = append(args, h.connectArgs()...)
 	args = append(args, "--json", "--skip-git-repo-check")
 	if spec.Schema != "" && spec.RunDir != "" {
 		path := filepath.Join(spec.RunDir, schemaFile)
@@ -89,6 +99,39 @@ func (h Harness) options(spec harness.Spec, resume bool) ([]string, map[string]s
 	}
 
 	return args, files
+}
+
+// connectArgs gives the connect limit of the loupe MCP server, for the worker
+// and resume paths only. A setting the operator made in the profile file or in
+// config.toml stays: startup_timeout_ms is an alias that startup_timeout_sec
+// would win over.
+func (h Harness) connectArgs() []string {
+	var files []configFile
+	if home, err := h.homeDir(); err == nil {
+		paths := []string{filepath.Join(home, "config.toml")}
+		if h.profile != "" {
+			paths = append([]string{profileFile(home, h.profile)}, paths...)
+		}
+		files = loadFiles(paths...)
+	}
+	var timeout, grace bool
+	for _, f := range files {
+		if f.err != nil {
+			continue
+		}
+		server := f.cfg.McpServers["loupe"]
+		timeout = timeout || server.StartupTimeoutSec != nil || server.StartupTimeoutMs != nil
+		grace = grace || f.cfg.McpOptionalStartupGraceMs != nil
+	}
+	var args []string
+	if !timeout {
+		args = append(args, "-c", connectTimeoutArg)
+	}
+	if !grace {
+		args = append(args, "-c", connectGraceArg)
+	}
+
+	return args
 }
 
 // sandboxArgs gives the flags of the sandbox mode. Workspace adds the main
