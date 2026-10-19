@@ -13,10 +13,10 @@ final class Version20261019091733 extends AbstractMigration
     #[\Override]
     public function getDescription(): string
     {
-        return 'Write the shipped Lifecycle and Simple copies, whose request rules name a role and whose merged rule names an outcome, into every binding, and keep the epic branch of each copy';
+        return 'Write the shipped Lifecycle and Simple copies, whose request rules name a role and whose merged rule names an outcome, into every binding, and keep the epic branch and the approval rule of each copy';
     }
 
-    /** The review and fix tools read the role from the work request that the stored copy opens, and the report reads the merge from the outcome of the merged rule. The epic branch belongs to the project, so each copy keeps its own, or keeps none. */
+    /** The review and fix tools read the role from the work request that the stored copy opens, and the report reads the merge from the outcome of the merged rule. The epic branch and the approval rule belong to the project, so each copy keeps its own value, or keeps none. */
     public function up(Schema $schema): void
     {
         foreach (['lifecycle', 'simple'] as $key) {
@@ -28,10 +28,9 @@ final class Version20261019091733 extends AbstractMigration
                 <<<'SQL'
                     UPDATE workflow_bindings
                     SET template_version = :version,
-                        definition = CASE
-                            WHEN definition->'epicBranch' IS NULL THEN CAST(:definition AS JSONB) - 'epicBranch'
-                            ELSE CAST(:definition AS JSONB) || jsonb_build_object('epicBranch', definition->'epicBranch')
-                        END
+                        definition = (CAST(:definition AS JSONB) - 'epicBranch' - 'approvalCoversConflictResolution')
+                            || CASE WHEN definition->'epicBranch' IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('epicBranch', definition->'epicBranch') END
+                            || CASE WHEN definition->'approvalCoversConflictResolution' IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('approvalCoversConflictResolution', definition->'approvalCoversConflictResolution') END
                     WHERE template_key = :key
                     SQL,
                 ['key' => $key, 'version' => $source['version'], 'definition' => json_encode($source, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION)],

@@ -19,7 +19,7 @@ final class WorkRequestRoleRebindMigrationTest extends KernelTestCase
 {
     use ActionScenario;
 
-    public function test_a_lifecycle_and_a_simple_binding_take_the_shipped_roles_and_a_lifecycle_binding_keeps_its_epic_branch(): void
+    public function test_a_lifecycle_and_a_simple_binding_take_the_shipped_roles_and_a_lifecycle_binding_keeps_its_epic_branch_and_approval_rule(): void
     {
         self::bootKernel();
         $lifecycle = $this->workflowProject('migration-work-request-role-lifecycle');
@@ -29,7 +29,7 @@ final class WorkRequestRoleRebindMigrationTest extends KernelTestCase
         $lifecycleId = ($lifecycle->id ?? throw new \LogicException('The project is not flushed.'))->toRfc4122();
         $simpleId = ($simple->id ?? throw new \LogicException('The project is not flushed.'))->toRfc4122();
         $connection = $this->em()->getConnection();
-        $this->store($connection, $lifecycleId, $this->withoutRoles($this->row($connection, $lifecycleId), 'feature/epic-{number}', 6));
+        $this->store($connection, $lifecycleId, ['approvalCoversConflictResolution' => false] + $this->withoutRoles($this->row($connection, $lifecycleId), 'feature/epic-{number}', 6));
         $this->store($connection, $simpleId, $this->withoutRoles($this->row($connection, $simpleId), null, 5));
         $shipped = self::getContainer()->get(ShippedTemplates::class);
         self::assertInstanceOf(ShippedTemplates::class, $shipped);
@@ -37,8 +37,8 @@ final class WorkRequestRoleRebindMigrationTest extends KernelTestCase
         $this->migrate($connection);
         $this->migrate($connection);
 
-        self::assertEquals([...$shipped->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $this->row($connection, $lifecycleId));
-        self::assertEquals(array_diff_key($shipped->source('simple'), ['epicBranch' => true]), $this->row($connection, $simpleId));
+        self::assertEquals([...$shipped->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false], $this->row($connection, $lifecycleId));
+        self::assertEquals(array_diff_key($shipped->source('simple'), ['epicBranch' => true, 'approvalCoversConflictResolution' => true]), $this->row($connection, $simpleId));
         self::assertSame(['code-review', 'design-review', 'design-revise', 'fix'], $this->roles($this->row($connection, $lifecycleId)));
         self::assertSame([], $this->roles($this->row($connection, $simpleId)));
         self::assertSame($shipped->source('lifecycle')['version'], (int) $connection->fetchOne('SELECT template_version FROM workflow_bindings WHERE project_id = ?', [$lifecycleId]));
