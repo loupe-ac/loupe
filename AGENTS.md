@@ -239,7 +239,7 @@ bin/console tailwind:build    # One-shot Tailwind build (use this in CI scripts 
 
 The dev container rebuilds Tailwind CSS on its own, so never run `bin/console tailwind:build` by hand after you edit a template or `app.css`. The watcher picks a change up within a second or two. When a class does not appear in the compiled CSS, wait and re-check rather than reaching for a manual build. Run `bin/console tailwind:build` explicitly in CI scripts and plan verify steps only. The same applies to `cache:clear`, which dev does not need.
 
-The app runs at `https://loupe.dev.localhost`, and PHP-FPM is on port 9000. The `worker` compose service consumes the `scheduler_default`, `card_eval`, `jobs` and `card_sweep` transports. Use `docker compose logs worker` to observe it, or `just worker` for a foreground consumer. The `tailwind` compose service watches and rebuilds the stylesheet the same way, with `docker compose logs tailwind` and `just tailwind`. Never run both, because two watchers write the same file and race.
+The app runs at `https://loupe.dev.localhost`, and PHP-FPM is on port 9000. The `worker` compose service consumes the `scheduler_default`, `card_eval`, `jobs` and `card_sweep` transports. Use `docker compose logs worker` to observe it, or `just worker` for a foreground consumer. The `tailwind` compose service watches and rebuilds the stylesheet the same way, with `docker compose logs tailwind` and `just tailwind`. Never run both, because two watchers write the same file and race. The `tailwind` service watches the main checkout only, because empty mounts hide `.worktrees/` and `.claude/worktrees/` from it. The `tailwind-worktrees` service rebuilds the worktree sheets.
 
 **A process started inside a container can only be observed and stopped from inside it.** The container has its own PID namespace, so a host-side `pkill -f <script>`, and the harness's own `TaskStop`, kill only the wrapper. They report success while the real process keeps running, invisible to the host process table. Stop it with `docker compose exec php-fpm pkill -f <script>`, and confirm with `docker exec <project>-php-fpm-1 ps aux`. A host-side check shows a quiet container that is in fact fully loaded.
 
@@ -254,6 +254,8 @@ DATABASE_URL="postgresql://app:!ChangeMe!@db.loupe.dev.localhost:5432/app?server
 ```
 
 From inside the php-fpm container (`just shell`), use the `database` Docker service hostname directly. `compose.yaml` sets `DATABASE_URL` to `database:5432` for the container, so this is automatic.
+
+**The dev database runs without durability.** The `database` service turns off `fsync`, `synchronous_commit` and `full_page_writes`, because dev and test data can be rebuilt. A Docker crash can corrupt the dev database, and `docs/contributing/development.md` says how to rebuild it.
 
 **Database test isolation.** `dama/doctrine-test-bundle` wraps each test in a database transaction and rolls it back, so no custom schema-reset code is needed. Schema creation runs once in `tests/bootstrap.php`, which drops, creates and migrates. Never write a `resetSchema()` method that drops and recreates the schema per test.
 
