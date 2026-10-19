@@ -7,6 +7,6 @@ namespace App\Module\Workflow\Contract;
 /** Opens a work request of a card for a rule, with what the card holds now as its context. Board implements it. */
 interface WorkOpener
 {
-    /** A given reason replaces the fix reason of the pull request in the context. */
-    public function open(ActionContext $context, string $kind, ?string $capability, ?string $reason = null): ActionOutcome;
+    /** A given reason replaces the fix reason of the pull request in the context. The role names what the work does, whatever its kind. */
+    public function open(ActionContext $context, string $kind, ?string $capability, ?string $reason = null, ?string $role = null): ActionOutcome;
 }

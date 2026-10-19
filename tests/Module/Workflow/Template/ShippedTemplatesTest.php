@@ -207,7 +207,7 @@ final class ShippedTemplatesTest extends KernelTestCase
         $rule = $this->ruleOf($slot, $slot.'-review');
 
         self::assertTrue($rule->when->evaluate($facts));
-        self::assertSame(['kind' => 'design-review'], \array_slice($rule->then->params, 0, 1));
+        self::assertSame(['kind' => 'design-review', 'role' => 'design-review'], \array_slice($rule->then->params, 0, 2));
         self::assertSame('retry', $rule->then->params['stillTrue']);
         self::assertSame($tag, $rule->then->params['document.tag']);
         self::assertSame('draft', $rule->then->params['document.status']);
@@ -249,7 +249,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertTrue($rule->when->evaluate($facts));
         self::assertFalse($this->ruleOf($slot, $slot.'-review')->when->evaluate($facts));
-        self::assertSame(['kind' => $tag.'-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->then->params, 0, 3));
+        self::assertSame(['kind' => $tag.'-revise', 'role' => 'design-revise', 'reason' => 'agent-review', 'limit' => 5], \array_slice($rule->then->params, 0, 4));
         self::assertNotNull($rule->then->cancelWhen);
     }
 
@@ -319,6 +319,32 @@ final class ShippedTemplatesTest extends KernelTestCase
         }
     }
 
+    public function test_every_review_revision_and_fix_rule_names_its_role(): void
+    {
+        $roles = [];
+        foreach ($this->lifecycle()->rules as $rule) {
+            $role = $rule->then->params['role'] ?? null;
+            if (null !== $role) {
+                $roles[$rule->id] = $role;
+            }
+        }
+
+        self::assertSame([
+            'product-design-revise' => 'design-revise',
+            'product-design-review' => 'design-review',
+            'product-design-review-fix' => 'design-revise',
+            'tech-design-revise' => 'design-revise',
+            'tech-design-review' => 'design-review',
+            'tech-design-review-fix' => 'design-revise',
+            'fix-in-implementation' => 'fix',
+            'agent-review' => 'code-review',
+            'fix-agent-review' => 'fix',
+            'fix-in-review' => 'fix',
+            'agent-review-in-review' => 'code-review',
+            'fix-agent-review-in-review' => 'fix',
+        ], $roles);
+    }
+
     /** @param list<string> $activeWorkKinds */
     #[DataProvider('activeWorkDuringReview')]
     public function test_a_head_waits_for_its_review_until_work_that_pushes_to_its_branch_ends(string $slot, array $activeWorkKinds, bool $asks): void
@@ -340,7 +366,7 @@ final class ShippedTemplatesTest extends KernelTestCase
 
         self::assertNotNull($rule);
         self::assertTrue($rule->when->evaluate($facts));
-        self::assertSame(['kind' => 'fix', 'reason' => 'agent-review', 'limit' => 10], \array_slice($rule->then->params, 0, 3));
+        self::assertSame(['kind' => 'fix', 'role' => 'fix', 'reason' => 'agent-review', 'limit' => 10], \array_slice($rule->then->params, 0, 4));
         self::assertNotContains('agent-review'.$suffix, $this->firingRuleIds($facts));
     }
 

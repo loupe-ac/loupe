@@ -36,6 +36,8 @@ final readonly class OpenWorkRequestCommand
         public ?array $params = null,
         /** @var list<string>|null the run list of a command entry as the owner confirmed it */
         public ?array $run = null,
+        /** What the work does, such as code-review, whatever its kind. */
+        public ?string $role = null,
     ) {
     }
 }

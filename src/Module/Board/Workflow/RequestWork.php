@@ -26,8 +26,6 @@ use App\Module\Workflow\Contract\RetriesWhileTrue;
 /** A fix request also writes the fix-requested card event that the experiment report counts. */
 final readonly class RequestWork implements Action, RetriesWhileTrue
 {
-    private const string FIX_KIND = 'fix';
-
     public const string KEY = 'request';
 
     public function __construct(
@@ -55,6 +53,7 @@ final readonly class RequestWork implements Action, RetriesWhileTrue
     {
         return [
             new Parameter('kind', ParameterType::String),
+            new Parameter('role', ParameterType::String, required: false, choices: ['code-review', 'design-review', 'design-revise', 'fix']),
             new Parameter('capability', ParameterType::String, required: false),
             new Parameter('reason', ParameterType::String, required: false),
             new Parameter('limit', ParameterType::Int, required: false, min: 1),
@@ -103,8 +102,9 @@ final readonly class RequestWork implements Action, RetriesWhileTrue
 
         $kind = $context->string('kind');
         $reason = $context->optionalString('reason');
-        $outcome = $this->opener->open($context, $kind, $context->optionalString('capability'), $reason);
-        if (self::FIX_KIND === $kind && ActionOutcomeKind::Done === $outcome->kind && !$outcome->alreadyLive) {
+        $role = $context->optionalString('role');
+        $outcome = $this->opener->open($context, $kind, $context->optionalString('capability'), $reason, $role);
+        if ('fix' === $role && ActionOutcomeKind::Done === $outcome->kind && !$outcome->alreadyLive) {
             $this->recordFixRequested($card, $context->facts, $reason);
         }
 

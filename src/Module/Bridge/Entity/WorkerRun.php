@@ -304,6 +304,10 @@ class WorkerRun implements ProjectScopedSubject
         /** The id of the template rule that opened the work request. */
         #[ORM\Column(name: 'rule_id', length: self::MAX_RULE_ID_LENGTH, nullable: true)]
         public readonly ?string $ruleId = null,
+
+        /** The role of the work request, copied when the run opens. Null for a run with no request or no role. */
+        #[ORM\Column(name: 'role', length: 20, nullable: true)]
+        public readonly ?string $role = null,
     ) {
     }
 

@@ -1,5 +1,5 @@
 key: lifecycle
-version: 7
+version: 8
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -58,6 +58,7 @@ rules:
       then:
           request:
               kind: product-design-revise
+              role: design-revise
               document: { tag: product-design, status: changes-requested }
               checks:
                   - The Loupe plugin skills are installed for the agent
@@ -75,6 +76,7 @@ rules:
       then:
           request:
               kind: design-review
+              role: design-review
               stillTrue: retry
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
               document: { tag: product-design, status: draft }
@@ -88,6 +90,7 @@ rules:
       then:
           request:
               kind: product-design-revise
+              role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
               limit: 5
@@ -129,6 +132,7 @@ rules:
       then:
           request:
               kind: tech-design-revise
+              role: design-revise
               document: { tag: tech-design, status: changes-requested }
               checks:
                   - The agent can read the whole repository
@@ -147,6 +151,7 @@ rules:
       then:
           request:
               kind: design-review
+              role: design-review
               stillTrue: retry
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
               document: { tag: tech-design, status: draft }
@@ -161,6 +166,7 @@ rules:
       then:
           request:
               kind: tech-design-revise
+              role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
               limit: 5
@@ -283,6 +289,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               limit: 3
               checks:
                   - The worktree of the card is still available, or the agent can make it again
@@ -308,6 +315,7 @@ rules:
       then:
           request:
               kind: review
+              role: code-review
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
@@ -322,6 +330,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               reason: agent-review
               limit: 10
               checks:
@@ -357,6 +366,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               limit: 3
               checks:
                   - The worktree of the card is still available, or the agent can make it again
@@ -390,6 +400,7 @@ rules:
       then:
           request:
               kind: review
+              role: code-review
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
@@ -404,6 +415,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               reason: agent-review
               limit: 10
               checks:

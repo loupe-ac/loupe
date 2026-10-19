@@ -836,7 +836,12 @@ so a rule whose condition reads no pull request never refills.
 | Reason | `conflict`, `checks-failed` or `changes-requested`, from the state of that pull request, or the code that the optional `reason` parameter of the request rule sets, such as `agent-review`. A `repair` request holds the refusal code of the failed work |
 | Document | the id of the document that a revision works on |
 
-A fix request also writes a `fix-requested` event to the card history. The event
+A request rule can set the optional `role` parameter: `code-review`,
+`design-review`, `design-revise` or `fix`. The role says what the work does,
+whatever its kind. The request and its worker runs keep it. The review and fix
+MCP tools find the running worker by its role, so a project can give the work
+another kind and keep the role. A fix request, one with the role `fix`, also
+writes a `fix-requested` event to the card history. The event
 holds the same reason. A request rule can set the reason with the optional
 `reason` parameter. The parameter replaces the reason that the state of the
 pull request gives, in the context and in the event. The fix rules for the
