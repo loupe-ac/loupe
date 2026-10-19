@@ -64,7 +64,7 @@ When the profile `Environment` section names a folder check, run it first. When 
 git branch --show-current
 ```
 
-1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <base>`. Then run `git switch -c <card branch> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, run the refresh of the profile `Environment` section, when it names one. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
+1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <base>`. Then run `git switch -c <card branch> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, refresh the environment as "Refresh the environment" says. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
 2. When it prints `<base>`, run the same `git switch -c` command.
 3. When it prints a branch that starts `<prefix>`, keep that branch.
 4. When it prints any other branch, stop with `STAGE RESULT: blocked: worker folder on branch <branch>`.
@@ -76,6 +76,16 @@ git branch --show-current
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.
 
+## Refresh the environment
+
+A stage refreshes the environment after a branch switch or a merge brings commits. The refresh command belongs to the work entry in the bridge rule file, never to the skill.
+
+1. Run `loupe env refresh` in the worker folder. The bridge runs the `refresh` command of the entry of this run, in this folder.
+2. Exit 0 means the command ran, or the entry names none. Go on.
+3. A CLI older than the `env` command exits 1 and prints `unknown command "env"`. Treat that output as item 5.
+4. Any other exit 1 means the command failed. Stop with `STAGE RESULT: blocked: environment refresh failed`, and name the tail of its output in the sentences after it.
+5. Exit 2 means this process is not a worker of a running bridge. Go on, and write `Environment refresh: skipped, no bridge` in the final reply.
+
 ## Sync with the pull request branch
 
 The implementation stage and the fix round sync the worker folder with this procedure. Run it in the worker folder, on the head branch `<head>` of the pull request. `<base>` is the base branch of that pull request.
@@ -85,8 +95,8 @@ The implementation stage and the fix round sync the worker folder with this proc
 3. The commits that `git rev-list HEAD ^origin/<head> ^origin/<base>` lists are local work. Treat them as your own work. They go out with your next push, unless item 5 resets them. The list leaves out the base commits that a sync brought in.
 4. Test each of these commits with the script below. A commit is a sync when it has two parents, one of them is an ancestor of `origin/<base>`, and git can make the same merge again with no conflict. `git merge-tree` needs git 2.38 or later. A merge that holds a conflict resolution or a hand edit is not a sync, so the procedure keeps it. The script prints one `content` line for each commit that is not a sync. On a push retry, skip this item and item 5, and merge.
 5. When the script prints nothing, every local commit is a sync of the base. Run `git reset --hard origin/<head>`. The gate merges the base again, and the approval of the pull request still covers the head.
-6. Otherwise run `git merge origin/<head>`. The fix round resolves a conflict with the method of "Resolve a conflict with the base" in `../../loupe-stage-fix-round/references/pull-request-feedback.md`. Use `origin/<head>` in place of `origin/<base>`, start at its third command, and stop at its commit. The implementation stage resolves only a mechanical conflict, as the gate does. When a conflict cannot be resolved, run `git merge --abort`, and stop with `STAGE RESULT: blocked: local branch diverged from origin`. This stop form replaces the stop form of that section.
-7. When the branch switch before the sync or the sync itself moved HEAD, run the refresh of the profile `Environment` section once, when it names one.
+6. Otherwise run `git merge origin/<head>`. The fix round resolves a conflict with the method of "Resolve a conflict with the base" in `../../loupe-stage-fix-round/references/pull-request-feedback.md`. Use `origin/<head>` in place of `origin/<base>`, start at its third command, and stop at its commit. Skip its refresh, because item 7 refreshes once. The implementation stage resolves only a mechanical conflict, as the gate does. When a conflict cannot be resolved, run `git merge --abort`, and stop with `STAGE RESULT: blocked: local branch diverged from origin`. This stop form replaces the stop form of that section.
+7. When the branch switch before the sync or the sync itself moved HEAD, refresh the environment once, as "Refresh the environment" says.
 
 ```bash
 for c in $(git rev-list HEAD ^origin/<head> ^origin/<base>); do
@@ -118,7 +128,7 @@ When the fetch fails, run it once more after 2 seconds. Another git process that
 
 When the merge conflicts, resolve it only when the conflict is mechanical and the gate then proves the result. Otherwise run `git merge --abort`, and stop with `STAGE RESULT: blocked: merge conflict with <base> in <files>`.
 
-When the merge brings commits, run the refresh of the profile `Environment` section, when it names one. A profile command may use `<cardId>`. Take it from the prompt line `Card <number> (cardId <id>)`, or from the `cardId` of `card_get` when the prompt has none. Never derive it from a branch name, a folder name or a card number.
+When the merge brings commits, refresh the environment as "Refresh the environment" says. A fix round that resolved a conflict with the base refreshed after that resolution, so its gate merge brings no commits and needs no refresh.
 
 Then run the commands of the profile `Gate` section in order. Run each long command as the harness adapter says. Poll it in the foreground until it exits, and never end the turn while it runs. Run the check of the profile `Changelog` section. Then run the review of the profile `Code review` section, and follow its pass rule.
 
