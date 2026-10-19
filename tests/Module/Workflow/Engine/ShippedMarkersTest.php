@@ -184,9 +184,10 @@ final class ShippedMarkersTest extends KernelTestCase
     }
 
     #[DataProvider('shippedKeys')]
-    public function test_queued_work_that_a_bridge_could_take_still_shows_the_working_marker(string $key): void
+    public function test_queued_work_that_a_bridge_could_take_waits(string $key): void
     {
         self::assertSame(['work-requested'], $this->passKeys($this->template($key), $this->takerFacts(WorkTakerState::Available, ['implement'])));
+        self::assertSame(MarkerKind::Waiting, $this->written('work-requested')->kind);
         self::assertNull($this->written('work-requested')->link);
     }
 
