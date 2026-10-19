@@ -356,6 +356,21 @@ final class CardHistoryEntryTest extends TestCase
         self::assertEquals(new TranslatableMessage('board.card.history.review_override_ended', ['%pr%' => 7, '%sha%' => 'abcdef1']), $entry->sentence);
     }
 
+    public function test_a_skipped_resume_names_the_question(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ResumeSkipped, Actor::System, null, ['number' => 963, 'sessionId' => 'x']));
+
+        self::assertSame('lucide:circle-slash', $entry->icon);
+        self::assertEquals(new TranslatableMessage('board.card.history.resume_skipped', ['%number%' => 963]), $entry->sentence);
+    }
+
+    public function test_a_skipped_resume_with_no_question_number_reads_as_changed(): void
+    {
+        $entry = CardHistoryEntry::of($this->event(CardEventKind::ResumeSkipped, Actor::System, null, []));
+
+        self::assertSame('board.card.history.changed', $entry->sentence->getMessage());
+    }
+
     /** @return iterable<string, array{CardEventKind, array<string, mixed>}> */
     public static function incompleteOverrideRows(): iterable
     {
