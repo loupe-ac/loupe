@@ -79,6 +79,12 @@ final readonly class ConditionLeaf extends Expression
     }
 
     #[\Override]
+    public function requiredLeaves(): array
+    {
+        return [$this];
+    }
+
+    #[\Override]
     public function holdingParts(Facts $facts): array
     {
         return $this->evaluate($facts) ? [$this->canonical()] : [];

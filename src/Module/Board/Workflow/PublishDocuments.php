@@ -55,7 +55,7 @@ final readonly class PublishDocuments implements Action
     #[\Override]
     public static function traits(): ActionTraits
     {
-        return new ActionTraits(refreshesFacts: true);
+        return new ActionTraits(refreshesFacts: true, publishesDocuments: true);
     }
 
     #[\Override]

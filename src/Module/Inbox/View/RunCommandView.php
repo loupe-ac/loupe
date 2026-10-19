@@ -73,10 +73,10 @@ final readonly class RunCommandView
         return null !== $this->bridgeId && $this->acceptsEntries && $this->entryMissing && null !== $this->entryYaml && !$this->addEntryLive;
     }
 
-    /** Names the run list and the built-in values the dialog shows, so a submit can tell that either changed after the owner read it. */
+    /** Names the bridge, the run list and the built-in values the dialog shows, so a submit can tell that one changed after the owner read it. */
     public function runDigest(): string
     {
-        return hash('sha256', json_encode([$this->runList, $this->argvTemplate], \JSON_THROW_ON_ERROR));
+        return hash('sha256', json_encode([$this->runList, $this->argvTemplate, $this->bridgeId], \JSON_THROW_ON_ERROR));
     }
 
     /** The owner can open the confirm dialog: a wrong branch or value is fixed there, so only those two reasons keep it open. */

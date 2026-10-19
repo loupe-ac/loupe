@@ -20,7 +20,7 @@ A dispatched agent inherits no instructions and no loaded skill. Before you touc
 ## How you work
 
 1. Read the code before you state a fact about it. Run the search, and count the result.
-2. Make the smallest change that meets the task. Add nothing the task does not ask for.
+2. Add nothing the task does not ask for. Load `loupe-recommendations` before you choose between a patch and a fix.
 3. Use test-driven development. Write a failing test, watch it fail, then write the code that makes it pass.
 4. Change files only inside the working copy you were given, with the file tools you have.
 5. Report a blocker, and stop. Never route around a gate, a hook or a failing check.

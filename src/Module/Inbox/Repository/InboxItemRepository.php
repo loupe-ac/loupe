@@ -397,9 +397,9 @@ class InboxItemRepository extends ServiceEntityRepository
             return;
         }
 
-        /** @var list<array{id: Uuid, title: string, body: ?string, blocking: bool, options: list<string>, multiple: bool, freeText: bool, state: InboxItemState, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, updatedAt: \DateTimeImmutable, closedAt: ?\DateTimeImmutable}> $rows */
+        /** @var list<array{id: Uuid, title: string, body: ?string, blocking: bool, options: list<string>, multiple: bool, freeText: bool, state: InboxItemState, selectedOptions: list<int>, answerText: ?string, closeNote: ?string, respondedThroughAgent: bool, updatedAt: \DateTimeImmutable, closedAt: ?\DateTimeImmutable}> $rows */
         $rows = $this->createQueryBuilder('i')
-            ->select('i.id, i.title, i.body, i.blocking, i.options, i.multiple, i.freeText, i.state, i.selectedOptions, i.answerText, i.closeNote, i.updatedAt, i.closedAt')
+            ->select('i.id, i.title, i.body, i.blocking, i.options, i.multiple, i.freeText, i.state, i.selectedOptions, i.answerText, i.closeNote, i.respondedThroughAgent, i.updatedAt, i.closedAt')
             ->andWhere('i IN (:items)')
             ->setParameter('items', $items)
             ->getQuery()
@@ -426,6 +426,7 @@ class InboxItemRepository extends ServiceEntityRepository
             $item->selectedOptions = $row['selectedOptions'];
             $item->answerText = $row['answerText'];
             $item->closeNote = $row['closeNote'];
+            $item->respondedThroughAgent = $row['respondedThroughAgent'];
             $item->updatedAt = $row['updatedAt'];
             $item->closedAt = $row['closedAt'];
 
@@ -451,6 +452,7 @@ class InboxItemRepository extends ServiceEntityRepository
             ->set('i.selectedOptions', ':selectedOptions')
             ->set('i.answerText', ':answerText')
             ->set('i.closeNote', ':closeNote')
+            ->set('i.respondedThroughAgent', ':respondedThroughAgent')
             ->set('i.closedAt', ':closedAt')
             ->set('i.updatedAt', ':updatedAt')
             ->andWhere('i.id = :id')
@@ -458,6 +460,7 @@ class InboxItemRepository extends ServiceEntityRepository
             ->setParameter('selectedOptions', $item->selectedOptions, Types::JSON)
             ->setParameter('answerText', $item->answerText)
             ->setParameter('closeNote', $item->closeNote)
+            ->setParameter('respondedThroughAgent', $item->respondedThroughAgent, Types::BOOLEAN)
             ->setParameter('closedAt', $item->closedAt, Types::DATETIME_IMMUTABLE)
             ->setParameter('updatedAt', $item->updatedAt, Types::DATETIME_IMMUTABLE)
             ->setParameter('id', $item->id, UuidType::NAME)

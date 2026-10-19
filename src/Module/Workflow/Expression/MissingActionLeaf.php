@@ -53,6 +53,12 @@ final readonly class MissingActionLeaf extends Expression
     }
 
     #[\Override]
+    public function requiredLeaves(): array
+    {
+        return [];
+    }
+
+    #[\Override]
     public function holdingParts(Facts $facts): array
     {
         return [];

@@ -36,7 +36,7 @@ final class ActionDeclarationsTest extends TestCase
         yield 'evaluate' => [EvaluateChildren::class, 'evaluate', 'workflow.source.board', new ActionTraits()];
         yield 'ask' => [Ask::class, 'ask', 'workflow.source.board', new ActionTraits()];
         yield 'link-document' => [LinkDocument::class, 'link-document', 'workflow.source.board', new ActionTraits(option: true, childChoice: true)];
-        yield 'publish-documents' => [PublishDocuments::class, 'publish-documents', 'workflow.source.board', new ActionTraits(refreshesFacts: true)];
+        yield 'publish-documents' => [PublishDocuments::class, 'publish-documents', 'workflow.source.board', new ActionTraits(refreshesFacts: true, publishesDocuments: true)];
         yield 'detach' => [Detach::class, 'detach', 'workflow.source.board', new ActionTraits(option: true)];
     }
 
