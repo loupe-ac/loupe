@@ -48,11 +48,7 @@ final class DesignSystemChangedScriptTest extends TestCase
             'assets/styles/tokens.css.bak',
             'templates/components/Other/Thing.html.twig',
             'src/Module/DesignSystem/Other.php',
-            'src/Command/ExportStarterCanvasCommand.php',
-            'src/DesignStarter/StarterExporter.php',
-            'src/DesignStarter/Nested/Helper.php',
             'src/Command/SeedShowcaseDataCommand.php',
-            'templates/Module/DesignSystem/export/starter/Board.html.twig',
         ] as $path) {
             $this->write($path);
         }
@@ -69,11 +65,7 @@ final class DesignSystemChangedScriptTest extends TestCase
                 'assets/styles/design-system.css',
                 'assets/styles/tokens.css',
                 'docs/contributing/design-system.md',
-                'src/Command/ExportStarterCanvasCommand.php',
-                'src/DesignStarter/Nested/Helper.php',
-                'src/DesignStarter/StarterExporter.php',
                 'src/Module/DesignSystem/Catalog.php',
-                'templates/Module/DesignSystem/export/starter/Board.html.twig',
                 'templates/components/Ds/Button.html.twig',
             ],
             $this->lines($result->getOutput()),
