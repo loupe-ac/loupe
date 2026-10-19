@@ -37,6 +37,15 @@ abstract readonly class Expression
     /** @return list<ConditionLeaf> every leaf, in template order */
     abstract public function leaves(): array;
 
+    /**
+     * @return list<string> the canonical key of each leaf, and of each negation taken whole, that holds now, in template order.
+     *                      Call it only when unreadable() answers null.
+     */
+    abstract public function holdingParts(Facts $facts): array;
+
+    /** A stable text for the expression: the same template always gives the same text. */
+    abstract public function canonical(): string;
+
     /** @return list<string> the key of every condition this instance no longer has, in template order */
     abstract public function missingKeys(): array;
 
