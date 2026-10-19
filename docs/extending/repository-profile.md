@@ -22,7 +22,7 @@ rules as instructions, so write each one as a short, direct sentence.
 | Section | What it holds | Read by |
 |---|---|---|
 | `Instruction files` | The files and skills a worker loads before it changes code, such as `AGENTS.md` or `CONTRIBUTING.md`, and the writing style | Every stage |
-| `Environment` | A check that the worker is in its own folder, and a refresh to run after a sync brings new commits | Implementation, fix round |
+| `Environment` | A check that the worker is in its own folder | Implementation, fix round |
 | `Gate` | The base branch, and the commands to run before a push, in order | Implementation, fix round, merge, breakdown |
 | `Code review` | A review step before the push, and the rule that it passed. Write "none" when the gate has no review step | Implementation |
 | `Changelog` | Where a change records its changelog entry, and how to check it. Write "none" when the repository keeps no changelog | Implementation |
@@ -68,15 +68,11 @@ entry, and removes it with a `teardown` entry. The
 [command-line bridge](cli-bridge.md) describes both. The profile does not
 create or remove the folder.
 
-The `Environment` section holds two optional steps that run inside a stage:
+The `Environment` section holds one optional step that runs inside a stage: a folder check, which proves that the worker is not in the main checkout. For git worktrees, the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ.
 
-1. A folder check, which proves that the worker is not in the main checkout.
-   For git worktrees, the two lines of
-   `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ.
-2. A refresh, which the stage runs after a sync brings new commits, such as a
-   dependency install or a database migration.
+The refresh after a sync that brings new commits, such as a dependency install or a database migration, is not a profile step. Set the `refresh` field of the work entry in the bridge rule file. The stage runs `loupe env refresh`, and the bridge runs that command in the worker folder. See [refresh and reset commands](cli-bridge.md#refresh-and-reset-commands).
 
-Write "none" for a step that your repository does not need.
+Write "none" for the folder check when your repository does not need it.
 
 ## A starter profile
 
@@ -94,7 +90,6 @@ Lifecycle workflow and its default column slugs.
 ## Environment
 
 1. Folder check: none.
-2. Refresh after a sync that brings commits: run `npm ci`.
 
 ## Gate
 

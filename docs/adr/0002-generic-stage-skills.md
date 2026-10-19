@@ -55,3 +55,7 @@ Worse:
 - A skill cannot repair its own environment. When a migration or a service is missing, the skill stops and reports it. Before, it could run the provisioning command again.
 
 Watch for a step inside a run that the environment needs, such as a refresh after the skill merges the base branch. That step has no rule yet. Keep it out of the skill, and give it a home in the rules when the need shows.
+
+## Amendment, 2026-10-19
+
+The last paragraph of Consequences named a refresh after the skill merges the base branch. It now has a home. A work entry of the rule file can set `refresh` and `reset` commands. A stage skill calls `loupe env refresh` after a merge that brings commits, and the bridge runs the command of the entry in the worker folder. The skill starts the step and names no script. The command itself stays in the rule file, so this rule still holds: no skill names a repository's setup command.
