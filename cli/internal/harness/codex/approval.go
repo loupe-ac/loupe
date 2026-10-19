@@ -13,6 +13,9 @@ var (
 	serverHeader = regexp.MustCompile(`^\s*\[\s*mcp_servers\s*\.\s*"?loupe"?\s*\]\s*(#.*)?$`)
 	approvalLine = regexp.MustCompile(`^\s*"?default_tools_approval_mode"?\s*=`)
 	enabledLine  = regexp.MustCompile(`^\s*"?enabled"?\s*=`)
+	// transportLine matches a key that says how Codex starts the server.
+	transportLine = regexp.MustCompile(`^\s*"?(command|args|url|bearer_token_env_var|http_headers|env_http_headers)"?\s*=`)
+	headerTable   = regexp.MustCompile(`^\s*\[\s*mcp_servers\s*\.\s*"?loupe"?\s*\.\s*"?(http_headers|env_http_headers)"?\s*\]`)
 )
 
 // ApproveTools sets default_tools_approval_mode = "approve" for the loupe MCP
@@ -141,6 +144,65 @@ func setInServer(path string, key *regexp.Regexp, set string, done func(serverCo
 	}
 
 	return true, os.Rename(next, path)
+}
+
+// ReplaceProfileServer makes the loupe MCP server of a profile file start
+// `loupe mcp`. It drops the keys that say how Codex starts the server, and
+// writes command and args under the table header. It keeps the other keys and
+// the comments, and writes nothing unless the result parses as `loupe mcp`.
+func ReplaceProfileServer(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(raw), "\n")
+	kept := make([]string, 0, len(lines)+2)
+	inServer, inArray, found := false, false, false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case inArray:
+			inArray = !strings.Contains(trimmed, "]")
+
+			continue
+		case headerTable.MatchString(line):
+			return errors.New(path + " sets HTTP headers for the loupe server")
+		case serverHeader.MatchString(line):
+			inServer, found = true, true
+			kept = append(kept, line, `command = "loupe"`, `args = ["mcp"]`)
+
+			continue
+		case strings.HasPrefix(trimmed, "["):
+			inServer = false
+		case inServer && transportLine.MatchString(line):
+			value := strings.TrimSpace(line[strings.Index(line, "=")+1:])
+			inArray = strings.HasPrefix(value, "[") && !strings.Contains(value, "]")
+
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if !found {
+		return errors.New("no [mcp_servers.loupe] table in " + path)
+	}
+
+	next := filepath.Join(filepath.Dir(path), "."+filepath.Base(path)+".loupe")
+	if err := os.WriteFile(next, []byte(strings.Join(kept, "\n")), info.Mode().Perm()); err != nil {
+		return err
+	}
+	got := loadFiles(next)[0]
+	s := got.cfg.McpServers["loupe"]
+	if got.err != nil || s.Command != "loupe" || s.URL != "" || len(s.Args) != 1 || s.Args[0] != "mcp" {
+		_ = os.Remove(next)
+
+		return errors.New("could not set the loupe server to `loupe mcp` in " + path)
+	}
+
+	return os.Rename(next, path)
 }
 
 // ProfileDeclaration returns the profile file when it declares the loupe MCP

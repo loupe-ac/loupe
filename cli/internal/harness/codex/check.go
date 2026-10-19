@@ -34,10 +34,11 @@ type tomlConfig struct {
 }
 
 type serverConf struct {
-	Command                  string `toml:"command"`
-	URL                      string `toml:"url"`
-	Enabled                  *bool  `toml:"enabled"`
-	DefaultToolsApprovalMode string `toml:"default_tools_approval_mode"`
+	Command                  string   `toml:"command"`
+	Args                     []string `toml:"args"`
+	URL                      string   `toml:"url"`
+	Enabled                  *bool    `toml:"enabled"`
+	DefaultToolsApprovalMode string   `toml:"default_tools_approval_mode"`
 }
 
 type providerConf struct {

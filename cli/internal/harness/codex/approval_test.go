@@ -207,3 +207,38 @@ func TestEnableServerChangesNothingWhenNoFileSetsEnabled(t *testing.T) {
 		t.Fatalf("EnableServer: %v, %v", changed, err)
 	}
 }
+
+func TestReplaceProfileServerMakesTheProfileStartLoupeMcp(t *testing.T) {
+	for name, body := range map[string]string{
+		"command": "# mine\n[mcp_servers.loupe]\ncommand = \"npx\"\nargs = [\n  \"-y\",\n  \"tool\",\n]\nenabled = true\n\n[mcp_servers.other]\ncommand = \"x\"\n",
+		"url":     "# mine\n[mcp_servers.loupe]\nurl = \"https://loupe.test/mcp\"\nbearer_token_env_var = \"TOKEN\"\nenabled = true\n\n[mcp_servers.other]\ncommand = \"x\"\n",
+	} {
+		home := t.TempDir()
+		profile := filepath.Join(home, "work.config.toml")
+		if err := os.WriteFile(profile, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := ReplaceProfileServer(profile); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got, _ := os.ReadFile(profile)
+		want := "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\nenabled = true\n\n[mcp_servers.other]\ncommand = \"x\"\n"
+		if string(got) != want {
+			t.Errorf("%s: the profile reads\n%s", name, got)
+		}
+	}
+}
+
+func TestReplaceProfileServerRefusesHttpHeaders(t *testing.T) {
+	profile := filepath.Join(t.TempDir(), "work.config.toml")
+	body := "[mcp_servers.loupe]\nurl = \"https://loupe.test/mcp\"\n\n[mcp_servers.loupe.http_headers]\nX = \"y\"\n"
+	if err := os.WriteFile(profile, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReplaceProfileServer(profile); err == nil {
+		t.Error("ReplaceProfileServer rewrote a server with HTTP headers")
+	}
+	if got, _ := os.ReadFile(profile); string(got) != body {
+		t.Errorf("the profile changed:\n%s", got)
+	}
+}

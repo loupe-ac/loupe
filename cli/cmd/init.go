@@ -466,8 +466,10 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
 	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex"+t.suffix()+"?"):
 		step(out, "Codex", "skipped", "to give Codex the Loupe tools, run `"+add+"`")
-	case t.profileDeclares(out):
 	default:
+		if declared, replaced := replaceProfileServer(cmd, t); declared {
+			return replaced
+		}
 		if raw, err := t.run(ctx, dir, "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
 			step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), add))
 
@@ -524,8 +526,8 @@ func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, t c
 		shown = "a server init cannot read"
 	}
 	fmt.Fprintf(out, "Codex%s starts %q as %s, which is not `loupe mcp`, so the bridge turns its Codex account off.\n", t.suffix(), mcpjson.ServerKey, shown)
-	if t.profileDeclares(out) {
-		return false
+	if declared, replaced := replaceProfileServer(cmd, t); declared {
+		return replaced
 	}
 	if !confirm(out, cmd.InOrStdin(), "Replace it with `loupe mcp`?") {
 		step(out, "Codex", "skipped", "to replace it, run `"+fix+"`")
@@ -595,16 +597,30 @@ func (t codexTarget) suffix() string {
 	return ""
 }
 
-// profileDeclares reports a profile file that declares the server itself.
-// `codex mcp add` and `remove` write only config.toml, so init leaves that
-// declaration to you rather than report a change Codex does not start.
-func (t codexTarget) profileDeclares(out io.Writer) bool {
+// replaceProfileServer offers to rewrite a loupe server that the profile file
+// declares, because `codex mcp add` and `remove` write only config.toml. It
+// reports whether the profile declares one, and whether init replaced it. It
+// always asks, because somebody wrote that declaration by hand.
+func replaceProfileServer(cmd *cobra.Command, t codexTarget) (declared, replaced bool) {
 	path, ok := codex.ProfileDeclaration(t.codexHome(), t.profile)
-	if ok {
-		step(out, "Codex", "failed", "profile "+t.profile+" declares its own `"+mcpjson.ServerKey+"` MCP server; set command = \"loupe\" and args = [\"mcp\"] under [mcp_servers."+mcpjson.ServerKey+"] in "+path)
+	if !ok {
+		return false, false
 	}
+	out := cmd.OutOrStdout()
+	byHand := "set command = \"loupe\" and args = [\"mcp\"] under [mcp_servers." + mcpjson.ServerKey + "] in " + path
+	if !confirm(out, cmd.InOrStdin(), "Profile "+t.profile+" declares its own `"+mcpjson.ServerKey+"` MCP server in "+path+". Replace it with `loupe mcp`?") {
+		step(out, "Codex", "skipped", byHand)
 
-	return ok
+		return true, false
+	}
+	if err := codex.ReplaceProfileServer(path); err != nil {
+		step(out, "Codex", "failed", fmt.Sprintf("%v; %s", err, byHand))
+
+		return true, false
+	}
+	step(out, "Codex", "done", "replaced the `"+mcpjson.ServerKey+"` MCP server in "+path+" with `loupe mcp`")
+
+	return true, true
 }
 
 // codexHome is the Codex home of the account, with the default one resolved.
