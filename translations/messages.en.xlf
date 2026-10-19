@@ -8345,7 +8345,8 @@
             <trans-unit id="github.identity.help.managed"><source>github.identity.help.managed</source><target>Agents push as the Loupe app, so you can approve their pull requests.</target></trans-unit>
             <trans-unit id="github.identity.help.unmanaged"><source>github.identity.help.unmanaged</source><target>Agents use the git setup of each machine. Loupe reads it and shows it below.</target></trans-unit>
             <trans-unit id="github.identity.install"><source>github.identity.install</source><target>Install the GitHub App</target></trans-unit>
-            <trans-unit id="github.identity.empty"><source>github.identity.empty</source><target>No running machine has reported its git identity yet.</target></trans-unit>
+            <trans-unit id="github.identity.empty_title"><source>github.identity.empty_title</source><target>No git identity yet</target></trans-unit>
+            <trans-unit id="github.identity.empty"><source>github.identity.empty</source><target>A machine reports the git identity of its agents when its bridge starts.</target></trans-unit>
             <trans-unit id="github.identity.detected_at"><source>github.identity.detected_at</source><target>Detected</target></trans-unit>
             <trans-unit id="github.identity.docs_link"><source>github.identity.docs_link</source><target>How to set up a separate agent account</target></trans-unit>
             <trans-unit id="github.identity.chip.managed"><source>github.identity.chip.managed</source><target>Managed</target></trans-unit>

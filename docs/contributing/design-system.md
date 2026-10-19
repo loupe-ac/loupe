@@ -49,8 +49,8 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | FormField | One field of a form: its label, widget, hint and errors, or a wrapper for your own body | none |
 | FieldErrors | The list of errors of one field | none |
 | Hint | A line of help under a field | none |
-| Flash | A message after an action, with a dismiss button | success, error, warning, info |
-| EmptyState | A panel that says a list or page has nothing yet | none. Takes an icon, a title, a body and one link |
+| Flash | A message after an action, with a dismiss button. A `title` or an `actions` block makes the block form, for a notice with a heading and buttons | success, error, warning, info |
+| EmptyState | A panel that says a list or page has nothing yet | compact, on-card. Takes an icon, a title, a body and one link |
 | Badge | The status of a document in a list | in-review, draft, approved, changes-requested |
 | Tag | A short label, such as a card type or a column | neutral, lime, purple, green, amber, red, teal, sky, blue, indigo, pink, orange |
 | StatusChip | A state with a coloured dot and an optional reason tooltip | pending, addressed, resolved, ok, failed, neutral |

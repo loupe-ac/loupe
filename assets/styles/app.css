@@ -4876,11 +4876,11 @@
     .lp-tools-disclosure__caret {
         @apply w-3.5 h-3.5 shrink-0 transition-transform duration-100;
     }
-    .lp-tools-disclosure[open] .lp-tools-disclosure__caret {
+    .lp-tools-disclosure[data-expanded='true'] .lp-tools-disclosure__caret {
         @apply rotate-90;
     }
     .lp-tools {
-        @apply flex flex-col mt-2;
+        @apply flex flex-col overflow-hidden pt-2;
     }
     .lp-tools__row {
         @apply flex items-start gap-4 border-t border-line py-3 px-0.5;
@@ -8045,11 +8045,22 @@
     .lp-connect-other {
         @apply border-t border-line pt-3 text-sm;
     }
-    .lp-connect-other[open] {
-        @apply flex flex-col gap-4;
-    }
     .lp-connect-other__summary {
-        @apply cursor-pointer text-fg-mute;
+        @apply inline-flex items-center gap-2 cursor-pointer text-fg-mute transition-colors hover:text-ink;
+        list-style: none;
+    }
+    .lp-connect-other__summary::-webkit-details-marker {
+        display: none;
+    }
+    .lp-connect-other__caret {
+        @apply shrink-0 transition-transform duration-200;
+    }
+    .lp-connect-other[data-expanded='true'] .lp-connect-other__caret {
+        @apply rotate-90;
+    }
+    /* The disclosure controller animates the height, so the gap sits inside the clipped body. */
+    .lp-connect-other__body {
+        @apply flex flex-col gap-4 overflow-hidden pt-4;
     }
     .lp-panel .lp-form {
         @apply mt-6;

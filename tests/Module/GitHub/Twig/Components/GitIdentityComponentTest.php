@@ -325,8 +325,9 @@ final class GitIdentityComponentTest extends WebTestCase
 
         $notice = $crawler->filter('#git-identity [data-testid="github-push-refused"]');
         self::assertCount(1, $notice);
-        self::assertStringContainsString('Agents of this project cannot push.', $notice->text());
+        self::assertStringContainsString('Agents of this project cannot push.', $notice->filter('.lp-flash__title')->text());
         self::assertStringContainsString('has not finished the setup of the GitHub App', $notice->text());
+        self::assertCount(1, $notice->filter('.lp-flash__actions [data-testid="git-identity-turn-off"]'));
     }
 
     public function test_an_installed_project_with_no_app_signing_key_names_the_setup_problem(): void

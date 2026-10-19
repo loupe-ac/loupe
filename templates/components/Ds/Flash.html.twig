@@ -2,11 +2,16 @@
   Props:  @comment-budget-ignore
     severity       string   success, error, warning or info. Sets the colour of the dot.
     dismissLabel   string   Translated text of the dismiss button. Optional, no button without it.
-  The content is the message. Any other attribute, class included, is passed to the element.
+    title          string   Translated heading on its own line above the message. Optional.
+  The content is the message. An `actions` block draws a row of buttons under it.
+  A title or actions make the block form, which keeps the dot on the first line.
+  Any other attribute, class included, is passed to the element.
 #}
-{%- props severity, dismissLabel = null -%}
-<div{{ attributes.defaults({class: 'lp-flash lp-flash--' ~ severity, role: 'status', 'data-controller': 'flash'}) }}>
+{%- props severity, dismissLabel = null, title = null -%}
+{%- set actions -%}{% block actions %}{% endblock %}{%- endset -%}
+{%- set isBlock = title or actions|trim is not empty -%}
+<div{{ attributes.defaults({class: 'lp-flash lp-flash--' ~ severity ~ (isBlock ? ' lp-flash--block'), role: 'status', 'data-controller': 'flash'}) }}>
     <span class="lp-flash__dot"></span>
-    <span class="lp-flash__message">{% block content %}{% endblock %}</span>
+    <span class="lp-flash__message">{% if title %}<strong class="lp-flash__title">{{ title }}</strong>{% endif %}{% block content %}{% endblock %}{% if actions|trim is not empty %}<span class="lp-flash__actions">{{ actions }}</span>{% endif %}</span>
     {% if dismissLabel %}<button type="button" class="lp-flash__dismiss" data-action="click->flash#dismiss">{{ dismissLabel }}</button>{% endif %}
 </div>

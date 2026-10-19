@@ -142,6 +142,10 @@ final class ConnectAgentControllerTest extends WebTestCase
         self::assertCount(2, $crawler->filter('details.lp-install'));
         self::assertCount(0, $crawler->filter('details.lp-install[open]'));
         self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"]:not([open])'));
+        // Every disclosure of the page animates through the disclosure controller.
+        self::assertCount(0, $crawler->filter('details[data-testid="connect-other-ways"] details:not([data-controller="disclosure"]):not(.lp-install)'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"][data-controller="disclosure"] > summary .lp-connect-other__caret'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"] > [data-disclosure-target="content"]'));
         self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"] details.lp-install[data-testid="install-cli"]'));
 
         // No page may hand out a credential any more, so no snippet carries one.

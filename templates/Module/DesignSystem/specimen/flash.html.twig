@@ -1,3 +1,6 @@
 {# twig-cs-fixer-disable #}
 {# Dev-only specimen for the styleguide, so it is intentionally untranslated. #}
 <twig:Ds:Flash :severity="variant" dismissLabel="Dismiss">A {{ variant }} message</twig:Ds:Flash>
+{% if variant == 'warning' %}
+<twig:Ds:Flash severity="warning" title="A title on its own line">A longer message that wraps under the title, with a row of actions under it.<twig:block name="actions"><twig:Ds:Button variant="on-card" size="sm">Secondary</twig:Ds:Button><twig:Ds:Button variant="primary" size="sm">Primary</twig:Ds:Button></twig:block></twig:Ds:Flash>
+{% endif %}

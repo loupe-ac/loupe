@@ -31,23 +31,28 @@
             :copyLabel="'project.connect.copy'|trans"
             :copiedLabel="'project.connect.copied'|trans"
             testid="connect-init-command" />
-        <details class="lp-connect-other" data-testid="connect-other-ways">
-            <summary class="lp-connect-other__summary">{{ 'project.connect.other.summary'|trans }}</summary>
-            {% include '@Project/_connect_instructions.html.twig' with {mcpServerName: mcpServerName, projectId: project.id} only %}
-            <details class="lp-tools-disclosure">
-                <summary class="lp-tools-disclosure__summary">
-                    <twig:ux:icon name="lucide:chevron-right" class="lp-tools-disclosure__caret" />
-                    {{ 'project.connect.tools.summary'|trans({'%count%': tools|length}) }}
-                </summary>
-                <div class="lp-tools">
-                    {% for tool in tools %}
-                    <div class="lp-tools__row">
-                        <code class="lp-tools__name">{{ tool.name }}</code>
-                        <p class="lp-tools__desc">{{ tool.descriptionKey|trans }}</p>
+        <details class="lp-connect-other" data-testid="connect-other-ways" data-controller="disclosure">
+            <summary class="lp-connect-other__summary" data-action="click->disclosure#toggle">
+                <twig:ux:icon name="lucide:chevron-right" class="lp-icon lp-icon--sm lp-connect-other__caret" />
+                {{ 'project.connect.other.summary'|trans }}
+            </summary>
+            <div class="lp-connect-other__body" data-disclosure-target="content">
+                {% include '@Project/_connect_instructions.html.twig' with {mcpServerName: mcpServerName, projectId: project.id} only %}
+                <details class="lp-tools-disclosure" data-controller="disclosure">
+                    <summary class="lp-tools-disclosure__summary" data-action="click->disclosure#toggle">
+                        <twig:ux:icon name="lucide:chevron-right" class="lp-tools-disclosure__caret" />
+                        {{ 'project.connect.tools.summary'|trans({'%count%': tools|length}) }}
+                    </summary>
+                    <div class="lp-tools" data-disclosure-target="content">
+                        {% for tool in tools %}
+                        <div class="lp-tools__row">
+                            <code class="lp-tools__name">{{ tool.name }}</code>
+                            <p class="lp-tools__desc">{{ tool.descriptionKey|trans }}</p>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </div>
-            </details>
+                </details>
+            </div>
         </details>
         <a class="lp-workshop-text-link" href="{{ app_docs_url }}/using/mcp/#what-the-tools-do" target="_blank" rel="noopener noreferrer" data-connect-docs-link>{{ 'project.connect.docs_link'|trans }} <twig:ux:icon name="lucide:chevron-right" /></a>
     </twig:Ds:Panel>

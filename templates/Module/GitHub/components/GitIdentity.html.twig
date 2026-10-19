@@ -9,15 +9,16 @@
             :help="(project.gitIdentityManaged ? 'github.identity.help.managed' : 'github.identity.help.unmanaged')|trans" />
 
         {% if pushRefusal is not null %}
-        <twig:Ds:Flash severity="warning" class="lp-connect-flash" data-testid="github-push-refused">
-            <strong>{{ 'github.git_token.refused.title'|trans }}</strong>
+        <twig:Ds:Flash severity="warning" class="lp-connect-flash" data-testid="github-push-refused" :title="'github.git_token.refused.title'|trans">
             {{ ('github.git_token.refused.' ~ pushRefusal.cause)|trans({'%grants%': pushRefusal.missingGrants|join(', ')}) }}
-            {{ form_widget(form.turnOff, {attr: {class: ds_button_class('ghost', 'sm'), 'data-testid': 'git-identity-turn-off'}}) }}
-            {% if pushRefusal.cause == 'no_installation' %}
-            <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_app_install', {id: project.id}) }}" data-testid="git-identity-install">
-                <twig:ux:icon name="lucide:external-link" />{{ 'github.identity.install'|trans }}
-            </twig:Ds:Button>
-            {% endif %}
+            <twig:block name="actions">
+                {{ form_widget(form.turnOff, {attr: {class: ds_button_class('on-card', 'sm'), 'data-testid': 'git-identity-turn-off'}}) }}
+                {% if pushRefusal.cause == 'no_installation' %}
+                <twig:Ds:Button variant="primary" size="sm" href="{{ path('app_github_app_install', {id: project.id}) }}" data-testid="git-identity-install">
+                    <twig:ux:icon name="lucide:external-link" />{{ 'github.identity.install'|trans }}
+                </twig:Ds:Button>
+                {% endif %}
+            </twig:block>
         </twig:Ds:Flash>
         {% endif %}
 
@@ -40,11 +41,13 @@
     {% if line.state.warns %}
     <twig:Ds:Flash severity="warning" class="lp-connect-flash" data-testid="git-identity-warning">
         {{ ('github.identity.warning.' ~ line.state.value)|trans({'%login%': line.pushLogin, '%machine%': line.bridgeLabel}) }}
-        <a class="lp-workshop-text-link" href="{{ app_docs_url }}/getting-started/agent-github-account/" target="_blank" rel="noopener noreferrer" data-testid="git-identity-guide">{{ 'github.identity.docs_link'|trans }}</a>
+        <twig:block name="actions">
+            <a class="lp-workshop-text-link" href="{{ app_docs_url }}/getting-started/agent-github-account/" target="_blank" rel="noopener noreferrer" data-testid="git-identity-guide">{{ 'github.identity.docs_link'|trans }}</a>
+        </twig:block>
     </twig:Ds:Flash>
     {% endif %}
     {% else %}
-    <p class="lp-connect-hint" data-testid="git-identity-empty">{{ 'github.identity.empty'|trans }}</p>
+    <twig:Ds:EmptyState compact onCard icon="lucide:terminal" :title="'github.identity.empty_title'|trans" :body="'github.identity.empty'|trans" data-testid="git-identity-empty" />
     {% endfor %}
 </twig:Ds:Panel>
 {% endif %}
