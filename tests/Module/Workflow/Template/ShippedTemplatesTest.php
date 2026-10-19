@@ -616,14 +616,13 @@ final class ShippedTemplatesTest extends KernelTestCase
     }
 
     #[DataProvider('shippedKeys')]
-    public function test_every_request_names_what_its_work_needs_from_the_project(string $key): void
+    public function test_every_request_but_the_teardown_names_what_its_work_needs_from_the_project(string $key): void
     {
         $requests = array_values(array_filter($this->template($key)->rules, static fn ($rule): bool => 'request' === $rule->then->key));
+        $withoutChecks = array_values(array_map(static fn ($rule): string => $rule->id, array_filter($requests, static fn ($rule): bool => [] === $rule->then->checks)));
 
         self::assertNotEmpty($requests);
-        foreach ($requests as $rule) {
-            self::assertNotSame([], $rule->then->checks, $rule->id);
-        }
+        self::assertSame(['teardown'], $withoutChecks);
     }
 
     public function test_the_ready_pull_request_of_an_epic_asks_for_the_merge_write(): void

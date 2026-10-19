@@ -1,5 +1,5 @@
 key: simple
-version: 7
+version: 8
 defaultType: feature
 epicBranch: 'epic/{number}'
 types:
@@ -31,8 +31,6 @@ rules:
           request:
               kind: teardown
               onTimeout: expire
-              checks:
-                  - A command that removes the worktree and the preview of a finished card
 
 markers:
     - key: paused
