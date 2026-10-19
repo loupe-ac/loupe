@@ -37,6 +37,9 @@ abstract readonly class Expression
     /** @return list<ConditionLeaf> every leaf, in template order */
     abstract public function leaves(): array;
 
+    /** @return list<ConditionLeaf> the leaves that must be true for the expression to be true */
+    abstract public function requiredLeaves(): array;
+
     /**
      * @return list<string> the canonical key of each leaf, and of each negation taken whole, that holds now, in template order.
      *                      Call it only when unreadable() answers null.
