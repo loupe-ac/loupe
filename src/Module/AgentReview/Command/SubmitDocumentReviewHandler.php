@@ -23,8 +23,6 @@ use Ubermuda\AuditBundle\AuditSubject;
 /** Stores the review that a running design review worker of the card made of one version of a draft design of the card. */
 final readonly class SubmitDocumentReviewHandler
 {
-    public const string REVIEW_WORK_KIND = 'design-review';
-
     public const string NO_REVIEW_RUN = 'agent_review.error.no_design_review_run';
     public const string NOT_LINKED = 'agent_review.error.document_not_linked';
     public const string NOT_DRAFT = 'agent_review.error.document_not_draft';
@@ -51,7 +49,7 @@ final readonly class SubmitDocumentReviewHandler
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
         $projectId = $card->project->id ?? throw new \LogicException('A stored project has an id.');
 
-        $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, self::REVIEW_WORK_KIND);
+        $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, 'design-review');
         if (null === $run) {
             throw new DomainErrors(['session' => self::NO_REVIEW_RUN]);
         }

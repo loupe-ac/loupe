@@ -508,6 +508,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	if r.control != nil {
 		served = serveControl(ctx, r.control, controlOps{
 			reload: func(ctx context.Context) reloadResult { return r.reload(ctx, r.source) },
+			env:    r.runEnv,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					return updateResult{From: version, Outcome: outcomeFailed, Problem: "this bridge runs no update checks"}

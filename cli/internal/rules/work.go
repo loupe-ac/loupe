@@ -60,7 +60,11 @@ type WorkEntry struct {
 	// PermissionMode is an old key. A file with accounts refuses it.
 	PermissionMode string        `yaml:"permissionMode"`
 	Before         *BeforeConfig `yaml:"before"`
-	WorkerPool     string        `yaml:"workerPool"`
+	// Refresh and Reset are the commands `loupe env refresh` and `loupe env
+	// reset` run for a worker of this entry, in its folder.
+	Refresh    *BeforeConfig `yaml:"refresh"`
+	Reset      *BeforeConfig `yaml:"reset"`
+	WorkerPool string        `yaml:"workerPool"`
 	// Variants pick the model or the account, as the variants of an
 	// experiment named after the kind. An entry that sets them sets no model.
 	Variants []Variant `yaml:"variants"`
@@ -83,6 +87,8 @@ type WorkEntry struct {
 	run            RunSettings
 	experiment     *Experiment
 	beforeTimeout  time.Duration
+	refreshTimeout time.Duration
+	resetTimeout   time.Duration
 	commandTimeout time.Duration
 }
 
@@ -191,12 +197,12 @@ var workRefusals = map[string][]refusal{
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry runs a worker"},
 	},
 	ActionInteractive: {
-		{[]string{"before", "metrics", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
+		{[]string{"before", "metrics", "refresh", "reset", "variants", "workerPool"}, "%s names worker behaviour, and action interactive launches no worker"},
 		{[]string{"run", "timeout"}, "%s belongs to action command, and this entry launches an interactive session"},
 		{[]string{"params", "description"}, "%s belongs to action command, and this entry launches an interactive session"},
 	},
 	ActionCommand: {
-		{[]string{"account", "before", "metrics", "model", "permissionMode", "permissions", "prompt", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
+		{[]string{"account", "before", "metrics", "model", "permissionMode", "permissions", "prompt", "refresh", "reset", "variants", "workerPool"}, "%s names agent behaviour, and action command starts no agent"},
 	},
 }
 
@@ -213,6 +219,8 @@ func checkWork(kind string, w *WorkEntry) error {
 			"account":        w.Account != "",
 			"permissions":    w.Permissions != "",
 			"before":         w.Before != nil,
+			"refresh":        w.Refresh != nil,
+			"reset":          w.Reset != nil,
 			"metrics":        w.Metrics != nil,
 			"model":          w.Model != "",
 			"permissionMode": w.PermissionMode != "",
@@ -252,6 +260,16 @@ func checkWork(kind string, w *WorkEntry) error {
 		timeout, beforeErrs := checkRun("before.", w.Before.Run, w.Before.Timeout, DefaultBeforeTimeout, MaxBeforeTimeout, event.WorkRequestType, workPlaceholders)
 		errs = append(errs, beforeErrs...)
 		w.beforeTimeout = timeout
+	}
+	if w.Refresh != nil {
+		timeout, refreshErrs := checkRun("refresh.", w.Refresh.Run, w.Refresh.Timeout, DefaultBeforeTimeout, MaxBeforeTimeout, event.WorkRequestType, workPlaceholders)
+		errs = append(errs, refreshErrs...)
+		w.refreshTimeout = timeout
+	}
+	if w.Reset != nil {
+		timeout, resetErrs := checkRun("reset.", w.Reset.Run, w.Reset.Timeout, DefaultBeforeTimeout, MaxBeforeTimeout, event.WorkRequestType, workPlaceholders)
+		errs = append(errs, resetErrs...)
+		w.resetTimeout = timeout
 	}
 	errs = append(errs, checkSubject(w)...)
 
@@ -293,6 +311,12 @@ func checkSubject(w *WorkEntry) []error {
 	fields := map[string][]string{"prompt": {w.Prompt}, "run": w.Run}
 	if w.Before != nil {
 		fields["before.run"] = w.Before.Run
+	}
+	if w.Refresh != nil {
+		fields["refresh.run"] = w.Refresh.Run
+	}
+	if w.Reset != nil {
+		fields["reset.run"] = w.Reset.Run
 	}
 	for _, field := range slices.Sorted(maps.Keys(fields)) {
 		var used []string
@@ -426,6 +450,12 @@ func (s *Set) MatchKind(w api.WorkRequest) Match {
 		}
 		if entry.Before != nil {
 			m.Before = &Before{Argv: renderArgv(entry.Before.Run, v), Timeout: entry.beforeTimeout}
+		}
+		if entry.Refresh != nil {
+			m.Refresh = &Before{Argv: renderArgv(entry.Refresh.Run, v), Timeout: entry.refreshTimeout}
+		}
+		if entry.Reset != nil {
+			m.Reset = &Before{Argv: renderArgv(entry.Reset.Run, v), Timeout: entry.resetTimeout}
 		}
 	case ActionInteractive:
 		m.Prompt = directive.RenderPlain(entry.Prompt, v)

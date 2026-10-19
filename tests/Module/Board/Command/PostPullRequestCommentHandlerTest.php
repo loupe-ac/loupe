@@ -453,6 +453,7 @@ final class PostPullRequestCommentHandlerTest extends KernelTestCase
             workKind: 'fix',
             state: WorkerRunState::Queued,
             workRequestId: $request->id,
+            role: 'fix',
         );
         $this->em->persist($run);
         $this->em->flush();

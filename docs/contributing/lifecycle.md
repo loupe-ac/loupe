@@ -303,6 +303,9 @@ work:
 
   epic-preview:
     permissions: full
+    before:
+      run: [bin/worktrees/bridge-epic-preview.sh, "{cardNumber}", "{cardId}"]
+      timeout: 15m
     prompt: |
       Use the loupe-stage-merge skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
@@ -314,6 +317,8 @@ work:
     before:
       run: [bin/worktrees/bridge-before.sh, "--git-only", "{cardNumber}", "{cardId}"]
       timeout: 15m
+    reset:
+      run: [just, worktree-down, "card-{cardNumber}"]
     prompt: |
       Use the loupe-stage-repair skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
@@ -338,9 +343,11 @@ fields.
 The breakdown writes no code, so its entry has no `before` command. Its worker
 runs in the main checkout, and changes only the board.
 
-The `epic-preview` entry has no `before` command either. It runs the
-`loupe-stage-merge` skill from the main checkout, and the skill works in the
-epic preview `.worktrees/epic-<number>`.
+The `before` command of the `epic-preview` entry runs
+`bin/worktrees/bridge-epic-preview.sh`. It creates or refreshes the epic
+preview `.worktrees/epic-<number>` under a lock, and prints its path. The
+worker starts there and runs the `loupe-stage-merge` skill, which only seeds and
+proves the preview links.
 
 The `repair` entry runs the `loupe-stage-repair` skill after the work of a
 rule fails and its retries run out. Its `before` command takes `--git-only`, so
@@ -350,7 +357,9 @@ not depend on it. The
 worker finds the failed run of the rule with `worker_run_list` and
 `worker_run_get`. The `Repair` section of `.loupe/lifecycle.md` lists what it
 may change: the card branch, the card worktree, and a sync of the epic branch
-with `main`. When the repair ends done, the rule gets one last try.
+with `main`. To remove a broken card worktree, it runs `loupe env reset`, which
+runs the `reset` command of the entry in the main checkout. When the repair ends
+done, the rule gets one last try.
 [Workflows](../using/workflows.md#pauses-and-retries) describes the escalation.
 
 The example has no `rebase-stacked` entry, because no stage skill changes the

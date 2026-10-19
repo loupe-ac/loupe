@@ -12,20 +12,19 @@ use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Repository\DocumentRepository;
 use App\Module\Review\Repository\DocumentVersionRepository;
 use App\Module\Workflow\Contract\CardSnapshot;
+use App\Module\Workflow\Contract\DesignReviewTags;
 use App\Module\Workflow\Contract\FactProvider;
 use App\Module\Workflow\Contract\FingerprintValue;
 
 final readonly class DocumentReviewFactProvider implements FactProvider
 {
-    /** The tags of the documents whose review loop the facts describe. */
-    private const array DESIGN_TAGS = ['product-design', 'tech-design'];
-
     public function __construct(
         private CardRepository $cards,
         private CardDocumentRepository $cardDocuments,
         private DocumentRepository $documents,
         private DocumentVersionRepository $documentVersions,
         private DocumentAgentReviewRepository $documentAgentReviews,
+        private DesignReviewTags $designReviewTags,
     ) {
     }
 
@@ -48,8 +47,9 @@ final readonly class DocumentReviewFactProvider implements FactProvider
 
         $drafts = [];
         $tags = [];
+        $reviewedTags = $this->designReviewTags->of($card->project->requireId());
         foreach ($this->cardDocuments->findStatusesAndTagsForCard($card) as $row) {
-            $designTags = array_values(array_intersect($row['tags'], self::DESIGN_TAGS));
+            $designTags = array_values(array_intersect($row['tags'], $reviewedTags));
             $document = DocumentStatus::Draft->value === $row['status'] && [] !== $designTags ? $this->documents->find($row['id']) : null;
             if ($document instanceof Document) {
                 $drafts[] = $document;

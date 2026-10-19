@@ -54,7 +54,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_stores_a_failing_review_for_an_important_finding(): void
     {
-        $run = $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $run = $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $result = $this->submit(2, [$this->finding('important'), $this->finding('nit')]);
@@ -72,9 +72,27 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
         self::assertFalse($review->isAnswered());
     }
 
-    public function test_a_review_of_an_older_version_is_stored_and_not_current(): void
+    public function test_the_role_of_the_run_decides_and_its_kind_does_not(): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'custom-design-check', role: 'design-review');
+        $this->sendSession($this->sessionId);
+
+        $result = $this->submit(2, []);
+
+        self::assertSame('success', $result['conclusion']);
+    }
+
+    public function test_a_run_with_no_role_is_refused_whatever_its_kind(): void
     {
         $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->sendSession($this->sessionId);
+
+        $this->assertRefused('takes a review only from a running design review worker', fn () => $this->submit(2, []));
+    }
+
+    public function test_a_review_of_an_older_version_is_stored_and_not_current(): void
+    {
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $result = $this->submit(1, []);
@@ -84,7 +102,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_a_review_with_only_nits_and_pre_existing_findings_passes(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
 
         self::assertSame('success', $this->submit(2, [$this->finding('nit'), $this->finding('pre-existing')])['conclusion']);
@@ -92,7 +110,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_an_important_finding_for_the_owner_does_not_fail_the_review(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $result = $this->submit(2, [[...$this->finding('important'), 'needsPerson' => true]]);
@@ -103,14 +121,14 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_refuses_a_call_with_no_session(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
 
         $this->assertRefused('takes a review only from a running design review worker', fn () => $this->submit(2, []));
     }
 
     public function test_it_refuses_a_session_of_another_work_kind(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'tech-design-revise', role: 'design-revise');
         $this->sendSession($this->sessionId);
 
         $this->assertRefused('takes a review only from a running design review worker', fn () => $this->submit(2, []));
@@ -126,7 +144,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
     #[DataProvider('withdrawnStates')]
     public function test_it_refuses_a_review_from_a_run_whose_work_was_withdrawn(WorkRequestState $state): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', requestState: $state);
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', requestState: $state, role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $this->assertRefused('This work was withdrawn.', fn () => $this->submit(2, []));
@@ -135,7 +153,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_takes_a_review_from_a_run_whose_work_is_live(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', requestState: WorkRequestState::Claimed);
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', requestState: WorkRequestState::Claimed, role: 'design-review');
         $this->sendSession($this->sessionId);
 
         self::assertSame('success', $this->submit(2, [])['conclusion']);
@@ -143,7 +161,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_refuses_a_run_that_has_ended(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', WorkerRunState::Succeeded);
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', WorkerRunState::Succeeded, role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $this->assertRefused('takes a review only from a running design review worker', fn () => $this->submit(2, []));
@@ -151,7 +169,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_refuses_a_document_that_the_card_does_not_link(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
         $other = $this->card($this->project, 2);
         $this->em->flush();
@@ -162,7 +180,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_refuses_a_document_that_is_not_a_draft(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
         $this->document->status = DocumentStatus::InReview;
         $this->em->flush();
@@ -172,7 +190,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_refuses_a_version_the_document_does_not_have(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $this->assertRefused('must name a version of the document', fn () => $this->submit(3, []));
@@ -180,7 +198,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_refuses_an_empty_summary_and_a_bad_finding(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
         $this->sendSession($this->sessionId);
 
         $this->assertRefused('summary must not be empty', fn () => ($this->tool)((string) $this->card->id, (string) $this->document->id, 2, '  ', []));
@@ -191,7 +209,7 @@ final class DocumentReviewSubmitToolTest extends KernelTestCase
 
     public function test_it_stores_nothing_when_it_refuses(): void
     {
-        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review');
+        $this->workRun($this->project, $this->card, $this->sessionId, 'design-review', role: 'design-review');
 
         try {
             $this->submit(2, []);

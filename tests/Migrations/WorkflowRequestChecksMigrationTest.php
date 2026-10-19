@@ -35,7 +35,7 @@ final class WorkflowRequestChecksMigrationTest extends KernelTestCase
         foreach ($ids as $key => $projectId) {
             $connection->executeStatement(
                 'UPDATE workflow_bindings SET definition = CAST(? AS JSONB) WHERE project_id = ?',
-                [json_encode(self::withoutChecks($shipped->source($key)), \JSON_THROW_ON_ERROR), $projectId],
+                [json_encode(self::oldCopy($shipped->source($key)), \JSON_THROW_ON_ERROR), $projectId],
             );
             self::assertNotEquals($shipped->source($key), $this->definition($connection, $projectId));
         }
@@ -53,8 +53,10 @@ final class WorkflowRequestChecksMigrationTest extends KernelTestCase
      *
      * @return array<mixed>
      */
-    private static function withoutChecks(array $source): array
+    private static function oldCopy(array $source): array
     {
+        self::assertIsInt($source['version']);
+        $source['version'] = $source['version'] - 1;
         self::assertIsArray($source['rules']);
         foreach ($source['rules'] as $index => $rule) {
             self::assertIsArray($rule);

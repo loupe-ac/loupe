@@ -26,8 +26,6 @@ use Ubermuda\AuditBundle\AuditSubject;
 /** Stores the review that a running review worker of the card made of one commit of a pull request of the card. */
 final readonly class SubmitAgentReviewHandler
 {
-    public const string REVIEW_WORK_KIND = 'review';
-
     public const string NO_REVIEW_RUN = 'agent_review.error.no_review_run';
     public const string NOT_LINKED = 'agent_review.error.pull_request_not_linked';
     public const string NOT_TRACKED = 'agent_review.error.pull_request_not_tracked';
@@ -53,7 +51,7 @@ final readonly class SubmitAgentReviewHandler
         $cardId = $card->id ?? throw new \LogicException('A stored card has an id.');
         $projectId = $card->project->id ?? throw new \LogicException('A stored project has an id.');
 
-        $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, self::REVIEW_WORK_KIND);
+        $run = null === $command->sessionId ? null : $this->workerRuns->findOpenOfSessionForCard($card->project, $command->sessionId, $cardId, 'code-review');
         if (null === $run) {
             throw new DomainErrors(['session' => self::NO_REVIEW_RUN]);
         }

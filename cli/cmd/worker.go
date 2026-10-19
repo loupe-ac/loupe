@@ -41,6 +41,10 @@ const maxStdout = 1 << 20
 // the run that moves a card.
 const sessionEnv = "LOUPE_SESSION_ID"
 
+// socketEnv gives `loupe env` the control socket of the bridge that runs the
+// worker.
+const socketEnv = "LOUPE_BRIDGE_SOCKET"
+
 // workerResult is one finished worker. err is set when the process never ran,
 // which is a different fault from a process that ran and failed. hasResult
 // says whether stdout held a valid structured result, and killed that the
@@ -111,6 +115,11 @@ type workerSpec struct {
 	// before is the command that runs ahead of claude and prints its dir, or
 	// nil.
 	before *rules.Before
+	// refresh and reset are the commands `loupe env` asks the bridge to run
+	// in the worker's folder, or nil. socket is the control socket that
+	// carries the request.
+	refresh, reset *rules.Before
+	socket         string
 	// command is the command of a command rule, which runs in place of
 	// the harness, or nil.
 	command *rules.Command
@@ -159,13 +168,14 @@ func defaultWorkerOps() workerOps {
 }
 
 // workerEnv is the environment the bridge gives a worker before its harness
-// adds to it. The session id replaces an inherited one. An agent account
-// replaces the inherited GitHub token and git identity.
-func workerEnv(environ []string, sessionID string, agent *config.AgentAccount) []string {
+// adds to it. The session id and the control socket replace inherited ones,
+// and an empty socket leaves the variable out. An agent account replaces the
+// inherited GitHub token and git identity.
+func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAccount) []string {
 	env := make([]string, 0, len(environ)+12)
 	gitConfigs := 0
 	for _, e := range environ {
-		if strings.HasPrefix(e, sessionEnv+"=") {
+		if strings.HasPrefix(e, sessionEnv+"=") || strings.HasPrefix(e, socketEnv+"=") {
 			continue
 		}
 		if agent != nil {
@@ -182,6 +192,9 @@ func workerEnv(environ []string, sessionID string, agent *config.AgentAccount) [
 		env = append(env, e)
 	}
 	env = append(env, sessionEnv+"="+sessionID)
+	if socket != "" {
+		env = append(env, socketEnv+"="+socket)
+	}
 	if agent == nil {
 		return env
 	}
@@ -354,7 +367,7 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	defer stderr.Close()
 
 	status := filepath.Join(dir, "status")
-	command := spec.harnessCommand(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.agent))
+	command := spec.harnessCommand(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.socket, spec.agent))
 	for path, content := range command.Files {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			return nil, dir, nil, fmt.Errorf("write worker file: %w", err)

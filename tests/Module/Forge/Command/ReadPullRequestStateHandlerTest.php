@@ -437,6 +437,46 @@ final class ReadPullRequestStateHandlerTest extends KernelTestCase
         self::assertSame('pushed1', $fresh->uncoveredSha);
     }
 
+    public function test_a_reset_after_a_rule_change_judges_a_covered_head_again(): void
+    {
+        $row = $this->approvedRow();
+        $this->reader->answers = [$this->approvedRead('merged1'), $this->approvedRead('merged1')];
+        $this->coverage->answers = [ApprovalCoverage::Covered, ApprovalCoverage::NotCovered];
+        $this->handle($row, self::NOW);
+        self::assertSame('merged1', $this->reload($row)->coveredSha);
+
+        $this->service(ForgePullRequestRepository::class)->resetApprovalCoverage($row->project->id ?? throw new \LogicException('persisted'));
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+
+        $fresh = $this->reload($row);
+        self::assertSame(2, $this->coverage->reads);
+        self::assertSame('approved1', $fresh->coveredSha);
+        self::assertSame('merged1', $fresh->uncoveredSha);
+        self::assertTrue($fresh->approvalIsStale());
+        self::assertCount(2, $this->changes);
+    }
+
+    public function test_a_reset_after_a_rule_change_judges_a_head_not_covered_again(): void
+    {
+        $row = $this->approvedRow();
+        $this->reader->answers = [$this->approvedRead('merged1'), $this->approvedRead('merged1')];
+        $this->coverage->answers = [ApprovalCoverage::NotCovered, ApprovalCoverage::Covered];
+        $this->handle($row, self::NOW);
+        self::assertSame('merged1', $this->reload($row)->uncoveredSha);
+
+        $this->service(ForgePullRequestRepository::class)->resetApprovalCoverage($row->project->id ?? throw new \LogicException('persisted'));
+        $this->clock->modify('+1 minute');
+        $this->handle($row, '2026-09-27 12:00:30');
+
+        $fresh = $this->reload($row);
+        self::assertSame(2, $this->coverage->reads);
+        self::assertSame('merged1', $fresh->coveredSha);
+        self::assertNull($fresh->uncoveredSha);
+        self::assertFalse($fresh->approvalIsStale());
+        self::assertCount(2, $this->changes);
+    }
+
     public function test_an_unknown_coverage_stores_nothing_and_is_asked_again(): void
     {
         $row = $this->approvedRow();

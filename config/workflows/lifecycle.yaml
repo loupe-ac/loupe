@@ -1,8 +1,9 @@
 key: lifecycle
-version: 7
+version: 10
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
+approvalCoversConflictResolution: true
 types:
     - { key: feature, label: board.card.type.feature, tone: lime }
     - { key: bug, label: board.card.type.bug, tone: amber }
@@ -12,11 +13,11 @@ types:
     - { key: idea, label: board.card.type.idea, tone: purple }
     - { key: epic, label: board.card.type.epic, tone: blue, capabilities: [children, lane] }
 slots:
-    - { key: next, label: workflow.slot.next }
-    - { key: product-design, label: workflow.slot.product_design }
-    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design }
-    - { key: implementation, label: workflow.slot.implementation, stageWork: implement }
-    - { key: in-review, label: workflow.slot.in_review }
+    - { key: next, label: workflow.slot.next, tone: lime }
+    - { key: product-design, label: workflow.slot.product_design, tone: sky }
+    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design, tone: indigo }
+    - { key: implementation, label: workflow.slot.implementation, stageWork: implement, tone: purple }
+    - { key: in-review, label: workflow.slot.in_review, tone: amber }
 manualMoves:
     - { from: '@backlog', to: next }
     - { from: next, to: '@backlog' }
@@ -58,6 +59,7 @@ rules:
       then:
           request:
               kind: product-design-revise
+              role: design-revise
               document: { tag: product-design, status: changes-requested }
               checks:
                   - The Loupe plugin skills are installed for the agent
@@ -75,6 +77,7 @@ rules:
       then:
           request:
               kind: design-review
+              role: design-review
               stillTrue: retry
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
               document: { tag: product-design, status: draft }
@@ -88,6 +91,7 @@ rules:
       then:
           request:
               kind: product-design-revise
+              role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: product-design, status: draft } } }
               limit: 5
@@ -129,6 +133,7 @@ rules:
       then:
           request:
               kind: tech-design-revise
+              role: design-revise
               document: { tag: tech-design, status: changes-requested }
               checks:
                   - The agent can read the whole repository
@@ -147,6 +152,7 @@ rules:
       then:
           request:
               kind: design-review
+              role: design-review
               stillTrue: retry
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
               document: { tag: tech-design, status: draft }
@@ -161,6 +167,7 @@ rules:
       then:
           request:
               kind: tech-design-revise
+              role: design-revise
               reason: agent-review
               cancelWhen: { not: { card.document.linked: { tag: tech-design, status: draft } } }
               limit: 5
@@ -223,7 +230,6 @@ rules:
                   - The .loupe/lifecycle.md sections that the stage skills read
                   - A build command and a test command that an agent can run
                   - A draft pull request that a separate agent reviews after the push
-                  - The agent pushes as its own GitHub account
 
     # After implement, so a card that comes back opens its new request before these read the latest request.
     - id: nothing-to-build
@@ -284,6 +290,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               limit: 3
               checks:
                   - The worktree of the card is still available, or the agent can make it again
@@ -309,6 +316,7 @@ rules:
       then:
           request:
               kind: review
+              role: code-review
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
@@ -324,6 +332,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               reason: agent-review
               limit: 10
               checks:
@@ -360,6 +369,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               limit: 3
               checks:
                   - The worktree of the card is still available, or the agent can make it again
@@ -393,6 +403,7 @@ rules:
       then:
           request:
               kind: review
+              role: code-review
               stillTrue: retry
               checks:
                   - A bridge work entry for the review kind
@@ -408,6 +419,7 @@ rules:
       then:
           request:
               kind: fix
+              role: fix
               reason: agent-review
               limit: 10
               checks:
@@ -564,8 +576,6 @@ rules:
           request:
               kind: teardown
               onTimeout: expire
-              checks:
-                  - A command that removes the worktree and the preview of a finished card
 
     - id: epic-preview
       slot: in-review
@@ -639,7 +649,7 @@ rules:
               - card.pr.all_finished_one_merged: {}
               - card.children.finished: {}
               - any: [{ not: { card.type: { type: epic } } }, { not: { card.run.worker_active: {} } }]
-      then: { move: { to: '@terminal' } }
+      then: { move: { to: '@terminal', outcome: merged } }
 
     # These two come last, with no slot. A fired move ends the pass even when it moves nothing, so an earlier place would shadow the rules after it.
     # The truth outlives a move: a child that a person moves back to the Backlog makes no edge and stays parked.

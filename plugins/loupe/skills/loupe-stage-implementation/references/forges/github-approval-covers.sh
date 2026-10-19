@@ -1,13 +1,24 @@
 #!/usr/bin/env bash
 # Tells whether the current approvals of a GitHub pull request cover every commit up to <sha>.
-# Usage: github-approval-covers.sh <pull request url> <sha>. Run it from a checkout of the repository.
+# Usage: github-approval-covers.sh [--conflicts covered|hold] <pull request url> <sha>. Run it from a checkout of the repository.
+# --conflicts covered (the default) lets an approval cover a merge from the base that holds a conflict resolution.
+# --conflicts hold holds such a merge. It is the value false of approvalCoversConflictResolution in workflow_get.
 # Prints COVERED, or HOLD with the reason. Exits 0 on COVERED, 1 on HOLD, 2 when a read fails.
 # APPROVER=<login> counts that reviewer only. AS_OF=<ISO time> ignores later reviews, to replay a decision.
 set -o pipefail
-url=${1:?usage: github-approval-covers.sh <pull request url> <sha>}
-sha=${2:?usage: github-approval-covers.sh <pull request url> <sha>}
-[[ $url =~ ^https://github\.com/([^/]+)/([^/]+)/pull/([0-9]+)/?$ ]] || { echo "UNREAD: not a GitHub pull request URL: $url"; exit 2; }
-repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}" pr=${BASH_REMATCH[3]}
+usage="usage: github-approval-covers.sh [--conflicts covered|hold] <pull request url> <sha>"
+conflicts=covered
+if [ "${1:-}" = "--conflicts" ]; then
+  conflicts=${2:-}
+  [ "$conflicts" = covered ] || [ "$conflicts" = hold ] || { echo "UNREAD: --conflicts takes covered or hold"; exit 2; }
+  shift 2
+fi
+url=${1:?$usage}
+sha=${2:?$usage}
+[[ $url =~ ^https://([^/]+)/([^/]+)/([^/]+)/pull/([0-9]+)/?$ ]] || { echo "UNREAD: not a GitHub pull request URL: $url"; exit 2; }
+host=${BASH_REMATCH[1]} repo="${BASH_REMATCH[2]}/${BASH_REMATCH[3]}" pr=${BASH_REMATCH[4]}
+auth=$(gh auth status --hostname "$host" 2>&1) || { echo "UNREAD: gh auth status failed for $host: $(head -n1 <<<"$auth")"; exit 2; }
+export GH_HOST=$host
 
 view=$(gh pr view "$url" --json headRefOid,headRefName,baseRefName 2>/dev/null) || { echo "UNREAD: gh pr view failed"; exit 2; }
 head=$(jq -r .headRefOid <<<"$view") branch=$(jq -r .headRefName <<<"$view") base=$(jq -r .baseRefName <<<"$view")
@@ -28,12 +39,16 @@ seen=$(jq -r --arg at "$at" '[.[]|select(.timestamp < $at)]|max_by(.timestamp)|.
 [ -n "$seen" ] || { echo "HOLD no push of $branch before the approval"; exit 1; }
 
 git fetch -q origin "$base" "refs/pull/$pr/head" 2>/dev/null || { echo "UNREAD: git fetch failed"; exit 2; }
-sync=0 new=()
+sync=0 new=() resolved=()
 while IFS=$'\t' read -r oid parents headline; do
   [ -n "$oid" ] || continue
   git merge-base --is-ancestor "$oid" "$seen" 2>/dev/null && continue
-  # The approval covers a merge from the base, with or without a conflict resolution.
   if [ "$parents" -gt 1 ] && git merge-base --is-ancestor "$oid^2" "origin/$base" 2>/dev/null; then
+    # With --conflicts hold, a merge counts as a sync only when git makes the same tree again with no conflict.
+    if [ "$conflicts" = hold ] && [ "$(git merge-tree --write-tree "$oid^1" "$oid^2" 2>/dev/null)" != "$(git rev-parse "$oid^{tree}")" ]; then
+      resolved+=("${oid:0:8}")
+      continue
+    fi
     sync=$((sync + 1))
   else
     new+=("${oid:0:8} $headline")
@@ -42,5 +57,8 @@ done < <(jq -r '.[]|[.oid,(.parents|tostring),.headline]|@tsv' <<<"$commits")
 
 if [ ${#new[@]} -gt 0 ]; then
   list=$(printf '%s; ' "${new[@]}"); echo "HOLD commits after approval: ${list%; }"; exit 1
+fi
+if [ ${#resolved[@]} -gt 0 ]; then
+  list=$(printf '%s, ' "${resolved[@]}"); echo "HOLD conflict resolution after approval: ${list%, }"; exit 1
 fi
 echo "COVERED approval=$at seen=${seen:0:8} head=${head:0:8} sync-merges-after-approval=$sync"

@@ -91,6 +91,7 @@ trait BridgeScenario
         ?string $account = null,
         ?string $model = null,
         ?string $harnessSessionId = null,
+        ?string $role = null,
     ): WorkerRun {
         $run = new WorkerRun(
             project: AgentCredential::managed($em, $project, $project->id),
@@ -111,6 +112,7 @@ trait BridgeScenario
             receivedAt: $receivedAt,
             kind: $kind,
             workRequestId: $workRequestId,
+            role: $role,
         );
         $run->workerPool = $workerPool;
         $run->recordHarness($harness, $account, $model, $harnessSessionId);
@@ -286,6 +288,7 @@ trait BridgeScenario
         ?Uuid $targetBridgeId = null,
         ?string $branch = null,
         ?array $params = null,
+        ?string $role = null,
     ): WorkRequest {
         $subject ??= WorkSubject::card($cardId ?? Uuid::v7());
         $request = new WorkRequest(
@@ -307,6 +310,7 @@ trait BridgeScenario
         $request->targetBridgeId = $targetBridgeId;
         $request->branch = $branch;
         $request->params = $params;
+        $request->role = $role;
         $em->persist($request);
         $em->flush();
 

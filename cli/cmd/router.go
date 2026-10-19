@@ -197,9 +197,11 @@ type router struct {
 	// paused stops dispatch, and frozen also holds back the events and the
 	// finished runs that arrive after a freeze, for resume to replay. live
 	// holds the workers that started.
-	paused       bool
-	frozen       bool
-	live         map[string]liveRun
+	paused bool
+	frozen bool
+	live   map[string]liveRun
+	// envBusy holds the sessions that a refresh or a reset runs for.
+	envBusy      map[string]bool
 	heldEvents   []heldEvent
 	heldFinishes []func()
 	// personPaused stops dispatch while a person pauses the bridge. resume
@@ -326,12 +328,13 @@ func (p *pending) apply(m rules.Match) {
 	if p.continues != "" {
 		p.spec.dir, p.spec.effort, p.spec.schema = m.Dir, m.Effort, m.Schema
 		p.spec.before, p.spec.command = m.Before, m.Command
+		p.spec.refresh, p.spec.reset = m.Refresh, m.Reset
 		run, _ := p.startedOn.settings(p.set, m.Run())
 		p.spec.useSettings(run)
 
 		return
 	}
-	p.spec = workerSpec{dir: m.Dir, effort: m.Effort, schema: m.Schema, prompt: m.Prompt, before: m.Before, command: m.Command}
+	p.spec = workerSpec{dir: m.Dir, effort: m.Effort, schema: m.Schema, prompt: m.Prompt, before: m.Before, command: m.Command, refresh: m.Refresh, reset: m.Reset}
 	p.spec.useRun(m)
 	// The server asks the work to resume the session of an unfinished run,
 	// which the offer found on this machine.
@@ -974,6 +977,9 @@ func (r *router) start(p pending) {
 		r.log.Info("worker_started", append(args, "session_id", p.spec.sessionID)...)
 	}
 	p.spec.runID, p.spec.rule, p.spec.key = p.runID, p.rule, p.key
+	if r.control != nil {
+		p.spec.socket = r.control.Addr().String()
+	}
 	if r.inbox {
 		p.spec.prompt += "\n" + directive.InboxLine(p.spec.sessionID, r.bridgeID)
 	}

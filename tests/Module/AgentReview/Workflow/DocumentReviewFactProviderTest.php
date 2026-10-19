@@ -19,12 +19,14 @@ use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
 use App\Module\Review\Entity\Tag;
 use App\Tests\Module\AgentReview\DocumentReviewScenario;
+use App\Tests\Module\Workflow\WorkflowProjects;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class DocumentReviewFactProviderTest extends KernelTestCase
 {
     use DocumentReviewScenario;
+    use WorkflowProjects;
 
     private EntityManagerInterface $em;
 
@@ -126,14 +128,62 @@ final class DocumentReviewFactProviderTest extends KernelTestCase
         self::assertNotEquals($revised, $this->fingerprint($card));
     }
 
-    /** @return array{Card, Document} */
-    private function cardWithDesign(DocumentStatus $status = DocumentStatus::Draft, int $versions = 1): array
+    public function test_a_draft_with_a_custom_design_tag_gets_review_facts_before_any_design_review_request_exists(): void
     {
-        $project = $this->makeProject('design-review-facts');
+        [$card, $document] = $this->cardWithDesign(designTag: 'custom-design', copy: static function (array $definition): array {
+            foreach ($definition['rules'] as $index => $rule) {
+                if ('design-review' === ($rule['then']['request']['role'] ?? null) && 'tech-design' === $rule['then']['request']['document']['tag']) {
+                    $definition['rules'][$index]['then']['request']['document']['tag'] = 'custom-design';
+                }
+            }
+
+            return $definition;
+        });
+
+        $state = $this->only($card);
+
+        self::assertSame((string) $document->id, $state->documentId);
+        self::assertSame(['custom-design'], $state->tags);
+        self::assertNull($state->reviewId);
+    }
+
+    public function test_a_template_with_no_design_review_rule_gives_no_draft_review_facts(): void
+    {
+        [$card] = $this->cardWithDesign(copy: static function (array $definition): array {
+            $definition['rules'] = array_values(array_filter(
+                $definition['rules'],
+                static fn (array $rule): bool => 'design-review' !== ($rule['then']['request']['role'] ?? null),
+            ));
+
+            return $definition;
+        });
+
+        self::assertSame([], $this->build($card)->documents);
+    }
+
+    public function test_a_tag_that_no_design_review_rule_names_gets_no_review_facts(): void
+    {
+        [$card] = $this->cardWithDesign(designTag: 'notes');
+
+        self::assertSame([], $this->build($card)->documents);
+    }
+
+    /**
+     * @param ?\Closure(array<string, mixed>): array<string, mixed> $copy changes the stored Lifecycle copy of the project
+     *
+     * @return array{Card, Document}
+     */
+    private function cardWithDesign(DocumentStatus $status = DocumentStatus::Draft, int $versions = 1, string $designTag = 'tech-design', ?\Closure $copy = null): array
+    {
+        $project = $this->workflowProject('design-review-facts');
+        $binding = $this->bindLifecycle($project);
+        if (null !== $copy) {
+            $binding->definition = $copy($binding->definition);
+        }
         $card = $this->card($project);
         $this->em->flush();
         $document = $this->linkedDocument($card, $status, $versions);
-        $tag = new Tag($project, 'tech-design');
+        $tag = new Tag($project, $designTag);
         $this->em->persist($tag);
         $document->tags->add($tag);
         $this->em->flush();

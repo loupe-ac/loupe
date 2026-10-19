@@ -146,6 +146,10 @@ class WorkRequest
     #[ORM\Column(name: 'run', type: Types::JSON, nullable: true)]
     public ?array $run = null;
 
+    /** What the work does, such as code-review, whatever its kind. Null for a request with no role. */
+    #[ORM\Column(name: 'role', length: 20, nullable: true)]
+    public ?string $role = null;
+
     /** What the card held when the request opened. A row from before the column reads as an empty context. */
     public WorkRequestContext $context {
         get => WorkRequestContext::fromArray($this->contextData);

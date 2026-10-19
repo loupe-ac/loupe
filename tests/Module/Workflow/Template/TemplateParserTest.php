@@ -46,6 +46,7 @@ use App\Module\Workflow\Template\InvalidTemplate;
 use App\Module\Workflow\Template\ManualMoveActor;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\TemplatePrompts;
 use App\Tests\Module\Workflow\Action\ExpressionPluggedAction;
 use App\Tests\Module\Workflow\Action\PluggedAction;
 use App\Tests\Module\Workflow\Fact\FactsMother;
@@ -55,6 +56,8 @@ use Symfony\Component\Yaml\Yaml;
 
 final class TemplateParserTest extends TestCase
 {
+    private const string TONES = 'neutral, lime, purple, green, amber, red, teal, sky, blue, indigo, pink, orange';
+
     private TemplateParser $parser;
 
     private Actions $actions;
@@ -78,7 +81,7 @@ final class TemplateParserTest extends TestCase
             new PullRequestApprovalCoversHead(),
             new PullRequestOpen(),
             new RunWorkActive(),
-        ]), $this->actions);
+        ]), $this->actions, new TemplatePrompts(self::PROMPTS_FIXTURE));
     }
 
     /** @return array<string, mixed> */
@@ -153,6 +156,24 @@ final class TemplateParserTest extends TestCase
 
         self::assertSame('implement', $template->slot('build')?->stageWork);
         self::assertNull($template->slot('review')?->stageWork);
+    }
+
+    public function test_a_slot_names_the_tone_of_its_column(): void
+    {
+        $source = self::valid();
+        $source['slots'][0]['tone'] = 'lime';
+
+        $template = $this->parser->parse($source);
+
+        self::assertSame(LabelTone::Lime, $template->slot('build')?->tone);
+        self::assertNull($template->slot('review')?->tone);
+    }
+
+    public function test_the_app_rules_name_the_slot_of_the_proposal_cards(): void
+    {
+        self::assertSame('next', $this->parser->parseAppProposalSlot(['rules' => [], 'proposalSlot' => 'next']));
+        self::assertNull($this->parser->parseAppProposalSlot(['rules' => []]));
+        self::assertSame([], $this->parser->parseAppRules(['rules' => [], 'proposalSlot' => 'next']));
     }
 
     public function test_it_parses_a_valid_template(): void
@@ -277,6 +298,36 @@ final class TemplateParserTest extends TestCase
         self::assertNull($template->epicBranchOf(42));
     }
 
+    public function test_a_template_lets_an_approval_cover_a_conflict_resolution_unless_it_says_otherwise(): void
+    {
+        self::assertTrue($this->parser->parse(self::valid())->approvalCoversConflictResolution);
+        self::assertTrue($this->parser->parse(self::valid() + ['approvalCoversConflictResolution' => true])->approvalCoversConflictResolution);
+        self::assertFalse($this->parser->parse(self::valid() + ['approvalCoversConflictResolution' => false])->approvalCoversConflictResolution);
+    }
+
+    #[DataProvider('invalidApprovalRules')]
+    public function test_an_approval_rule_that_is_not_a_boolean_is_refused_and_a_stored_copy_reads_true(mixed $value): void
+    {
+        $source = self::valid() + ['approvalCoversConflictResolution' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains('approvalCoversConflictResolution: must be true or false', $e->errors);
+        }
+        self::assertTrue($this->parser->parseStored($source)->approvalCoversConflictResolution);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidApprovalRules(): iterable
+    {
+        yield 'a string' => ['false'];
+        yield 'an integer' => [0];
+        yield 'a list' => [[false]];
+        yield 'an explicit null' => [null];
+    }
+
     #[DataProvider('invalidEpicBranches')]
     public function test_an_epic_branch_that_is_not_a_branch_name_with_one_placeholder_is_refused_and_a_stored_copy_has_none(mixed $value): void
     {
@@ -395,7 +446,7 @@ final class TemplateParserTest extends TestCase
 
     public function test_the_parameters_of_an_action_come_from_its_declarations(): void
     {
-        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]));
+        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE));
         $template = self::valid();
         $template['rules'] = [['id' => 'plugged', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['plugged' => ['from' => 'review', 'times' => 2, 'mode' => 'fast']]]];
 
@@ -412,7 +463,7 @@ final class TemplateParserTest extends TestCase
 
     public function test_an_action_cannot_declare_an_expression_parameter_that_a_call_drops(): void
     {
-        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new ExpressionPluggedAction()]));
+        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new ExpressionPluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE));
         $template = self::valid();
         $template['rules'] = [['id' => 'expressive', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['expressive' => ['from' => 'review']]]];
 
@@ -425,7 +476,7 @@ final class TemplateParserTest extends TestCase
     #[DataProvider('pluggedActionErrors')]
     public function test_the_declared_parameters_of_an_action_are_checked(array $then, string $error): void
     {
-        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]));
+        $parser = new TemplateParser(new Conditions([new CardInSlot()]), new Actions([new PluggedAction()]), new TemplatePrompts(self::PROMPTS_FIXTURE));
         $template = self::valid();
         $template['rules'] = [['id' => 'plugged', 'when' => ['card.in_slot' => ['slot' => 'build']], 'then' => ['plugged' => $then]]];
 
@@ -448,17 +499,16 @@ final class TemplateParserTest extends TestCase
         yield 'a rule on the parameters as a whole' => [['from' => 'review', 'times' => 2, 'mode' => 'safe'], 'rules[0] (plugged) then.plugged: safe mode needs the slot build'];
     }
 
-    public function test_the_prompt_is_a_parameter_of_an_app_rule_only(): void
+    public function test_an_app_rule_and_a_template_rule_both_carry_a_prompt(): void
     {
         $rules = [['id' => 'groom', 'slot' => '@backlog', 'when' => ['card.in_slot' => ['slot' => '@backlog']], 'then' => ['request' => ['kind' => 'groom', 'prompt' => 'groom-card']]]];
 
         self::assertSame('groom-card', $this->parser->parseAppRules(['rules' => $rules])[0]->then->params['prompt']);
         $template = self::valid();
-        $template['rules'] = $rules;
-        $this->expectException(InvalidTemplate::class);
-        $this->expectExceptionMessage('unknown parameter "prompt"');
+        $template['rules'][0]['then']['request']['prompt'] = 'groom-card';
 
-        $this->parser->parse($template);
+        self::assertSame('groom-card', $this->parser->parse($template)->rules[0]->then->params['prompt']);
+        self::assertSame('groom-card', $this->parser->parseStored($template)->rules[0]->then->params['prompt']);
     }
 
     public function test_a_request_can_expire_with_no_pause(): void
@@ -880,6 +930,16 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[1] (to-review) then: an action must have exactly one key'];
+        yield 'tone that is not a string' => [static function (array $t): array {
+            $t['slots'][0]['tone'] = 12;
+
+            return $t;
+        }, 'slots[0] tone: must be one of '.self::TONES];
+        yield 'tone that is unknown' => [static function (array $t): array {
+            $t['slots'][0]['tone'] = 'mauve';
+
+            return $t;
+        }, 'slots[0] tone: must be one of '.self::TONES];
         yield 'stage work that is not a string' => [static function (array $t): array {
             $t['slots'][0]['stageWork'] = 12;
 
@@ -1453,7 +1513,9 @@ final class TemplateParserTest extends TestCase
         yield 'a move to a slot' => [$rule(['move' => ['to' => 'next']]), ['rules[0] (app-rule) then.move.to: unknown slot "next"']];
         yield 'no rules key' => [[], ['rules: is missing']];
         yield 'rules not a list' => [['rules' => ['a' => 1]], ['rules: must be a list']];
-        yield 'another top-level key' => [['rules' => [], 'slots' => []], ['slots: unknown key, app rules hold only "rules" and "requests"']];
+        yield 'another top-level key' => [['rules' => [], 'slots' => []], ['slots: unknown key, app rules hold only "rules", "requests" and "proposalSlot"']];
+        yield 'a proposal slot that is not a string' => [['rules' => [], 'proposalSlot' => 12], ['proposalSlot: must be a non-empty string']];
+        yield 'an empty proposal slot' => [['rules' => [], 'proposalSlot' => ''], ['proposalSlot: must be a non-empty string']];
     }
 
     /**
@@ -1471,20 +1533,28 @@ final class TemplateParserTest extends TestCase
         }
     }
 
-    public function test_a_template_refuses_a_prompt(): void
+    public function test_a_template_refuses_a_prompt_with_no_file(): void
     {
         $template = self::valid();
         $template['rules'][0]['then']['request']['prompt'] = 'groom';
 
-        foreach ([$this->parser->parse(...), $this->parser->parseStored(...)] as $parse) {
-            try {
-                $parse($template);
-                self::fail('A template rule must not name a prompt.');
-            } catch (InvalidTemplate $e) {
-                self::assertSame(['rules[0] (start) then.request: unknown parameter "prompt"'], $e->errors);
-            }
+        try {
+            $this->parser->parse($template);
+            self::fail('A template rule must not name a prompt with no file.');
+        } catch (InvalidTemplate $e) {
+            self::assertSame(['rules (start): prompt "groom" has no file test/prompts/groom.md'], $e->errors);
         }
     }
+
+    public function test_a_stored_copy_keeps_a_prompt_whose_file_is_gone(): void
+    {
+        $template = self::valid();
+        $template['rules'][0]['then']['request']['prompt'] = 'groom';
+
+        self::assertSame('groom', $this->parser->parseStored($template)->rules[0]->then->params['prompt']);
+    }
+
+    public const string PROMPTS_FIXTURE = __DIR__.'/Fixtures/template-prompts';
 
     public const string MARKERS_FIXTURE = __DIR__.'/Fixtures/markers.yaml';
 

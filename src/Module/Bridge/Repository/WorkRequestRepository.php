@@ -556,7 +556,7 @@ class WorkRequestRepository extends ServiceEntityRepository
         /** @var list<array{number: string|int|null, settled: string}> $rows */
         $rows = $this->getEntityManager()->getConnection()->executeQuery(
             "SELECT (context::jsonb ->> 'pullRequestNumber') AS number, MAX(settled_at) AS settled FROM work_requests
-             WHERE subject_type = :subject AND subject_id = :card AND state = :done AND kind = 'fix'
+             WHERE subject_type = :subject AND subject_id = :card AND state = :done AND role = 'fix'
                AND (context::jsonb ->> 'reason') = 'agent-review' AND settled_at IS NOT NULL
              GROUP BY (context::jsonb ->> 'pullRequestNumber')",
             ['subject' => WorkSubject::CARD, 'card' => $cardId->toRfc4122(), 'done' => WorkRequestState::Done->value],

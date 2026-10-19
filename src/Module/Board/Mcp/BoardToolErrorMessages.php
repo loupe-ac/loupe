@@ -79,6 +79,7 @@ final readonly class BoardToolErrorMessages
             DeleteBoardColumnHandler::TARGET_REQUIRED => 'This column holds cards. Pass targetColumn, the slug of the column they move to.',
             DeleteBoardColumnHandler::TARGET_INVALID => 'targetColumn must name another column of this board. Call board_columns and pass another slug.',
             SaveBoardAutomationSettingsHandler::STUCK_DELAY_INVALID => \sprintf('stuckDelayMinutes must be a whole number of minutes from %d to %d.', BoardAutomationSettings::MIN_STUCK_DELAY_MINUTES, BoardAutomationSettings::MAX_STUCK_DELAY_MINUTES),
+            SaveBoardAutomationSettingsHandler::NO_WORKFLOW => 'This project has no workflow yet. The owner picks a workflow template when they create the project.',
             default => self::UNMAPPED,
         };
     }

@@ -548,6 +548,7 @@ final class ForgeWriteTest extends KernelTestCase
             cardNumber: $card->number,
             workKind: 'fix',
             state: WorkerRunState::Queued,
+            role: 'fix',
         ));
         $this->em()->flush();
     }

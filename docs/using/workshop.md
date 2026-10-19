@@ -128,9 +128,11 @@ A proposal that names an open card shows "Card N covers this" and has no tick bo
 Tick the proposals you want, and approve the report.
 
 When you approve the report, Loupe creates one card for each ticked proposal.
-The cards go in the column of the `next` slot of the workflow.
+The cards go in the column of the proposal slot that the app rules name, which Loupe ships as `next`.
 When the project has no such column, they go in the Backlog.
-Loupe then moves the discovery card to the first done column, and the run is Done.
+The run is then Done.
+When the discovery card is in the Backlog, the workflow moves it to the first done column.
+A discovery card in another column stays there.
 Proposals you leave unticked create no card.
 
 A second approval of the same report creates no second card.

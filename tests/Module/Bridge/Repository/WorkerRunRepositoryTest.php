@@ -258,13 +258,14 @@ final class WorkerRunRepositoryTest extends KernelTestCase
         $cardId = Uuid::v7();
 
         $runs = [
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 10:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running),
-            $match = $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 11:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Resumed),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: Uuid::v7(), state: WorkerRunState::Running),
-            $this->seedRun($em, $other, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'fix', cardId: $cardId, state: WorkerRunState::Running),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Succeeded),
-            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive),
+            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 10:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, role: 'code-review'),
+            $match = $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 11:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Resumed, role: 'code-review'),
+            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: Uuid::v7(), state: WorkerRunState::Running, role: 'code-review'),
+            $this->seedRun($em, $other, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, role: 'code-review'),
+            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'fix', cardId: $cardId, state: WorkerRunState::Running, role: 'fix'),
+            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Succeeded, role: 'code-review'),
+            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 12:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running, kind: WorkerRunKind::Interactive, role: 'code-review'),
+            $this->seedRun($em, $project, new \DateTimeImmutable('2026-09-01 13:00:00'), workKind: 'review', cardId: $cardId, state: WorkerRunState::Running),
         ];
         foreach ($runs as $run) {
             $run->sessionId = $sessionId;
@@ -275,9 +276,9 @@ final class WorkerRunRepositoryTest extends KernelTestCase
         $repository = self::getContainer()->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $repository);
 
-        self::assertSame($match, $repository->findOpenOfSessionForCard($project, $sessionId, $cardId, 'review'));
-        self::assertNull($repository->findOpenOfSessionForCard($project, Uuid::v4(), $cardId, 'review'));
-        self::assertNull($repository->findOpenOfSessionForCard($project, $sessionId, $cardId, 'implement'));
+        self::assertSame($match, $repository->findOpenOfSessionForCard($project, $sessionId, $cardId, 'code-review'));
+        self::assertNull($repository->findOpenOfSessionForCard($project, Uuid::v4(), $cardId, 'code-review'));
+        self::assertNull($repository->findOpenOfSessionForCard($project, $sessionId, $cardId, 'design-review'));
     }
 
     private function warningClosedAt(EntityManagerInterface $em, Project $project, Uuid $cardId, WorkerRunState $state): WorkerRun

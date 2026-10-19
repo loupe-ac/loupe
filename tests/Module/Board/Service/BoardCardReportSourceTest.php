@@ -74,11 +74,13 @@ final class BoardCardReportSourceTest extends KernelTestCase
         $handMoved = $this->card($project, 2, 'done');
         $quiet = $this->card($project, 3, 'in-progress');
         $engineMerged = $this->card($project, 4, 'done');
+        $outcomeMerged = $this->card($project, 5, 'done');
         $foreign = $this->card($other, 1, 'done');
 
         $first = new \DateTimeImmutable('2026-09-01 09:00:00');
         $this->event($merged, CardEventKind::Created, [], $first);
         $this->event($engineMerged, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'merged']], $first->modify('+3 days'));
+        $this->event($outcomeMerged, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'card-merged', 'outcome' => 'merged']], $first->modify('+3 days'));
         $this->event($quiet, CardEventKind::Moved, ['from' => [], 'to' => [], 'cause' => ['type' => 'workflow-rule', 'rule' => 'reviewable']], $first->modify('+3 days'));
         $this->event($merged, CardEventKind::FixRequested, ['reason' => 'conflict', 'pullRequest' => 7], $first->modify('+1 hour'));
         $this->event($merged, CardEventKind::FixRequested, ['reason' => 'checks-failed', 'pullRequest' => 7], $first->modify('+2 hours'));
@@ -95,7 +97,7 @@ final class BoardCardReportSourceTest extends KernelTestCase
         $this->pullRequest($other, $foreign, 7, new \DateTimeImmutable('2026-08-01 10:00:00'), new \DateTimeImmutable('2026-08-01 11:00:00'));
         $this->em->clear();
 
-        $outcomes = $this->source->outcomesFor($project, [$merged, $handMoved, $quiet, $engineMerged, $foreign, Uuid::v7()]);
+        $outcomes = $this->source->outcomesFor($project, [$merged, $handMoved, $quiet, $engineMerged, $outcomeMerged, $foreign, Uuid::v7()]);
 
         $expected = [
             (string) $merged => new CardOutcome(
@@ -107,6 +109,7 @@ final class BoardCardReportSourceTest extends KernelTestCase
             (string) $handMoved => new CardOutcome(),
             (string) $quiet => new CardOutcome(),
             (string) $engineMerged => new CardOutcome(merged: true),
+            (string) $outcomeMerged => new CardOutcome(merged: true),
         ];
         ksort($expected);
         ksort($outcomes);

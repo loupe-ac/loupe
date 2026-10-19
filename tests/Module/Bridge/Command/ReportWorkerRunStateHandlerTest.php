@@ -947,6 +947,33 @@ final class ReportWorkerRunStateHandlerTest extends KernelTestCase
         self::assertSame('implement-on-entry', $run->ruleId);
     }
 
+    public function test_a_new_run_takes_the_role_of_its_work_request(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-role-copy');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'my-review', role: 'code-review');
+
+        $run = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'my-review', workRequestId: $request->id)->run;
+
+        self::assertInstanceOf(WorkerRun::class, $run);
+        self::assertSame('code-review', $run->role);
+    }
+
+    public function test_a_run_of_a_request_with_no_role_or_no_stored_request_has_no_role(): void
+    {
+        self::bootKernel();
+        [$owner, $project] = $this->scenario('handler-role-none');
+        $request = $this->seedWorkRequest($this->em(), $project, kind: 'implement');
+
+        $withoutRole = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'implement', workRequestId: $request->id)->run;
+        $withoutRequest = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: 'implement', workRequestId: Uuid::v7())->run;
+        $withNoId = $this->report($owner, $project, Uuid::v4(), WorkerRunState::Queued, workKind: null)->run;
+
+        self::assertNull($withoutRole?->role);
+        self::assertNull($withoutRequest?->role);
+        self::assertNull($withNoId?->role);
+    }
+
     public function test_a_run_of_an_old_bridge_rule_stores_no_work_request(): void
     {
         self::bootKernel();
