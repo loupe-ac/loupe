@@ -318,6 +318,41 @@ final class ShowBoardManifestControllerTest extends WebTestCase
         self::assertSame($this->page($client, $project)['cards'], array_column($after['cards'], 1, 0));
     }
 
+    public function test_a_lane_head_digest_changes_with_the_markers_and_the_column_of_its_epic_and_stays_the_page_one(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'manifest-lane-head-marker@example.com');
+        $project = $this->project($em, $owner);
+        $this->addTriageColumn($project);
+        $em->flush();
+        $epic = $this->typed($em, $this->card($em, $project, 'Lane epic', 'next'), 'epic');
+        $backlogEpic = $this->typed($em, $this->card($em, $project, 'Backlog epic', 'backlog', 1), 'epic');
+        $em->clear();
+
+        $client->loginUser($owner);
+        $headDigest = fn (Card $card): ?string => array_column($this->manifest($client, $project)['cards'], 4, 0)[(string) $card->id] ?? null;
+        $before = $headDigest($epic);
+        $backlogBefore = $headDigest($backlogEpic);
+        $this->updateCard($epic, static function (Card $card): void {
+            $card->markers = [['key' => 'checks_failed', 'kind' => 'stuck', 'label' => 'marker.checks_failed', 'remedy' => 'marker.checks_failed.remedy', 'params' => ['%number%' => 5], 'since' => '2026-10-02T09:00:00+00:00']];
+        });
+        $this->updateCard($backlogEpic, static function (Card $card): void {
+            $card->markers = [['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => '2026-10-02T09:00:00+00:00']];
+        });
+        $marked = $headDigest($epic);
+        $backlogMarked = $headDigest($backlogEpic);
+        $this->updateCard($epic, function (Card $card) use ($project): void {
+            $card->column = $this->column($project, 'triage');
+        });
+        $moved = $headDigest($epic);
+
+        self::assertNotNull($before);
+        self::assertCount(3, array_unique([$before, $marked, $moved]));
+        self::assertNotSame($backlogBefore, $backlogMarked);
+        self::assertEquals($this->page($client, $project)['laneDigests'], [(string) $epic->id => $moved, (string) $backlogEpic->id => $backlogMarked]);
+    }
+
     public function test_the_structure_digest_is_the_page_one_and_changes_with_a_column_label(): void
     {
         $client = static::createClient();

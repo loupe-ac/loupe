@@ -41,6 +41,7 @@ final readonly class ChildrenFactProvider extends BoardFactProvider
             childCount: $children['total'],
             openChildCount: $children['total'] - $children['done'],
             childMergedIntoEpicBranch: $children['total'] > 0 && null !== $epicBranch && $this->cardPullRequests->childMergedInto($stored, $epicBranch),
+            childMarks: $children['total'] > $children['done'] ? $this->cards->childMarksOf($stored) : [],
         );
     }
 
@@ -49,7 +50,10 @@ final readonly class ChildrenFactProvider extends BoardFactProvider
     {
         $facts instanceof ChildrenFacts || throw new \LogicException('The provider fingerprints its own facts.');
 
-        // A false merge fact adds nothing, so the stored fingerprints stay as they were.
-        return [$facts->childCount, $facts->openChildCount, ...($facts->childMergedIntoEpicBranch ? [true] : [])];
+        // A false merge fact and no child mark add nothing, so the stored fingerprints stay as they were.
+        $marks = array_keys($facts->childMarks);
+        sort($marks);
+
+        return [$facts->childCount, $facts->openChildCount, ...($facts->childMergedIntoEpicBranch ? [true] : []), ...([] === $marks ? [] : [$marks])];
     }
 }

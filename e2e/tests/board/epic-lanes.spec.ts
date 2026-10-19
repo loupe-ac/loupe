@@ -15,6 +15,7 @@ import {
 } from '@playwright/test';
 import {
     accessToken,
+    agentAccessToken,
     signedInPage,
     suppressToolbar,
     suppressWidget,
@@ -351,6 +352,75 @@ test('an epic in the Backlog keeps its lane on the board', async ({
     await expect(page.locator('.lp-board-list')).toBeVisible();
     await expect(page.locator(`#board-row-${child.id}`)).toHaveCount(1);
     await expect(page.locator(`#board-row-${epic.id}`)).toHaveCount(0);
+});
+
+test('a lane head shows the column tag of its epic', async ({
+    page,
+    board,
+}) => {
+    const epic = await board.create(`Tagged epic ${RUN}`, { type: 'epic' });
+    const waiting = await board.create(`Waiting tagged epic ${RUN}`, {
+        type: 'epic',
+        status: 'backlog',
+    });
+
+    await page.goto(board.boardUrl);
+    await expect(page.locator(READY)).toBeAttached();
+
+    await expect(
+        lane(page, epic.id).locator(
+            '.lp-board-lane__head .lp-board-lane__status',
+        ),
+    ).toContainText('Next');
+    await expect(
+        lane(page, waiting.id).locator(
+            '.lp-board-lane__head .lp-board-lane__status',
+        ),
+    ).toContainText('Backlog');
+});
+
+test('a lane head shows the state mark of its epic, placed live', async ({
+    page,
+    livePage,
+    board,
+}) => {
+    const epic = await board.create(`Stuck epic ${RUN}`, { type: 'epic' });
+    const token = await agentAccessToken(page);
+
+    await openLive(livePage, board.boardUrl);
+    const head = lane(livePage, epic.id).locator('.lp-board-lane__head');
+    await expect(head.locator('.lp-board-lane__status')).toContainText('Next');
+    await expect(head.locator('.lp-state-mark')).toHaveCount(0);
+    await markBoard(livePage);
+
+    const response = await page.request.put(
+        `/api/projects/${board.projectId}/worker-runs/${crypto.randomUUID()}`,
+        {
+            headers: { Authorization: `Bearer ${token}` },
+            data: {
+                bridgeId: crypto.randomUUID(),
+                at: '2026-09-23T10:00:00+00:00',
+                subjectType: 'card',
+                subjectId: epic.id,
+                cardNumber: epic.number,
+                workKind: 'implement',
+                sessionId: crypto.randomUUID(),
+                startedAt: '2026-09-23T10:00:00+00:00',
+                endedAt: '2026-09-23T10:05:00+00:00',
+                exitCode: 1,
+                hasResult: true,
+                state: 'failed',
+                output: 'The tests failed',
+            },
+        },
+    );
+    expect(response.status()).toBe(201);
+
+    const mark = head.locator('.lp-board-lane__status .lp-state-mark--stuck');
+    await expect(mark).toHaveCount(1, { timeout: 15000 });
+    await expect(mark.getByRole('img', { name: 'Stuck' })).toBeVisible();
+    await expect(head.locator('.lp-board-lane__status')).toContainText('Next');
+    await expect(livePage.locator(`${READY}[${MARK}]`)).toBeAttached();
 });
 
 test('a lane switched off shows the parent tag and the progress', async ({

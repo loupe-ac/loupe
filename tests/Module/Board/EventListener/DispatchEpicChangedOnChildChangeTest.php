@@ -188,6 +188,50 @@ final class DispatchEpicChangedOnChildChangeTest extends KernelTestCase
         self::assertFalse($this->epicChanged($epic));
     }
 
+    public function test_a_renamed_open_child_changes_its_epic_so_its_child_marker_reads_the_new_title(): void
+    {
+        $project = $this->makeProject('epic-face-rename');
+        $epic = $this->card($project, column: 'next', type: 'epic');
+        $child = $this->card($project, column: 'in-progress', parent: $epic);
+        $this->changes = [];
+
+        $this->update($child, title: 'Renamed child');
+
+        self::assertTrue($this->epicChanged($epic));
+    }
+
+    public function test_a_rename_loaded_before_a_reparent_commits_changes_the_new_epic(): void
+    {
+        $project = $this->makeProject('epic-face-rename-moved');
+        $oldEpic = $this->card($project, column: 'next', type: 'epic');
+        $newEpic = $this->card($project, column: 'next', type: 'epic');
+        $child = $this->card($project, column: 'in-progress', parent: $oldEpic);
+        $stale = $this->reload($child);
+        $this->em->getConnection()->executeStatement(
+            'UPDATE board_cards SET parent_card_id = :parent WHERE id = :id',
+            ['parent' => (string) $newEpic->id, 'id' => (string) $child->id],
+        );
+        $this->changes = [];
+
+        ($this->updateCard)(new UpdateCardCommand($stale, Actor::Human, title: 'Renamed child'));
+
+        self::assertTrue($this->epicChanged($newEpic));
+        self::assertFalse($this->epicChanged($oldEpic));
+    }
+
+    public function test_a_renamed_finished_child_leaves_its_epic_alone(): void
+    {
+        $project = $this->makeProject('epic-face-rename-done');
+        $epic = $this->card($project, column: 'next', type: 'epic');
+        $child = $this->card($project, column: 'done', parent: $epic);
+        $this->changes = [];
+
+        $this->update($child, title: 'Renamed child');
+
+        self::assertCount(1, array_filter($this->changes, static fn (CardChanged $change): bool => $change->cardId->equals($child->id)));
+        self::assertFalse($this->epicChanged($epic));
+    }
+
     private function epicChanged(Card $epic): bool
     {
         foreach ($this->changes as $change) {
@@ -216,12 +260,13 @@ final class DispatchEpicChangedOnChildChangeTest extends KernelTestCase
         return $card;
     }
 
-    private function update(Card $card, ?string $column = null, ?string $parentCardId = null, ?int $position = null): void
+    private function update(Card $card, ?string $column = null, ?string $parentCardId = null, ?int $position = null, ?string $title = null): void
     {
         $fresh = $this->reload($card);
         ($this->updateCard)(new UpdateCardCommand(
             $fresh,
             Actor::Human,
+            title: $title,
             column: null === $column ? null : $this->column($fresh->project, $column),
             position: $position,
             parentCardId: $parentCardId,

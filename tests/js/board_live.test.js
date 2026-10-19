@@ -458,6 +458,30 @@ it('skips the list row checks while the list is not loaded', async () => {
     expect(placements()).toEqual([]);
 });
 
+it('fetches a lane head whose head digest changed while the list is hidden and every card kept its digest', async () => {
+    document.getElementById('board-list').remove();
+    document
+        .getElementById('board')
+        .insertAdjacentHTML(
+            'beforeend',
+            '<section id="board-lane-epic"><header class="lp-board-lane__head" data-lane-digest="head"></header></section>',
+        );
+    answerManifest(
+        json({
+            cards: [
+                ['a', 'old', 'k', null],
+                ['b', 'old', 'k', null],
+                ['epic', 'old', 'k', 'epic', 'marked'],
+            ],
+            structure: 'frame',
+        }),
+    );
+    reconnect();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(placements()).toEqual(['epic']);
+});
+
 it('fetches a card whose list row lags its face', async () => {
     card().dataset.cardDigest = 'new';
     answerManifest(twoCards('new'));

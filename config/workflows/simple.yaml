@@ -158,6 +158,26 @@ markers:
       label: marker.waiting_on_checks
       remedy: marker.waiting_on_checks.remedy
       when: { pr.checks_pending: {} }
+    - key: child-stuck
+      kind: stuck
+      label: marker.child_stuck
+      remedy: marker.child_stuck.remedy
+      when: { card.children.marked: { kind: stuck } }
+    - key: child-needs-you
+      kind: needs-you
+      label: marker.child_needs_you
+      remedy: marker.child_needs_you.remedy
+      when: { card.children.marked: { kind: needs-you } }
+    - key: child-working
+      kind: working
+      label: marker.child_working
+      remedy: marker.child_working.remedy
+      when: { card.children.marked: { kind: working } }
+    - key: child-waiting
+      kind: waiting
+      label: marker.child_waiting
+      remedy: marker.child_waiting.remedy
+      when: { card.children.marked: { kind: waiting } }
     - key: unmanaged
       kind: chip
       label: marker.unmanaged
