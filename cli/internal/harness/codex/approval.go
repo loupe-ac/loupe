@@ -17,15 +17,18 @@ var (
 // ApproveTools sets default_tools_approval_mode = "approve" for the loupe MCP
 // server, so a worker calls the Loupe tools without a prompt. It edits the file
 // that decides the mode, as the bridge check reads it: the profile file when it
-// sets a mode, else config.toml of the Codex home. It returns that file, and
-// whether it changed it.
+// sets a mode, else config.toml of the Codex home. When neither sets one, it
+// edits config.toml, or the profile file when only the profile declares the
+// server. It returns that file, and whether it changed it.
 func ApproveTools(home, profile string) (string, bool, error) {
 	base := filepath.Join(home, "config.toml")
 	paths := []string{base}
 	if profile != "" {
 		paths = []string{profileFile(home, profile), base}
 	}
-	for _, f := range loadFiles(paths...) {
+	files := loadFiles(paths...)
+	target := base
+	for _, f := range files {
 		if f.err != nil {
 			return f.path, false, fmt.Errorf("%s does not parse: %w", f.path, f.err)
 		}
@@ -39,9 +42,14 @@ func ApproveTools(home, profile string) (string, bool, error) {
 			return f.path, changed, err
 		}
 	}
-	changed, err := approveIn(base)
+	if _, inBase := files[len(files)-1].cfg.McpServers["loupe"]; !inBase && len(files) > 1 {
+		if _, inProfile := files[0].cfg.McpServers["loupe"]; inProfile {
+			target = files[0].path
+		}
+	}
+	changed, err := approveIn(target)
 
-	return base, changed, err
+	return target, changed, err
 }
 
 // approveIn sets the mode in one file. It edits the text, so the comments and

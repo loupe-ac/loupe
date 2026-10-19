@@ -43,9 +43,12 @@ const (
 var (
 	initLookPath = exec.LookPath
 	initGOOS     = runtime.GOOS
-	initExec     = func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+	initExec     = func(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
 		c := exec.CommandContext(ctx, name, args...)
 		c.Dir = dir
+		if env != nil {
+			c.Env = append(os.Environ(), env...)
+		}
 
 		return c.CombinedOutput()
 	}
@@ -175,8 +178,8 @@ func runInit(cmd *cobra.Command, o initOptions) error {
 	if err != nil {
 		return err
 	}
-	if codexAccount() {
-		initCodex(cmd, dir, o.link, codexTargets(path))
+	if targets := codexTargets(path); len(targets) > 0 {
+		initCodex(cmd, dir, o.link, targets)
 	}
 	if initAutoUpdate(cmd, path) {
 		changed = true
@@ -309,7 +312,7 @@ func initProject(cmd *cobra.Command, cfg config.Config, dir string, o initOption
 func createProjectFromRemote(ctx context.Context, client *api.Client, dir, baseURL string) (api.Site, error) {
 	byHand := fmt.Sprintf("pass --project <id>, or create the project in the app at %s", baseURL)
 
-	raw, err := initExec(ctx, dir, "git", "remote", "get-url", "origin")
+	raw, err := initExec(ctx, dir, nil, "git", "remote", "get-url", "origin")
 	remote := withoutUserinfo(strings.TrimSpace(string(raw)))
 	if err != nil || remote == "" {
 		return api.Site{}, fmt.Errorf("your login covers no project, and this repository has no origin remote to name one: %s", byHand)
@@ -358,9 +361,9 @@ func withoutUserinfo(remote string) string {
 func initLink(cmd *cobra.Command, dir, projectID string, o initOptions) error {
 	out := cmd.OutOrStdout()
 	link := o.link
-	// A Codex account gets its server from initCodex, and `claude mcp` is
-	// missing, so the Claude Code declaration stays out of it.
-	if codexAccount() && !link.writeMcpJSON {
+	// `claude mcp` is missing on a machine with Codex alone, and initCodex
+	// declares the server there, so the Claude Code declaration stays out.
+	if codexOnly() && !link.writeMcpJSON {
 		link.writeMcp, link.skipMcp = false, true
 	}
 
@@ -401,7 +404,7 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
 
-	if listed, err := initExec(ctx, dir, "claude", "plugin", "list"); err == nil && strings.Contains(string(listed), "loupe@") {
+	if listed, err := initExec(ctx, dir, nil, "claude", "plugin", "list"); err == nil && strings.Contains(string(listed), "loupe@") {
 		step(out, "Plugin", "skipped", "Claude Code has the Loupe plugin")
 
 		return
@@ -409,8 +412,8 @@ func initPlugin(cmd *cobra.Command, dir string) {
 
 	// A marketplace that is added already can make this command fail while the
 	// install still works, so only the install decides.
-	_, _ = initExec(ctx, dir, "claude", "plugin", "marketplace", "add", pluginMarketplace)
-	if raw, err := initExec(ctx, dir, "claude", "plugin", "install", pluginSpec); err != nil {
+	_, _ = initExec(ctx, dir, nil, "claude", "plugin", "marketplace", "add", pluginMarketplace)
+	if raw, err := initExec(ctx, dir, nil, "claude", "plugin", "install", pluginSpec); err != nil {
 		step(out, "Plugin", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
 
 		return
@@ -418,81 +421,94 @@ func initPlugin(cmd *cobra.Command, dir string) {
 	step(out, "Plugin", "done", "installed "+pluginSpec+". Restart Claude Code to load it")
 }
 
-// codexAccount reports whether the first-run rules give the bridge a Codex
-// account.
-func codexAccount() bool {
+// codexOnly reports whether Codex is on the PATH and Claude Code is not, which
+// is when the first-run rules give the bridge a Codex account.
+func codexOnly() bool {
 	return rules.FirstRunOptions{LookPath: initLookPath}.Harness() == rules.HarnessCodex
 }
 
-// initCodex connects Codex, when the rule file gives the bridge a Codex
-// account. It declares `loupe mcp` as --mcp and --no-mcp say, approves the
-// Loupe tools of a declaration that starts `loupe mcp`, and installs the skills.
+// initCodex connects each Codex account of the rule file. For each account, it
+// declares `loupe mcp` as --mcp and --no-mcp say, in the Codex home and profile
+// of that account, and approves the Loupe tools of a declaration that starts
+// `loupe mcp`. Then it installs the skills once.
 func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets []codexTarget) {
-	out := cmd.OutOrStdout()
-	add := "codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
 
-	connected := false
-	raw, getErr := initExec(ctx, dir, "codex", "mcp", "get", mcpjson.ServerKey, "--json")
+	for _, t := range targets {
+		if initCodexServer(ctx, cmd, dir, link, t) {
+			initCodexApproval(cmd.OutOrStdout(), t)
+		}
+	}
+	initCodexSkills(ctx, cmd.OutOrStdout(), dir)
+}
+
+// initCodexServer checks the declaration of one Codex account, and reports
+// whether that account then starts `loupe mcp`.
+func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link projectLinkOptions, t codexTarget) bool {
+	out := cmd.OutOrStdout()
+	add := t.command("mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp")
+
+	raw, getErr := t.run(ctx, dir, "mcp", "get", mcpjson.ServerKey, "--json")
 	decl, parseErr := codex.ParseDeclaration(raw)
 	switch {
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp() && decl.Enabled:
-		step(out, "Codex", "skipped", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already")
-		connected = true
+		step(out, "Codex", "skipped", "Codex declares the `"+mcpjson.ServerKey+"` MCP server already"+t.suffix())
+
+		return true
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp():
-		step(out, "Codex", "skipped", "the `"+mcpjson.ServerKey+"` MCP server is disabled; set enabled = true under [mcp_servers."+mcpjson.ServerKey+"] in ~/.codex/config.toml")
-		connected = true
+		step(out, "Codex", "skipped", "the `"+mcpjson.ServerKey+"` MCP server is disabled"+t.suffix()+"; set enabled = true under [mcp_servers."+mcpjson.ServerKey+"] in "+t.configFile())
+
+		return true
 	case getErr == nil && link.skipMcp:
-		step(out, "Codex", "skipped", "--no-mcp is set; Codex starts `"+mcpjson.ServerKey+"` as something other than `loupe mcp`")
+		step(out, "Codex", "skipped", "--no-mcp is set; Codex starts `"+mcpjson.ServerKey+"` as something other than `loupe mcp`"+t.suffix())
 	case getErr == nil:
-		connected = replaceCodexServer(ctx, cmd, dir, decl, parseErr)
+		return replaceCodexServer(ctx, cmd, dir, t, decl, parseErr)
 	case link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
-	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex?"):
+	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex"+t.suffix()+"?"):
 		step(out, "Codex", "skipped", "to give Codex the Loupe tools, run `"+add+"`")
 	default:
-		if raw, err := initExec(ctx, dir, "codex", "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
+		if raw, err := t.run(ctx, dir, "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
 			step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), add))
-		} else {
-			step(out, "Codex", "done", "declared `loupe mcp`")
-			connected = true
+
+			return false
 		}
+		step(out, "Codex", "done", "declared `loupe mcp`"+t.suffix())
+
+		return true
 	}
 
-	if connected {
-		initCodexApproval(out, targets)
-	}
-	initCodexSkills(ctx, out, dir)
+	return false
 }
 
 // replaceCodexServer offers to replace a declaration that does not start
 // `loupe mcp`, and reports whether it did. It always asks, because a script
 // must not remove a declaration somebody made by hand.
-func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, decl codex.Declaration, parseErr error) bool {
+func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, t codexTarget, decl codex.Declaration, parseErr error) bool {
 	out := cmd.OutOrStdout()
-	fix := "codex mcp remove " + mcpjson.ServerKey + " && codex mcp add " + mcpjson.ServerKey + " -- loupe mcp"
+	fix := t.command("mcp", "remove", mcpjson.ServerKey) + " && " + t.command("mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp")
 	shown := decl.Summary()
 	if parseErr != nil {
 		shown = "a server init cannot read"
 	}
-	fmt.Fprintf(out, "Codex starts %q as %s, which is not `loupe mcp`, so the bridge turns its Codex account off.\n", mcpjson.ServerKey, shown)
+	fmt.Fprintf(out, "Codex%s starts %q as %s, which is not `loupe mcp`, so the bridge turns its Codex account off.\n", t.suffix(), mcpjson.ServerKey, shown)
 	if !confirm(out, cmd.InOrStdin(), "Replace it with `loupe mcp`?") {
 		step(out, "Codex", "skipped", "to replace it, run `"+fix+"`")
 
 		return false
 	}
-	if raw, err := initExec(ctx, dir, "codex", "mcp", "remove", mcpjson.ServerKey); err != nil {
+	if raw, err := t.run(ctx, dir, "mcp", "remove", mcpjson.ServerKey); err != nil {
 		step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), fix))
 
 		return false
 	}
-	if raw, err := initExec(ctx, dir, "codex", "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
+	if raw, err := t.run(ctx, dir, "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
 		step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), fix))
 
 		return false
 	}
-	step(out, "Codex", "done", "replaced the declaration with `loupe mcp`")
+	step(out, "Codex", "done", "replaced the declaration with `loupe mcp`"+t.suffix())
 
 	return true
 }
@@ -501,10 +517,67 @@ func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, dec
 // home is the default one.
 type codexTarget struct{ home, profile string }
 
-// codexTargets lists the Codex accounts of the rule file, or the default home
-// with no profile when the file declares none or does not load.
+// args puts the profile flag before the codex arguments, as the bridge check
+// does.
+func (t codexTarget) args(args ...string) []string {
+	if t.profile == "" {
+		return args
+	}
+
+	return append([]string{"-p", t.profile}, args...)
+}
+
+// run runs codex in the home and profile of the account.
+func (t codexTarget) run(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	var env []string
+	if t.home != "" {
+		env = []string{"CODEX_HOME=" + t.home}
+	}
+
+	return initExec(ctx, dir, env, "codex", t.args(args...)...)
+}
+
+// command is the shell command that run runs, for a step to print.
+func (t codexTarget) command(args ...string) string {
+	line := strings.Join(append([]string{"codex"}, t.args(args...)...), " ")
+	if t.home != "" {
+		line = "CODEX_HOME=" + t.home + " " + line
+	}
+
+	return line
+}
+
+// suffix names a home or profile that is not the default, for a step line.
+func (t codexTarget) suffix() string {
+	switch {
+	case t.home != "" && t.profile != "":
+		return " in " + t.home + " with profile " + t.profile
+	case t.home != "":
+		return " in " + t.home
+	case t.profile != "":
+		return " with profile " + t.profile
+	}
+
+	return ""
+}
+
+// configFile is the config.toml of the account's Codex home.
+func (t codexTarget) configFile() string {
+	if t.home != "" {
+		return filepath.Join(t.home, "config.toml")
+	}
+
+	return "~/.codex/config.toml"
+}
+
+// codexTargets lists the Codex accounts of the rule file, which initRules
+// wrote. A file that does not load falls back to the first-run choice: the
+// default home with no profile when Codex is alone on the PATH, else none.
 func codexTargets(path string) []codexTarget {
-	fallback := []codexTarget{{}}
+	var fallback []codexTarget
+	if codexOnly() {
+		fallback = []codexTarget{{}}
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fallback
@@ -520,36 +593,31 @@ func codexTargets(path string) []codexTarget {
 			out = append(out, t)
 		}
 	}
-	if len(out) == 0 {
-		return fallback
-	}
 
 	return out
 }
 
-// initCodexApproval lets the workers of each Codex account call the Loupe tools
+// initCodexApproval lets the workers of one Codex account call the Loupe tools
 // without a prompt. Without it, the bridge check turns the account off.
-func initCodexApproval(out io.Writer, targets []codexTarget) {
-	for _, t := range targets {
-		home := t.home
-		if home == "" {
-			h, err := codex.Home()
-			if err != nil {
-				step(out, "Codex approval", "failed", fmt.Sprintf("%v; add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in ~/.codex/config.toml", err, mcpjson.ServerKey))
+func initCodexApproval(out io.Writer, t codexTarget) {
+	home := t.home
+	if home == "" {
+		h, err := codex.Home()
+		if err != nil {
+			step(out, "Codex approval", "failed", fmt.Sprintf("%v; add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in ~/.codex/config.toml", err, mcpjson.ServerKey))
 
-				continue
-			}
-			home = h
+			return
 		}
-		path, changed, err := codex.ApproveTools(home, t.profile)
-		switch {
-		case err != nil:
-			step(out, "Codex approval", "failed", fmt.Sprintf("%v; add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in %s", err, mcpjson.ServerKey, path))
-		case changed:
-			step(out, "Codex approval", "done", "Codex runs the Loupe tools without asking, as "+path+" says")
-		default:
-			step(out, "Codex approval", "skipped", "Codex runs the Loupe tools without asking already, as "+path+" says")
-		}
+		home = h
+	}
+	path, changed, err := codex.ApproveTools(home, t.profile)
+	switch {
+	case err != nil:
+		step(out, "Codex approval", "failed", fmt.Sprintf("%v; add `default_tools_approval_mode = \"approve\"` under [mcp_servers.%s] in %s", err, mcpjson.ServerKey, path))
+	case changed:
+		step(out, "Codex approval", "done", "Codex runs the Loupe tools without asking, as "+path+" says")
+	default:
+		step(out, "Codex approval", "skipped", "Codex runs the Loupe tools without asking already, as "+path+" says")
 	}
 }
 
@@ -576,12 +644,12 @@ func initCodexSkills(ctx context.Context, out io.Writer, dir string) {
 	defer os.RemoveAll(tmp)
 
 	clone := filepath.Join(tmp, "loupe")
-	if raw, err := initExec(ctx, dir, "git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", codexSkillsRepository, clone); err != nil {
+	if raw, err := initExec(ctx, dir, nil, "git", "clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", codexSkillsRepository, clone); err != nil {
 		fail(err, raw)
 
 		return
 	}
-	if raw, err := initExec(ctx, dir, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath); err != nil {
+	if raw, err := initExec(ctx, dir, nil, "git", "-C", clone, "sparse-checkout", "set", codexSkillsPath); err != nil {
 		fail(err, raw)
 
 		return
@@ -825,7 +893,7 @@ func initPlaywright(cmd *cobra.Command, dir string) {
 	fmt.Fprintln(out, "Installing the browser. This can take a few minutes.")
 	ctx, cancel := context.WithTimeout(cmd.Context(), 15*time.Minute)
 	defer cancel()
-	if raw, err := initExec(ctx, dir, "npx", "playwright", "install", "chromium"); err != nil {
+	if raw, err := initExec(ctx, dir, nil, "npx", "playwright", "install", "chromium"); err != nil {
 		step(out, "Playwright", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), playwrightCommand))
 
 		return

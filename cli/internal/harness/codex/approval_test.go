@@ -128,3 +128,24 @@ func TestApproveToolsEditsConfigWhenTheProfileIsSilent(t *testing.T) {
 		t.Errorf("the bridge check still refuses it: %v", got)
 	}
 }
+
+// A profile can declare the server that config.toml lacks. The mode then goes
+// in the profile, because config.toml has no table to put it in.
+func TestApproveToolsApprovesAServerOnlyTheProfileDeclares(t *testing.T) {
+	home := writeConfig(t, "model = \"o3\"\n")
+	profile := filepath.Join(home, "work.config.toml")
+	if err := os.WriteFile(profile, []byte("[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	path, changed, err := ApproveTools(home, "work")
+	if err != nil || !changed || path != profile {
+		t.Fatalf("ApproveTools: %s, %v, %v", path, changed, err)
+	}
+	if got := (Harness{profile: "work"}).approvalProblems(home, "dev"); len(got) != 0 {
+		t.Errorf("the bridge check still refuses it: %v", got)
+	}
+	if got := readConfig(t, home); got != "model = \"o3\"\n" {
+		t.Errorf("config.toml changed:\n%s", got)
+	}
+}

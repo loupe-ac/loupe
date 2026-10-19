@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -92,8 +93,8 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	}
 	w.codexHome = t.TempDir()
 	t.Setenv("CODEX_HOME", w.codexHome)
-	initExec = func(_ context.Context, _ string, name string, args ...string) ([]byte, error) {
-		line := strings.Join(append([]string{name}, args...), " ")
+	initExec = func(_ context.Context, _ string, env []string, name string, args ...string) ([]byte, error) {
+		line := strings.Join(append(slices.Clone(env), append([]string{name}, args...)...), " ")
 		w.execCalls = append(w.execCalls, line)
 		out := w.execOut[line]
 		for prefix := range w.execFail {
@@ -102,8 +103,14 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 			}
 		}
 		switch {
-		case strings.HasPrefix(line, "codex mcp add loupe"):
-			writeFile(t, filepath.Join(w.codexHome, "config.toml"), "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n")
+		case name == "codex" && slices.Contains(args, "add"):
+			home := w.codexHome
+			for _, e := range env {
+				if h, ok := strings.CutPrefix(e, "CODEX_HOME="); ok {
+					home = h
+				}
+			}
+			writeFile(t, filepath.Join(home, "config.toml"), "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n")
 		case name == "git" && len(args) > 2 && args[2] == "sparse-checkout":
 			for _, skill := range []string{"loupe-board", "loupe-inbox"} {
 				writeFile(t, filepath.Join(args[1], "plugins", "loupe", "skills", skill, "SKILL.md"), "# "+skill+"\n")
@@ -1057,9 +1064,9 @@ func TestInitLeavesADeclaredCodexServerAlone(t *testing.T) {
 func TestInitApprovesTheToolsInTheProfileOfTheCodexAccount(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.codex = true
-	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
 	inRepo(t, w.server.URL)
 	home := t.TempDir()
+	w.execOut["CODEX_HOME="+home+" codex -p work mcp get loupe --json"] = codexDeclaration(true, "loupe")
 	writeFile(t, filepath.Join(home, "config.toml"), "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"approve\"\n")
 	profile := filepath.Join(home, "work.config.toml")
 	writeFile(t, profile, "[mcp_servers.loupe]\ndefault_tools_approval_mode = \"prompt\"\n")
@@ -1217,5 +1224,53 @@ func TestInitSkipsCodexWhenClaudeIsInstalled(t *testing.T) {
 	}
 	if w.called("codex") || strings.Contains(out, "Codex:") {
 		t.Errorf("init ran the Codex step for a Claude Code account: %v\n%s", w.execCalls, out)
+	}
+}
+
+// The rule file decides the harness, so a Codex account gets its setup also on
+// a machine that has Claude Code.
+func TestInitSetsUpTheCodexAccountOfTheRuleFileWhenClaudeIsInstalled(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.claude, w.codex = true, true
+	w.execFail["codex mcp get"] = true
+	inRepo(t, w.server.URL)
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !w.called("codex mcp get loupe --json") || !strings.Contains(out, "Codex: skipped, --no-mcp is set") {
+		t.Errorf("init skipped the Codex account of the rule file: %v\n%s", w.execCalls, out)
+	}
+}
+
+// The bridge checks the declaration in the home and profile of the account, so
+// init checks and writes it there.
+func TestInitDeclaresTheCodexServerInTheHomeAndProfileOfTheAccount(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	inRepo(t, w.server.URL)
+	home := t.TempDir()
+	w.execFail["CODEX_HOME="+home+" codex -p work mcp get"] = true
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "n\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !w.called("CODEX_HOME=" + home + " codex -p work mcp add loupe -- loupe mcp") {
+		t.Errorf("init did not declare the server in the account's home and profile: %v", w.execCalls)
+	}
+	if w.called("codex mcp") {
+		t.Errorf("init ran codex in the default home: %v", w.execCalls)
+	}
+	if body := readOrEmpty(t, filepath.Join(home, "config.toml")); !strings.Contains(body, `default_tools_approval_mode = "approve"`) {
+		t.Errorf("the account's config.toml lacks the approval mode:\n%s", body)
+	}
+	if !strings.Contains(out, "Codex: done, declared `loupe mcp` in "+home+" with profile work") {
+		t.Errorf("output does not name the account:\n%s", out)
 	}
 }
