@@ -34,6 +34,7 @@ type initWorld struct {
 	createBody atomic.Value
 
 	execCalls []string
+	execDirs  []string
 	// execFail names the commands whose run fails, by their first words.
 	execFail map[string]bool
 	// execOut gives the output of a command, by its words.
@@ -93,9 +94,10 @@ func newInitWorld(t *testing.T, sites string) *initWorld {
 	}
 	w.codexHome = t.TempDir()
 	t.Setenv("CODEX_HOME", w.codexHome)
-	initExec = func(_ context.Context, _ string, env []string, name string, args ...string) ([]byte, error) {
+	initExec = func(_ context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
 		line := strings.Join(append(slices.Clone(env), append([]string{name}, args...)...), " ")
 		w.execCalls = append(w.execCalls, line)
+		w.execDirs = append(w.execDirs, dir)
 		out := w.execOut[line]
 		for prefix := range w.execFail {
 			if strings.HasPrefix(line, prefix) {
@@ -867,6 +869,59 @@ func TestInitInstallsThePlaywrightBrowserWhenAsked(t *testing.T) {
 	if !w.called("npx playwright install chromium") || !strings.Contains(out, "Playwright: done") {
 		t.Errorf("calls = %v\n%s", w.execCalls, out)
 	}
+}
+
+func TestInitInstallsThePlaywrightBrowserOfASubfolderPackage(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", t.TempDir())
+	writePackageJSON(t, dir, `{"devDependencies":{"vitest":"1"}}`)
+	e2e := filepath.Join(dir, "e2e")
+	if err := os.Mkdir(e2e, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writePackageJSON(t, e2e, `{"devDependencies":{"@playwright/test":"1"}}`)
+
+	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	i := slices.IndexFunc(w.execCalls, func(c string) bool { return strings.HasPrefix(c, "npx playwright install chromium") })
+	if i < 0 || !strings.Contains(out, "Playwright: done") {
+		t.Fatalf("calls = %v\n%s", w.execCalls, out)
+	}
+	if got, _ := filepath.EvalSymlinks(w.execDirs[i]); got != mustEvalSymlinks(t, e2e) {
+		t.Errorf("npx ran in %s, want %s", w.execDirs[i], e2e)
+	}
+}
+
+func TestInitNamesTheSubfolderInThePlaywrightCommand(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", t.TempDir())
+	e2e := filepath.Join(dir, "e2e")
+	if err := os.Mkdir(e2e, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writePackageJSON(t, e2e, `{"dependencies":{"playwright":"1"}}`)
+
+	out, err := runInitCmd(t, "n\nn\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("npx") || !strings.Contains(out, "run `cd e2e && npx playwright install chromium`") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func mustEvalSymlinks(t *testing.T, path string) string {
+	t.Helper()
+	got, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return got
 }
 
 func TestInitLeavesThePlaywrightBrowserWhenDeclined(t *testing.T) {

@@ -127,7 +127,8 @@ func newInitCmd() *cobra.Command {
 			"The default is no, and a session with no terminal answers no.\n" +
 			"7. Start the bridge in the background, as `loupe bridge run -d` does. A bridge that " +
 			"runs already reloads the rule file when step 5 changed it.\n" +
-			"8. Install the Playwright browser, when package.json lists Playwright and the browser " +
+			"8. Install the Playwright browser, when the package.json of the repository root or of one of " +
+			"its direct subfolders lists Playwright and the browser " +
 			"is missing. The command asks first.\n" +
 			"9. Print the wizard page to open next.\n\n" +
 			"Steps 1, 2, 3 and 5 stop the command when they fail. The other steps report a failure and go on. " +
@@ -1022,18 +1023,23 @@ func initBridge(cmd *cobra.Command, rulesFlag, path string, changed bool) error 
 // Playwright and the browser is missing.
 func initPlaywright(cmd *cobra.Command, dir string) {
 	out := cmd.OutOrStdout()
-	if !listsPlaywright(dir) {
-		step(out, "Playwright", "skipped", "package.json does not list it")
+	pkg, ok := playwrightPackage(dir)
+	if !ok {
+		step(out, "Playwright", "skipped", "no package.json lists it")
 
 		return
 	}
-	if playwrightBrowserInstalled(dir) {
+	if playwrightBrowserInstalled(pkg) {
 		step(out, "Playwright", "skipped", "the Chromium browser is installed")
 
 		return
 	}
+	byHand := playwrightCommand
+	if rel, err := filepath.Rel(dir, pkg); err == nil && rel != "." {
+		byHand = "cd " + rel + " && " + playwrightCommand
+	}
 	if !confirm(out, cmd.InOrStdin(), "Install the Playwright browser?") {
-		step(out, "Playwright", "skipped", "to install the browser later, run `"+playwrightCommand+"`")
+		step(out, "Playwright", "skipped", "to install the browser later, run `"+byHand+"`")
 
 		return
 	}
@@ -1041,12 +1047,34 @@ func initPlaywright(cmd *cobra.Command, dir string) {
 	fmt.Fprintln(out, "Installing the browser. This can take a few minutes.")
 	ctx, cancel := context.WithTimeout(cmd.Context(), 15*time.Minute)
 	defer cancel()
-	if raw, err := initExec(ctx, dir, nil, "npx", "playwright", "install", "chromium"); err != nil {
-		step(out, "Playwright", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), playwrightCommand))
+	if raw, err := initExec(ctx, pkg, nil, "npx", "playwright", "install", "chromium"); err != nil {
+		step(out, "Playwright", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), byHand))
 
 		return
 	}
 	step(out, "Playwright", "done", "the Chromium browser is installed")
+}
+
+// playwrightPackage finds the folder whose package.json depends on Playwright:
+// dir itself, or else one of its direct subfolders, such as e2e.
+func playwrightPackage(dir string) (string, bool) {
+	if listsPlaywright(dir) {
+		return dir, true
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") || e.Name() == "node_modules" {
+			continue
+		}
+		if sub := filepath.Join(dir, e.Name()); listsPlaywright(sub) {
+			return sub, true
+		}
+	}
+
+	return "", false
 }
 
 // listsPlaywright reports whether package.json in dir depends on Playwright.

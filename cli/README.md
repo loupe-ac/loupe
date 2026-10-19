@@ -202,8 +202,11 @@ loupe init --reset               # write the first-run rules again
    to start or to reload is reported, the later steps still run, and the
    command exits with an error.
 8. Install the Playwright browser, when `package.json` lists `@playwright/test`
-   or `playwright` and the Playwright cache holds no Chromium. The command asks
-   first, and runs `npx playwright install chromium`.
+   or `playwright` and the Playwright cache holds no Chromium. The command reads
+   the `package.json` of the repository root first, then the one of each direct
+   subfolder, such as `e2e/`. It asks first, and runs
+   `npx playwright install chromium` in the folder of that `package.json`, so
+   the browser matches the Playwright version of that package.
 9. Print the page to open next, the machine step of the wizard at
    `/welcome/connect` on your instance, and remind you to commit
    `.loupe/lifecycle.md`.
