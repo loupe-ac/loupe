@@ -39,6 +39,28 @@ just exec touch var/tailwind/app.built.css
 
 Confirm that a fresh page response uses a new stylesheet hash before rerunning the browser check.
 
+The `tailwind` service watches the main checkout only. Empty mounts hide
+`.worktrees/` and `.claude/worktrees/` from it, and the `tailwind-worktrees`
+service rebuilds the worktree sheets. After a change to `compose.yaml`, run
+`docker compose up -d tailwind` from the main checkout to recreate the watcher.
+
+## The dev database
+
+The `database` service turns off `fsync`, `synchronous_commit` and
+`full_page_writes`, because dev and test data can be rebuilt. A Docker crash can
+corrupt the database. Recreate the service with `docker compose up -d database`
+from the main checkout, and only while no bridge worker runs, because it drops
+every connection.
+
+The `database_data` volume holds the dev database and every worktree database.
+To rebuild a corrupt volume:
+
+1. Stop the stack with `docker compose down`.
+2. Remove the volume with `docker volume rm <COMPOSE_PROJECT_NAME>_database_data`.
+3. Start the stack with `just up`.
+4. Run `just migrate-run` and `just exec bin/console app:dev:seed`.
+5. Run `just worktree-up <name>` for each worktree.
+
 Run one unit test with `just phpunit --filter TestClassName`, one JavaScript
 test with `just js-test tests/js/<name>.test.js`, one e2e spec with
 `just e2e tests/<area>/<spec>.spec.ts`.

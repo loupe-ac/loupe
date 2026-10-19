@@ -94,6 +94,11 @@ services:
     command: php bin/console tailwind:build --watch
     volumes:
       - .:/var/www/html
+    # Empty mounts hide the worktrees. The watcher otherwise holds one inotify
+    # watch per folder in every worktree. tailwind-worktrees rebuilds those sheets.
+    tmpfs:
+      - /var/www/html/.worktrees
+      - /var/www/html/.claude/worktrees
     environment:
       XDEBUG_MODE: "off"
       DATABASE_URL: "postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=16&charset=utf8"
@@ -171,6 +176,9 @@ services:
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
     restart: unless-stopped
+    # Dev and test data can be rebuilt, so durability is off to save disk I/O.
+    # A Docker crash can corrupt the database. `app:dev:seed` rebuilds it.
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       # You should definitely change the password in production
