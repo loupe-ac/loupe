@@ -81,6 +81,7 @@ class InboxAskRepository extends ServiceEntityRepository
             ->andWhere('a.sessionId = :sessionId')
             ->andWhere('a.bridgeId = :bridgeId')
             ->andWhere('a.closedAt > :after')
+            ->andWhere('a.resumeSkipped = false')
             ->andWhere(\sprintf('EXISTS (SELECT 1 FROM %s l JOIN l.item i WHERE l.ask = a AND i.blocking = true)', InboxAskItem::class))
             ->setParameter('projectId', $projectId, UuidType::NAME)
             ->setParameter('sessionId', $sessionId, UuidType::NAME)
@@ -92,6 +93,38 @@ class InboxAskRepository extends ServiceEntityRepository
             ->getArrayResult();
 
         return $rows[0]['closedAt'] ?? null;
+    }
+
+    /**
+     * The open asks whose session stopped on a run of the card, as its newest run on the bridge, and that still hold an open blocking item.
+     * It reads the session, not the card links of the items, because an item need not name the card.
+     *
+     * @return list<string> RFC 4122 ask ids, in id order
+     */
+    public function findIdsWaitingOnBlockedRunOfCard(Uuid $projectId, Uuid $cardId): array
+    {
+        /** @var list<string> $ids */
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT a.id
+             FROM inbox_asks a
+             JOIN bridge_worker_runs r ON r.session_id = a.session_id AND r.bridge_id = a.bridge_id AND r.project_id = a.project_id
+             WHERE a.project_id = :project AND a.closed_at IS NULL
+               AND r.subject_type = 'card' AND r.subject_id = :card AND r.kind = 'worker' AND r.state = 'blocked'
+               AND NOT EXISTS (
+                   SELECT 1 FROM bridge_worker_runs n
+                   WHERE n.project_id = r.project_id AND n.session_id = r.session_id AND n.bridge_id = r.bridge_id AND n.kind = 'worker'
+                     AND (n.received_at, n.id) > (r.received_at, r.id)
+               )
+               AND EXISTS (
+                   SELECT 1 FROM inbox_ask_items l JOIN inbox_items i ON i.id = l.item_id
+                   WHERE l.ask_id = a.id AND i.state = 'open' AND i.blocking = true
+               )
+             GROUP BY a.id
+             ORDER BY a.id",
+            ['project' => $projectId->toRfc4122(), 'card' => $cardId->toRfc4122()],
+        )->fetchFirstColumn();
+
+        return array_values(array_map(static fn (string $id): string => Uuid::fromString($id)->toRfc4122(), $ids));
     }
 
     /** The ask with its item memberships, or null when the project holds no such ask. */
