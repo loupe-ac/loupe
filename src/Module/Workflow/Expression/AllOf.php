@@ -74,6 +74,18 @@ final readonly class AllOf extends Expression
     }
 
     #[\Override]
+    public function holdingParts(Facts $facts): array
+    {
+        return array_merge(...array_map(static fn (Expression $child): array => $child->holdingParts($facts), $this->children));
+    }
+
+    #[\Override]
+    public function canonical(): string
+    {
+        return 'all('.implode(',', array_map(static fn (Expression $child): string => $child->canonical(), $this->children)).')';
+    }
+
+    #[\Override]
     public function missingKeys(): array
     {
         return array_merge(...array_map(static fn (Expression $child): array => $child->missingKeys(), $this->children));

@@ -235,6 +235,12 @@ starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay.
 
+A request can end while its rule still holds for a new reason. An example is a
+fix run that ends after the pull request became conflicting. The workflow then
+asks for one more fix at once. A part of the rule's condition that holds now, and
+did not hold when the request opened, counts as a new reason. A request that ends
+with the same reasons it started with asks for nothing more.
+
 When the retries run out, the workflow opens one `repair` work request for the
 card. The request names the failed rule in `{ruleId}`, and the last refusal
 code in `{reason}`. A repair worker reads the failed run, fixes the cause, and
