@@ -4955,7 +4955,7 @@
             </trans-unit>
             <trans-unit id="landing.works_with.claude_design.text">
                 <source>landing.works_with.claude_design.text</source>
-                <target>Store a Claude Design canvas as an artifact, and link it to a card.</target>
+                <target>Store a Design canvas from claude.ai as an artifact, and link it to a card.</target>
             </trans-unit>
             <trans-unit id="landing.works_with.more.name">
                 <source>landing.works_with.more.name</source>
@@ -8936,7 +8936,7 @@
             <trans-unit id="artifact.error.no_files"><source>artifact.error.no_files</source><target>Send at least one file.</target></trans-unit>
             <trans-unit id="artifact.error.too_many_files"><source>artifact.error.too_many_files</source><target>The version has more files than the limit of this instance allows.</target></trans-unit>
             <trans-unit id="artifact.error.unsafe_path"><source>artifact.error.unsafe_path</source><target>Each path must be relative, with no empty or dot segment, no backslash and no control character, and at most 1024 characters.</target></trans-unit>
-            <trans-unit id="artifact.error.claude_design_canvas"><source>artifact.error.claude_design_canvas</source><target>A .dc.html file is a Claude Design canvas, and it does not render outside Claude Design. Push it with loupe artifact push from CLI 1.17.0 or later, which compiles the canvas to plain HTML.</target></trans-unit>
+            <trans-unit id="artifact.error.claude_design_canvas"><source>artifact.error.claude_design_canvas</source><target>A .dc.html file is a Design canvas, and it does not render outside claude.ai. Push it with loupe artifact push, which compiles the canvas to plain HTML.</target></trans-unit>
             <trans-unit id="artifact.error.duplicate_path"><source>artifact.error.duplicate_path</source><target>Two files have the same path.</target></trans-unit>
             <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
             <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>

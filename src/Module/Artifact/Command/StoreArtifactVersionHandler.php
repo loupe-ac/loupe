@@ -26,7 +26,7 @@ final readonly class StoreArtifactVersionHandler
     private const int MAX_PATH_LENGTH = 1024;
     private const int MAX_CONTENT_TYPE_LENGTH = 255;
     private const int MAX_SESSION_LENGTH = 255;
-    // A canvas needs the runtime that only Claude Design supplies, so it renders broken here.
+    // A Design canvas needs the runtime that only claude.ai supplies, so it renders broken here.
     private const string CLAUDE_DESIGN_CANVAS_SUFFIX = '.dc.html';
 
     public function __construct(
