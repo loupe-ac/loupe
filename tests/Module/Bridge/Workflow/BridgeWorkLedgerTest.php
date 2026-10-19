@@ -101,6 +101,33 @@ final class BridgeWorkLedgerTest extends KernelTestCase
         self::assertFalse($latest->stop);
     }
 
+    public function test_the_latest_continuation_honours_the_work_kind(): void
+    {
+        $project = $this->scenario('ledger-continuation-kind@example.com');
+        $cardId = Uuid::v7();
+        $first = $this->seedRun($this->em(), $project, cardId: $cardId);
+        $this->continuation($project, $cardId, $first, WorkerRunState::Failed, '2026-10-01 12:00:00', 'fix');
+
+        self::assertNotNull($this->ledger()->latestContinuation($cardId, null, null));
+        self::assertSame('failed', $this->ledger()->latestContinuation($cardId, null, null, 'fix')?->state);
+        self::assertNull($this->ledger()->latestContinuation($cardId, null, null, 'plan'));
+    }
+
+    public function test_a_run_is_read_by_its_id(): void
+    {
+        $project = $this->scenario('ledger-run@example.com');
+        $cardId = Uuid::v7();
+        $first = $this->seedRun($this->em(), $project, cardId: $cardId, state: WorkerRunState::Running);
+        $ended = $this->continuation($project, $cardId, $first, WorkerRunState::Blocked, '2026-10-01 12:00:00');
+
+        $open = $this->ledger()->run($first->id ?? throw new \LogicException('A flushed run has an id.'));
+        self::assertNotNull($open);
+        self::assertSame([$first->id->toRfc4122(), 'running', false, true], [$open->id->toRfc4122(), $open->state, $open->stop, $open->open]);
+        $blocked = $this->ledger()->run($ended->id ?? throw new \LogicException('A flushed run has an id.'));
+        self::assertSame(['blocked', true, false], [$blocked?->state, $blocked?->stop, $blocked?->open]);
+        self::assertNull($this->ledger()->run(Uuid::v7()));
+    }
+
     public function test_an_open_worker_run_on_the_card_counts(): void
     {
         $project = $this->scenario('ledger-open-run@example.com');
@@ -179,9 +206,9 @@ final class BridgeWorkLedgerTest extends KernelTestCase
         return $this->ledger()->isOpenWorkerOnCard((string) $run->id, $this->projectId($project), $cardId);
     }
 
-    private function continuation(Project $project, Uuid $cardId, WorkerRun $continues, WorkerRunState $state, string $receivedAt): WorkerRun
+    private function continuation(Project $project, Uuid $cardId, WorkerRun $continues, WorkerRunState $state, string $receivedAt, string $workKind = 'plan'): WorkerRun
     {
-        $run = $this->seedRun($this->em(), $project, new \DateTimeImmutable($receivedAt), cardId: $cardId, state: $state);
+        $run = $this->seedRun($this->em(), $project, new \DateTimeImmutable($receivedAt), workKind: $workKind, cardId: $cardId, state: $state);
         $run->continuesRun = $continues;
         $this->em()->flush();
 
