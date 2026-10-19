@@ -82,11 +82,13 @@ The app opens the epic pull request after the first child merge. The app asks fo
 
 ### Refresh the epic preview
 
-The epic preview serves the code of the epic branch, so the owner can try every merged child in one place. When the profile `Epics` section names no epic preview, stop with `STAGE RESULT: blocked: no epic preview in .loupe/lifecycle.md`.
+The epic preview serves the code of the epic branch, so the owner can try every merged child in one place.
 
-Read the epic with `card_get` on the card of the request. A refresh and a teardown can run this section at the same time. Take the epic preview lock of the profile `Epics` section before step 1, and release it before each stop, also when a step fails. When the lock does not come, record the block, and stop with `STAGE RESULT: blocked: epic preview lock`. With the lock held, read the epic with `card_get` again. When its `status` is a terminal column, release the lock and stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
+The `before` command of the `epic-preview` work entry creates or refreshes the epic preview, and the worker starts in that folder. This stage never creates, refreshes or locks it. When the worker folder is not the preview of the epic, stop with `STAGE RESULT: blocked: no epic preview folder`.
 
-1. Create the epic preview, or refresh it when it exists, as the profile says. Run a long command as the harness adapter says. Never bind writes to the preview.
+Read the epic with `card_get` on the card of the request. When its `status` is a terminal column, stop with `STAGE RESULT: unchanged`, because a finished epic needs no preview.
+
+1. Check that the worker folder is the preview of the epic: `git rev-parse --show-toplevel` ends in `/.worktrees/epic-<n>`, and `git rev-parse HEAD` equals `git rev-parse origin/<epic branch>`. Never bind writes to the preview.
 2. When the epic `pullRequestUrls` has no open epic pull request, stop with `STAGE RESULT: preview refreshed <epic preview url>`. The app can link the epic pull request after this run starts. The next refresh writes the lines that the body lacks.
 3. Read the body of the epic pull request with the forge adapter. List each child of the epic `children` in a terminal column that has no line in the preview section. Read each listed child with `card_get`, and take its pull request that merged into the epic branch. Leave out a child with no such pull request.
 4. Read the body of each merged child pull request with the forge adapter. In the preview section that the profile `Pull request` section names, take each link of the form that the profile `Epics` section carries, with its label and its marker. A child with no such link carries nothing. When no listed child carries a link, stop with `STAGE RESULT: preview refreshed <epic pull request url>`.
