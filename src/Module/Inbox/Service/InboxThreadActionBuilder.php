@@ -75,7 +75,7 @@ final readonly class InboxThreadActionBuilder
                 return null;
             }
 
-            return new ThreadAction($action, $this->urls->generate('app_board_card', ['projectId' => $item->project->id, 'cardId' => $cardId]), card: true);
+            return new ThreadAction(self::openLabelled($action, 'card'), $this->urls->generate('app_board_card', ['projectId' => $item->project->id, 'cardId' => $cardId]), card: true);
         }
 
         $document = $item->documents->first();
@@ -83,7 +83,13 @@ final readonly class InboxThreadActionBuilder
             return null;
         }
 
-        return new ThreadAction($action, $this->urls->generate('app_document_review', ['projectId' => $item->project->id, 'documentId' => $document->document->id]));
+        return new ThreadAction(self::openLabelled($action, 'document'), $this->urls->generate('app_document_review', ['projectId' => $item->project->id, 'documentId' => $document->document->id]));
+    }
+
+    /** A bare "Open" does not say what it opens, so the row names its target. */
+    private static function openLabelled(ItemAction $action, string $target): ItemAction
+    {
+        return new ItemAction($action->kind, \sprintf('inbox.action.open.%s.label', $target), \sprintf('inbox.action.open.%s.effect', $target), $action->default, $action->disabledReasonKey, $action->reason, $action->runCommand, $action->sessionPrompt);
     }
 
     private function reviewRow(InboxItem $item, ItemAction $action): ?ThreadAction

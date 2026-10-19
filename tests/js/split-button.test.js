@@ -114,3 +114,17 @@ it('closes before Turbo caches the page', () => {
     document.dispatchEvent(new Event('turbo:before-cache'));
     expect(controller.panelTarget.hidden).toBe(true);
 });
+
+it('connects without a toggle when the menu has no rows', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    document.body.innerHTML = `<span data-controller="split-button">
+        <button type="submit">Resume the run</button>
+        <div role="menu" data-split-button-target="panel" hidden></div>
+    </span>`;
+    await settle();
+    document.body.replaceChildren();
+    await settle();
+
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+});

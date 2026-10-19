@@ -22,6 +22,9 @@
     {% endif %}
 {% elseif command %}
     <twig:Ds:MenuItem type="button" role="menuitem" data-action="click->split-button#close click->modal#open" data-inbox-action="{{ command.canAddEntry ? 'add-entry' : kind }}">{{ label }}</twig:Ds:MenuItem>
+{% elseif kind == 'start-session' and row.action.sessionPrompt is not null %}
+    {# The row shows the prompt field of the reply form first, so the owner reads the prompt before the session starts. #}
+    <twig:Ds:MenuItem type="button" role="menuitem" data-action="click->split-button#close click->inbox-session-prompt#reveal" data-inbox-action="{{ kind }}">{{ label }}</twig:Ds:MenuItem>
 {% elseif kind == 'dismiss' %}
     <twig:Ds:MenuItem type="submit" role="menuitem" form="{{ declineFormId }}" data-inbox-action="dismiss">{{ label }}</twig:Ds:MenuItem>
 {% else %}

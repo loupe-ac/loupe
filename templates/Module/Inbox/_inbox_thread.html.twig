@@ -1,8 +1,10 @@
 {#- A wait item as a thread: what stopped, the owner's reply with its split button, and the actions the owner already took.
    Params: item, watch (InboxCardWatch), inbox, refusedForm, actionParams, responseFrame, hostCardId, cardDrawer,
-   reply (whether this page takes the owner's reply), todoButtons (optional: declineFormId, declineLabel, doneFormId of a to-do). -#}
+   reply (whether this page takes the owner's reply), todoButtons (optional: declineFormId, declineLabel, doneFormId of a to-do),
+   withNote (optional, default true: whether the reply card takes a note for the action). -#}
 {% set linkedDocumentIds = item.documents|map(link => link.document.id.toRfc4122) %}
 {% set todoButtons = todoButtons ?? null %}
+{% set withNote = (withNote ?? true) and not todoButtons %}
 {% set shownWaits = watch is null ? [] : watch.waits|filter(wait => wait.endedAt is null)|merge(watch.waits|filter(wait => wait.endedAt is not null))|filter(wait => not inbox_wait_folded(wait)) %}
 {% set statuses = reply ? inbox_action_statuses(item) : [] %}
 {% set lastStatus = statuses|last %}
@@ -13,6 +15,10 @@
 {% set commandRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.runCommand)|first : null %}
 {% set runCommand = commandRow ? commandRow.action.runCommand : null %}
 {% set actionForm = reply ? inbox_action_form(item, refusedForm) : null %}
+{# The enabled start-session row that carries a prompt of the asking agent. The owner reads and edits it before the click. #}
+{% set sessionRow = actions ? ([actions.main]|merge(actions.menu))|filter(row => row and row.action.sessionPrompt is not null and row.action.disabledReasonKey is null)|first : null %}
+{# The field shows when Start session is the main button. From the menu, the row shows it first, with its own button. #}
+{% set sessionMain = sessionRow and sessionRow is same as(actions.main) %}
 {# The dialog posts the reply form, so it needs the reply card on the page. #}
 {% set commandDialog = runCommand and runCommand.canOpenDialog and not answering %}
 {# The add dialog offers a missing entry to a bridge that opted in. The run dialog never exists beside it. #}
@@ -79,7 +85,7 @@
         {% set declineForm = inbox_decline_form(item, refusedForm) %}
         {% set noteLabel = 'inbox.thread.note_placeholder'|trans %}
         <div class="lp-inbox-item__actions">
-            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}}) }}
+            {{ form_start(actionForm, {action: path('app_inbox_item_action', actionParams|merge({kind: 'resume-run'})), attr: {id: actionForm.vars.id, class: 'lp-comment-composer lp-comment-composer--untargeted lp-inbox-thread__reply', 'data-turbo-frame': responseFrame}|merge(sessionRow and not sessionMain ? {'data-controller': 'inbox-session-prompt'} : {})}) }}
                 {% if actions.main %}
                     <h3 class="lp-status-box__title" data-inbox-reply-heading>{{ actions.main.action.reason ?? actions.main.action.labelKey|trans }}</h3>
                 {% endif %}
@@ -99,14 +105,24 @@
                         <twig:Ds:Hint>{{ 'inbox.run_command.missing.hint'|trans({'%command%': 'loupe bridge reload'}) }}</twig:Ds:Hint>
                     {% endif %}
                 {% endif %}
-                {% if not todoButtons %}
+                {% if withNote %}
                     {{ form_widget(actionForm.note, {attr: {rows: 2, placeholder: noteLabel, 'aria-label': noteLabel}}) }}
                     <twig:Ds:FieldErrors :fieldView="actionForm.note" />
+                {% endif %}
+                {% if sessionMain %}
+                    <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+                {% elseif sessionRow %}
+                    <div data-inbox-session-prompt-target="field" data-inbox-session-prompt-field hidden>
+                        <twig:Ds:FormField :fieldView="actionForm.sessionPrompt" :labelText="'inbox.thread.session_prompt_label'|trans" widgetKind="textarea" :widgetAttr="{rows: 4, 'data-inbox-session-prompt': ''}" :hintText="'inbox.thread.session_prompt_hint'|trans" />
+                        <twig:Ds:FormActions>
+                            <twig:Ds:Button variant="primary" size="sm" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: 'start-session'}))" data-inbox-action="start-session-confirm">{{ sessionRow.action.labelKey|trans }}</twig:Ds:Button>
+                        </twig:Ds:FormActions>
+                    </div>
                 {% endif %}
                 <twig:Ds:FieldErrors :fieldView="actionForm" />
                 {{ form_widget(actionForm._token) }}
                 <div class="lp-comment-composer__actions">
-                    <twig:Ds:Hint as="span" class="inbox-split__hint">{{ actions.main and actions.main.action.runCommand ? (runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '') : (todoButtons ? '' : 'inbox.thread.note_hint'|trans) }}</twig:Ds:Hint>
+                    <twig:Ds:Hint as="span" class="inbox-split__hint">{{ actions.main and actions.main.action.runCommand ? (runCommand.onSuccess.value == 'resumes-run' ? 'inbox.run_command.dialog.success_run'|trans : '') : (withNote ? 'inbox.thread.note_hint'|trans : '') }}</twig:Ds:Hint>
                     {% if todoButtons %}
                         {% include '@Inbox/_decline_button.html.twig' with {formId: todoButtons.declineFormId, label: todoButtons.declineLabel} only %}
                         <twig:Ds:Button variant="secondary" size="sm" type="submit" form="{{ todoButtons.doneFormId }}" data-inbox-done>{{ 'inbox.done.submit'|trans }}</twig:Ds:Button>
@@ -115,8 +131,8 @@
                         {# Nothing else fits, so Dismiss is the one action and needs no menu. #}
                         <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" form="{{ declineForm.vars.id }}" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans }}</twig:Ds:Button>
                     {% elseif actions.main or actions.menu %}
-                    <twig:Ds:Menu id="inbox-split-menu-{{ item.id }}" class="inbox-split" data-controller="split-button" size="lg" :panel="{role: 'menu', 'data-split-button-target': 'panel'}">
-                        <twig:block name="trigger">
+                    <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
+                        <twig:block name="main">
                         {% if actions.main and actions.main.isLink %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand and addEntryDialog %}
@@ -125,9 +141,6 @@
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
                         {% elseif actions.main %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: actions.main.action.kind.value}))" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
-                        {% endif %}
-                        {% if actions.menu or actions.dismiss %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="inbox-split-menu-{{ item.id }}" :aria-label="'inbox.thread.other_actions'|trans" data-split-button-target="trigger" data-popover-target="trigger" data-action="click->split-button#toggle"><twig:ux:icon name="lucide:chevron-down" /></twig:Ds:Button>
                         {% endif %}
                         </twig:block>
                         <twig:block name="content">
@@ -141,7 +154,7 @@
                                 {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer} only %}
                             {% endif %}
                         </twig:block>
-                    </twig:Ds:Menu>
+                    </twig:Ds:SplitButton>
                     {% endif %}
                 </div>
             {{ form_end(actionForm, {render_rest: false}) }}
