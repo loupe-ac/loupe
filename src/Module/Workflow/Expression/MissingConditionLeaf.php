@@ -60,6 +60,18 @@ final readonly class MissingConditionLeaf extends Expression
     }
 
     #[\Override]
+    public function holdingParts(Facts $facts): array
+    {
+        return [];
+    }
+
+    #[\Override]
+    public function canonical(): string
+    {
+        return 'missing-condition('.$this->key.')';
+    }
+
+    #[\Override]
     public function missingKeys(): array
     {
         return [$this->key];

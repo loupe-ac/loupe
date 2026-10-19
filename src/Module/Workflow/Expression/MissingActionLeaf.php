@@ -59,6 +59,18 @@ final readonly class MissingActionLeaf extends Expression
     }
 
     #[\Override]
+    public function holdingParts(Facts $facts): array
+    {
+        return [];
+    }
+
+    #[\Override]
+    public function canonical(): string
+    {
+        return 'missing-action('.$this->action.')';
+    }
+
+    #[\Override]
     public function missingKeys(): array
     {
         return [];

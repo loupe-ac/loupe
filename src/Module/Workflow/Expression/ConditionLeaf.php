@@ -85,6 +85,32 @@ final readonly class ConditionLeaf extends Expression
     }
 
     #[\Override]
+    public function holdingParts(Facts $facts): array
+    {
+        return $this->evaluate($facts) ? [$this->canonical()] : [];
+    }
+
+    #[\Override]
+    public function canonical(): string
+    {
+        $params = $this->params;
+        self::sortKeys($params);
+
+        return $this->condition::key().json_encode([] === $params ? new \stdClass() : $params, \JSON_THROW_ON_ERROR);
+    }
+
+    /** @param array<array-key, mixed> $values */
+    private static function sortKeys(array &$values): void
+    {
+        ksort($values);
+        foreach ($values as &$value) {
+            if (\is_array($value)) {
+                self::sortKeys($value);
+            }
+        }
+    }
+
+    #[\Override]
     public function missingKeys(): array
     {
         return [];

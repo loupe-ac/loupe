@@ -51,6 +51,19 @@ final readonly class Not extends Expression
         return $this->inner->leaves();
     }
 
+    /** A negation that holds is one part. It does not read into the inner expression, so a negated condition that starts to hold is new. */
+    #[\Override]
+    public function holdingParts(Facts $facts): array
+    {
+        return $this->evaluate($facts) ? [$this->canonical()] : [];
+    }
+
+    #[\Override]
+    public function canonical(): string
+    {
+        return 'not('.$this->inner->canonical().')';
+    }
+
     #[\Override]
     public function requiredLeaves(): array
     {

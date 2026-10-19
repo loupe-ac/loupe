@@ -363,4 +363,24 @@ final class ExpressionTest extends TestCase
         self::assertSame([], new MissingConditionLeaf('gone', [])->requiredLeaves());
         self::assertSame([$first], new AllOf([$first, new AnyOf([$second, $third])])->requiredLeaves());
     }
+
+    public function test_the_holding_parts_list_each_holding_leaf_and_each_holding_negation_whole(): void
+    {
+        $child = new ConditionLeaf(new CardParentExists(), []);
+        $blocker = new ConditionLeaf(new CardHasOpenBlocker(), []);
+        $any = new AnyOf([$child, new Not($blocker)]);
+
+        self::assertSame(['not(card.blocker.open{})'], $any->holdingParts(FactsMother::facts()));
+        self::assertSame(['card.parent.exists{}', 'not(card.blocker.open{})'], $any->holdingParts(FactsMother::facts(card: FactsMother::card(isChild: true))));
+        self::assertSame(['card.parent.exists{}'], $any->holdingParts(FactsMother::facts(card: FactsMother::card(hasOpenBlocker: true, isChild: true))));
+        self::assertSame([], new AllOf([$child, $blocker])->holdingParts(FactsMother::facts()));
+    }
+
+    public function test_the_canonical_text_sorts_the_parameters(): void
+    {
+        $leaf = new ConditionLeaf(new CardHasType(), ['b' => 1, 'a' => ['y' => 1, 'x' => 2]]);
+
+        self::assertSame('card.type{"a":{"x":2,"y":1},"b":1}', $leaf->canonical());
+        self::assertSame('all(any(card.type{"a":{"x":2,"y":1},"b":1}),not(card.type{"a":{"x":2,"y":1},"b":1}))', new AllOf([new AnyOf([$leaf]), new Not($leaf)])->canonical());
+    }
 }
