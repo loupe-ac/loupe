@@ -94,6 +94,18 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         self::assertSame([(string) $this->run->card->id], $evaluated);
     }
 
+    public function test_a_gap_finding_from_an_older_plugin_is_stored_as_suggested(): void
+    {
+        $document = $this->submit(findings: [
+            new ReportFinding('Tests run', 'gap', 'None found.'),
+            new ReportFinding('Docs exist', 'suggested', 'No README.'),
+        ]);
+
+        self::assertMatchesRegularExpression('~### Suggested\n\n1\. \*\*Tests run\*\*: None found\.\n2\. \*\*Docs exist\*\*: No README\.\n~', $document->currentVersion()->markdownSource);
+        $recorded = array_values(array_filter($this->audit->sink->events, static fn ($event): bool => 'readiness.report_submitted' === $event->operation));
+        self::assertSame(2, $recorded[0]->context['suggestedCount']);
+    }
+
     public function test_a_report_with_no_proposal_is_stored_with_no_decision_block(): void
     {
         $document = $this->submit();

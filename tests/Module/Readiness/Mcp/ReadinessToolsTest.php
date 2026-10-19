@@ -162,6 +162,25 @@ final class ReadinessToolsTest extends KernelTestCase
         self::assertStringEndsWith('/projects/'.$project->id.'/documents/'.$document->id.'/review', $answer['url']);
     }
 
+    public function test_readiness_report_submit_accepts_the_gap_status_of_an_older_plugin(): void
+    {
+        $project = $this->workflowProject('report-submit-tool-gap');
+        $run = $this->discoveryRun($this->discoveryCard($project));
+        $this->actAsMcpTokenBoundTo($project);
+
+        $answer = $this->reportSubmit()(
+            (string) $run->id,
+            'lifecycle',
+            [['check' => 'Tests run', 'status' => 'gap', 'evidence' => 'None found.']],
+            [],
+            'A short summary.',
+        );
+
+        $document = $this->em()->find(Document::class, $answer['documentId']);
+        self::assertNotNull($document);
+        self::assertStringContainsString("### Suggested\n\n1. **Tests run**: None found.", $document->currentVersion()->markdownSource);
+    }
+
     public function test_readiness_report_submit_names_the_fix_for_each_refusal(): void
     {
         $project = $this->workflowProject('report-submit-tool-refusals');
