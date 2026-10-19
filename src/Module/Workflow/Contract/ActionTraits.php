@@ -18,6 +18,8 @@ final readonly class ActionTraits
         public bool $option = false,
         /** The action may run for the choice an agent states for a card it files under a parent. */
         public bool $childChoice = false,
+        /** The action publishes the draft documents of the card that carry its `tags`. */
+        public bool $publishesDocuments = false,
     ) {
     }
 }

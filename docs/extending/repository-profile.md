@@ -48,6 +48,10 @@ Four sections are optional. A missing optional section blocks nothing.
 4. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
    branches.
+4. `Decision records` names where the project keeps its decision records and
+   its priorities. The `loupe-recommendations` skill reads them to judge whether
+   an option agrees with an accepted decision, and to settle a choice between
+   options that are all correct. Without the section the skill skips that check.
 
 ## Draft pull requests and the agent review
 

@@ -22,7 +22,7 @@ Review the pull request of one card at one head commit, and send the result to L
 ## Procedure
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them. Pick the forge adapter as `../loupe-stage-implementation/references/commands.md` says.
-2. Load the instructions the profile `Instruction files` section names for the files the change touches, so you review against the conventions of the repository.
+2. Load `loupe-recommendations`. Load the instructions the profile `Instruction files` section names for the files the change touches, so you review against the conventions of the repository.
 3. Find the pull request. The prompt names its URL and the commit to review. When it names none, take the one open pull request of the card `pullRequests`, and its head commit from the forge adapter. When the card has none, stop with `STAGE RESULT: no open pull request`. When it has more than one open, stop with `STAGE RESULT: blocked: more than one open pull request`.
 4. Find and validate the pull request with the forge adapter. When it is outside this repository, stop with `STAGE RESULT: blocked: pull request outside this repository`. When it is not open, stop with `STAGE RESULT: no open pull request`.
 5. Compare the head commit on the forge with the commit to review. When they differ, a push landed after the request. Stop with `STAGE RESULT: not ready <url>: head moved`. Submit nothing. The workflow counts the request as a failed try and asks again after a short wait, so nobody needs to act.

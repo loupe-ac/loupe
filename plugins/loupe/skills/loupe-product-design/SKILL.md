@@ -17,7 +17,7 @@ P0 opens an interactive run on the card with `card_run_open`. Close the run with
 
 ## Procedure
 
-1. Load the `loupe-board` and `loupe-documents` instructions.
+1. Load the `loupe-board`, `loupe-documents` and `loupe-recommendations` instructions.
 2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, the design system entry, and the name of the Claude Design starter project. When the profile names no starter, read the name from the agent instructions, such as `AGENTS.md`. C10 uses that name. When the file is missing, write plainly, and ask the owner about docs in P6.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
 4. Read `references/session-flow.md`, `references/question-rules.md` and `references/claude-design.md`. Follow them for the whole session.

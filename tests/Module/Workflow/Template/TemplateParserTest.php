@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Workflow\Template;
 
+use App\Module\AgentReview\Workflow\Condition\DesignReviewFinished;
 use App\Module\Board\Workflow\Condition\CardChildrenFinished;
 use App\Module\Board\Workflow\Condition\CardDocument;
 use App\Module\Board\Workflow\Condition\CardDocumentApproved;
@@ -76,6 +77,7 @@ final class TemplateParserTest extends TestCase
             new CardHasOpenQuestion(),
             new CardHasType(),
             new CardInSlot(),
+            new DesignReviewFinished(),
             new PullRequestApprovalCoversHead(),
             new PullRequestOpen(),
             new RunWorkActive(),
@@ -653,6 +655,76 @@ final class TemplateParserTest extends TestCase
         $template['rules'][0]['when'] = ['not' => ['card.document.linked' => ['tag' => 'plan']]];
 
         self::assertSame(['plan'], $this->parser->parse($template)->documentTagsFor('build'));
+    }
+
+    /**
+     * @param array<string, mixed> $when
+     * @param array<string, mixed> $then
+     * @param list<string>         $tags
+     */
+    private function reviewLimit(array $when, array $then, array $tags): ?int
+    {
+        $template = self::valid();
+        $template['rules'] = [['id' => 'publish', 'slot' => 'build', 'when' => $when, 'then' => $then]];
+
+        return $this->parser->parse($template)->reviewRoundLimit($tags);
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: ?int}> */
+    public static function reviewLimitConditions(): array
+    {
+        $finished = static fn (string $tag, int $rounds): array => ['design_review.finished' => ['tag' => $tag, 'rounds' => $rounds]];
+
+        return [
+            'the whole condition' => [$finished('tech-design', 4), 4],
+            'an entry of a top-level all' => [['all' => [['not' => ['card.blocker.open' => []]], $finished('tech-design', 5)]], 5],
+            'an entry of a nested all' => [['all' => [['all' => [$finished('tech-design', 6)]]]], 6],
+            'a leaf under any' => [['any' => [$finished('tech-design', 4), ['card.blocker.open' => []]]], null],
+            'a leaf under not' => [['not' => $finished('tech-design', 4)], null],
+            'a leaf of another tag' => [$finished('product-design', 4), null],
+        ];
+    }
+
+    /** @param array<string, mixed> $when */
+    #[DataProvider('reviewLimitConditions')]
+    public function test_the_review_limit_comes_from_a_check_the_publish_rule_requires(array $when, ?int $expected): void
+    {
+        self::assertSame($expected, $this->reviewLimit($when, ['publish-documents' => ['tags' => ['tech-design']]], ['tech-design']));
+    }
+
+    public function test_a_check_in_a_rule_that_publishes_nothing_gives_no_limit(): void
+    {
+        $when = ['design_review.finished' => ['tag' => 'tech-design', 'rounds' => 2]];
+
+        self::assertNull($this->reviewLimit($when, ['move' => ['to' => 'review']], ['tech-design']));
+    }
+
+    public function test_a_check_for_a_tag_the_rule_does_not_publish_gives_no_limit(): void
+    {
+        $when = ['design_review.finished' => ['tag' => 'tech-design', 'rounds' => 2]];
+
+        self::assertNull($this->reviewLimit($when, ['publish-documents' => ['tags' => ['deploy-notes']]], ['tech-design']));
+    }
+
+    public function test_a_document_with_neither_design_tag_has_no_limit(): void
+    {
+        $when = ['design_review.finished' => ['tag' => 'tech-design', 'rounds' => 2]];
+
+        self::assertNull($this->reviewLimit($when, ['publish-documents' => ['tags' => ['tech-design']]], ['plan']));
+    }
+
+    public function test_a_document_with_both_design_tags_takes_the_smaller_limit(): void
+    {
+        $template = self::valid();
+        $publish = static fn (string $id, string $tag, int $rounds): array => [
+            'id' => $id,
+            'slot' => 'build',
+            'when' => ['design_review.finished' => ['tag' => $tag, 'rounds' => $rounds]],
+            'then' => ['publish-documents' => ['tags' => [$tag]]],
+        ];
+        $template['rules'] = [$publish('a', 'product-design', 6), $publish('b', 'tech-design', 3)];
+
+        self::assertSame(3, $this->parser->parse($template)->reviewRoundLimit(['product-design', 'tech-design']));
     }
 
     public function test_a_valid_template_round_trips_through_json(): void

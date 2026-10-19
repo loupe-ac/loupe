@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Template;
 
+use App\Module\Workflow\Contract\EndsReviewLoop;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
 
@@ -121,5 +122,33 @@ final readonly class Template
         }
 
         return array_values(array_unique($tags));
+    }
+
+    /**
+     * The smallest `rounds` of a review-loop check that a rule publishing a document with one of the tags requires.
+     *
+     * @param list<string> $tags the tags of one document
+     */
+    public function reviewRoundLimit(array $tags): ?int
+    {
+        $limits = [];
+        foreach ($this->rules as $rule) {
+            if (!$rule->then->traits->publishesDocuments) {
+                continue;
+            }
+            $published = $rule->then->lists['tags'] ?? [];
+            foreach ($rule->when->requiredLeaves() as $leaf) {
+                $condition = $leaf->condition;
+                if (!$condition instanceof EndsReviewLoop || !$condition instanceof ReadsDocumentTag) {
+                    continue;
+                }
+                $tag = $condition->documentTag($leaf->params);
+                if (null !== $tag && \in_array($tag, $tags, true) && \in_array($tag, $published, true)) {
+                    $limits[] = $condition->roundLimit($leaf->params);
+                }
+            }
+        }
+
+        return [] === $limits ? null : min($limits);
     }
 }

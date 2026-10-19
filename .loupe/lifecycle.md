@@ -20,6 +20,11 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 2. Folder check: the two lines of `git rev-parse --path-format=absolute --git-dir --git-common-dir` must differ. They are equal in the main checkout, where a worker must never work.
 3. Run a command inside the container of the worker folder with `bin/worktrees/compose-exec.sh <command>`, from that folder. Never run bare `docker compose` from a worktree.
 
+## Decision records
+
+1. Decision records: `docs/adr/`. `docs/adr/index.md` lists them.
+2. Priorities: `docs/contributing/architectural-priorities.md`.
+
 ## Gate
 
 1. Base branch: `main`. A child of an epic with an epic branch uses `epic/<n>` instead, as the `Epics` section says. A branch that stacks on an open pull request uses that pull request's head branch instead, as the stage `commands.md` says.

@@ -22,7 +22,7 @@ Review one draft design document of one card, and send the result to Loupe with 
 ## Procedure
 
 1. Read `../loupe-stage-product-design/references/stage-contract.md` "Adapters and profile" and "First steps", and follow them.
-2. Load the `loupe-documents` instruction and the instructions the profile `Instruction files` section names. They hold the project rules that the checklists point at.
+2. Load the `loupe-documents` and `loupe-recommendations` instructions and the instructions the profile `Instruction files` section names. They hold the project rules that the checklists point at.
 3. Find the draft. The prompt can name a document id. Otherwise take the draft among the documents that `card_get` lists. The product design has the product design tag, or a title that starts `Product design`. The tech design has the tech design tags, or a title that starts `Tech design`. The contract "Document tags" says where the tags come from. Skip the tech design of the parent card of an epic child. When no linked document is a draft design, stop with `STAGE RESULT: no linked draft design`. When two drafts of the same kind match, stop with `STAGE RESULT: blocked: ambiguous document match`.
 4. Read the document with `document_get`. Write down its `version`, because `document_review_submit` stores the review against that number. Then call `document_get_review` and read its `decisions`. An answered decision is decided, as "Read the answers of a design" in `../loupe-stage-product-design/references/stage-contract.md` says.
 5. Pick the checklist by the kind of document. Read `references/product-design-checklist.md` for a product design, and `references/tech-design-checklist.md` for a tech design.

@@ -44,6 +44,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `project-comments` | Writing or reviewing code comments and docblocks anywhere in `src/`, `assets/` or `tests/` |
 | `project-mutation-and-coverage` | Mutation testing, code coverage, fetching a weekly report artifact, or a test that asserts on elapsed time |
 | `holding-a-merge-queue` | One session holds the merge queue, watches several pull requests, or verifies and merges branches that other sessions push |
+| `loupe-recommendations` | Recommending, choosing or reviewing a solution: a design decision, a fix, a plan, a review finding, a patch against a correct fix |
 | `working-with-prs` | Opening, gating, reviewing or merging a pull request |
 
 A subagent does not inherit the skills you have loaded. When you delegate PHP, entity, migration or command work, state the relevant skill conventions in the prompt, or tell the subagent to invoke the skill first. A convention that lives only in a skill is silently missed otherwise. The brand-new-table migration rule in `project-backend` is the example that bit.
@@ -181,6 +182,8 @@ An existing file keeps its old prose until a rewrite touches it. The `compressin
 ## Recommendations and the quality bar
 
 The owner ranks the priorities `correctness > simplicity > performance > shipping speed`. `docs/contributing/architectural-priorities.md` says which one yields in each of the six collisions, and when to escalate rather than apply the ranking. Read it before you call a trade-off. The records in `docs/adr/` apply that ranking to recurring questions. Read them before you design a new stage, a workflow rule or an automation.
+
+Invoke the `loupe-recommendations` skill before you recommend, choose or review a solution. It says that effort alone never ranks a patch above a correct fix.
 
 ### The owner sets the bar, not the agent
 
