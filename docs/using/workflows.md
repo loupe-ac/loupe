@@ -259,7 +259,7 @@ The template sets this behaviour in its `onWorkFailed` block:
 
 ```yaml
 onWorkFailed:
-    retryOn: [failed, timeout, still-true]
+    retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
     backoffMinutes: [2, 3, 5]
     repair: { kind: repair }
@@ -270,6 +270,12 @@ before the repair. `backoffMinutes` gives the wait before each retry. `repair`
 names the kind of the repair request. A template with no `repair` key pauses
 the card when the retries run out. A template with no `onWorkFailed` block
 neither retries nor pauses after a refused request.
+
+A worker that cannot reach the Loupe tools at its start reports the code
+`mcp-unreachable` with the status `unfinished`. It has changed nothing, so
+`retryOn` lists the code and the workflow retries the run. The retry resumes the
+same session. An `unfinished` run opens no inbox item, so the owner hears of it
+only when the retries and the repair run out and the card pauses.
 
 A request can also end with no result while its rule still holds. A `request`
 action that sets `stillTrue: retry` counts such an end as a failed try with the

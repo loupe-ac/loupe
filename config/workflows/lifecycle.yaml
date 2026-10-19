@@ -1,5 +1,5 @@
 key: lifecycle
-version: 6
+version: 7
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -33,7 +33,7 @@ childChoices:
 backoffMinutes: [10, 60, 360]
 workTimeoutMinutes: 120
 onWorkFailed:
-    retryOn: [failed, timeout, still-true]
+    retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
     backoffMinutes: [2, 3, 5]
     repair: { kind: repair }

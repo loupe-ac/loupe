@@ -19,6 +19,7 @@ enum WorkerRunReason: string
     case OpenPullRequest = 'open-pull-request';
     case NoPullRequest = 'no-pull-request';
     case ToolUnavailable = 'tool-unavailable';
+    case McpUnreachable = 'mcp-unreachable';
     case WorktreeFailed = 'worktree-failed';
     case MergeRefused = 'merge-refused';
     case NeedsPerson = 'needs-person';
