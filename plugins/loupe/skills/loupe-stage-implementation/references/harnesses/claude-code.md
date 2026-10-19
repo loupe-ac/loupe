@@ -52,15 +52,24 @@ A Claude Docs `read` denial says nothing about an artifact. Claude Docs is a dif
 
 ## Dispatch a sub-agent
 
-Dispatch a sub-agent with the Agent tool, and `subagent_type` set to `senior-dev`. The agent reads the instruction files of the repository itself. Put the rules the stage skill names into its prompt, because it inherits no loaded instruction. The `senior-dev` agent has every tool, so it reads a prototype page with `artifact_read` itself.
+Dispatch a sub-agent with the Agent tool. When the repository defines a `senior-dev` agent in `.claude/agents/senior-dev.md`, set `subagent_type` to `senior-dev`. Otherwise set it to `general-purpose`, and start the prompt with these essentials:
+
+- Rank correctness first, then simplicity, then performance, then shipping speed.
+- Read the instruction files of the repository before you change a file.
+- Make the smallest change that meets the task.
+- Write a failing test first, then the code that makes it pass.
+- Report a blocker and stop.
+- End with the status, the changed files, the tests and their result, and any concern.
+
+Put the rules the stage skill names into its prompt, because it inherits no loaded instruction. The sub-agent has every tool, so it reads a prototype page with `artifact_read` itself.
 
 ## Write a plan
 
-Use `superpowers-extended-cc:writing-plans` for the plan format only. Submit the plan to Loupe. Save no plan file, and skip its question about how to execute. Nobody approves the plan, so start the work as soon as it is linked.
+Write the plan in plain Markdown, and follow the `loupe-documents` instruction. Submit the plan to Loupe. Save no plan file. Nobody approves the plan, so start the work as soon as it is linked.
 
 ## Run the plan task by task
 
-Use `superpowers-extended-cc:subagent-driven-development` for the task loop only. Never invoke `superpowers-extended-cc:finishing-a-development-branch`. Never merge locally into the base branch, and never remove the worker folder.
+For each task, dispatch one implementer sub-agent, then one reviewer sub-agent. Run the tasks in order. Fix the findings of the review before the next task starts. Never merge locally into the base branch, and never remove the worker folder.
 
 ## Final reply
 

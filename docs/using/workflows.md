@@ -102,11 +102,11 @@ The shipped markers are:
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | An inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
-| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 3 |
+| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 6 |
 | `run-open` | Working | A worker runs on the card |
 | `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
-| `work-requested` | Working | Work waits for a bridge to take it, and a bridge could take it |
+| `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |
@@ -159,6 +159,11 @@ markers:
   match only a non-blocking one, such as a to-do. With no `blocking`, any open
   ask matches. Lifecycle and Simple set `blocking: true`, so a non-blocking
   to-do does not show "Needs you".
+- `card.run.waits_on_answer`: a session stopped on a run of the card to wait
+  for the answer to a blocking question, and that run is the newest run of the
+  session. The question need not name the card. Lifecycle uses it with `not:` in
+  its four fix rules, so no second fix starts while a session of the card waits
+  for an answer.
 - `pr.checks_pending`: the pull request is open, and its checks run.
 - `pr.waits_for_approval`: the pull request is open, not a draft, green and
   into the default branch, and no current approval covers its head.
@@ -233,6 +238,12 @@ starts again. The end of the card's own request does not count as a change, so
 a worker that blocks does not start a new run on the same card. A retry after a
 refusal also waits for its delay.
 
+A request can end while its rule still holds for a new reason. An example is a
+fix run that ends after the pull request became conflicting. The workflow then
+asks for one more fix at once. A part of the rule's condition that holds now, and
+did not hold when the request opened, counts as a new reason. A request that ends
+with the same reasons it started with asks for nothing more.
+
 When the retries run out, the workflow opens one `repair` work request for the
 card. The request names the failed rule in `{ruleId}`, and the last refusal
 code in `{reason}`. A repair worker reads the failed run, fixes the cause, and
@@ -259,7 +270,7 @@ The template sets this behaviour in its `onWorkFailed` block:
 
 ```yaml
 onWorkFailed:
-    retryOn: [failed, timeout, still-true]
+    retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
     backoffMinutes: [2, 3, 5]
     repair: { kind: repair }
@@ -270,6 +281,12 @@ before the repair. `backoffMinutes` gives the wait before each retry. `repair`
 names the kind of the repair request. A template with no `repair` key pauses
 the card when the retries run out. A template with no `onWorkFailed` block
 neither retries nor pauses after a refused request.
+
+A worker that cannot reach the Loupe tools at its start reports the code
+`mcp-unreachable` with the status `unfinished`. It has changed nothing, so
+`retryOn` lists the code and the workflow retries the run. The retry resumes the
+same session. An `unfinished` run opens no inbox item, so the owner hears of it
+only when the retries and the repair run out and the card pauses.
 
 A request can also end with no result while its rule still holds. A `request`
 action that sets `stillTrue: retry` counts such an end as a failed try with the
@@ -359,7 +376,7 @@ back to Implementation at once when it has no open blocker.
 |---|---|
 | Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries three [discovery](workshop.md#run-discovery) checks, for a design system, for a Claude Design project that mirrors it, and for a starter Claude Design project. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
 | Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
-| Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
+| Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
 ### Recheck of a design
