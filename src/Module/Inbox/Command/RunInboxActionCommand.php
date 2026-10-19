@@ -25,6 +25,8 @@ final readonly class RunInboxActionCommand
         public ?array $params = null,
         /** The digest of the run list the owner read in the confirm dialog. */
         public ?string $runDigest = null,
+        /** An agent ran the action on behalf of the owner. */
+        public bool $throughAgent = false,
     ) {
     }
 }

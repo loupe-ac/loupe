@@ -1,6 +1,6 @@
 ---
 name: loupe-inbox
-description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw or inbox_settings_update, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
+description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw inbox_answer, inbox_decline, inbox_done, inbox_action_run or inbox_settings_update, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
 ---
 
 # Asking the owner through the Loupe inbox
@@ -52,6 +52,17 @@ Nothing resumes an interactive session. It reads its answers the same way, with 
 ## Withdraw what you no longer need
 
 Call `inbox_withdraw` with the `itemId` and a `reason`, which the owner reads, when your own open item stops mattering. Only an open item can be withdrawn. A withdraw closes the item for every ask that holds it, so never withdraw an item you joined.
+
+## Record the owner's decision
+
+Use `inbox_answer`, `inbox_decline`, `inbox_done` and `inbox_action_run` only when the owner decided an item in your chat. Never use them to answer your own ask. A bridge worker session is refused.
+
+1. `inbox_answer` takes `selectedOptions` (zero-based indexes), `answerText`, or both.
+2. `inbox_decline` takes an optional `note`. It refuses a review. The review verdict stays on the inbox page.
+3. `inbox_done` marks a to-do done.
+4. `inbox_action_run` runs one action. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
+
+The item shows that an agent typed the response. The answer to a workflow question is final and runs its action at once.
 
 ## Change the inbox switches
 

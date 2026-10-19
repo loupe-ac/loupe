@@ -317,6 +317,10 @@ Roughly in the order an agent uses them:
 | `inbox_actions` | List the built-in actions an ask can suggest, and with a `cardId` the ones that fit that card now |
 | `inbox_get` | Read one inbox item, with its answer and its links |
 | `inbox_withdraw` | Withdraw an open item that is no longer needed, with a reason |
+| `inbox_answer` | Answer an inbox question for the owner, after the owner decided in chat. A bridge worker session is refused |
+| `inbox_decline` | Decline an inbox question or to-do, or dismiss a wait item, for the owner. A review stays on the inbox page |
+| `inbox_done` | Mark an inbox to-do done for the owner |
+| `inbox_action_run` | Run a built-in action of an inbox item for the owner. A `run-command` shows a preview first, and runs only with the `runDigest` of that preview |
 | `inbox_settings_update` | Turn the inbox wait switches on or off (off with the inbox) |
 | `worker_run_list` | Read a page of the worker runs, newest first, filtered by state, card, work kind, bridge, harness, account, model, words or the time a run ended. Each row gives the reason the run ended, its harness and account, its usage per model, its model, its experiment and variant, and its metrics. The metrics hold the sums of the run and its timing: the tool time, the model time, the idle gaps, the subagent time, and the count, failures and longest duration of its tool calls. They also hold the host of the run: the mean CPU use, the peak memory and swap, the count of runs that overlapped it on its bridge, and whether its machine ran on battery |
 | `worker_run_get` | Read one worker run in full, with every run of its series, its state changes, its output, its metrics and the commands sent to its bridge |
