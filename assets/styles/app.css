@@ -8340,7 +8340,7 @@
 .inbox-split {
     @apply inline-flex items-stretch;
 }
-.inbox-split__main {
+.inbox-split__main:has(+ .inbox-split__toggle) {
     @apply rounded-r-none;
 }
 .inbox-split__toggle:not(.inbox-split__toggle--alone) {
