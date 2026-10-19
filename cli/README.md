@@ -960,6 +960,41 @@ session](#resuming-a-session) says what each case does.
 A command that still runs when the bridge updates itself is handed over. The
 new image waits for it, then starts claude, as it does for a worker.
 
+### The refresh and reset commands
+
+A worker entry can also set `refresh` and `reset`. Each has the same shape as
+`before`: an argv list `run` with the placeholders of the entry, and a
+`timeout` that defaults to `15m` and may not pass `60m`. Neither prints a
+folder.
+
+```yaml
+work:
+  implement:
+    before:
+      run: [bin/worktree-for-card.sh, "{cardNumber}", "{cardId}"]
+    refresh:
+      run: [bin/refresh-card.sh, "{cardNumber}", "{cardId}"]
+    reset:
+      run: [bin/reset-card.sh, "{cardNumber}"]
+```
+
+A worker asks for one of them mid-run with `loupe env refresh` or
+`loupe env reset`. The command reads `LOUPE_BRIDGE_SOCKET` and
+`LOUPE_SESSION_ID`, which the bridge sets for each worker. The bridge finds
+the live worker of that session and runs the command of its entry in the
+worker's folder, with the bridge's own environment. It runs one command per
+session at a time.
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The command ran, or the entry names none. |
+| 1 | The command failed, ran past its timeout or was stopped. The output tail follows. |
+| 2 | The process is not a bridge worker, or no bridge listens on the socket. |
+
+An entry with `action: interactive` or `action: command` refuses both keys. A
+worker that a former image of the bridge started before an update keeps its
+commands, because the handover record carries them.
+
 ### The command action
 
 An entry with `action: command` runs a command for the card, and starts no

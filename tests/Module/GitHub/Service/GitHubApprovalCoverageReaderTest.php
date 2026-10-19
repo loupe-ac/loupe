@@ -17,12 +17,14 @@ use App\Module\GitHub\Service\GitHubAppConfiguration;
 use App\Module\GitHub\Service\GitHubApprovalCoverageReader;
 use App\Module\GitHub\Service\GitHubPullRequestInstallations;
 use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Contract\ApprovalRules;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
+use Symfony\Component\Uid\Uuid;
 
 final class GitHubApprovalCoverageReaderTest extends KernelTestCase
 {
@@ -90,6 +92,125 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
         );
 
         self::assertSame(ApprovalCoverage::Covered, $this->reader()->read($pullRequest));
+    }
+
+    public function test_a_clean_merge_is_covered_when_the_rule_holds_a_conflict_resolution(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_020);
+        $this->answers(...$this->mergeAnswers(
+            headChanged: ['a.php'],
+            baseChanged: ['b.php'],
+            againstHead: ['b.php'],
+            againstBase: ['a.php'],
+        ));
+
+        self::assertSame(ApprovalCoverage::Covered, $this->reader($this->strictRules(true))->read($pullRequest));
+        // Two compares to list the commits, then the merge base and four file lists for the one merge.
+        self::assertCount(7, \array_slice($this->urls, 1));
+    }
+
+    public function test_a_merge_that_changed_a_file_both_sides_changed_is_not_covered_when_the_rule_holds(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_021);
+        $this->answers(...$this->mergeAnswers(
+            headChanged: ['a.php', 'c.php'],
+            baseChanged: ['b.php', 'c.php'],
+            againstHead: ['b.php', 'c.php'],
+            againstBase: ['a.php', 'c.php'],
+        ));
+
+        self::assertSame(ApprovalCoverage::NotCovered, $this->reader($this->strictRules(true))->read($pullRequest));
+    }
+
+    public function test_a_merge_that_rewrote_a_file_only_one_side_changed_is_not_covered_when_the_rule_holds(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_022);
+        $this->answers(...$this->mergeAnswers(
+            headChanged: ['a.php'],
+            baseChanged: ['b.php'],
+            againstHead: ['b.php', 'a.php'],
+            againstBase: ['a.php'],
+        ));
+
+        self::assertSame(ApprovalCoverage::NotCovered, $this->reader($this->strictRules(true))->read($pullRequest));
+    }
+
+    public function test_a_merge_that_edited_the_base_side_files_is_not_covered_when_the_rule_holds(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_023);
+        $this->answers(...$this->mergeAnswers(
+            headChanged: ['a.php'],
+            baseChanged: ['b.php'],
+            againstHead: ['b.php'],
+            againstBase: ['a.php', 'b.php'],
+        ));
+
+        self::assertSame(ApprovalCoverage::NotCovered, $this->reader($this->strictRules(true))->read($pullRequest));
+    }
+
+    public function test_the_same_conflicting_merge_is_covered_when_the_rule_lets_an_approval_cover_it(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_024);
+        $this->answers(...\array_slice($this->mergeAnswers(
+            headChanged: ['a.php', 'c.php'],
+            baseChanged: ['b.php', 'c.php'],
+            againstHead: ['b.php', 'c.php'],
+            againstBase: ['a.php', 'c.php'],
+        ), 0, 2));
+
+        self::assertSame(ApprovalCoverage::Covered, $this->reader($this->strictRules(false))->read($pullRequest));
+        self::assertCount(2, \array_slice($this->urls, 1));
+    }
+
+    public function test_a_renamed_file_counts_under_both_names(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_025);
+        $this->answers(...$this->mergeAnswers(
+            headChanged: [['a.php', 'old.php']],
+            baseChanged: ['old.php'],
+            againstHead: [],
+            againstBase: [],
+        ));
+
+        self::assertSame(ApprovalCoverage::NotCovered, $this->reader($this->strictRules(true))->read($pullRequest));
+    }
+
+    public function test_a_cut_file_list_is_not_covered_when_the_rule_holds(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_026);
+        $many = array_map(static fn (int $i): string => 'f'.$i.'.php', range(1, 300));
+        $this->answers(...$this->mergeAnswers(
+            headChanged: ['a.php'],
+            baseChanged: $many,
+            againstHead: [],
+            againstBase: ['a.php'],
+        ));
+
+        self::assertSame(ApprovalCoverage::NotCovered, $this->reader($this->strictRules(true))->read($pullRequest));
+    }
+
+    public function test_a_merge_with_three_parents_is_not_covered_when_the_rule_holds(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_027);
+        $this->answers(
+            $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1', 'b2')]),
+            $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1', 'b2')]),
+        );
+
+        self::assertSame(ApprovalCoverage::NotCovered, $this->reader($this->strictRules(true))->read($pullRequest));
+    }
+
+    public function test_a_malformed_file_list_is_unknown_when_the_rule_holds(): void
+    {
+        $pullRequest = $this->tracked('ubermuda/loupe', 71_028);
+        $this->answers(
+            $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
+            $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
+            $this->answer(['merge_base_commit' => ['sha' => 'mb'], 'files' => 'none']),
+        );
+
+        self::assertSame(ApprovalCoverage::Unknown, $this->reader($this->strictRules(true))->read($pullRequest));
+        self::assertSame('malformed_body', $this->logger->records[0]['context']['reason']);
     }
 
     public function test_an_identical_head_is_covered(): void
@@ -233,7 +354,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
         return $project;
     }
 
-    private function reader(): GitHubApprovalCoverageReader
+    private function reader(?ApprovalRules $rules = null): GitHubApprovalCoverageReader
     {
         $client = new MockHttpClient(function (string $method, string $url): MockResponse {
             $this->urls[] = $url;
@@ -252,6 +373,7 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
             new GitHubAppApi($client, new GitHubAppConfiguration(null, null, null, null, '123456', $pem), new MockClock()),
             $installations,
             $this->logger,
+            $rules ?? $this->strictRules(false),
         );
     }
 
@@ -272,6 +394,55 @@ final class GitHubApprovalCoverageReaderTest extends KernelTestCase
     private function commit(string $sha, string ...$parents): array
     {
         return ['sha' => $sha, 'parents' => array_map(static fn (string $parent): array => ['sha' => $parent], array_values($parents))];
+    }
+
+    /**
+     * The compare answers for one clean merge of the base into the head, in the order the reader asks.
+     *
+     * @param list<string|array{string, string}> $headChanged
+     * @param list<string|array{string, string}> $baseChanged
+     * @param list<string|array{string, string}> $againstHead
+     * @param list<string|array{string, string}> $againstBase
+     *
+     * @return list<MockResponse>
+     */
+    private function mergeAnswers(array $headChanged, array $baseChanged, array $againstHead, array $againstBase): array
+    {
+        return [
+            $this->compare('ahead', [$this->commit('b1', 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
+            $this->compare('ahead', [$this->commit(self::COVERED, 'b0'), $this->commit(self::HEAD, self::COVERED, 'b1')]),
+            $this->answer(['merge_base_commit' => ['sha' => 'mb'], 'files' => []]),
+            $this->files($headChanged),
+            $this->files($baseChanged),
+            $this->files($againstHead),
+            $this->files($againstBase),
+        ];
+    }
+
+    /** @param list<string|array{string, string}> $names a renamed file is a pair of its new and its old name */
+    private function files(array $names): MockResponse
+    {
+        return $this->answer(['merge_base_commit' => ['sha' => 'mb'], 'files' => array_map(
+            static fn (string|array $name): array => \is_string($name) ? ['filename' => $name] : ['filename' => $name[0], 'previous_filename' => $name[1]],
+            $names,
+        )]);
+    }
+
+    /** @param bool $strict true when the template says an approval does not cover a conflict resolution */
+    private function strictRules(bool $strict): ApprovalRules
+    {
+        return new readonly class($strict) implements ApprovalRules {
+            public function __construct(
+                private bool $strict,
+            ) {
+            }
+
+            #[\Override]
+            public function coversConflictResolution(Uuid $projectId): bool
+            {
+                return !$this->strict;
+            }
+        };
     }
 
     /** @param array<mixed> $body */

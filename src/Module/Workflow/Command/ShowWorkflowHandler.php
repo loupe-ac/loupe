@@ -68,6 +68,8 @@ final readonly class ShowWorkflowHandler
                 array_keys($kinds),
                 array_values($kinds),
             ),
+            approvalCoversConflictResolution: $template->approvalCoversConflictResolution,
+            epicBranch: $template->epicBranch,
         );
     }
 }

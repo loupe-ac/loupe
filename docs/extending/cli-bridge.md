@@ -1255,6 +1255,18 @@ folder is gone. A recorded folder that the bridge cannot read fails the resume.
 [The before command](../../cli/README.md#the-before-command) in
 `cli/README.md` gives the fields, the timeouts and the folder contract.
 
+## Refresh and reset commands
+
+A worker entry can set `refresh` and `reset` next to `before`. They have the
+same shape as `before`, and neither prints a folder. A worker runs
+`loupe env refresh` or `loupe env reset`, and the bridge runs that command of
+the worker's entry in the worker's folder. A skill can therefore ask for an
+environment refresh after a merge, while the command itself stays in the rule
+file. Exit code 0 means the command ran or the entry names none, 1 means it
+failed, and 2 means the process is not a bridge worker.
+[The refresh and reset commands](../../cli/README.md#the-refresh-and-reset-commands)
+in `cli/README.md` gives the details.
+
 ## Command action
 
 An entry with `action: command` runs a command for the card, and starts no
@@ -1272,7 +1284,7 @@ work:
 placeholders that a prompt takes. The command runs in the project's `dir`, with
 the bridge's environment. `timeout` defaults to `10m`, and the check refuses
 more than `60m`. The check refuses `prompt`, `account`, `model`,
-`permissions`, `variants`, `metrics`, `workerPool` and `before` on a command
+`permissions`, `variants`, `metrics`, `workerPool`, `before`, `refresh` and `reset` on a command
 entry. A worker or interactive entry cannot set `params` or `description`.
 
 ### Command parameters

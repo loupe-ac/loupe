@@ -7,6 +7,10 @@ namespace App\Tests\Module\Board\Mcp;
 use App\Module\Board\Entity\BoardAutomationSettings;
 use App\Module\Board\Mcp\AutomationSettingsUpdateTool;
 use App\Module\Board\Repository\BoardAutomationSettingsRepository;
+use App\Module\Project\Entity\Project;
+use App\Module\Workflow\Command\BindWorkflowTemplateCommand;
+use App\Module\Workflow\Command\BindWorkflowTemplateHandler;
+use App\Module\Workflow\Contract\ApprovalRules;
 use App\Tests\Support\McpRefusalMessages;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,10 +46,10 @@ final class AutomationSettingsUpdateToolTest extends KernelTestCase
         $this->em->flush();
         $this->actAsMcpTokenBoundTo($project);
 
-        self::assertSame(['enabled' => false, 'stuckDelayMinutes' => 15], ($this->tool)());
+        self::assertSame(['enabled' => false, 'stuckDelayMinutes' => 15, 'approvalCoversConflictResolution' => true], ($this->tool)());
         self::assertFalse($this->stored($project->id)->enabled);
 
-        self::assertSame(['enabled' => true, 'stuckDelayMinutes' => 15], ($this->tool)(enabled: true));
+        self::assertSame(['enabled' => true, 'stuckDelayMinutes' => 15, 'approvalCoversConflictResolution' => true], ($this->tool)(enabled: true));
         self::assertTrue($this->stored($project->id)->enabled);
     }
 
@@ -75,7 +79,44 @@ final class AutomationSettingsUpdateToolTest extends KernelTestCase
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('automation-update-defaults'));
 
-        self::assertSame(['enabled' => true, 'stuckDelayMinutes' => 15], ($this->tool)());
+        self::assertSame(['enabled' => true, 'stuckDelayMinutes' => 15, 'approvalCoversConflictResolution' => true], ($this->tool)());
+    }
+
+    public function test_it_changes_the_approval_rule_in_the_template_copy_of_the_project(): void
+    {
+        $project = $this->makeProject('automation-update-approval');
+        $other = $this->makeProject('automation-update-approval-other');
+        $this->bind($project);
+        $this->bind($other);
+        $this->actAsMcpTokenBoundTo($project);
+
+        $result = ($this->tool)(approvalCoversConflictResolution: false);
+
+        self::assertFalse($result['approvalCoversConflictResolution']);
+        self::assertFalse($this->rules()->coversConflictResolution($project->id ?? throw new \LogicException('Not flushed.')));
+        self::assertTrue($this->rules()->coversConflictResolution($other->id ?? throw new \LogicException('Not flushed.')));
+        self::assertTrue($result['enabled']);
+    }
+
+    public function test_an_omitted_approval_rule_keeps_its_value_and_it_can_be_set_back(): void
+    {
+        $project = $this->makeProject('automation-update-approval-keep');
+        $this->bind($project);
+        $this->actAsMcpTokenBoundTo($project);
+        ($this->tool)(approvalCoversConflictResolution: false);
+
+        self::assertFalse(($this->tool)(stuckDelayMinutes: 30)['approvalCoversConflictResolution']);
+        self::assertTrue(($this->tool)(approvalCoversConflictResolution: true)['approvalCoversConflictResolution']);
+    }
+
+    public function test_it_refuses_an_approval_rule_for_a_project_with_no_workflow(): void
+    {
+        $this->actAsMcpTokenBoundTo($this->makeProject('automation-update-approval-unbound'));
+
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('approvalCoversConflictResolution: This project has no workflow yet.');
+
+        ($this->tool)(approvalCoversConflictResolution: false);
     }
 
     public function test_an_unbound_mcp_token_is_rejected(): void
@@ -86,6 +127,21 @@ final class AutomationSettingsUpdateToolTest extends KernelTestCase
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage(McpRefusalMessages::NO_PROJECT_REACHED);
         ($this->tool)(enabled: false);
+    }
+
+    private function bind(Project $project): void
+    {
+        $handler = self::getContainer()->get(BindWorkflowTemplateHandler::class);
+        self::assertInstanceOf(BindWorkflowTemplateHandler::class, $handler);
+        $handler(new BindWorkflowTemplateCommand($project, 'simple', []));
+    }
+
+    private function rules(): ApprovalRules
+    {
+        $rules = self::getContainer()->get(ApprovalRules::class);
+        self::assertInstanceOf(ApprovalRules::class, $rules);
+
+        return $rules;
     }
 
     private function stored(?Uuid $projectId): BoardAutomationSettings

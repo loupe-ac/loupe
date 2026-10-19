@@ -296,6 +296,36 @@ final class TemplateParserTest extends TestCase
         self::assertNull($template->epicBranchOf(42));
     }
 
+    public function test_a_template_lets_an_approval_cover_a_conflict_resolution_unless_it_says_otherwise(): void
+    {
+        self::assertTrue($this->parser->parse(self::valid())->approvalCoversConflictResolution);
+        self::assertTrue($this->parser->parse(self::valid() + ['approvalCoversConflictResolution' => true])->approvalCoversConflictResolution);
+        self::assertFalse($this->parser->parse(self::valid() + ['approvalCoversConflictResolution' => false])->approvalCoversConflictResolution);
+    }
+
+    #[DataProvider('invalidApprovalRules')]
+    public function test_an_approval_rule_that_is_not_a_boolean_is_refused_and_a_stored_copy_reads_true(mixed $value): void
+    {
+        $source = self::valid() + ['approvalCoversConflictResolution' => $value];
+
+        try {
+            $this->parser->parse($source);
+            self::fail('The template should be refused.');
+        } catch (InvalidTemplate $e) {
+            self::assertContains('approvalCoversConflictResolution: must be true or false', $e->errors);
+        }
+        self::assertTrue($this->parser->parseStored($source)->approvalCoversConflictResolution);
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function invalidApprovalRules(): iterable
+    {
+        yield 'a string' => ['false'];
+        yield 'an integer' => [0];
+        yield 'a list' => [[false]];
+        yield 'an explicit null' => [null];
+    }
+
     #[DataProvider('invalidEpicBranches')]
     public function test_an_epic_branch_that_is_not_a_branch_name_with_one_placeholder_is_refused_and_a_stored_copy_has_none(mixed $value): void
     {
