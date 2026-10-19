@@ -181,9 +181,14 @@ loupe init --reset               # write the first-run rules again
    from the `origin` remote of the repository. With no remote, it stops and asks
    for `--project`.
 3. Run `loupe project link` for that project. An existing `.loupe.yaml` is kept.
+   The step also writes `.loupe/lifecycle.md`.
 4. Install the Loupe plugin in Claude Code, when `claude` is on your `PATH` and
    `claude plugin list` shows no Loupe plugin. A failed command is printed for
-   you to run, and never fails the step.
+   you to run, and never fails the step. When only `codex` is on your `PATH`,
+   the step declares `loupe mcp` to Codex instead, sets
+   `default_tools_approval_mode = "approve"` for each Codex account of the rule
+   file, and copies the Loupe skills into `~/.agents/skills/`. The Codex part
+   runs after step 5, because it reads the Codex accounts of the rule file.
 5. Write the rule file. A new file holds the first-run rules: app prompts on,
    one account for the agent it finds, the project, and, where it knows a
    terminal, a product-design entry. With no known terminal, the step says
@@ -528,16 +533,22 @@ slug you do not own, the start check lists the slugs you do own. When a mapped
 project is deleted or stops being yours, the bridge logs one `project_gone`
 line, and runs no more work for it.
 
-The file needs [`work`](#the-work-map). The workflow of the board decides when
-work runs, and the bridge runs it. A file with a `rules:` list or an
+The file needs a [`work`](#the-work-map) map or `appPrompts: true`. With
+`appPrompts: true`, the bridge runs the prompt that Loupe sends for a kind of
+work that `work:` does not map. The workflow of the board decides when work
+runs, and the bridge runs it. A file with a `rules:` list or an
 `experiments:` list fails to load, with a message that names the work map. Move
 each rule to a `work:` entry for the kind of work it did, and drop `on`, `to`,
 `from`, `when`, `verdict`, `card`, `maxChain`, `resume`, `maxResumes`,
 `resultFields` and `allowUntrusted`. Give the variants of an experiment to the
 work entry that ran it.
 
-The file needs an `accounts` block, and `defaults.account` names the account
-of an entry that names none:
+An `accounts` block declares the agent accounts, and `defaults.account` names
+the account of an entry that names none. A file with no `accounts` block loads,
+but the bridge runs no worker, interactive entry or app prompt for it. At start
+the bridge adds the block when it can, as
+[Migration and rollback](../docs/extending/cli-bridge.md#migration-and-rollback)
+says:
 
 ```yaml
 envFile: ~/loupe/common.env

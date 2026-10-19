@@ -487,9 +487,8 @@ comment in place when the block clears.
    `board_columns`.
 2. Read the project slug on the project settings page. When it is not `loupe`,
    change the `projects` key in the rule file.
-3. A new board already has `backlog` and `done`. Create the four other
-   columns with the slugs above: `product-design`, `tech-design`,
-   `implementation` and `in-review`.
+3. A new project gets the Lifecycle template, which creates the columns above
+   with their slugs. Check that the board has them.
 4. Write `rules.yaml`.
 5. Check that `rules.yaml` starts with `maxWorkers: 1`, then start the bridge
    with `loupe bridge run`.

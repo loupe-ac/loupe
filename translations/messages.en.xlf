@@ -6766,7 +6766,7 @@
             <trans-unit id="bridge.experiments.card_count"><source>bridge.experiments.card_count</source><target>{0} No cards|{1} 1 card|]1,Inf[ %count% cards</target></trans-unit>
             <trans-unit id="bridge.experiments.no_run"><source>bridge.experiments.no_run</source><target>No run yet</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.title"><source>bridge.experiments.empty.title</source><target>No experiments yet</target></trans-unit>
-            <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, declare it with its variants in the experiments list of rules.yaml. Then make a worker rule join it with experiment: and the experiment name.</target></trans-unit>
+            <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, add variants to a worker entry under work: in rules.yaml. The kind of work names the experiment.</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.docs"><source>bridge.experiments.empty.docs</source><target>Read how to set up an experiment</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>

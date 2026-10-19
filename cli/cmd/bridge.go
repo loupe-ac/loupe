@@ -49,7 +49,7 @@ func apiClient(cfg config.Config) *api.Client {
 func newBridgeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bridge",
-		Short: "Bridge Loupe events into local workers",
+		Short: "Run Loupe work requests in local workers",
 	}
 	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
 
@@ -70,24 +70,26 @@ func newBridgeRunCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run",
-		Short: "Watch a Loupe board and run a Claude Code worker for each rule an event matches",
-		Long: "Reads the rule file, rules.yaml in your config directory, and runs " +
-			"`claude -p --session-id <uuid> -- <prompt>` for every event a rule matches. Each rule names an event, " +
-			"a project and a column, and the prompt its worker runs. The projects map in " +
-			"the file gives each project the directory its workers run in.\n\n" +
-			"The bridge refuses to start without the file, and checks every project and " +
-			"column slug against the server first. It follows every project you own on " +
-			"one connection, and ignores the events of a project the file does not map.\n\n" +
+		Short: "Claim the work requests of the workflow and run an agent for each one",
+		Long: "Reads the rule file, rules.yaml in your config directory. The workflow of a board " +
+			"decides when work runs and opens a work request for each piece of work. The bridge " +
+			"claims each request and runs the prompt for its kind of work: the entry of the " +
+			"work map for that kind, or the prompt that Loupe sends when the file sets " +
+			"appPrompts: true. A worker is `claude -p --session-id <uuid> -- <prompt>`. " +
+			"The projects map in the file gives each project the directory its workers run in.\n\n" +
+			"The bridge refuses to start without the file, and checks every project slug " +
+			"against the server first. It follows every project you own on " +
+			"one connection, and ignores the work requests of a project the file does not map.\n\n" +
 			"With -d the bridge runs in the background, and its log goes to the log file. " +
 			"Run `loupe bridge stop` to stop it.\n\n" +
 			"Run `loupe bridge reload` to apply a changed rule file without a restart. " +
 			"A second bridge on the same rule file refuses to start.\n\n" +
-			"The defaults block of the rule file and each rule win over --permission-mode " +
+			"The defaults block of the rule file and each work entry win over --permission-mode " +
 			"and --model. The flags fill a value that both leave empty. A worker has no " +
 			"terminal, so it cannot answer a permission prompt: with no mode, claude " +
 			"denies every tool call that needs approval.\n\n" +
-			"Set maxWorkers in the rule file to bound the workers that run at once. Events past the " +
-			"bound wait in a queue and start in arrival order, except that an event waits " +
+			"Set maxWorkers in the rule file to bound the workers that run at once. Requests past the " +
+			"bound wait in a queue and start in arrival order, except that a request waits " +
 			"while its card has a worker. The bridge writes one JSON " +
 			"object per line to stdout and to --log-file.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -99,8 +101,8 @@ func newBridgeRunCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read rules from this `path`; empty uses rules.yaml in your config directory")
-	cmd.Flags().StringVar(&o.permissionMode, "permission-mode", "", "pass this `mode` to every `claude` when neither its rule nor the defaults block of the rule file sets one; empty passes no flag, and a worker cannot answer a prompt")
-	cmd.Flags().StringVar(&o.model, "model", "", "pass this `model` to every `claude` when neither its rule nor the defaults block of the rule file sets one; empty passes no flag")
+	cmd.Flags().StringVar(&o.permissionMode, "permission-mode", "", "pass this `mode` to every `claude` when neither its work entry nor the defaults block of the rule file sets one; empty passes no flag, and a worker cannot answer a prompt")
+	cmd.Flags().StringVar(&o.model, "model", "", "pass this `model` to every `claude` when neither its work entry nor the defaults block of the rule file sets one; empty passes no flag")
 	cmd.Flags().Int(maxWorkersFlag, rules.DefaultMaxWorkers, "does nothing; set maxWorkers in rules.yaml")
 	cmd.Flags().MarkDeprecated(maxWorkersFlag, "it does nothing; set maxWorkers in rules.yaml instead")
 	cmd.Flags().StringVar(&o.logFile, "log-file", "", "append the JSON log to this `path`; empty uses bridge.log in your config directory")

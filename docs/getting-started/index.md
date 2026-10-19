@@ -1,6 +1,6 @@
 ---
 title: "First steps"
-description: "Connect a coding agent to a Loupe instance, send a first document, and review it."
+description: "Install the CLI, run loupe init, send a first document, review it, and find the next steps."
 ---
 
 To run an instance of your own, read [Installing Loupe](../operating/install/index.md)
@@ -19,48 +19,51 @@ macOS and Linux. Follow [Installing the CLI](cli.md), then check the install:
 loupe version
 ```
 
-## 2. Sign in and name the project
+## 2. Run loupe init
 
-Sign in once on each machine:
-
-```bash
-loupe login --url https://loupe.example.com
-```
-
-The CLI prints a link and a code. Open the link in a browser where you are
-signed in to Loupe. Make sure that the page shows the same code, then choose
-**Allow**. [Signing in the CLI with a code](../using/connected-apps.md#signing-in-the-cli-with-a-code)
-tells what the page shows.
-
-Then name the project in each repository:
+Run `loupe init` once in each repository:
 
 ```bash
 cd ~/code/my-project
-loupe init
+loupe init --url https://loupe.example.com
 ```
 
-`loupe init` writes `.loupe.yaml`, which holds the project id. It lists the
-projects your login covers and asks which one. Commit the file, so everyone in
-the repository reaches the same project.
+`loupe init` signs you in when you are signed out. The CLI prints a link and a
+code. Open the link in a browser where you are signed in to Loupe. Make sure
+that the page shows the same code, then choose **Allow**.
+[Signing in the CLI with a code](../using/connected-apps.md#signing-in-the-cli-with-a-code)
+tells what the page shows. Later runs need no `--url`.
+
+Then it chooses the project. It lists the projects your login covers and asks
+which one. When your login covers none, it creates one from the `origin` remote.
+It runs `loupe project link` for that project, then installs the Claude Code
+plugin, writes the rule file, and starts the bridge in the background.
+[Run the bridge](run-the-bridge.md) describes these steps. A second run changes
+nothing that is done already.
+
+`loupe project link` writes `.loupe.yaml`, which holds the project id. Commit
+the file, so everyone in the repository reaches the same project.
 
 It also writes `.loupe/lifecycle.md`, the repository profile that every stage
 skill reads, also when `.loupe.yaml` exists already. The file holds the gate
 commands, the pull request rules, the column names and the epic branch rules.
-`loupe init` guesses the gate commands from a `justfile`, a `Makefile`,
+It guesses the gate commands from a `justfile`, a `Makefile`,
 `package.json`, `composer.json` or `go.mod`, and marks each guess "detected,
 check it". It lists only checks with a common name, such as `lint` or `test`, so
 add each other check that CI runs. Read the file, correct the guesses, and
 commit it, because a worker sees only what you push. A profile that exists is
 never replaced.
 
-When Claude Code does not start the `loupe` MCP server yet, `loupe init` offers
-to declare it for every repository:
+When Claude Code does not start the `loupe` MCP server yet, `loupe project link`
+offers to declare it for every repository. `--mcp` accepts the offer with no
+question:
 
 ```bash
 claude mcp add --scope user loupe -- loupe mcp
 ```
 
-To commit the server to the repository instead, run `loupe init --mcp-json`. It
+To commit the server to the repository instead, run
+`loupe init --mcp-json`, which passes the flag on to `loupe project link`. It
 writes `.mcp.json`:
 
 ```json
@@ -75,18 +78,18 @@ The file holds no credential. Claude Code asks you to approve the server the
 first time. [Connecting through the CLI](../using/mcp.md#connecting-through-the-cli)
 has the details.
 
-## 3. Install the Claude Code plugin
-
-The plugin adds skills that tell the agent how to write a document, work a board
-and act on feedback. It holds no credential.
-
-```bash
-claude plugin marketplace add ubermuda/loupe
-claude plugin install loupe@loupe
-```
-
+The plugin that `loupe init` installs adds skills that tell the agent how to
+write a document, work a board and act on feedback. It holds no credential.
 [The Claude Code plugin](../using/mcp.md#the-claude-code-plugin) lists the
-skills.
+skills, and shows how to install it by hand.
+
+## 3. Open the readiness guide
+
+Open the Workshop of the project in your instance. The project owner sees the
+readiness guide there. It is a checklist of what the project needs before
+agents can work on it, such as a connected agent, a ready bridge and the
+agent account that pushes code. See
+[The readiness guide](../using/workshop.md#the-readiness-guide).
 
 ## 4. Write a first document
 
@@ -107,6 +110,18 @@ suggest a replacement for the passage.
 When you finish, select **Finish review**. Approve the version, or request
 changes with a note. When you request changes, ask the agent to read the
 review. It calls `document_get_review` and sends a new version. [Documents and review](../using/documents.md) describes the review page.
+
+## Next
+
+- [Run the bridge](run-the-bridge.md) explains the rule file and how to start,
+  check and stop the bridge.
+- [The readiness guide](../using/workshop.md#the-readiness-guide) lists what the
+  project still needs.
+- [Workflows](../using/workflows.md) describe how a card moves across the board.
+- [The agent GitHub account](agent-github-account.md) sets the git identity that
+  your agents push as.
+- [Run discovery](../using/workshop.md#run-discovery) has an agent read the
+  repository and report on it.
 
 ## Other ways to connect
 

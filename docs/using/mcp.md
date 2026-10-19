@@ -10,8 +10,10 @@ a terminal.
 
 ## Set up with one prompt
 
-A coding agent can do the whole setup for you. Open "Other ways to connect" on
-the Connect page of a project to find a short prompt with a Copy button. Paste
+The Connect page of a project leads with `loupe init --project <project id>`, and
+you can run it yourself. See [Run the bridge](../getting-started/run-the-bridge.md).
+A coding agent can also do the setup for you. Open "Other ways to connect" on
+the Connect page to find a short prompt with a Copy button. Paste
 it into Claude Code or Codex, in the repository of the project:
 
 ```text
@@ -22,25 +24,22 @@ and follow the steps it prints, in order. Use curl, not a web fetch tool.
 
 `/setup.md` is public and returns Markdown steps for an agent. The steps
 install the CLI with `/install.sh` when `loupe version` fails, and stop on
-Windows, which has no build. They sign in with `loupe login` and bind the repository with
-`loupe project link`. Then they connect the MCP server, install the skills, and check
-the result with `loupe status`. When your rule file holds worker entries under
-`work:`, the steps then ask whether each bridge worker gets its own folder.
-If it does, the agent adds a
-[`before` command](../extending/cli-bridge.md#before-command) to those entries,
-and a teardown entry. The agent asks you when a step needs you, such
-as the browser approval of the sign-in. It never writes a token or a password.
+Windows, which has no build. Then they run `loupe init`. That one command signs
+in, links the repository to the project, connects the MCP server, installs the
+skills, writes the rule file and starts the bridge. The agent asks you when a
+step needs you, such as the browser approval of the sign-in. It never writes a
+token or a password.
 
-The `project` parameter fills the project id into the commands. The page
-accepts only a UUID and ignores any other value. With no valid id, the steps
-run `loupe project link` and ask you which project to use.
+The `project` parameter fills the project id into the `loupe init` command. The
+page accepts only a UUID and ignores any other value. With no valid id, `loupe init`
+asks you which project to use.
 
-The two agents differ in two steps:
+`loupe init` treats the two agents differently in two steps:
 
 | Step | Claude Code | Codex |
 |---|---|---|
-| MCP server | `loupe project link --mcp` declares `loupe mcp` at user scope | `codex mcp add loupe -- loupe mcp --project <project id>` |
-| Skills | The Claude Code plugin, see [below](#the-claude-code-plugin) | A copy of `plugins/loupe/skills/` in `~/.agents/skills/` |
+| MCP server | `loupe project link --mcp` declares `loupe mcp` at user scope | `loupe mcp` is declared to Codex with the project id |
+| Skills | The Claude Code plugin, see [below](#the-claude-code-plugin) | A copy of the Loupe skills in `~/.agents/skills/` |
 
 Codex gets the project id in its server declaration, and Claude Code reads it
 from `.loupe.yaml`. At the end, the agent tells you to restart it. The new

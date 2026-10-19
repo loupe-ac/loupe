@@ -46,18 +46,18 @@ Workshop does not infer running agents from open cards or bridge heartbeats.
 
 The readiness guide shows the project owner what the project needs before agents can work on it.
 Other members do not see it.
-The guide is a checklist named Ready for agents. It counts the required rows that are done, for example "2 of 5 required steps done". It groups the rows in three sections.
+The guide is a checklist named Ready for agents. It counts the required rows that are done, for example "2 of 4 required steps done". It groups the rows in three sections.
 
 Ready for discovery:
 
 - Agent connected is done after an agent first calls the MCP server for this project. Connect opens the Connect page.
-- Bridge ready is done when a bridge that serves the project sends heartbeats and can run the discovery work. A bridge that is online but cannot run it shows "Online, but it cannot run this work". Start opens the Connect page. A bridge that is paused shows "Paused, so it takes no new work", and Resume opens the Agents page.
+- Bridge ready is done when a bridge that serves the project sends heartbeats and can run the discovery work. With no running bridge, the row shows "Not running". Start opens the Connect page, which shows the `loupe init` command. `loupe init` starts the bridge. To start it again later, run `loupe bridge run -d`. See [Run the bridge](../getting-started/run-the-bridge.md). A bridge that is online but cannot run it shows "Online, but it cannot run this work", and Start opens the Connect page again. A bridge that is paused shows "Paused, so it takes no new work", and Resume opens the Agents page.
 - Run discovery shows the latest [discovery](#run-discovery) of the project. It is done when the owner reviewed the discovery report.
 
 Ready for pull requests:
 
 - Install the GitHub App is done when a repository connects to the project through the GitHub App. Install starts the install when the instance has a GitHub App.
-- Who pushes the code is done when the owner records the login of the agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the [agent account page](../getting-started/agent-github-account.md).
+- Who pushes the code is optional, so the count leaves it out. Loupe manages the [git identity of agents](../getting-started/agent-github-account.md) by default, and the agents push as the Loupe GitHub App. The row is done when the owner records the login of an agent account, and a running bridge of the project pushes as that login. The row says which part is missing. Set up opens the agent account page.
 
 Optional, which the count leaves out:
 
