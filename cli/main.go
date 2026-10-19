@@ -13,6 +13,9 @@ import (
 func main() {
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
+		if code, ok := cmd.ExitCode(err); ok {
+			os.Exit(code)
+		}
 		os.Exit(1)
 	}
 }
