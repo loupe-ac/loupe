@@ -1,0 +1,52 @@
+<!-- @dsCard group="Shadow" viewport="700x220" subtitle="6 tokens" name="Shadow" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shadow</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components/bundle.css">
+<style>
+  body { padding: 14px 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .sw { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .chip { height: 44px; border-radius: 8px; border: 1px solid var(--border-faint); background: var(--surface-1); }
+  .n { font-family: var(--font-mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v { font-family: var(--font-mono); font-size: 10px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="sw" title="Shadows — reserved for surfaces that float above the page: the selection toolbar, the floating composer, and menus and overlays (`--shadow-card`).">
+    <div class="chip" style="box-shadow: var(--shadow-comic)"></div>
+    <span class="n">--shadow-comic</span>
+    <span class="v">6px 6px 0 var(--accent)</span>
+  </div>
+  <div class="sw" title="Shadows — reserved for surfaces that float above the page: the selection toolbar, the floating composer, and menus and overlays (`--shadow-card`).">
+    <div class="chip" style="box-shadow: var(--shadow-toolbar)"></div>
+    <span class="n">--shadow-toolbar</span>
+    <span class="v">0 6px 20px rgba(15, 15, 13, 0.25)</span>
+  </div>
+  <div class="sw" title="Shadows — reserved for surfaces that float above the page: the selection toolbar, the floating composer, and menus and overlays (`--shadow-card`).">
+    <div class="chip" style="box-shadow: var(--shadow-composer)"></div>
+    <span class="n">--shadow-composer</span>
+    <span class="v">0 10px 34px rgba(15, 15, 13, 0.22)</span>
+  </div>
+  <div class="sw" title="Shadows — reserved for surfaces that float above the page: the selection toolbar, the floating composer, and menus and overlays (`--shadow-card`).">
+    <div class="chip" style="box-shadow: var(--shadow-card)"></div>
+    <span class="n">--shadow-card</span>
+    <span class="v">0 8px 26px rgba(15, 15, 13, 0.18)</span>
+  </div>
+  <div class="sw" title="Shadows — reserved for surfaces that float above the page: the selection toolbar, the floating composer, and menus and overlays (`--shadow-card`).">
+    <div class="chip" style="box-shadow: var(--shadow-focus)"></div>
+    <span class="n">--shadow-focus</span>
+    <span class="v">0 0 0 3px var(--accent-faint)</span>
+  </div>
+  <div class="sw" title="A card of an epic lane&#039;s Up next deck, fanned out over the lane head.">
+    <div class="chip" style="box-shadow: var(--shadow-deck)"></div>
+    <span class="n">--shadow-deck</span>
+    <span class="v">0 6px 16px rgba(24, 29, 24, 0.1)</span>
+  </div>
+</div>
+</body>
+</html>

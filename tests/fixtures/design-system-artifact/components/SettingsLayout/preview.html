@@ -1,0 +1,39 @@
+<!-- @dsCard group="Layout" width=900 height=520 subtitle="A settings page: the page header, a section navigation beside the content, and the content column." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { padding: 0; }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .chrome { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--chrome); border-radius: 6px; }
+  .row > dialog[open] { position: static; margin: 0; }
+  .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../ds-mount.js"></script>
+<script type="text/babel">
+const { SettingsLayout } =
+  dsFind('SettingsLayout');
+
+function Demo() {
+  return (
+    <div className="col">
+        <SettingsLayout title="Project settings" description="Rename the project, or change how it works." navLabel="Project settings" items={[{ label: 'General', href: '#', active: true }, { label: 'Columns', href: '#' }, { label: 'Automation', href: '#' }]}>
+            <section className="lp-panel">
+                <div className="lp-section-heading"><div className="lp-section-heading__copy"><h2 className="lp-section-heading__title">General</h2></div></div>
+                <p className="lp-connect-hint">The name shows in the sidebar and in the browser tab.</p>
+            </section>
+        </SettingsLayout>
+
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+import type { ReactNode } from 'react';
+
+/**
+ * The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column. It draws the markup of the signed-in pages: the project switcher, the nav, the account row and the top bar. The page goes in as the children.
+ *
+ * @startingPoint section="Layout" subtitle="The page frame with sidebar and top bar" viewport="900x520"
+ */
+export interface AppShellProps {
+    /** The project of the sidebar, shown in the project switcher. On a page outside a project, the app shows the last project you visited. Pass null when there is none: the switcher, the project nav, Project settings and New work then stay hidden. */
+    projectName?: string | null;
+    /** True when the page belongs to the project. Pass false for a page outside a project, such as the account page: the sidebar keeps the project, and New work stays hidden. */
+    projectPage?: boolean;
+    /** The nav link that is current. */
+    active?:
+        | 'workshop'
+        | 'inbox'
+        | 'board'
+        | 'documents'
+        | 'artifacts'
+        | 'agents'
+        | 'workflow'
+        | 'activity'
+        | 'analytics'
+        | 'outbox'
+        | 'project_settings'
+        | 'account_inboxes'
+        | 'account'
+        | 'admin'
+        | 'about';
+    /** The breadcrumb. A string is a crumb with no link target. The last one is the page you are on. */
+    crumbs?: Array<string | { label: string; href: string }>;
+    /** A short line after the breadcrumb, such as a count. */
+    meta?: ReactNode;
+    /** Page actions in the top bar, before the global actions. */
+    actions?: ReactNode;
+    /** The signed-in user, shown in the account row. */
+    userName?: string;
+    /** Numbers shown beside a nav link, keyed by the link name. Only inbox, documents, agents and activity take a count, as in the app. Agents takes text such as '1/3', the busy workers over the worker limit. Documents always shows its count, 0 included, and it counts the documents in review. Inbox and activity show it only above 0, and activity takes the number of open runs. */
+    counts?: { [link: string]: number | string };
+    /** The projects that the switcher lists, with the document count of each. The entry whose name is projectName gets the current marker. Defaults to projectName alone. */
+    projects?: Array<{ name: string; documentCount?: number }>;
+    /** The feature flags that are on, as the app reads them. Each is off by default, as on a fresh install. inbox shows Needs you and All inboxes, and artifacts shows Artifacts. */
+    features?: { inbox?: boolean; artifacts?: boolean };
+    /** True when the user is an admin. It shows the Admin link. */
+    admin?: boolean;
+    /** `full` drops the frame inset, for a page that reaches the window edge, such as the board. */
+    shellWidth?: 'default' | 'full';
+    /** The ground of the main column. `paper` is white, and `fill` is a column that clips its overflow. */
+    mainSurface?: 'app' | 'paper' | 'fill';
+    className?: string;
+    /** The page. It fills the main column. */
+    children?: ReactNode;
+    [attribute: string]: unknown;
+}
+
+export declare function AppShell(props: AppShellProps): JSX.Element;

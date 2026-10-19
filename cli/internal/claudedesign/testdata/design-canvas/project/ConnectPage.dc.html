@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connect settings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/tokens.css">
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/components/bundle.css">
+<script src="ds/loupedesignsystem_686f56/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.pg-link{color:var(--accent-ink)}.pg-link:hover{color:var(--ink)}
+.pg-switch{appearance:none;-webkit-appearance:none;position:relative;flex-shrink:0;width:40px;height:24px;margin:1px 0 0;border-radius:999px;background:var(--border-strong);cursor:pointer;transition:background .15s}.pg-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:999px;background:var(--surface-1);transition:left .15s}.pg-switch:checked{background:var(--accent)}.pg-switch:checked::after{left:18px}.pg-switch:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1360px; overflow: hidden; font-family: var(--font-sans); color: var(--text); background: var(--bg)">
+<x-import component-from-global-scope="LoupeDesignSystem_686f56.AppShell" project-name="Acme" project-page="{{yes}}" active="project_settings" crumbs="{{crumbs}}" user-name="You" style="width: 100%; height: 100%">
+  <x-import component-from-global-scope="LoupeDesignSystem_686f56.Workspace">
+  <x-import component-from-global-scope="LoupeDesignSystem_686f56.SettingsLayout" title="Settings" description="Connections, workflow and readiness of this project." items="{{items}}" nav-label="Project settings">
+    <div style="display: flex; flex-direction: column; gap: 20px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; flex-direction: column; gap: 14px">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2>Machines</h2></x-import>
+        <div style="display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border-faint)"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim)">loupe 0.42.0 · runs Loupe's work · Claude Code · seen 12 s ago</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Online"></x-import></div>
+        <span style="font-size: 14px; font-weight: 600">Connect another machine</span>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Hint">Install the CLI, then run this in the repository.</x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.CodeBlock" style="max-width: 560px">
+          <div class="lp-code-dark__header"><span class="lp-code-dark__label">Terminal</span><x-import component-from-global-scope="LoupeDesignSystem_686f56.CopyButton" variant="text"><button type="button" class="lp-copy-button__chip">Copy</button></x-import></div>
+          <pre class="lp-code-dark__body"><code>loupe init --project acme</code></pre>
+        </x-import>
+        <details style="border-top: 1px solid var(--border); padding-top: 12px; font-size: 14px"><summary style="cursor: pointer; color: var(--text-mute)">Other ways to connect: a remote client by URL, or a committed .mcp.json</summary></details>
+        <a href="#" class="pg-link" style="font-size: 13px">See every MCP tool in the docs</a>
+      </div>
+    </x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2>GitHub</h2></x-import>
+        <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">github.com/acme/acme</span><span style="font-size: 13px; color: var(--text-dim)">Found by loupe init. The GitHub App is not installed yet.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary" href="#">Install the GitHub App</x-import></div>
+      </div>
+    </x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; flex-direction: column; gap: 14px">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2>Git identity</h2></x-import>
+        <div style="display: flex; align-items: flex-start; gap: 12px">
+          <input type="checkbox" role="switch" class="pg-switch" id="git-managed" checked aria-describedby="git-managed-help">
+          <div style="display: flex; flex-direction: column; gap: 2px"><label for="git-managed" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="git-managed-help" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents push as the Loupe app, so you can approve their pull requests. A machine with an agent account pushes as that account. Turn this off to keep the git setup of each machine.</span></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim)">Pushes as the Loupe app</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Managed"></x-import></div>
+        <a href="https://ubermuda.github.io/loupe/getting-started/agent-github-account/" class="pg-link" style="font-size: 13px">Use a separate GitHub account for agents</a>
+      </div>
+    </x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2>Review widget</h2></x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.FormField">
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label" as="label" html-for="origin">Sites that can sign in</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Input" id="origin" default-value="https://acme.example" mono="{{yes}}"></x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Hint">Filled in from the project website. Add a line per preview site.</x-import>
+        </x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.CodeBlock">
+          <div class="lp-code-dark__header"><span class="lp-code-dark__label">HTML</span><x-import component-from-global-scope="LoupeDesignSystem_686f56.CopyButton" variant="text"><button type="button" class="lp-copy-button__chip">Copy</button></x-import></div>
+          <pre class="lp-code-dark__body"><code>&lt;script src="https://loupe.ac/site-review/widget.js" data-project="acme" defer&gt;&lt;/script&gt;</code></pre>
+        </x-import>
+      </div>
+    </x-import>
+    </div>
+  </x-import>
+  </x-import>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1360}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true,
+      crumbs: ['Acme', 'Settings', 'Connect'],
+      items: [
+        { label: 'General', href: '#' },
+        { label: 'Connect', href: '#', active: true },
+        { label: 'Workflow', href: '#' },
+        { label: 'Automation', href: '#' },
+        { label: 'Agent readiness', href: '#' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

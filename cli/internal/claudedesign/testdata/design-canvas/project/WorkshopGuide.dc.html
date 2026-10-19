@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workshop readiness guide</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/tokens.css">
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/components/bundle.css">
+<script src="ds/loupedesignsystem_686f56/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1060px; overflow: hidden; font-family: var(--font-sans); color: var(--text); background: var(--bg)">
+<x-import component-from-global-scope="LoupeDesignSystem_686f56.AppShell" project-name="Acme" project-page="{{yes}}" active="workshop" crumbs="{{crumbs}}" user-name="You" counts="{{counts}}" style="width: 100%; height: 100%">
+  <div style="padding: 32px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 880px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.PageHeader" variant="workshop" title="Get Acme ready for agents" description="2 of 4 required steps done." actions="{{hideAction}}"></x-import>
+
+    <section aria-labelledby="g1" style="display: flex; flex-direction: column; gap: 10px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2 id="g1">Ready for discovery</h2></x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column">
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border-faint)"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Agent connected</span><span style="font-size: 13px; color: var(--text-dim)">Claude Code on MacBook-Pro, with the Loupe skills</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Done"></x-import></div>
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border-faint)"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Bridge ready</span><span style="font-size: 13px; color: var(--text-dim)">MacBook-Pro runs Loupe's work · seen 12 s ago</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Done"></x-import></div>
+          <div style="display: flex; align-items: center; gap: 14px; padding: 18px; background: var(--accent-faint)"><div style="flex: 1; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 15px; font-weight: 600">Run discovery</span><span style="font-size: 13px; color: var(--text-mute); line-height: 1.45">A worker reads the repository, its build, tests and CI, and writes a report. It changes nothing. You pick which fixes become cards.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary">Run discovery</x-import></div>
+        </div>
+      </x-import>
+    </section>
+
+    <section aria-labelledby="g2" style="display: flex; flex-direction: column; gap: 10px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2 id="g2">Ready for pull requests</h2></x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column">
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border-faint)"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Install the GitHub App</span><span style="font-size: 13px; color: var(--text-dim)">On github.com/acme/acme. Loupe then sees pull requests and checks.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" href="#">Install</x-import></div>
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Who pushes the code</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents push as the Loupe app, so you can approve their pull requests. A separate GitHub account is optional.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="ghost" href="https://ubermuda.github.io/loupe/getting-started/agent-github-account/">Use a separate account</x-import></div>
+        </div>
+      </x-import>
+    </section>
+
+    <section aria-labelledby="g3" style="display: flex; flex-direction: column; gap: 10px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2 id="g3">Optional</h2></x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Review widget</span><span style="font-size: 13px; color: var(--text-dim)">Collect feedback on your site. Sign-ins come from https://acme.example.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" href="#">Set up</x-import></div>
+      </x-import>
+    </section>
+  </div>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const NS = window.LoupeDesignSystem_686f56;
+    const hideAction = NS && React.createElement(NS.Button, { variant: 'ghost', size: 'sm' }, 'Hide this guide');
+    return { yes: true, crumbs: ['Acme', 'Workshop'], counts: { documents: 0 }, hideAction };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+import React from 'react';
+
+const STROKE = { fill: 'none', stroke: 'currentColor', strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2 };
+
+// The Lucide icons the shell uses, copied from assets/icons/lucide/. The export carries no icon files.
+const ICONS = {
+    activity: <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />,
+    'app-window': (
+        <>
+            <rect width="20" height="16" x="2" y="4" rx="2" />
+            <path d="M10 4v4M2 8h20M6 4v4" />
+        </>
+    ),
+    'arrow-down': <path d="M12 5v14m7-7l-7 7l-7-7" />,
+    bot: (
+        <>
+            <path d="M12 8V4H8" />
+            <rect width="16" height="12" x="4" y="8" rx="2" />
+            <path d="M2 14h2m16 0h2m-7-1v2m-6-2v2" />
+        </>
+    ),
+    'chart-column': <path d="M3 3v16a2 2 0 0 0 2 2h16m-3-4V9m-5 8V5M8 17v-3" />,
+    check: <path d="M20 6L9 17l-5-5" />,
+    'file-text': (
+        <>
+            <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+            <path d="M14 2v5a1 1 0 0 0 1 1h5M10 9H8m8 4H8m8 4H8" />
+        </>
+    ),
+    inbox: (
+        <>
+            <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11" />
+        </>
+    ),
+    info: (
+        <>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4m0-4h.01" />
+        </>
+    ),
+    'layout-dashboard': (
+        <>
+            <rect width="7" height="9" x="3" y="3" rx="1" />
+            <rect width="7" height="5" x="14" y="3" rx="1" />
+            <rect width="7" height="9" x="14" y="12" rx="1" />
+            <rect width="7" height="5" x="3" y="16" rx="1" />
+        </>
+    ),
+    'log-out': <path d="m16 17l5-5l-5-5m5 5H9m0 9H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />,
+    mails: (
+        <>
+            <path d="M17 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 1-1.732M22 5.5l-6.419 4.179a2 2 0 0 1-2.162 0L7 5.5" />
+            <rect width="15" height="12" x="7" y="3" rx="2" />
+        </>
+    ),
+    menu: <path d="M4 5h16M4 12h16M4 19h16" />,
+    plus: <path d="M5 12h14m-7-7v14" />,
+    send: <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11zm7.318-19.539l-10.94 10.939" />,
+    settings: (
+        <>
+            <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+            <circle cx="12" cy="12" r="3" />
+        </>
+    ),
+    shield: <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />,
+    'square-kanban': (
+        <>
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M8 7v7m4-7v4m4-4v9" />
+        </>
+    ),
+    user: (
+        <>
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+        </>
+    ),
+    workflow: (
+        <>
+            <rect width="8" height="8" x="3" y="3" rx="2" />
+            <path d="M7 11v4a2 2 0 0 0 2 2h4" />
+            <rect width="8" height="8" x="13" y="13" rx="2" />
+        </>
+    ),
+    x: <path d="M18 6L6 18M6 6l12 12" />,
+};
+
+function Icon({ name, className }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" className={className} aria-hidden="true">
+            <g {...STROKE}>{ICONS[name]}</g>
+        </svg>
+    );
+}
+
+// The key is the name of the nav.link.* string in templates/base.html.twig. Only a counted link shows a count, as in the app.
+const WORKSPACE_LINKS = [
+    { key: 'workshop', label: 'Workshop', icon: 'layout-dashboard' },
+    { key: 'inbox', label: 'Needs you', icon: 'inbox', amber: true, feature: 'inbox', counted: true },
+    { key: 'board', label: 'Board', icon: 'square-kanban' },
+    { key: 'documents', label: 'Documents', icon: 'file-text', counted: true, alwaysCount: true },
+    { key: 'artifacts', label: 'Artifacts', icon: 'app-window', feature: 'artifacts' },
+];
+
+const AGENT_LINKS = [
+    { key: 'agents', label: 'Agents', icon: 'bot', counted: true },
+    { key: 'workflow', label: 'Workflow', icon: 'workflow' },
+    { key: 'activity', label: 'Activity', icon: 'activity', counted: true },
+    { key: 'analytics', label: 'Analytics', icon: 'chart-column' },
+    { key: 'outbox', label: 'Outbox', icon: 'send' },
+];
+
+const SECONDARY_LINKS = [
+    { key: 'project_settings', label: 'Project settings', icon: 'settings', project: true },
+    { key: 'account_inboxes', label: 'All inboxes', icon: 'mails', feature: 'inbox' },
+    { key: 'account', label: 'Account', icon: 'user' },
+    { key: 'admin', label: 'Admin', icon: 'shield', admin: true },
+    { key: 'about', label: 'About', icon: 'info' },
+];
+
+const LOGOUT = { key: 'logout', label: 'Log out', icon: 'log-out' };
+
+function NavLink({ link, active, counts }) {
+    const isActive = active === link.key;
+    const count = link.counted ? counts[link.key] : undefined;
+    const classes = ['lp-sidebar__link'];
+    if (isActive) {
+        classes.push('lp-sidebar__link--active');
+    }
+    return (
+        <a className={classes.join(' ')} href="#" aria-current={isActive ? 'page' : undefined}>
+            <Icon name={link.icon} />
+            <span className="lp-sidebar__link-label">{link.label}</span>
+            {typeof count === 'string' ? (
+                <span className="lp-sidebar__pill">{count}</span>
+            ) : link.alwaysCount ? (
+                <span className="lp-sidebar__pill">{count ?? 0}</span>
+            ) : count > 0 && (
+                <span className={link.amber ? 'lp-sidebar__pill lp-sidebar__pill--amber' : 'lp-sidebar__pill'}>{count}</span>
+            )}
+        </a>
+    );
+}
+
+export function AppShell({ projectName = 'Project', projectPage = true, active, crumbs = [], meta, actions, userName = 'user', counts = {}, projects, features = {}, admin = false, shellWidth = 'default', mainSurface = 'app', className: extra, children, ...rest }) {
+    const [drawerOpen, setDrawerOpen] = React.useState(false);
+    const [switcherOpen, setSwitcherOpen] = React.useState(false);
+    const classes = ['lp-app'];
+    if (extra) {
+        classes.push(extra);
+    }
+    const className = classes.join(' ');
+    const sidebarClassName = drawerOpen ? 'lp-sidebar lp-sidebar--drawer lp-sidebar--open' : 'lp-sidebar lp-sidebar--drawer';
+    const initial = (text) => text.slice(0, 1).toUpperCase();
+    const trail = crumbs.map((crumb) => (typeof crumb === 'string' ? { label: crumb, href: '#' } : crumb));
+    const here = trail.pop();
+    const hasProject = projectName !== null;
+    const onProjectPage = hasProject && projectPage;
+    const switcherProjects = projects ?? [{ name: projectName }];
+    const shown = (link) => (hasProject || !link.project) && (!link.feature || features[link.feature] === true) && (!link.admin || admin);
+
+    return (
+        <div {...rest} className={className}>
+            <aside className={sidebarClassName} id="lp-sidebar">
+                <button type="button" className="lp-sidebar__close" aria-label="Close navigation" onClick={() => setDrawerOpen(false)}>
+                    <Icon name="x" />
+                </button>
+                <a href="#" className="lp-sidebar__brand">
+                    <span className="lp-brand lp-brand--md">
+                        <span className="lp-brand__mark" aria-hidden="true"></span>
+                        <span className="lp-brand__word">loupe</span>
+                    </span>
+                </a>
+                {hasProject && (
+                    <>
+                        <div className="lp-menu lp-menu--chrome lp-menu--stretch">
+                            <button
+                                type="button"
+                                className="lp-sidebar__switcher"
+                                aria-expanded={switcherOpen}
+                                aria-controls="project-switcher-panel"
+                                aria-label="Switch project"
+                                onClick={() => setSwitcherOpen(!switcherOpen)}
+                            >
+                                <span className="lp-avatar lp-avatar--sm lp-avatar--square lp-avatar--danger">{initial(projectName)}</span>
+                                <span className="lp-sidebar__switcher-text">
+                                    <span className="lp-sidebar__switcher-label">Project</span>
+                                    <span className="lp-sidebar__switcher-name">{projectName}</span>
+                                </span>
+                                <Icon name="arrow-down" className="lp-sidebar__switcher-caret" />
+                            </button>
+                            <div className="lp-menu__panel" id="project-switcher-panel" hidden={!switcherOpen}>
+                                {switcherProjects.map((project) => {
+                                    const current = project.name === projectName;
+                                    const documentCount = project.documentCount ?? 0;
+
+                                    return (
+                                        <a key={project.name} href="#" className="lp-menu__item" aria-current={current ? 'true' : undefined}>
+                                            <span className="lp-avatar lp-avatar--xs lp-avatar--square lp-avatar--chrome">{initial(project.name)}</span>
+                                            <span className="lp-switcher__item-text">
+                                                <span className="lp-switcher__item-name">{project.name}</span>
+                                                <span className="lp-switcher__item-count">{documentCount === 1 ? '1 document' : documentCount + ' documents'}</span>
+                                            </span>
+                                            {current && <Icon name="check" className="lp-switcher__item-check" />}
+                                        </a>
+                                    );
+                                })}
+                                <a href="#" className="lp-menu__item lp-switcher__all">
+                                    <span className="lp-switcher__all-glyph">
+                                        <Icon name="layout-dashboard" />
+                                    </span>
+                                    All projects
+                                </a>
+                                <a href="#" className="lp-menu__item lp-switcher__all">
+                                    <span className="lp-switcher__all-glyph">
+                                        <Icon name="plus" />
+                                    </span>
+                                    New project
+                                </a>
+                            </div>
+                        </div>
+                        <nav className="lp-sidebar__nav">
+                            <span className="lp-sidebar__nav-label">Workspace</span>
+                            {WORKSPACE_LINKS.filter(shown).map((link) => (
+                                <NavLink key={link.key} link={link} active={active} counts={counts} />
+                            ))}
+                            <span className="lp-sidebar__nav-label lp-sidebar__nav-label--spaced">Your crew</span>
+                            {AGENT_LINKS.filter(shown).map((link) => (
+                                <NavLink key={link.key} link={link} active={active} counts={counts} />
+                            ))}
+                        </nav>
+                    </>
+                )}
+                <div className="lp-sidebar__spacer"></div>
+                <nav className="lp-sidebar__nav lp-sidebar__nav--secondary">
+                    {SECONDARY_LINKS.filter(shown).map((link) => (
+                        <NavLink key={link.key} link={link} active={active} counts={counts} />
+                    ))}
+                </nav>
+                <div className="lp-sidebar__account">
+                    <span className="lp-avatar lp-avatar--xs lp-avatar--round lp-avatar--chrome">{initial(userName)}</span>
+                    <span className="lp-sidebar__account-text">
+                        <span className="lp-sidebar__account-name">{userName}</span>
+                    </span>
+                    <form className="lp-action-form lp-sidebar__account-logout-form" onSubmit={(event) => event.preventDefault()}>
+                        <button type="submit" className="lp-sidebar__account-logout" aria-label={LOGOUT.label}>
+                            <Icon name={LOGOUT.icon} />
+                        </button>
+                    </form>
+                </div>
+            </aside>
+            <div className="lp-scrim" hidden={!drawerOpen} onClick={() => setDrawerOpen(false)}></div>
+            <div className={'lp-shell lp-shell--' + shellWidth}>
+                <header className="lp-topbar">
+                    <button type="button" className="lp-topbar__menu" aria-controls="lp-sidebar" aria-expanded={drawerOpen} aria-label="Open navigation" onClick={() => setDrawerOpen(!drawerOpen)}>
+                        <Icon name="menu" />
+                    </button>
+                    <div className="lp-topbar__lead">
+                        <nav className="lp-crumbs" aria-label="Breadcrumb">
+                            <ol className="lp-crumbs__list">
+                                {trail.map((crumb) => (
+                                    <li key={crumb.label} className="lp-crumbs__item">
+                                        <a className="lp-crumbs__link" href={crumb.href}>{crumb.label}</a>
+                                        <span className="lp-crumbs__sep" aria-hidden="true">/</span>
+                                    </li>
+                                ))}
+                                {here && (
+                                    <li className="lp-crumbs__item lp-crumbs__item--current">
+                                        <span className="lp-crumbs__here" aria-current="page">{here.label}</span>
+                                    </li>
+                                )}
+                            </ol>
+                        </nav>
+                        {meta && <span className="lp-topbar__meta">{meta}</span>}
+                    </div>
+                    {actions}
+                    <div className="lp-topbar__global-actions" aria-label="Global tools">
+                        {onProjectPage && (
+                            <a className="lp-btn lp-btn--primary lp-topbar__new-work" href="#" aria-label="New work">
+                                <Icon name="plus" className="lp-icon lp-icon--md" />
+                                <span>New work</span>
+                            </a>
+                        )}
+                    </div>
+                </header>
+                <main id="main-content" className={'lp-main lp-main--' + mainSurface} tabIndex={-1}>
+                    {children}
+                </main>
+            </div>
+        </div>
+    );
+}

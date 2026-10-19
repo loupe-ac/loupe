@@ -1,0 +1,24 @@
+Loupe's app shell. The page frame: a sidebar with the project switcher, a top bar with the breadcrumb, and the main column.
+
+```jsx
+<AppShell
+  projectName="Acme"
+  active="board"
+  crumbs={['Documents', 'Tech design']}
+  userName="riley@example.com"
+>
+  <h1>Board</h1>
+</AppShell>
+```
+
+Wrap every signed-in page in it. The sidebar and the top bar are part of the shell, so do not draw your own. The page content goes in as the children. Pass `meta` for a short line after the breadcrumb and `actions` for page buttons in the top bar. The New work button is there on every project page.
+
+`projectName` is the project of the sidebar. On a page outside a project, such as the account page, the app keeps the last project you visited in the sidebar. Pass `projectPage={false}` for such a page: the sidebar keeps the project, and the shell hides New work. Pass `projectName={null}` when the user has visited no project. The shell then also hides the project switcher, the Workspace and Your crew links and Project settings, as the app does.
+
+Pass `projects` to list the projects of the switcher, such as `projects={[{ name: 'Acme', documentCount: 12 }, { name: 'Globex', documentCount: 3 }]}`. The entry whose name is `projectName` gets the check mark. With no `projects`, the switcher lists `projectName` alone.
+
+Pass `counts` to put a number beside a nav link, such as `counts={{ documents: 12, inbox: 2 }}`. Only Needs you, Documents, Agents and Activity take a count, as in the app, and the shell ignores the count of any other link. Documents always shows its count, and shows 0 when you pass none. Needs you shows its amber count, and Activity its count of open runs, only above 0. Agents takes text such as `'1/3'`, the busy workers over the worker limit.
+
+The app hides some links behind a feature flag or a role, and so does the shell. Pass `features={{ inbox: true }}` to show Needs you and All inboxes, and `artifacts: true` to show Artifacts. Pass `admin` to show the Admin link. Every flag is off by default, as on a fresh install.
+
+`active` takes the name of a nav link. The wrapper holds the same links as the app, with the same labels. The component emits the real `lp-app`, `lp-sidebar`, `lp-topbar` and `lp-main` classes of the app.
