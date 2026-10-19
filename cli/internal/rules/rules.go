@@ -87,23 +87,24 @@ var hostname = os.Hostname
 // goos is the OS Parse checks an interactive rule against. Tests replace it.
 var goos = runtime.GOOS
 
-// Example is the file the bridge prints when it finds none.
-const Example = `accounts:
-  claude:
+// Example is the file the bridge prints when it finds none. FirstRun writes
+// the same file for a macOS machine with Claude Code.
+const Example = `appPrompts: true
+accounts:
+  claude-code:
     harness: claude-code
-
 defaults:
-  account: claude
-
+  account: claude-code
+  permissions: workspace
 projects:
   my-app:
     dir: ~/Code/my-app
-
+launch:
+  command: ["open", "-a", "Terminal", "{script}"]
 work:
-  implement:
-    prompt: |
-      Loupe asks for {kind} work on card {cardNumber} of project {projectId}.
-      Read it with the card_get MCP tool, passing cardId {cardId}, and do it.
+  product-design:
+    action: interactive
+    prompt: /loupe:product-design {cardNumber}
 `
 
 // PermissionModes are the values claude 2.1.270 takes for --permission-mode.

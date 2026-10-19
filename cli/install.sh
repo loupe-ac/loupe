@@ -9,15 +9,16 @@ Install the loupe CLI.
 
 Options:
   --install-dir DIR  Install loupe into DIR.
-  --auto-update      Turn on automatic updates. If that fails, loupe stays
-                     installed and the script exits with status 2.
+  --auto-update      Turn on automatic updates, and write that to the rule file.
+                     If that fails, loupe stays installed and the script exits
+                     with status 2. Without this option, "loupe init" asks.
   --version X.Y.Z    Install this release, not the newest one.
   --help             Show this help.
 
 Environment:
   LOUPE_INSTALL_NO_TTY=1     Treat the session as non-interactive.
   LOUPE_INSTALL_TTY=FILE     Read the answers from FILE, not from /dev/tty.
-  LOUPE_RULES_FILE=FILE      Read and write the rule file at FILE.
+  LOUPE_RULES_FILE=FILE      Write the rule file of --auto-update at FILE.
 EOF
 }
 
@@ -93,16 +94,6 @@ pick_dir() {
 		esac
 	else
 		say "$HOME/.local/bin"
-	fi
-}
-
-rules_file() {
-	if [ -n "${LOUPE_RULES_FILE:-}" ]; then
-		say "$LOUPE_RULES_FILE"
-	elif [ "$os" = darwin ]; then
-		say "$HOME/Library/Application Support/loupe/rules.yaml"
-	else
-		say "${XDG_CONFIG_HOME:-$HOME/.config}/loupe/rules.yaml"
 	fi
 }
 
@@ -261,46 +252,39 @@ main() {
 		die "cannot install loupe into $dir. Choose another directory with --install-dir."
 	fi
 
+	state='' output=''
 	if [ -n "$auto" ]; then
 		set -- update auto on
-	elif grep -q '^autoUpdate:' "$(rules_file)" 2>/dev/null; then
-		set -- update auto off --keep
-	elif [ -n "$tty" ]; then
-		ask 'Turn on automatic updates? [y/N] '
-		case $answer in
-		[yY]*) set -- update auto on --keep ;;
-		*) set -- update auto off --keep ;;
-		esac
-	else
-		set -- update auto off --keep
-	fi
-	if [ -n "${LOUPE_RULES_FILE:-}" ]; then
-		set -- "$@" --rules "$LOUPE_RULES_FILE"
-	fi
-	if output=$("$bin" "$@" </dev/null 2>&1); then
-		state=unknown
-		case $output in
-		*"Automatic updates: on"*) state=on ;;
-		*"Automatic updates: off"*) state=off ;;
-		esac
-	else
-		say "warning: loupe could not set automatic updates:" >&2
-		state=unknown
-		auto_failed=$auto
+		if [ -n "${LOUPE_RULES_FILE:-}" ]; then
+			set -- "$@" --rules "$LOUPE_RULES_FILE"
+		fi
+		if output=$("$bin" "$@" </dev/null 2>&1); then
+			state=unknown
+			case $output in
+			*"Automatic updates: on"*) state=on ;;
+			*"Automatic updates: off"*) state=off ;;
+			esac
+		else
+			say "warning: loupe could not set automatic updates:" >&2
+			state=unknown
+			auto_failed=$auto
+		fi
 	fi
 
 	say ""
 	say "Installed loupe $version at $bin."
-	say "$output"
-	say "Auto-update: $state"
-	[ "$state" = on ] || say "To turn on automatic updates, run: loupe update auto on"
+	if [ -n "$auto" ]; then
+		say "$output"
+		say "Auto-update: $state"
+		[ "$state" = on ] || say "To turn on automatic updates, run: loupe update auto on"
+	fi
 	if [ -z "$reachable" ] && ! on_path "$dir"; then
 		say ""
 		say "$dir is not on your PATH. Add this line to your shell profile:"
 		say "  export PATH=\"$dir:\$PATH\""
 	fi
 	say ""
-	say "Next, log in with: loupe login --url ${url:-<your Loupe URL>}"
+	say "Next, run: loupe init --url ${url:-<your Loupe URL>}"
 
 	if [ -n "$auto_failed" ]; then
 		say "" >&2

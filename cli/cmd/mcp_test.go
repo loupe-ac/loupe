@@ -50,7 +50,7 @@ func TestMcpStopsBeforeConnectingOnAMalformedProjectFile(t *testing.T) {
 	if !strings.Contains(err.Error(), projectfile.Name) {
 		t.Fatalf("error must name the file, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "loupe init") {
+	if !strings.Contains(err.Error(), "loupe project link") {
 		t.Fatalf("error must say how to write the file, got %v", err)
 	}
 }
@@ -82,7 +82,7 @@ const (
 	projectB = "0192f3c4-5d6e-7f80-9123-456789abcdef"
 )
 
-// writeProject writes .loupe.yaml in dir the way loupe init does, and sets its
+// writeProject writes .loupe.yaml in dir the way loupe project link does, and sets its
 // modification time, so a test does not depend on the clock's granularity.
 func writeProject(t *testing.T, dir, id string, mtime time.Time) {
 	t.Helper()
@@ -171,7 +171,7 @@ func TestAChangedProjectFileChangesTheProject(t *testing.T) {
 	}
 }
 
-// loupe init replaces the file with a rename. A new file with the old size and
+// loupe project link replaces the file with a rename. A new file with the old size and
 // the old time is still a change.
 func TestAReplacedProjectFileWithTheSameTimeIsStillRead(t *testing.T) {
 	dir := inRepo(t, "")

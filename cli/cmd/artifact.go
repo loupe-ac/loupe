@@ -246,7 +246,7 @@ func artifactProject(ctx context.Context, client *api.Client, flag string, notes
 		return "", fmt.Errorf("list your projects: %w", err)
 	}
 	if len(sites) != 1 {
-		return "", fmt.Errorf("your login covers %d projects, so name one with --project or write %s with `loupe init`", len(sites), projectfile.Name)
+		return "", fmt.Errorf("your login covers %d projects, so name one with --project or write %s with `loupe project link`", len(sites), projectfile.Name)
 	}
 
 	return sites[0].ID, nil
