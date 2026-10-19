@@ -27,8 +27,13 @@ interface WorkLedger
     /** The reason code when the open work has no bridge online that could run it, or null when a bridge could, or the work is not open. */
     public function noTakerReason(Uuid $requestId): ?string;
 
-    /** The newest run of the card that resumes or reruns an earlier run, and that a worker ran or runs. */
-    public function latestContinuation(Uuid $cardId, ?\DateTimeImmutable $since, ?string $ruleId): ?RunView;
+    /**
+     * The newest run of the card that resumes or reruns an earlier run, and that a worker ran or runs.
+     * A rule id or a work kind narrows the runs to those of that rule or kind.
+     */
+    public function latestContinuation(Uuid $cardId, ?\DateTimeImmutable $since, ?string $ruleId, ?string $workKind = null): ?RunView;
+
+    public function run(Uuid $runId): ?RunView;
 
     /** Whether the run is an open worker run on the card, or shares a session with one. */
     public function isOpenWorkerOnCard(string $runId, Uuid $projectId, Uuid $cardId): bool;

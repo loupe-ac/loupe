@@ -6,6 +6,7 @@ namespace App\Module\Bridge\Workflow;
 
 use App\Module\Bridge\Command\WithdrawWorkRequestCommand;
 use App\Module\Bridge\Command\WithdrawWorkRequestHandler;
+use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
@@ -82,11 +83,24 @@ final readonly class BridgeWorkLedger implements WorkLedger
     }
 
     #[\Override]
-    public function latestContinuation(Uuid $cardId, ?\DateTimeImmutable $since, ?string $ruleId): ?RunView
+    public function latestContinuation(Uuid $cardId, ?\DateTimeImmutable $since, ?string $ruleId, ?string $workKind = null): ?RunView
     {
-        $run = $this->workerRuns->findLatestContinuationOfCard($cardId, $since, $ruleId);
+        $run = $this->workerRuns->findLatestContinuationOfCard($cardId, $since, $ruleId, $workKind);
 
-        return null === $run ? null : new RunView($run->state->value, $run->state->isStop());
+        return null === $run ? null : self::runView($run);
+    }
+
+    #[\Override]
+    public function run(Uuid $runId): ?RunView
+    {
+        $run = $this->workerRuns->find($runId);
+
+        return null === $run ? null : self::runView($run);
+    }
+
+    private static function runView(WorkerRun $run): RunView
+    {
+        return new RunView($run->id ?? throw new \LogicException('A persisted worker run has an id.'), $run->state->value, $run->state->isStop(), $run->state->isOpen());
     }
 
     #[\Override]

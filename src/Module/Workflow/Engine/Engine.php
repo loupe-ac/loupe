@@ -26,6 +26,7 @@ use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\RefiresOnFactChange;
 use App\Module\Workflow\Contract\RetriesWhileTrue;
 use App\Module\Workflow\Contract\RuleAsks;
+use App\Module\Workflow\Contract\RunView;
 use App\Module\Workflow\Contract\Unreadable;
 use App\Module\Workflow\Contract\UnreadableKind;
 use App\Module\Workflow\Contract\WithdrawKind;
@@ -62,6 +63,10 @@ final readonly class Engine
 
     public const string STILL_TRUE = 'still-true';
 
+    /** The code of a worker that waits for a person. The engine may not import the Bridge enum that spells it. */
+    private const string NEEDS_PERSON = 'needs-person';
+
+    private const string NOT_STARTED = 'not-started';
     private const string RUN_RESUMED = 'run-resumed';
     private const string SUBJECT_CHANGED = 'subject-changed';
     private const string REFILLED = 'refilled';
@@ -207,7 +212,7 @@ final readonly class Engine
             // After the release, so a refusal that settled during a pause counts in the pass that ends it.
             $this->readNewCauses($run);
             $this->readSettledRequests($run);
-            $this->readResumedRun($run);
+            $this->readAnsweringRuns($run);
             if (!$run->ended) {
                 $this->runRules($run, $template->rules);
             }
@@ -277,6 +282,7 @@ final readonly class Engine
                 $state->lastRefusal = null;
                 $state->lastRefusalAt = null;
                 $state->workRequestId = null;
+                $state->answeringRunId = null;
                 $state->repaired = false;
             });
         }
@@ -400,35 +406,59 @@ final readonly class Engine
                 continue;
             }
 
-            $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, $request->reason ?? 'failed', $bound));
+            $code = $request->reason ?? 'failed';
+            // A resumed worker that reported since the stop settled already serves the answer to it.
+            $answering = self::NEEDS_PERSON === $code ? $this->answeringRun($run, $rule, $request->settledAt) : null;
+            if (null !== $answering) {
+                $this->keepQuiet($run, $rule, $answering->id);
+                continue;
+            }
+
+            $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, $code, $bound));
         }
     }
 
     /**
-     * Counts the end of a resumed run as a refusal, because a resumed run holds no work request that could settle as refused.
-     * The release of the pause cleared the attempts, so the run earns the retries of a fresh budget.
-     * The release left a refusal time with no refusal on the rule state. It counts the run once, because any later write clears it.
+     * Counts the stop of a resumed run that answered a stop of the rule, because a resumed run holds no work request that could settle as refused.
+     * The answered stop cleared the attempts, so the run earns the retries of a fresh budget.
+     * A run that is still open waits. Any other end, a run that is gone, or a change of subject clears the stored run and counts nothing.
+     * A run that never started counts as a stop.
      */
-    private function readResumedRun(Evaluation $run): void
+    private function readAnsweringRuns(Evaluation $run): void
     {
         $policy = $run->template->onWorkFailed;
-        $cardId = $run->card->id;
-        $pause = $this->cardPauses->findLatest($cardId);
-        if (null === $policy || $run->ended || null === $pause || self::RUN_RESUMED !== $pause->releaseReason) {
+        if (null === $policy) {
             return;
         }
-        $rule = $run->rule($pause->ruleId);
-        $state = $run->states[$pause->ruleId] ?? null;
-        if (null === $rule || null === $state || null !== $state->lastRefusal || null === $state->lastRefusalAt || !$run->applies($rule) || $this->waits($run, $rule)) {
-            return;
+        foreach ($run->template->rules as $rule) {
+            $state = $run->states[$rule->id] ?? null;
+            if ($run->ended || null === $state || null === $state->answeringRunId || !$run->applies($rule) || $this->waits($run, $rule)) {
+                continue;
+            }
+            $bound = $this->ruleSubject->bind($rule, $run->facts);
+            if (!$bound->truth) {
+                continue;
+            }
+            // The rule now acts on another pull request, so the run answered a stop of the old one and counts for nothing.
+            $stored = $state->subjectPullRequestId;
+            if ($bound->binds && null !== $stored && null !== $bound->subject && !$stored->equals($bound->subject)) {
+                $this->write($run, $state, static function (WorkflowRuleState $state): void {
+                    $state->answeringRunId = null;
+                });
+                continue;
+            }
+            $answering = $this->ledger->run($state->answeringRunId);
+            if (null !== $answering && $answering->open) {
+                continue;
+            }
+            $code = null !== $answering && ($answering->stop || self::NOT_STARTED === $answering->state) ? $answering->state : null;
+            $this->write($run, $state, function (WorkflowRuleState $state) use ($run, $rule, $policy, $bound, $code): void {
+                $state->answeringRunId = null;
+                if (null !== $code) {
+                    $this->refuse($run, $rule, $state, $policy, $code, $bound);
+                }
+            });
         }
-        $resumed = $this->ledger->latestContinuation($cardId, $pause->createdAt, $rule->id);
-        $bound = $this->ruleSubject->bind($rule, $run->facts);
-        if (null === $resumed || !$resumed->stop || !$bound->truth) {
-            return;
-        }
-
-        $this->write($run, $state, fn (WorkflowRuleState $state) => $this->refuse($run, $rule, $state, $policy, $resumed->state, $bound));
     }
 
     /** Earns a retry after the next delay, or opens the repair, or pauses the card, as the failure block says. */
@@ -538,7 +568,8 @@ final readonly class Engine
         if (null === $pause) {
             return false;
         }
-        $code = $this->resumed($run, $pause) ? self::RUN_RESUMED : $this->releaseCode($run, $pause);
+        $resumed = $this->resumed($run, $pause);
+        $code = null !== $resumed ? self::RUN_RESUMED : $this->releaseCode($run, $pause);
         if (null === $code) {
             $run->holdingPause = $pause;
 
@@ -552,8 +583,8 @@ final readonly class Engine
             $this->cardPauses->recordReleased($released, Actor::System, null);
         }
         $rule = $run->rule($pause->ruleId);
-        if (self::RUN_RESUMED === $code && null !== $rule) {
-            $this->keepQuiet($run, $rule);
+        if (null !== $resumed && null !== $rule) {
+            $this->keepQuiet($run, $rule, $resumed->id);
         }
         if (self::REFILLED === $code && null !== $rule) {
             $this->write($run, $this->state($run, $rule), static function (WorkflowRuleState $state): void {
@@ -576,27 +607,40 @@ final readonly class Engine
     }
 
     /**
-     * Whether a worker ran or runs again on an earlier run since the pause began, which a person or a closed ask started.
+     * The worker run that ran or runs again on an earlier run since the pause began, which a person or a closed ask started.
      * A short run can end before the evaluation, so the run counts open or ended. A run that a person stopped does not count.
+     * A pause for a stop that waits for a person also ends for a resumed run of another rule, when it does the same kind of work.
      */
-    private function resumed(Evaluation $run, PauseView $pause): bool
+    private function resumed(Evaluation $run, PauseView $pause): ?RunView
     {
         $rule = $run->rule($pause->ruleId);
         if (null === $rule || !$run->applies($rule) || !\in_array($pause->kind, ReleaseWorkflowPauseCommand::RELEASABLE_KINDS, true)) {
-            return false;
+            return null;
+        }
+        if (PauseKind::WorkStopped === $pause->kind && self::NEEDS_PERSON === $pause->reason) {
+            return $this->answeringRun($run, $rule, $pause->createdAt);
         }
 
-        return null !== $this->ledger->latestContinuation($run->card->id, $pause->createdAt, $pause->ruleId);
+        return $this->ledger->latestContinuation($run->card->id, $pause->createdAt, $pause->ruleId);
+    }
+
+    /** The newest resumed run of the card that reported since the time and does the work kind of the rule, from any rule. */
+    private function answeringRun(Evaluation $run, Rule $rule, ?\DateTimeImmutable $since): ?RunView
+    {
+        $workKind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
+
+        return null === $workKind ? null : $this->ledger->latestContinuation($run->card->id, $since, null, $workKind);
     }
 
     /**
-     * Leaves the rule true with a clean budget, so it fires no request next to the resumed worker.
+     * Leaves the rule true with a clean budget, so it fires no request next to the resumed worker, and stores that worker.
      * A person's release makes the rule false instead, which fires it again at once.
      * The kept request and the refusal time with no refusal keep the old refusal from counting twice.
      */
-    private function keepQuiet(Evaluation $run, Rule $rule): void
+    private function keepQuiet(Evaluation $run, Rule $rule, Uuid $answeringRunId): void
     {
-        $this->write($run, $this->state($run, $rule), function (WorkflowRuleState $state) use ($run, $rule): void {
+        $this->write($run, $this->state($run, $rule), function (WorkflowRuleState $state) use ($run, $rule, $answeringRunId): void {
+            $state->answeringRunId = $answeringRunId;
             $bound = $this->ruleSubject->bind($rule, $run->facts);
             $state->truth = $bound->truth;
             $state->fingerprint = $this->fingerprint->of($bound->facts, $rule->when->reads());
@@ -712,6 +756,7 @@ final readonly class Engine
             $state->lastRefusal = null;
             $state->lastRefusalAt = null;
             $state->workRequestId = null;
+            $state->answeringRunId = null;
             $state->repaired = false;
             // The subject stays, so a later true pass on another pull request starts a fresh budget.
             $state->fingerprint = $fingerprint;
@@ -778,6 +823,10 @@ final readonly class Engine
                     $state->truth = false;
 
                     return true;
+                }
+                // New work of its own replaces the work the stored run answered.
+                if (null !== $outcome->requestId || ($newSubject && !$outcome->alreadyLive)) {
+                    $state->answeringRunId = null;
                 }
                 if (!$retrying || (null === $outcome->requestId && !$outcome->alreadyLive)) {
                     $state->attempts = 0;
@@ -979,7 +1028,7 @@ final readonly class Engine
     /** @return list<mixed> */
     private static function snapshot(WorkflowRuleState $state): array
     {
-        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u')];
+        return [$state->truth, $state->attempts, $state->fires, $state->fingerprint, $state->dueAt?->format('U.u'), $state->lastRefusal, $state->lastRefusalAt?->format('U.u'), $state->subjectPullRequestId?->toRfc4122(), $state->workRequestId?->toRfc4122(), $state->causesAtOpen, $state->repaired, $state->askItemId?->toRfc4122(), $state->heldByBlockerSince?->format('U.u'), $state->answeringRunId?->toRfc4122()];
     }
 
     private function pause(Evaluation $run, PauseKind $kind, string $code, string $ruleId): void
