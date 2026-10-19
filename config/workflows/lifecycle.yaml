@@ -1,5 +1,5 @@
 key: lifecycle
-version: 9
+version: 10
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -230,7 +230,6 @@ rules:
                   - The .loupe/lifecycle.md sections that the stage skills read
                   - A build command and a test command that an agent can run
                   - A draft pull request that a separate agent reviews after the push
-                  - The agent pushes as its own GitHub account
 
     # After implement, so a card that comes back opens its new request before these read the latest request.
     - id: nothing-to-build
@@ -577,8 +576,6 @@ rules:
           request:
               kind: teardown
               onTimeout: expire
-              checks:
-                  - A command that removes the worktree and the preview of a finished card
 
     - id: epic-preview
       slot: in-review
