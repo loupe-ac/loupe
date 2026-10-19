@@ -334,6 +334,158 @@ final class EngineTest extends KernelTestCase
         self::assertSame(1, $this->ruleState($card, 'fix')->fires);
     }
 
+    private const array FIX_CAUSES = ['all' => [['pr.open' => []], ['any' => [['pr.checks_failed' => []], ['pr.conflicting' => []], ['pr.changes_requested' => []]]]]];
+
+    public function test_a_conflict_seen_with_the_fix_push_opens_a_second_fix_when_the_first_ends(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $pullRequest = $this->pullRequest($card, headSha: 'a');
+        $this->requestChangesOnHead($pullRequest);
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+        self::assertSame(['pr.open{}', 'pr.changes_requested{}'], $this->ruleState($card, 'fix')->causesAtOpen);
+
+        $pullRequest->headSha = 'b';
+        $pullRequest->mergeability = PullRequestMergeability::Conflicting;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        self::assertTrue($this->ruleState($card, 'fix')->truth, 'One read saw the push and the conflict together, so no edge happened.');
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($first->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+        self::assertSame(2, $this->ruleState($card, 'fix')->fires);
+        self::assertSame(['changes-requested', 'conflict'], array_column($this->fixEvents($card), 'reason'));
+    }
+
+    public function test_a_conflict_after_a_false_pass_during_the_own_fix_opens_a_second_fix_when_the_first_ends(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $pullRequest = $this->pullRequest($card, headSha: 'a');
+        $this->requestChangesOnHead($pullRequest);
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+        $pullRequest->headSha = 'b';
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:03:00');
+        self::assertFalse($this->ruleState($card, 'fix')->truth);
+
+        $pullRequest->mergeability = PullRequestMergeability::Conflicting;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        self::assertSame($first->id?->toRfc4122(), $this->ruleState($card, 'fix')->workRequestId?->toRfc4122());
+        self::assertSame(['pr.open{}', 'pr.changes_requested{}'], $this->ruleState($card, 'fix')->causesAtOpen);
+
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($first->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+        self::assertSame(['changes-requested', 'conflict'], array_column($this->fixEvents($card), 'reason'));
+    }
+
+    public function test_a_negated_cause_that_starts_to_hold_during_the_fix_opens_a_second_fix(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['any' => [['pr.conflicting' => []], ['not' => ['pr.checks_passed' => []]]]], limit: 3)]);
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->mergeability = PullRequestMergeability::Conflicting;
+        $pullRequest->checks = PullRequestChecks::Passed;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+        self::assertSame(['pr.conflicting{}'], $this->ruleState($card, 'fix')->causesAtOpen);
+
+        $pullRequest->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($first->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+        self::assertSame(2, $this->ruleState($card, 'fix')->fires);
+    }
+
+    public function test_a_fix_that_ends_with_the_same_causes_opens_no_second_fix(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $this->requestChangesOnHead($this->pullRequest($card, headSha: 'a'));
+        $this->evaluate($card);
+
+        $this->finish($this->liveRequests($card)[0], '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+        $this->evaluate($card, '2026-10-02 12:12:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
+        self::assertNull($this->ruleState($card, 'fix')->causesAtOpen);
+    }
+
+    public function test_an_all_only_rule_that_turns_false_and_true_during_its_request_opens_no_second_request(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]], limit: 3)]);
+        $pullRequest = $this->pullRequest($card);
+        $pullRequest->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+
+        $pullRequest->checks = PullRequestChecks::Pending;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:03:00');
+        self::assertFalse($this->ruleState($card, 'fix')->truth);
+        $pullRequest->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        self::assertSame($first->id?->toRfc4122(), $this->ruleState($card, 'fix')->workRequestId?->toRfc4122());
+
+        $this->finish($first, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+        $this->evaluate($card, '2026-10-02 12:12:00');
+
+        self::assertSame([], $this->liveRequests($card));
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
+    }
+
+    public function test_a_second_fix_for_a_new_cause_waits_while_another_fix_rule_holds_the_slot(): void
+    {
+        $card = $this->boundCard([
+            self::requestRule('other', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]], limit: 3, kind: 'fix'),
+            self::requestRule('fix', ['all' => [['pr.open' => []], ['any' => [['pr.conflicting' => []], ['pr.changes_requested' => []]]]]], limit: 3),
+        ]);
+        $pullRequest = $this->pullRequest($card, headSha: 'a');
+        $this->requestChangesOnHead($pullRequest);
+        $this->evaluate($card);
+        $first = $this->liveRequests($card)[0];
+        self::assertSame('fix', $first->ruleId);
+
+        $pullRequest->mergeability = PullRequestMergeability::Conflicting;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:05:00');
+        $this->finish($first, '2026-10-02 12:10:00');
+        $pullRequest->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertSame('other', $live[0]->ruleId, 'The other fix rule took the slot first.');
+        self::assertFalse($this->ruleState($card, 'fix')->truth, 'The fix waits for the slot.');
+        self::assertSame(1, $this->ruleState($card, 'fix')->fires);
+
+        $this->finish($live[0], '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertSame('fix', $live[0]->ruleId);
+        self::assertSame(2, $this->ruleState($card, 'fix')->fires);
+    }
+
     public function test_a_rule_outside_the_slot_resets_cancels_its_request_and_fires_again_on_reentry(): void
     {
         $card = $this->boundCard([self::requestRule('work', self::ALWAYS)]);
