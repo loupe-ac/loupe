@@ -11,6 +11,10 @@ export default class extends Controller {
     static targets = ['trigger', 'panel'];
 
     connect() {
+        // A split button with no menu rows draws its main part alone, with no toggle.
+        if (!this.hasTriggerTarget) {
+            return;
+        }
         this.onDocumentClick = (event) => {
             if (!this.element.contains(event.target)) {
                 this.close({ restoreFocus: false });

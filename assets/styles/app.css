@@ -26,6 +26,7 @@
 @import './components/relative-time.css';
 @import './components/data-table.css';
 @import './components/menu.css';
+@import './components/split-button.css';
 @import './components/action-form.css';
 @import './components/icon.css';
 @import './components/shell.css';
@@ -8302,19 +8303,6 @@
 }
 .inbox-split__hint {
     @apply mr-auto;
-}
-.inbox-split {
-    @apply inline-flex items-stretch;
-}
-.inbox-split__main {
-    @apply rounded-r-none;
-}
-.inbox-split__toggle {
-    @apply rounded-l-none px-2;
-    border-left-color: color-mix(in oklab, var(--accent-ink) 40%, transparent);
-}
-.inbox-split__toggle svg {
-    @apply size-4;
 }
 .inbox-split .lp-menu__panel {
     @apply z-30 w-100 gap-1;

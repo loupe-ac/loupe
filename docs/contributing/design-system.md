@@ -73,6 +73,7 @@ A building block is a Twig component under `templates/components/Ds/`. Its CSS l
 | Icon | The size of a `ux:icon` tag. A class scale, with no component to render | xs (3), sm (3.5), md (4), lg (5), and xl (8) and 2xl (12) for an empty-state icon. Write `class="lp-icon lp-icon--sm"` |
 | DataTable | A list of one-line rows under a header | No variants. A `modifier` sets the column grid, `label` names the table. A `header` block replaces the header cells |
 | Menu | A panel of links or actions that opens under a trigger, with headings, groups and dividers | light, chrome |
+| SplitButton | A button whose main part acts and whose chevron opens a menu of the other actions. Takes `id`, `toggleLabel`, `variant`, `size`, `menuSize` and `align`, a `main` block and a `content` block. Without a main button the toggle is a whole button with its label. Without rows the main button stands alone | none |
 | ActionForm | A form that posts with a CSRF token and holds one button. Takes `action`, `token` (the registered CSRF id) and `frame` | none |
 | BrandMark | The logo square and the brand name. Sizes sm and md. `:markOnly="true"` draws the square alone | none |
 | NavItem | One link of the sidebar. Props `url`, `icon`, `label`, `active` and `count`. Its content adds anything after the label | none |
@@ -199,6 +200,22 @@ Write a menu like this:
 ```
 
 The menu holds the `popover` controller. Its trigger carries the three `data-popover-target`, `data-action` and `aria-*` attributes, because the trigger markup is the caller's. The props are `tone` (light or chrome), `align` (end, start or stretch), `direction` (down or up), `size` (sm, md or lg), `density` (compact, flush or roomy) and `as`, the element of the panel. A form panel takes its `method` and `action` in `:panel`. A MenuItem is a link with `href` and a button without it. A MenuGroup holds a run of related rows. Its `heading` prop draws a MenuHeading, and its `moreLabel` prop puts the rows of the `more` block behind a "show more" row. The mobile review menu and the review filter stay outside the component, because one is a drill-down sheet and the other is a `<details>` element.
+
+Write a split button like this:
+
+```twig
+<twig:Ds:SplitButton id="item-actions" :toggleLabel="'inbox.thread.other_actions'|trans" menuSize="lg">
+    <twig:block name="main">
+        <twig:Ds:Button variant="primary" size="sm" type="submit">Resume the run</twig:Ds:Button>
+    </twig:block>
+    <twig:block name="content">
+        <twig:Ds:MenuItem role="menuitem" href="/card">Open the card</twig:Ds:MenuItem>
+        <twig:Ds:MenuItem role="menuitem" aria-disabled="true">Start session</twig:Ds:MenuItem>
+    </twig:block>
+</twig:Ds:SplitButton>
+```
+
+The split button holds the `split-button` controller, which also moves between the rows with the arrow keys. It draws the toggle itself, so the caller writes only the main button and the rows.
 
 Write the state of a card like this:
 

@@ -23,6 +23,7 @@ use App\Module\Inbox\Service\InboxChangedPublisher;
 use App\Module\Inbox\Service\InboxLinkResolver;
 use App\Module\Inbox\Service\InboxSearchIndexer;
 use App\Module\Inbox\Service\InboxSessionAsks;
+use App\Module\Inbox\Service\SessionPromptLimit;
 use App\Module\Project\Entity\Project;
 use App\Tests\Module\Inbox\InboxFixtures;
 use App\Tests\Support\RecordingAuditor;
@@ -232,6 +233,9 @@ final class AskInboxHandlerTest extends KernelTestCase
         $workerRuns = $container->get(WorkerRunRepository::class);
         self::assertInstanceOf(WorkerRunRepository::class, $workerRuns);
 
-        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler());
+        $promptLimit = $container->get(SessionPromptLimit::class);
+        self::assertInstanceOf(SessionPromptLimit::class, $promptLimit);
+
+        return new AskInboxHandler($items, $sessionAsks, $askingBridge, $links, $indexer, $em, $this->audit->auditor, $inboxChanged, $cardWaits, new InboxCardTileRefresher(new EventDispatcher()), $workerRuns, new RecordRunAskHandler(), $promptLimit);
     }
 }

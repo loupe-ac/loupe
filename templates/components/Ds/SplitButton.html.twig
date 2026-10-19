@@ -1,0 +1,29 @@
+{#
+  Props:  @comment-budget-ignore
+    id           string  Id of the panel. The toggle names it in aria-controls.
+    toggleLabel  string  Names the toggle. With a main button it is the aria-label of the chevron. Without one it is the text of the toggle.
+    variant      string  The Button variant of the toggle. Primary by default. Give the main button the same variant.
+    size         string  The Button size of the toggle. Sm by default. Give the main button the same size.
+    menuSize     string  sm, md or lg. The width of the panel, as on Ds:Menu.
+    align        string  end or start. The edge that the panel lines up with, as on Ds:Menu.
+  Blocks:
+    main         The main button, a Ds:Button. Leave it out when no main action fits, and the toggle becomes a whole button with its label.
+    content      The rows of the menu. Give each row role="menuitem", and aria-disabled="true" to a row that cannot run now.
+                 Without rows the main button stands alone, with no toggle.
+  Any other attribute, class included, is passed to the root element, which holds the split-button controller.
+#}
+{%- props id, toggleLabel, variant = 'primary', size = 'sm', menuSize = null, align = 'end' -%}
+{%- set mainButton -%}{%- block main %}{% endblock -%}{%- endset -%}
+{%- set rows -%}{%- block content %}{% endblock -%}{%- endset -%}
+{%- set alone = mainButton|trim is empty -%}
+{#- Ds:Menu has its own size, so the toggle reads these names inside the trigger block. -#}
+{%- set toggleVariant, toggleSize, panelId = variant, size, id -%}
+<twig:Ds:Menu :id="id" :size="menuSize" :align="align" :panel="{role: 'menu', 'data-split-button-target': 'panel'}" class="{{ ('lp-split-button ' ~ attributes.render('class'))|trim }}" data-controller="split-button" {{ ...attributes.without('class').all }}>
+    <twig:block name="trigger">
+        {{- mainButton -}}
+        {%- if rows|trim is not empty %}
+        <twig:Ds:Button :variant="toggleVariant" :size="toggleSize" class="{{ alone ? 'lp-split-button__toggle lp-split-button__toggle--alone' : 'lp-split-button__toggle' }}" type="button" aria-haspopup="menu" aria-expanded="false" :aria-controls="panelId" :aria-label="alone ? null : toggleLabel" data-split-button-target="trigger" data-popover-target="trigger" data-action="click->split-button#toggle">{{ alone ? toggleLabel }}<twig:ux:icon name="lucide:chevron-down" /></twig:Ds:Button>
+        {%- endif %}
+    </twig:block>
+    <twig:block name="content">{{ rows }}</twig:block>
+</twig:Ds:Menu>
