@@ -662,7 +662,7 @@ where it is, as for any card.
 
 A repository profile can give each epic its own branch. Its `.loupe/lifecycle.md`
 file then holds an `Epics` section. Under that profile, the breakdown of epic
-number n pushes a branch `epic/<n>` from `main`. It pushes the branch only when
+number n pushes a branch `epic/<n>` from the base branch of the profile. It pushes the branch only when
 no child of the epic links a pull request yet.
 
 The workflow template of the project names the branch in its top-level

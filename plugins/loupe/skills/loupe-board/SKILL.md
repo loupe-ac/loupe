@@ -248,8 +248,7 @@ The board has no parked state. A card whose body opens with `**Parked.**` waits
 for the owner. Leave it in the column it sits in, which is normally
 Backlog. Never move it to the chosen column or the working column yourself.
 
-Write that line yourself only when the owner parks the work. Board card 'Give
-the board a parked state' asks for a real field.
+Write that line yourself only when the owner parks the work.
 
 ## Reporter says who raised the card
 
@@ -412,8 +411,8 @@ A URL from a host the app does not recognise is kept as you sent it. The app
 rejects no link, because a self-hosted forge is a legitimate answer.
 
 For a repository connected through the GitHub App, with the board automation
-on, Loupe moves the card itself. Green checks move a card from `implementation`
-to `in-review`. A merge moves the card to a terminal column once each of its
+on, Loupe moves the card itself. Green checks move a card from the working
+column to the review column that the workflow template names. A merge moves the card to a terminal column once each of its
 pull requests is merged or closed. When each pull request is closed and none
 merged, the card stays where it is. For any other link, an agent or a person
 moves the card.
