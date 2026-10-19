@@ -335,7 +335,7 @@ final class EngineTest extends KernelTestCase
     {
         $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
-        $this->requestChangesOnHead($pullRequest);
+        $this->requestChanges($pullRequest);
         $this->evaluate($card);
         $first = $this->liveRequests($card)[0];
         self::assertSame(['pr.open{}', 'pr.changes_requested{}'], $this->ruleState($card, 'fix')->causesAtOpen);
@@ -355,17 +355,17 @@ final class EngineTest extends KernelTestCase
         self::assertSame(['changes-requested', 'conflict'], array_column($this->fixEvents($card), 'reason'));
     }
 
-    public function test_a_conflict_after_a_false_pass_during_the_own_fix_opens_a_second_fix_when_the_first_ends(): void
+    public function test_a_conflict_after_a_push_during_the_own_fix_opens_a_second_fix_when_the_first_ends(): void
     {
         $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
-        $this->requestChangesOnHead($pullRequest);
+        $this->requestChanges($pullRequest);
         $this->evaluate($card);
         $first = $this->liveRequests($card)[0];
         $pullRequest->headSha = 'b';
         $this->em()->flush();
         $this->evaluate($card, '2026-10-02 12:03:00');
-        self::assertFalse($this->ruleState($card, 'fix')->truth);
+        self::assertTrue($this->ruleState($card, 'fix')->truth, 'The push does not answer the review.');
 
         $pullRequest->mergeability = PullRequestMergeability::Conflicting;
         $this->em()->flush();
@@ -408,7 +408,7 @@ final class EngineTest extends KernelTestCase
     public function test_a_fix_that_ends_with_the_same_causes_opens_no_second_fix(): void
     {
         $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
-        $this->requestChangesOnHead($this->pullRequest($card, headSha: 'a'));
+        $this->requestChanges($this->pullRequest($card, headSha: 'a'));
         $this->evaluate($card);
 
         $this->finish($this->liveRequests($card)[0], '2026-10-02 12:10:00');
@@ -417,7 +417,7 @@ final class EngineTest extends KernelTestCase
 
         self::assertSame([], $this->liveRequests($card));
         self::assertSame(1, $this->ruleState($card, 'fix')->fires);
-        self::assertNull($this->ruleState($card, 'fix')->causesAtOpen);
+        self::assertFalse($this->ruleState($card, 'fix')->truth, 'The fix run answered the review, so nothing holds.');
     }
 
     public function test_an_all_only_rule_that_turns_false_and_true_during_its_request_opens_no_second_request(): void
@@ -453,7 +453,7 @@ final class EngineTest extends KernelTestCase
             self::requestRule('fix', ['all' => [['pr.open' => []], ['any' => [['pr.conflicting' => []], ['pr.changes_requested' => []]]]]], limit: 3),
         ]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
-        $this->requestChangesOnHead($pullRequest);
+        $this->requestChanges($pullRequest);
         $this->evaluate($card);
         $first = $this->liveRequests($card)[0];
         self::assertSame('fix', $first->ruleId);
@@ -1982,9 +1982,9 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_fix_push_with_no_new_review_opens_no_second_fix_round(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['pr.changes_requested' => []], limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', ['pr.changes_requested' => []], limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
-        $this->requestChangesOnHead($pullRequest);
+        $this->requestChanges($pullRequest);
         $this->evaluate($card);
         $first = $this->liveRequests($card);
         self::assertCount(1, $first);
@@ -1997,22 +1997,47 @@ final class EngineTest extends KernelTestCase
         self::assertSame(WorkRequestState::Done, $first[0]->state);
         self::assertSame([], $this->liveRequests($card));
         $state = $this->ruleState($card, 'fix');
-        self::assertFalse($state->truth, 'The old review no longer covers the head, so the edge resets.');
+        self::assertFalse($state->truth, 'The fix run that opened after the review answered it, so the edge resets.');
         self::assertSame(1, $state->fires);
+    }
+
+    public function test_a_review_that_arrives_during_a_conflict_fix_gets_its_own_fix_round_when_the_conflict_fix_pushes(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
+        $pullRequest = $this->pullRequest($card, headSha: 'a');
+        $pullRequest->mergeability = PullRequestMergeability::Conflicting;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $conflictFix = $this->liveRequests($card)[0];
+
+        $this->requestChanges($pullRequest, '2026-10-02 12:05:00');
+        $this->evaluate($card, '2026-10-02 12:06:00');
+        self::assertCount(1, $this->liveRequests($card), 'The review adds no request while the conflict fix is live.');
+
+        $pullRequest->headSha = 'b';
+        $pullRequest->mergeability = PullRequestMergeability::Mergeable;
+        $this->em()->flush();
+        $this->finish($conflictFix, '2026-10-02 12:10:00');
+        $this->evaluate($card, '2026-10-02 12:11:00');
+
+        $live = $this->liveRequests($card);
+        self::assertCount(1, $live);
+        self::assertNotSame($conflictFix->id?->toRfc4122(), $live[0]->id?->toRfc4122());
+        self::assertSame(['conflict', 'changes-requested'], array_column($this->fixEvents($card), 'reason'));
     }
 
     public function test_a_second_changes_requested_review_on_a_new_head_opens_a_second_fix_round(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', ['pr.changes_requested' => []], limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', ['pr.changes_requested' => []], limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
-        $this->requestChangesOnHead($pullRequest);
+        $this->requestChanges($pullRequest);
         $this->evaluate($card);
         $this->finish($this->liveRequests($card)[0]);
         $pullRequest->headSha = 'b';
         $this->em()->flush();
         $this->evaluate($card, '2026-10-02 12:30:00');
 
-        $this->requestChangesOnHead($pullRequest);
+        $this->requestChanges($pullRequest, '2026-10-02 12:55:00');
         $this->evaluate($card, '2026-10-02 13:00:00');
 
         $live = $this->liveRequests($card);
@@ -4770,10 +4795,10 @@ final class EngineTest extends KernelTestCase
         ));
     }
 
-    private function requestChangesOnHead(ForgePullRequest $pullRequest): void
+    private function requestChanges(ForgePullRequest $pullRequest, string $at = '2026-10-02 11:55:00'): void
     {
         $pullRequest->review = PullRequestReview::ChangesRequested;
-        $pullRequest->changesRequestedSha = $pullRequest->headSha;
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable($at);
         $this->em()->flush();
     }
 

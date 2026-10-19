@@ -80,8 +80,9 @@ class ForgePullRequest
     #[ORM\Column]
     public bool $readyToMerge = false;
 
-    #[ORM\Column(length: 64, nullable: true)]
-    public ?string $changesRequestedSha = null;
+    /** When the newest request for changes was made. A row read before this column existed holds null. */
+    #[ORM\Column(nullable: true)]
+    public ?\DateTimeImmutable $changesRequestedAt = null;
 
     /** Kept to the microsecond, because the refresh skip rule compares it with the request time of a message. */
     #[ORM\Column(type: MicrosecondDateTimeImmutableType::NAME, nullable: true, columnDefinition: 'TIMESTAMP(6) WITHOUT TIME ZONE DEFAULT NULL')]
@@ -270,7 +271,7 @@ class ForgePullRequest
         $this->mergeability = $snapshot->mergeability;
         $this->review = $snapshot->review;
         $this->readyToMerge = $snapshot->readyToMerge;
-        $this->changesRequestedSha = $snapshot->changesRequestedSha;
+        $this->changesRequestedAt = $snapshot->changesRequestedAt;
         $this->openedAt = $snapshot->openedAt;
         $this->mergedAt = $snapshot->mergedAt;
         $this->approvedAt = $snapshot->approvedAt;
@@ -337,6 +338,34 @@ class ForgePullRequest
         return $holds ? ($since ?? $now) : null;
     }
 
+    /**
+     * The open time of the newest fix request that matches this pull request by forge, repository and number.
+     *
+     * @param list<array{forge: string, repository: string, number: int, openedAt: \DateTimeImmutable}> $fixes the done fix requests of the card
+     */
+    public function lastFixOpenedAt(array $fixes): ?\DateTimeImmutable
+    {
+        $newest = null;
+        foreach ($fixes as $fix) {
+            if ($fix['forge'] === $this->forge && $fix['number'] === $this->number && mb_strtolower($fix['repository']) === mb_strtolower($this->repository) && (null === $newest || $fix['openedAt'] > $newest)) {
+                $newest = $fix['openedAt'];
+            }
+        }
+
+        return $newest;
+    }
+
+    /**
+     * Whether a request for changes waits for a fix run. GitHub keeps the request after a push, so only a fix run
+     * that opened at or after the review answers it. A row with no review time reads as no open request.
+     */
+    public function changesRequestOpen(?\DateTimeImmutable $lastFixOpenedAt): bool
+    {
+        return PullRequestReview::ChangesRequested === $this->review
+            && null !== $this->changesRequestedAt
+            && (null === $lastFixOpenedAt || $lastFixOpenedAt < $this->changesRequestedAt);
+    }
+
     public function snapshot(): PullRequestSnapshot
     {
         return new PullRequestSnapshot(
@@ -350,7 +379,7 @@ class ForgePullRequest
             $this->mergeability,
             $this->review,
             $this->readyToMerge,
-            $this->changesRequestedSha,
+            $this->changesRequestedAt,
             $this->openedAt,
             $this->mergedAt,
             $this->approvedAt,
