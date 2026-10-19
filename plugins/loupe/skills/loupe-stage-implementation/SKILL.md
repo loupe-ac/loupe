@@ -28,7 +28,7 @@ Build the approved tech design of one card into a ready, linked pull request. An
 1. Load the `loupe-board` instruction.
 2. Call `card_get`.
 3. Slug the prompt's column label (`references/commands.md`). When it differs from the card `status`, stop with `STAGE RESULT: card left <column>`. A breakdown resumed after its inbox ask also goes on when the card is in the review column of the profile `Board` section (default `in-review`) or a terminal column (`references/breakdown.md`).
-4. Find the linked tech design by its tags `tech-design` and `decisions` (`document_get`), or a title starting `Tech design`. A card with a parent is a Breakdown child when its body has the entry line of `references/breakdown.md`, and a standalone child when it does not. A card with no parent whose body has the follow-up line of that file is a follow-up.
+4. Find the linked tech design by the tech design tags (`document_get`; `../loupe-stage-product-design/references/stage-contract.md` "Document tags"), or a title starting `Tech design`. A card with a parent is a Breakdown child when its body has the entry line of `references/breakdown.md`, and a standalone child when it does not. A card with no parent whose body has the follow-up line of that file is a follow-up.
    - A follow-up uses the tech design of the epic that its `follow-up-of` link names (`references/breakdown.md` "Build a follow-up").
    - A Breakdown child that links none uses the tech design of its parent.
    - A standalone child that links an approved tech design of its own uses that design. It ignores the design of its parent (`references/breakdown.md`).
