@@ -790,7 +790,8 @@ func TestGhWrapperFailsClosedWhenTheBridgeGivesNoToken(t *testing.T) {
 
 func TestGhWrapperStopsWhenNoRealGhExists(t *testing.T) {
 	f := newGhFixture(t, "echo tok-9\n")
-	out, errOut, code := f.run(t, f.wrapperDir+":/usr/bin:/bin", "pr", "list")
+	// An empty folder, not /usr/bin, because a GitHub runner ships a real gh there.
+	out, errOut, code := f.run(t, f.wrapperDir+":"+t.TempDir(), "pr", "list")
 	if code != 127 || out != "" || !strings.Contains(errOut, "gh is not on the PATH") {
 		t.Fatalf("code = %d, out = %q, stderr = %q", code, out, errOut)
 	}
