@@ -1,5 +1,5 @@
 key: simple
-version: 6
+version: 7
 defaultType: feature
 epicBranch: 'epic/{number}'
 types:

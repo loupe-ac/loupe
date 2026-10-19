@@ -11,7 +11,7 @@
       "name": "loupe",
       "displayName": "Loupe",
       "source": "./plugins/loupe",
-      "version": "0.39.0",
+      "version": "0.42.0",
       "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, site review, the workers and the card stages.",
       "author": {
         "name": "Geoffrey Bachelet",
