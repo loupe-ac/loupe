@@ -117,7 +117,7 @@ final readonly class ProjectShowcaseSeeder
             $documents = $this->seedDocuments($owner, $project, $cards['onboarding']);
             $this->seedInbox($project, $owner, $reviewer, $cards, $documents);
             $this->seedCommandRuns($project, $owner, $cards['onboarding']);
-            $this->seedSessionPromptItems($project, $cards['onboarding']);
+            $this->seedSessionPromptItems($project, $owner, $cards['onboarding']);
             $this->seedEpicLane($project);
             $this->seedBlockedRun($project);
             $this->seedSiteFeedback($project, $cards['checkout']);
@@ -150,10 +150,17 @@ final readonly class ProjectShowcaseSeeder
         );
     }
 
-    /** A to-do and a question that suggest a session with a prompt, so the preview shows the field the owner edits. */
-    private function seedSessionPromptItems(Project $project, Card $card): void
+    /**
+     * A to-do and a question that suggest a session with a prompt, so the preview shows the field the owner edits.
+     * The bridge that opens sessions stays live for years, because the field shows only while one is live.
+     */
+    private function seedSessionPromptItems(Project $project, User $owner, Card $card): void
     {
         $now = new \DateTimeImmutable();
+        $bridge = new Bridge($owner, Uuid::v4(), [(string) $project->id], 'b4e39aa7', $now->modify('+10 years'));
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->em->persist($bridge);
+
         $item = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Todo, title: 'Rebuild the Claude Design project', blocking: false, createdAt: $now->modify('-5 minutes'));
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'The rebuild needs a session on your machine.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the loupe-design-rebuild skill in this checkout. First check that the branch is main, and run git pull --ff-only.']];
         $item->cards->add(new InboxItemCard($item, $card));
