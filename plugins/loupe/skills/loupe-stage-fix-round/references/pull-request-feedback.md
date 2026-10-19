@@ -155,4 +155,6 @@ git commit -F "$m" --cleanup=verbatim
 
 Put the resolution and nothing else in the merge commit. The owner's approval covers a sync and a conflict resolution. It does not cover a rebase or new content. A fix for a check or a review goes in a later commit of its own, and it needs a new approval.
 
+The merge brings commits of the base, and the gate's own merge then brings none. So refresh the environment now, as "Refresh the environment" in `../../loupe-stage-implementation/references/commands.md` says.
+
 Then run the gate, and push as "Push without force" in `../../loupe-stage-implementation/references/commands.md` says. Never merge or approve the pull request.

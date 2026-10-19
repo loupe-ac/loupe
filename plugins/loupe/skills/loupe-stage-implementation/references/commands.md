@@ -128,7 +128,7 @@ When the fetch fails, run it once more after 2 seconds. Another git process that
 
 When the merge conflicts, resolve it only when the conflict is mechanical and the gate then proves the result. Otherwise run `git merge --abort`, and stop with `STAGE RESULT: blocked: merge conflict with <base> in <files>`.
 
-When the merge brings commits, refresh the environment as "Refresh the environment" says.
+When the merge brings commits, refresh the environment as "Refresh the environment" says. A fix round that resolved a conflict with the base refreshed after that resolution, so its gate merge brings no commits and needs no refresh.
 
 Then run the commands of the profile `Gate` section in order. Run each long command as the harness adapter says. Poll it in the foreground until it exits, and never end the turn while it runs. Run the check of the profile `Changelog` section. Then run the review of the profile `Code review` section, and follow its pass rule.
 
