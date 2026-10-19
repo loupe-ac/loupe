@@ -11,8 +11,10 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPause;
 use App\Module\Board\View\BacklogListQuery;
 use App\Module\Board\View\BacklogSort;
+use App\Module\Board\Workflow\ChildMark;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Contract\MarkerKind;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\AbstractLazyCollection;
 use Doctrine\DBAL\ArrayParameterType;
@@ -1000,6 +1002,33 @@ class CardRepository extends ServiceEntityRepository
         );
 
         return ['done' => (int) $row['done'], 'total' => (int) $row['total']];
+    }
+
+    /**
+     * For each state kind among the stored markers of the open children, the child whose marker of that kind began first.
+     *
+     * @return array<string, ChildMark> by kind
+     */
+    public function childMarksOf(Card $epic): array
+    {
+        /** @var list<array{kind: string, number: int|string, title: string, since: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->fetchAllAssociative(
+            "SELECT DISTINCT ON (m->>'kind') m->>'kind' AS kind, c.number, c.title, m->>'since' AS since
+             FROM board_cards c
+             JOIN board_columns k ON k.id = c.column_id
+             CROSS JOIN LATERAL jsonb_array_elements(c.markers) m
+             WHERE c.parent_card_id = :epic AND NOT k.terminal AND m->>'kind' IN (:kinds)
+             ORDER BY m->>'kind', m->>'since', c.number",
+            ['epic' => (string) $epic->id, 'kinds' => array_map(static fn (MarkerKind $kind): string => $kind->value, MarkerKind::states())],
+            ['kinds' => ArrayParameterType::STRING],
+        );
+
+        $marks = [];
+        foreach ($rows as $row) {
+            $marks[$row['kind']] = new ChildMark((int) $row['number'], $row['title'], new \DateTimeImmutable($row['since']));
+        }
+
+        return $marks;
     }
 
     /**

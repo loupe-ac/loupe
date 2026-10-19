@@ -43,12 +43,16 @@ final readonly class CardDigest
         ], \JSON_THROW_ON_ERROR)), 0, 12);
     }
 
-    /** A short hash of what the head of an epic lane shows: the title, the progress and the Up next deck. */
-    public function forLaneHead(Card $epic, ?CardProgress $progress, ?LaneDeckView $deck): string
+    /** A short hash of what the head of an epic lane shows: the title, the column, the state mark, the progress and the Up next deck. */
+    public function forLaneHead(Card $epic, ?CardProgress $progress, ?LaneDeckView $deck, ?StoredCardMarkers $markers): string
     {
         return substr(sha1(json_encode([
             $epic->number,
             $epic->title,
+            (string) $epic->column->id,
+            $epic->column->label,
+            $epic->column->tone->value,
+            null === $markers || $markers->isEmpty() ? null : $markers->digest(),
             $progress?->done,
             $progress?->total,
             $deck?->count,

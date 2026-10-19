@@ -1,10 +1,10 @@
 {# The head of an epic lane: the lane buttons, the number and progress over the title, and the Up next deck at the right end.
    The board page draws it, and a card placement morphs it.
-   Props: epic (Card), progress (CardProgress), deck (LaneDeckView, or null when no child waits in Backlog). #}
+   Props: epic (Card), progress (CardProgress), deck (LaneDeckView, or null when no child waits in Backlog), markers (?StoredCardMarkers): the state mark of the epic. #}
 <header class="lp-board-lane__head"
         data-board-filter-target="laneHead"
         data-card-title="{{ epic.title }}"
-        data-lane-digest="{{ lane_head_digest(epic, progress, deck) }}">
+        data-lane-digest="{{ lane_head_digest(epic, progress, deck, markers) }}">
     <button type="button"
             class="lp-board-lane__collapse"
             aria-expanded="true"
@@ -16,6 +16,12 @@
     {% include '@Board/_card_lane_form.html.twig' with {card: epic, returnTo: 'board', compact: true} only %}
     <div class="lp-board-lane__heading">
         <span class="lp-board-card__number lp-board-lane__number" data-board-lane-target="glide">#{{ epic.number }}</span>
+        <span class="lp-board-lane__status" data-lane-status data-board-lane-target="glide">
+            {% if markers %}
+            {% include '@Board/_card_state_mark.html.twig' with {card: epic, markers: markers, link: true} only %}
+            {% endif %}
+            {% include '@Board/_column_tag.html.twig' with {column: epic.column} only %}
+        </span>
         <span class="lp-board-lane__progress" data-lane-progress data-board-lane-target="glide">
             <progress class="lp-board-lane__bar" value="{{ progress.done }}" max="{{ max(progress.total, 1) }}" aria-hidden="true"></progress>
             {{ 'board.lane.progress.fraction'|trans({'%done%': progress.done, '%total%': progress.total}) }}

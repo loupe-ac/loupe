@@ -87,7 +87,7 @@ final readonly class ShowBoardHandler
         $pendingComments = $this->cardSiteReviewComments->pendingCountsForProject($project);
         $documentCounts = $this->cardDocuments->countsForProject($project);
         $runWarnings = $this->runWarnings->forProject($project);
-        $shownCards = array_merge(...array_map(static fn (BoardColumnView $view): array => $view->cards, $columns));
+        $shownCards = array_merge(...array_map(static fn (BoardColumnView $view): array => $view->cards, $columns), ...array_map(static fn (BoardLaneView $lane): array => null === $lane->epic ? [] : [$lane->epic], $lanes));
         $markers = [];
         foreach ($shownCards as $card) {
             $stored = StoredCardMarkers::of($card);

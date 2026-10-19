@@ -6,7 +6,10 @@ namespace App\Tests\Module\Board\Workflow\Condition;
 
 use App\Module\Board\Workflow\BlockerFacts;
 use App\Module\Board\Workflow\CardTypeFacts;
+use App\Module\Board\Workflow\ChildMark;
+use App\Module\Board\Workflow\ChildrenFactProvider;
 use App\Module\Board\Workflow\ChildrenFacts;
+use App\Module\Board\Workflow\Condition\CardChildMarked;
 use App\Module\Board\Workflow\Condition\CardChildMergedIntoEpicBranch;
 use App\Module\Board\Workflow\Condition\CardChildrenFinished;
 use App\Module\Board\Workflow\Condition\CardDocument;
@@ -70,6 +73,9 @@ final class CardConditionsTest extends TestCase
         yield 'children finished' => [new CardChildrenFinished(), [], self::card(childCount: 2, openChildCount: 0), true];
         yield 'a child open' => [new CardChildrenFinished(), [], self::card(childCount: 2, openChildCount: 1), false];
         yield 'no child counts as finished' => [new CardChildrenFinished(), [], self::card(childCount: 0, openChildCount: 0), true];
+        yield 'a child shows the kind' => [new CardChildMarked(), ['kind' => 'stuck'], self::marked('stuck'), true];
+        yield 'a child shows another kind' => [new CardChildMarked(), ['kind' => 'needs-you'], self::marked('stuck'), false];
+        yield 'no child mark' => [new CardChildMarked(), ['kind' => 'working'], self::card(childCount: 1, openChildCount: 1), false];
 
         yield 'a child merged into the epic branch' => [new CardChildMergedIntoEpicBranch(), [], self::card(childCount: 1, childMergedIntoEpicBranch: true), true];
         yield 'no child merged into the epic branch' => [new CardChildMergedIntoEpicBranch(), [], self::card(childCount: 1), false];
@@ -134,6 +140,7 @@ final class CardConditionsTest extends TestCase
         yield 'card.children.exist' => [new CardHasChildren(), [], 'workflow.waiting.card_has_children', []];
         yield 'card.children.finished' => [new CardChildrenFinished(), [], 'workflow.waiting.card_children_finished', []];
         yield 'card.children.merged_into_epic_branch' => [new CardChildMergedIntoEpicBranch(), [], 'workflow.waiting.card_child_merged_into_epic_branch', []];
+        yield 'card.children.marked' => [new CardChildMarked(), ['kind' => 'stuck'], 'workflow.waiting.card_children_marked', ['%kind%' => 'stuck']];
         yield 'card.document.linked' => [new CardDocument(), ['tag' => 'design'], 'workflow.waiting.card_document', ['%tag%' => 'design']];
         yield 'card.document.approved' => [new CardDocumentApproved(), ['tag' => 'design'], 'workflow.waiting.card_document_approved', ['%tag%' => 'design']];
         yield 'card.document.changes_requested' => [new CardDocumentChangesRequested(), ['tag' => 'design'], 'workflow.waiting.card_document_changes_requested', ['%tag%' => 'design']];
@@ -186,11 +193,41 @@ final class CardConditionsTest extends TestCase
         yield 'card.children.exist' => [new CardHasChildren(), [], [ChildrenFacts::class]];
         yield 'card.children.finished' => [new CardChildrenFinished(), [], [ChildrenFacts::class]];
         yield 'card.children.merged_into_epic_branch' => [new CardChildMergedIntoEpicBranch(), [], [ChildrenFacts::class]];
+        yield 'card.children.marked' => [new CardChildMarked(), ['kind' => 'stuck'], [ChildrenFacts::class]];
         yield 'card.document.linked' => [new CardDocument(), ['tag' => 'design'], [DocumentsFacts::class]];
         yield 'card.document.linked with a status' => [new CardDocument(), ['tag' => 'design', 'status' => 'approved'], [DocumentsFacts::class]];
         yield 'card.document.approved' => [new CardDocumentApproved(), ['tag' => 'design'], [DocumentsFacts::class]];
         yield 'card.document.changes_requested' => [new CardDocumentChangesRequested(), ['tag' => 'design'], [DocumentsFacts::class]];
         yield 'card.parent.document.approved' => [new ParentDocumentApproved(), ['tag' => 'design'], [ParentDocumentsFacts::class]];
+    }
+
+    public function test_a_child_mark_gives_the_number_the_title_and_the_start_of_the_child(): void
+    {
+        $evidence = new CardChildMarked()->evidence(self::marked('waiting'), ['kind' => 'waiting']);
+
+        self::assertNotNull($evidence);
+        self::assertSame(['%number%' => 12, '%title%' => 'Child'], $evidence->params);
+        self::assertEquals(new \DateTimeImmutable('2026-10-18 09:00:00'), $evidence->since);
+        self::assertNull(new CardChildMarked()->evidence(self::marked('waiting'), ['kind' => 'stuck']));
+    }
+
+    public function test_the_kind_takes_a_state_kind_only(): void
+    {
+        self::assertSame(['stuck', 'needs-you', 'working', 'waiting'], CardChildMarked::parameters()[0]->choices);
+    }
+
+    public function test_the_children_fingerprint_names_the_marked_kinds_only_when_a_child_shows_one(): void
+    {
+        $provider = new \ReflectionClass(ChildrenFactProvider::class)->newInstanceWithoutConstructor();
+        $mark = new ChildMark(12, 'Child', new \DateTimeImmutable('2026-10-18 09:00:00'));
+
+        self::assertSame([2, 1], $provider->fingerprint(new ChildrenFacts(2, 1)));
+        self::assertSame([2, 1, ['stuck', 'working']], $provider->fingerprint(new ChildrenFacts(2, 1, childMarks: ['working' => $mark, 'stuck' => $mark])));
+    }
+
+    private static function marked(string $kind): Facts
+    {
+        return FactsMother::facts(provided: [ChildrenFacts::class => new ChildrenFacts(1, 1, childMarks: [$kind => new ChildMark(12, 'Child', new \DateTimeImmutable('2026-10-18 09:00:00'))])]);
     }
 
     private static function followUp(bool $followsAny, bool $followsOnlyFinished): Facts
