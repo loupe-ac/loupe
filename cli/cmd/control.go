@@ -234,6 +234,8 @@ func listenControl(path string) (net.Listener, error) {
 type controlOps struct {
 	reload func(ctx context.Context) reloadResult
 	update func(ctx context.Context, reply func(updateResult)) updateResult
+	// env runs the refresh or the reset command of the worker of a session.
+	env func(ctx context.Context, op, session string) envResult
 }
 
 // serveControl answers each connection on ln with ops until ctx ends. The
@@ -303,7 +305,8 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	}
 	send := func(res any) { write(res, true) }
 	var req struct {
-		Op string `json:"op"`
+		Op        string `json:"op"`
+		SessionID string `json:"sessionId"`
 	}
 	switch {
 	case err != nil:
@@ -317,8 +320,17 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	case req.Op == "update" && ops.update != nil:
 		conn.SetDeadline(time.Time{})
 		send(ops.update(ctx, func(res updateResult) { write(res, false) }))
+	case (req.Op == opRefresh || req.Op == opReset) && ops.env != nil:
+		// The command of an entry runs longer than the deadline.
+		conn.SetDeadline(time.Time{})
+		if req.SessionID == "" {
+			send(envResult{Problem: "the request names no session"})
+
+			break
+		}
+		send(ops.env(ctx, req.Op, req.SessionID))
 	default:
-		send(refused(fmt.Sprintf("unknown op %q: only reload and update are known", req.Op)))
+		send(refused(fmt.Sprintf("unknown op %q: only reload, update, refresh and reset are known", req.Op)))
 	}
 }
 
