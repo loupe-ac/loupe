@@ -88,6 +88,22 @@ func EnableServer(home, profile string) (string, bool, error) {
 	return base, false, nil
 }
 
+// ServerDisabled reports whether the first file that sets enabled for the loupe
+// MCP server, the profile file then config.toml, sets it to false.
+func ServerDisabled(home, profile string) bool {
+	paths := []string{filepath.Join(home, "config.toml")}
+	if profile != "" {
+		paths = []string{profileFile(home, profile), paths[0]}
+	}
+	for _, f := range loadFiles(paths...) {
+		if e := f.cfg.McpServers["loupe"].Enabled; f.err == nil && e != nil {
+			return !*e
+		}
+	}
+
+	return false
+}
+
 // setInServer sets one key of the [mcp_servers.loupe] table in one file. It
 // edits the text, so the comments and the order of the file stay, and it
 // writes nothing unless the result parses and done accepts it. It reports

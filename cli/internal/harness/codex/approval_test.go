@@ -208,6 +208,22 @@ func TestEnableServerChangesNothingWhenNoFileSetsEnabled(t *testing.T) {
 	}
 }
 
+func TestServerDisabledReadsTheFirstFileThatSetsEnabled(t *testing.T) {
+	home := writeConfig(t, "[mcp_servers.loupe]\nenabled = true\n")
+	if ServerDisabled(home, "work") {
+		t.Error("config.toml enables the server")
+	}
+	if err := os.WriteFile(filepath.Join(home, "work.config.toml"), []byte("[mcp_servers.loupe]\nenabled = false\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !ServerDisabled(home, "work") {
+		t.Error("the profile disables the server")
+	}
+	if ServerDisabled(home, "") {
+		t.Error("with no profile, config.toml decides")
+	}
+}
+
 func TestReplaceProfileServerMakesTheProfileStartLoupeMcp(t *testing.T) {
 	for name, body := range map[string]string{
 		"command": "# mine\n[mcp_servers.loupe]\ncommand = \"npx\"\nargs = [\n  \"-y\",\n  \"tool\",\n]\nenabled = true\n\n[mcp_servers.other]\ncommand = \"x\"\n",

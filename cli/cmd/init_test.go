@@ -1369,6 +1369,71 @@ func TestInitReplacesAServerThatTheProfileDeclares(t *testing.T) {
 	}
 }
 
+// The replacement keeps an enabled = false of the profile, and the bridge
+// turns a disabled server off, so init offers to enable it before approval.
+func TestInitEnablesAServerThatTheProfileDeclaresDisabled(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	inRepo(t, w.server.URL)
+	home := t.TempDir()
+	w.execOut["CODEX_HOME="+home+" codex -p work mcp get loupe --json"] = codexDeclaration(false, "npx")
+	profile := filepath.Join(home, "work.config.toml")
+	writeFile(t, profile, "[mcp_servers.loupe]\ncommand = \"npx\"\nenabled = false\n")
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "y\ny\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "has the `loupe` MCP server disabled. Enable it?") {
+		t.Errorf("output lacks the offer:\n%s", out)
+	}
+	body := readOrEmpty(t, profile)
+	if !strings.Contains(body, "enabled = true") || !strings.Contains(body, `default_tools_approval_mode = "approve"`) {
+		t.Errorf("the profile is not enabled and approved:\n%s", body)
+	}
+}
+
+func TestInitApprovesNoToolsOfAServerThatTheProfileKeepsDisabled(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	inRepo(t, w.server.URL)
+	home := t.TempDir()
+	w.execOut["CODEX_HOME="+home+" codex -p work mcp get loupe --json"] = codexDeclaration(false, "npx")
+	profile := filepath.Join(home, "work.config.toml")
+	writeFile(t, profile, "[mcp_servers.loupe]\ncommand = \"npx\"\nenabled = false\n")
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "y\nn\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	body := readOrEmpty(t, profile)
+	if !strings.Contains(body, "enabled = false") || strings.Contains(body, "default_tools_approval_mode") || strings.Contains(out, "Codex approval") {
+		t.Errorf("init approved the tools of a server that stays disabled:\n%s\n%s", out, body)
+	}
+}
+
+// --no-mcp leaves the server and its approval settings alone.
+func TestInitApprovesNoCodexToolsWithNoMcp(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
+	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml"))
+	if strings.Contains(body, "default_tools_approval_mode") || strings.Contains(out, "Codex approval") {
+		t.Errorf("init approved the tools despite --no-mcp:\n%s\n%s", out, body)
+	}
+}
+
 func TestInitLeavesAServerThatTheProfileDeclaresWhenDeclined(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.codex = true

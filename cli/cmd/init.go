@@ -429,14 +429,14 @@ func codexOnly() bool {
 
 // initCodex connects each Codex account of the rule file. For each account, it
 // declares `loupe mcp` as --mcp and --no-mcp say, in the Codex home and profile
-// of that account, and approves the Loupe tools of a declaration that starts
-// `loupe mcp`. Then it installs the skills once.
+// of that account. Without --no-mcp, it approves the Loupe tools of a
+// declaration that starts `loupe mcp`. Then it installs the skills once.
 func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets []codexTarget) {
 	ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 	defer cancel()
 
 	for _, t := range targets {
-		if initCodexServer(ctx, cmd, dir, link, t) {
+		if initCodexServer(ctx, cmd, dir, link, t) && !link.skipMcp {
 			initCodexApproval(cmd.OutOrStdout(), t)
 		}
 	}
@@ -447,6 +447,14 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets 
 // whether that account then starts `loupe mcp`.
 func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link projectLinkOptions, t codexTarget) bool {
 	out := cmd.OutOrStdout()
+	// A new or replaced declaration keeps an enabled = false that a file sets.
+	enabled := func(declared bool) bool {
+		if declared && codex.ServerDisabled(t.codexHome(), t.profile) {
+			return enableCodexServer(cmd, link, t)
+		}
+
+		return declared
+	}
 	add := t.command("mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp")
 
 	raw, getErr := t.run(ctx, dir, "mcp", "get", mcpjson.ServerKey, "--json")
@@ -461,14 +469,14 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 	case getErr == nil && link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; Codex starts `"+mcpjson.ServerKey+"` as something other than `loupe mcp`"+t.suffix())
 	case getErr == nil:
-		return replaceCodexServer(ctx, cmd, dir, t, decl, parseErr)
+		return enabled(replaceCodexServer(ctx, cmd, dir, t, decl, parseErr))
 	case link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
 	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex"+t.suffix()+"?"):
 		step(out, "Codex", "skipped", "to give Codex the Loupe tools, run `"+add+"`")
 	default:
 		if declared, replaced := replaceProfileServer(cmd, t); declared {
-			return replaced
+			return enabled(replaced)
 		}
 		if raw, err := t.run(ctx, dir, "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
 			step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), add))
@@ -477,7 +485,7 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 		}
 		step(out, "Codex", "done", "declared `loupe mcp`"+t.suffix())
 
-		return true
+		return enabled(true)
 	}
 
 	return false
