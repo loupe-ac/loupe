@@ -333,7 +333,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_conflict_seen_with_the_fix_push_opens_a_second_fix_when_the_first_ends(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
         $this->requestChangesOnHead($pullRequest);
         $this->evaluate($card);
@@ -357,7 +357,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_conflict_after_a_false_pass_during_the_own_fix_opens_a_second_fix_when_the_first_ends(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $pullRequest = $this->pullRequest($card, headSha: 'a');
         $this->requestChangesOnHead($pullRequest);
         $this->evaluate($card);
@@ -407,7 +407,7 @@ final class EngineTest extends KernelTestCase
 
     public function test_a_fix_that_ends_with_the_same_causes_opens_no_second_fix(): void
     {
-        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3)]);
+        $card = $this->boundCard([self::requestRule('fix', self::FIX_CAUSES, limit: 3, role: 'fix')]);
         $this->requestChangesOnHead($this->pullRequest($card, headSha: 'a'));
         $this->evaluate($card);
 
