@@ -114,6 +114,7 @@ final readonly class InboxActionRunTool implements FlagGatedToolInterface
                 branch: $branch,
                 params: $values,
                 runDigest: $handlerDigest,
+                sessionPrompt: InboxActionKind::StartSession === $kind ? ItemActions::suggestedSessionPrompt($item) : null,
                 throughAgent: true,
             ));
 

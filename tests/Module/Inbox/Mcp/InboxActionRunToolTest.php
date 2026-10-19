@@ -144,6 +144,25 @@ final class InboxActionRunToolTest extends KernelTestCase
         self::assertSame(['Not now', true], [$stored->closeNote, $stored->respondedThroughAgent]);
     }
 
+    public function test_a_session_sends_the_prompt_that_the_asking_agent_suggested(): void
+    {
+        $this->bridge->capabilities = [Bridge::CAPABILITY_COMMANDS, Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
+        $this->bridge->projects = [(string) $this->project->id];
+        $item = new InboxItem(project: $this->project, number: ++$this->number, kind: InboxItemKind::Todo, title: 'Rebuild it', blocking: false);
+        $item->cards->add(new InboxItemCard($item, $this->card));
+        $item->suggestedActions = [['action' => 'start-session', 'reason' => 'Talk it through.', 'recommended' => true, 'cardId' => (string) $this->card->id, 'prompt' => 'Use the skill.']];
+        $this->em->persist($item);
+        $this->em->flush();
+        $this->readyTool();
+
+        $result = $this->runOf(($this->tool)((string) $item->id, 'start-session'));
+
+        $action = $this->em->find(InboxAction::class, Uuid::fromString($result['actionId'] ?? throw new \LogicException('A session records a row.')));
+        self::assertInstanceOf(InboxAction::class, $action);
+        self::assertSame('Use the skill.', $action->sessionPrompt);
+        self::assertSame('Use the skill.', $this->em->find(WorkRequest::class, $action->workRequestId)?->prompt);
+    }
+
     public function test_a_run_command_without_a_digest_runs_nothing_and_returns_the_preview(): void
     {
         $item = $this->commandTodo();
