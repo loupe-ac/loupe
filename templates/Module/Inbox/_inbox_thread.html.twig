@@ -131,8 +131,8 @@
                         {# Nothing else fits, so Dismiss is the one action and needs no menu. #}
                         <twig:Ds:Button variant="danger-ghost" size="sm" type="submit" form="{{ declineForm.vars.id }}" data-inbox-action="dismiss">{{ actions.dismiss.action.labelKey|trans }}</twig:Ds:Button>
                     {% elseif actions.main or actions.menu %}
-                    <twig:Ds:Menu id="inbox-split-menu-{{ item.id }}" class="inbox-split" data-controller="split-button" size="lg" :panel="{role: 'menu', 'data-split-button-target': 'panel'}">
-                        <twig:block name="trigger">
+                    <twig:Ds:SplitButton id="inbox-split-menu-{{ item.id }}" class="inbox-split" menuSize="lg" :toggleLabel="'inbox.thread.other_actions'|trans">
+                        <twig:block name="main">
                         {% if actions.main and actions.main.isLink %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" :href="actions.main.href" :target="actions.main.external ? '_blank' : null" :rel="actions.main.external ? 'noopener noreferrer' : null" :data-turbo-frame="actions.main.card and cardDrawer ? 'card-drawer-frame' : '_top'" :data-action="actions.main.card and cardDrawer ? 'click->card-drawer#prepare' : null" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
                         {% elseif actions.main and actions.main.action.runCommand and addEntryDialog %}
@@ -141,12 +141,6 @@
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="button" :disabled="not runCommand.canOpenDialog" :title="runCommand.canOpenDialog ? null : runCommand.disabledReasonKey|trans" data-action="click->modal#open" data-inbox-action="run-command">{{ 'inbox.action.run-command.run'|trans({'%entry%': runCommand.entry, '%branch%': runCommand.branch}) }}</twig:Ds:Button>
                         {% elseif actions.main %}
                             <twig:Ds:Button variant="primary" size="sm" class="inbox-split__main" type="submit" :formaction="path('app_inbox_item_action', actionParams|merge({kind: actions.main.action.kind.value}))" data-inbox-action="{{ actions.main.action.kind.value }}">{{ actions.main.action.labelKey|trans }}</twig:Ds:Button>
-                        {% endif %}
-                        {% if actions.main and (actions.menu or actions.dismiss) %}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="inbox-split-menu-{{ item.id }}" :aria-label="'inbox.thread.other_actions'|trans" data-split-button-target="trigger" data-popover-target="trigger" data-action="click->split-button#toggle"><twig:ux:icon name="lucide:chevron-down" /></twig:Ds:Button>
-                        {% elseif actions.menu or actions.dismiss %}
-                            {# With no action to run now, the menu has no main part, so its opener is a whole button with a label. #}
-                            <twig:Ds:Button variant="primary" size="sm" class="inbox-split__toggle inbox-split__toggle--alone" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="inbox-split-menu-{{ item.id }}" data-split-button-target="trigger" data-popover-target="trigger" data-action="click->split-button#toggle">{{ 'inbox.thread.other_actions'|trans }}<twig:ux:icon name="lucide:chevron-down" /></twig:Ds:Button>
                         {% endif %}
                         </twig:block>
                         <twig:block name="content">
@@ -160,7 +154,7 @@
                                 {% include '@Inbox/_inbox_thread_row.html.twig' with {row: actions.dismiss, actionParams: actionParams, declineFormId: declineForm.vars.id, cardDrawer: cardDrawer} only %}
                             {% endif %}
                         </twig:block>
-                    </twig:Ds:Menu>
+                    </twig:Ds:SplitButton>
                     {% endif %}
                 </div>
             {{ form_end(actionForm, {render_rest: false}) }}

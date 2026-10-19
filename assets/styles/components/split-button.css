@@ -1,0 +1,18 @@
+/* A button whose main part acts and whose chevron opens a menu of the other
+   actions. `templates/components/Ds/SplitButton.html.twig` renders it on a Menu,
+   and the `split-button` Stimulus controller opens it. */
+@layer components {
+    .lp-split-button {
+        @apply inline-flex items-stretch;
+    }
+    .lp-split-button > .lp-btn:has(+ .lp-split-button__toggle) {
+        @apply rounded-r-none;
+    }
+    .lp-split-button__toggle:not(.lp-split-button__toggle--alone) {
+        @apply rounded-l-none px-2;
+        border-left-color: color-mix(in oklab, var(--accent-ink) 40%, transparent);
+    }
+    .lp-split-button__toggle svg {
+        @apply size-4;
+    }
+}

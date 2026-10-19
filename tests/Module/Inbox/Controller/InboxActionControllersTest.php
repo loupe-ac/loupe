@@ -102,9 +102,9 @@ final class InboxActionControllersTest extends WebTestCase
         $menu = $crawler->filter('.inbox-split .lp-menu__panel');
         self::assertNotNull($menu->attr('hidden'));
         self::assertSame('menu', $menu->attr('role'));
-        self::assertSame('false', $crawler->filter('.inbox-split__toggle')->attr('aria-expanded'));
+        self::assertSame('false', $crawler->filter('.lp-split-button__toggle')->attr('aria-expanded'));
         self::assertSame('panel', $menu->attr('data-split-button-target'));
-        self::assertSame($menu->attr('id'), $crawler->filter('.inbox-split__toggle')->attr('aria-controls'));
+        self::assertSame($menu->attr('id'), $crawler->filter('.lp-split-button__toggle')->attr('aria-controls'));
         self::assertStringContainsString('split-button', (string) $crawler->filter('.inbox-split')->attr('data-controller'));
         // The menu holds the other actions, never the default, and Dismiss apart.
         self::assertCount(0, $menu->filter('[data-inbox-action="resume-run"]'));
@@ -479,8 +479,8 @@ final class InboxActionControllersTest extends WebTestCase
         $split = $crawler->filter('#inbox-item-'.$question->number.' [data-inbox-thread] .inbox-split');
         self::assertCount(0, $split->filter('.inbox-split__main'));
         self::assertCount(1, $split->filter('.lp-menu__panel [data-inbox-action="start-session"][aria-disabled="true"]'));
-        $toggle = $split->filter('.inbox-split__toggle');
-        self::assertStringContainsString('inbox-split__toggle--alone', (string) $toggle->attr('class'));
+        $toggle = $split->filter('.lp-split-button__toggle');
+        self::assertStringContainsString('lp-split-button__toggle--alone', (string) $toggle->attr('class'));
         self::assertSame('Other actions', trim($toggle->text()));
         self::assertNull($toggle->attr('aria-label'));
     }
