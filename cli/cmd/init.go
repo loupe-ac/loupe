@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/url"
 	"os"
 	"os/exec"
@@ -440,7 +441,7 @@ func initCodex(cmd *cobra.Command, dir string, link projectLinkOptions, targets 
 			initCodexApproval(cmd.OutOrStdout(), t)
 		}
 	}
-	initCodexSkills(ctx, cmd.OutOrStdout(), dir)
+	initCodexSkills(ctx, cmd.OutOrStdout(), cmd.InOrStdin(), dir)
 }
 
 // initCodexServer checks the declaration of one Codex account, and reports
@@ -702,9 +703,9 @@ func initCodexApproval(out io.Writer, t codexTarget) {
 }
 
 // initCodexSkills copies the Loupe skills into ~/.agents/skills, where Codex
-// finds them. It takes them from a sparse clone of the repository, and replaces
-// a Loupe skill folder of the same name, so a second run updates them.
-func initCodexSkills(ctx context.Context, out io.Writer, dir string) {
+// finds them. It takes them from a sparse clone of the repository. It replaces
+// an installed skill that differs only when the user says yes.
+func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir string) {
 	byHand := "copy the folders of " + codexSkillsPath + "/ from " + codexSkillsRepository + " into ~/.agents/skills/"
 	fail := func(err error, raw []byte) {
 		step(out, "Codex skills", "failed", fmt.Sprintf("%v%s; %s", err, indented(raw), byHand))
@@ -734,44 +735,111 @@ func initCodexSkills(ctx context.Context, out io.Writer, dir string) {
 
 		return
 	}
-	n, err := copySkills(filepath.Join(clone, filepath.FromSlash(codexSkillsPath)), filepath.Join(home, ".agents", "skills"))
-	if err != nil {
-		fail(err, nil)
-
-		return
+	replace := func(changed []string) bool {
+		return confirm(out, in, fmt.Sprintf("%d installed Loupe skills differ from the current version (%s). Replace them?", len(changed), strings.Join(changed, ", ")))
 	}
-	step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills", n))
+	copied, kept, err := copySkills(filepath.Join(clone, filepath.FromSlash(codexSkillsPath)), filepath.Join(home, ".agents", "skills"), replace)
+	switch {
+	case err != nil:
+		fail(err, nil)
+	case copied == 0 && kept == 0:
+		step(out, "Codex skills", "skipped", "the Loupe skills in ~/.agents/skills are current")
+	case copied == 0:
+		step(out, "Codex skills", "skipped", fmt.Sprintf("kept %d changed skills in ~/.agents/skills", kept))
+	case kept > 0:
+		step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills, kept %d changed skills", copied, kept))
+	default:
+		step(out, "Codex skills", "done", fmt.Sprintf("installed %d skills in ~/.agents/skills", copied))
+	}
 }
 
-// copySkills copies each skill folder of src into dst, and replaces a folder
-// of the same name. It reports how many it copied.
-func copySkills(src, dst string) (int, error) {
+// copySkills copies each skill folder of src that dst lacks. It asks replace
+// once about the folders that dst holds with other contents, and replaces them
+// on yes. It reports how many folders it copied and how many changed ones it kept.
+func copySkills(src, dst string, replace func(changed []string) bool) (copied, kept int, err error) {
 	entries, err := os.ReadDir(src)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		return 0, err
+	if !slices.ContainsFunc(entries, fs.DirEntry.IsDir) {
+		return 0, 0, errors.New("the clone holds no skills")
 	}
-	n := 0
+	var missing, changed []string
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
 		target := filepath.Join(dst, e.Name())
-		if err := os.RemoveAll(target); err != nil {
-			return n, err
+		if _, err := os.Stat(target); errors.Is(err, fs.ErrNotExist) {
+			missing = append(missing, e.Name())
+
+			continue
 		}
-		if err := os.CopyFS(target, os.DirFS(filepath.Join(src, e.Name()))); err != nil {
-			return n, err
+		same, err := sameTree(filepath.Join(src, e.Name()), target)
+		if err != nil {
+			return 0, 0, err
 		}
-		n++
+		if !same {
+			changed = append(changed, e.Name())
+		}
 	}
-	if n == 0 {
-		return 0, errors.New("the clone holds no skills")
+	if len(changed) > 0 && replace(changed) {
+		missing = append(missing, changed...)
+	} else {
+		kept = len(changed)
+	}
+	if len(missing) > 0 {
+		if err := os.MkdirAll(dst, 0o755); err != nil {
+			return 0, kept, err
+		}
+	}
+	for _, name := range missing {
+		target := filepath.Join(dst, name)
+		if err := os.RemoveAll(target); err != nil {
+			return copied, kept, err
+		}
+		if err := os.CopyFS(target, os.DirFS(filepath.Join(src, name))); err != nil {
+			return copied, kept, err
+		}
+		copied++
 	}
 
-	return n, nil
+	return copied, kept, nil
+}
+
+// sameTree reports whether two folders hold the same files with the same contents.
+func sameTree(a, b string) (bool, error) {
+	ta, err := readTree(a)
+	if err != nil {
+		return false, err
+	}
+	tb, err := readTree(b)
+	if err != nil {
+		return false, err
+	}
+
+	return maps.Equal(ta, tb), nil
+}
+
+func readTree(root string) (map[string]string, error) {
+	tree := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || path == root {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		if d.IsDir() {
+			tree[rel] = "\x00dir"
+
+			return nil
+		}
+		body, err := os.ReadFile(path)
+		tree[rel] = string(body)
+
+		return err
+	})
+
+	return tree, err
 }
 
 // indented formats the output of a failed command as a block after a message.

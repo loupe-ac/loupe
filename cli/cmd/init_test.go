@@ -1459,3 +1459,75 @@ func TestInitLeavesAServerThatTheProfileDeclaresWhenDeclined(t *testing.T) {
 		t.Errorf("init approved the tools of a server it did not connect:\n%s", out)
 	}
 }
+
+// A second run must not drop a local edit to an installed skill, so init asks
+// before it replaces a skill that differs, and copies a missing one either way.
+func TestInitAsksBeforeItReplacesAChangedCodexSkill(t *testing.T) {
+	for _, answer := range []string{"y", "n"} {
+		t.Run(answer, func(t *testing.T) {
+			w := newInitWorld(t, devSite())
+			w.codex = true
+			w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
+			inRepo(t, w.server.URL)
+			home, _ := os.UserHomeDir()
+			board := filepath.Join(home, ".agents", "skills", "loupe-board", "SKILL.md")
+			writeFile(t, board, "# my edit\n")
+
+			out, err := runInitCmd(t, answer+"\nn\n")
+			if err != nil {
+				t.Fatalf("init: %v\n%s", err, out)
+			}
+			if !strings.Contains(out, "1 installed Loupe skills differ from the current version (loupe-board). Replace them?") {
+				t.Errorf("init did not ask:\n%s", out)
+			}
+			want, msg := "# loupe-board\n", "Codex skills: done, installed 2 skills"
+			if answer == "n" {
+				want, msg = "# my edit\n", "Codex skills: done, installed 1 skills in ~/.agents/skills, kept 1 changed skills"
+			}
+			if body := readOrEmpty(t, board); body != want {
+				t.Errorf("loupe-board holds %q, want %q", body, want)
+			}
+			if body := readOrEmpty(t, filepath.Join(home, ".agents", "skills", "loupe-inbox", "SKILL.md")); body != "# loupe-inbox\n" {
+				t.Errorf("the missing skill was not copied: %q", body)
+			}
+			if !strings.Contains(out, msg) {
+				t.Errorf("output lacks %q:\n%s", msg, out)
+			}
+		})
+	}
+}
+
+func TestInitSkipsCodexSkillsThatAreCurrent(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(true, "loupe")
+	inRepo(t, w.server.URL)
+	home, _ := os.UserHomeDir()
+	for _, skill := range []string{"loupe-board", "loupe-inbox"} {
+		writeFile(t, filepath.Join(home, ".agents", "skills", skill, "SKILL.md"), "# "+skill+"\n")
+	}
+
+	out, err := runInitCmd(t, "n\n")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if strings.Contains(out, "Replace them?") || !strings.Contains(out, "Codex skills: skipped, the Loupe skills in ~/.agents/skills are current") {
+		t.Errorf("output:\n%s", out)
+	}
+}
+
+func TestCopySkillsKeepsAChangedSkillWhenReplaceSaysNo(t *testing.T) {
+	src, dst := t.TempDir(), t.TempDir()
+	writeFile(t, filepath.Join(src, "a", "SKILL.md"), "new\n")
+	writeFile(t, filepath.Join(src, "a", "references", "x.md"), "x\n")
+	writeFile(t, filepath.Join(dst, "a", "SKILL.md"), "new\n")
+
+	var asked []string
+	copied, kept, err := copySkills(src, dst, func(changed []string) bool { asked = changed; return false })
+	if err != nil || copied != 0 || kept != 1 || !slices.Equal(asked, []string{"a"}) {
+		t.Fatalf("copied %d, kept %d, asked %v, err %v", copied, kept, asked, err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "a", "references")); !os.IsNotExist(err) {
+		t.Error("copySkills changed a skill it kept")
+	}
+}
