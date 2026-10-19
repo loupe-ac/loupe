@@ -102,11 +102,11 @@ The shipped markers are:
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | An inbox question names the card |
 | `session-open` | Working | A person has an interactive session open on the card |
-| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 3 |
+| `design-review-running` | Working | A draft design document of the card is in its agent review. The label shows the round, such as round 2 of 6 |
 | `run-open` | Working | A worker runs on the card |
 | `no-bridge-online` | Stuck | Work waits, and no online bridge could take it. The card page links to the Agents page |
 | `bridge-paused` | Waiting | Work waits, and the only online bridges that could take it are paused. The card page links to the Agents page |
-| `work-requested` | Working | Work waits for a bridge to take it, and a bridge could take it |
+| `work-requested` | Waiting | Work waits for a bridge to take it, and a bridge could take it |
 | `forge-request-pending` | Working | Loupe asked the forge to change a pull request and the forge did not answer |
 | `held-by-blocker` | Waiting | A card that blocks this card is still open |
 | `waits-for-parent-card` | Waiting | A pull request waits for the pull request of its parent card |

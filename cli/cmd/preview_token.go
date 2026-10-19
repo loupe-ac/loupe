@@ -20,7 +20,7 @@ func newPreviewTokenCmd() *cobra.Command {
 		Use:   "preview-token",
 		Short: "Mint or revoke the sign-in token of a preview site",
 		Long: "A preview token signs the site-review widget in on a preview page with no popup. " +
-			"`just worktree-up` mints one for each worktree, and `just worktree-down` revokes it.\n\n" +
+			"A preview script mints one when it creates a preview site, and revokes it when it removes the site.\n\n" +
 			"A token lives 14 days at most. A project owner revokes any token in Account > Connected apps.",
 	}
 	cmd.AddCommand(newPreviewTokenMintCmd(), newPreviewTokenRevokeCmd())
