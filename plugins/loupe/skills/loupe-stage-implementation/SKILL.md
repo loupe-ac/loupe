@@ -24,7 +24,7 @@ Build the approved tech design of one card into a ready, linked pull request. An
 
 ## Procedure
 
-0. Load the harness adapter (`references/commands.md`). Connect to the Loupe tools as it says. When that fails, stop with `STAGE RESULT: loupe MCP unavailable`.
+0. Load the harness adapter (`references/commands.md`). Connect to the Loupe tools as it says. When that fails, stop with `STAGE RESULT: loupe MCP unreachable`.
 1. Load the `loupe-board` instruction.
 2. Call `card_get`.
 3. Slug the prompt's column label (`references/commands.md`). When it differs from the card `status`, stop with `STAGE RESULT: card left <column>`. A breakdown resumed after its inbox ask also goes on when the card is in `in-review` or a terminal column (`references/breakdown.md`).

@@ -21,6 +21,7 @@ import (
 const (
 	testSession = "0199a0e2-0000-4000-8000-000000000001"
 	ceilingVar  = "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS="
+	connectVar  = "MCP_TIMEOUT="
 	sessionVar  = "LOUPE_SESSION_ID="
 )
 
@@ -40,17 +41,17 @@ func TestTheAdapterIsClaudeCode(t *testing.T) {
 // claude -p ends a worker at its background wait ceiling and exits 0. The
 // adapter lifts the ceiling unless the operator set it.
 func TestWorkerEnvLiftsTheWaitCeiling(t *testing.T) {
-	base := make([]string, 2, 4)
+	base := make([]string, 2, 5)
 	base[0], base[1] = "HOME=/home/a", sessionVar+"s1"
 
 	got := New("").Worker(harness.Spec{SessionID: "s1", Env: base}).Env
-	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0"}) {
+	if !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0", connectVar + "150000"}) {
 		t.Fatalf("Env = %q", got)
 	}
-	if extended := base[:4]; extended[2] != "" || extended[3] != "" {
+	if extended := base[:5]; extended[2] != "" || extended[3] != "" || extended[4] != "" {
 		t.Fatalf("Worker wrote into the caller's array: %q", extended)
 	}
-	if got := New("").Resume(harness.Spec{SessionID: "s1", Env: base}).Env; !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0"}) {
+	if got := New("").Resume(harness.Spec{SessionID: "s1", Env: base}).Env; !slices.Equal(got, []string{"HOME=/home/a", sessionVar + "s1", ceilingVar + "0", connectVar + "150000"}) {
 		t.Fatalf("Resume Env = %q", got)
 	}
 }
@@ -58,10 +59,35 @@ func TestWorkerEnvLiftsTheWaitCeiling(t *testing.T) {
 func TestWorkerEnvKeepsTheOperatorsCeiling(t *testing.T) {
 	for _, set := range []string{ceilingVar + "5000", ceilingVar + "0", ceilingVar} {
 		base := []string{"HOME=/home/a", set, sessionVar + "s1"}
-		want := []string{"HOME=/home/a", set, sessionVar + "s1"}
+		want := []string{"HOME=/home/a", set, sessionVar + "s1", connectVar + "150000"}
 		if got := New("").Worker(harness.Spec{SessionID: "s1", Env: base}).Env; !slices.Equal(got, want) {
 			t.Fatalf("Env(%q) = %q", base, got)
 		}
+	}
+}
+
+// claude waits 30 seconds for an MCP server by default, which is less than the
+// retries of `loupe mcp` can need. The adapter raises it unless the operator
+// set it.
+func TestWorkerEnvKeepsTheOperatorsConnectTimeout(t *testing.T) {
+	for _, set := range []string{connectVar + "5000", connectVar} {
+		base := []string{"HOME=/home/a", set}
+		want := []string{"HOME=/home/a", set, ceilingVar + "0"}
+		for name, got := range map[string][]string{
+			"Worker": New("").Worker(harness.Spec{SessionID: "s1", Env: base}).Env,
+			"Resume": New("").Resume(harness.Spec{SessionID: "s1", Env: base}).Env,
+		} {
+			if !slices.Equal(got, want) {
+				t.Fatalf("%s Env(%q) = %q", name, base, got)
+			}
+		}
+	}
+}
+
+func TestInteractiveSetsNoConnectTimeout(t *testing.T) {
+	script := New("").Interactive("claude", harness.Spec{SessionID: "s1", Dir: "/w", Prompt: "go"})
+	if strings.Contains(script, "MCP_TIMEOUT") {
+		t.Fatalf("script = %q", script)
 	}
 }
 
