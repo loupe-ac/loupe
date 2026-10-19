@@ -13,10 +13,10 @@ final class Version20261019091733 extends AbstractMigration
     #[\Override]
     public function getDescription(): string
     {
-        return 'Write the shipped Lifecycle and Simple copies, whose request rules name a role, into every binding, and keep the epic branch of each copy';
+        return 'Write the shipped Lifecycle and Simple copies, whose request rules name a role and whose merged rule names an outcome, into every binding, and keep the epic branch of each copy';
     }
 
-    /** The review and fix tools read the role from the work request that the stored copy opens. The epic branch belongs to the project, so each copy keeps its own, or keeps none. */
+    /** The review and fix tools read the role from the work request that the stored copy opens, and the report reads the merge from the outcome of the merged rule. The epic branch belongs to the project, so each copy keeps its own, or keeps none. */
     public function up(Schema $schema): void
     {
         foreach (['lifecycle', 'simple'] as $key) {
