@@ -153,6 +153,6 @@ m=$(git rev-parse --git-path merge-desc)
 git commit -F "$m" --cleanup=verbatim
 ```
 
-Put the resolution and nothing else in the merge commit. The owner's approval covers a sync and a conflict resolution. It does not cover a rebase or new content. A fix for a check or a review goes in a later commit of its own, and it needs a new approval.
+Put the resolution and nothing else in the merge commit. Call `workflow_get` and read `approvalCoversConflictResolution`. When it is true, the owner's approval covers a sync and a conflict resolution. When it is false, the approval covers a sync only, and a conflict resolution needs a new approval. In both cases the approval does not cover a rebase or new content. A fix for a check or a review goes in a later commit of its own, and it needs a new approval.
 
 Then run the gate, and push as "Push without force" in `../../loupe-stage-implementation/references/commands.md` says. Never merge or approve the pull request.
