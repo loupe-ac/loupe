@@ -63,7 +63,8 @@ jobs:
           if-no-files-found: warn
 
   e2e-coverage:
-    runs-on: ubuntu-latest
+    # Playwright does not support chromium on ubuntu-latest (26.04) yet.
+    runs-on: ubuntu-24.04
     # A page render costs about 4.7s under coverage against about 0.5s without,
     # so this job is long by nature. Run 34036090686 on main took 94 minutes.
     # Two measured runs of the same work on the same runner type differed by
