@@ -10,6 +10,8 @@ use App\Module\Board\Command\DeleteBoardColumnHandler;
 use App\Module\Board\Command\UpdateCardCommand;
 use App\Module\Board\Command\UpdateCardHandler;
 use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardEventKind;
+use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Messenger\ResumeAskingSession;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
@@ -38,11 +40,15 @@ use App\Module\Inbox\Install\InboxInstallFlags;
 use App\Module\Inbox\Service\InboxItemCloser;
 use App\Module\Project\Entity\Project;
 use App\Module\Workflow\Contract\Actor;
+use App\Module\Workflow\Messenger\EvaluateCard;
 use App\Outbox\AgentPush;
 use App\Outbox\Command\DrainOutboxCommand;
 use App\Outbox\Command\DrainOutboxHandler;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
+use Monolog\LogRecord;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -214,6 +220,172 @@ final class InboxAskCloserTest extends KernelTestCase
         self::assertNotNull($closed->closedAt);
         self::assertNull($closed->card);
         self::assertSame([], $this->askClosedEvents());
+    }
+
+    public function test_two_sessions_of_one_card_that_share_an_item_resume_only_the_one_that_took_it_first(): void
+    {
+        $card = $this->card($this->em, $this->project, 7);
+        $this->em->flush();
+        $item = $this->question(1);
+        $asker = $this->askTaking($item, '2026-10-18 14:57:00', $card);
+        $joiner = $this->askTaking($item, '2026-10-18 15:20:00', $card);
+        $this->asyncTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertSame([(string) $asker->sessionId], array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()));
+        self::assertFalse($this->reloadAsk($asker)->resumeSkipped);
+        $skipped = $this->reloadAsk($joiner);
+        self::assertTrue($skipped->resumeSkipped);
+        self::assertNotNull($skipped->closedAt);
+        self::assertCount(2, $this->askClosedEvents());
+        self::assertSame(
+            [['resume-skipped', ['number' => 1, 'sessionId' => (string) $joiner->sessionId]]],
+            array_map(
+                static fn ($event): array => [$event->kind->value, $event->detail],
+                $this->cardEventRepository()->findBy(['kind' => CardEventKind::ResumeSkipped]),
+            ),
+        );
+    }
+
+    public function test_the_skipped_resume_log_names_the_skipped_ask_its_session_and_the_winning_ask(): void
+    {
+        $logger = self::getContainer()->get('logger');
+        self::assertInstanceOf(Logger::class, $logger);
+        $records = new TestHandler();
+        $logger->pushHandler($records);
+        $card = $this->card($this->em, $this->project, 7);
+        $this->em->flush();
+        $item = $this->question(1);
+        $asker = $this->askTaking($item, '2026-10-18 14:57:00', $card);
+        $joiner = $this->askTaking($item, '2026-10-18 15:20:00', $card);
+
+        try {
+            $this->answer($item);
+        } finally {
+            $logger->popHandler();
+        }
+
+        $skipped = array_values(array_filter($records->getRecords(), static fn (LogRecord $record): bool => 'inbox.ask_resume_skipped' === $record->message));
+        self::assertCount(1, $skipped);
+        self::assertSame((string) $joiner->id, $skipped[0]->context['askId']);
+        self::assertSame((string) $joiner->sessionId, $skipped[0]->context['sessionId']);
+        self::assertSame((string) $asker->id, $skipped[0]->context['winningAskId']);
+    }
+
+    public function test_a_joiner_with_a_question_of_its_own_resumes_alone_once_that_question_closes(): void
+    {
+        $card = $this->card($this->em, $this->project, 7);
+        $this->em->flush();
+        $shared = $this->question(1);
+        $own = $this->question(2);
+        // The joiner asked a question of its own first, so its ask is the older of the two.
+        $joiner = $this->askTaking($own, '2026-10-18 14:00:00', $card);
+        $asker = $this->askTaking($shared, '2026-10-18 14:57:00', $card);
+        $this->takeItem($joiner, $shared, '2026-10-18 15:20:00');
+        $this->asyncTransport()->reset();
+
+        $this->answer($shared);
+
+        self::assertSame([(string) $asker->sessionId], array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()));
+        self::assertNull($this->reloadAsk($joiner)->closedAt);
+        $this->asyncTransport()->reset();
+
+        $this->answer($this->reloadItem($own));
+
+        self::assertSame([(string) $joiner->sessionId], array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()));
+        self::assertFalse($this->reloadAsk($joiner)->resumeSkipped);
+    }
+
+    public function test_an_answer_to_a_question_with_no_card_link_evaluates_the_card_of_each_closed_ask(): void
+    {
+        $first = $this->card($this->em, $this->project, 7);
+        $second = $this->card($this->em, $this->project, 8);
+        $this->em->flush();
+        $item = $this->question(1);
+        $this->askTaking($item, '2026-10-18 14:57:00', $first);
+        $skipped = $this->askTaking($item, '2026-10-18 15:20:00', $first);
+        $this->askTaking($item, '2026-10-18 15:30:00', $second);
+        $this->evaluationTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertTrue($this->reloadAsk($skipped)->resumeSkipped);
+        self::assertEqualsCanonicalizing(
+            [(string) $first->id, (string) $second->id],
+            array_values(array_unique(array_map(static fn (EvaluateCard $message): string => $message->cardId, $this->evaluations()))),
+        );
+    }
+
+    public function test_sessions_of_different_cards_that_share_an_item_all_resume(): void
+    {
+        $first = $this->card($this->em, $this->project, 7);
+        $second = $this->card($this->em, $this->project, 8);
+        $this->em->flush();
+        $item = $this->question(1);
+        $askerAsk = $this->askTaking($item, '2026-10-18 14:57:00', $first);
+        $joinerAsk = $this->askTaking($item, '2026-10-18 15:20:00', $second);
+        $this->asyncTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertEqualsCanonicalizing(
+            [(string) $askerAsk->sessionId, (string) $joinerAsk->sessionId],
+            array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()),
+        );
+        self::assertFalse($this->reloadAsk($askerAsk)->resumeSkipped);
+        self::assertFalse($this->reloadAsk($joinerAsk)->resumeSkipped);
+    }
+
+    public function test_when_the_asker_works_on_another_card_the_first_session_of_this_card_to_join_wins(): void
+    {
+        $other = $this->card($this->em, $this->project, 7);
+        $card = $this->card($this->em, $this->project, 8);
+        $this->em->flush();
+        $item = $this->question(1);
+        $asker = $this->askTaking($item, '2026-10-18 14:00:00', $other);
+        $early = $this->askTaking($item, '2026-10-18 14:30:00', $card);
+        $late = $this->askTaking($item, '2026-10-18 15:00:00', $card);
+        $this->asyncTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertEqualsCanonicalizing(
+            [(string) $asker->sessionId, (string) $early->sessionId],
+            array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()),
+        );
+        self::assertTrue($this->reloadAsk($late)->resumeSkipped);
+    }
+
+    public function test_two_links_taken_at_one_time_give_the_win_to_the_lower_link_id(): void
+    {
+        $card = $this->card($this->em, $this->project, 7);
+        $this->em->flush();
+        $item = $this->question(1);
+        $first = $this->askTaking($item, '2026-10-18 14:57:00', $card);
+        $second = $this->askTaking($item, '2026-10-18 14:57:00', $card);
+        $firstLink = (string) ($first->items->first() ?: throw new \LogicException('The ask holds a link.'))->id;
+        $secondLink = (string) ($second->items->first() ?: throw new \LogicException('The ask holds a link.'))->id;
+        $expected = $firstLink < $secondLink ? $first : $second;
+        $this->asyncTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertSame([(string) $expected->sessionId], array_map(static fn (ResumeAskingSession $message): string => $message->sessionId, $this->resumeMessages()));
+    }
+
+    public function test_sessions_with_no_card_always_resume(): void
+    {
+        $item = $this->question(1);
+        $first = $this->askHolding([$item]);
+        $second = $this->askHolding([$item]);
+        $this->asyncTransport()->reset();
+
+        $this->answer($item);
+
+        self::assertCount(2, $this->resumeMessages());
+        self::assertFalse($this->reloadAsk($first)->resumeSkipped);
+        self::assertFalse($this->reloadAsk($second)->resumeSkipped);
     }
 
     public function test_an_interactive_run_of_the_session_never_names_the_card(): void
@@ -560,6 +732,25 @@ final class InboxAskCloserTest extends KernelTestCase
         return $ask;
     }
 
+    /** An ask whose session ran on the card, and which took the item at the given time. */
+    private function askTaking(InboxItem $item, string $takenAt, Card $card): InboxAsk
+    {
+        $ask = new InboxAsk(project: $this->managedProject(), sessionId: Uuid::v4(), bridgeId: new Uuid('0192f3a1-4b2c-7d3e-8f10-a2b3c4d5e6f7'));
+        $ask->items->add(new InboxAskItem($ask, $item, new \DateTimeImmutable($takenAt)));
+        $this->em->persist($ask);
+        $this->em->flush();
+        $this->workerRun($ask->sessionId, $this->em->find(Card::class, $card->id) ?? $card, new \DateTimeImmutable('2026-10-18 13:00:00'));
+
+        return $ask;
+    }
+
+    private function takeItem(InboxAsk $ask, InboxItem $item, string $takenAt): void
+    {
+        $ask = $this->em->find(InboxAsk::class, $ask->id) ?? $ask;
+        $ask->items->add(new InboxAskItem($ask, $this->em->find(InboxItem::class, $item->id) ?? $item, new \DateTimeImmutable($takenAt)));
+        $this->em->flush();
+    }
+
     private function workerRun(?Uuid $sessionId, Card $card, \DateTimeImmutable $startedAt, ?Project $project = null, WorkerRunKind $kind = WorkerRunKind::Worker): void
     {
         $interactive = WorkerRunKind::Interactive === $kind;
@@ -578,6 +769,14 @@ final class InboxAskCloserTest extends KernelTestCase
             kind: $kind,
         ));
         $this->em->flush();
+    }
+
+    private function cardEventRepository(): CardEventRepository
+    {
+        $repository = self::getContainer()->get(CardEventRepository::class);
+        self::assertInstanceOf(CardEventRepository::class, $repository);
+
+        return $repository;
     }
 
     private function managedProject(): Project
@@ -624,6 +823,23 @@ final class InboxAskCloserTest extends KernelTestCase
         self::assertInstanceOf(InMemoryTransport::class, $transport);
 
         return $transport;
+    }
+
+    private function evaluationTransport(): InMemoryTransport
+    {
+        $transport = self::getContainer()->get('messenger.transport.card_eval');
+        self::assertInstanceOf(InMemoryTransport::class, $transport);
+
+        return $transport;
+    }
+
+    /** @return list<EvaluateCard> */
+    private function evaluations(): array
+    {
+        return array_values(array_filter(
+            array_map(static fn ($envelope): object => $envelope->getMessage(), $this->evaluationTransport()->getSent()),
+            static fn (object $message): bool => $message instanceof EvaluateCard,
+        ));
     }
 
     /** @return list<ResumeAskingSession> */
