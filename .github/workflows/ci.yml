@@ -213,7 +213,7 @@ jobs:
   # is a required check under its own name, so a new leg needs a ruleset edit.
   e2e-shard:
     name: e2e-${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
       # Every leg reports, so one red shard still leaves the others' timing
