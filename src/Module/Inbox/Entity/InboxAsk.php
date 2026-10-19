@@ -40,6 +40,10 @@ class InboxAsk
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $closedAt = null;
 
+    /** Set when the close left this session blocked, because another session of the same card resumes for the answer. */
+    #[ORM\Column(options: ['default' => false])]
+    public bool $resumeSkipped = false;
+
     /** @var Collection<int, InboxAskItem> */
     #[ORM\OneToMany(targetEntity: InboxAskItem::class, mappedBy: 'ask', cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['addedAt' => 'ASC'])]
