@@ -1126,13 +1126,43 @@ func TestInitLeavesAWrongCodexServerWhenDeclined(t *testing.T) {
 	}
 }
 
-func TestInitSaysADisabledCodexServerIsDisabled(t *testing.T) {
+// The bridge check turns a disabled server off, so init offers to enable it.
+// It always asks, even with --mcp, because somebody disabled it by hand.
+func TestInitEnablesADisabledCodexServerInTheFileThatDisablesIt(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	inRepo(t, w.server.URL)
+	home := t.TempDir()
+	w.execOut["CODEX_HOME="+home+" codex -p work mcp get loupe --json"] = codexDeclaration(false, "loupe")
+	writeFile(t, filepath.Join(home, "config.toml"), "[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n")
+	profile := filepath.Join(home, "work.config.toml")
+	writeFile(t, profile, "# off for now\n[mcp_servers.loupe]\nenabled = false\n")
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "has the `loupe` MCP server disabled. Enable it?") {
+		t.Errorf("output lacks the offer:\n%s", out)
+	}
+	if !strings.Contains(out, "Codex: done, enabled the `loupe` MCP server in "+profile) {
+		t.Errorf("output lacks the result:\n%s", out)
+	}
+	if body := readOrEmpty(t, profile); !strings.Contains(body, "# off for now\n[mcp_servers.loupe]\nenabled = true\n") {
+		t.Errorf("the profile still disables the server, or lost its comment:\n%s", body)
+	}
+}
+
+func TestInitLeavesADisabledCodexServerWhenDeclined(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	w.codex = true
 	w.execOut["codex mcp get loupe --json"] = codexDeclaration(false, "loupe")
+	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\nenabled = false\n")
 	inRepo(t, w.server.URL)
 
-	out, err := runInitCmd(t, "n\n", "--mcp")
+	out, err := runInitCmd(t, "n\nn\n", "--mcp")
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
@@ -1141,6 +1171,9 @@ func TestInitSaysADisabledCodexServerIsDisabled(t *testing.T) {
 	}
 	if !strings.Contains(out, "is disabled; set enabled = true") {
 		t.Errorf("output lacks the fix:\n%s", out)
+	}
+	if body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml")); !strings.Contains(body, "enabled = false") {
+		t.Errorf("init enabled a server it was told to leave:\n%s", body)
 	}
 }
 

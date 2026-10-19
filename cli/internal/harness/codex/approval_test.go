@@ -170,3 +170,40 @@ func TestProfileDeclarationFindsAServerTheProfileStarts(t *testing.T) {
 		t.Error("ProfileDeclaration found a declaration with no profile")
 	}
 }
+
+func TestEnableServerEditsTheProfileThatDisablesIt(t *testing.T) {
+	home := writeConfig(t, "[mcp_servers.loupe]\ncommand = \"loupe\"\nenabled = true\n")
+	profile := filepath.Join(home, "work.config.toml")
+	if err := os.WriteFile(profile, []byte("[mcp_servers.loupe]\nenabled = false # off\n[other]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	path, changed, err := EnableServer(home, "work")
+	if err != nil || !changed || path != profile {
+		t.Fatalf("EnableServer: %s, %v, %v", path, changed, err)
+	}
+	raw, _ := os.ReadFile(profile)
+	if string(raw) != "[mcp_servers.loupe]\nenabled = true\n[other]\n" {
+		t.Errorf("profile:\n%s", raw)
+	}
+}
+
+func TestEnableServerEditsConfigWhenTheProfileIsSilent(t *testing.T) {
+	home := writeConfig(t, "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nenabled = false\n")
+
+	path, changed, err := EnableServer(home, "work")
+	if err != nil || !changed || path != filepath.Join(home, "config.toml") {
+		t.Fatalf("EnableServer: %s, %v, %v", path, changed, err)
+	}
+	if got := readConfig(t, home); got != "# mine\n[mcp_servers.loupe]\ncommand = \"loupe\"\nenabled = true\n" {
+		t.Errorf("config.toml:\n%s", got)
+	}
+}
+
+func TestEnableServerChangesNothingWhenNoFileSetsEnabled(t *testing.T) {
+	home := writeConfig(t, "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
+
+	if _, changed, err := EnableServer(home, ""); err != nil || changed {
+		t.Fatalf("EnableServer: %v, %v", changed, err)
+	}
+}

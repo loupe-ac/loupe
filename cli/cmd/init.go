@@ -457,7 +457,7 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 
 		return true
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp():
-		step(out, "Codex", "skipped", "the `"+mcpjson.ServerKey+"` MCP server is disabled"+t.suffix()+"; set enabled = true under [mcp_servers."+mcpjson.ServerKey+"] in "+t.configFile())
+		enableCodexServer(cmd, link, t)
 
 		return true
 	case getErr == nil && link.skipMcp:
@@ -481,6 +481,33 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 	}
 
 	return false
+}
+
+// enableCodexServer offers to enable a disabled `loupe mcp` declaration. It
+// always asks, because somebody disabled the server by hand.
+func enableCodexServer(cmd *cobra.Command, link projectLinkOptions, t codexTarget) {
+	out := cmd.OutOrStdout()
+	byHand := "set enabled = true under [mcp_servers." + mcpjson.ServerKey + "] in " + t.configFile()
+	disabled := "the `" + mcpjson.ServerKey + "` MCP server is disabled" + t.suffix()
+	if link.skipMcp {
+		step(out, "Codex", "skipped", "--no-mcp is set; "+disabled+"; "+byHand)
+
+		return
+	}
+	if !confirm(out, cmd.InOrStdin(), "Codex"+t.suffix()+" has the `"+mcpjson.ServerKey+"` MCP server disabled. Enable it?") {
+		step(out, "Codex", "skipped", disabled+"; "+byHand)
+
+		return
+	}
+	path, changed, err := codex.EnableServer(t.codexHome(), t.profile)
+	switch {
+	case err != nil:
+		step(out, "Codex", "failed", fmt.Sprintf("%v; %s", err, byHand))
+	case !changed:
+		step(out, "Codex", "failed", "no config file of the account sets enabled = false; "+byHand)
+	default:
+		step(out, "Codex", "done", "enabled the `"+mcpjson.ServerKey+"` MCP server in "+path)
+	}
 }
 
 // replaceCodexServer offers to replace a declaration that does not start
@@ -569,16 +596,22 @@ func (t codexTarget) suffix() string {
 // `codex mcp add` and `remove` write only config.toml, so init leaves that
 // declaration to you rather than report a change Codex does not start.
 func (t codexTarget) profileDeclares(out io.Writer) bool {
-	home := t.home
-	if home == "" {
-		home, _ = codex.Home()
-	}
-	path, ok := codex.ProfileDeclaration(home, t.profile)
+	path, ok := codex.ProfileDeclaration(t.codexHome(), t.profile)
 	if ok {
 		step(out, "Codex", "failed", "profile "+t.profile+" declares its own `"+mcpjson.ServerKey+"` MCP server; set command = \"loupe\" and args = [\"mcp\"] under [mcp_servers."+mcpjson.ServerKey+"] in "+path)
 	}
 
 	return ok
+}
+
+// codexHome is the Codex home of the account, with the default one resolved.
+func (t codexTarget) codexHome() string {
+	if t.home != "" {
+		return t.home
+	}
+	home, _ := codex.Home()
+
+	return home
 }
 
 // configFile is the config.toml of the account's Codex home.
