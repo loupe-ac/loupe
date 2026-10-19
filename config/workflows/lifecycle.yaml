@@ -13,11 +13,11 @@ types:
     - { key: idea, label: board.card.type.idea, tone: purple }
     - { key: epic, label: board.card.type.epic, tone: blue, capabilities: [children, lane] }
 slots:
-    - { key: next, label: workflow.slot.next }
-    - { key: product-design, label: workflow.slot.product_design }
-    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design }
-    - { key: implementation, label: workflow.slot.implementation, stageWork: implement }
-    - { key: in-review, label: workflow.slot.in_review }
+    - { key: next, label: workflow.slot.next, tone: lime }
+    - { key: product-design, label: workflow.slot.product_design, tone: sky }
+    - { key: tech-design, label: workflow.slot.tech_design, stageWork: tech-design, tone: indigo }
+    - { key: implementation, label: workflow.slot.implementation, stageWork: implement, tone: purple }
+    - { key: in-review, label: workflow.slot.in_review, tone: amber }
 manualMoves:
     - { from: '@backlog', to: next }
     - { from: next, to: '@backlog' }
@@ -34,7 +34,7 @@ childChoices:
 backoffMinutes: [10, 60, 360]
 workTimeoutMinutes: 120
 onWorkFailed:
-    retryOn: [failed, timeout, still-true]
+    retryOn: [failed, timeout, still-true, mcp-unreachable]
     retries: 3
     backoffMinutes: [2, 3, 5]
     repair: { kind: repair }
@@ -276,6 +276,7 @@ rules:
       slot: implementation
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - any:
                     - pr.checks_failed: {}
@@ -318,6 +319,7 @@ rules:
       slot: implementation
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - agent_review.failed: {}
       then:
@@ -350,6 +352,7 @@ rules:
       slot: in-review
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - any:
                     - pr.checks_failed: {}
@@ -400,6 +403,7 @@ rules:
       slot: in-review
       when:
           all:
+              - not: { card.run.waits_on_answer: {} }
               - pr.open: {}
               - agent_review.failed: {}
       then:

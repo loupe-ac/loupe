@@ -26,8 +26,8 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Gate` | The base branch, and the commands to run before a push, in order | Implementation, fix round, merge, breakdown |
 | `Code review` | A review step before the push, and the rule that it passed. Write "none" when the gate has no review step | Implementation |
 | `Changelog` | Where a change records its changelog entry, and how to check it. Write "none" when the repository keeps no changelog | Implementation |
-| `Pull request` | The title format, the body rules, and whether a pull request opens as a draft or as ready | Implementation, merge |
-| `Board` | The column slugs that a stage reads or moves a card to | Implementation, breakdown, product design |
+| `Pull request` | The title format, the body rules, whether a pull request opens as a draft or as ready, and an optional branch pattern, with `card-<number>-<slug>` as the default | Implementation, merge |
+| `Board` | The column slugs that a stage reads or moves a card to: product design, tech design, implementation, review, default and terminal. A missing line means `product-design`, `tech-design`, `implementation` and `in-review` | Implementation, breakdown, product design |
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
 | `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
 
@@ -43,7 +43,8 @@ Four sections are optional. A missing optional section blocks nothing.
    them only when your workflow template matches other tags.
 3. `Visual check` tells a worker how to screenshot a changed page: the paths
    that trigger the check, the app URL, how to sign in, the browser and the
-   widths.
+   widths. Discovery also reads the browser tool from it, and checks for
+   Playwright when the section names none.
 4. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
    branches.

@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Template;
 
+use App\Module\Workflow\Contract\ProposalSlot;
+use Symfony\Component\DependencyInjection\Attribute\AsAlias;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Yaml\Yaml;
 
 /** The rules the app adds after the rules of every project's template, and the prompts they name. */
-final class AppRules
+#[AsAlias(ProposalSlot::class)]
+final class AppRules implements ProposalSlot
 {
     /** @var ?list<Rule> */
     private ?array $rules = null;
 
     /** @var ?list<AppRequest> */
     private ?array $requests = null;
+
+    private ?string $proposalSlot = null;
 
     public function __construct(
         private readonly TemplateParser $parser,
@@ -44,6 +49,19 @@ final class AppRules
         $this->rules();
 
         return $this->requests ?? [];
+    }
+
+    /**
+     * The slot key of the column where the cards of ticked proposals land, or null when the file names none.
+     *
+     * @throws InvalidTemplate
+     */
+    #[\Override]
+    public function proposalSlot(): ?string
+    {
+        $this->rules();
+
+        return $this->proposalSlot;
     }
 
     /** @throws InvalidTemplate when a rule of the template has the id of an app rule */
@@ -130,6 +148,7 @@ final class AppRules
             throw new InvalidTemplate($errors);
         }
         $this->requests = $requests;
+        $this->proposalSlot = $this->parser->parseAppProposalSlot($source);
 
         return $rules;
     }

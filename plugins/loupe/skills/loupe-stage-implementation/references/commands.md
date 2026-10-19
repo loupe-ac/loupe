@@ -36,6 +36,10 @@ Each read section of a forge file ends with a Report line. It translates the val
 
 Every approval script of a forge prints the same three result lines: `COVERED`, `HOLD` and `UNREAD`.
 
+## Card branch
+
+A card branch starts with the prefix `card-<number>-` by default. The profile `Pull request` section can name another pattern. This stage then reads `<prefix>` as that pattern up to its slug, and `<card branch>` as the prefix followed by `<short-slug>`. Every step below that says `card-<number>-` uses `<prefix>`, and every step that creates a branch uses `<card branch>`.
+
 ## Column check
 
 Slug a column label from the prompt: lowercase, with hyphens for spaces. Compare the slug with the card `status`.
@@ -60,15 +64,15 @@ When the profile `Environment` section names a folder check, run it first. When 
 git branch --show-current
 ```
 
-1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <base>`. Then run `git switch -c card-<number>-<short-slug> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, run the refresh of the profile `Environment` section, when it names one. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
+1. When it prints nothing, HEAD is detached. Run `git fetch origin <base>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <base>`. Then run `git switch -c <card branch> origin/<base>`. The bridge can detach a new folder on another branch than `<base>`, so the new branch starts from `origin/<base>`. When the switch moves HEAD, run the refresh of the profile `Environment` section, when it names one. `<short-slug>` is two to four lowercase words from the card title, joined with hyphens.
 2. When it prints `<base>`, run the same `git switch -c` command.
-3. When it prints a branch that starts `card-<number>-`, keep that branch.
+3. When it prints a branch that starts `<prefix>`, keep that branch.
 4. When it prints any other branch, stop with `STAGE RESULT: blocked: worker folder on branch <branch>`.
 
 ## Reruns
 
 1. A linked document tagged `plan` whose `references` hold the tech design id is the plan. Reuse it, and create no second plan.
-2. An open pull request on a branch that starts `card-<number>-` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request. Run `git branch --show-current`. When HEAD is detached, or on another `card-<number>-` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+2. An open pull request on a branch that starts `<prefix>` belongs to this card. Never cut a new branch for it. `<base>` is the base branch of that pull request. Run `git branch --show-current`. When HEAD is detached, or on another `<prefix>` branch and `git status --porcelain` prints nothing, run `git fetch origin <head>`, and run it once more after 2 seconds when it fails. When it fails again, stop with `STAGE RESULT: blocked: cannot fetch <head>`. Then run `git switch <head>`. When no local branch has that name, run `git switch --track -c <head> origin/<head>` instead. When the current branch then differs from the head branch, stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 3. Sync that branch as "Sync with the pull request branch" says. Then resume at the gate.
 4. Before you create a pull request, list the open pull requests for the branch with the forge adapter. Link one it lists, and create none.
 
@@ -164,7 +168,7 @@ Read the card with `card_get`. Send its whole `body` back with `card_update`, pl
 
 A run that acts on a pull request posts one comment when it ends `STAGE RESULT: not ready <url>: <reason>` or `STAGE RESULT: blocked: <reason>`. The comment tells a person on the pull request why the work stopped.
 
-1. Post no comment for `waiting`. Post none for a fault that an approver cannot fix on the pull request: `no worker folder` or `preview not seeded`. `loupe MCP unavailable` is not a `blocked:` form, so it posts none either. Post none for a state that clears with no person: `not behind`, a head that moved after the event, or a check that is still pending.
+1. Post no comment for `waiting`. Post none for a fault that an approver cannot fix on the pull request: `no worker folder` or `preview not seeded`. `loupe MCP unreachable` is not a `blocked:` form, so it posts none either. Post none for a state that clears with no person: `not behind`, a head that moved after the event, or a check that is still pending.
 2. Make the reason key. Lowercase the reason, and turn each run of characters outside `a-z` and `0-9` into one hyphen. Remove a hyphen at the start or the end.
 3. Read the head commit with the forge adapter. The marker line is `<!-- loupe-refusal: <head sha> <reason key> -->`.
 4. List the top-level comments with the forge adapter. When a comment holds the same marker, post nothing. A new head or a new reason posts again.

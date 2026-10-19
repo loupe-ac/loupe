@@ -589,6 +589,26 @@ class CardRepository extends ServiceEntityRepository
     }
 
     /**
+     * The parents of these cards, each once.
+     *
+     * @param list<string> $cardIds
+     *
+     * @return list<string>
+     */
+    public function findParentIds(array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        return array_values(array_map(strval(...), $this->getEntityManager()->getConnection()->fetchFirstColumn(
+            'SELECT DISTINCT parent_card_id FROM board_cards WHERE id IN (:cards) AND parent_card_id IS NOT NULL',
+            ['cards' => $cardIds],
+            ['cards' => ArrayParameterType::STRING],
+        )));
+    }
+
+    /**
      * The parents of these cards, the cards they block and their follow-ups, each once, without the given ids.
      *
      * @param list<string> $cardIds

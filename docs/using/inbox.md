@@ -722,6 +722,12 @@ that is still open when the ask closes resumes when it ends. See
 [Pause, stop and resume](../extending/cli-bridge.md#pause-stop-and-resume).
 An agent reads its answers with its own session id as `readerSessionId`.
 
+When one answer closes the asks of several sessions that work on the same card,
+Loupe resumes one of them: the session that took the item first, which is the
+session that asked the question. The other sessions stay blocked, and the card
+history says why. You can still resume one of them by hand from the worker runs
+page. Sessions that work on different cards all resume.
+
 ## All inboxes
 
 Open **All inboxes** in the lower part of the sidebar to see what waits on you

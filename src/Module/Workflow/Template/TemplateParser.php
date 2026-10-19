@@ -52,13 +52,14 @@ final readonly class TemplateParser
     public const string DOCUMENT_TAG = ParameterNames::DOCUMENT_TAG;
     public const string DOCUMENT_STATUS = ParameterNames::DOCUMENT_STATUS;
 
-    /** The parameter of an app request that names a prompt file. A template cannot write it. */
+    /** The parameter of a request that names a prompt file. */
     public const string PROMPT = ParameterNames::PROMPT;
     public const string PROMPT_PATTERN = ParameterNames::PROMPT_PATTERN;
 
     public function __construct(
         private Conditions $conditions,
         private Actions $actions,
+        private TemplatePrompts $prompts,
     ) {
     }
 
@@ -98,9 +99,12 @@ final readonly class TemplateParser
     {
         $errors = [];
         foreach (array_keys($source) as $key) {
-            if (!\in_array($key, ['rules', 'requests'], true)) {
-                $errors[] = \sprintf('%s: unknown key, app rules hold only "rules" and "requests"', $key);
+            if (!\in_array($key, ['rules', 'requests', 'proposalSlot'], true)) {
+                $errors[] = \sprintf('%s: unknown key, app rules hold only "rules", "requests" and "proposalSlot"', $key);
             }
+        }
+        if (\array_key_exists('proposalSlot', $source) && (!\is_string($source['proposalSlot']) || '' === $source['proposalSlot'])) {
+            $errors[] = 'proposalSlot: must be a non-empty string';
         }
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), [], null, $errors, lenient: false, app: true);
 
@@ -109,6 +113,18 @@ final readonly class TemplateParser
         }
 
         return $rules;
+    }
+
+    /**
+     * The slot key of the column where the cards of ticked proposals land, or null when the file names none.
+     *
+     * @param array<mixed> $source
+     */
+    public function parseAppProposalSlot(array $source): ?string
+    {
+        $slot = $source['proposalSlot'] ?? null;
+
+        return \is_string($slot) && '' !== $slot ? $slot : null;
     }
 
     /**
@@ -229,6 +245,14 @@ final readonly class TemplateParser
         $manualMoves = $this->manualMoves(self::topLevelList($source, 'manualMoves', $errors), $slotKeys, $errors);
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), $slotKeys, $types, $errors, $lenient, app: false);
         $markers = $this->markers($source['markers'] ?? [], $slotKeys, $types, $errors, $lenient);
+        if (!$lenient) {
+            foreach ($rules as $rule) {
+                $name = $rule->then->params[self::PROMPT] ?? null;
+                if (\is_string($name) && !$this->prompts->has($key, $name)) {
+                    $errors[] = \sprintf('rules (%s): prompt "%s" has no file %s/prompts/%s.md', $rule->id, $name, $key, $name);
+                }
+            }
+        }
         // The engine tells a repair request apart by its kind, so no rule may ask for that kind.
         foreach ($rules as $rule) {
             $kind = $this->actions->get($rule->then->key)->workKind($rule->then->params);
@@ -405,7 +429,14 @@ final readonly class TemplateParser
                 $stageWork = null;
             }
             $seen[$key] = true;
-            $slots[] = new Slot($key, $label, $stageWork);
+            $tone = null;
+            if (\array_key_exists('tone', $entry)) {
+                $tone = \is_string($entry['tone']) ? LabelTone::tryFrom($entry['tone']) : null;
+                if (null === $tone) {
+                    $errors[] = \sprintf('%s tone: must be one of %s', $where, implode(', ', array_map(static fn (LabelTone $case): string => $case->value, LabelTone::cases())));
+                }
+            }
+            $slots[] = new Slot($key, $label, $stageWork, $tone);
         }
 
         return $slots;
@@ -509,7 +540,7 @@ final readonly class TemplateParser
 
             $then = null;
             if (\array_key_exists('then', $entry)) {
-                $then = $this->action($entry['then'], $where.' then', $slotKeys, $types, $errors, $lenient, $app);
+                $then = $this->action($entry['then'], $where.' then', $slotKeys, $types, $errors, $lenient);
             } else {
                 $errors[] = $where.' then: is missing';
             }
@@ -743,7 +774,7 @@ final readonly class TemplateParser
      * @param ?array<string, TemplateCardType> $types
      * @param list<string>                     $errors
      */
-    private function action(mixed $node, string $where, array $slotKeys, ?array $types, array &$errors, bool $lenient, bool $app): ?ActionCall
+    private function action(mixed $node, string $where, array $slotKeys, ?array $types, array &$errors, bool $lenient): ?ActionCall
     {
         if (!\is_array($node) || 1 !== \count($node) || !\is_string(array_key_first($node))) {
             $errors[] = $where.': an action must have exactly one key';
@@ -776,8 +807,7 @@ final readonly class TemplateParser
         $checks = [];
         $lists = [];
         $options = [];
-        $declared = array_values(array_filter($action::parameters(), static fn (Parameter $parameter): bool => $app || !$parameter->appOnly));
-        foreach ($declared as $parameter) {
+        foreach ($action::parameters() as $parameter) {
             $param = $parameter->name;
             $kept = self::KEPT_PARAMETERS[$parameter->type->value] ?? null;
             if (null !== $kept && !\in_array($param, $kept, true)) {
@@ -833,7 +863,7 @@ final readonly class TemplateParser
                 $errors[] = $where.': '.$message;
             }
         }
-        $names = array_map(static fn (Parameter $parameter): string => $parameter->name, $declared);
+        $names = array_map(static fn (Parameter $parameter): string => $parameter->name, $action::parameters());
         foreach (array_keys($value) as $param) {
             if (!\in_array($param, $names, true)) {
                 $errors[] = \sprintf('%s: unknown parameter "%s"', $where, $param);
@@ -878,7 +908,7 @@ final readonly class TemplateParser
                 $errors[] = \sprintf('%s: the action "%s" is not allowed %s', $actionWhere, $name, $context);
                 continue;
             }
-            $action = $this->action($node, $actionWhere, $slotKeys, $types, $errors, $lenient, app: false);
+            $action = $this->action($node, $actionWhere, $slotKeys, $types, $errors, $lenient);
             if (null !== $action) {
                 $actions[] = $action;
             }

@@ -52,6 +52,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 
 1. Open it as a draft with `gh pr create --draft`, against the base branch of the `Gate` section. Never open a stacked pull request against `main`.
 2. Write the title as `<type>(<area>): <summary>`.
+   Name the branch `card-<number>-<short-slug>`.
 3. Keep the body and the `## Preview` section to the rules of `working-with-prs` "Keep the body brief" and "Make the branch testable, not just reviewable".
 4. A branch that changes a page seeds one state per preview link, before the pull request is ready. "The tests cover it", "the seed holds no X" and "it shows after a bridge reports data" are excuses, and no substitute for the seed.
 5. Prove each link with `working-with-prs` "Prove each preview link shows its state". Write the marker you found on the line of each link. When you cannot seed a state, or a marker is missing, stop with `STAGE RESULT: blocked: preview not seeded`. Do not move the card.
@@ -74,7 +75,7 @@ The Loupe stage skills read this file. It holds the values that belong to this r
 1. The column that holds a pull request waiting for review is `in-review`. The app moves a card there when the required checks pass, and to `done` after the merge.
 2. No stage moves a card to `in-review` or `done`. A move that carries an approval is the app's, never an agent's.
 3. Never read the column list to find this slug. `board_columns` can be missing, which is why the slug is written here.
-4. The column that holds a card in product design is `product-design`. The `/loupe:product-design` skill reads this slug.
+4. The column that holds a card in product design is `product-design`. The column that holds a card in tech design is `tech-design`. The `/loupe:product-design` skill reads this slug.
 5. The column that holds a card in implementation is `implementation`. The workflow moves a child there. A breakdown moves none.
 6. The default column is `backlog`, and the terminal column is `done`. The workflow moves a new child from `backlog` to `next`. A child in `backlog` is parked and never starts by itself.
 
