@@ -70,6 +70,10 @@ class WorkflowRuleState
     #[ORM\Column(type: UuidType::NAME, nullable: true)]
     public ?Uuid $askItemId = null;
 
+    /** The resumed worker run that answered the last stop of the rule. No foreign key, as the run may go. */
+    #[ORM\Column(type: UuidType::NAME, nullable: true)]
+    public ?Uuid $answeringRunId = null;
+
     /** When the rule began to wait on an open blocker alone. Null while another condition keeps the rule false, or the rule is true. */
     #[ORM\Column(nullable: true)]
     public ?\DateTimeImmutable $heldByBlockerSince = null;
@@ -105,6 +109,7 @@ class WorkflowRuleState
         $this->causesAtOpen = null;
         $this->repaired = false;
         $this->askItemId = null;
+        $this->answeringRunId = null;
         $this->heldByBlockerSince = null;
     }
 }

@@ -281,6 +281,10 @@ The card then asks for no second worker. A resumed run that fails earns the
 retries of a fresh budget, and a resumed run that ends as blocked pauses the
 card again at once.
 
+A "needs a person" stop does not pause a card when a resumed run of the same
+kind of work, from any rule of the card, reported after the stop. That run also
+ends such a pause. A stop with any other code pauses the card as before.
+
 The template sets this behaviour in its `onWorkFailed` block:
 
 ```yaml
