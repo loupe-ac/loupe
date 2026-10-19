@@ -8,6 +8,7 @@ enum DiscoveryRunState: string
 {
     case Requested = 'requested';
     case Reported = 'reported';
+    case Revising = 'revising';
     case Failed = 'failed';
     case Done = 'done';
 }

@@ -8,12 +8,13 @@
     linkLabel   string   Translated text of the link. Optional.
     linkHref    string   Target of the link. Optional.
     compact     bool     A smaller variant for an empty section inside a page. Optional.
+    onCard      bool     A bordered card on the app fill, for an empty state inside a panel. Optional.
   The content goes after the body, for a second paragraph or an action.
   Any other attribute, class included, is passed to the element.
 #}
-{%- props icon = null, iconSize = null, iconClass = null, title = null, body = null, linkLabel = null, linkHref = null, compact = false -%}
+{%- props icon = null, iconSize = null, iconClass = null, title = null, body = null, linkLabel = null, linkHref = null, compact = false, onCard = false -%}
 {% set resolvedIconSize = iconSize ?? (compact ? 'xl' : '2xl') %}
-<div{{ attributes.defaults({class: 'lp-empty-state' ~ (compact ? ' lp-empty-state--compact' : '')}) }}>
+<div{{ attributes.defaults({class: 'lp-empty-state' ~ (compact ? ' lp-empty-state--compact' : '') ~ (onCard ? ' lp-empty-state--on-card' : '')}) }}>
     {% if icon %}<twig:ux:icon :name="icon" class="lp-empty-state__icon lp-icon lp-icon--{{ resolvedIconSize }}{{ iconClass ? ' ' ~ iconClass }}" />{% endif %}
     {% if title %}<h2 class="lp-empty-state__title">{{ title }}</h2>{% endif %}
     {% if body %}<p class="lp-empty-state__body">{{ body }}</p>{% endif %}

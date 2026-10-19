@@ -76,6 +76,7 @@ use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardPauses;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\ColumnRef;
+use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Service\TemplateStageWorks;
 use App\Tests\Module\Workflow\Fact\FactsMother;
@@ -611,6 +612,7 @@ final class RunInboxActionHandlerTest extends KernelTestCase
             $this->service(CardRepository::class),
             $this->service(WorkRequestContexts::class),
             $this->retryNotes(),
+            $this->service(KindPrompts::class),
         );
         $card = new CardSnapshot($this->card->id ?? throw new \LogicException('Stored.'), $this->project->id ?? throw new \LogicException('Stored.'), $this->card->number, 'feature', new ColumnRef(Uuid::v7(), false, false), null, null, null);
 

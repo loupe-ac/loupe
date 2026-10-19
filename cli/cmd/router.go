@@ -50,10 +50,14 @@ type router struct {
 	topic    string
 	worker   workerOps
 	// agent is the GitHub user that each claude worker pushes as, or nil.
-	// pushLogin is the login GitHub gave for its token at start, and "" when
-	// none was checked. Neither changes after start.
-	agent     *config.AgentAccount
-	pushLogin string
+	// It does not change after start.
+	agent *config.AgentAccount
+	// identities reads the git identity of each followed project for the
+	// heartbeat. A nil one reports none.
+	identities *identityReporter
+	// credentials gives the workers their GitHub credentials, and answers the
+	// credential op of the control socket. A nil one gives none.
+	credentials *credentialBroker
 	// bridgeID names the bridge in every report it sends. With none, as in
 	// most tests, the bridge sends no report.
 	bridgeID string
@@ -1007,6 +1011,13 @@ func (r *router) start(p pending) {
 				"account", p.spec.account, "permission_mode", p.spec.permissionMode, "model", p.spec.model,
 			)...)
 		}
+		if card := worktreeCard(p, r.rules()); card > 0 {
+			dir, ok := r.cardWorktree(p, card)
+			if !ok {
+				return
+			}
+			p.spec.dir = dir
+		}
 		if p.spec.before != nil {
 			// A bad env file fails the run before the command changes the
 			// worktree. runAgent reads the files again for the agent.
@@ -1022,6 +1033,24 @@ func (r *router) start(p pending) {
 		}
 		r.runAgent(p, time.Time{}, "")
 	}()
+}
+
+// cardWorktree returns the worktree of the card of p. When it cannot be made,
+// the run ends as failed and ok is false.
+func (r *router) cardWorktree(p pending, card int) (string, bool) {
+	began := time.Now()
+	ensure := r.worker.worktree
+	if ensure == nil {
+		ensure = ensureWorktree
+	}
+	dir, err := ensure(r.workerContext(), p.spec.dir, p.project, card)
+	if err == nil {
+		return dir, true
+	}
+	failed := workerResult{exitCode: -1, output: failedOutput("the bridge cannot make the worktree of the card: "+err.Error(), ""), before: true}
+	r.settle(p, endedRun{res: failed, began: began, elapsed: time.Since(began)})
+
+	return "", false
 }
 
 // runAgent runs claude for the run and settles it. began is when the run's
@@ -1058,6 +1087,7 @@ func (r *router) runAgent(p pending, began time.Time, beforeDir string) {
 	}
 	spec := p.spec
 	spec.agent = r.agent
+	spec.credentials, spec.project = r.credentials, p.project
 	env, err := spec.accountEnv()
 	if err != nil {
 		failed := workerResult{err: err, dir: beforeDir}

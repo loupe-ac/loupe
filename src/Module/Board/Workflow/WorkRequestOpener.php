@@ -13,6 +13,7 @@ use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Workflow\Contract\ActionContext;
 use App\Module\Workflow\Contract\ActionOutcome;
 use App\Module\Workflow\Contract\DocumentFacts;
+use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\RetryNotes;
 use App\Module\Workflow\Contract\WorkOpener;
@@ -30,6 +31,7 @@ final readonly class WorkRequestOpener implements WorkOpener
         private CardRepository $cards,
         private WorkRequestContexts $contexts,
         private RetryNotes $retryNotes,
+        private KindPrompts $kindPrompts,
     ) {
     }
 
@@ -62,7 +64,7 @@ final readonly class WorkRequestOpener implements WorkOpener
                 capability: $capability,
                 ruleId: $context->ruleId,
                 context: $this->contexts->forCard($card, $facts->pullRequest, $documentId, $reason),
-                prompt: $context->prompt,
+                prompt: $context->prompt ?? $this->kindPrompts->forKind($kind),
                 inboxActionId: $retry?->actionId,
                 inboxItemNumber: $retry?->itemNumber,
                 inboxItemId: $retry?->itemId,

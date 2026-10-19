@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/ubermuda/loupe/cli/internal/config"
 	"github.com/ubermuda/loupe/cli/internal/directive"
 	"github.com/ubermuda/loupe/cli/internal/event"
 )
@@ -454,12 +455,14 @@ func TestWorkKindsOn(t *testing.T) {
 		problems map[string]string
 		want     []string
 	}{
-		"kinds in name order":                   {two, nil, []string{"fix", "tech-design"}},
-		"app prompts only":                      {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nappPrompts: true\n", nil, []string{}},
-		"agents off keeps command entries":      {"projects:\n  loupe:\n    dir: {dir}\nwork:\n  fix:\n    prompt: x\n" + command, nil, []string{"test"}},
-		"failed account keeps command entries":  {two + command, map[string]string{"claude": "not logged in"}, []string{"test"}},
-		"other failed account keeps every kind": {two + command, map[string]string{"other": "not logged in"}, []string{"fix", "tech-design", "test"}},
-		"other subjects name their subject":     {two + "  implement:\n    subject: analysis\n    prompt: x\n", nil, []string{"fix", "analysis:implement", "tech-design"}},
+		"kinds in name order":                         {two, nil, []string{"fix", "teardown", "tech-design"}},
+		"isolation none names no teardown":            {strings.Replace(two, "account: claude\n", "account: claude\n  isolation: none\n", 1), nil, []string{"fix", "tech-design"}},
+		"a teardown entry replaces the built-in kind": {two + "  teardown:\n    action: command\n    run: [make]\n", nil, []string{"fix", "teardown", "tech-design"}},
+		"app prompts only":                            {claudeAccount + claudeDefaults + "projects:\n  loupe:\n    dir: {dir}\nappPrompts: true\n", nil, []string{"teardown"}},
+		"agents off keeps command entries":            {"projects:\n  loupe:\n    dir: {dir}\nwork:\n  fix:\n    prompt: x\n" + command, nil, []string{"teardown", "test"}},
+		"failed account keeps command entries":        {two + command, map[string]string{"claude": "not logged in"}, []string{"teardown", "test"}},
+		"other failed account keeps every kind":       {two + command, map[string]string{"other": "not logged in"}, []string{"fix", "teardown", "tech-design", "test"}},
+		"other subjects name their subject":           {two + "  implement:\n    subject: analysis\n    prompt: x\n", nil, []string{"fix", "analysis:implement", "teardown", "tech-design"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := parse(t, tc.body)
@@ -737,6 +740,54 @@ func TestCheckReportSizes(t *testing.T) {
 	w := &WorkEntry{Action: ActionCommand, Run: []string{"x"}, Description: strings.Repeat("a", maxReportText+1)}
 	if err := checkWork("export", w); err == nil || !strings.Contains(err.Error(), "description is longer") {
 		t.Fatalf("want a size error, got %v", err)
+	}
+}
+
+func TestMatchWorkRemovesTheWorktreeOnTeardown(t *testing.T) {
+	s := checked(t, workFile)
+	path, err := config.WorktreeDir("loupe", 87)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := s.MatchWork(workRequest("teardown"))
+	if m.Skip != Run || m.Rule != "work:teardown" || m.Action != ActionCommand || m.Prompt != "" || m.Command == nil || m.Dir != s.Dir("loupe") {
+		t.Fatalf("match = %+v", m)
+	}
+	if want := []string{"sh", "-c", teardownScript, "sh", path}; !slices.Equal(m.Command.Argv, want) || m.Command.Timeout != DefaultCommandTimeout {
+		t.Fatalf("command = %+v, want argv %v", m.Command, want)
+	}
+}
+
+func TestMatchWorkLeavesTeardownToTheAppWhenTheBridgeDoesNotRemove(t *testing.T) {
+	noIsolation := strings.Replace(workFile, "account: claude\n", "account: claude\n  isolation: none\n", 1)
+	userEntry := workFile + "  teardown:\n    action: command\n    run: [make, down]\n"
+	otherSubject := workRequest("teardown")
+	otherSubject.SubjectType = "analysis"
+	for name, tc := range map[string]struct {
+		body    string
+		request api.WorkRequest
+		want    Skip
+	}{
+		"isolation none":    {noIsolation, workRequest("teardown"), NoRule},
+		"a teardown entry":  {userEntry, workRequest("teardown"), Run},
+		"another subject":   {workFile, otherSubject, NoRule},
+		"no card number":    {workFile, func() api.WorkRequest { w := workRequest("teardown"); w.CardNumber = 0; return w }(), NoRule},
+		"isolation + app":   {workFile + "appPrompts: true\n", workRequest("teardown"), Run},
+		"none + app prompt": {noIsolation + "appPrompts: true\n", func() api.WorkRequest { w := workRequest("teardown"); w.Prompt = "Tear down {cardNumber}."; return w }(), Run},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := checked(t, tc.body).MatchWork(tc.request)
+			if m.Skip != tc.want {
+				t.Fatalf("Skip = %v, want %v (match %+v)", m.Skip, tc.want, m)
+			}
+			if name == "a teardown entry" && (m.Command == nil || m.Command.Argv[0] != "make") {
+				t.Fatalf("the user entry must win, got %+v", m.Command)
+			}
+			if name == "none + app prompt" && m.Command != nil {
+				t.Fatalf("isolation none must run the app prompt, got %+v", m.Command)
+			}
+		})
 	}
 }
 

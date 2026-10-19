@@ -1,10 +1,13 @@
 {# twig-cs-fixer-disable #}{% autoescape false %}
 import React from 'react';
 
-export function {{ entry.name }}({ icon, title, body, linkLabel, linkHref, compact, iconSize = compact ? 'xl' : '2xl', iconClass, className: extra, children, ...rest }) {
+export function {{ entry.name }}({ icon, title, body, linkLabel, linkHref, compact, onCard, iconSize = compact ? 'xl' : '2xl', iconClass, className: extra, children, ...rest }) {
     const classes = ['{{ entry.rootClass }}'];
     if (compact) {
         classes.push('{{ entry.rootClass }}--compact');
+    }
+    if (onCard) {
+        classes.push('{{ entry.rootClass }}--on-card');
     }
     if (extra) {
         classes.push(extra);

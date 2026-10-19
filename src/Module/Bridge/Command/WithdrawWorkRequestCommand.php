@@ -15,6 +15,8 @@ final readonly class WithdrawWorkRequestCommand
         public WorkRequestState $state,
         /** Leaves a request that a bridge claimed since the caller read it. */
         public bool $onlyIfOpen = false,
+        /** A reason code the module of the work reads, such as no-taker. */
+        public ?string $reason = null,
     ) {
     }
 }

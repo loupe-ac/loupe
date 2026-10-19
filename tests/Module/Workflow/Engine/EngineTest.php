@@ -51,6 +51,7 @@ use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
 use App\Module\Bridge\Service\WorkRequestAnnouncer;
+use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
@@ -87,6 +88,7 @@ use App\Module\Workflow\Contract\BlockerHoldChanged;
 use App\Module\Workflow\Contract\CardDirectory;
 use App\Module\Workflow\Contract\CardEvaluations;
 use App\Module\Workflow\Contract\CardMarkerStore;
+use App\Module\Workflow\Contract\KindPrompts;
 use App\Module\Workflow\Contract\PauseKind;
 use App\Module\Workflow\Contract\PersonWork;
 use App\Module\Workflow\Contract\RetryNotes;
@@ -121,6 +123,7 @@ use App\Tests\Module\Workflow\Fact\ProvidedFacts;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsProvider;
 use App\Tests\Module\Workflow\Fact\ProvidedFactsReady;
 use App\Tests\Module\Workflow\Fact\UnprovidedFactsReady;
+use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Support\RecordingLogger;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Events;
@@ -172,6 +175,8 @@ final class EngineTest extends KernelTestCase
 
     /** @var (\Closure(): void)|null */
     private ?\Closure $settleJoinedWork = null;
+
+    private ?AppRules $appRules = null;
 
     private FakeRuleAsks $asks;
 
@@ -1342,6 +1347,19 @@ final class EngineTest extends KernelTestCase
         self::assertSame(['repair', 'work', null, 'failed'], [$repair->kind, $repair->ruleId, $repair->capability, $repair->context->reason]);
         $state = $this->ruleState($card, 'work');
         self::assertSame([2, true, null, $repair->id?->toRfc4122()], [$state->attempts, $state->repaired, $state->dueAt, $state->workRequestId?->toRfc4122()]);
+    }
+
+    public function test_the_repair_of_an_app_rule_carries_the_repair_prompt_and_not_the_prompt_of_the_rule(): void
+    {
+        $card = $this->boundCard([], onWorkFailed: self::REPAIR);
+        $this->appRules = new AppRules($this->service(TemplateParser::class), AppRulesTest::FIXTURE);
+        $this->moveTo($card, 'backlog');
+
+        $repair = $this->repairing($card);
+
+        self::assertSame(['repair', 'app-groom'], [$repair->kind, $repair->ruleId]);
+        self::assertSame($this->service(KindPrompts::class)->forKind('repair'), $repair->prompt);
+        self::assertStringContainsString('Use the loupe-stage-repair skill.', $repair->prompt ?? '');
     }
 
     public function test_a_repair_request_that_cannot_open_pauses_the_card(): void
@@ -4563,6 +4581,7 @@ final class EngineTest extends KernelTestCase
             $this->service(CardRepository::class),
             new WorkRequestContexts($this->service(CardPullRequests::class), $this->service(CardPullRequestRepository::class)),
             $this->service(RetryNotes::class),
+            $this->service(KindPrompts::class),
         );
         $forgePullRequests = $this->service(ForgePullRequestRepository::class);
 
@@ -4578,7 +4597,7 @@ final class EngineTest extends KernelTestCase
             $this->em(),
             $this->service(CardDirectory::class),
             $this->service(ProjectRepository::class),
-            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), $this->service(TemplateParser::class), $this->service(AppRules::class)),
+            new ProjectTemplateCopy($this->service(WorkflowBindingRepository::class), $this->service(TemplateParser::class), $this->appRules ?? $this->service(AppRules::class)),
             new FactsBuilder(
                 $this->service(WorkflowSlotLinkRepository::class),
                 $this->service(CardDirectory::class),
@@ -4595,6 +4614,7 @@ final class EngineTest extends KernelTestCase
                 new WithdrawWorkRequestHandler($workRequests, $this->service(OutboxWriter::class), $this->em(), $clock, $auditor, $this->service(WorkRequestAnnouncer::class), new WorkSubjectHandlers([])),
                 $this->service(CardHolds::class),
                 $this->service(ProjectRepository::class),
+                $this->service(WorkTakers::class),
             ),
             $this->service(WorkflowAutomation::class),
             $this->service(WorkflowPendingBaselineRepository::class),

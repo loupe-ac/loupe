@@ -32,6 +32,6 @@ final readonly class ShippedTemplateChoices implements WorkflowTemplateChoices
     #[\Override]
     public function defaultKey(): string
     {
-        return 'simple';
+        return 'lifecycle';
     }
 }

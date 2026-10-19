@@ -3,6 +3,8 @@ title: Projects
 description: "Create projects and describe their purpose."
 ---
 
+Each project belongs to one account, its owner. Loupe has no teams yet, so a project has no second member and you cannot share it with a group. Some pages are for the owner alone, such as the [Agent readiness tab and the Repositories section](#agent-readiness) of the project settings. Several agents can work for one owner. A coding agent signs in through the owner's account. See [First steps](../getting-started/index.md) and [Installing the CLI](../getting-started/cli.md).
+
 Open All projects to choose a workspace. Each tile links to its Workshop and shows that project's counts.
 Press Tab to reveal Skip to content. Press Enter to bypass navigation and focus the page content.
 The next Tab moves to a control within that content.
@@ -13,9 +15,10 @@ The sidebar marks the current page. The Documents count shows the documents that
 The Agents link shows the busy workers over the worker limit, such as 1/3.
 Document, inbox and Activity counts remain visible beside their labels on the selected row.
 
-Select New project, or anywhere on the dashed tile, to open the form in a dialog. The project switcher in the sidebar also has a New project entry, which opens the projects page with the dialog open. Enter a name and, optionally, a description of up to 500 characters.
+Select New project, or anywhere on the dashed tile, to open the form in a dialog. The project switcher in the sidebar also has a New project entry, which opens the projects page with the dialog open. Enter a name. Optionally, add a description of up to 500 characters, a domain and a document language.
 Descriptions appear as plain text on project tiles. Line breaks remain visible.
-The domain and document language remain separate settings.
+The form has no workflow field. Every new project gets the Lifecycle workflow, and the template creates its board columns.
+The first-run wizard asks for a name, a description and a domain only. It takes the document language from the Accept-Language header of your browser, and you can change it in the project settings.
 Select Add project to create it and open its Workshop.
 
 The header keeps New project reachable on narrow screens and with enlarged text.
@@ -41,12 +44,19 @@ When the project has no reported connections, Your crew links to connection setu
 Each connection shows its own health. This does not report whether an individual agent is available or running.
 Agent configuration and rules remain read-only in Loupe. Configure them through the CLI and its rule file.
 
+## Create a project from the CLI
+
+A signed-in `loupe` CLI creates a project with `POST /api/projects`. Send a JSON body with a `name`, an optional `website` and an optional `remote`, the git URL of the repository.
+A request with a `remote` and no `name` names the project after the repository. The new project gets the same board and workflow as a project made in the app.
+The response is `201` with the `id`, the `slug` and the `name`. A name that the owner already uses gets `409` with `name_taken`.
+Only a token that carries the agent scope and covers every project of its owner can call it, as `loupe login` grants. Any other token, such as one bound to one project, gets `403` with `credential_not_owner_wide`. Each token can create 10 projects a minute.
+
 ## Agent readiness
 
 Project settings has an Agent readiness tab. Only the project owner can open it.
-The Discovery part shows the state of the latest discovery run, with the same status as the Repository row of the [readiness guide](workshop.md#run-discovery).
+The Discovery part shows the state of the latest discovery run, with the same status as the Run discovery row of the [readiness guide](workshop.md#run-discovery).
 The Agent GitHub account part links to the page that sets up a [GitHub user for the agents](../getting-started/agent-github-account.md).
-The Workshop guide part has one switch, "Show the readiness checklist on the Workshop".
+The Workshop guide part has one switch, "Show the readiness checklist".
 Turn it on and select Save to show the [readiness guide](workshop.md#the-readiness-guide) on the Workshop again.
 Turn it off and select Save to hide the guide.
 While the guide is hidden, the tab shows the date it was hidden.
@@ -86,6 +96,10 @@ GitHub then asks you to authorize Loupe. Loupe connects the installation only wh
 The repositories of the installation that your GitHub account can reach join the list at once. Under "All repositories", each other repository joins on its first delivery.
 When you add or remove a repository in the App settings on GitHub, the list follows.
 The section says when GitHub suspends the installation or when someone uninstalls it.
+
+The Connect page has a Git identity panel with the switch "Loupe manages the git identity of agents". The switch is on for every project. When it is on, agents push as the Loupe App, so you can approve their pull requests. Agents push with a token of the App that opens the repository of the project and no other. The panel says when agents cannot push, and names the missing installation or the missing write access. A machine whose bridge runs an older CLI keeps its own git setup, and the panel shows it as Not managed until you run `loupe update` there.
+
+When you turn the switch off, agents use the git setup of each machine. A machine can also fall back to its own git setup while the switch is on. The panel then shows one line for each machine that runs a bridge for the project: the name its commits carry, and the GitHub account it pushes as. When a machine pushes as your own GitHub account, the panel warns you, because GitHub does not let you approve your own pull requests. Use a [separate GitHub account for agents](../getting-started/agent-github-account.md) on that machine.
 
 ### The list
 

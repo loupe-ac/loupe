@@ -4,6 +4,10 @@ The stage skills read this file when the forge is `github`. It maps each forge o
 
 `<n>` is the pull request number. `<nameWithOwner>` is the repository of the checkout, such as `ubermuda/loupe`. Split it into `<owner>` and `<repo>` where a command needs both.
 
+## Get a token
+
+The bridge gives a worker GitHub credentials that end. Git and `gh` ask the bridge for them, so a plain `git push` and a plain `gh` command work. When you need a bare token for another call, run `loupe credential` each time you need one. Never store it, in a file, a variable, or a comment. When `loupe credential` fails, report its stderr line and stop. Do not try another credential.
+
 ## Find and validate the pull request
 
 Run this before any other query or reply:
@@ -200,6 +204,30 @@ gh pr update-branch <url>
 ```
 
 This merges the base into the head branch on the forge. Never pass `--rebase`. Whether an update keeps an approval depends on the branch rules, and the repository profile says it.
+
+## Change the base
+
+The base of a stacked pull request is the head branch of its parent. Find the merged parent, and read its base:
+
+```bash
+gh pr view <url> --json baseRefName -q .baseRefName
+gh pr list --head <parent head branch> --state merged --json url,baseRefName
+```
+
+An empty list means no parent merged. Then change the base to the `baseRefName` of the parent:
+
+```bash
+gh pr edit <url> --base <parent base>
+```
+
+## Merge a branch into the epic branch
+
+```bash
+git ls-remote --exit-code origin refs/heads/<epic branch>
+gh api repos/<nameWithOwner>/merges -f base='<epic branch>' -f head='<base>' -i
+```
+
+A non-zero exit of `git ls-remote` means the epic branch does not exist. The forge makes the merge commit on the epic branch. The status line reports the result: `201` merged, `204` already up to date, and `409` a conflict. Any other status is a failed step.
 
 ## Merge
 

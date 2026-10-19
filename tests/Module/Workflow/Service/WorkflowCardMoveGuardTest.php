@@ -248,7 +248,7 @@ final class WorkflowCardMoveGuardTest extends KernelTestCase
         $projects = self::getContainer()->get(ProjectRepository::class);
         self::assertInstanceOf(ProjectRepository::class, $projects);
 
-        return new WorkflowCardMoveGuard($automation, $ledger, $templates, $facts, $projects);
+        return new WorkflowCardMoveGuard($automation, $ledger, $templates, $facts, $projects, []);
     }
 
     private function boardAutomation(): BoardAutomation

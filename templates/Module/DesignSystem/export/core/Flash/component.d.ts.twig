@@ -11,6 +11,10 @@ export interface {{ entry.name }}Props {
     severity?: 'success' | 'error' | 'warning' | 'info';
     /** The text of the dismiss button. Leave it out for a message with no button. */
     dismissLabel?: string;
+    /** A heading on its own line above the message. Makes the block form. */
+    title?: string;
+    /** A row of buttons under the message. Makes the block form. */
+    actions?: ReactNode;
     /** Draws the coloured dot. True by default. */
     dot?: boolean;
     className?: string;

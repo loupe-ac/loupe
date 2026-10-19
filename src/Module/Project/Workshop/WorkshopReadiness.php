@@ -20,13 +20,32 @@ final readonly class WorkshopReadiness
         return array_find($this->rows, static fn (WorkshopReadinessRow $row): bool => $key === $row->key);
     }
 
+    /** Only the required rows count. */
     public function doneCount(): int
     {
-        return \count(array_filter($this->rows, static fn (WorkshopReadinessRow $row): bool => $row->done));
+        return \count(array_filter($this->rows, static fn (WorkshopReadinessRow $row): bool => $row->required() && $row->done));
     }
 
     public function total(): int
     {
-        return \count($this->rows);
+        return \count(array_filter($this->rows, static fn (WorkshopReadinessRow $row): bool => $row->required()));
+    }
+
+    /**
+     * The rows by section, in the order of the guide. A section with no row is left out.
+     *
+     * @return array<string, list<WorkshopReadinessRow>>
+     */
+    public function groups(): array
+    {
+        $groups = [];
+        foreach ([WorkshopReadinessRow::GROUP_DISCOVERY, WorkshopReadinessRow::GROUP_PULL_REQUESTS, WorkshopReadinessRow::GROUP_OPTIONAL] as $group) {
+            $rows = array_values(array_filter($this->rows, static fn (WorkshopReadinessRow $row): bool => $group === $row->group));
+            if ([] !== $rows) {
+                $groups[$group] = $rows;
+            }
+        }
+
+        return $groups;
     }
 }

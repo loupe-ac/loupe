@@ -38,9 +38,13 @@ type tomlConfig struct {
 }
 
 type serverConf struct {
-	DefaultToolsApprovalMode string `toml:"default_tools_approval_mode"`
-	StartupTimeoutSec        any    `toml:"startup_timeout_sec"`
-	StartupTimeoutMs         any    `toml:"startup_timeout_ms"`
+	Command                  string   `toml:"command"`
+	Args                     []string `toml:"args"`
+	URL                      string   `toml:"url"`
+	Enabled                  *bool    `toml:"enabled"`
+	DefaultToolsApprovalMode string   `toml:"default_tools_approval_mode"`
+	StartupTimeoutSec        any      `toml:"startup_timeout_sec"`
+	StartupTimeoutMs         any      `toml:"startup_timeout_ms"`
 }
 
 type providerConf struct {
@@ -247,34 +251,55 @@ func (h Harness) mcpProblems(ctx context.Context, binary, home, slug, dir string
 	if err != nil {
 		return fail("loupe MCP server not declared", fix)
 	}
-	var got struct {
-		Enabled   bool `json:"enabled"`
-		Transport struct {
-			Type    string   `json:"type"`
-			Command string   `json:"command"`
-			Args    []string `json:"args"`
-		} `json:"transport"`
-	}
-	if err := json.Unmarshal(out, &got); err != nil {
+	decl, err := ParseDeclaration(out)
+	if err != nil {
 		return fail("MCP check could not read the loupe MCP server", "codex mcp get --json did not print JSON; "+fix)
 	}
-	tr := got.Transport
-	if tr.Type != "stdio" || filepath.Base(tr.Command) != "loupe" || len(tr.Args) != 1 || tr.Args[0] != "mcp" {
-		shown := "type " + tr.Type
-		if tr.Type == "stdio" {
-			shown = "command " + filepath.Base(tr.Command)
-		}
-
-		return fail("loupe MCP server is not loupe mcp", "the server runs "+shown+"; "+fix)
+	if !decl.StartsLoupeMcp() {
+		return fail("loupe MCP server is not loupe mcp", "the server runs "+decl.Summary()+"; "+fix)
 	}
-	if !got.Enabled {
+	if !decl.Enabled {
 		return fail("loupe MCP server is disabled", "set enabled = true under [mcp_servers.loupe] in "+filepath.Join(home, "config.toml"))
 	}
-	if _, err := envfile.LookPath(tr.Command, env, dir); err != nil {
+	if _, err := envfile.LookPath(decl.Transport.Command, env, dir); err != nil {
 		return fail("loupe is not on PATH", err.Error())
 	}
 
 	return h.approvalProblems(home, slug)
+}
+
+// Declaration is what `codex mcp get <name> --json` prints about one server.
+type Declaration struct {
+	Enabled   bool `json:"enabled"`
+	Transport struct {
+		Type    string   `json:"type"`
+		Command string   `json:"command"`
+		Args    []string `json:"args"`
+	} `json:"transport"`
+}
+
+// ParseDeclaration reads the output of `codex mcp get <name> --json`.
+func ParseDeclaration(out []byte) (Declaration, error) {
+	var d Declaration
+	err := json.Unmarshal(out, &d)
+
+	return d, err
+}
+
+// StartsLoupeMcp reports whether the server runs the `loupe mcp` command.
+func (d Declaration) StartsLoupeMcp() bool {
+	tr := d.Transport
+
+	return tr.Type == "stdio" && filepath.Base(tr.Command) == "loupe" && len(tr.Args) == 1 && tr.Args[0] == "mcp"
+}
+
+// Summary names what the server runs, such as "command npx".
+func (d Declaration) Summary() string {
+	if d.Transport.Type == "stdio" {
+		return "command " + filepath.Base(d.Transport.Command)
+	}
+
+	return "type " + d.Transport.Type
 }
 
 // approvalProblems checks that the loupe MCP server approves its tools. The

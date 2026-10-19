@@ -109,7 +109,7 @@ func TestStatusPassesWhenLoupeNamesTheProject(t *testing.T) {
 
 func TestStatusFailsWhenTheToolReturnsAnError(t *testing.T) {
 	server, _ := statusServer(t, func() (currentProject, error) {
-		return currentProject{}, errors.New("This login covers several projects. Run `loupe init` in the repository")
+		return currentProject{}, errors.New("This login covers several projects. Run `loupe project link` in the repository")
 	})
 	inRepo(t, server.URL)
 
@@ -117,7 +117,7 @@ func TestStatusFailsWhenTheToolReturnsAnError(t *testing.T) {
 	if err == nil {
 		t.Fatalf("status with a tool error: got no error\n%s", out)
 	}
-	if !strings.Contains(err.Error(), "loupe init") {
+	if !strings.Contains(err.Error(), "loupe project link") {
 		t.Errorf("error must carry the tool's advice, got %v", err)
 	}
 	if got := lastLine(out); got != statusFail {
@@ -161,11 +161,15 @@ func statusRules(t *testing.T, withOut bool) string {
 	return path
 }
 
+// passingStatus serves the project with the slug loupe, the key that
+// noteRules maps.
 func passingStatus(t *testing.T) {
 	t.Helper()
 	server, _ := statusServer(t, func() (currentProject, error) {
 		var p currentProject
+		slug := "loupe"
 		p.Project.ID = projectA
+		p.Project.Slug = &slug
 		p.Project.Name = "Acme site"
 
 		return p, nil
@@ -253,5 +257,93 @@ func TestStatusFailsOnARuleFileThatDoesNotLoad(t *testing.T) {
 	out, err := runStatus(t, "--project", projectA, "--rules", path)
 	if err == nil || !strings.Contains(err.Error(), path) || lastLine(out) != statusFail {
 		t.Fatalf("status: %v\n%s", err, out)
+	}
+}
+
+// noteRules writes a rule file whose account is ready. body follows the
+// accounts block, and dir is the project it maps.
+func noteRules(t *testing.T, dir, body string) string {
+	t.Helper()
+	in := t.TempDir()
+	if err := os.WriteFile(filepath.Join(in, "in"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	text := "accounts:\n  in:\n    harness: claude-code\n    configDir: " + in + "\nprojects:\n  loupe:\n    dir: " + dir + "\n" + body
+	path := filepath.Join(t.TempDir(), "rules.yaml")
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	return path
+}
+
+func TestStatusNotesWhatTheRuleFileLacksAndStillPasses(t *testing.T) {
+	passingStatus(t)
+	path := noteRules(t, readyProject(t), "defaults:\n  account: in\nwork:\n  plan:\n    prompt: go\n")
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	if err != nil || lastLine(out) != statusPass {
+		t.Fatalf("a note must not fail the check: %v\n%s", err, out)
+	}
+	for _, want := range []string{"Rules:       note: it sets no permission default", "Rules:       note: project loupe does not map "} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "it has no prompts") {
+		t.Errorf("a work entry is a prompt:\n%s", out)
+	}
+}
+
+func TestStatusNotesAFileWithNoPrompts(t *testing.T) {
+	passingStatus(t)
+	path := noteRules(t, readyProject(t), "defaults:\n  account: in\n  permissions: workspace\n")
+
+	out, _ := runStatus(t, "--project", projectA, "--rules", path)
+	if !strings.Contains(out, "Rules:       note: it has no prompts") {
+		t.Errorf("output lacks the prompts note:\n%s", out)
+	}
+}
+
+func TestStatusNotesNothingWhenTheRuleFileHasWhatTheDirectoryNeeds(t *testing.T) {
+	passingStatus(t)
+	dir := readyProject(t)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := noteRules(t, dir, "defaults:\n  account: in\n  permissions: workspace\nwork:\n  plan:\n    prompt: go\n")
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	if err != nil || strings.Contains(out, "Rules:       note") {
+		t.Fatalf("status: %v\n%s", err, out)
+	}
+}
+
+func TestStatusNotesARuleFileThatMapsTheDirectoryToAnotherProject(t *testing.T) {
+	passingStatus(t)
+	dir := readyProject(t)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := noteRules(t, readyProject(t), "  other:\n    dir: "+dir+"\ndefaults:\n  account: in\n  permissions: workspace\nwork:\n  plan:\n    prompt: go\n")
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	if err != nil || !strings.Contains(out, "Rules:       note: project loupe does not map ") {
+		t.Fatalf("want the linked project gap: %v\n%s", err, out)
+	}
+}
+
+func TestStatusNotesAProjectMappedUnderItsID(t *testing.T) {
+	passingStatus(t)
+	dir := readyProject(t)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := noteRules(t, readyProject(t), "  "+projectA+":\n    dir: "+dir+"\ndefaults:\n  account: in\n  permissions: workspace\nwork:\n  plan:\n    prompt: go\n")
+
+	out, err := runStatus(t, "--project", projectA, "--rules", path)
+	want := "Rules:       note: project loupe is mapped under projects." + projectA + ", and the bridge takes only projects.loupe. Run `loupe init` to fix it."
+	if err != nil || !strings.Contains(out, want) {
+		t.Fatalf("want %q: %v\n%s", want, err, out)
 	}
 }

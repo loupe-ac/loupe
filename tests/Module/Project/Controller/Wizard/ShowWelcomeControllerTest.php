@@ -91,7 +91,22 @@ final class ShowWelcomeControllerTest extends WebTestCase
         self::assertSame('My first project', $projects[0]->name);
     }
 
-    public function test_the_first_project_takes_the_language_chosen_in_the_wizard(): void
+    public function test_the_wizard_has_no_language_and_no_workflow_field(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $user = $this->createUser($em, 'wizfields', 'wiz-fields@example.com');
+        $em->flush();
+
+        $client->loginUser($user);
+        $crawler = $client->request(Request::METHOD_GET, '/welcome');
+
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $crawler->filter('[name="create_project_form[searchLanguage]"]'));
+        self::assertCount(0, $crawler->filter('[name="create_project_form[workflowTemplate]"]'));
+    }
+
+    public function test_the_first_project_takes_the_language_of_the_browser(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -99,12 +114,10 @@ final class ShowWelcomeControllerTest extends WebTestCase
         $em->flush();
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/welcome');
-        self::assertCount(1, $crawler->filter('select[name="create_project_form[searchLanguage]"]'));
-
+        $client->setServerParameter('HTTP_ACCEPT_LANGUAGE', 'xx-YY,fr-CH;q=0.9,en;q=0.5');
+        $client->request(Request::METHOD_GET, '/welcome');
         $client->submitForm('Create project', [
             'create_project_form[name]' => 'Projet francais',
-            'create_project_form[searchLanguage]' => 'french',
         ]);
 
         self::assertResponseRedirects('/welcome/connect');
@@ -113,28 +126,26 @@ final class ShowWelcomeControllerTest extends WebTestCase
         self::assertSame(SearchLanguage::French, $projects[0]->searchLanguage);
     }
 
-    public function test_the_form_offers_each_workflow_template_with_its_description(): void
+    public function test_the_first_project_is_english_when_the_browser_names_no_known_language(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $user = $this->createUser($em, 'wizworkflowtemplates', 'wiz-workflow-templates@example.com');
+        $user = $this->createUser($em, 'wizlangnone', 'wiz-lang-none@example.com');
         $em->flush();
 
         $client->loginUser($user);
-        $crawler = $client->request(Request::METHOD_GET, '/welcome');
+        $client->setServerParameter('HTTP_ACCEPT_LANGUAGE', 'xx');
+        $client->request(Request::METHOD_GET, '/welcome');
+        $client->submitForm('Create project', [
+            'create_project_form[name]' => 'Default language',
+        ]);
 
-        self::assertResponseIsSuccessful();
-        $radios = $crawler->filter('input[type="radio"][name="create_project_form[workflowTemplate]"]');
-        self::assertSame(['lifecycle', 'simple'], $radios->each(static fn ($radio): string => (string) $radio->attr('value')));
-        self::assertSame('simple', $crawler->filter('input[name="create_project_form[workflowTemplate]"][checked]')->attr('value'));
-        $field = $crawler->filter('[data-workflow-template-field]');
-        self::assertStringContainsString('Lifecycle', $field->text());
-        self::assertStringContainsString('Simple', $field->text());
-        self::assertStringContainsString('Product design, tech design, implementation and review', $crawler->filter('[data-workflow-template-description="lifecycle"]')->text());
-        self::assertStringContainsString('A merged pull request finishes the card', $crawler->filter('[data-workflow-template-description="simple"]')->text());
+        $projects = static::getContainer()->get(ProjectRepository::class)->findByOwner($user);
+        self::assertCount(1, $projects);
+        self::assertSame(SearchLanguage::English, $projects[0]->searchLanguage);
     }
 
-    public function test_picking_lifecycle_seeds_the_lifecycle_columns(): void
+    public function test_the_first_project_gets_the_lifecycle_columns(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
@@ -145,7 +156,6 @@ final class ShowWelcomeControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/welcome');
         $client->submitForm('Create project', [
             'create_project_form[name]' => 'lifecycle-project',
-            'create_project_form[workflowTemplate]' => 'lifecycle',
         ]);
 
         static::getContainer()->get(EntityManagerInterface::class)->clear();

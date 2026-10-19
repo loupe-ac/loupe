@@ -9,6 +9,10 @@
     .lp-empty-state--compact {
         @apply gap-2 py-6 px-4;
     }
+    /* Inside a panel, whose own fill is already the raised grey. */
+    .lp-empty-state--on-card {
+        @apply border border-line bg-app;
+    }
     .lp-empty-state__icon {
         @apply text-line-strong;
     }

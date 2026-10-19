@@ -445,7 +445,10 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         $live->pauseRequested = true;
         $live->name = 'laptop';
         $live->requestedName = 'laptop';
-        $live->pushLogin = 'acme-agent';
+        $live->gitIdentities = [
+            ['projectId' => (string) $project->id, 'mode' => 'agent_account', 'commitName' => 'Acme Agent', 'pushLogin' => 'acme-agent', 'githubUserId' => 7],
+            ['projectId' => (string) $other->id, 'mode' => 'machine', 'commitName' => 'Elsewhere', 'pushLogin' => 'other', 'githubUserId' => null],
+        ];
         $live->accounts = [['name' => 'work', 'harness' => 'claude-code', 'state' => 'failing', 'reason' => 'not logged in']];
         $live->accountsReportedAt = new \DateTimeImmutable('2026-09-30 10:59:00');
         $quiet = $this->seedBridge($em, $project->owner, projects: [(string) $project->id], lastSeenAt: new \DateTimeImmutable('-1 day'));
@@ -468,7 +471,7 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         self::assertSame('1.6.0', $row['cliVersion']);
         self::assertSame('laptop', $row['name']);
         self::assertSame('laptop', $row['requestedName']);
-        self::assertSame('acme-agent', $row['pushLogin']);
+        self::assertSame(['mode' => 'agent_account', 'commitName' => 'Acme Agent', 'pushLogin' => 'acme-agent', 'githubUserId' => 7], $row['gitIdentity']);
         self::assertTrue($row['pauseRequested']);
         self::assertNull($row['pausedReported']);
         self::assertTrue($row['takesCommands']);
@@ -485,7 +488,7 @@ final class WorkerRunReadToolsTest extends KernelTestCase
         self::assertSame('quiet', $bridges[$quiet->id->toRfc4122()]['liveness']);
         self::assertNull($bridges[$quiet->id->toRfc4122()]['name']);
         self::assertSame('laptop', $bridges[$quiet->id->toRfc4122()]['requestedName']);
-        self::assertNull($bridges[$quiet->id->toRfc4122()]['pushLogin']);
+        self::assertNull($bridges[$quiet->id->toRfc4122()]['gitIdentity']);
         self::assertFalse($bridges[$quiet->id->toRfc4122()]['takesCommands']);
         self::assertFalse($bridges[$quiet->id->toRfc4122()]['takesReruns']);
         self::assertFalse($bridges[$quiet->id->toRfc4122()]['acceptsEntries']);

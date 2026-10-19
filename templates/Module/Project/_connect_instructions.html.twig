@@ -1,7 +1,6 @@
-{#- MCP connect instructions: the setup prompt, the endpoint, the three ways to
-    wire it up, and the two agent skills. Shared by the full connect page and the
-    first-run wizard's connect step. Props: mcpServerName (string), projectId
-    (string). -#}
+{#- The other ways to connect: the setup prompt, the endpoint, the two ways to
+    wire it up by hand, and the two agent skills. Props: mcpServerName (string),
+    projectId (string). -#}
 {%- set mcpUrl = url('_mcp_endpoint') -%}
 {%- set setupPrompt = [
     'Set up Loupe for this repository. Run',
@@ -11,13 +10,6 @@
 {%- set claudeCommand = [
     'claude mcp add --transport http ' ~ mcpServerName ~ ' ' ~ mcpUrl,
     'claude mcp login ' ~ mcpServerName
-]|join("\n") -%}
-{#- The Homebrew line is a comment, so pasting the whole block installs once. -#}
-{%- set loupeCommand = [
-    'curl -fsSL ' ~ url('app_install_script') ~ ' | sh',
-    '# ' ~ 'project.connect.loupe_cli.homebrew'|trans ~ ' brew install ubermuda/tap/loupe',
-    'loupe login --url ' ~ url('app_home')|trim('/', 'right'),
-    'loupe init'
 ]|join("\n") -%}
 {%- set mcpJson = [
     "{",
@@ -37,22 +29,12 @@
     this line. -#}
 {%- set methods = [
     {
-        icon: 'lucide:terminal',
-        heading: 'project.connect.loupe_cli.heading',
-        id: 'loupe_cli',
-        sub: 'project.connect.loupe_cli.sub',
-        label: 'project.connect.loupe_cli.label',
-        command: loupeCommand,
-        recommended: false,
-    },
-    {
         icon: 'lucide:code',
         heading: 'project.connect.cli.heading',
         id: 'cli',
         sub: 'project.connect.cli.sub',
         label: 'project.connect.cli.label',
         command: claudeCommand,
-        recommended: false,
     },
     {
         icon: 'lucide:file-text',
@@ -61,14 +43,12 @@
         sub: 'project.connect.mcp_json.sub',
         label: 'project.connect.mcp_json.label',
         command: mcpJson,
-        recommended: false,
     },
 ] -%}
 
 <div class="lp-connect-block">
     <div class="lp-connect-block__heading">
         <p class="lp-eyebrow">{{ 'project.connect.setup_prompt.heading'|trans }}</p>
-        <span class="lp-connect-tag">{{ 'project.connect.methods.recommended'|trans }}</span>
     </div>
     <p class="lp-connect-hint">{{ 'project.connect.setup_prompt.hint'|trans }}</p>
     <twig:Ds:CodeBlock
@@ -89,8 +69,8 @@
     </div>
 </div>
 
-{#- Collapsed by default, all three: a reader picks the one client they use, and
-    an expanded block is three-quarters of a page nobody else needs. -#}
+{#- Collapsed by default: a reader picks the one client they use, and an
+    expanded block is half a page nobody else needs. -#}
 <div class="lp-connect-block">
     <p class="lp-eyebrow">{{ 'project.connect.methods.eyebrow'|trans }}</p>
     <div class="lp-install-list">
@@ -102,9 +82,6 @@
                     <span class="lp-install__title">{{ method.heading|trans }}</span>
                     <span class="lp-install__sub">{{ method.sub|trans }}</span>
                 </span>
-                {% if method.recommended %}
-                <span class="lp-connect-tag">{{ 'project.connect.methods.recommended'|trans }}</span>
-                {% endif %}
                 <twig:ux:icon name="lucide:chevron-right" class="lp-install__caret" />
             </summary>
             <div class="lp-install__body">

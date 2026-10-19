@@ -131,11 +131,52 @@ final class FailDiscoveryListenersTest extends KernelTestCase
     /** @return iterable<string, array{WorkerRunState, ?string, string}> */
     public static function endedRuns(): iterable
     {
-        yield 'stopped by a person' => [WorkerRunState::Stopped, null, 'stopped'];
-        yield 'timed out' => [WorkerRunState::TimedOut, null, 'timed-out'];
-        yield 'lost' => [WorkerRunState::Lost, null, 'lost'];
-        yield 'succeeded with no report' => [WorkerRunState::Succeeded, null, 'succeeded'];
+        yield 'stopped by a person' => [WorkerRunState::Stopped, null, 'worker-ended'];
+        yield 'timed out' => [WorkerRunState::TimedOut, null, 'worker-ended'];
+        yield 'lost' => [WorkerRunState::Lost, null, 'worker-ended'];
+        yield 'succeeded with no report' => [WorkerRunState::Succeeded, null, 'worker-ended'];
         yield 'not started, with a reason' => [WorkerRunState::NotStarted, 'claude: command not found', 'claude: command not found'];
+    }
+
+    public function test_a_revise_worker_that_ends_fails_a_revising_run_and_cancels_its_request(): void
+    {
+        self::bootKernel();
+        [$card, $run] = $this->requestedDiscovery();
+        $run->state = DiscoveryRunState::Revising;
+        $revise = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException(), $card->number, 'discovery-revise', 'discovery-revise', 'discovery-revise', new \DateTimeImmutable());
+        $revise->state = WorkRequestState::Claimed;
+        $this->em()->persist($revise);
+        $this->em()->flush();
+
+        $this->dispatch(...WorkerRunChanged::ofRuns([$this->workerRun($card, 'discovery-revise', WorkerRunState::Lost)]));
+
+        self::assertSame([DiscoveryRunState::Failed, 'worker-ended'], [$run->state, $run->failureReason]);
+        self::assertSame(WorkRequestState::Cancelled, $revise->state);
+    }
+
+    public function test_a_late_discovery_worker_leaves_a_revising_run_alone(): void
+    {
+        self::bootKernel();
+        [$card, $run] = $this->requestedDiscovery();
+        $run->state = DiscoveryRunState::Revising;
+        $this->em()->flush();
+
+        $this->dispatch(...WorkerRunChanged::ofRuns([$this->workerRun($card, 'discovery', WorkerRunState::Lost)]));
+
+        self::assertSame(DiscoveryRunState::Revising, $run->state);
+    }
+
+    public function test_a_revising_run_opens_a_revise_request_and_a_requested_run_does_not(): void
+    {
+        self::bootKernel();
+        [$card, $run] = $this->requestedDiscovery();
+        $run->state = DiscoveryRunState::Revising;
+        $this->em()->flush();
+
+        $this->evaluate($card, '2026-10-02 12:05:00');
+
+        $kinds = array_map(static fn (WorkRequest $request): string => $request->kind, $this->liveRequests($card));
+        self::assertContains('discovery-revise', $kinds);
     }
 
     /** These runs leave the work to a later run, so discovery goes on. */
@@ -263,7 +304,9 @@ final class FailDiscoveryListenersTest extends KernelTestCase
 
     private function liveBridge(Project $project): void
     {
-        $this->em()->persist(new Bridge(AgentCredential::managed($this->em(), $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable()));
+        $bridge = new Bridge(AgentCredential::managed($this->em(), $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $this->em()->persist($bridge);
         $this->em()->flush();
     }
 

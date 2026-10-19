@@ -7,6 +7,7 @@ namespace App\Module\Bridge\Command;
 use App\Module\Bridge\Entity\Bridge;
 use App\Module\Bridge\Event\BridgeAvailabilityChanged;
 use App\Module\Bridge\Event\BridgeNameChanged;
+use App\Module\Bridge\Event\BridgeReported;
 use App\Module\Bridge\Repository\BridgeCommandRepository;
 use App\Module\Bridge\Repository\BridgeHostSampleRepository;
 use App\Module\Bridge\Repository\BridgeRepository;
@@ -114,6 +115,10 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->worktrees = $command->worktrees;
                 $bridge->worktreesReportedAt = $now;
             }
+            if (null !== $command->repositories) {
+                $bridge->repositories = $command->repositories;
+                $bridge->repositoriesReportedAt = $now;
+            }
             $pauseChanged = null !== $command->paused && $bridge->pausedReported !== $command->paused;
             if (null !== $command->paused) {
                 $bridge->pausedReported = $command->paused;
@@ -122,8 +127,13 @@ final readonly class RecordBridgeHeartbeatHandler
                 $bridge->capabilities = $command->capabilities;
             }
             $bridge->workKinds = $command->workKinds;
-            if (null !== $command->pushLogin) {
-                $bridge->pushLogin = '' === $command->pushLogin ? null : $command->pushLogin;
+            if (null !== $command->gitIdentities) {
+                $bridge->gitIdentities = $command->gitIdentities;
+                $bridge->gitIdentitiesReportedAt = $now->modify(\sprintf('-%d seconds', $command->gitIdentitiesAge));
+            } elseif (!\in_array(Bridge::CAPABILITY_GIT_IDENTITIES, $command->capabilities ?? [], true)) {
+                // An older CLI pushes with the git setup of the machine, so the rows of a newer one no longer hold.
+                $bridge->gitIdentities = null;
+                $bridge->gitIdentitiesReportedAt = null;
             }
             // A new bridge and a bridge back from quiet change what the waiting cards can expect.
             $availabilityChanged = $created
@@ -211,6 +221,8 @@ final readonly class RecordBridgeHeartbeatHandler
         if ($availabilityChanged) {
             $this->events->dispatch(new BridgeAvailabilityChanged(array_values(array_unique([...$followedBefore, ...$projects]))));
         }
+
+        $this->events->dispatch(new BridgeReported(array_values(array_unique([...$followedBefore, ...$projects]))));
 
         if ([] !== $renamedIn) {
             $this->events->dispatch(new BridgeNameChanged($this->projects->findOwnedBy($command->owner, $renamedIn)));

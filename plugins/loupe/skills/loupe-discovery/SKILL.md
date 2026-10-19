@@ -21,7 +21,7 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 
 1. Call `readiness_get`. Each of its `rows` has a `key`, `done` and `status`. The keys are `agent`, `workflow`, `bridge`, `github`, `agent_account` and `repository`. These rows tell you what Loupe sees of the setup.
 2. Read the `discovery` field of `readiness_get`. It is the latest run of the project. Its `cardNumber` must be the card number of your prompt. If it is not, stop and report the mismatch.
-3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is not `requested`, the run takes no report, so stop and report the state.
+3. Keep `discovery.runId`. It is the `runId` that `readiness_report_submit` takes. When `discovery.state` is `revising`, follow "Revising a report" below. When it is neither `requested` nor `revising`, the run takes no report, so stop and report the state.
 4. Call `workflow_get`. It returns the `template` with its `key` and `version`, and the `columns`. Its `kinds` list each kind of work that the workflow asks a bridge to do. Each kind has an `origin` of `template` or `app`, the `rules` that ask for it, and its `checks`. The checks name what that work needs.
 5. Read the repository. Find the build and test commands, the CI config and the agent instruction files, such as `AGENTS.md` or `CLAUDE.md`. Read `.loupe/lifecycle.md` and its sections when the file exists. Read the git remote.
 6. Apply the generic checks.
@@ -29,6 +29,7 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
    - An instructions file for agents, such as `AGENTS.md` or `CLAUDE.md`.
    - The GitHub remote, the GitHub App, the bridge and the agent GitHub account. Use the `readiness_get` rows for what Loupe sees.
    - The browser tool of the visual check is installed, and an agent can use it. The tool is the one that the profile `Visual check` section names, or Playwright when the section is missing or names none. Find it in the repository and its installed copy, such as a `package.json` for Playwright. From a new temporary directory, launch it headless, take one screenshot of a static HTML file, and read the image. A missing tool is a suggested finding. Propose a card that installs the tool, or that makes its browser start. The stage skills use it for the visual check of `loupe-stage-implementation/references/visual-check.md`. Check neither the profile section nor the app.
+   - The repository profile, `.loupe/lifecycle.md`. Every stage reads it. When the file is missing, or git does not track it, the check is a suggested finding: the owner runs `loupe init`, then commits the file. Otherwise search it for the text "detected, check it". `loupe init` writes that text after each value it guessed. Compare each marked value with the repository, the CI config and the agent instruction files. A gate command that does not exist, or that CI does not run, is a wrong value. A check that CI runs before a merge and the gate lacks is a missing value, so propose it too. Write one proposal for each wrong value. The body names the section, the line, the value and the correct value. The proposal removes the marker from the line it fixes. A marked value that is right also loses its marker, so list it in the evidence and propose no card.
    - Each setup step that an agent cannot do through the MCP. For example, only the owner can install the GitHub App in a browser, and no tool changes the workflow template.
 7. Apply each check of each kind against the repository. A kind can have an empty `checks` list. A write fallback, such as `sync` or `merge`, carries no list. Write no finding for such a kind. Name it in the `summary` as a kind that only the generic checks cover.
    - A check that starts with a condition, such as "When the project has a user interface", gets no finding when the project does not meet the condition. Name it in the `summary` as skipped, with the reason.
@@ -43,8 +44,19 @@ You can run commands that only read, such as `git remote -v`, `ls` or `cat`. Do 
 12. Open a review of the report in the inbox. Call `inbox_ask` with one item of `kind` `review`, `reviewDocumentId` set to the `documentId`, and `cardIds` set to the `cardId`. Pass `sessionId` and `bridgeId` from the footer line "Your session id is … and your bridge id is …". Leave `blocking` false, so the ask closes at once. Loupe does not put the report in the inbox for you. When the prompt has no such line, the inbox is off, so skip this step.
 13. End with a short reply that gives the report `url` and the number of suggestions.
 
+## Revising a report
+
+The prompt of a revision names the kind `discovery-revise`. The owner asked for changes to the report, and the run is `revising`.
+
+1. Read the report document with `document_get`. The `discovery` field of `readiness_get` names the card, and the card links the document with the tag `readiness-report`.
+2. Read the comments with `document_get_review`. Address each comment, and check the repository again where a comment asks for it.
+3. Call `readiness_report_submit` with the same `runId`, and the whole revised `workflow`, `findings`, `proposals` and `summary`. Loupe stores a new version of the same document, and replaces the proposals that made no card.
+4. End with the report `url`. Skip step 12 of the steps above: the owner already has the report in the inbox.
+
+If the owner approves the report while you revise it, the tool refuses your submit. Report the refusal and stop.
+
 ## When something fails
 
 A tool refusal names its fix. When the fix is a change that discovery must not make, stop and report the refusal in your final reply.
 
-Two refusals of `readiness_report_submit` mean that the run takes no report: "This run does not wait for a report now" and "This run has a report already". Do not retry, and do not start a new run. Report the refusal and stop.
+Two refusals of `readiness_report_submit` mean that the run takes no report: "This run does not wait for a report now" and "This run has a report already". A revising run takes a report. Do not retry, and do not start a new run. Report the refusal and stop.

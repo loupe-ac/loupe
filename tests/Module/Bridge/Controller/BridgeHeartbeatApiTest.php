@@ -10,6 +10,7 @@ use App\Module\Bridge\Controller\Api\BridgeCommandEntryInput;
 use App\Module\Bridge\Controller\Api\BridgeCommandParamInput;
 use App\Module\Bridge\Controller\Api\BridgeHookInput;
 use App\Module\Bridge\Controller\Api\BridgeHostSampleInput;
+use App\Module\Bridge\Controller\Api\BridgeRepositoryInput;
 use App\Module\Bridge\Controller\Api\BridgeWorktreeInput;
 use App\Module\Bridge\Controller\Api\RecordBridgeHeartbeatRequest;
 use App\Module\Bridge\Entity\Bridge;
@@ -449,6 +450,32 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         $bridge = $this->bridge($owner, $bridgeId);
         self::assertSame([], $bridge->commandEntries);
         self::assertSame([], $bridge->worktrees);
+    }
+
+    public function test_the_repositories_are_stored_kept_and_cleared(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-repositories@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $projectId = strtoupper((string) Uuid::v7());
+        $base = ['projects' => [], 'cliVersion' => 'b4e39aa7'];
+
+        $this->put($client, $bridgeId, $raw, $base + ['repositories' => [['projectId' => $projectId, 'path' => '/work/loupe', 'remoteUrl' => 'git@github.com:acme/loupe.git'], ['projectId' => $projectId, 'path' => '/work/other']]]);
+
+        self::assertResponseStatusCodeSame(200);
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertSame([
+            ['projectId' => strtolower($projectId), 'path' => '/work/loupe', 'remoteUrl' => 'git@github.com:acme/loupe.git'],
+            ['projectId' => strtolower($projectId), 'path' => '/work/other', 'remoteUrl' => ''],
+        ], $bridge->repositories);
+        self::assertNotNull($bridge->repositoriesReportedAt);
+
+        $this->put($client, $bridgeId, $raw, $base);
+        self::assertCount(2, $this->bridge($owner, $bridgeId)->repositories ?? []);
+
+        $this->put($client, $bridgeId, $raw, $base + ['repositories' => []]);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->repositories);
     }
 
     /** A bridge from before accounts sends none, so its heartbeat leaves the stored rows alone. */
@@ -926,6 +953,16 @@ final class BridgeHeartbeatApiTest extends WebTestCase
      *
      * @return array<string, mixed>
      */
+    private static function repository(array $overrides = []): array
+    {
+        return array_merge(['projectId' => (string) Uuid::v7(), 'path' => '/work/main', 'remoteUrl' => 'git@github.com:acme/loupe.git'], $overrides);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
     private static function worktree(array $overrides = []): array
     {
         return array_merge(['projectId' => (string) Uuid::v7(), 'branch' => 'main', 'path' => '/work/main'], $overrides);
@@ -1038,6 +1075,12 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a command param with no name' => [['commandEntries' => [self::commandEntry(['params' => [['name' => null, 'pattern' => 'a']]])]]];
         yield 'a command param with no pattern' => [['commandEntries' => [self::commandEntry(['params' => [['name' => 'out', 'pattern' => '']]])]]];
         yield 'a command param pattern that is too long' => [['commandEntries' => [self::commandEntry(['params' => [['name' => 'out', 'pattern' => str_repeat('a', BridgeCommandParamInput::MAX_PATTERN_LENGTH + 1)]]])]]];
+        yield 'repositories that are not a list' => [['repositories' => 'main']];
+        yield 'too many repositories' => [['repositories' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_REPOSITORIES + 1, self::repository())]];
+        yield 'a repository with a project id that is not a uuid' => [['repositories' => [self::repository(['projectId' => 'loupe'])]]];
+        yield 'a repository with no path' => [['repositories' => [self::repository(['path' => ''])]]];
+        yield 'a repository path that is too long' => [['repositories' => [self::repository(['path' => str_repeat('a', BridgeRepositoryInput::MAX_PATH_LENGTH + 1)])]]];
+        yield 'a repository remote that is too long' => [['repositories' => [self::repository(['remoteUrl' => str_repeat('a', BridgeRepositoryInput::MAX_REMOTE_URL_LENGTH + 1)])]]];
         yield 'worktrees that are not a list' => [['worktrees' => 'main']];
         yield 'too many worktrees' => [['worktrees' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_WORKTREES + 1, self::worktree())]];
         yield 'a worktree with a project id that is not a uuid' => [['worktrees' => [self::worktree(['projectId' => 'loupe'])]]];
@@ -1105,14 +1148,20 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         yield 'a name that is too long' => [['name' => str_repeat('a', Bridge::MAX_NAME_LENGTH + 1)]];
         yield 'a name with a control character' => [['name' => "lap\x01top"]];
         yield 'a name that is not a string' => [['name' => 7]];
-        yield 'a push login with a leading hyphen' => [['pushLogin' => '-acme']];
-        yield 'a push login with a trailing hyphen' => [['pushLogin' => 'acme-']];
-        yield 'a push login with two hyphens in a row' => [['pushLogin' => 'acme--agent']];
-        yield 'a push login with an underscore' => [['pushLogin' => 'acme_agent']];
-        yield 'a push login that is too long' => [['pushLogin' => str_repeat('a', 40)]];
-        yield 'a push login with a trailing newline' => [['pushLogin' => "acme\n"]];
-        yield 'a blank push login' => [['pushLogin' => '   ']];
-        yield 'a push login that is not a string' => [['pushLogin' => 7]];
+        yield 'a git identity with a bad project id' => [['gitIdentities' => [self::identity(['projectId' => 'loupe'])]]];
+        yield 'a git identity with no project id' => [['gitIdentities' => [self::identity(['projectId' => null])]]];
+        yield 'a git identity with an unknown mode' => [['gitIdentities' => [self::identity(['mode' => 'ssh'])]]];
+        yield 'a git identity with no mode' => [['gitIdentities' => [self::identity(['mode' => null])]]];
+        yield 'a git identity with a commit name that is too long' => [['gitIdentities' => [self::identity(['commitName' => str_repeat('a', 256)])]]];
+        yield 'a git identity with a login with a leading hyphen' => [['gitIdentities' => [self::identity(['pushLogin' => '-acme'])]]];
+        yield 'a git identity with a login that is too long' => [['gitIdentities' => [self::identity(['pushLogin' => str_repeat('a', 40)])]]];
+        yield 'a git identity with a login with an underscore' => [['gitIdentities' => [self::identity(['pushLogin' => 'acme_agent'])]]];
+        yield 'a git identity with a user id of zero' => [['gitIdentities' => [self::identity(['githubUserId' => 0])]]];
+        yield 'a git identity with a user id that is not a number' => [['gitIdentities' => [self::identity(['githubUserId' => 'abc'])]]];
+        yield 'git identities that are not a list' => [['gitIdentities' => 'loupe']];
+        yield 'too many git identities' => [['gitIdentities' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_GIT_IDENTITIES + 1, self::identity())]];
+        yield 'a negative git identities age' => [['gitIdentitiesAge' => -1]];
+        yield 'a git identities age that is too large' => [['gitIdentitiesAge' => RecordBridgeHeartbeatRequest::MAX_GIT_IDENTITIES_AGE + 1]];
     }
 
     /** @param array<string, mixed> $overrides */
@@ -1365,46 +1414,134 @@ final class BridgeHeartbeatApiTest extends WebTestCase
         self::assertTrue($client->getResponse()->headers->has('Retry-After'));
     }
 
-    public function test_the_push_login_is_stored(): void
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private static function identity(array $overrides = []): array
+    {
+        return $overrides + ['projectId' => '0199f3a4-0000-7000-8000-000000000001', 'mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 42];
+    }
+
+    public function test_the_git_identities_are_stored_with_the_report_time(): void
     {
         $client = static::createClient();
-        $owner = $this->user($this->em(), 'heartbeat-push-login@example.com');
+        $owner = $this->user($this->em(), 'heartbeat-git-identities@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+        $projectId = '0199F3A4-0000-7000-8000-000000000001';
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [
+            self::identity(['projectId' => $projectId]),
+            self::identity(['mode' => 'agent_account', 'commitName' => '', 'pushLogin' => '', 'githubUserId' => null]),
+        ]]);
+
+        self::assertResponseStatusCodeSame(200);
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertSame([
+            ['projectId' => strtolower($projectId), 'mode' => 'machine', 'commitName' => 'Riley', 'pushLogin' => 'riley-dev', 'githubUserId' => 42],
+            ['projectId' => '0199f3a4-0000-7000-8000-000000000001', 'mode' => 'agent_account', 'commitName' => '', 'pushLogin' => '', 'githubUserId' => null],
+        ], $bridge->gitIdentities);
+        self::assertNotNull($bridge->gitIdentitiesReportedAt);
+    }
+
+    public function test_the_git_identities_are_dated_from_the_read_of_the_bridge(): void
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        $clock = new MockClock('2026-10-18 16:00:00');
+        static::getContainer()->set('clock', $clock);
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-age@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()]]);
+        $clock->modify('2026-10-18 16:09:00');
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()], 'gitIdentitiesAge' => 540]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame('2026-10-18 16:00:00', $this->bridge($owner, $bridgeId)->gitIdentitiesReportedAt?->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_heartbeat_carries_a_git_identity_for_each_project_it_can_name(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-many@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => array_fill(0, RecordBridgeHeartbeatRequest::MAX_PROJECTS, self::identity())]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertCount(RecordBridgeHeartbeatRequest::MAX_PROJECTS, $this->bridge($owner, $bridgeId)->gitIdentities ?? []);
+    }
+
+    public function test_a_heartbeat_without_git_identities_keeps_the_stored_rows(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-absent@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()]]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'capabilities' => ['git-identities']]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'capabilities' => ['git-identities'], 'gitIdentities' => null]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertCount(1, $this->bridge($owner, $bridgeId)->gitIdentities ?? []);
+    }
+
+    /** @return iterable<string, array{array<string, mixed>}> */
+    public static function olderCliHeartbeats(): iterable
+    {
+        yield 'capabilities without git-identities' => [['capabilities' => ['commands']]];
+        yield 'no capabilities' => [[]];
+    }
+
+    /** @param array<string, mixed> $heartbeat */
+    #[DataProvider('olderCliHeartbeats')]
+    public function test_a_heartbeat_from_an_older_cli_clears_the_git_identities(array $heartbeat): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-older-cli@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'capabilities' => ['git-identities'], 'gitIdentities' => [self::identity()]]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', ...$heartbeat]);
+
+        self::assertResponseStatusCodeSame(200);
+        $bridge = $this->bridge($owner, $bridgeId);
+        self::assertNull($bridge->gitIdentities);
+        self::assertNull($bridge->gitIdentitiesReportedAt);
+    }
+
+    public function test_an_empty_list_clears_the_git_identities(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-git-identities-clear@example.com');
+        $raw = $this->agentToken($client, $owner);
+        $bridgeId = (string) Uuid::v4();
+
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => [self::identity()]]);
+        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'gitIdentities' => []]);
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertSame([], $this->bridge($owner, $bridgeId)->gitIdentities);
+    }
+
+    public function test_the_push_login_of_an_old_bridge_is_accepted_and_ignored(): void
+    {
+        $client = static::createClient();
+        $owner = $this->user($this->em(), 'heartbeat-old-push-login@example.com');
         $raw = $this->agentToken($client, $owner);
         $bridgeId = (string) Uuid::v4();
 
         $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'pushLogin' => 'Acme-Agent-2']);
 
         self::assertResponseStatusCodeSame(200);
-        self::assertSame('Acme-Agent-2', $this->bridge($owner, $bridgeId)->pushLogin);
-    }
-
-    public function test_a_heartbeat_without_a_push_login_keeps_the_stored_one(): void
-    {
-        $client = static::createClient();
-        $owner = $this->user($this->em(), 'heartbeat-push-login-absent@example.com');
-        $raw = $this->agentToken($client, $owner);
-        $bridgeId = (string) Uuid::v4();
-
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'pushLogin' => 'acme-agent']);
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7']);
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'pushLogin' => null]);
-
-        self::assertResponseStatusCodeSame(200);
-        self::assertSame('acme-agent', $this->bridge($owner, $bridgeId)->pushLogin);
-    }
-
-    public function test_an_empty_push_login_clears_the_stored_one(): void
-    {
-        $client = static::createClient();
-        $owner = $this->user($this->em(), 'heartbeat-push-login-clear@example.com');
-        $raw = $this->agentToken($client, $owner);
-        $bridgeId = (string) Uuid::v4();
-
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'pushLogin' => 'acme-agent']);
-        $this->put($client, $bridgeId, $raw, ['projects' => [], 'cliVersion' => 'b4e39aa7', 'pushLogin' => '']);
-
-        self::assertResponseStatusCodeSame(200);
-        self::assertNull($this->bridge($owner, $bridgeId)->pushLogin);
+        self::assertNull($this->bridge($owner, $bridgeId)->gitIdentities);
     }
 
     /** @param array<string, mixed> $payload */

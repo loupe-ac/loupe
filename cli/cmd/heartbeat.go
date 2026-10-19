@@ -30,7 +30,7 @@ const heartbeatLane = "heartbeat"
 const poolsWindow = 10 * time.Second
 
 // bridgeCapabilities names what this bridge supports to the server.
-var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", rules.CapabilityRunCommand}
+var bridgeCapabilities = []string{"commands", "rerun-command", "session-usage", rules.CapabilityRunCommand, "git-identities"}
 
 // heartbeatSender sends one heartbeat. *api.Client is one.
 type heartbeatSender interface {
@@ -64,6 +64,12 @@ type heartbeater struct {
 	// worktrees reads the worktrees of the followed projects when a heartbeat
 	// goes out. It returns nil on a failure, which sends no list. It may be nil.
 	worktrees func(context.Context) []api.WorktreeReport
+	// repositories reads the folder and origin remote of each followed project
+	// when a heartbeat goes out. It may be nil.
+	repositories func(context.Context) []api.RepositoryReport
+	// gitIdentities reads the cached git identities when a heartbeat goes out.
+	// It may be nil.
+	gitIdentities func(context.Context) ([]api.GitIdentityReport, time.Duration)
 
 	mu   sync.Mutex
 	body api.Heartbeat
@@ -342,6 +348,14 @@ func (h *heartbeater) send() {
 		body.HostSamples, upto = h.pendingHostSamples()
 		if h.worktrees != nil {
 			body.Worktrees = h.worktrees(ctx)
+		}
+		if h.repositories != nil {
+			body.Repositories = h.repositories(ctx)
+		}
+		if h.gitIdentities != nil {
+			var age time.Duration
+			body.GitIdentities, age = h.gitIdentities(ctx)
+			body.GitIdentitiesAge = int64(age / time.Second)
 		}
 		reply, err := h.client.Heartbeat(ctx, h.bridgeID, body)
 		if err == nil {

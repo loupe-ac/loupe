@@ -103,6 +103,17 @@ final class WorkRequestTest extends TestCase
         self::assertSame($now, $request->settledAt);
     }
 
+    public function test_a_withdrawal_keeps_a_reason_code_and_refuses_free_text(): void
+    {
+        $request = $this->request();
+
+        self::assertTrue($request->withdraw(WorkRequestState::Expired, new \DateTimeImmutable(self::NOW), WorkRequest::REASON_NO_CAPABLE_TAKER));
+        self::assertSame('no-capable-taker', $request->reason);
+
+        $this->expectException(\LogicException::class);
+        $this->request()->withdraw(WorkRequestState::Expired, new \DateTimeImmutable(self::NOW), 'No bridge here');
+    }
+
     public function test_a_claimed_request_withdraws_and_keeps_its_bridge(): void
     {
         $request = $this->claimed();
