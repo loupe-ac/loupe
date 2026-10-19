@@ -58,9 +58,10 @@ final readonly class CardEventCause
         return new self('run', ['run' => (string) $runId] + (null === $workKind ? [] : ['kind' => $workKind]));
     }
 
-    public static function workflowRule(string $ruleId): self
+    /** @param ?string $outcome what the move means for the card, such as `merged`, or null when the rule names none */
+    public static function workflowRule(string $ruleId, ?string $outcome = null): self
     {
-        return new self('workflow-rule', ['rule' => $ruleId]);
+        return new self('workflow-rule', ['rule' => $ruleId] + (null === $outcome ? [] : ['outcome' => $outcome]));
     }
 
     /** @return array<string, scalar> */

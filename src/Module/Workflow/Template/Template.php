@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Workflow\Template;
 
+use App\Module\Workflow\Contract\ParameterNames;
 use App\Module\Workflow\Contract\ReadsDocumentTag;
 
 final readonly class Template
@@ -14,6 +15,10 @@ final readonly class Template
 
     /** A Git branch name that holds the epic number placeholder exactly once. */
     public const string EPIC_BRANCH_RULE = '/^(?!.*\{number\}.*\{number\})(?!.*\.\.)(?!.*\.lock(?:\/|$))(?=.*\{number\})(?:[A-Za-z0-9_]|\{number\})(?:[A-Za-z0-9._-]|\{number\}|\/(?![\/.-]))*(?<![.\/])$/D';
+
+    private const string REQUEST_ACTION = 'request';
+
+    private const string DESIGN_REVIEW_ROLE = 'design-review';
 
     /** The severities of an agent review finding, in their order. */
     public const array AGENT_REVIEW_SEVERITIES = ['important', 'nit', 'pre-existing'];
@@ -52,6 +57,20 @@ final readonly class Template
     public function epicBranchOf(int $number): ?string
     {
         return null === $this->epicBranch ? null : str_replace(self::EPIC_BRANCH_NUMBER, (string) $number, $this->epicBranch);
+    }
+
+    /** @return list<string> the document tag of each rule whose request has the design review role, each once */
+    public function designReviewTags(): array
+    {
+        $tags = [];
+        foreach ($this->rules as $rule) {
+            $tag = $rule->then->params[ParameterNames::DOCUMENT_TAG] ?? null;
+            if (self::REQUEST_ACTION === $rule->then->key && self::DESIGN_REVIEW_ROLE === ($rule->then->params['role'] ?? null) && \is_string($tag)) {
+                $tags[] = $tag;
+            }
+        }
+
+        return array_values(array_unique($tags));
     }
 
     public function type(string $key): ?TemplateCardType
