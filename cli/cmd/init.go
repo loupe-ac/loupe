@@ -1101,13 +1101,18 @@ func listsPlaywright(dir string) bool {
 	return false
 }
 
-// playwrightBrowserInstalled looks for a Chromium folder in the browser cache
-// of Playwright.
-func playwrightBrowserInstalled(dir string) bool {
+// playwrightBrowserInstalled reports whether the browser cache of Playwright
+// holds the Chromium revision that the playwright-core of pkg asks for. With no
+// playwright-core installed, the revision is unknown, so it reports false.
+func playwrightBrowserInstalled(pkg string) bool {
+	core, rev, ok := playwrightChromiumRevision(pkg)
+	if !ok {
+		return false
+	}
 	cache := os.Getenv("PLAYWRIGHT_BROWSERS_PATH")
 	switch {
 	case cache == "0":
-		cache = filepath.Join(dir, "node_modules", "playwright-core", ".local-browsers")
+		cache = filepath.Join(core, ".local-browsers")
 	case cache != "":
 	default:
 		home, err := os.UserHomeDir()
@@ -1119,18 +1124,38 @@ func playwrightBrowserInstalled(dir string) bool {
 			cache = filepath.Join(home, "Library", "Caches", "ms-playwright")
 		}
 	}
+	_, err := os.Stat(filepath.Join(cache, "chromium-"+rev, "INSTALLATION_COMPLETE"))
 
-	entries, err := os.ReadDir(cache)
-	if err != nil {
-		return false
-	}
-	for _, e := range entries {
-		if e.IsDir() && strings.HasPrefix(e.Name(), "chromium") {
-			return true
+	return err == nil
+}
+
+// playwrightChromiumRevision finds the playwright-core that Node resolves from
+// pkg, and reads the Chromium revision from its browsers.json.
+func playwrightChromiumRevision(pkg string) (string, string, bool) {
+	for dir := pkg; ; dir = filepath.Dir(dir) {
+		core := filepath.Join(dir, "node_modules", "playwright-core")
+		if raw, err := os.ReadFile(filepath.Join(core, "browsers.json")); err == nil {
+			var list struct {
+				Browsers []struct {
+					Name     string `json:"name"`
+					Revision string `json:"revision"`
+				} `json:"browsers"`
+			}
+			if json.Unmarshal(raw, &list) != nil {
+				return "", "", false
+			}
+			for _, b := range list.Browsers {
+				if b.Name == "chromium" && b.Revision != "" {
+					return core, b.Revision, true
+				}
+			}
+
+			return "", "", false
+		}
+		if filepath.Dir(dir) == dir {
+			return "", "", false
 		}
 	}
-
-	return false
 }
 
 // initNext sends you to the machine step of the wizard, which shows the local

@@ -939,15 +939,116 @@ func TestInitLeavesThePlaywrightBrowserWhenDeclined(t *testing.T) {
 	}
 }
 
+func writePlaywrightCore(t *testing.T, dir, revision string) string {
+	t.Helper()
+	core := filepath.Join(dir, "node_modules", "playwright-core")
+	if err := os.MkdirAll(core, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"browsers":[{"name":"chromium-headless-shell","revision":"9"},{"name":"chromium","revision":"` + revision + `"}]}`
+	if err := os.WriteFile(filepath.Join(core, "browsers.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	return core
+}
+
+func installChromium(t *testing.T, cache, revision string) {
+	t.Helper()
+	folder := filepath.Join(cache, "chromium-"+revision)
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "INSTALLATION_COMPLETE"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestInitSkipsPlaywrightWhenChromiumIsInTheCache(t *testing.T) {
 	w := newInitWorld(t, devSite())
 	dir := inRepo(t, w.server.URL)
 	cache := t.TempDir()
 	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", cache)
-	if err := os.Mkdir(filepath.Join(cache, "chromium-1234"), 0o755); err != nil {
+	installChromium(t, cache, "1234")
+	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
+	writePlaywrightCore(t, dir, "1234")
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Playwright: skipped, the Chromium browser is installed") || w.called("npx") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func TestInitInstallsPlaywrightWhenOnlyAnotherChromiumRevisionIsInTheCache(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	cache := t.TempDir()
+	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", cache)
+	installChromium(t, cache, "1217")
+	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
+	writePlaywrightCore(t, dir, "1223")
+
+	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !w.called("npx playwright install chromium") || !strings.Contains(out, "Playwright: done") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func TestInitInstallsPlaywrightWhenTheChromiumDownloadIsIncomplete(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	cache := t.TempDir()
+	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", cache)
+	if err := os.Mkdir(filepath.Join(cache, "chromium-1223"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
+	writePlaywrightCore(t, dir, "1223")
+
+	out, err := runInitCmd(t, "n\ny\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !w.called("npx playwright install chromium") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func TestInitReadsAHoistedPlaywrightCoreForASubfolderPackage(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	cache := t.TempDir()
+	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", cache)
+	installChromium(t, cache, "1223")
+	e2e := filepath.Join(dir, "e2e")
+	if err := os.Mkdir(e2e, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writePackageJSON(t, e2e, `{"devDependencies":{"@playwright/test":"1"}}`)
+	writePlaywrightCore(t, dir, "1223")
+
+	out, err := runInitCmd(t, "n\n", "--no-mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Playwright: skipped, the Chromium browser is installed") || w.called("npx") {
+		t.Errorf("calls = %v\n%s", w.execCalls, out)
+	}
+}
+
+func TestInitReadsTheLocalBrowsersOfPlaywrightCore(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	dir := inRepo(t, w.server.URL)
+	t.Setenv("PLAYWRIGHT_BROWSERS_PATH", "0")
+	writePackageJSON(t, dir, `{"devDependencies":{"@playwright/test":"1"}}`)
+	core := writePlaywrightCore(t, dir, "1223")
+	installChromium(t, filepath.Join(core, ".local-browsers"), "1223")
 
 	out, err := runInitCmd(t, "n\n", "--no-mcp")
 	if err != nil {
