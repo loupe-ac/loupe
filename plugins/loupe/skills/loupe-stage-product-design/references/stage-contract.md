@@ -101,7 +101,7 @@ Set the reason code from the `STAGE RESULT:` form. A form takes the code of the 
 | `delivered-without-code` | `delivered without code <document url>` |
 | `waiting-checks` | `waiting <pr url>`, and a `not ready` item for a failed or pending check, or for a head that moved after the event or during a review request |
 | `not-approved` | `not ready: not approved`, `product document not approved` |
-| `approval-stale` | `not ready: commits after approval`, `not ready: conflict resolution after approval` |
+| `approval-stale` | `not ready: commits after approval` |
 | `stacked` | `not ready: stacked on <base>` |
 | `conflicting` | `not ready: conflicting`, `blocked: merge conflict with <base>` |
 | `not-behind` | `not ready: not behind` |
@@ -109,7 +109,7 @@ Set the reason code from the `STAGE RESULT:` form. A form takes the code of the 
 | `open-pull-request` | `open pull request exists` |
 | `no-pull-request` | `no open pull request`, `blocked: pull request not linked to the card`, `blocked: no merge request in the prompt`, `blocked: no merged epic child` |
 | `tool-unavailable` | `loupe MCP unavailable`, `blocked: no forge adapter`, `blocked: no <section> in .loupe/lifecycle.md` |
-| `worktree-failed` | `blocked: worktree binding failed`, `blocked: worktree is not on the PR branch`, `blocked: local branch diverged from origin` |
+| `worktree-failed` | `blocked: worker folder is not on the PR branch`, `blocked: worker folder on branch <branch>`, `blocked: no worker folder`, `blocked: local branch diverged from origin` |
 | `merge-refused` | `blocked: merge refused` |
 | `needs-person` | `blocked: prototype unreadable`, every other `blocked:` form, and every other `not ready` item, such as a draft |
 | `work-remains` | No form yet, because work still runs or remains |

@@ -16,7 +16,7 @@ Never call `AskUserQuestion`. Nobody answers it in an unattended run.
 
 ## Change a file
 
-Change a file with the Edit and Write tools. Never use the Serena edit tools, because they write to the main checkout.
+Change a file with the Edit and Write tools. Use no editor tool that writes outside the worker folder.
 
 ## Run a long command
 

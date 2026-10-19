@@ -113,7 +113,7 @@ When the profile `Environment` section names a folder check, run it first. When 
 git branch --show-current
 ```
 
-When it prints nothing, HEAD is detached. When it prints the base branch of the profile `Gate` section, treat it the same way. When it prints another `card-<number>-` branch and `git status --porcelain` prints nothing, treat it the same way too. Run `git fetch origin <head branch>` and `git switch <head branch>`. When no local branch has that name, run `git switch --track -c <head branch> origin/<head branch>` instead. When the current branch then differs from the head branch, change nothing, and stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
+When it prints nothing, HEAD is detached. When it prints the base branch of the profile `Gate` section, treat it the same way. When it prints another card branch (`<prefix>` of `../../loupe-stage-implementation/references/commands.md` "Card branch") and `git status --porcelain` prints nothing, treat it the same way too. Run `git fetch origin <head branch>` and `git switch <head branch>`. When no local branch has that name, run `git switch --track -c <head branch> origin/<head branch>` instead. When the current branch then differs from the head branch, change nothing, and stop with `STAGE RESULT: blocked: worker folder is not on the PR branch`.
 
 Sync the branch as "Sync with the pull request branch" in `../../loupe-stage-implementation/references/commands.md` says. It recovers a branch that diverged from the pull request branch, or stops with `STAGE RESULT: blocked: local branch diverged from origin`. Never force-push.
 
@@ -145,7 +145,7 @@ comm -13 <(git show origin/<base>:$F | grep "^#" | sort) <(grep "^#" $F | sort) 
 
 The first command must print nothing, because each line it prints is work of the base that the resolution dropped. The second must list only this branch's own additions. Choose the grep to suit the file: headings for prose, test method names for a test file, entry prefixes for a list. Then check the structure of the file. A union of both sides can leave two bodies and one closing brace, so absent markers prove nothing.
 
-Keep the `# Conflicts:` block in the commit message, and add one plain line per file that says how it was resolved. `git commit -m` drops the block, and the queue holder reads it to verify the resolution. Commit like this:
+Keep the `# Conflicts:` block in the commit message, and add one plain line per file that says how it was resolved. `git commit -m` drops the block, and the person who merges reads it to verify the resolution. Commit like this:
 
 ```bash
 m=$(git rev-parse --git-path merge-desc)
