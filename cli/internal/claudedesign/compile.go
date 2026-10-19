@@ -1,5 +1,6 @@
-// Package claudedesign compiles a Claude Design canvas, a .dc.html file, to a
-// plain HTML page. It registers itself with artifactcompile.
+// Package claudedesign compiles a Design canvas, a .dc.html file from a Claude
+// Design artifact or from an older Claude Design project, to a plain HTML page.
+// It registers itself with artifactcompile.
 package claudedesign
 
 import (
@@ -51,11 +52,12 @@ func pagePath(canvas string, index bool) string {
 func (compiler) Compile(files []api.ArtifactFile, opts artifactcompile.Options) (artifactcompile.Result, error) {
 	var boards []api.ArtifactFile
 	var res artifactcompile.Result
+	ctx := newPushCtx(files)
 	for _, f := range files {
 		switch {
 		case isCanvas(f.Path):
 			boards = append(boards, f)
-		case isSupportScript(f.Path), isBoardLayout(f.Path):
+		case isSupportScript(f.Path), isBoardLayout(f.Path), !ctx.keeps(f.Path):
 		default:
 			gaps := companionGaps(f)
 			if len(gaps) > 0 {
@@ -99,7 +101,7 @@ func (compiler) Compile(files []api.ArtifactFile, opts artifactcompile.Options) 
 		links[b.Path] = outs[i]
 	}
 	for i, b := range boards {
-		page, gaps := compilePage(b.Path, outs[i], b.Contents, links, blobs)
+		page, gaps := compilePage(b.Path, outs[i], b.Contents, links, blobs, ctx)
 		if collided[i] != "" {
 			gaps = append(gaps, artifactcompile.Gap{File: b.Path, Line: 1, Feature: "an existing file named " + collided[i], Detail: "the page is written to " + outs[i] + " instead; move one of them"})
 			page = markTop(page, gaps[len(gaps)-1])
@@ -113,6 +115,9 @@ func (compiler) Compile(files []api.ArtifactFile, opts artifactcompile.Options) 
 		}
 		res.Gaps = append(res.Gaps, gaps...)
 		res.Files = append(res.Files, api.ArtifactFile{Path: outs[i], ContentType: "text/html; charset=utf-8", Contents: page})
+	}
+	if err := ctx.addFiles(&res, taken); err != nil {
+		return artifactcompile.Result{}, err
 	}
 	sort.Slice(res.Files, func(i, j int) bool { return res.Files[i].Path < res.Files[j].Path })
 
@@ -194,7 +199,7 @@ func Marker(g artifactcompile.Gap) string {
 }
 
 // forbidden is text a compiled page must not hold, besides a raw /_blob/ path.
-var forbidden = []string{canvasSuffix, "{{", "<sc-", "DCLogic", "support.js"}
+var forbidden = []string{canvasSuffix, "{{", "<sc-", "<x-import", "DCLogic", "support.js"}
 
 // forbiddenIn gives the first text of s that a compiled page must not hold. A
 // relative link to a blob file, such as ../_blob/x.png, is not a raw path.

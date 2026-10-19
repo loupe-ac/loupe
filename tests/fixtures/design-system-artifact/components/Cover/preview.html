@@ -1,0 +1,58 @@
+<!-- @dsCard height=288 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  html, body { margin: 0; }
+  body { background: var(--bg); }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; background: var(--bg); }
+  .cover svg { position: absolute; left: 0; top: 0; }
+  .chrome { fill: var(--chrome); }
+  .accent { fill: var(--accent); }
+  .soft { fill: var(--accent-soft); }
+  .ink { fill: var(--accent-ink); }
+  .dot { fill: var(--chrome-control); }
+  .lens-ring { fill: none; stroke: var(--accent-soft); stroke-width: 4; }
+  .block { rx: var(--radius-xl); }
+  .text { position: absolute; left: 48px; bottom: 32px; max-width: 880px; }
+  .name { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 64px; line-height: 0.95; letter-spacing: -0.025em; color: var(--ink); white-space: nowrap; }
+  .tag { margin: 12px 0 0; font-family: var(--font-sans); font-size: 14px; line-height: 20px; color: var(--text-mute); max-width: 440px; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <!--
+    blocks: chrome 520×124, accent 232×124, accent-soft 112×124, accent-ink 72×124 — a strip of unequal bands bleeding off the top, gaps of 2 × spacing (8px), corners radius-xl.
+    arrangement: the top-band skeleton (the name is too wide for the 440px zone at 64px); the band is 112px visible, the name beneath it.
+    pattern: literal motif, the lens — a row of chrome-control discs on the chrome slab, one magnified under an accent lens with an accent-soft rim; chosen because Loupe is the reviewer's magnifier over a document.
+    scales: spacing 0.25rem (pitch 40 = 10 steps, gaps 8 = 2 steps), radius-xl 0.75rem on the blocks, discs at half their side.
+  -->
+  <svg width="960" height="288" viewBox="0 0 960 288" aria-hidden="true">
+    <rect class="chrome block" x="0" y="-12" width="520" height="124"/>
+    <rect class="accent block" x="528" y="-12" width="232" height="124"/>
+    <rect class="soft block" x="768" y="-12" width="112" height="124"/>
+    <rect class="ink block" x="888" y="-12" width="72" height="124"/>
+    <g>
+      <circle class="dot" cx="48" cy="56" r="8"/>
+      <circle class="dot" cx="88" cy="56" r="8"/>
+      <circle class="dot" cx="128" cy="56" r="8"/>
+      <circle class="dot" cx="168" cy="56" r="8"/>
+      <circle class="dot" cx="208" cy="56" r="8"/>
+      <circle class="dot" cx="248" cy="56" r="8"/>
+      <circle class="accent" cx="308" cy="56" r="36"/>
+      <circle class="lens-ring" cx="308" cy="56" r="36"/>
+      <circle class="chrome" cx="308" cy="56" r="16"/>
+      <circle class="dot" cx="368" cy="56" r="8"/>
+      <circle class="dot" cx="408" cy="56" r="8"/>
+      <circle class="dot" cx="448" cy="56" r="8"/>
+      <circle class="dot" cx="488" cy="56" r="8"/>
+    </g>
+  </svg>
+  <div class="text">
+    <h1 class="name">Loupe design system</h1>
+    <p class="tag">The values and building blocks that give every page of the app one look.</p>
+  </div>
+</div>
+</body>
+</html>

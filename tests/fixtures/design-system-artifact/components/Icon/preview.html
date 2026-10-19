@@ -1,0 +1,41 @@
+<!-- @dsCard group="Core" width=700 height=150 subtitle="A size scale for the icon tag: xs is 3, sm is 3.5, md is 4, lg is 5, xl is 8 and 2xl is 12. xl and 2xl are for an empty-state icon. No component wraps it." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { padding: 16px 18px; }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .chrome { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--chrome); border-radius: 6px; }
+  .row > dialog[open] { position: static; margin: 0; }
+  .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../ds-mount.js"></script>
+<script type="text/babel">
+const { Icon } =
+  dsFind('Icon');
+
+function Demo() {
+  return (
+    <div className="col">
+      <div className="row">
+        <Icon variant="xs" />
+        <Icon variant="sm" />
+        <Icon variant="md" />
+        <Icon variant="lg" />
+        <Icon variant="xl" />
+        <Icon variant="2xl" />
+      </div>
+
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

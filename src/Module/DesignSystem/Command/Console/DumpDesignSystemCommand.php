@@ -13,12 +13,12 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Writes the Claude Design copy of the design system into a directory and
+ * Writes the Design System artifact copy of the design system into a directory and
  * prints each path it wrote, relative to that directory, one per line.
  */
 #[AsCommand(
     name: 'app:design-system:export',
-    description: 'Write the Claude Design copy of the design system into a directory.',
+    description: 'Write the Design System artifact copy of the design system into a directory.',
 )]
 final class DumpDesignSystemCommand extends Command
 {

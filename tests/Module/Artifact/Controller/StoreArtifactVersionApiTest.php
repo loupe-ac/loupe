@@ -208,7 +208,7 @@ final class StoreArtifactVersionApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSame('artifact_refused', $this->json($client)['error']);
         self::assertSame(
-            'A .dc.html file is a Claude Design canvas, and it does not render outside Claude Design. Push it with loupe artifact push from CLI 1.17.0 or later, which compiles the canvas to plain HTML.',
+            'A .dc.html file is a Design canvas, and it does not render outside claude.ai. Push it with loupe artifact push, which compiles the canvas to plain HTML.',
             $this->json($client)['errors']['files'],
         );
         self::assertSame(0, $this->artifactRepository()->count([]));

@@ -402,7 +402,7 @@ final class ShippedMarkersTest extends KernelTestCase
 
     public function test_a_non_blocking_to_do_alone_needs_nobody_in_either_shipped_template(): void
     {
-        $todo = new OpenQuestionFacts([new OpenQuestion(929, 'Rebuild the Claude Design project', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: false)]);
+        $todo = new OpenQuestionFacts([new OpenQuestion(929, 'Rebuild the Design System artifact', new \DateTimeImmutable('2026-10-01 10:00:00'), blocking: false)]);
         $both = new OpenQuestionFacts([...$todo->questions, new OpenQuestion(931, 'Which way?', new \DateTimeImmutable('2026-10-01 11:00:00'), blocking: true)]);
 
         foreach (['lifecycle', 'simple'] as $key) {

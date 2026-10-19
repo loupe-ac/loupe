@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\DesignSystem;
 
-use App\Module\DesignSystem\Command\ExportDesignSystemCommand;
-use App\Module\DesignSystem\Command\ExportDesignSystemHandler;
+use App\Tests\Support\ComponentSourceReader;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 
 final class SettingsLayoutParityTest extends KernelTestCase
 {
+    use ComponentSourceReader;
+
     private const string ITEMS = "[{label: 'General', url: '/a', icon: 'lucide:settings', active: true}, {label: 'Columns', url: '/b', icon: 'lucide:bot', active: false}]";
 
     private function render(string $template): string
@@ -67,16 +67,7 @@ final class SettingsLayoutParityTest extends KernelTestCase
             '<twig:Ds:SettingsLayout title="A" description="B" :items="'.self::ITEMS.'" :columns="true">x</twig:Ds:SettingsLayout>',
         );
 
-        $directory = sys_get_temp_dir().'/ds-export-parity-'.bin2hex(random_bytes(4));
-        $handler = static::getContainer()->get(ExportDesignSystemHandler::class);
-        self::assertInstanceOf(ExportDesignSystemHandler::class, $handler);
-
-        try {
-            $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/SettingsLayout/SettingsLayout.jsx');
-        } finally {
-            new Filesystem()->remove($directory);
-        }
+        $jsx = self::componentJsx('SettingsLayout');
 
         $expected = $this->classNames($jsx);
         $actual = $this->classNames($html);

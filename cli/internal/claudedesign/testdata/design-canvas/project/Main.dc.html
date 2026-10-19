@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Wizard step 1: create the project</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/tokens.css">
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/components/bundle.css">
+<script src="ds/loupedesignsystem_686f56/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1280px; height: 860px; overflow: hidden; font-family: var(--font-sans); color: var(--text); background: var(--bg)">
+<x-import component-from-global-scope="LoupeDesignSystem_686f56.AppShell" project-name="{{none}}" active="workshop" crumbs="{{crumbs}}" user-name="You" style="width: 100%; height: 100%">
+  <x-import component-from-global-scope="LoupeDesignSystem_686f56.Workspace" width="narrow">
+    <ol aria-label="Setup progress" style="list-style: none; margin: 0 0 24px; padding: 0; display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text-dim)">
+      <li style="display: flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 600"><span style="width: 22px; height: 22px; border-radius: 999px; background: var(--ink); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px">1</span>Project</li>
+      <li aria-hidden="true" style="width: 28px; height: 1px; background: var(--border-strong)"></li>
+      <li style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; border: 1px solid var(--border-strong); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; font-size: 12px">2</span>Your machine</li>
+      <li aria-hidden="true" style="width: 28px; height: 1px; background: var(--border-strong)"></li>
+      <li style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; border: 1px solid var(--border-strong); box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; font-size: 12px">3</span>Ready for agents</li>
+    </ol>
+    <h1 class="lp-workspace-title">Create your first project</h1>
+    <p class="lp-workspace-desc">A project holds one repository's board, documents and agents.</p>
+
+    <form class="lp-form" style="display: flex; flex-direction: column; gap: 18px; margin-top: 20px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.FormField">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label" as="label" html-for="p-name">Project name</x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Input" id="p-name" default-value="Acme"></x-import>
+      </x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.FormField">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label" as="label" html-for="p-site">Website (optional)</x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Input" id="p-site" placeholder="https://acme.example"></x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Hint">The review widget accepts sign-ins from this address.</x-import>
+      </x-import>
+      <div style="display: flex; flex-direction: column; gap: 8px; background: var(--accent-faint); border: 1px solid var(--accent-border); border-radius: var(--radius-lg); padding: 12px 14px">
+        <span style="font-size: 13px; font-weight: 600; color: var(--accent-ink)">Your board gets these columns</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="neutral">Backlog</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="neutral">Next</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="purple">Product design</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="indigo">Tech design</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="sky">Implementation</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="amber">In review</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Tag" tone="green">Done</x-import>
+        </div>
+        <span style="font-size: 13px; color: var(--text-mute); line-height: 1.45">Agents move a card through design, build and review. You approve each step.</span>
+      </div>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.FormActions">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="ghost" href="#">Skip setup</x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary" type="submit">Create project</x-import>
+      </x-import>
+    </form>
+  </x-import>
+</x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() { return { none: null, crumbs: ['Welcome'] }; }
+}
+</script>
+</body>
+</html>

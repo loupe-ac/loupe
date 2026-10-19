@@ -13,6 +13,12 @@ RUN mkdir -p /usr/src/xdebug \
     && curl -fsSL https://xdebug.org/files/xdebug-3.5.3.tgz | tar -xz -C /usr/src/xdebug --strip-components=1 \
     && docker-php-ext-install -j"$(nproc)" /usr/src/xdebug
 
+# The design system export bundles its components with esbuild. The version
+# matches the esbuild dev dependency in package.json.
+RUN apk add --no-cache nodejs npm \
+    && npm install --global esbuild@0.28.2 \
+    && npm cache clean --force
+
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 COPY docker/dev/php-fpm/zz-pm.conf /usr/local/etc/php-fpm.d/zz-pm.conf

@@ -223,9 +223,7 @@ A part that no component covers stays page-level markup. Add no new component fo
 
 Other pages can carry a page rule that the change makes needless. Search `assets/styles/app.css` for such rules. Update only the pages of your branch. Then send one non-blocking inbox to-do (`loupe-inbox`) that proposes a card for the other pages and names each page. Write no card yourself.
 
-The Claude Design project "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds it, and the `loupe-design-rebuild` skill writes it to the project. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Claude Design rebuild".
-
-The project "Loupe Starter Canvas" is the starter for product design sessions. `bin/console app:design-system:export-starter` builds it from hand-written Twig shells, and the `loupe-design-rebuild` skill writes it in its second part. A change to a page that has a shell needs the same change in the shell.
+The Design System artifact "Loupe Design System" is a copy of these files. `bin/console app:design-system:export` builds the files, and the `loupe-design-rebuild` skill publishes them to the artifact. A change to `tokens.css`, a component or the catalog needs the rebuild step of `working-with-prs` "The Design System artifact rebuild".
 
 ### Icons
 

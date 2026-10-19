@@ -45,19 +45,19 @@ A card that needs no product design does not use this skill. The owner moves it 
    - In a Full session, then name two or three trade-offs that this feature faces. Ask the owner to pick a side on each (Q7). The answers go in "Priorities".
 6. P6: Behaviour. Settle the main journeys, the empty and error states, and who may act. Work through the coverage checklist of `question-rules.md`. Ask about docs and the landing page here when the profile is missing.
 7. P7: Pre-mortem. Ask one question: "This shipped and failed. Why?" The answers go in "Risks".
-8. P12: Prototype check. Compare the answers with the prototype before the recap. Skip it when the session made or linked no prototype. A prototype is a claude.ai artifact, a Claude Design canvas, or a library artifact. An ASCII sketch (C5) is not one.
+8. P12: Prototype check. Compare the answers with the prototype before the recap. Skip it when the session made or linked no prototype. A prototype is a claude.ai artifact, a Design canvas, or a library artifact. An ASCII sketch (C5) is not one.
    - Read the current prototype as C9 of `claude-design.md` says. Compare only the option that the owner picked, by the label of the "Decisions log" entry.
    - Compare each entry of the "Decisions log" with it. A conflict is a field, an order, a label or a state that an answer and a shown screen contradict, or a state that an answer adds to a screen the prototype shows. A screen that the prototype never draws is not a conflict.
    - List the conflicts for yourself, in a numbered list. Ask one question per conflict, with the rules of `question-rules.md` (Q2, Q3).
    - Ask with AskUserQuestion, with the options "Keep the answer, revise the prototype", "Keep the prototype, change the answer" and "Decide later". Put the answer and the part of the prototype side by side in the `preview` of each option, because the question box hides the chat text above it. Mark the recommended option "(Recommended)".
-   - "Keep the answer" revises the prototype in the source that the owner edits. Revise a canvas in the same Claude Design project (C3), and read back the owner's check (C4). Revise a claude.ai artifact in the chat, and confirm the change with one AskUserQuestion. When C8 stored the prototype, push the new files as a new library version, as C8 says.
+   - "Keep the answer" revises the prototype in the source that the owner edits. Revise a canvas in the same Design artifact (C3), and read back the owner's check (C4). Revise a claude.ai artifact in the chat, and confirm the change with one AskUserQuestion. When C8 stored the prototype, push the new files as a new library version, as C8 says.
    - For a library artifact that the session linked with no canvas, read its files with `artifact_read` into a folder outside the checkout. Change the files there, and confirm the change with one AskUserQuestion. Then run `loupe artifact push <folder> --artifact <artifact id>`.
    - "Keep the prototype" changes the "Decisions log" entry. When a later answer depends on it, ask that answer again.
    - "Decide later" is the owner's word (Q8). The conflict goes in "Open questions".
    - Log each conflict and its outcome in the "Decisions log". The recap of P11 then shows them.
    - When no conflict is left, say so in one line, and go on.
 9. P11: Recap. Let the owner check every decision before you write the document. Skip the recap when the session logged no decision.
-   - When the questions end, list each entry of the "Decisions log" in one line, with its number, in the order you asked it. Include the Q7 priority picks and the Claude Design picks, because the log holds them too. Mark a deferred decision "deferred".
+   - When the questions end, list each entry of the "Decisions log" in one line, with its number, in the order you asked it. Include the Q7 priority picks and the Design canvas picks, because the log holds them too. Mark a deferred decision "deferred".
    - Ask with AskUserQuestion, with the two options "Looks right" and "Correct something". Put the whole recap in the `preview` of each option, because the question box hides the chat text above it.
    - When AskUserQuestion is missing, post the recap as plain chat text, and end the turn. The owner's next message is the answer.
    - When the owner picks "Correct something", read the correction from the owner's next message. A correction that states the new answer updates the log entry.

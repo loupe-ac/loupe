@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\DesignSystem;
 
-use App\Module\DesignSystem\Command\ExportDesignSystemCommand;
-use App\Module\DesignSystem\Command\ExportDesignSystemHandler;
+use App\Tests\Support\ComponentSourceReader;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 
 final class SplitViewParityTest extends KernelTestCase
 {
+    use ComponentSourceReader;
+
     private const string PAGE = '<twig:Ds:SplitView class="extra" data-controller="x"><h1>H</h1><div class="lp-split-region"><div class="lp-split-view"><div class="lp-split-pane">L</div><div class="lp-split-pane">D</div></div></div></twig:Ds:SplitView>';
 
     private function render(string $template): string
@@ -42,16 +42,7 @@ final class SplitViewParityTest extends KernelTestCase
     {
         $html = $this->render(self::PAGE);
 
-        $directory = sys_get_temp_dir().'/ds-export-parity-'.bin2hex(random_bytes(4));
-        $handler = static::getContainer()->get(ExportDesignSystemHandler::class);
-        self::assertInstanceOf(ExportDesignSystemHandler::class, $handler);
-
-        try {
-            $handler(new ExportDesignSystemCommand($directory));
-            $jsx = (string) file_get_contents($directory.'/components/layout/SplitView/SplitView.jsx');
-        } finally {
-            new Filesystem()->remove($directory);
-        }
+        $jsx = self::componentJsx('SplitView');
 
         $expected = $this->classNames($jsx);
         $actual = $this->classNames($html);

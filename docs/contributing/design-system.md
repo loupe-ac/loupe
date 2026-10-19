@@ -334,9 +334,9 @@ Every email extends `templates/email/_layout.html.twig`. The layout holds the st
 
 An email has no catalog entry or styleguide specimen. It gets its styles from `email.css` and holds its own copy of the brand mark, because no app stylesheet reaches an email client.
 
-## The Claude Design copy
+## The Design System artifact copy
 
-A Claude Design project holds a copy of the design system. The app repository is the source of the copy.
+The Design System artifact "Loupe Design System" holds a copy of the design system. The app repository is the source of the copy.
 
 Run this command to write the copy into a directory:
 
@@ -348,51 +348,35 @@ The command prints each path it wrote, relative to the directory, one per line.
 
 | Path | What it holds |
 |---|---|
-| `tokens/*.css` | The tokens, split by group from `tokens.css`, and the fonts and base resets |
-| `styles.css` | The Tailwind build of `assets/styles/design-system.css`, with the real `lp-` rules |
-| `components/<group>/<Name>/` | A React wrapper, a type file, a prompt file and one preview card for each catalog entry, in a folder of its own |
-| `guidelines/` | One card for each token group |
-| `readme.md` and `SKILL.md` | This page, and the skill that points at it |
-| `assets/fonts/` | The font files and their licence |
+| `design-system.json` | The description of the design system, without the bookkeeping keys of the artifact |
+| `tokens.json` | The tokens as a list, and the font files they name. The artifact makes `tokens.css` from it |
+| `README.md` | This page |
+| `components/<Name>/` | A `README.md`, a `<Name>.d.ts` type file and one `preview.html` card for each catalog entry |
+| `components/bundle.js` and `components/bundle.css` | The React wrappers, and the Tailwind build with the real `lp-` rules, the base resets, the motion tokens and the two shadows built from colours |
+| `components/index.d.ts` | The types of all components |
+| `fonts/` | The font files |
+
+The command builds `components/bundle.js` with esbuild. Node and esbuild are in the dev PHP image.
 
 The wrappers write the same class names as the Twig components. A wrapper adds no style of its own.
 
-A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tooltip, Textarea, Flash, EmptyState, Pagination, StatusChip, StateMark and StatusBox are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
+A component with an inner structure, or a Twig prop that is true or false, sets `export` on its catalog entry. The Input, Tooltip, Textarea, Flash, EmptyState, Pagination, StatusChip, StateMark and StatusBox are core examples, and a sidebar is a `layout` one. The value names a folder under `templates/Module/DesignSystem/export/<group>/`. The folder holds the hand-written `component.jsx.twig`, `component.d.ts.twig`, `component.prompt.md.twig` (the component README) and `demo.jsx.twig` of the part. The export renders those files in place of the generic templates.
 
 The generic wrapper names its modifier prop after the Twig prop. The `modifierProp` field of the entry holds that name, `variant` by default: Badge uses `status`, Tag uses `tone`, Dialog uses `size`, and StatusChip uses `modifier`. The old `variant` name does not work on those components. An entry with `takesAs` set also takes an `as` prop, as the Twig component does. Flash takes `severity` the same way. `SimpleComponentParityTest` compares each of these wrappers with its Twig component.
 
 The Pagination wrapper takes data in place of a route name: `page`, `totalPages`, an optional `pageList` with `null` for a gap, and an optional `hrefFor(page)` that returns `#` by default. Its labels are the English texts of the app, so they do not follow a translation change. The EmptyState wrapper takes its `icon` as an inline SVG element.
 
-The StatusChip, StateMark and StatusBox wrappers draw the inner parts of their Twig components: the dot, the help icon and the tooltip of a chip, the icon and the tooltip of a mark, and the head, the facts and the list of other states of a box. Each draws its icons as inline SVG. Claude Design loads no Stimulus, so the StateMark wrapper opens and places its tooltip with its own listeners. `StatusComponentsParityTest` compares the classes of each wrapper with its Twig component.
+The StatusChip, StateMark and StatusBox wrappers draw the inner parts of their Twig components: the dot, the help icon and the tooltip of a chip, the icon and the tooltip of a mark, and the head, the facts and the list of other states of a box. Each draws its icons as inline SVG. The artifact loads no Stimulus, so the StateMark wrapper opens and places its tooltip with its own listeners. `StatusComponentsParityTest` compares the classes of each wrapper with its Twig component.
 
 `demo.jsx.twig` draws the part in its own preview card. An entry with no folder uses `default.demo.jsx.twig` for its card. An entry with no Twig component sets `template` to null.
 
-Each entry gets its own card, so Claude Design shows only that component as its preview. The `viewport` field of the entry sets the size of the card and of its starting point, `700x150` by default. Set a larger value for a component whose demo is taller.
+Each entry gets its own card, so the artifact shows only that component as its preview. The `viewport` field of the entry sets the size of the card and of its starting point, `700x150` by default. Set a larger value for a component whose demo is taller.
 
-The command never writes `_ds_bundle.js`, `_ds_manifest.json`, `_adherence.oxlintrc.json`, `.thumbnail` or `ds-mount.js`. The platform makes those files.
+The command never writes `ds-mount.js` or `tokens.css`, because the artifact keeps its own. It never writes the bookkeeping keys of `design-system.json`: `createdOnFiles`, `lastChange`, `assetGroups`, `blobs`, `groups` and `sections`.
+
+The owner publishes the files with the `loupe-design-rebuild` skill and the `Artifact` tool. The skill merges the exported `design-system.json` into the existing one and keeps those keys. A headless worker has no `Artifact` tool, so it leaves the artifact as it is.
 
 The command does not copy icons. A wrapper that needs icons draws them as inline SVG, as the AppShell wrapper does.
-
-### The starter canvas
-
-A second Claude Design project, "Loupe Starter Canvas", is the starting point of a product design session. The `.loupe/lifecycle.md` file names it. The design system project mirrors the design system, and the starter project holds the full app stylesheet and the page shells.
-
-Run this command to write the starter into a directory:
-
-```bash
-bin/console app:design-system:export-starter <dir>
-```
-
-| Path | What it holds |
-|---|---|
-| `styles/app.css` | The Tailwind build of the app stylesheet. It imports `styles/app-1.css` and the parts after it, each 200 KB or less |
-| `assets/fonts/` | The font files |
-| `App frame.dc.html`, `Document review.dc.html`, `Board.dc.html`, `Card page.dc.html`, `Inbox.dc.html` and `Settings.dc.html` | One shell for each main page, with one empty element that carries `data-starter-slot` |
-| `starter.json` | The SHA-256 hash of each file, so a rebuild writes only the files that changed |
-
-A person writes the shells by hand as Twig templates from the design system components. The export does not capture real pages. When a page changes, edit its shell too.
-
-The `loupe-design-rebuild` skill writes the starter in its second part. A session copies the files it needs on the Claude Design server and builds each option in the slot.
 
 ## The rules
 
