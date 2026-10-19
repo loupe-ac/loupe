@@ -612,9 +612,9 @@ final class EngineTest extends KernelTestCase
         self::assertNull($pause?->releasedAt);
     }
 
-    public function test_a_pause_stays_when_the_resumed_run_belongs_to_another_rule(): void
+    public function test_a_pause_that_does_not_wait_for_a_person_stays_when_the_resumed_run_belongs_to_another_rule(): void
     {
-        $card = $this->stoppedCard('needs-person');
+        $card = $this->stoppedCard('blocked');
         $pause = $this->activePause($card);
 
         $this->resumedRun($card, WorkerRunState::Running, ruleId: 'other');
@@ -732,6 +732,256 @@ final class EngineTest extends KernelTestCase
         self::assertSame([0, null], [$this->ruleState($card, 'work')->attempts, $this->ruleState($card, 'work')->lastRefusal]);
         self::assertNull($this->activePause($card));
         self::assertSame([], $this->liveRequests($card));
+    }
+
+    public function test_a_needs_person_stop_that_settles_during_another_pause_does_not_pause_the_card_when_the_resumed_worker_reports(): void
+    {
+        $card = $this->twoRuleCard(stopOfRuleA: 'blocked');
+        $pause = $this->activePause($card);
+        self::assertNotNull($pause);
+        self::assertSame('a', $pause->ruleId);
+
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertSame('run-resumed', $pause->releaseReason);
+        self::assertNull($this->activePause($card));
+        self::assertSame([], $this->liveRequests($card));
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([true, 0, null, $run->id?->toRfc4122()], [$state->truth, $state->attempts, $state->lastRefusal, $state->answeringRunId?->toRfc4122()]);
+    }
+
+    public function test_a_needs_person_stop_does_not_pause_the_card_when_a_resumed_worker_reported_before_the_pause_would_form(): void
+    {
+        $card = $this->twoRuleCard();
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        self::assertNull($this->activePause($card));
+        self::assertSame([], $this->paused);
+        self::assertSame($run->id?->toRfc4122(), $this->ruleState($card, 'b')->answeringRunId?->toRfc4122());
+    }
+
+    public function test_a_needs_person_stop_that_settles_after_the_resume_still_pauses_the_card(): void
+    {
+        $card = $this->boundCard([self::requestRule('work', self::ALWAYS)], onWorkFailed: self::RETRY_ONCE);
+        $this->evaluate($card);
+        $this->resumedRun($card, WorkerRunState::Running, new \DateTimeImmutable('2026-10-02 12:10:00'));
+        $this->refuse($this->liveRequests($card)[0], 'needs-person', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $pause = $this->activePause($card);
+        self::assertSame([PauseKind::WorkStopped, 'needs-person'], [$pause?->kind, $pause?->reason]);
+        self::assertNull($this->ruleState($card, 'work')->answeringRunId);
+    }
+
+    public function test_the_answered_stop_costs_no_retry_and_a_failed_end_of_the_resumed_worker_earns_the_first_retry(): void
+    {
+        $card = $this->twoRuleCard();
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([0, null], [$state->attempts, $state->dueAt]);
+
+        $run->state = WorkerRunState::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([1, 'failed', '2026-10-02 12:41:00', null], [$state->attempts, $state->lastRefusal, $state->dueAt?->format('Y-m-d H:i:s'), $state->answeringRunId]);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_resumed_worker_of_another_rule_that_ends_a_needs_person_pause_and_then_fails_earns_a_retry(): void
+    {
+        $card = $this->twoRuleCard(stopOfRuleB: false);
+        $this->refuse($this->ruleRequest($card, 'b'), 'needs-person', '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        $pause = $this->activePause($card);
+        self::assertNotNull($pause);
+        self::assertSame(['b', 'needs-person'], [$pause->ruleId, $pause->reason]);
+
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:30:00');
+
+        self::assertSame('run-resumed', $pause->releaseReason);
+        self::assertNull($this->activePause($card));
+        self::assertSame($run->id?->toRfc4122(), $this->ruleState($card, 'b')->answeringRunId?->toRfc4122());
+
+        $run->state = WorkerRunState::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:36:00');
+
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([1, 'failed', '2026-10-02 12:46:00'], [$state->attempts, $state->lastRefusal, $state->dueAt?->format('Y-m-d H:i:s')]);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_resumed_worker_that_kept_a_pause_from_forming_and_then_blocks_pauses_the_card(): void
+    {
+        $card = $this->twoRuleCard();
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNull($this->activePause($card));
+
+        $run->state = WorkerRunState::Blocked;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $pause = $this->activePause($card);
+        self::assertSame([PauseKind::WorkStopped, 'blocked', 'b'], [$pause?->kind, $pause?->reason, $pause?->ruleId]);
+        self::assertNull($this->ruleState($card, 'b')->answeringRunId);
+    }
+
+    public function test_a_resumed_worker_that_kept_a_pause_from_forming_and_then_never_starts_pauses_the_card(): void
+    {
+        $card = $this->twoRuleCard();
+        $run = $this->resumedRun($card, WorkerRunState::Queued, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNull($this->activePause($card));
+
+        $run->state = WorkerRunState::NotStarted;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $pause = $this->activePause($card);
+        self::assertSame([PauseKind::WorkStopped, 'not-started', 'b'], [$pause?->kind, $pause?->reason, $pause?->ruleId]);
+    }
+
+    public function test_a_resumed_worker_that_ends_well_clears_the_stored_run_and_pauses_nothing(): void
+    {
+        $card = $this->twoRuleCard();
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNotNull($this->ruleState($card, 'b')->answeringRunId);
+
+        $run->state = WorkerRunState::Succeeded;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([null, 0, null], [$state->answeringRunId, $state->attempts, $state->lastRefusal]);
+        self::assertNull($this->activePause($card));
+        self::assertSame([], $this->liveRequests($card));
+    }
+
+    public function test_the_failure_of_a_resumed_worker_does_not_count_after_the_rule_turned_false_and_true_again(): void
+    {
+        $card = $this->twoRuleCard(ruleBWhen: ['card.type' => ['type' => 'bug']]);
+        $this->setType($card, 'bug');
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNotNull($this->ruleState($card, 'b')->answeringRunId);
+
+        $this->setType($card, 'feature');
+        $this->evaluate($card, '2026-10-02 12:25:00');
+        self::assertNull($this->ruleState($card, 'b')->answeringRunId);
+        $this->setType($card, 'bug');
+        $this->evaluate($card, '2026-10-02 12:26:00');
+        self::assertSame(['b'], array_map(static fn (WorkRequest $request): string => $request->ruleId, $this->liveRequests($card)));
+
+        $run->state = WorkerRunState::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([0, null], [$state->attempts, $state->lastRefusal]);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_the_failure_of_a_resumed_worker_does_not_count_against_the_request_of_a_new_subject(): void
+    {
+        $card = $this->boundCard([self::requestRule('fix', ['all' => [['pr.open' => []], ['pr.checks_failed' => []]]], limit: 3)], onWorkFailed: self::RETRY_ONCE);
+        [$base, $upper] = $this->stack($card);
+        $base->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card);
+        $this->refuse($this->liveRequests($card)[0], 'needs-person', '2026-10-02 12:20:00');
+        $run = $this->workerRun($card, 'fix', WorkerRunState::Running, $this->workerRun($card, 'fix', WorkerRunState::Blocked));
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertSame($run->id?->toRfc4122(), $this->ruleState($card, 'fix')->answeringRunId?->toRfc4122());
+
+        $base->checks = PullRequestChecks::Passed;
+        $upper->checks = PullRequestChecks::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:30:00');
+        self::assertCount(1, $this->liveRequests($card));
+        self::assertNull($this->ruleState($card, 'fix')->answeringRunId);
+
+        $run->state = WorkerRunState::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:40:00');
+
+        $state = $this->ruleState($card, 'fix');
+        self::assertSame([0, null], [$state->attempts, $state->lastRefusal]);
+        self::assertNull($this->activePause($card));
+    }
+
+    public function test_a_rule_that_leaves_its_slot_forgets_its_answering_run(): void
+    {
+        $card = $this->twoRuleCard();
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+        self::assertNotNull($this->ruleState($card, 'b')->answeringRunId);
+
+        $this->moveTo($card, 'in-progress');
+        $this->evaluate($card, '2026-10-02 12:25:00');
+        self::assertNull($this->ruleState($card, 'b')->answeringRunId);
+
+        $run->state = WorkerRunState::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+
+        self::assertSame(0, $this->ruleState($card, 'b')->attempts);
+        self::assertNull($this->activePause($card));
+    }
+
+    #[DataProvider('stopsThatWaitForNoAnswer')]
+    public function test_a_stop_that_does_not_wait_for_a_person_pauses_the_card_although_a_resumed_worker_reported(string $code): void
+    {
+        $card = $this->twoRuleCard(stopOfRuleB: false);
+        $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->refuse($this->ruleRequest($card, 'b'), $code, '2026-10-02 12:20:00');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $pause = $this->activePause($card);
+        self::assertSame([PauseKind::WorkStopped, $code, 'b'], [$pause?->kind, $pause?->reason, $pause?->ruleId]);
+        self::assertNull($this->ruleState($card, 'b')->answeringRunId);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function stopsThatWaitForNoAnswer(): iterable
+    {
+        yield 'blocked' => ['blocked'];
+        yield 'not-started' => ['not-started'];
+    }
+
+    public function test_the_retries_of_a_failed_resumed_worker_end_in_a_repair_and_a_retries_pause_at_the_same_count_as_a_rule_worker(): void
+    {
+        $card = $this->twoRuleCard(onWorkFailed: self::REPAIR);
+        $run = $this->resumedRun($card, WorkerRunState::Running, ruleId: 'a');
+        $this->evaluate($card, '2026-10-02 12:21:00');
+
+        $run->state = WorkerRunState::Failed;
+        $this->em()->flush();
+        $this->evaluate($card, '2026-10-02 12:31:00');
+        self::assertSame(1, $this->ruleState($card, 'b')->attempts);
+
+        $this->evaluate($card, '2026-10-02 12:41:00');
+        $retry = $this->liveRequestOfKind($card, 'work');
+        self::assertSame(1, $this->ruleState($card, 'b')->attempts, 'The live retry keeps the attempts.');
+
+        $this->refuse($retry, 'failed', '2026-10-02 12:45:00');
+        $this->evaluate($card, '2026-10-02 12:46:00');
+        $repair = $this->liveRequestOfKind($card, 'repair');
+        $state = $this->ruleState($card, 'b');
+        self::assertSame([2, true], [$state->attempts, $state->repaired]);
+        self::assertNull($this->activePause($card));
+
+        $this->refuse($repair, 'failed', '2026-10-02 12:50:00');
+        $this->evaluate($card, '2026-10-02 12:51:00');
+        self::assertSame(PauseKind::Retries, $this->activePause($card)?->kind);
     }
 
     public function test_a_refusal_that_settles_while_another_pause_holds_the_card_is_counted_after_it_ends(): void
@@ -4175,6 +4425,50 @@ final class EngineTest extends KernelTestCase
         self::assertNotNull($this->activePause($card));
 
         return $card;
+    }
+
+    /**
+     * Rules "a" and "b" ask for the same kind of work. Rule "a" holds a settled request, or a stop that pauses the card.
+     * Rule "b" holds a request of its own that a worker refused as needs-person at 12:20, and its state has not read it yet.
+     *
+     * @param array<string, mixed> $onWorkFailed
+     * @param array<string, mixed> $ruleBWhen
+     */
+    private function twoRuleCard(?string $stopOfRuleA = null, bool $stopOfRuleB = true, array $onWorkFailed = self::RETRY_ONCE, array $ruleBWhen = self::ALWAYS): Card
+    {
+        $card = $this->boundCard([
+            self::requestRule('a', self::ALWAYS, kind: 'work'),
+            self::requestRule('b', $ruleBWhen, kind: 'work'),
+        ], onWorkFailed: $onWorkFailed);
+        $this->evaluate($card);
+        $first = $this->ruleRequest($card, 'a');
+        if (null === $stopOfRuleA) {
+            $this->finish($first, '2026-10-02 12:10:00');
+        } else {
+            $this->refuse($first, $stopOfRuleA, '2026-10-02 12:10:00');
+            $this->evaluate($card, '2026-10-02 12:15:00');
+            self::assertSame('a', $this->activePause($card)?->ruleId);
+        }
+
+        $own = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A flushed card has an id.'), $card->number, 'work', null, 'b', new \DateTimeImmutable('2026-10-02 12:15:00'));
+        $this->em()->persist($own);
+        $this->em()->flush();
+        $state = $this->ruleState($card, 'b');
+        $state->truth = true;
+        $state->workRequestId = $own->id;
+        $this->em()->flush();
+        if ($stopOfRuleB) {
+            $this->refuse($own, 'needs-person', '2026-10-02 12:20:00');
+        }
+
+        return $card;
+    }
+
+    private function ruleRequest(Card $card, string $ruleId): WorkRequest
+    {
+        $id = $this->ruleState($card, $ruleId)->workRequestId ?? throw new \LogicException('The rule holds no request.');
+
+        return $this->service(WorkRequestRepository::class)->find($id) ?? throw new \LogicException('The request is stored.');
     }
 
     private function resumedRun(Card $card, WorkerRunState $state, ?\DateTimeImmutable $receivedAt = null, ?string $ruleId = null): WorkerRun
