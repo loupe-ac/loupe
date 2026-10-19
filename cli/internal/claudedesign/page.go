@@ -67,6 +67,11 @@ type page struct {
 	interactive bool
 	// props holds the prop defaults of the canvas script.
 	props map[string]any
+	// ctx holds what the compiler knows of the whole push. It is nil in a test
+	// that builds a page alone.
+	ctx *pushCtx
+	// mounts counts the components the page draws in the viewer.
+	mounts int
 }
 
 func (p *page) addGap(n *html.Node, pr problem) *html.Node {
@@ -135,10 +140,10 @@ func isTag(name string) func(*html.Node) bool {
 // compilePage compiles one canvas file to the page at out. A page with events
 // or timers ships its script and a redraw runtime. A page with any gap falls
 // back to the static page, with the event attributes as gaps and no script.
-func compilePage(file, out string, src []byte, links map[string]string, blobs blobFiles) ([]byte, []artifactcompile.Gap) {
-	built, gaps, retry := buildPage(file, out, src, links, blobs, true)
+func compilePage(file, out string, src []byte, links map[string]string, blobs blobFiles, ctx *pushCtx) ([]byte, []artifactcompile.Gap) {
+	built, gaps, retry := buildPage(file, out, src, links, blobs, ctx, true)
 	if retry {
-		built, gaps, _ = buildPage(file, out, src, links, blobs, false)
+		built, gaps, _ = buildPage(file, out, src, links, blobs, ctx, false)
 	}
 
 	return built, gaps
@@ -146,8 +151,8 @@ func compilePage(file, out string, src []byte, links map[string]string, blobs bl
 
 // buildPage builds a page. retry is true when the page wants to be interactive
 // and has a gap, so the caller must build the static page instead.
-func buildPage(file, out string, src []byte, links map[string]string, blobs blobFiles, mayBeInteractive bool) ([]byte, []artifactcompile.Gap, bool) {
-	p := &page{file: file, out: out, links: links, blobs: blobs, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
+func buildPage(file, out string, src []byte, links map[string]string, blobs blobFiles, ctx *pushCtx, mayBeInteractive bool) ([]byte, []artifactcompile.Gap, bool) {
+	p := &page{file: file, out: out, links: links, blobs: blobs, ctx: ctx, kept: map[*html.Node]bool{}, keptSelf: map[*html.Node]bool{}}
 	doc, err := html.Parse(bytes.NewReader(injectLines(src)))
 	if err != nil {
 		return markTop(src, artifactcompile.Gap{File: file, Line: 1, Feature: "markup that does not parse", Detail: err.Error()}),
@@ -165,7 +170,7 @@ func buildPage(file, out string, src []byte, links map[string]string, blobs blob
 	if script != nil {
 		scope = p.scriptScope(script)
 	}
-	wantsRuntime := mayBeInteractive && script != nil && wantsInteractive(root, script)
+	wantsRuntime := mayBeInteractive && script != nil && find(root, isTag(importTag)) == nil && wantsInteractive(root, script)
 
 	head := &html.Node{Type: html.ElementNode, Data: "head"}
 	body := &html.Node{Type: html.ElementNode, Data: "body"}
@@ -207,6 +212,8 @@ func buildPage(file, out string, src []byte, links map[string]string, blobs blob
 		p.interactive = false
 	}
 
+	bundles := p.headAssets(head)
+
 	tree := &html.Node{Type: html.DocumentNode}
 	tree.AppendChild(&html.Node{Type: html.DoctypeNode, Data: "html"})
 	htmlEl := &html.Node{Type: html.ElementNode, Data: "html"}
@@ -217,6 +224,9 @@ func buildPage(file, out string, src []byte, links map[string]string, blobs blob
 	stripLines(tree)
 	if r, moved := p.rebaser(); moved {
 		r.tree(tree)
+	}
+	if p.mounts > 0 {
+		p.addRuntime(head, body, bundles)
 	}
 
 	if wantsRuntime {
@@ -395,6 +405,8 @@ func (p *page) expandNode(n *html.Node, scope map[string]any) []*html.Node {
 		return p.expandFor(n, scope)
 	case n.Data == "sc-if":
 		return p.expandIf(n, scope)
+	case n.Data == importTag:
+		return p.expandImport(n, scope)
 	case n.Data == "sc-else":
 		return p.rawGap(n, problem{"<sc-else>", "write the else branch by hand"})
 	case strings.HasPrefix(n.Data, "dc-"):
@@ -519,6 +531,9 @@ func (p *page) attrValueProblems(n *html.Node, scope map[string]any, out []probl
 			}
 		default:
 			problems := valueProblems(a.Val, scope)
+			if n.Data == importTag {
+				problems = withoutNonText(problems)
+			}
 			if val, known := fillKnown(a.Val, scope); a.Key == "href" && known && holeRe.MatchString(a.Val) && len(problems) == 0 && len(holeProblems(a.Val)) == 0 {
 				if _, ok := p.rewriteLink(val); !ok {
 					problems = append(problems, missingLink(val))
@@ -532,6 +547,19 @@ func (p *page) attrValueProblems(n *html.Node, scope map[string]any, out []probl
 	}
 
 	return out, marks
+}
+
+// withoutNonText drops the problems about a hole whose value is not text,
+// because a component prop takes any value.
+func withoutNonText(problems []problem) []problem {
+	var out []problem
+	for _, pr := range problems {
+		if pr.feature != "a hole whose value is not text" {
+			out = append(out, pr)
+		}
+	}
+
+	return out
 }
 
 // filledBlobProblems checks the blob paths of an attribute after its known
@@ -610,6 +638,13 @@ func (p *page) elementProblems(n *html.Node, templated bool) []problem {
 		out = append(out, problem{"<sc-else>", "write the else branch by hand"})
 	case strings.HasPrefix(n.Data, "dc-"):
 		out = append(out, problem{"<" + n.Data + "> (an embedded artboard)", "paste the markup of the artboard here"})
+	case n.Data == importTag:
+		name, _ := attrOf(n, importAttr)
+		if !componentRe.MatchString(name) {
+			out = append(out, problem{"<x-import> without a plain component name", fmt.Sprintf("%s=%q", importAttr, name)})
+		} else if !templated {
+			out = append(out, problem{"<x-import> inside markup from a value", "write the markup by hand"})
+		}
 	case n.Data == "sc-for":
 		listAttr, _ := attrOf(n, "list")
 		as, _ := attrOf(n, "as")

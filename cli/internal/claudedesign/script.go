@@ -12,8 +12,13 @@ import (
 // scriptTimeout stops a canvas script that loops.
 var scriptTimeout = 2 * time.Second
 
-// prelude is the part of the Claude Design runtime a canvas script needs at
-// build time. Timers do nothing, and no mount hook runs.
+// prelude is the part of the Design runtime a canvas script needs at build
+// time. Timers do nothing, and no mount hook runs. The window stub is no
+// browser. It answers a design system namespace, such as
+// window.LoupeDesignSystem_686f56, with a namespace whose members are
+// component names, and React.createElement turns a call on one of them into a
+// description that the page draws in the viewer. Any other window member is
+// undefined.
 const prelude = `
 class DCLogic {
   constructor(props) { this.props = props || {}; this.state = {}; }
@@ -27,6 +32,23 @@ function setInterval() { return 0; }
 function clearTimeout() {}
 function clearInterval() {}
 var console = { log() {}, warn() {}, error() {}, info() {}, debug() {} };
+var window = new Proxy({}, {
+  get(target, key) {
+    if (key in target) return target[key];
+    if (typeof key === 'string' && /^[A-Za-z]+_[0-9a-f]{6}$/.test(key)) {
+      return new Proxy({}, { get(_, name) { return typeof name === 'string' ? { $component: key + '.' + name } : undefined; } });
+    }
+    return undefined;
+  },
+});
+var document = {};
+var React = {
+  createElement(type, props) {
+    const name = type && typeof type === 'object' && type.$component ? type.$component : type;
+    return { $el: { type: name, props: props || {}, children: Array.prototype.slice.call(arguments, 2) } };
+  },
+};
+window.React = React;
 `
 
 var errNoComponent = errors.New("the script has no Component class")

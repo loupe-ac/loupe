@@ -59,7 +59,7 @@ func newArtifactPushCmd() *cobra.Command {
 			"Only an interactive session stores an artifact. The command sends the id of the " +
 			"session that runs it, from LOUPE_SESSION_ID, CLAUDE_CODE_SESSION_ID or " +
 			"CODEX_THREAD_ID, and Loupe refuses a store from a worker run.\n\n" +
-			"A folder with a Claude Design canvas, a .dc.html file, is compiled to plain pages " +
+			"A folder with a Design canvas, a .dc.html file from a Claude Design artifact or an older Claude Design project, is compiled to plain pages " +
 			"before it is stored. One canvas becomes index.html. With several canvases, --index " +
 			"names the one that becomes index.html, by its path with or without .dc.html, or by " +
 			"its base name. The others become <name>.html. Blob files stay in the folder as " +
