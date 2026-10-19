@@ -325,7 +325,8 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $pagination = (string) file_get_contents($this->directory.'/components/core/Pagination/Pagination.jsx');
 
         self::assertStringContainsString('{dot && <span className="lp-flash__dot"></span>}', $flash);
-        self::assertStringContainsString('<span className="lp-flash__message">{children}</span>', $flash);
+        self::assertStringContainsString('<span className="lp-flash__message">{title && <strong className="lp-flash__title">{title}</strong>}{children}{actions && <span className="lp-flash__actions">{actions}</span>}</span>', $flash);
+        self::assertStringContainsString("classes.push('lp-flash--block');", $flash);
         self::assertStringContainsString('<h2 className="lp-empty-state__title">{title}</h2>', $empty);
         self::assertStringContainsString('<nav {...rest} className={className} aria-label="Pagination">', $pagination);
         self::assertStringContainsString('<Flash severity="error" dismissLabel="Dismiss">Upload failed</Flash>', (string) file_get_contents($this->directory.'/components/core/Flash/Flash.card.html'));

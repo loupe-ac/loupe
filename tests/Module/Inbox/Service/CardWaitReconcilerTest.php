@@ -14,10 +14,13 @@ use App\Module\Board\Entity\CardPullRequest;
 use App\Module\Board\Entity\Forge;
 use App\Module\Bridge\Entity\BridgeCommand;
 use App\Module\Bridge\Entity\WorkerRun;
+use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\BridgeCommandCause;
 use App\Module\Bridge\ValueObject\BridgeCommandKind;
 use App\Module\Bridge\ValueObject\BridgeCommandState;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
+use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
@@ -1010,10 +1013,6 @@ final class CardWaitReconcilerTest extends KernelTestCase
         yield 'no review asked' => [static function (ForgePullRequest $row): void { $row->review = PullRequestReview::None; }];
         yield 'blocked mergeability' => [static function (ForgePullRequest $row): void { $row->mergeability = PullRequestMergeability::Blocked; }];
         yield 'behind' => [static function (ForgePullRequest $row): void { $row->mergeability = PullRequestMergeability::Behind; }];
-        yield 'changes requested on an older commit' => [static function (ForgePullRequest $row): void {
-            $row->review = PullRequestReview::ChangesRequested;
-            $row->changesRequestedSha = self::HEAD_B;
-        }];
     }
 
     /** @param \Closure(ForgePullRequest): void $change */
@@ -1051,11 +1050,11 @@ final class CardWaitReconcilerTest extends KernelTestCase
             $row->coveredSha = self::HEAD_B;
             $row->draft = true;
         }];
-        yield 'changes requested on the head commit' => [static function (ForgePullRequest $row): void {
+        yield 'changes requested that no fix run answered' => [static function (ForgePullRequest $row): void {
             $row->review = PullRequestReview::ChangesRequested;
-            $row->changesRequestedSha = self::HEAD_A;
+            $row->changesRequestedAt = new \DateTimeImmutable('-1 hour');
         }];
-        yield 'changes requested on an unknown commit' => [static function (ForgePullRequest $row): void { $row->review = PullRequestReview::ChangesRequested; }];
+        yield 'changes requested at an unknown time' => [static function (ForgePullRequest $row): void { $row->review = PullRequestReview::ChangesRequested; }];
         yield 'draft' => [static function (ForgePullRequest $row): void { $row->draft = true; }];
         yield 'never read' => [static function (ForgePullRequest $row): void { $row->refreshedAt = null; }];
         yield 'merged' => [static function (ForgePullRequest $row): void { $row->state = PullRequestState::Merged; }];
@@ -1080,14 +1079,13 @@ final class CardWaitReconcilerTest extends KernelTestCase
     /** @return iterable<string, array{?string, list<array<string, mixed>>, bool}> */
     public static function mappedReviews(): iterable
     {
-        $onHead = ['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => self::HEAD_A]];
-        $onOlder = ['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => self::HEAD_B]];
+        $first = ['state' => 'CHANGES_REQUESTED', 'submittedAt' => '2026-10-19T14:55:00Z', 'commit' => ['oid' => self::HEAD_A]];
+        $second = ['state' => 'CHANGES_REQUESTED', 'submittedAt' => '2026-10-19T15:10:00Z', 'commit' => ['oid' => self::HEAD_B]];
 
         yield 'an approval without a decision' => [null, [['state' => 'APPROVED', 'commit' => ['oid' => self::HEAD_A]]], false];
         yield 'no reviews without a decision' => [null, [], true];
-        yield 'a change request on the head and one on an older commit' => ['CHANGES_REQUESTED', [$onHead, $onOlder], false];
-        yield 'a change request on an older commit and one on the head' => ['CHANGES_REQUESTED', [$onOlder, $onHead], false];
-        yield 'a change request on an older commit only' => ['CHANGES_REQUESTED', [$onOlder], true];
+        yield 'two change requests that no fix run answered' => ['CHANGES_REQUESTED', [$first, $second], false];
+        yield 'a change request on an older commit that no fix run answered' => ['CHANGES_REQUESTED', [$second], false];
     }
 
     /** @param list<array<string, mixed>> $reviews */
@@ -1208,12 +1206,12 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(self::HEAD_B, $this->onlyWait($watches[1])->headSha);
     }
 
-    public function test_changes_requested_on_the_head_commit_end_the_wait_and_a_new_commit_with_passing_checks_opens_one_again(): void
+    public function test_changes_requested_end_the_wait_and_a_fix_run_that_answers_them_opens_one_again(): void
     {
         $pullRequest = $this->pullRequest(5);
         $this->reconcile();
         $pullRequest->review = PullRequestReview::ChangesRequested;
-        $pullRequest->changesRequestedSha = self::HEAD_A;
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('-1 hour');
         $this->em->flush();
 
         $this->reconcile();
@@ -1222,14 +1220,12 @@ final class CardWaitReconcilerTest extends KernelTestCase
         self::assertSame(InboxItemState::Done, $first->item->state);
 
         $pullRequest->headSha = self::HEAD_B;
-        $pullRequest->checks = PullRequestChecks::Pending;
-        $this->em->flush();
-        $this->reconcile();
-        self::assertSame([$first], $this->watches());
-
-        $pullRequest->checks = PullRequestChecks::Passed;
         $pullRequest->checksSha = self::HEAD_B;
         $this->em->flush();
+        $this->reconcile();
+        self::assertSame([$first], $this->watches(), 'A new commit with passing checks does not answer the review.');
+
+        $this->doneFix(5, '-30 minutes', 'https://github.com/Acme/Widgets/pull/5');
         $this->reconcile();
 
         $watches = $this->watches();
@@ -1237,6 +1233,29 @@ final class CardWaitReconcilerTest extends KernelTestCase
         $wait = $this->onlyWait($watches[1]);
         self::assertSame(InboxCardWaitTrigger::PullRequestReady, $wait->trigger);
         self::assertSame(self::HEAD_B, $wait->headSha);
+    }
+
+    public function test_a_fix_run_of_another_repository_with_the_same_number_does_not_answer_the_review(): void
+    {
+        $pullRequest = $this->pullRequest(5);
+        $pullRequest->review = PullRequestReview::ChangesRequested;
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('-1 hour');
+        $this->doneFix(5, '-30 minutes', 'https://github.com/Other/Widgets/pull/5');
+
+        $this->reconcile();
+
+        self::assertSame([], $this->watches());
+    }
+
+    private function doneFix(int $number, string $openedAt, string $url): void
+    {
+        $request = new WorkRequest($this->project, WorkSubject::CARD, $this->card->id ?? throw new \LogicException('Stored.'), $this->card->number, 'fix', null, 'fix-on-review', new \DateTimeImmutable($openedAt));
+        $request->role = 'fix';
+        $request->state = WorkRequestState::Done;
+        $request->settledAt = new \DateTimeImmutable();
+        $request->context = new WorkRequestContext(pullRequestNumber: $number, pullRequestUrl: $url, reason: 'changes-requested');
+        $this->em->persist($request);
+        $this->em->flush();
     }
 
     public function test_without_a_card_list_it_finds_a_card_that_only_links_a_ready_pull_request(): void

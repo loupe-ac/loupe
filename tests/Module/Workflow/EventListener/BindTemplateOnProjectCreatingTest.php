@@ -78,13 +78,16 @@ final class BindTemplateOnProjectCreatingTest extends KernelTestCase
         self::assertSame('simple', $binding->templateKey);
     }
 
-    public function test_no_template_keeps_the_four_default_columns_and_binds_the_default_template(): void
+    public function test_no_template_binds_lifecycle_with_its_columns(): void
     {
         $project = $this->create(null);
 
-        self::assertSame(['backlog', 'next', 'in-progress', 'done'], array_column($this->columns($project), 0));
-        self::assertSame([], $this->links($project));
-        self::assertSame('simple', $this->bindings()->findOneByProjectId($project->id ?? throw new \LogicException())?->templateKey);
+        self::assertSame(
+            ['backlog', 'next', 'product-design', 'tech-design', 'implementation', 'in-review', 'done'],
+            array_column($this->columns($project), 0),
+        );
+        self::assertCount(5, $this->links($project));
+        self::assertSame('lifecycle', $this->bindings()->findOneByProjectId($project->id ?? throw new \LogicException())?->templateKey);
     }
 
     public function test_an_unknown_template_is_a_field_error(): void

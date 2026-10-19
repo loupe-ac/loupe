@@ -1,0 +1,35 @@
+/* The on/off switch: a native checkbox drawn as a track and a knob.
+   `templates/components/Ds/Switch.html.twig` renders it. */
+@layer components {
+    .lp-switch {
+        @apply relative shrink-0 w-10 h-6 mt-px appearance-none rounded-full bg-line-strong cursor-pointer transition-colors;
+    }
+    .lp-switch::after {
+        @apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface-1 transition-all;
+        content: '';
+    }
+    .lp-switch:checked {
+        @apply bg-accent;
+    }
+    .lp-switch:checked::after {
+        @apply left-4.5;
+    }
+    .lp-switch:focus-visible {
+        @apply outline-2 outline-offset-2 outline-accent-ink;
+    }
+    .lp-switch:disabled {
+        @apply opacity-50 cursor-not-allowed;
+    }
+    .lp-switch-field {
+        @apply flex items-start gap-3;
+    }
+    .lp-switch-field__text {
+        @apply flex flex-col gap-0.5;
+    }
+    .lp-switch-field__label {
+        @apply text-sm font-semibold text-ink cursor-pointer;
+    }
+    .lp-switch-field__help {
+        @apply text-xs text-fg-dim leading-snug;
+    }
+}

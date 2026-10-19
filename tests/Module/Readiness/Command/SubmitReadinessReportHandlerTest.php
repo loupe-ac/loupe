@@ -15,6 +15,7 @@ use App\Module\Readiness\Entity\DiscoveryProposal;
 use App\Module\Readiness\Entity\DiscoveryRun;
 use App\Module\Readiness\Entity\DiscoveryRunState;
 use App\Module\Readiness\Repository\DiscoveryProposalRepository;
+use App\Module\Readiness\Repository\DiscoveryRunRepository;
 use App\Module\Readiness\Service\ProposalTypes;
 use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Messenger\EvaluateCard;
@@ -119,6 +120,44 @@ final class SubmitReadinessReportHandlerTest extends KernelTestCase
         $this->submit();
 
         $this->assertRefused(SubmitReadinessReportHandler::ALREADY_REPORTED, fn () => $this->submit());
+    }
+
+    public function test_a_revising_run_takes_a_new_version_of_the_same_document_and_replaces_its_proposals(): void
+    {
+        $first = $this->submit(proposals: [$this->proposal('tests', 'Add tests'), $this->proposal('docs', 'Write docs', type: 'docs')]);
+        $this->run->state = DiscoveryRunState::Revising;
+        $this->em()->flush();
+
+        $second = $this->submit(proposals: [$this->proposal('tests', 'Add unit tests', body: 'Changed.'), $this->proposal('ci', 'Add CI', type: 'tooling')], summary: 'Revised.');
+
+        self::assertSame($first, $second);
+        self::assertSame(DiscoveryRunState::Reported, $this->run->state);
+        self::assertSame($first, $this->run->reportDocument);
+        self::assertSame(2, $first->currentVersion()->versionNumber);
+        self::assertStringContainsString("- [ ] Add unit tests\n- [ ] Add CI\n", $first->currentVersion()->markdownSource);
+        self::assertSame(
+            [['tests', 'Add unit tests', 'Changed.'], ['ci', 'Add CI', 'Body.']],
+            array_map(static fn (DiscoveryProposal $proposal): array => [$proposal->key, $proposal->title, $proposal->body], $this->proposals()->findForRun($this->run)),
+        );
+        self::assertCount(1, $this->audit->records('readiness.report_revised'));
+    }
+
+    public function test_a_revision_requested_after_the_run_was_loaded_still_stores_the_reported_state(): void
+    {
+        $this->submit();
+        $this->em()->getConnection()->executeStatement('UPDATE discovery_runs SET state = ? WHERE id = ?', [DiscoveryRunState::Revising->value, $this->run->id?->toRfc4122()]);
+
+        $this->submit(summary: 'Revised.');
+
+        self::assertSame(DiscoveryRunState::Reported, self::getContainer()->get(DiscoveryRunRepository::class)->freshStateOf($this->run)['state']);
+    }
+
+    public function test_a_revision_after_the_run_left_revising_is_refused(): void
+    {
+        $this->submit();
+
+        $this->assertRefused(SubmitReadinessReportHandler::ALREADY_REPORTED, fn () => $this->submit());
+        self::assertSame(1, $this->run->reportDocument?->currentVersion()->versionNumber);
     }
 
     #[DataProvider('endedStates')]

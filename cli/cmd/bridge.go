@@ -49,9 +49,9 @@ func apiClient(cfg config.Config) *api.Client {
 func newBridgeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bridge",
-		Short: "Bridge Loupe events into local workers",
+		Short: "Run Loupe work requests in local workers",
 	}
-	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
+	cmd.AddCommand(newBridgeRunCmd(), newBridgeReloadCmd(), newBridgeStopCmd(), newBridgePreflightCmd(), newBridgeHooksCmd())
 
 	return cmd
 }
@@ -61,6 +61,8 @@ type bridgeRunOptions struct {
 	rulesPath, permissionMode, model, logFile string
 	// resumeFile and rolledBackFrom carry a handover from a former image.
 	resumeFile, rolledBackFrom string
+	// daemon starts the bridge detached and returns.
+	daemon bool
 }
 
 func newBridgeRunCmd() *cobra.Command {
@@ -68,34 +70,43 @@ func newBridgeRunCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run",
-		Short: "Watch a Loupe board and run a Claude Code worker for each rule an event matches",
-		Long: "Reads the rule file, rules.yaml in your config directory, and runs " +
-			"`claude -p --session-id <uuid> -- <prompt>` for every event a rule matches. Each rule names an event, " +
-			"a project and a column, and the prompt its worker runs. The projects map in " +
-			"the file gives each project the directory its workers run in.\n\n" +
-			"The bridge refuses to start without the file, and checks every project and " +
-			"column slug against the server first. It follows every project you own on " +
-			"one connection, and ignores the events of a project the file does not map.\n\n" +
+		Short: "Claim the work requests of the workflow and run an agent for each one",
+		Long: "Reads the rule file, rules.yaml in your config directory. The workflow of a board " +
+			"decides when work runs and opens a work request for each piece of work. The bridge " +
+			"claims each request and runs the prompt for its kind of work: the entry of the " +
+			"work map for that kind, or the prompt that Loupe sends when the file sets " +
+			"appPrompts: true. A worker is `claude -p --session-id <uuid> -- <prompt>`. " +
+			"The projects map in the file gives each project the directory its workers run in.\n\n" +
+			"The bridge refuses to start without the file, and checks every project slug " +
+			"against the server first. It follows every project you own on " +
+			"one connection, and ignores the work requests of a project the file does not map.\n\n" +
+			"With -d the bridge runs in the background, and its log goes to the log file. " +
+			"Run `loupe bridge stop` to stop it.\n\n" +
 			"Run `loupe bridge reload` to apply a changed rule file without a restart. " +
 			"A second bridge on the same rule file refuses to start.\n\n" +
-			"The defaults block of the rule file and each rule win over --permission-mode " +
+			"The defaults block of the rule file and each work entry win over --permission-mode " +
 			"and --model. The flags fill a value that both leave empty. A worker has no " +
 			"terminal, so it cannot answer a permission prompt: with no mode, claude " +
 			"denies every tool call that needs approval.\n\n" +
-			"Set maxWorkers in the rule file to bound the workers that run at once. Events past the " +
-			"bound wait in a queue and start in arrival order, except that an event waits " +
+			"Set maxWorkers in the rule file to bound the workers that run at once. Requests past the " +
+			"bound wait in a queue and start in arrival order, except that a request waits " +
 			"while its card has a worker. The bridge writes one JSON " +
 			"object per line to stdout and to --log-file.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if o.daemon {
+				return startDaemon(cmd, o)
+			}
+
 			return startBridge(cmd, o)
 		},
 	}
 	cmd.Flags().StringVar(&o.rulesPath, "rules", "", "read rules from this `path`; empty uses rules.yaml in your config directory")
-	cmd.Flags().StringVar(&o.permissionMode, "permission-mode", "", "pass this `mode` to every `claude` when neither its rule nor the defaults block of the rule file sets one; empty passes no flag, and a worker cannot answer a prompt")
-	cmd.Flags().StringVar(&o.model, "model", "", "pass this `model` to every `claude` when neither its rule nor the defaults block of the rule file sets one; empty passes no flag")
+	cmd.Flags().StringVar(&o.permissionMode, "permission-mode", "", "pass this `mode` to every `claude` when neither its work entry nor the defaults block of the rule file sets one; empty passes no flag, and a worker cannot answer a prompt")
+	cmd.Flags().StringVar(&o.model, "model", "", "pass this `model` to every `claude` when neither its work entry nor the defaults block of the rule file sets one; empty passes no flag")
 	cmd.Flags().Int(maxWorkersFlag, rules.DefaultMaxWorkers, "does nothing; set maxWorkers in rules.yaml")
 	cmd.Flags().MarkDeprecated(maxWorkersFlag, "it does nothing; set maxWorkers in rules.yaml instead")
 	cmd.Flags().StringVar(&o.logFile, "log-file", "", "append the JSON log to this `path`; empty uses bridge.log in your config directory")
+	cmd.Flags().BoolVarP(&o.daemon, daemonFlag, "d", false, "start the bridge in the background and return; `loupe bridge stop` stops it")
 	cmd.Flags().StringVar(&o.resumeFile, resumeHandoverFlag, "", "take over the bridge that a former image handed over in this `file`")
 	cmd.Flags().StringVar(&o.rolledBackFrom, rolledBackFromFlag, "", "the `version` that handed the bridge back")
 	cmd.Flags().MarkHidden(resumeHandoverFlag)
@@ -262,8 +273,12 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 		cursorFile: cursorFile,
 		outboxDir:  outboxDir,
 		agent:      cfg.AgentAccount,
-		pushLogin:  checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log),
 	}
+	pushLogin := checkAgentAccount(cmd.Context(), cfg.AgentAccount, bl.log)
+	if control != nil {
+		r.credentials = newCredentialBroker(apiClient(cfg), cfg.AgentAccount, control.Addr().String())
+	}
+	r.identities = newIdentityReporter(cmd.Context(), cfg.AgentAccount, pushLogin, r.credentials, bl.log)
 	if dir, err := config.Dir(); err == nil {
 		r.assumeAutoUpdate = migrateAutoUpdate(bl.log, dir, path, o.resumeFile != "")
 	}
@@ -422,7 +437,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 	set := r.rules()
 	if r.bridgeID != "" {
-		announce(ctx, apiClient(cfg), r.bridgeID, set, r.pushLogin, r.log)
+		announce(ctx, apiClient(cfg), r.bridgeID, set, r.identities, r.log)
 	}
 	events, err := startEvents(ctx, cfg, r.bridgeID, set)
 	if err != nil {
@@ -463,7 +478,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	var updates *updater
 	var watched <-chan struct{}
 	if r.bridgeID != "" {
-		hb := newHeartbeater(ctx, queue, apiClient(cfg), r.bridgeID, heartbeatBody(set, r.pushLogin), heartbeatInterval(events), r.log)
+		hb := newHeartbeater(ctx, queue, apiClient(cfg), r.bridgeID, heartbeatBody(set), heartbeatInterval(events), r.log)
 		if dir, err := config.Dir(); err != nil {
 			r.log.Warn("update_skipped", "reason", err.Error())
 		} else {
@@ -486,6 +501,10 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 		}
 		hb.onReply, hb.onLost = r.onHeartbeatReply, r.loseClaims
 		hb.worktrees = func(ctx context.Context) []api.WorktreeReport { return worktreeReports(ctx, r.rules()) }
+		hb.repositories = func(ctx context.Context) []api.RepositoryReport { return repositoryReports(ctx, r.rules()) }
+		hb.gitIdentities = func(context.Context) ([]api.GitIdentityReport, time.Duration) {
+			return r.identities.rows(identityTargets(r.rules()))
+		}
 		// Adopted runs can end on their own goroutines, and read heartbeat
 		// under mu.
 		r.mu.Lock()
@@ -507,7 +526,15 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 	var served <-chan struct{}
 	if r.control != nil {
 		served = serveControl(ctx, r.control, controlOps{
+			stop:   stop,
 			reload: func(ctx context.Context) reloadResult { return r.reload(ctx, r.source) },
+			credential: func(ctx context.Context, runID string) credentialResult {
+				if r.credentials == nil {
+					return credentialResult{Problem: "this bridge hands out no credentials"}
+				}
+
+				return r.credentials.answer(ctx, runID)
+			},
 			env:    r.runEnv,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
@@ -563,8 +590,9 @@ func logStaged(log *slog.Logger, from string) stagedHook {
 // announce sends one heartbeat before the first GET /api/events, because the
 // server serves the events only to a bridge whose heartbeat names the
 // work-requests capability. A failure leaves GET /api/events to answer.
-func announce(ctx context.Context, client heartbeatSender, bridgeID string, set *rules.Set, pushLogin string, log *slog.Logger) {
-	body := heartbeatBody(set, pushLogin)
+func announce(ctx context.Context, client heartbeatSender, bridgeID string, set *rules.Set, identities *identityReporter, log *slog.Logger) {
+	body := heartbeatBody(set)
+	body.GitIdentities = identities.start(ctx, set)
 	body.Capabilities = slices.Concat(bridgeCapabilities, body.Capabilities)
 	if _, err := client.Heartbeat(ctx, bridgeID, body); err != nil {
 		log.Warn("start_heartbeat_failed", "error", err.Error())
@@ -595,9 +623,9 @@ func startEvents(ctx context.Context, cfg config.Config, bridgeID string, set *r
 }
 
 // heartbeatBody names the projects the rule file maps, by id, the CLI
-// version, the capabilities and the kinds of the work map, the bridge name, the login that
-// workers push as, and the state of each account.
-func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
+// version, the capabilities and the kinds of the work map, the bridge name, and
+// the state of each account. The git identities join it when it goes out.
+func heartbeatBody(set *rules.Set) api.Heartbeat {
 	ids := []string{}
 	for _, slug := range set.Projects() {
 		ids = append(ids, set.ProjectID(slug))
@@ -610,7 +638,7 @@ func heartbeatBody(set *rules.Set, pushLogin string) api.Heartbeat {
 		caps = append(caps, rules.CapabilityAddEntry)
 	}
 
-	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: caps, WorkKinds: set.WorkKindsOn(), Name: &name, PushLogin: &pushLogin, Accounts: accountReports(set), CommandEntries: commandEntryReports(set)}
+	return api.Heartbeat{Projects: ids, CLIVersion: cliVersion(), Capabilities: caps, WorkKinds: set.WorkKindsOn(), Name: &name, Accounts: accountReports(set), CommandEntries: commandEntryReports(set)}
 }
 
 // missingProjects names the mapped projects that GET /api/events does not list:

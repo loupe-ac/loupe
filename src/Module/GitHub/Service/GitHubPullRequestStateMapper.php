@@ -62,7 +62,7 @@ final readonly class GitHubPullRequestStateMapper
             mergeability: $mergeability,
             review: $this->review($pullRequest),
             readyToMerge: PullRequestState::Open === $state && !$draft && PullRequestChecks::Passed === $checks && PullRequestMergeability::Mergeable === $mergeability,
-            changesRequestedSha: $this->changesRequestedSha($pullRequest, $headSha),
+            changesRequestedAt: $this->changesRequestedAt($pullRequest),
             openedAt: $this->time($pullRequest['createdAt'] ?? null),
             mergedAt: $this->time($pullRequest['mergedAt'] ?? null),
             approvedAt: $approvedAt,
@@ -227,22 +227,25 @@ final readonly class GitHubPullRequestStateMapper
     }
 
     /**
-     * The head sha when a change request sits on the head, else the commit of an active change request.
+     * The time of the newest request for changes among the latest opinionated reviews.
      *
      * @param array<mixed> $pullRequest
      */
-    private function changesRequestedSha(array $pullRequest, string $headSha): ?string
+    private function changesRequestedAt(array $pullRequest): ?\DateTimeImmutable
     {
         $nodes = $pullRequest['latestOpinionatedReviews']['nodes'] ?? [];
-        $shas = [];
+        $newest = null;
         foreach (\is_array($nodes) ? $nodes : [] as $node) {
-            $oid = \is_array($node) && 'CHANGES_REQUESTED' === ($node['state'] ?? null) ? ($node['commit']['oid'] ?? null) : null;
-            if (\is_string($oid) && '' !== $oid) {
-                $shas[] = $oid;
+            if (!\is_array($node) || 'CHANGES_REQUESTED' !== ($node['state'] ?? null)) {
+                continue;
+            }
+            $time = $this->time($node['submittedAt'] ?? null);
+            if (null !== $time && (null === $newest || $time > $newest)) {
+                $newest = $time;
             }
         }
 
-        return \in_array($headSha, $shas, true) ? $headSha : array_last($shas);
+        return $newest;
     }
 
     /**

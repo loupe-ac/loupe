@@ -37,6 +37,33 @@ final readonly class WorkTakers
             return [];
         }
 
+        [$followers, $narrowedAt, $quietBefore, $window] = $this->followersOf($project);
+
+        $readings = [];
+        foreach ($open as $request) {
+            $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => self::takes($bridge, $request)));
+            $readings[($request->id ?? throw new \LogicException('A stored request has an id.'))->toRfc4122()] = $this->read($request->reopenedAt ?? $request->createdAt, $followers, $takers, $narrowedAt, $quietBefore, $window, null !== $request->prompt && '' !== trim($request->prompt));
+        }
+
+        return $readings;
+    }
+
+    /**
+     * The reading for work of $kind that the project would request now, with a prompt or without. The readiness
+     * guide and the start of a discovery use it, so they agree with the engine that holds the real request.
+     */
+    public function capableFor(Project $project, string $kind, bool $hasPrompt): WorkTakerReading
+    {
+        [$followers, $narrowedAt, $quietBefore, $window] = $this->followersOf($project);
+        $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => $bridge->takesWorkRequests()
+            && (\in_array($kind, $bridge->workKinds, true) || ($hasPrompt && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true)))));
+
+        return $this->read($this->clock->now(), $followers, $takers, $narrowedAt, $quietBefore, $window, $hasPrompt);
+    }
+
+    /** @return array{list<Bridge>, ?\DateTimeImmutable, \DateTimeImmutable, int} the bridges that follow the project, the latest narrowing, the quiet boundary and the liveness window in seconds */
+    private function followersOf(Project $project): array
+    {
         $now = $this->clock->now();
         $quietBefore = $this->liveness->quietBefore($now);
         $window = $now->getTimestamp() - $quietBefore->getTimestamp();
@@ -51,13 +78,7 @@ final readonly class WorkTakers
         }
         $followers = array_values(array_filter($bridges, static fn (Bridge $bridge): bool => \in_array($projectId, $bridge->projects, true)));
 
-        $readings = [];
-        foreach ($open as $request) {
-            $takers = array_values(array_filter($followers, static fn (Bridge $bridge): bool => self::takes($bridge, $request)));
-            $readings[($request->id ?? throw new \LogicException('A stored request has an id.'))->toRfc4122()] = $this->read($request, $takers, $narrowedAt, $quietBefore, $window);
-        }
-
-        return $readings;
+        return [$followers, $narrowedAt, $quietBefore, $window];
     }
 
     private static function takes(Bridge $bridge, WorkRequest $request): bool
@@ -75,12 +96,16 @@ final readonly class WorkTakers
             && \in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true);
     }
 
-    /** @param list<Bridge> $takers */
-    private function read(WorkRequest $request, array $takers, ?\DateTimeImmutable $narrowedAt, \DateTimeImmutable $quietBefore, int $window): WorkTakerReading
+    /**
+     * @param list<Bridge> $followers every bridge that follows the project
+     * @param list<Bridge> $takers    the followers that could run the work
+     */
+    private function read(\DateTimeImmutable $waitStart, array $followers, array $takers, ?\DateTimeImmutable $narrowedAt, \DateTimeImmutable $quietBefore, int $window, bool $hasPrompt): WorkTakerReading
     {
-        $noTakerSince = self::later($narrowedAt, $request->reopenedAt ?? $request->createdAt);
+        $noTakerSince = self::later($narrowedAt, $waitStart);
         $newestUnpaused = null;
         $newestPaused = null;
+        $newestTaker = null;
         foreach ($takers as $taker) {
             $quietAt = $taker->lastSeenAt->modify(\sprintf('+%d seconds', $window));
             if ($quietAt > $noTakerSince) {
@@ -93,15 +118,36 @@ final readonly class WorkTakers
                 $newestPaused = self::later($newestPaused, $quietAt);
             } else {
                 $newestUnpaused = self::later($newestUnpaused, $quietAt);
+                if (null === $newestTaker || $taker->lastSeenAt > $newestTaker->lastSeenAt) {
+                    $newestTaker = $taker;
+                }
             }
         }
 
         // A taker is quiet from the second after its window ends, as BridgeLiveness counts whole seconds.
         return match (true) {
-            null !== $newestUnpaused => new WorkTakerReading(WorkTakerState::Available, $noTakerSince, $newestUnpaused->modify('+1 second')),
+            null !== $newestUnpaused => new WorkTakerReading(WorkTakerState::Available, $noTakerSince, $newestUnpaused->modify('+1 second'), bridgeLabel: $newestTaker?->label, bridgeSeenAt: $newestTaker?->lastSeenAt),
             null !== $newestPaused => new WorkTakerReading(WorkTakerState::Paused, $noTakerSince, $newestPaused->modify('+1 second')),
-            default => new WorkTakerReading(WorkTakerState::None, $noTakerSince, null),
+            default => self::withoutTaker($followers, $noTakerSince, $quietBefore, $hasPrompt),
         };
+    }
+
+    /**
+     * Online followers that none of the takers matched are bridges that cannot run the work.
+     *
+     * @param list<Bridge> $followers
+     */
+    private static function withoutTaker(array $followers, \DateTimeImmutable $noTakerSince, \DateTimeImmutable $quietBefore, bool $hasPrompt): WorkTakerReading
+    {
+        $online = array_values(array_filter($followers, static fn (Bridge $bridge): bool => $bridge->lastSeenAt >= $quietBefore));
+        if ([] === $online) {
+            return new WorkTakerReading(WorkTakerState::None, $noTakerSince, null);
+        }
+
+        $missing = $hasPrompt && array_any($online, static fn (Bridge $bridge): bool => !\in_array(Bridge::CAPABILITY_APP_PROMPTS, $bridge->capabilities ?? [], true));
+        usort($online, static fn (Bridge $a, Bridge $b): int => $b->lastSeenAt <=> $a->lastSeenAt);
+
+        return new WorkTakerReading(WorkTakerState::NotCapable, $noTakerSince, null, $missing, $online[0]->label, $online[0]->lastSeenAt);
     }
 
     private static function later(?\DateTimeImmutable $a, \DateTimeImmutable $b): \DateTimeImmutable

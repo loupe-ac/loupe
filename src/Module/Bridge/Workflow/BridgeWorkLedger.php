@@ -11,8 +11,10 @@ use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkerRunRepository;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\Service\WorkTakers;
 use App\Module\Bridge\ValueObject\WorkerRunKind;
 use App\Module\Bridge\ValueObject\WorkRequestState;
+use App\Module\Bridge\ValueObject\WorkTakerState;
 use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\RunView;
 use App\Module\Workflow\Contract\WithdrawKind;
@@ -34,6 +36,7 @@ final readonly class BridgeWorkLedger implements WorkLedger
         private WithdrawWorkRequestHandler $withdrawWorkRequest,
         private CardHolds $cardHolds,
         private ProjectRepository $projects,
+        private WorkTakers $workTakers,
     ) {
     }
 
@@ -52,12 +55,31 @@ final readonly class BridgeWorkLedger implements WorkLedger
     }
 
     #[\Override]
-    public function withdraw(Uuid $requestId, WithdrawKind $kind): bool
+    public function withdraw(Uuid $requestId, WithdrawKind $kind, ?string $reason = null, bool $onlyIfOpen = false): bool
     {
         return ($this->withdrawWorkRequest)(new WithdrawWorkRequestCommand(
             $requestId,
             WithdrawKind::Cancelled === $kind ? WorkRequestState::Cancelled : WorkRequestState::Expired,
+            onlyIfOpen: $onlyIfOpen,
+            reason: $reason,
         ));
+    }
+
+    #[\Override]
+    public function noTakerReason(Uuid $requestId): ?string
+    {
+        $request = $this->workRequests->find($requestId);
+        if (null === $request || WorkRequestState::Open !== $request->state) {
+            return null;
+        }
+
+        $reading = $this->workTakers->forRequests($request->project, [$request])[$requestId->toRfc4122()] ?? null;
+
+        return match ($reading?->state) {
+            WorkTakerState::None => WorkRequest::REASON_NO_TAKER,
+            WorkTakerState::NotCapable => $reading->appPromptsMissing ? WorkRequest::REASON_NO_CAPABLE_TAKER_APP_PROMPTS : WorkRequest::REASON_NO_CAPABLE_TAKER,
+            default => null,
+        };
     }
 
     #[\Override]

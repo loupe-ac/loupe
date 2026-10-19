@@ -42,6 +42,10 @@ final readonly class BridgeExporter implements UserDataExporterInterface
                 'commandEntriesReportedAt' => $bridge->commandEntriesReportedAt?->format(\DateTimeInterface::ATOM),
                 'worktrees' => $bridge->worktrees,
                 'worktreesReportedAt' => $bridge->worktreesReportedAt?->format(\DateTimeInterface::ATOM),
+                'repositories' => $bridge->repositories,
+                'repositoriesReportedAt' => $bridge->repositoriesReportedAt?->format(\DateTimeInterface::ATOM),
+                'gitIdentities' => $bridge->gitIdentities,
+                'gitIdentitiesReportedAt' => $bridge->gitIdentitiesReportedAt?->format(\DateTimeInterface::ATOM),
                 'pauseRequested' => $bridge->pauseRequested,
                 'pauseRequestedAt' => $bridge->pauseRequestedAt?->format(\DateTimeInterface::ATOM),
                 'pausedReported' => $bridge->pausedReported,
@@ -50,7 +54,6 @@ final readonly class BridgeExporter implements UserDataExporterInterface
                 'narrowedAt' => $bridge->narrowedAt?->format(\DateTimeInterface::ATOM),
                 'name' => $bridge->name,
                 'requestedName' => $bridge->requestedName,
-                'pushLogin' => $bridge->pushLogin,
             ];
         }
     }

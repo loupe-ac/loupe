@@ -34,7 +34,7 @@ framework:
             - billing-checkout
             - billing-portal
             - wizard-skip
-            - wizard-finish
+            - wizard-continue
             - readiness-guide-hide
             - readiness-discovery-start
             - request-data-export

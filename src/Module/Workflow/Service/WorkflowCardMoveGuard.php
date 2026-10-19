@@ -8,14 +8,16 @@ use App\Module\Project\Repository\ProjectRepository;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardEventCause;
 use App\Module\Workflow\Contract\CardMoveGuard;
+use App\Module\Workflow\Contract\CardMoveLock;
 use App\Module\Workflow\Contract\CardSnapshot;
 use App\Module\Workflow\Contract\ColumnRef;
 use App\Module\Workflow\Contract\WorkLedger;
 use App\Module\Workflow\Template\TemplateMissing;
 use App\Module\Workflow\Template\TemplateSource;
 use Symfony\Component\DependencyInjection\Attribute\AsAlias;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
-/** A card is managed while the engine runs for its project, its project has a template, and nobody holds it. */
+/** A card is managed while the engine runs for its project, its project has a template, and nobody holds it. A card with work of the app on it takes no manual move, also while it is unmanaged. */
 #[AsAlias(CardMoveGuard::class)]
 final readonly class WorkflowCardMoveGuard implements CardMoveGuard
 {
@@ -27,16 +29,29 @@ final readonly class WorkflowCardMoveGuard implements CardMoveGuard
         private TemplateSource $templates,
         private FactsBuilder $facts,
         private ProjectRepository $projects,
+
+        /** @var iterable<CardMoveLock> */
+        #[AutowireIterator('app.workflow_card_move_lock')]
+        private iterable $locks,
     ) {
     }
 
     #[\Override]
     public function allows(CardSnapshot $card, ColumnRef $to, Actor $actor, ?CardEventCause $cause): bool
     {
+        if (Actor::System === $actor || $to->id->equals($card->column->id)) {
+            return true;
+        }
+
+        // Before the engine, template and hold checks, because the work of the app runs on the card in each of those states.
+        foreach ($this->locks as $lock) {
+            if ($lock->locks($card->id)) {
+                return false;
+            }
+        }
+
         $project = $this->projects->find($card->projectId) ?? throw new \LogicException('A stored card has a project.');
-        if (!$this->automation->runsFor($project)
-            || Actor::System === $actor
-            || $to->id->equals($card->column->id)) {
+        if (!$this->automation->runsFor($project)) {
             return true;
         }
 

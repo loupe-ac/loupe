@@ -611,17 +611,19 @@ A pull request is ready for review when all of these are true:
 - Its checks passed on its newest commit.
 - It is mergeable, it is behind its base branch, or GitHub blocks the merge
   until a review.
-- It needs a review, or it has no review rule. A request for changes on an
-  older commit also counts, because the author pushed a fix after it.
+- It needs a review, or it has no review rule. A request for changes that a
+  fix run answered also counts. A fix run answers it when it opened after the
+  review and ended done.
 - No worker run of the card is open.
 - It does not merge with no approval. A pull request of an epic child into the
   epic branch of its parent merges there with no approval, so it gives no wait.
   The epic's own pull request into the main branch still gives one. A child
   pull request into the main branch gives one too.
 
-An approval ends the wait. So does a request for changes on the newest commit,
-a new commit whose checks did not pass yet, a merge and a close. A pull request
-with changes requested waits again after a new commit with passing checks.
+An approval ends the wait. So does a request for changes that no fix run
+answered, a new commit whose checks did not pass yet, a merge and a close. A new
+commit alone does not answer a request for changes. A pull request with changes
+requested waits again after a fix run answered the review and the checks passed.
 
 An approved pull request waits again when it gets new commits after the
 approval. The wait says "Pull request #N of card C changed after you approved it". A merge from the base branch does not

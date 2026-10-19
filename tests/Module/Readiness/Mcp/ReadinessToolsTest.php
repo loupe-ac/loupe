@@ -43,8 +43,8 @@ final class ReadinessToolsTest extends KernelTestCase
         $answer = $this->readinessGet()();
 
         self::assertTrue($answer['guideHidden']);
-        self::assertSame(['agent', 'workflow', 'bridge', 'github', 'agent_account', 'repository'], array_column($answer['rows'], 'key'));
-        self::assertSame(['key' => 'repository', 'done' => false, 'status' => 'Discovery waits for a running bridge'], $answer['rows'][5]);
+        self::assertSame(['agent', 'bridge', 'github', 'agent_account', 'repository', 'widget'], array_column($answer['rows'], 'key'));
+        self::assertSame(['key' => 'repository', 'done' => false, 'status' => 'Discovery waits for a running bridge'], $answer['rows'][4]);
         self::assertNull($answer['discovery']);
     }
 
@@ -59,7 +59,7 @@ final class ReadinessToolsTest extends KernelTestCase
         $answer = $this->readinessGet()();
 
         self::assertFalse($answer['guideHidden']);
-        self::assertSame('Discovery failed: No bridge took the work.', $answer['rows'][5]['status']);
+        self::assertSame('Discovery failed: No bridge took the work.', $answer['rows'][4]['status']);
         self::assertSame([
             'runId' => (string) $run->id,
             'state' => 'failed',
@@ -244,7 +244,9 @@ final class ReadinessToolsTest extends KernelTestCase
     private function addBridge(Project $project): void
     {
         $em = $this->em();
-        $em->persist(new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable()));
+        $bridge = new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $em->persist($bridge);
         $em->flush();
     }
 

@@ -11,6 +11,8 @@ export interface {{ entry.name }}Props {
     icon?: ReactNode;
     /** A smaller block for an empty section inside a page. */
     compact?: boolean;
+    /** A bordered card on the app fill, for an empty state inside a panel. */
+    onCard?: boolean;
     /** A step of the icon scale, such as `xl`. `2xl` by default, and `xl` when compact. */
     iconSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     /** Colour classes of the icon. Optional. */

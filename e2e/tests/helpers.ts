@@ -297,6 +297,26 @@ export interface Credentials {
  */
 export const DEFAULT_DISPLAY_NAME = 'E2E User';
 
+/** Hides the readiness guide of a project from its settings page, the one place that still switches it off. */
+export async function hideReadinessGuide(
+    page: Page,
+    projectId: string,
+): Promise<void> {
+    const path = `/projects/${projectId}/settings/readiness`;
+    await page.goto(path);
+    const show = page.getByLabel('Show the readiness checklist');
+    if (await show.isChecked()) {
+        await show.uncheck();
+        // The save must land before the caller leaves, or the next page still shows the guide.
+        await submitRedirectingForm(
+            page,
+            page.getByRole('button', { name: 'Save' }),
+            path,
+        );
+        await expect(show).not.toBeChecked();
+    }
+}
+
 export async function submitRedirectingForm(
     page: Page,
     button: Locator,

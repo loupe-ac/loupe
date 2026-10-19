@@ -30,7 +30,9 @@ The path holds no project, because one bridge follows several projects.
   "projects": ["0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90"],
   "cliVersion": "1.0.0",
   "name": "homelab",
-  "pushLogin": "acme-agent",
+  "gitIdentities": [
+    {"projectId": "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90", "mode": "machine", "commitName": "Sam Owner", "pushLogin": "sam-owner", "githubUserId": 4821}
+  ],
   "update": {"state": "rolled-back", "version": "1.1.0"},
   "workerPools": [
     {"name": "default", "size": 3, "inUse": 2, "queued": 0},
@@ -60,7 +62,9 @@ The path holds no project, because one bridge follows several projects.
 | `projects` | required. A list of at most 500 project ids, which may be empty. The server keeps the ids of projects the token's user owns, and drops every other id |
 | `cliVersion` | required. The version of a release build, such as `1.0.0`, or the commit of a development build. 1 to 100 characters after trimming |
 | `name` | optional. The name the web UI shows for the bridge. 1 to 40 characters after trimming, with no control character. A missing or `null` value keeps the name the server holds, and an empty or blank value clears it. See [The bridge name](#the-bridge-name) |
-| `pushLogin` | optional. The GitHub login the bridge pushes as, from `loupe agent-account set`. It holds 1 to 39 letters, digits and single hyphens, and does not start or end with a hyphen. A missing or `null` value keeps the login the server holds, and an empty value clears it. See [The push login](#the-push-login) |
+| `gitIdentities` | optional. A list of at most 500 rows, one for each followed project. A missing or `null` value keeps the rows the server holds when `capabilities` names `git-identities`, and clears them otherwise. An empty list clears them too. See [The git identity](#the-git-identity) |
+| `gitIdentitiesAge` | optional. The number of seconds since the bridge read the `gitIdentities` rows, from 0 to 86400. The server dates the rows from that read, so the Connect page shows when the bridge checked the machine. A missing or `null` value is 0 |
+| `pushLogin` | ignored. Older bridges send the login of their agent account. The server accepts the field and stores nothing from it |
 | `update` | optional. The state of the bridge's own [update](../extending/cli-bridge.md#updates) |
 | `update.state` | required in `update`. One of the states below |
 | `update.version` | optional. The release the state is about, at most 100 characters |
@@ -70,8 +74,9 @@ The path holds no project, because one bridge follows several projects.
 | `accounts` | optional. A list of at most 50 rows, one for each account the bridge checked. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `commandEntries` | optional. A list of at most 50 rows, one for each command entry of the `work:` map in `rules.yaml` that the inbox can run. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `worktrees` | optional. A list of at most 200 rows, one for each worktree of each followed project folder. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
+| `repositories` | optional. A list of at most 500 rows, one for each followed project whose folder the rule file names. A missing or `null` value keeps the rows the server holds, and an empty list clears them |
 | `paused` | optional. `true` when the bridge takes no new work now. A missing or `null` value keeps the state the server holds. See [Pause and commands](#pause-and-commands) |
-| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
+| `capabilities` | optional. A list of at most 20 names of features the bridge supports. Each name starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. `commands` says that the bridge takes commands. `rerun-command` says that the bridge takes a command of the kind `rerun-command`. `session-usage` says that the bridge takes a command of the kind `collect-session-usage`. `work-requests` says that the bridge claims [work requests](#work-requests), and `interactive` says that it runs an interactive session. `session` says that it opens an interactive session for a person, as the inbox action asks. `run-command` says that the bridge runs a command entry that the inbox names, and `add-entry` says that it adds a proposed command entry to `rules.yaml`. `git-identities` says that the bridge reports [its git identity](#the-git-identity). `app-prompts` says that the bridge runs the app prompt of a request. The server accepts it in place of a `subject-` capability when the request carries a prompt. A missing or `null` value keeps the list the server holds |
 | `workKinds` | optional. A list of at most 50 kinds of work the bridge can run, such as `fix` or `tech-design`. It holds the kinds of the rule file whose agent and account are on. A kind whose subject is `card` is its bare name. A kind of another subject is `<subject>:<kind>`, such as `analysis:cost-report`. Each kind and each subject starts with a lower-case letter, and holds 1 to 40 lower-case letters, digits and hyphens. An empty list says that the bridge can run no kind. A missing or `null` value stores an empty list, so a bridge from before work kinds counts as able to run no kind until its CLI is upgraded |
 | `workClaims` | optional. A list of at most 200 rows, one for each work request the bridge holds. Each row has an `id` and a `claimToken`, both uuids. The server renews the lease of each claim the bridge still holds, as [Work requests](#work-requests) says. A missing or `null` value renews nothing |
 | `hostSamples` | optional. A list of at most 720 [host samples](#host-samples), oldest first. A missing, `null` or empty value stores nothing |
@@ -138,9 +143,20 @@ Each row of `worktrees` holds these fields:
 | `branch` | required. The branch that the worktree has checked out, 1 to 255 characters |
 | `path` | required. The folder of the worktree, 1 to 4096 characters |
 
+Each row of `repositories` holds these fields:
+
+| Field | Rule |
+|---|---|
+| `projectId` | required. The project id, as a uuid. The server stores it in lower case |
+| `path` | required. The folder of the project in the rule file, with `~/` expanded, 1 to 4096 characters |
+| `remoteUrl` | optional. The `origin` remote of that folder, at most 2048 characters. An empty value says the bridge could not read one |
+
 The server stamps a report time from its own clock when a heartbeat carries a
-`commandEntries` list or a `worktrees` list, an empty list included. A
-heartbeat with no list keeps the rows and their time. The
+`commandEntries`, `worktrees`, `repositories` or `gitIdentities` list, an empty list included. A
+heartbeat with no list keeps the rows and their time. A heartbeat with no
+`gitIdentities` list and no `git-identities` capability comes from an older
+CLI, which pushes with the git setup of the machine. It clears the git identity
+rows and their time. The
 [`bridge_list`](../using/mcp.md) tool shows the entries to a worker.
 
 ### Host samples
@@ -192,15 +208,40 @@ heartbeat, stores the name it asked for, and gives it no name. The
 The bridge gets the name at its next heartbeat after the other bridge clears or
 changes it. Bridges of different accounts never clash.
 
-### The push login
+### The git identity
 
-A bridge with an [agent GitHub account](../getting-started/agent-github-account.md)
-sends the login of that account as `pushLogin`. The server stores it on the
-row of the bridge. The Agent GitHub account row of the
+Each row of `gitIdentities` says who a worker of one project commits and
+pushes as on this machine. The bridge reads it at start and at each reload.
+It reads a machine setup again every ten minutes. The token of any account
+never reaches the server.
+
+| Field | Rule |
+|---|---|
+| `projectId` | required. The project id, as a uuid. The server stores it in lower case |
+| `mode` | required. `agent_account` when the machine has an [agent GitHub account](../getting-started/agent-github-account.md), `app_token` when Loupe manages the git identity of the project, or `machine` when the workers use the git setup of the machine |
+| `commitName` | optional. The name that commits carry, at most 255 characters. For `machine`, the bridge reads `user.name` with `git config` |
+| `pushLogin` | optional. The GitHub login the workers push as, 1 to 39 letters, digits and single hyphens. An empty value says the bridge could not read one |
+| `githubUserId` | optional. The numeric GitHub user id of the login, or `null` when the bridge has none |
+
+For a `machine` row, the bridge reads the push address with
+`git remote get-url --push origin`. For an HTTPS address that holds a password,
+such as `https://owner:<token>@github.com/acme/app.git`, it calls `GET /user`
+with that password, because git pushes with it. For any other HTTPS address, it
+asks `git credential fill` for a credential without a prompt, with the user
+name of the address when it has one, and calls `GET /user` with it. For an SSH address, it runs `ssh -T -o BatchMode=yes`
+and reads the login from the greeting "Hi <login>!". When neither probe gives a
+login, `pushLogin` is empty, and the Connect page says the login is unknown.
+
+For an `agent_account` row, the bridge asks GitHub for the login of the agent
+account token at each refresh. When GitHub refuses the token or does not answer,
+`pushLogin` is empty, and the Connect page says that GitHub did not confirm the
+token.
+
+The Git identity panel of the Connect page shows one line for each machine. The
+Who pushes the code row of the
 [readiness guide](../using/workshop.md#the-readiness-guide) is done when a
-running bridge of the project sends the login that the owner recorded. The
-server compares the two logins without regard to case. The token of the
-account never reaches the server.
+running bridge of the project reports mode `agent_account` with the login that
+the owner recorded. The server compares the two logins without regard to case.
 
 | `update.state` | Meaning |
 |---|---|
@@ -612,7 +653,7 @@ writes a `bridge.work_request_settled` record to the audit log.
 Deleting an account deletes the rows of its bridges and their commands. The
 data export holds the bridges in `bridges.json`, with the stored update state,
 version and install method, the hook rows, the worker pool rows with their
-report time, the account rows with their report time, the command entry rows and the worktree rows, each with its report time, the pause state, the capabilities, the work kinds, the name the bridge holds,
+report time, the account rows with their report time, the command entry rows, the worktree rows and the repository rows, each with its report time, the pause state, the capabilities, the work kinds, the name the bridge holds,
 the name it asked for and the push login. It holds the commands in
 `bridge_commands.json`. Deleting an account also deletes the host samples of
 its bridges. The data export holds them in `bridge_host_samples.json`, with the

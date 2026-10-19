@@ -124,13 +124,15 @@ test('wizard step numbers and labels have contrast', async ({
         '/welcome/project',
     );
     await expect(page).toHaveURL('/welcome/connect');
-    for (const state of ['completed', 'current', 'upcoming']) {
-        for (const part of ['circle', 'label']) {
-            const text = page.locator(`.lp-ribbon__${part}--${state}`).first();
-            await expect(text).toBeVisible();
-            expect
-                .soft(await contrast(text), `${state} ${part}`)
-                .toBeGreaterThanOrEqual(4.5);
-        }
+    for (const state of ['done', 'current', 'upcoming']) {
+        const step = page.locator(`.lp-stepper__step--${state}`).first();
+        await expect(step).toBeVisible();
+        expect.soft(await contrast(step), state).toBeGreaterThanOrEqual(4.5);
     }
+    const number = page.locator(
+        '.lp-stepper__step--current .lp-stepper__number',
+    );
+    expect
+        .soft(await contrast(number), 'current number')
+        .toBeGreaterThanOrEqual(4.5);
 });

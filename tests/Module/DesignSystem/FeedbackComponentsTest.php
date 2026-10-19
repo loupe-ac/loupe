@@ -33,6 +33,25 @@ final class FeedbackComponentsTest extends KernelTestCase
         self::assertStringNotContainsString('<button', $this->render('<twig:Ds:Flash severity="info">Hi</twig:Ds:Flash>'));
     }
 
+    public function test_a_flash_with_a_title_or_actions_takes_the_block_form(): void
+    {
+        $html = $this->render('<twig:Ds:Flash severity="warning" title="Cannot push">Why<twig:block name="actions"><button>Fix</button></twig:block></twig:Ds:Flash>');
+
+        self::assertStringContainsString('class="lp-flash lp-flash--warning lp-flash--block"', $html);
+        self::assertStringContainsString('<span class="lp-flash__message"><strong class="lp-flash__title">Cannot push</strong>Why<span class="lp-flash__actions"><button>Fix</button></span></span>', $html);
+        self::assertStringContainsString('lp-flash--block', $this->render('<twig:Ds:Flash severity="info" title="T">A</twig:Ds:Flash>'));
+        self::assertStringNotContainsString('lp-flash__actions', $this->render('<twig:Ds:Flash severity="info" title="T">A</twig:Ds:Flash>'));
+        self::assertStringNotContainsString('lp-flash--block', $this->render('<twig:Ds:Flash severity="info">A</twig:Ds:Flash>'));
+    }
+
+    public function test_an_empty_state_on_a_card_adds_its_modifier(): void
+    {
+        self::assertStringContainsString(
+            'class="lp-empty-state lp-empty-state--compact lp-empty-state--on-card"',
+            $this->render('<twig:Ds:EmptyState compact onCard body="None" />'),
+        );
+    }
+
     public function test_a_compact_empty_state_adds_its_modifier_and_a_smaller_icon(): void
     {
         $html = $this->render('<twig:Ds:EmptyState compact icon="lucide:inbox" body="None" />');

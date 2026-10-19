@@ -39,12 +39,12 @@ final class SeedBoardColumnsOnProjectCreatingTest extends KernelTestCase
         $this->columns = $columns;
     }
 
-    public function test_a_created_project_gets_the_four_columns_in_board_order(): void
+    public function test_a_simple_project_gets_the_four_columns_in_board_order(): void
     {
         $handler = self::getContainer()->get(CreateProjectHandler::class);
         self::assertInstanceOf(CreateProjectHandler::class, $handler);
 
-        $project = $handler(new CreateProjectCommand($this->owner(), 'columns-'.uniqid(), null, SearchLanguage::English));
+        $project = $handler(new CreateProjectCommand($this->owner(), 'columns-'.uniqid(), null, SearchLanguage::English, workflowTemplate: 'simple'));
         $this->em->clear();
 
         self::assertSame(
@@ -58,7 +58,8 @@ final class SeedBoardColumnsOnProjectCreatingTest extends KernelTestCase
         );
     }
 
-    public function test_a_harness_project_gets_its_columns(): void
+    /** The dev seed and the e2e specs work on the Simple columns, so the harness keeps them. */
+    public function test_a_harness_project_gets_the_simple_columns(): void
     {
         // Built by hand: only dev-only controllers inject it, so the test
         // container inlines it away.
@@ -69,7 +70,7 @@ final class SeedBoardColumnsOnProjectCreatingTest extends KernelTestCase
         $project = $handler(new EnsureHarnessProjectCommand($this->owner(), 'harness'));
         $this->em->clear();
 
-        self::assertCount(4, $this->describe($project));
+        self::assertSame(['backlog', 'next', 'in-progress', 'done'], array_column($this->describe($project), 0));
     }
 
     /** The listener persists and never flushes, so a project flush that fails takes the columns with it. */

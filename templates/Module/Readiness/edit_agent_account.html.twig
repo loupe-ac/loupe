@@ -26,7 +26,8 @@
             <li>{{ 'readiness.agent_account.steps.create'|trans }}</li>
             <li>{{ 'readiness.agent_account.steps.invite'|trans }}</li>
             <li>{{ 'readiness.agent_account.steps.token'|trans }}</li>
-            <li>{{ 'readiness.agent_account.steps.bridge'|trans }} <code>{{ 'loupe agent-account set' }}</code></li>
+            <li>{{ 'readiness.agent_account.steps.bridge'|trans }} <code>{{ 'loupe agent-account set' }}</code>
+                <twig:Ds:CopyButton variant="icon" text="loupe agent-account set" :label="'project.connect.copy'|trans" :copiedLabel="'project.connect.copied'|trans" /></li>
             <li>{{ 'readiness.agent_account.steps.record'|trans }}</li>
         </ol>
         <p>{{ 'readiness.agent_account.steps.privacy'|trans }}</p>

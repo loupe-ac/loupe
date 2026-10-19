@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Project\Controller;
 
 use App\Controller\AppController;
-use App\Module\Project\Command\ListAdvertisedToolsCommand;
-use App\Module\Project\Command\ListAdvertisedToolsHandler;
+use App\Module\Project\Command\ShowConnectCommand;
+use App\Module\Project\Command\ShowConnectHandler;
 use App\Module\Project\Entity\Project;
 use App\Module\Project\Form\UpdateProjectAllowedOriginsFormType;
 use App\Module\Project\Form\UpdateProjectAllowedOriginsRequest;
@@ -28,7 +28,7 @@ class ConnectAgentController extends AppController
     public const string ALLOWED_ORIGINS_FORM = 'allowedOriginsForm';
 
     public function __construct(
-        private readonly ListAdvertisedToolsHandler $listAdvertisedTools,
+        private readonly ShowConnectHandler $showConnect,
 
         #[Autowire(param: 'app.mcp.server_name')]
         private readonly string $mcpServerName,
@@ -37,9 +37,12 @@ class ConnectAgentController extends AppController
 
     public function __invoke(Request $request, Project $project): Response
     {
+        $connect = ($this->showConnect)(new ShowConnectCommand($project));
+
         return $this->render('@Project/connect_agent.html.twig', [
             'project' => $project,
-            'tools' => ($this->listAdvertisedTools)(new ListAdvertisedToolsCommand())->tools,
+            'tools' => $connect->tools,
+            'machines' => $connect->machines,
             'mcpServerName' => $this->mcpServerName,
             'allowedOriginsForm' => $this->getInjectedFormView($request, self::ALLOWED_ORIGINS_FORM)
                 ?? $this->createForm(UpdateProjectAllowedOriginsFormType::class, UpdateProjectAllowedOriginsRequest::fromProject($project), [

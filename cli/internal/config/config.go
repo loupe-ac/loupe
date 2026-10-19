@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,6 +82,17 @@ func RunsDir() (string, error) {
 	}
 
 	return filepath.Join(d, "runs"), nil
+}
+
+// WorktreeDir is the folder of the git worktree that holds the workers of one
+// card of a project. It sits next to the runs directory, outside any repository.
+func WorktreeDir(slug string, card int) (string, error) {
+	d, err := Dir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(d, "worktrees", slug, "card-"+strconv.Itoa(card)), nil
 }
 
 // CodexThreadsDir is the directory that maps the id of a run to the thread id

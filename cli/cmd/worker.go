@@ -135,6 +135,12 @@ type workerSpec struct {
 	runDir string
 	// agent is the GitHub user that the worker pushes as, or nil.
 	agent *config.AgentAccount
+	// credentials answers the worker's requests for GitHub credentials, and
+	// project is the handle of the project it asks the server about. A worker
+	// with no agent account and no managed identity uses the git setup of the
+	// machine.
+	credentials *credentialBroker
+	project     string
 }
 
 // workerOps is the process surface the router drives. Tests replace run so the
@@ -158,36 +164,50 @@ type workerOps struct {
 	// adoptRuleCommand.
 	command      func(ctx context.Context, spec procSpec, onStart func(workerProc)) procResult
 	adoptCommand func(ctx context.Context, dir string) procResult
+	// worktree returns the worktree of a card of a project, and makes it first
+	// when it is missing. A nil one is ensureWorktree.
+	worktree func(ctx context.Context, projectDir, slug string, card int) (string, error)
 }
 
 func defaultWorkerOps() workerOps {
 	return workerOps{
 		run: runWorker, adopt: adoptWorker, sessionID: config.NewUUID, before: runBefore, adoptBefore: adoptBeforeProc,
-		command: runRuleCommand, adoptCommand: adoptRuleCommand,
+		command: runRuleCommand, adoptCommand: adoptRuleCommand, worktree: ensureWorktree,
 	}
 }
 
 // workerEnv is the environment the bridge gives a worker before its harness
 // adds to it. The session id and the control socket replace inherited ones,
-// and an empty socket leaves the variable out. An agent account replaces the
-// inherited GitHub token and git identity.
-func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAccount) []string {
-	env := make([]string, 0, len(environ)+12)
+// and an empty socket leaves the variable out. With creds, the worker gets its
+// GitHub credentials from the bridge: a helper asks for them each time, and no
+// token sits in the environment. An agent account also replaces the inherited
+// git identity.
+func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAccount, creds *credentialEnv) []string {
+	env := make([]string, 0, len(environ)+16)
 	gitConfigs := 0
+	path := ""
 	for _, e := range environ {
 		if strings.HasPrefix(e, sessionEnv+"=") || strings.HasPrefix(e, socketEnv+"=") {
 			continue
 		}
-		if agent != nil {
+		if creds != nil {
 			if n, ok := strings.CutPrefix(e, "GIT_CONFIG_COUNT="); ok {
 				gitConfigs, _ = strconv.Atoi(n)
 				gitConfigs = max(gitConfigs, 0)
 
 				continue
 			}
-			if slices.ContainsFunc(agentEnvOverrides, func(name string) bool { return strings.HasPrefix(e, name+"=") }) {
+			if p, ok := strings.CutPrefix(e, "PATH="); ok {
+				path = p
+
 				continue
 			}
+			if hasEnvName(e, credentialEnvOverrides) {
+				continue
+			}
+		}
+		if agent != nil && hasEnvName(e, agentEnvOverrides) {
+			continue
 		}
 		env = append(env, e)
 	}
@@ -195,27 +215,44 @@ func workerEnv(environ []string, sessionID, socket string, agent *config.AgentAc
 	if socket != "" {
 		env = append(env, socketEnv+"="+socket)
 	}
-	if agent == nil {
+	if creds == nil {
 		return env
 	}
 
-	email := strconv.FormatInt(agent.ID, 10) + "+" + agent.Login + "@users.noreply.github.com"
+	path = cmp.Or(path, "/usr/local/bin:/usr/bin:/bin")
+	env = append(env,
+		runIDEnv+"="+creds.runID, controlSocketEnv+"="+creds.socket,
+		// An askpass program that fails keeps git from asking the machine's
+		// askpass when the bridge helper fails.
+		"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=false", "GCM_INTERACTIVE=never",
+		"PATH="+creds.binDir+string(os.PathListSeparator)+path,
+	)
+	if agent != nil {
+		email := strconv.FormatInt(agent.ID, 10) + "+" + agent.Login + "@users.noreply.github.com"
+		env = append(env,
+			"GIT_AUTHOR_NAME="+agent.Login, "GIT_COMMITTER_NAME="+agent.Login,
+			"GIT_AUTHOR_EMAIL="+email, "GIT_COMMITTER_EMAIL="+email,
+		)
+	}
 	// The empty helper drops every helper the owner's git config names for
-	// github.com, so only the agent's token answers.
-	helper := `!f() { test "$1" = get && echo username=` + agent.Login + ` && echo "password=$GH_TOKEN"; }; f`
+	// github.com, so only the bridge answers. Git adds the word get to a helper
+	// that starts with an exclamation mark.
+	helper := "!" + shellQuote(creds.loupe) + " credential"
 	n := strconv.Itoa
 
 	return append(env,
-		"GH_TOKEN="+agent.Token,
-		"GIT_AUTHOR_NAME="+agent.Login, "GIT_COMMITTER_NAME="+agent.Login,
-		"GIT_AUTHOR_EMAIL="+email, "GIT_COMMITTER_EMAIL="+email,
 		"GIT_CONFIG_KEY_"+n(gitConfigs)+"="+githubHelperKey, "GIT_CONFIG_VALUE_"+n(gitConfigs)+"=",
 		"GIT_CONFIG_KEY_"+n(gitConfigs+1)+"="+githubHelperKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+1)+"="+helper,
 		// An SSH remote would push with the machine's key, so it goes through HTTPS.
-		"GIT_CONFIG_KEY_"+n(gitConfigs+2)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+2)+"=git@github.com:",
-		"GIT_CONFIG_KEY_"+n(gitConfigs+3)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+3)+"=ssh://git@github.com/",
+		"GIT_CONFIG_KEY_"+n(gitConfigs+2)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+2)+"="+githubSSHPrefixes[0],
+		"GIT_CONFIG_KEY_"+n(gitConfigs+3)+"="+githubInsteadOfKey, "GIT_CONFIG_VALUE_"+n(gitConfigs+3)+"="+githubSSHPrefixes[1],
 		"GIT_CONFIG_COUNT="+n(gitConfigs+4),
 	)
+}
+
+// hasEnvName says whether the entry e sets one of names.
+func hasEnvName(e string, names []string) bool {
+	return slices.ContainsFunc(names, func(name string) bool { return strings.HasPrefix(e, name+"=") })
 }
 
 // githubHelperKey is the git config key of the credential helpers for
@@ -225,9 +262,16 @@ const githubHelperKey = "credential.https://github.com.helper"
 // githubInsteadOfKey rewrites a GitHub SSH remote to its HTTPS form.
 const githubInsteadOfKey = "url.https://github.com/.insteadOf"
 
-// agentEnvOverrides are the inherited variables an agent account replaces.
+// credentialEnvOverrides are the inherited variables that a worker with
+// credentials from the bridge replaces or loses. The bridge sets no GH_TOKEN,
+// because the gh wrapper sets it for one call.
+var credentialEnvOverrides = []string{
+	"GH_TOKEN", "GITHUB_TOKEN", runIDEnv, controlSocketEnv, "GIT_TERMINAL_PROMPT", "GIT_ASKPASS", "GCM_INTERACTIVE",
+}
+
+// agentEnvOverrides are the inherited git identity variables that an agent
+// account replaces.
 var agentEnvOverrides = []string{
-	"GH_TOKEN", "GITHUB_TOKEN",
 	"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
 }
 
@@ -265,6 +309,13 @@ type runRecord struct {
 	// Baseline is the session's usage before a resume started. A resume with
 	// no baseline could not read it.
 	Baseline *transcript.Usage `json:"baseline,omitempty"`
+	// Project is the project handle the run asks the server about. Agent says
+	// the run pushes as the agent account, and Managed that Loupe manages its
+	// git identity. An adopting image answers credential requests for a run
+	// with either. An older image writes none.
+	Project string `json:"project,omitempty"`
+	Agent   bool   `json:"agent,omitempty"`
+	Managed bool   `json:"managed,omitempty"`
 }
 
 func writeRunRecord(dir string, rec runRecord) error {
@@ -300,6 +351,9 @@ func runWorker(ctx context.Context, spec workerSpec, onStart func(workerProc)) w
 	cmd, dir, cancelled, err := startWorker(ctx, spec)
 	if err != nil {
 		return workerResult{err: err, dir: dir}
+	}
+	if spec.credentials != nil {
+		defer spec.credentials.forget(filepath.Base(dir))
 	}
 	if onStart != nil {
 		onStart(workerProc{pid: cmd.Process.Pid, dir: dir})
@@ -366,8 +420,13 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 	}
 	defer stderr.Close()
 
+	creds, managed, err := spec.credentialEnv(ctx)
+	if err != nil {
+		return nil, dir, nil, err
+	}
+
 	status := filepath.Join(dir, "status")
-	command := spec.harnessCommand(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.socket, spec.agent))
+	command := spec.harnessCommand(workerEnv(envfile.Overlay(os.Environ(), spec.env), spec.sessionID, spec.socket, spec.agent, creds))
 	for path, content := range command.Files {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			return nil, dir, nil, fmt.Errorf("write worker file: %w", err)
@@ -398,7 +457,15 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 		baseline = sessionBaseline(h, spec.sessionID)
 	}
 	launched := time.Now()
+	// The helper can ask as soon as the process runs, so the run is known first.
+	if creds != nil {
+		spec.credentials.register(spec.runID, credentialRun{handle: spec.project, dir: spec.dir, agent: spec.agent != nil})
+	}
 	if err := cmd.Start(); err != nil {
+		if creds != nil {
+			spec.credentials.forget(spec.runID)
+		}
+
 		return nil, dir, nil, err
 	}
 	rec := runRecord{
@@ -407,16 +474,50 @@ func startWorker(ctx context.Context, spec workerSpec) (*exec.Cmd, string, *atom
 		Dir: spec.dir, PermissionMode: spec.permissionMode, Model: spec.model, Effort: spec.effort,
 		SessionID: spec.sessionID, Resume: spec.resume, Prompt: spec.prompt,
 		Harness: h.Name(), Account: spec.account, ConfigDir: spec.configDir, Profile: spec.profile, Baseline: baseline,
+		Project: spec.project, Agent: spec.agent != nil, Managed: managed,
 	}
 	// A worker with no record cannot outlive this bridge, so it does not run.
 	if err := writeRunRecord(dir, rec); err != nil {
 		_ = cmd.Cancel()
 		_ = cmd.Wait()
+		if creds != nil {
+			spec.credentials.forget(spec.runID)
+		}
 
 		return nil, dir, nil, err
 	}
 
 	return cmd, dir, &cancelled, nil
+}
+
+// credentialEnv decides how the worker gets its GitHub credentials. A worker
+// with an agent account, or one whose project Loupe manages, gets them from the
+// bridge, and credentialEnv then writes its gh wrapper. A worker of a project
+// that keeps its identity on the machine gets nil. A failure to ask makes the
+// worker managed, because the helper then reports it, and the worker never
+// pushes with the git setup of the machine by accident.
+func (s workerSpec) credentialEnv(ctx context.Context) (creds *credentialEnv, managed bool, err error) {
+	if s.agent == nil && s.credentials != nil && s.project != "" {
+		ctx, cancel := context.WithTimeout(ctx, gitTokenTimeout)
+		managed, _ = s.credentials.manages(ctx, s.project, s.dir)
+		cancel()
+	}
+	if s.agent == nil && !managed {
+		return nil, false, nil
+	}
+	if s.credentials == nil {
+		return nil, false, errors.New("the bridge has no credential service for this worker")
+	}
+	loupe, err := os.Executable()
+	if err != nil {
+		return nil, false, fmt.Errorf("find the loupe binary: %w", err)
+	}
+	binDir, err := writeGhWrapper(s.runDir, loupe)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return &credentialEnv{runID: s.runID, socket: s.credentials.socket, loupe: loupe, binDir: binDir}, managed, nil
 }
 
 func createOutput(dir, name string) (*os.File, error) {

@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Bridge\Repository;
 
+use App\Module\Board\Entity\BoardColumn;
+use App\Module\Board\Entity\Card;
+use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\Forge;
 use App\Module\Bridge\Entity\CardHold;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\Service\CardHolds;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Project\Entity\Project;
@@ -430,5 +435,45 @@ final class WorkRequestRepositoryTest extends KernelTestCase
         self::assertSame([(string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->reopenLapsed(new \DateTimeImmutable('2026-10-01 12:30:00'))));
         // The hold cancelled the open request of the card, so the release offers the reopened claim alone.
         self::assertEqualsCanonicalizing([(string) $offered->id, (string) $lapsed->id], array_map(static fn (WorkRequest $request): string => (string) $request->id, $this->repository()->findOpenOffers(Uuid::v4(), [(string) $project->id], [], 10)));
+    }
+
+    public function test_the_done_fixes_are_told_apart_by_repository_state_and_role(): void
+    {
+        self::bootKernel();
+        $em = $this->em();
+        $project = $this->project($em, $this->user($em, 'done-fixes@example.com'), 'Done Fixes');
+        $column = new BoardColumn($project, 'Implementation', 'implementation', 1);
+        $card = new Card($project, $column, 'Card', '', 1);
+        $em->persist($column);
+        $em->persist($card);
+        $em->persist(new CardPullRequest($card, 'https://github.com/Acme/Widgets/pull/7', Forge::GitHub, 'Acme/Widgets', 7));
+        $em->persist(new CardPullRequest($card, 'https://github.com/Acme/Gadgets/pull/7', Forge::GitHub, 'Acme/Gadgets', 7));
+        $em->flush();
+        $cardId = $card->id ?? throw new \LogicException('A flushed card has an id.');
+
+        $this->fix($project, $card, '2026-10-19 14:00:00', 'https://github.com/Acme/Widgets/pull/7');
+        $this->fix($project, $card, '2026-10-19 15:00:00', 'https://github.com/Acme/Widgets/pull/7');
+        $this->fix($project, $card, '2026-10-19 16:00:00', 'https://github.com/Acme/Widgets/pull/7', state: WorkRequestState::Refused);
+        $this->fix($project, $card, '2026-10-19 16:30:00', 'https://github.com/Acme/Widgets/pull/7', role: 'code-review');
+        $this->fix($project, $card, '2026-10-19 17:00:00', 'https://github.com/Acme/Gadgets/pull/7');
+        $this->fix($project, $card, '2026-10-19 18:00:00', 'https://github.com/Other/Thing/pull/7');
+        $this->fix($project, $card, '2026-10-19 19:00:00', null);
+        $em->flush();
+
+        $found = $this->repository()->findDoneFixesOpenedAt([$cardId])[$cardId->toRfc4122()] ?? [];
+        usort($found, static fn (array $a, array $b): int => $a['repository'] <=> $b['repository']);
+
+        self::assertSame(
+            [['github', 'acme/gadgets', 7, '2026-10-19 17:00:00'], ['github', 'acme/widgets', 7, '2026-10-19 15:00:00']],
+            array_map(static fn (array $fix): array => [$fix['forge'], $fix['repository'], $fix['number'], $fix['openedAt']->format('Y-m-d H:i:s')], $found),
+        );
+        self::assertSame([], $this->repository()->findDoneFixesOpenedAt([]));
+    }
+
+    private function fix(Project $project, Card $card, string $openedAt, ?string $url, WorkRequestState $state = WorkRequestState::Done, string $role = 'fix'): void
+    {
+        $request = $this->seedWorkRequest($this->em(), $project, $card->id, 'fix', state: $state, createdAt: new \DateTimeImmutable($openedAt), ruleId: 'fix-on-review');
+        $request->role = $role;
+        $request->context = new WorkRequestContext(pullRequestNumber: 7, pullRequestUrl: $url, reason: 'changes-requested');
     }
 }

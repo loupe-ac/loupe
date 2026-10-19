@@ -114,8 +114,12 @@ func lockBridge(rulesPath, sock string) (*bridgeLock, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := lockFileAt(path, sock)
-	if err != nil {
+	var f *os.File
+	if err := withMoveGuard(true, func() (err error) {
+		f, err = lockFileAt(path, sock)
+
+		return err
+	}); err != nil {
 		return nil, err
 	}
 
@@ -141,20 +145,58 @@ func (l *bridgeLock) follow() (check func() error, done func(applied bool), err 
 	if path == l.path {
 		return check, func(bool) {}, nil
 	}
-	f, err := lockFileAt(path, l.sock)
-	if err != nil {
+	var f *os.File
+	if err := withMoveGuard(true, func() (err error) {
+		f, err = lockFileAt(path, l.sock)
+
+		return err
+	}); err != nil {
 		return nil, nil, err
 	}
 
 	return check, func(applied bool) {
-		if !applied {
-			f.Close()
+		released := false
+		release := func() error {
+			released = true
+			if !applied {
+				f.Close()
 
-			return
+				return nil
+			}
+			l.f.Close()
+			l.f, l.path = f, path
+
+			return nil
 		}
-		l.f.Close()
-		l.f, l.path = f, path
+		if withMoveGuard(true, release) != nil && !released {
+			release()
+		}
 	}, nil
+}
+
+// withMoveGuard runs fn while it holds the lock of the guard file, alone when
+// exclusive. A bridge holds it alone while it takes or moves its lock, and a
+// scan of the lock files shares it. A scan thus never sees a move half done,
+// and its probe of a lock file never makes a bridge fail to take that lock.
+func withMoveGuard(exclusive bool, fn func() error) error {
+	dir, err := config.Dir()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+	path := filepath.Join(dir, "bridge.guard")
+	g, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return fmt.Errorf("open the bridge guard: %w", err)
+	}
+	defer g.Close()
+	if err := waitLockFile(g, exclusive); err != nil {
+		return fmt.Errorf("lock %s: %w", path, err)
+	}
+
+	return fn()
 }
 
 func (l *bridgeLock) Close() error {
@@ -232,8 +274,13 @@ func listenControl(path string) (net.Listener, error) {
 // line before an exec ends the connection. When the exec fails, its return
 // value follows as a second line.
 type controlOps struct {
+	// stop ends the bridge. The connection gets its answer first.
+	stop   func()
 	reload func(ctx context.Context) reloadResult
 	update func(ctx context.Context, reply func(updateResult)) updateResult
+	// credential answers a worker's request for the GitHub credentials of its
+	// run.
+	credential func(ctx context.Context, runID string) credentialResult
 	// env runs the refresh or the reset command of the worker of a session.
 	env func(ctx context.Context, op, session string) envResult
 }
@@ -306,6 +353,7 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	send := func(res any) { write(res, true) }
 	var req struct {
 		Op        string `json:"op"`
+		RunID     string `json:"runId"`
 		SessionID string `json:"sessionId"`
 	}
 	switch {
@@ -320,6 +368,11 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 	case req.Op == "update" && ops.update != nil:
 		conn.SetDeadline(time.Time{})
 		send(ops.update(ctx, func(res updateResult) { write(res, false) }))
+	case req.Op == "stop" && ops.stop != nil:
+		send(reloadResult{OK: true})
+		ops.stop()
+	case req.Op == "credential" && ops.credential != nil:
+		send(ops.credential(ctx, req.RunID))
 	case (req.Op == opRefresh || req.Op == opReset) && ops.env != nil:
 		// The command of an entry runs longer than the deadline.
 		conn.SetDeadline(time.Time{})
@@ -330,7 +383,7 @@ func answer(ctx context.Context, conn net.Conn, ops controlOps) {
 		}
 		send(ops.env(ctx, req.Op, req.SessionID))
 	default:
-		send(refused(fmt.Sprintf("unknown op %q: only reload, update, refresh and reset are known", req.Op)))
+		send(refused(fmt.Sprintf("unknown op %q: only reload, update, stop, credential, refresh and reset are known", req.Op)))
 	}
 }
 
@@ -393,8 +446,14 @@ func newBridgeReloadCmd() *cobra.Command {
 
 // requestReload sends one reload request to the socket and reads the answer.
 func requestReload(sock string) (reloadResult, error) {
+	return requestControl(sock, "reload", reloadTimeout)
+}
+
+// requestControl sends one op to the socket and reads the one line that comes
+// back.
+func requestControl(sock, op string, timeout time.Duration) (reloadResult, error) {
 	var res reloadResult
-	deadline := time.Now().Add(reloadTimeout)
+	deadline := time.Now().Add(timeout)
 	conn, err := (&net.Dialer{Deadline: deadline}).Dial("unix", sock)
 	if err != nil {
 		return res, err
@@ -402,8 +461,50 @@ func requestReload(sock string) (reloadResult, error) {
 	defer conn.Close()
 	conn.SetDeadline(deadline)
 
-	if _, err := conn.Write([]byte(`{"op":"reload"}` + "\n")); err != nil {
-		return res, fmt.Errorf("send the reload: %w", err)
+	if _, err := conn.Write([]byte(`{"op":"` + op + `"}` + "\n")); err != nil {
+		return res, fmt.Errorf("send the %s: %w", op, err)
+	}
+	line, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return res, fmt.Errorf("read the answer of the bridge: %w", err)
+	}
+	if err := json.Unmarshal([]byte(line), &res); err != nil {
+		return res, fmt.Errorf("read the answer of the bridge: %w", err)
+	}
+
+	return res, nil
+}
+
+// requestCredential asks the bridge for the GitHub credentials of a run. It
+// retries a dial that finds no listener for window, because a bridge that hands
+// over to a new image leaves the socket for a moment.
+func requestCredential(sock, runID string, window, interval time.Duration) (credentialResult, error) {
+	var res credentialResult
+	deadline := time.Now().Add(window)
+	for {
+		conn, err := net.DialTimeout("unix", sock, requestTimeout)
+		if err == nil {
+			defer conn.Close()
+
+			return exchangeCredential(conn, runID)
+		}
+		if !(connRefused(err) || errors.Is(err, fs.ErrNotExist)) || !time.Now().Add(interval).Before(deadline) {
+			return res, err
+		}
+		time.Sleep(interval)
+	}
+}
+
+// exchangeCredential sends the credential request on conn and reads the answer.
+func exchangeCredential(conn net.Conn, runID string) (credentialResult, error) {
+	var res credentialResult
+	conn.SetDeadline(time.Now().Add(gitTokenTimeout + requestTimeout))
+	req, err := json.Marshal(map[string]string{"op": "credential", "runId": runID})
+	if err != nil {
+		return res, err
+	}
+	if _, err := conn.Write(append(req, '\n')); err != nil {
+		return res, fmt.Errorf("send the credential request: %w", err)
 	}
 	line, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {

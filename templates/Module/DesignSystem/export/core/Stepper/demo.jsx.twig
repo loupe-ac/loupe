@@ -1,0 +1,5 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+        <div style={% verbatim %}{{ padding: 12 }}{% endverbatim %}>
+          <{{ entry.name }} aria-label="Setup progress" steps={% verbatim %}{['Project', 'Your machine', 'Ready for agents']}{% endverbatim %} current={2} />
+        </div>
+{% endautoescape %}

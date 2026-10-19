@@ -29,4 +29,20 @@
     .lp-flash--info .lp-flash__dot {
         @apply bg-status-ok;
     }
+    /* A notice with a title or actions: the dot stays on the first line. */
+    .lp-flash--block {
+        @apply items-start leading-normal;
+    }
+    .lp-flash--block .lp-flash__dot {
+        @apply mt-1.5;
+    }
+    .lp-flash--block .lp-flash__message {
+        @apply flex flex-col gap-1 font-normal;
+    }
+    .lp-flash__title {
+        @apply font-semibold;
+    }
+    .lp-flash__actions {
+        @apply flex flex-wrap items-center gap-2 mt-2;
+    }
 }
