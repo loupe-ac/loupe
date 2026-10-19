@@ -44,7 +44,7 @@ Pick the tool by the kind of link:
 |---|---|
 | A stored artifact | `artifact_get`, then `artifact_read` for each file. A headless worker uses these. |
 | `claude.ai/artifact/<id>` | The `Artifact` tool. A headless `claude -p` worker has none. |
-| A Claude Design canvas or file | The Claude Design tools. |
+| A Design canvas | The `Artifact` tool and `ArtifactComments`. A headless `claude -p` worker has none, so it reads the stored artifact. |
 | A Loupe document | `document_get`. |
 | A file of the repository | Read. |
 

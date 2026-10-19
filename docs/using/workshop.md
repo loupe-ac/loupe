@@ -99,11 +99,12 @@ Discovery runs these generic checks on every project:
 It also runs the checks of each kind of work that the workflow asks for.
 The [Lifecycle workflow](workflows.md) asks for product design work, so it adds two checks for a project with a user interface.
 The first check looks for a design system that an agent can read.
-The second check looks for a Claude Design project that holds or mirrors it.
+The second check looks for a Design System artifact on claude.ai that holds or mirrors it, named in `.loupe/lifecycle.md` or the agent instructions.
 A project with no user interface, such as a library or a CLI, gets no finding for these two checks.
-A third check applies to a project that has a Claude Design mirror.
-It looks for a starter Claude Design project for product design sessions, named in `.loupe/lifecycle.md` or the agent instructions.
-A starter holds the full stylesheet, the fonts, one shell for each main page with one empty slot, and no hidden element that shows.
+A worker that runs on a bridge cannot open claude.ai artifacts.
+It trusts the repository, and the finding says that it did not check the artifact.
+A project with a design system in the repository and no artifact gets a suggestion.
+Only you can create the artifact, in a browser on claude.ai.
 A check that the project does not meet is a suggestion, never a failure.
 A suggestion becomes a proposed card that leaves the method open.
 

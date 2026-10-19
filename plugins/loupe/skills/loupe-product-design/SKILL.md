@@ -13,12 +13,12 @@ Move the card only in P0. Never move it when you stop, and never move it after P
 
 P0 opens an interactive run on the card with `card_run_open`. Close the run with `card_run_close` in P10. When you stop at any other point after P0, call `card_run_close` before you stop.
 
-`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Claude Design rules C1 to C10.
+`references/session-flow.md` holds the levels L1 to L4 and the phases P0 to P12. `references/question-rules.md` holds the question rules Q1 to Q8 and the coverage checklist of P6. `references/claude-design.md` holds the Design canvas rules C1 to C9.
 
 ## Procedure
 
 1. Load the `loupe-board`, `loupe-documents` and `loupe-recommendations` instructions.
-2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, the design system entry, and the name of the Claude Design starter project. When the profile names no starter, read the name from the agent instructions, such as `AGENTS.md`. C10 uses that name. When the file is missing, write plainly, and ask the owner about docs in P6.
+2. Read the `Instruction files` section of `.loupe/lifecycle.md` for the writing style, the docs and landing page checks, and the design system entry. C7 uses the Design System artifact that it names. When the file is missing, write plainly, and ask the owner about docs in P6.
 3. Find the Product design slug in the `Board` section of that file. A line names the column that holds a card in product design. With no such line, use `product-design`.
 4. Read `references/session-flow.md`, `references/question-rules.md` and `references/claude-design.md`. Follow them for the whole session.
 5. With a card, call `card_get`. Read the tags of each linked document with `document_get`, before any move. The product document has the product design tag, or a title that starts `Product design`. Read the tag as `../loupe-stage-product-design/references/stage-contract.md` "Document tags" says.
@@ -43,11 +43,11 @@ Put each item in its section of the product document.
 - The whole product document follows the reader rule of `../loupe-documents/references/design-structure.md` "Write for a reader who knows the product".
 - The answers of the P7 pre-mortem go in "Risks".
 - The P8 scenarios go in "Scenarios".
-- The Claude Design canvas link and the label of each pick go in "Decisions log", and the `R` entry they shaped cites both. When a Claude Design session ran, the product document also links the recap of the picks (C6).
+- The Design canvas link and the label of each pick go in "Decisions log", and the `R` entry they shaped cites both. When a Design canvas session ran, the product document also links the recap of the picks (C6).
 
 ## P10: write and link
 
-1. When a Claude Design session ran, add the recap of the picks to its project (C6).
+1. When a Design canvas session ran, add the recap of the picks to its canvas (C6).
 2. With no existing document, call `document_create` with the title `Product design: <card title>`. Pass `draft: true` when `document_publish` is among the tools. The draft stays out of the owner's inbox while an agent reviews it, and the app publishes it when the review ends. Never call `document_publish` yourself. When `document_publish` is not among the tools, create the document without `draft`, as `loupe-documents` rule 17 says.
 3. Use the product design tag, or the spelling `tag_list` already has for it. Without it, an approval moves nothing and shows no error.
 4. With an existing document, call `document_revise` on it instead. When the document lacks the product design tag, or has one of the tags `design`, `product` and the tech design tags, call `document_set_tags`. Send its current tags without those, plus the product design tag. A document with both the product design tag and a tech design tag moves no card on approval. Keep each section with a standing approval unchanged, as `../loupe-stage-product-design/references/review-round.md` "An approved section wins" says. When the document has open review comments, answer them as "Answer every open comment" in that file says.

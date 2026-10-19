@@ -48,11 +48,7 @@ final class DesignSystemChangedScriptTest extends TestCase
             'assets/styles/tokens.css.bak',
             'templates/components/Other/Thing.html.twig',
             'src/Module/DesignSystem/Other.php',
-            'src/Command/ExportStarterCanvasCommand.php',
-            'src/DesignStarter/StarterExporter.php',
-            'src/DesignStarter/Nested/Helper.php',
             'src/Command/SeedShowcaseDataCommand.php',
-            'templates/Module/DesignSystem/export/starter/Board.html.twig',
         ] as $path) {
             $this->write($path);
         }
@@ -69,11 +65,7 @@ final class DesignSystemChangedScriptTest extends TestCase
                 'assets/styles/design-system.css',
                 'assets/styles/tokens.css',
                 'docs/contributing/design-system.md',
-                'src/Command/ExportStarterCanvasCommand.php',
-                'src/DesignStarter/Nested/Helper.php',
-                'src/DesignStarter/StarterExporter.php',
                 'src/Module/DesignSystem/Catalog.php',
-                'templates/Module/DesignSystem/export/starter/Board.html.twig',
                 'templates/components/Ds/Button.html.twig',
             ],
             $this->lines($result->getOutput()),
@@ -90,6 +82,21 @@ final class DesignSystemChangedScriptTest extends TestCase
 
         self::assertSame(0, $result->getExitCode());
         self::assertSame('', $result->getOutput());
+    }
+
+    public function test_it_ignores_a_deleted_starter_template_and_reports_a_deleted_export_template(): void
+    {
+        $this->git('checkout', '-q', 'main');
+        $this->write('templates/Module/DesignSystem/export/starter/board.html.twig');
+        $this->write('templates/Module/DesignSystem/export/readme.md.twig');
+        $this->git('add', '.');
+        $this->git('commit', '-q', '-m', 'templates');
+        $this->git('checkout', '-q', 'feature');
+        $this->git('merge', '-q', 'main');
+        $this->git('rm', '-q', 'templates/Module/DesignSystem/export/starter/board.html.twig', 'templates/Module/DesignSystem/export/readme.md.twig');
+        $this->git('commit', '-q', '-m', 'delete');
+
+        self::assertSame(['templates/Module/DesignSystem/export/readme.md.twig'], $this->lines($this->script('main')->getOutput()));
     }
 
     public function test_it_ignores_a_change_that_is_already_on_the_base(): void
