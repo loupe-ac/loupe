@@ -62,6 +62,7 @@ final class InboxExporterTest extends KernelTestCase
         $item->selectedOptions = [1];
         $item->answerText = 'Done, it shipped.';
         $item->closeNote = 'No note';
+        $item->respondedThroughAgent = true;
         $item->updatedAt = new \DateTimeImmutable('2026-09-02 10:00:00');
         $item->closedAt = new \DateTimeImmutable('2026-09-02 10:00:00');
         $item->cards->add(new InboxItemCard($item, $card));
@@ -87,6 +88,7 @@ final class InboxExporterTest extends KernelTestCase
             'selectedOptions' => [1],
             'answerText' => 'Done, it shipped.',
             'closeNote' => 'No note',
+            'respondedThroughAgent' => true,
             'createdAt' => new \DateTimeImmutable('2026-09-01 09:00:00')->format(\DateTimeInterface::ATOM),
             'updatedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),
             'closedAt' => new \DateTimeImmutable('2026-09-02 10:00:00')->format(\DateTimeInterface::ATOM),

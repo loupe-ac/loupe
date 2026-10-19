@@ -6,12 +6,12 @@ import { glob } from 'astro/loaders';
 // Markdown lives at the repository root instead, so it stays browsable on
 // GitHub and usable by anyone handed a path — hence glob() with an explicit
 // base. The negated patterns are internal documents that must never publish:
-// the manual QA checklist and the automation notes.
+// the manual QA checklist, the automation notes and the skill test cases.
 export const collections = {
   docs: defineCollection({
     loader: glob({
       base: '../docs',
-      pattern: ['**/[^_]*.md', '!MANUAL_TEST_PLAN.md', '!AUTOMATIONS.md', '!superpowers/**'],
+      pattern: ['**/[^_]*.md', '!MANUAL_TEST_PLAN.md', '!AUTOMATIONS.md', '!superpowers/**', '!contributing/skill-tests/**'],
     }),
     schema: docsSchema(),
   }),

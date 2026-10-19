@@ -1,6 +1,6 @@
 ---
 name: loupe-inbox
-description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw or inbox_settings_update, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
+description: "Use when an agent needs a decision, an answer or a review from the project owner through the loupe MCP, when calling inbox_search, inbox_join, inbox_ask, inbox_list, inbox_get, inbox_withdraw inbox_answer, inbox_decline, inbox_done, inbox_action_run or inbox_settings_update, when handing a question or a to-do to a person, when the bridge resumed you after an ask closed, or when you need your session id or readerSessionId."
 ---
 
 # Asking the owner through the Loupe inbox
@@ -36,6 +36,18 @@ One session holds one open ask. A later `inbox_ask` or `inbox_join` adds to it. 
 
 Link items with `cardIds` and `documentIds`. Pass the ids that `card_list` and `document_list` return, never a card number. A pull request has no link field, so name it in the `title`.
 
+## Suggest the next action
+
+Do this for every to-do and every question. The owner then has one click for the likely next step.
+
+1. When the item links a card, call `inbox_actions` with the `cardId` of the card. Each action then reports `fitsCard`. Suggest only an action that fits now.
+2. Pass `cardIds` on the item, with the card. A suggestion with a `cardId` needs that card in the `cardIds` of the same item.
+3. An item with no card can suggest only `open`, and only when it links a document in `documentIds`. Skip the suggestion otherwise.
+4. Pass `suggestedActions` with at most three entries. Give each a `reason` of one line. Mark at most one entry `recommended`.
+5. Give a `start-session` entry a `prompt` when the session needs an aim. Write what the session holds and does. The owner reads the prompt and can edit it before the click.
+
+The `prompt` is plain text, and only `start-session` takes it. Loupe trims it and refuses a blank one. The admin flag `inbox.session_prompt_max_length` sets the limit, 2000 characters by default. The bridge puts the prompt last in the first message of the session. An older bridge ignores it, and the session can still read it with `inbox_get`.
+
 ## After a blocking ask
 
 When the bridge started you, end your turn after a blocking ask. Do not poll `inbox_get` in a loop. When the ask closes, Loupe asks the bridge to resume your session, and the resume prompt tells you that the owner answered. A second `inbox_ask` from a resumed session opens a new ask.
@@ -52,6 +64,18 @@ Nothing resumes an interactive session. It reads its answers the same way, with 
 ## Withdraw what you no longer need
 
 Call `inbox_withdraw` with the `itemId` and a `reason`, which the owner reads, when your own open item stops mattering. Only an open item can be withdrawn. A withdraw closes the item for every ask that holds it, so never withdraw an item you joined.
+
+## Record the owner's decision
+
+Use `inbox_answer`, `inbox_decline`, `inbox_done` and `inbox_action_run` only when the owner decided an item in your chat. Never use them to answer your own ask. A bridge worker session is refused.
+
+1. `inbox_answer` takes `selectedOptions` (zero-based indexes), `answerText`, or both.
+2. `inbox_decline` takes an optional `note`. It refuses a review. The review verdict stays on the inbox page.
+3. `inbox_done` marks a to-do done.
+4. `inbox_action_run` runs one action. For `run-command`, call it first without `runDigest`, show the preview to the owner, and call again with the same `branch`, `params` and the `runDigest` after the owner confirms.
+5. For `start-session`, show the owner the `prompt` of the suggestion. Pass `sessionPrompt` with the prompt the owner confirms, or an empty string when the owner clears it. Leave it out to send the suggested prompt unchanged.
+
+The item shows that an agent typed the response. The answer to a workflow question is final and runs its action at once.
 
 ## Change the inbox switches
 

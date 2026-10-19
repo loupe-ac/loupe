@@ -393,7 +393,8 @@ that change from one setup to the next.
 
 1. The repository profile, `.loupe/lifecycle.md`, belongs to the repository. Its
    sections are `Instruction files`, `Environment`, `Gate`, `Code review`,
-   `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. The profile of this repository names
+   `Changelog`, `Pull request`, `Board`, `Merge` and `Repair`. It can also hold the optional
+   `Forge`, `Decision records`, `Visual check` and `Epics` sections. The profile of this repository names
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
    skill never reads the column list, which can be missing.

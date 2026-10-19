@@ -22,6 +22,12 @@ use Ubermuda\AuditBundle\AuditSubject;
  */
 final readonly class AnswerInboxItemHandler
 {
+    public const string NOT_A_QUESTION = 'inbox.answer.error.not_a_question';
+    public const string UNKNOWN_OPTION = 'inbox.answer.error.unknown_option';
+    public const string ONE_OPTION = 'inbox.answer.error.one_option';
+    public const string NO_FREE_TEXT = 'inbox.answer.error.no_free_text';
+    public const string EMPTY = 'inbox.answer.error.empty';
+
     public function __construct(
         private InboxItemCloser $closer,
         private Auditor $auditor,
@@ -33,7 +39,7 @@ final readonly class AnswerInboxItemHandler
     {
         $item = $command->item;
         if (!\in_array($item->kind, [InboxItemKind::Question, InboxItemKind::Workflow], true)) {
-            throw new DomainErrors(['selectedOptions' => 'inbox.answer.error.not_a_question']);
+            throw new DomainErrors(['selectedOptions' => self::NOT_A_QUESTION]);
         }
 
         $text = trim($command->answerText);
@@ -43,21 +49,22 @@ final readonly class AnswerInboxItemHandler
         $this->closer->respond($item, InboxItemState::Answered, 'selectedOptions', function (InboxItem $item) use ($command, $text): ?array {
             $selected = self::parseIndexes($command->selectedOptions, \count($item->options));
             if (null === $selected) {
-                return ['selectedOptions' => 'inbox.answer.error.unknown_option'];
+                return ['selectedOptions' => self::UNKNOWN_OPTION];
             }
             if (!$item->multiple && \count($selected) > 1) {
-                return ['selectedOptions' => 'inbox.answer.error.one_option'];
+                return ['selectedOptions' => self::ONE_OPTION];
             }
             if ('' !== $text && !$item->freeText) {
-                return ['answerText' => 'inbox.answer.error.no_free_text'];
+                return ['answerText' => self::NO_FREE_TEXT];
             }
             if ([] === $selected && '' === $text) {
-                return [$item->freeText && [] === $item->options ? 'answerText' : 'selectedOptions' => 'inbox.answer.error.empty'];
+                return [$item->freeText && [] === $item->options ? 'answerText' : 'selectedOptions' => self::EMPTY];
             }
 
             $item->selectedOptions = $selected;
             $item->answerText = '' === $text ? null : $text;
             $item->closeNote = null;
+            $item->respondedThroughAgent = $command->throughAgent;
             if (InboxItemKind::Workflow === $item->kind) {
                 $this->bus->dispatch(new RunRuleAskAnswer((string) $item->id, $selected[0]));
             }

@@ -2854,6 +2854,22 @@
                 <source>project.connect.tool.inbox_withdraw</source>
                 <target>Withdraw an open item that is no longer needed, with a reason the owner reads.</target>
             </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_answer">
+                <source>project.connect.tool.inbox_answer</source>
+                <target>Answer an inbox question for the owner, after the owner decided in chat. The item shows it was answered through an agent.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_decline">
+                <source>project.connect.tool.inbox_decline</source>
+                <target>Decline an inbox question or to-do, or dismiss a wait item, for the owner after the owner decided in chat. A review stays on the inbox page.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_done">
+                <source>project.connect.tool.inbox_done</source>
+                <target>Mark an inbox to-do done for the owner, after the owner said in chat that it is done.</target>
+            </trans-unit>
+            <trans-unit id="project.connect.tool.inbox_action_run">
+                <source>project.connect.tool.inbox_action_run</source>
+                <target>Run a built-in action of an inbox item for the owner, such as resume-run, retry-card or run-command. A run-command shows a preview first.</target>
+            </trans-unit>
             <trans-unit id="project.connect.tool.inbox_settings_update">
                 <source>project.connect.tool.inbox_settings_update</source>
                 <target>Turn the inbox wait switches on or off. A switch you leave out keeps its value.</target>
@@ -5300,9 +5316,15 @@
             <trans-unit id="inbox.action.review.effect"><source>inbox.action.review.effect</source><target>Opens the page where you review the work.</target></trans-unit>
             <trans-unit id="inbox.action.open.label"><source>inbox.action.open.label</source><target>Open</target></trans-unit>
             <trans-unit id="inbox.action.open.effect"><source>inbox.action.open.effect</source><target>Opens the card or the document.</target></trans-unit>
+            <trans-unit id="inbox.action.open.card.label"><source>inbox.action.open.card.label</source><target>Open the card</target></trans-unit>
+            <trans-unit id="inbox.action.open.card.effect"><source>inbox.action.open.card.effect</source><target>Opens the card of this item.</target></trans-unit>
+            <trans-unit id="inbox.action.open.document.label"><source>inbox.action.open.document.label</source><target>Open the document</target></trans-unit>
+            <trans-unit id="inbox.action.open.document.effect"><source>inbox.action.open.document.effect</source><target>Opens the document of this item.</target></trans-unit>
             <trans-unit id="inbox.action.start-session.label"><source>inbox.action.start-session.label</source><target>Start an interactive session</target></trans-unit>
             <trans-unit id="inbox.action.start-session.effect"><source>inbox.action.start-session.effect</source><target>Opens a terminal on your machine, in a new session on this card.</target></trans-unit>
             <trans-unit id="inbox.action.start-session.disabled"><source>inbox.action.start-session.disabled</source><target>No bridge can open a session.</target></trans-unit>
+            <trans-unit id="inbox.thread.session_prompt_label"><source>inbox.thread.session_prompt_label</source><target>Prompt for the session</target></trans-unit>
+            <trans-unit id="inbox.thread.session_prompt_hint"><source>inbox.thread.session_prompt_hint</source><target>The agent that filed this item wrote the prompt. Edit it before you start the session.</target></trans-unit>
             <trans-unit id="inbox.action.run-command.label"><source>inbox.action.run-command.label</source><target>Run a command</target></trans-unit>
             <trans-unit id="inbox.action.run-command.effect"><source>inbox.action.run-command.effect</source><target>Runs a command from your rule file on your machine, after you confirm it.</target></trans-unit>
             <trans-unit id="inbox.action.run-command.disabled.running"><source>inbox.action.run-command.disabled.running</source><target>This command is queued or running.</target></trans-unit>
@@ -5372,6 +5394,7 @@
             <trans-unit id="inbox.action.dismiss.label"><source>inbox.action.dismiss.label</source><target>Dismiss</target></trans-unit>
             <trans-unit id="inbox.action.dismiss.effect"><source>inbox.action.dismiss.effect</source><target>Closes this item without an action.</target></trans-unit>
             <trans-unit id="inbox.action.error.note_too_long"><source>inbox.action.error.note_too_long</source><target>The note is too long. Shorten it to 2000 characters or fewer.</target></trans-unit>
+            <trans-unit id="inbox.action.error.session_prompt_too_long"><source>inbox.action.error.session_prompt_too_long</source><target>The session prompt is too long. Shorten it.</target></trans-unit>
             <trans-unit id="inbox.action.error.not_available"><source>inbox.action.error.not_available</source><target>This action no longer fits the item. Reload the page to see the actions that do.</target></trans-unit>
             <trans-unit id="inbox.action.error.not_found"><source>inbox.action.error.not_found</source><target>This action does not belong to the item.</target></trans-unit>
             <trans-unit id="inbox.action.error.not_cancellable"><source>inbox.action.error.not_cancellable</source><target>This action cannot be cancelled now.</target></trans-unit>
@@ -5652,6 +5675,10 @@
             <trans-unit id="inbox.item.editable">
                 <source>inbox.item.editable</source>
                 <target>You can still change this response. It becomes final when an ask that holds this item closes.</target>
+            </trans-unit>
+            <trans-unit id="inbox.item.through_agent">
+                <source>inbox.item.through_agent</source>
+                <target>An agent recorded this response for the owner.</target>
             </trans-unit>
             <trans-unit id="inbox.item.final">
                 <source>inbox.item.final</source>
