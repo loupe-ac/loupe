@@ -135,7 +135,7 @@ final class CreateTickedCardsOnReviewSubmittedTest extends KernelTestCase
 
         self::assertSame(['Add tests', 'Add a linter'], array_map(static fn (Card $card): string => $card->title, $this->createdCards()));
         self::assertSame(DiscoveryRunState::Done, $this->run->state);
-        self::assertTrue($this->run->card->column->terminal);
+        self::assertFalse($this->run->card->column->terminal);
         self::assertSame(WorkRequestState::Cancelled, $request->state);
     }
 
