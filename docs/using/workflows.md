@@ -193,6 +193,10 @@ The kind must be the kind that a rule of the same slot requests. Lifecycle sets
 it for Tech design and for Implementation. The inbox action **Send an agent**
 reads it. A card in a column with no `stageWork` gets no such action.
 
+A slot can name a `tone`, the colour of its column when a new project gets the
+template. The value is one of the label tones, such as `lime` or `sky`. A slot
+with no `tone` gets a neutral column.
+
 ## Managed cards
 
 A card is managed by default. A managed card follows the template, and a person
@@ -743,13 +747,18 @@ A request of an app rule can carry a prompt that ships with Loupe. A bridge that
 sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
-The app adds five rules.
+The app adds six rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
 [discovery run](workshop.md#run-discovery), and it sends the discovery prompt
 with the request. A request that no bridge takes expires, and the run fails with
 the reason that no bridge took the work.
+
+The rule `discovery-approved` also watches the Backlog. It moves the card to the
+first terminal column when the owner approved the report of the discovery run.
+The file of the app rules also names the slot where the cards of the ticked
+proposals land, with the key `proposalSlot`. Loupe ships it as `next`.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the

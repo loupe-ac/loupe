@@ -129,7 +129,7 @@ Tick the proposals you want, and approve the report.
 When you approve the report, Loupe creates one card for each ticked proposal.
 The cards go in the column of the `next` slot of the workflow.
 When the project has no such column, they go in the Backlog.
-Loupe then moves the discovery card to the first done column, and the run is Done.
+The run is then Done, and the workflow moves the discovery card to the first done column.
 Proposals you leave unticked create no card.
 
 A second approval of the same report creates no second card.
