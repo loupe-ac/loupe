@@ -1172,8 +1172,33 @@ func TestInitLeavesADisabledCodexServerWhenDeclined(t *testing.T) {
 	if !strings.Contains(out, "is disabled; set enabled = true") {
 		t.Errorf("output lacks the fix:\n%s", out)
 	}
-	if body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml")); !strings.Contains(body, "enabled = false") {
+	body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml"))
+	if !strings.Contains(body, "enabled = false") {
 		t.Errorf("init enabled a server it was told to leave:\n%s", body)
+	}
+	if strings.Contains(body, "default_tools_approval_mode") || strings.Contains(out, "Codex approval") {
+		t.Errorf("init approved the tools of a server that stays disabled:\n%s\n%s", out, body)
+	}
+}
+
+// A failed enable leaves the server disabled, so its tools get no approval.
+func TestInitApprovesNoCodexToolsWhenTheEnableFails(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	w.execOut["codex mcp get loupe --json"] = codexDeclaration(false, "loupe")
+	writeFile(t, filepath.Join(w.codexHome, "config.toml"), "[mcp_servers.loupe]\ncommand = \"loupe\"\n")
+	inRepo(t, w.server.URL)
+
+	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Codex: failed, no config file of the account sets enabled = false") {
+		t.Errorf("output lacks the failure:\n%s", out)
+	}
+	body := readOrEmpty(t, filepath.Join(w.codexHome, "config.toml"))
+	if strings.Contains(body, "default_tools_approval_mode") || strings.Contains(out, "Codex approval") {
+		t.Errorf("init approved the tools of a server that stays disabled:\n%s\n%s", out, body)
 	}
 }
 

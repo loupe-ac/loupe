@@ -457,9 +457,7 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 
 		return true
 	case getErr == nil && parseErr == nil && decl.StartsLoupeMcp():
-		enableCodexServer(cmd, link, t)
-
-		return true
+		return enableCodexServer(cmd, link, t)
 	case getErr == nil && link.skipMcp:
 		step(out, "Codex", "skipped", "--no-mcp is set; Codex starts `"+mcpjson.ServerKey+"` as something other than `loupe mcp`"+t.suffix())
 	case getErr == nil:
@@ -483,21 +481,22 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 	return false
 }
 
-// enableCodexServer offers to enable a disabled `loupe mcp` declaration. It
-// always asks, because somebody disabled the server by hand.
-func enableCodexServer(cmd *cobra.Command, link projectLinkOptions, t codexTarget) {
+// enableCodexServer offers to enable a disabled `loupe mcp` declaration, and
+// reports whether it did. It always asks, because somebody disabled the server
+// by hand.
+func enableCodexServer(cmd *cobra.Command, link projectLinkOptions, t codexTarget) bool {
 	out := cmd.OutOrStdout()
 	byHand := "set enabled = true under [mcp_servers." + mcpjson.ServerKey + "] in " + t.configFile()
 	disabled := "the `" + mcpjson.ServerKey + "` MCP server is disabled" + t.suffix()
 	if link.skipMcp {
 		step(out, "Codex", "skipped", "--no-mcp is set; "+disabled+"; "+byHand)
 
-		return
+		return false
 	}
 	if !confirm(out, cmd.InOrStdin(), "Codex"+t.suffix()+" has the `"+mcpjson.ServerKey+"` MCP server disabled. Enable it?") {
 		step(out, "Codex", "skipped", disabled+"; "+byHand)
 
-		return
+		return false
 	}
 	path, changed, err := codex.EnableServer(t.codexHome(), t.profile)
 	switch {
@@ -507,7 +506,11 @@ func enableCodexServer(cmd *cobra.Command, link projectLinkOptions, t codexTarge
 		step(out, "Codex", "failed", "no config file of the account sets enabled = false; "+byHand)
 	default:
 		step(out, "Codex", "done", "enabled the `"+mcpjson.ServerKey+"` MCP server in "+path)
+
+		return true
 	}
+
+	return false
 }
 
 // replaceCodexServer offers to replace a declaration that does not start
