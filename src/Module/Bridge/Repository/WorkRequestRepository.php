@@ -572,6 +572,49 @@ class WorkRequestRepository extends ServiceEntityRepository
         return $settled;
     }
 
+    /**
+     * When the newest done fix request opened for each pull request linked to each card. A request matches a pull request
+     * through the URL in its context and the links of the card, so two pull requests with one number in two repositories stay apart.
+     *
+     * @param list<Uuid> $cardIds
+     *
+     * @return array<string, list<array{forge: string, repository: string, number: int, openedAt: \DateTimeImmutable}>> by RFC 4122 card id
+     */
+    public function findDoneFixesOpenedAt(array $cardIds): array
+    {
+        if ([] === $cardIds) {
+            return [];
+        }
+
+        /** @var list<array{card_id: string, forge: string, repository: string, number: string|int, opened: string}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT w.subject_id AS card_id, l.forge AS forge, LOWER(l.repository) AS repository, l.number AS number, MAX(w.created_at) AS opened
+             FROM work_requests w
+             JOIN board_card_pull_requests l ON l.card_id = w.subject_id AND l.url = (w.context::jsonb ->> 'pullRequestUrl')
+             WHERE w.subject_type = :subject AND w.subject_id IN (:cards) AND w.state = :done AND w.role = 'fix'
+               AND l.repository IS NOT NULL AND l.number IS NOT NULL
+             GROUP BY w.subject_id, l.forge, LOWER(l.repository), l.number",
+            [
+                'subject' => WorkSubject::CARD,
+                'cards' => array_map(static fn (Uuid $id): string => $id->toRfc4122(), $cardIds),
+                'done' => WorkRequestState::Done->value,
+            ],
+            ['cards' => ArrayParameterType::STRING],
+        )->fetchAllAssociative();
+
+        $found = [];
+        foreach ($rows as $row) {
+            $found[Uuid::fromString($row['card_id'])->toRfc4122()][] = [
+                'forge' => $row['forge'],
+                'repository' => $row['repository'],
+                'number' => (int) $row['number'],
+                'openedAt' => new \DateTimeImmutable($row['opened']),
+            ];
+        }
+
+        return $found;
+    }
+
     /** The request of the card that opened last, in any state. */
     public function findLatestForCard(Uuid $cardId): ?WorkRequest
     {

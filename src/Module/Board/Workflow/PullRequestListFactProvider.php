@@ -8,6 +8,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Service\CardPullRequests;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
@@ -35,6 +36,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
         private ForgePullRequestRepository $forgePullRequests,
         private EpicBranches $epicBranches,
         private CardPullRequestRepository $cardPullRequests,
+        private WorkRequestRepository $workRequests,
     ) {
     }
 
@@ -59,7 +61,8 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
         $pullRequests = $this->linkedPullRequests->forCard($stored);
         $epicRepositories = $this->epicRepositories($stored, $parentEpicBranch);
         $primary = $this->linkedPullRequests->primary($pullRequests);
-        $facts = self::inSubjectOrder($pullRequests, array_map(fn (ForgePullRequest $pullRequest): PullRequestFacts => $this->pullRequestFacts($pullRequest, $parentEpicBranch, $epicRepositories), $pullRequests));
+        $fixes = $this->workRequests->findDoneFixesOpenedAt([$card->id])[$card->id->toRfc4122()] ?? [];
+        $facts = self::inSubjectOrder($pullRequests, array_map(fn (ForgePullRequest $pullRequest): PullRequestFacts => $this->pullRequestFacts($pullRequest, $parentEpicBranch, $epicRepositories, $fixes), $pullRequests));
 
         return new PullRequestList(
             $facts,
@@ -97,10 +100,11 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
     }
 
     /**
-     * @param ?string             $epicBranch       the epic branch of the parent of the card, or null
-     * @param array<string, bool> $epicRepositories whether each repository of the epic pull requests has one open, empty before one exists
+     * @param ?string                                                                                   $epicBranch       the epic branch of the parent of the card, or null
+     * @param array<string, bool>                                                                       $epicRepositories whether each repository of the epic pull requests has one open, empty before one exists
+     * @param list<array{forge: string, repository: string, number: int, openedAt: \DateTimeImmutable}> $fixes            the done fix requests of the card
      */
-    private function pullRequestFacts(ForgePullRequest $pullRequest, ?string $epicBranch, array $epicRepositories): PullRequestFacts
+    private function pullRequestFacts(ForgePullRequest $pullRequest, ?string $epicBranch, array $epicRepositories, array $fixes): PullRequestFacts
     {
         $base = $pullRequest->baseBranch;
         $baseIsEpicBranch = null !== $base && $base === $epicBranch
@@ -129,9 +133,7 @@ final readonly class PullRequestListFactProvider extends BoardFactProvider
             approvalsCoveringHead: PullRequestReview::Approved === $pullRequest->review
                 && null !== $pullRequest->coveredSha
                 && $pullRequest->coveredSha === $pullRequest->headSha ? 1 : 0,
-            changesRequested: PullRequestReview::ChangesRequested === $pullRequest->review
-                && null !== $pullRequest->changesRequestedSha
-                && $pullRequest->changesRequestedSha === $pullRequest->headSha,
+            changesRequested: $pullRequest->changesRequestOpen($pullRequest->lastFixOpenedAt($fixes)),
             baseIsMergeTarget: $baseIsEpicBranch || (null !== $base && $base === $pullRequest->defaultBranch),
             baseIsEpicBranch: $baseIsEpicBranch,
             stacked: [] !== $parents,

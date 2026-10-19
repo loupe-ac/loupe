@@ -31,7 +31,7 @@ final class PullRequestSnapshotTest extends TestCase
         self::assertSame([], $pullRequest->failedChecks);
         self::assertNull($pullRequest->refreshedAt);
         self::assertSame(0, $pullRequest->refreshAttempts);
-        self::assertNull($pullRequest->changesRequestedSha);
+        self::assertNull($pullRequest->changesRequestedAt);
         self::assertNull($pullRequest->openedAt);
         self::assertNull($pullRequest->mergedAt);
         self::assertNull($pullRequest->approvedAt);
@@ -66,7 +66,7 @@ final class PullRequestSnapshotTest extends TestCase
         self::assertSame(PullRequestMergeability::Conflicting, $pullRequest->mergeability);
         self::assertSame(PullRequestReview::ChangesRequested, $pullRequest->review);
         self::assertTrue($pullRequest->readyToMerge);
-        self::assertSame('1000', $pullRequest->changesRequestedSha);
+        self::assertEquals(new \DateTimeImmutable('2026-09-20 09:00:00'), $pullRequest->changesRequestedAt);
         self::assertEquals(new \DateTimeImmutable('2026-09-20 08:00:00'), $pullRequest->openedAt);
         self::assertEquals(new \DateTimeImmutable('2026-09-21 09:30:00'), $pullRequest->mergedAt);
         self::assertTrue($pullRequest->snapshot()->equals($snapshot));
@@ -663,8 +663,8 @@ final class PullRequestSnapshotTest extends TestCase
         yield 'mergeability' => [['mergeability' => PullRequestMergeability::Mergeable]];
         yield 'review' => [['review' => PullRequestReview::Approved]];
         yield 'ready' => [['readyToMerge' => false]];
-        yield 'changes requested sha' => [['changesRequestedSha' => 'fed9876']];
-        yield 'numeric-looking changes requested sha' => [['changesRequestedSha' => '1e3']];
+        yield 'changes requested at' => [['changesRequestedAt' => new \DateTimeImmutable('2026-09-22 09:00:00')]];
+        yield 'changes requested cleared' => [['changesRequestedAt' => null]];
         yield 'default branch' => [['defaultBranch' => 'trunk']];
     }
 
@@ -707,7 +707,7 @@ final class PullRequestSnapshotTest extends TestCase
             'mergeability' => PullRequestMergeability::Conflicting,
             'review' => PullRequestReview::ChangesRequested,
             'readyToMerge' => true,
-            'changesRequestedSha' => '1000',
+            'changesRequestedAt' => new \DateTimeImmutable('2026-09-20 09:00:00'),
             'openedAt' => new \DateTimeImmutable('2026-09-20 08:00:00'),
             'mergedAt' => new \DateTimeImmutable('2026-09-21 09:30:00'),
             'approvedAt' => new \DateTimeImmutable('2026-09-20 10:00:00'),

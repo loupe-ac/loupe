@@ -248,22 +248,20 @@ final class GitHubPullRequestStateMapperTest extends TestCase
     /** @return iterable<string, array{mixed, ?string}> */
     public static function changesRequestedReviews(): iterable
     {
-        $onHead = ['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => self::HEAD]];
-        $onOlder = ['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => 'abc1234']];
+        $at = static fn (string $time): array => ['state' => 'CHANGES_REQUESTED', 'submittedAt' => $time, 'commit' => ['oid' => self::HEAD]];
 
-        yield 'one on the head and one on an older commit' => [['nodes' => [$onHead, $onOlder]], self::HEAD];
-        yield 'one on an older commit and one on the head' => [['nodes' => [$onOlder, $onHead]], self::HEAD];
-        yield 'one on an older commit' => [['nodes' => [$onOlder]], 'abc1234'];
-        yield 'the last of two on older commits' => [['nodes' => [$onOlder, ['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => 'def5678']]]], 'def5678'];
-        yield 'an approval on an older commit' => [['nodes' => [['state' => 'APPROVED', 'commit' => ['oid' => 'abc1234']]]], null];
+        yield 'the newest of two, listed last' => [['nodes' => [$at('2026-10-19T14:55:00Z'), $at('2026-10-19T15:10:00Z')]], '2026-10-19 15:10:00'];
+        yield 'the newest of two, listed first' => [['nodes' => [$at('2026-10-19T15:10:00Z'), $at('2026-10-19T14:55:00Z')]], '2026-10-19 15:10:00'];
+        yield 'an approval is skipped' => [['nodes' => [['state' => 'APPROVED', 'submittedAt' => '2026-10-19T16:00:00Z'], $at('2026-10-19T14:55:00Z')]], '2026-10-19 14:55:00'];
+        yield 'an approval only' => [['nodes' => [['state' => 'APPROVED', 'submittedAt' => '2026-10-19T16:00:00Z']]], null];
         yield 'no reviews field' => [null, null];
         yield 'empty nodes' => [['nodes' => []], null];
-        yield 'empty oid' => [['nodes' => [['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => '']]]], null];
-        yield 'no commit is skipped' => [['nodes' => [$onOlder, ['state' => 'CHANGES_REQUESTED', 'commit' => null]]], 'abc1234'];
+        yield 'no time is skipped' => [['nodes' => [['state' => 'CHANGES_REQUESTED'], $at('2026-10-19T14:55:00Z')]], '2026-10-19 14:55:00'];
+        yield 'a bad time is skipped' => [['nodes' => [['state' => 'CHANGES_REQUESTED', 'submittedAt' => 'soon']]], null];
     }
 
     #[DataProvider('changesRequestedReviews')]
-    public function test_the_commit_of_an_active_change_request(mixed $reviews, ?string $expected): void
+    public function test_the_time_of_the_newest_change_request(mixed $reviews, ?string $expected): void
     {
         $node = self::pullRequest604();
         if (null === $reviews) {
@@ -272,7 +270,9 @@ final class GitHubPullRequestStateMapperTest extends TestCase
             $node['latestOpinionatedReviews'] = $reviews;
         }
 
-        self::assertSame($expected, new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->changesRequestedSha);
+        $at = new GitHubPullRequestStateMapper()->map($node, self::rules604(), null)->changesRequestedAt;
+
+        self::assertSame($expected, $at?->format('Y-m-d H:i:s'));
     }
 
     /** @return iterable<string, array{mixed, ?string, ?string, ?string}> */

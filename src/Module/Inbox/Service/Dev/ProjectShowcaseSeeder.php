@@ -381,7 +381,7 @@ final readonly class ProjectShowcaseSeeder
         $state->failedChecks = $failedChecks;
         $state->mergeability = $mergeability;
         $state->review = $review;
-        $state->changesRequestedSha = PullRequestReview::ChangesRequested === $review ? $state->headSha : null;
+        $state->changesRequestedAt = PullRequestReview::ChangesRequested === $review ? new \DateTimeImmutable('-30 minutes') : null;
         $state->refreshedAt = new \DateTimeImmutable('-5 minutes');
 
         return $link;
