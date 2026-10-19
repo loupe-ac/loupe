@@ -6,6 +6,8 @@ namespace App\Module\Review\Service;
 
 use App\Module\Review\Entity\Document;
 use App\Module\Review\Entity\DocumentStatus;
+use App\Module\Review\Entity\Tag;
+use App\Module\Workflow\Contract\DesignReviewRoundLimit;
 
 /**
  * Turns the agent reviews of a document into what its page shows: a state, the counts
@@ -20,35 +22,41 @@ use App\Module\Review\Entity\DocumentStatus;
  */
 final readonly class AgentReviewSummary
 {
-    /** The number of failed reviews after which the loop gives up. */
-    public const int FAILED_ROUND_LIMIT = 6;
-
     public function __construct(
         private DocumentAgentReviews $agentReviews,
+        private DesignReviewRoundLimit $roundLimit,
     ) {
     }
 
     /** @return ?Summary null when the page shows no summary */
     public function forDocument(Document $document): ?array
     {
-        return $this->summarize($this->agentReviews->forDocument($document), $document->status);
+        $reviews = $this->agentReviews->forDocument($document);
+        if ([] === $reviews || DocumentStatus::Draft === $document->status) {
+            return null;
+        }
+
+        $tags = $document->tags->map(static fn (Tag $tag): string => $tag->name)->getValues();
+
+        return $this->summarize($reviews, $document->status, $this->roundLimit->of($document->project->id ?? throw new \LogicException('A reviewed document belongs to a saved project.'), $tags));
     }
 
     /**
      * @param list<DocumentAgentReviewSummary> $newestFirst
+     * @param ?int                             $roundLimit  the failed reviews after which the loop gives up, or null when the workflow has no limit
      *
      * @return ?Summary
      */
-    public function summarize(array $newestFirst, DocumentStatus $status): ?array
+    public function summarize(array $newestFirst, DocumentStatus $status, ?int $roundLimit): ?array
     {
         if ([] === $newestFirst || DocumentStatus::Draft === $status) {
             return null;
         }
 
-        $failed = \count(array_filter($newestFirst, static fn (array $review): bool => 'success' !== $review['conclusion']));
+        $failed = \count(array_filter($newestFirst, static fn (array $review): bool => 'success' !== $review['conclusion'] && $review['cardId'] === $newestFirst[0]['cardId']));
         $state = match (true) {
             $this->loopPassed($newestFirst[0]) => 'passed',
-            $failed >= self::FAILED_ROUND_LIMIT => 'failed',
+            null !== $roundLimit && $failed >= $roundLimit => 'failed',
             default => 'skipped',
         };
 
