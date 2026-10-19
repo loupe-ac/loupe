@@ -75,10 +75,11 @@ final readonly class InboxAskCloser
 
         $winners = $this->winnersOf($item, $closing);
         foreach ($closing as $ask) {
-            if (\in_array($ask, $winners, true)) {
+            $winner = $winners[$this->groupOf($ask)];
+            if ($winner === $ask) {
                 $this->resumeSession($ask, $now);
             } else {
-                $this->skipResume($ask, $item, $now);
+                $this->skipResume($ask, $winner, $item, $now);
             }
         }
 
@@ -93,20 +94,25 @@ final readonly class InboxAskCloser
      *
      * @param list<InboxAsk> $closing
      *
-     * @return list<InboxAsk>
+     * @return array<string, InboxAsk> keyed by groupOf()
      */
     private function winnersOf(InboxItem $item, array $closing): array
     {
         $byCard = [];
         foreach ($closing as $ask) {
-            $key = null === $ask->card ? 'ask:'.$ask->id : 'card:'.$ask->card->id;
+            $key = $this->groupOf($ask);
             $held = $byCard[$key] ?? null;
             if (null === $held || $this->tookFirst($ask, $held, $item)) {
                 $byCard[$key] = $ask;
             }
         }
 
-        return array_values($byCard);
+        return $byCard;
+    }
+
+    private function groupOf(InboxAsk $ask): string
+    {
+        return null === $ask->card ? 'ask:'.$ask->id : 'card:'.$ask->card->id;
     }
 
     /** The earliest link to the item wins, and the lower link id breaks a tie. */
@@ -123,13 +129,14 @@ final readonly class InboxAskCloser
         return array_find($ask->items->toArray(), static fn (InboxAskItem $link): bool => $link->item === $item) ?? throw new \LogicException('A closing ask holds the item that closed it.');
     }
 
-    private function skipResume(InboxAsk $ask, InboxItem $item, \DateTimeImmutable $now): void
+    private function skipResume(InboxAsk $ask, InboxAsk $winner, InboxItem $item, \DateTimeImmutable $now): void
     {
         $ask->resumeSkipped = true;
         $this->logger->info('inbox.ask_resume_skipped', [
             'projectId' => (string) $ask->project->id,
             'askId' => (string) $ask->id,
             'sessionId' => (string) $ask->sessionId,
+            'winningAskId' => (string) $winner->id,
             'itemId' => (string) $item->id,
             'cardId' => (string) $ask->card?->id,
         ]);

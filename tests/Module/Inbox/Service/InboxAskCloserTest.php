@@ -46,6 +46,9 @@ use App\Outbox\Command\DrainOutboxCommand;
 use App\Outbox\Command\DrainOutboxHandler;
 use App\Tests\Module\Inbox\InboxFixtures;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
+use Monolog\LogRecord;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
@@ -243,6 +246,31 @@ final class InboxAskCloserTest extends KernelTestCase
                 $this->cardEventRepository()->findBy(['kind' => CardEventKind::ResumeSkipped]),
             ),
         );
+    }
+
+    public function test_the_skipped_resume_log_names_the_skipped_ask_its_session_and_the_winning_ask(): void
+    {
+        $logger = self::getContainer()->get('logger');
+        self::assertInstanceOf(Logger::class, $logger);
+        $records = new TestHandler();
+        $logger->pushHandler($records);
+        $card = $this->card($this->em, $this->project, 7);
+        $this->em->flush();
+        $item = $this->question(1);
+        $asker = $this->askTaking($item, '2026-10-18 14:57:00', $card);
+        $joiner = $this->askTaking($item, '2026-10-18 15:20:00', $card);
+
+        try {
+            $this->answer($item);
+        } finally {
+            $logger->popHandler();
+        }
+
+        $skipped = array_values(array_filter($records->getRecords(), static fn (LogRecord $record): bool => 'inbox.ask_resume_skipped' === $record->message));
+        self::assertCount(1, $skipped);
+        self::assertSame((string) $joiner->id, $skipped[0]->context['askId']);
+        self::assertSame((string) $joiner->sessionId, $skipped[0]->context['sessionId']);
+        self::assertSame((string) $asker->id, $skipped[0]->context['winningAskId']);
     }
 
     public function test_a_joiner_with_a_question_of_its_own_resumes_alone_once_that_question_closes(): void
