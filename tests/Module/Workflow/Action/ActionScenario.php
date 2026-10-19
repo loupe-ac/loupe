@@ -39,6 +39,8 @@ use App\Module\Workflow\Template\AppRules;
 use App\Module\Workflow\Template\Rule;
 use App\Module\Workflow\Template\RuleOrigin;
 use App\Module\Workflow\Template\TemplateParser;
+use App\Module\Workflow\Template\TemplatePrompts;
+use App\Module\Workflow\Template\TemplateSource;
 use App\Outbox\OutboxWriter;
 use App\Tests\Module\Workflow\Template\AppRulesTest;
 use App\Tests\Module\Workflow\WorkflowProjects;
@@ -110,6 +112,8 @@ trait ActionScenario
             $this->service(BoardColumns::class),
             $this->service(WorkflowSlotLinkRepository::class),
             new AppRules($this->service(TemplateParser::class), AppRulesTest::FIXTURE),
+            $this->service(TemplateSource::class),
+            $this->service(TemplatePrompts::class),
         );
     }
 

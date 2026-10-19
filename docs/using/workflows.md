@@ -848,6 +848,14 @@ of the rule. The design review
 rules use it, so that a person who publishes or reviews the draft cancels the
 agent work on it.
 
+A request rule can name a prompt with the optional `prompt` parameter. The value
+is a name of lowercase letters, digits and hyphens, such as `implement`. The
+engine reads the text from `config/workflows/<template key>/prompts/<name>.md`
+and sends it with the request. A bridge runs it for a kind that its `work:` map
+does not hold, when it sets `appPrompts: true`. A template that names a prompt
+with no file is refused when it is bound. A project bound earlier keeps its copy.
+The request then carries no prompt when the file is gone.
+
 A request rule names its document with the optional `document` parameter. It is
 a map with the key `tag`, and an optional `status`: `in-review`, `approved`,
 `changes-requested` or `draft`.
