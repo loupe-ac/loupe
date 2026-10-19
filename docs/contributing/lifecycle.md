@@ -59,8 +59,8 @@ The owner can run `/loupe:product-design` by hand in Claude Code, from a card or
 from a one-line idea. The session creates the card in Product design, or moves
 an existing card there from an earlier column, such as Backlog or Next. Then it
 writes the product document with the owner. The session takes its intake from
-the card. When the Claude Design MCP is connected, it recommends one Claude
-Design session at the first choice with a visible side. The session asks every
+the card. When the `Artifact` tool can create a Design canvas, it recommends one
+Design canvas session at the first choice with a visible side. The session asks every
 open decision in the chat, and writes a decision fence only for a decision that
 the owner defers. When the questions end and the session has a prototype, the session compares the
 answers with it, and asks the owner about each conflict. Then it shows a recap with one

@@ -57,7 +57,7 @@ The owner can answer a decision after a worker writes the text of a design. `doc
 
 ## Read a linked prototype
 
-A design links a prototype as a stored artifact, a claude.ai artifact, a Claude Design canvas, a Loupe document or a repository file. The product design skill stores each validated prototype in the artifact library of the project.
+A design links a prototype as a stored artifact, a claude.ai artifact, a Design canvas, a Loupe document or a repository file. The product design skill stores each validated prototype in the artifact library of the project.
 
 1. Read a stored artifact first. `card_get` lists the artifacts of the card. Call `artifact_get` for the files, and `artifact_read` for each file you need. The harness adapter says which tool reads each other kind of link.
 2. When the stage needs the prototype and no tool reads any link, stop with `STAGE RESULT: blocked: prototype unreadable: <tool> missing`. Name the missing tool, such as `Artifact`.
