@@ -10,7 +10,11 @@
     }
     .lp-split-button__toggle:not(.lp-split-button__toggle--alone) {
         @apply rounded-l-none px-2;
-        border-left-color: color-mix(in oklab, var(--accent-ink) 40%, transparent);
+        border-left-color: color-mix(
+            in oklab,
+            var(--accent-ink) 40%,
+            transparent
+        );
     }
     .lp-split-button__toggle svg {
         @apply size-4;
