@@ -39,6 +39,7 @@ if [ "$locked" -eq 0 ]; then
     echo "bridge-epic-preview: $lock stayed for 10 minutes. Remove the lock and run again." >&2
     exit 1
 fi
+# The worker after this script needs no lock: the bridge runs one job per card, so the epic's teardown waits for it.
 trap 'rmdir "$lock"' EXIT
 
 # Two fetches that update one remote ref at once make the slower one exit non-zero.
