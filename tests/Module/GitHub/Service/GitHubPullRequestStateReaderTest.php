@@ -108,7 +108,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
             'pageInfo' => ['hasNextPage' => true, 'endCursor' => 'cursor-1'],
             'nodes' => [['__typename' => 'CheckRun', 'name' => 'lint', 'status' => 'COMPLETED', 'conclusion' => 'SUCCESS', 'isRequired' => true]],
         ];
-        $first['data']['repository']['pullRequest']['latestOpinionatedReviews'] = ['nodes' => [['state' => 'CHANGES_REQUESTED', 'commit' => ['oid' => 'abc1234']]]];
+        $first['data']['repository']['pullRequest']['latestOpinionatedReviews'] = ['nodes' => [['state' => 'CHANGES_REQUESTED', 'submittedAt' => '2026-10-19T14:55:00Z', 'commit' => ['oid' => 'abc1234']]]];
         $second = $first;
         $second['data']['repository']['pullRequest']['commits']['nodes'][0]['commit']['statusCheckRollup']['contexts'] = [
             'pageInfo' => ['hasNextPage' => false, 'endCursor' => 'cursor-2'],
@@ -125,7 +125,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
         self::assertSame(PullRequestChecks::Failed, $snapshot->checks);
         self::assertSame(['e2e'], $snapshot->failedChecks);
-        self::assertSame('abc1234', $snapshot->changesRequestedSha);
+        self::assertSame('2026-10-19 14:55:00', $snapshot->changesRequestedAt?->format('Y-m-d H:i:s'));
         $body = json_decode($this->requests[2]['options']['body'] ?? '', true, flags: \JSON_THROW_ON_ERROR);
         self::assertIsArray($body);
         self::assertSame('cursor-1', $body['variables']['after'] ?? null);

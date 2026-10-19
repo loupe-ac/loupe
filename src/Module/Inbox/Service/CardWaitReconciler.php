@@ -12,6 +12,7 @@ use App\Module\Board\Repository\CardPauseRepository;
 use App\Module\Board\Repository\CardPullRequestRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Bridge\Repository\WorkerRunRepository;
+use App\Module\Bridge\Repository\WorkRequestRepository;
 use App\Module\Bridge\ValueObject\WorkerRunState;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
@@ -76,6 +77,7 @@ final readonly class CardWaitReconciler
         private InboxAvailability $inbox,
         private InboxWaitSwitches $switches,
         private WorkerRunRepository $workerRuns,
+        private WorkRequestRepository $workRequests,
         private CardPullRequestRepository $cardPullRequests,
         private ForgePullRequestRepository $forgePullRequests,
         private CardPauseRepository $cardPauses,
@@ -413,6 +415,7 @@ final readonly class CardWaitReconciler
         }
 
         $running = array_flip($this->workerRuns->findCardIdsWithOpenRun($project, $cardIds));
+        $fixes = $this->workRequests->findDoneFixesOpenedAt($cardIds);
         $parents = [];
         foreach ($this->cards->findByIdsInProject($project, $cardIds) as $card) {
             if (null !== $card->parent) {
@@ -430,7 +433,7 @@ final readonly class CardWaitReconciler
             $rowId = $row->id ?? throw new \LogicException('A stored pull request has an id.');
             $idle = !isset($running[$cardId]);
 
-            if ($idle && self::waitsForReview($row, $row->headSha) && !$this->mergesWithoutApproval($projectId, $row, $parents[(string) $cardId] ?? null)) {
+            if ($idle && self::waitsForReview($row, $row->headSha, $row->lastFixOpenedAt($fixes[Uuid::fromString($cardId)->toRfc4122()] ?? [])) && !$this->mergesWithoutApproval($projectId, $row, $parents[(string) $cardId] ?? null)) {
                 $waits[] = [$cardId, PullRequestReview::Approved === $row->review
                     ? WantedCardWait::forPullRequestChangedAfterApproval($rowId, $row->headSha)
                     : WantedCardWait::forPullRequestReady($rowId, $row->headSha)];
@@ -465,14 +468,14 @@ final readonly class CardWaitReconciler
     }
 
     /**
-     * A changes-requested review on an older commit waits again, because GitHub keeps it until someone reviews anew.
+     * A changes-requested review waits again once a fix run answered it, because GitHub keeps it until someone reviews anew.
      * An approval waits again once the head has commits it does not cover.
      */
-    private static function waitsForReview(ForgePullRequest $row, string $headSha): bool
+    private static function waitsForReview(ForgePullRequest $row, string $headSha, ?\DateTimeImmutable $lastFixOpenedAt): bool
     {
         $review = match ($row->review) {
             PullRequestReview::Required, PullRequestReview::None => true,
-            PullRequestReview::ChangesRequested => null !== $row->changesRequestedSha && $row->changesRequestedSha !== $headSha,
+            PullRequestReview::ChangesRequested => null !== $row->changesRequestedAt && !$row->changesRequestOpen($lastFixOpenedAt),
             PullRequestReview::Approved => null !== $row->coveredSha && $row->coveredSha !== $headSha,
         };
 
