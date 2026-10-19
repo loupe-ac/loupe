@@ -1274,3 +1274,31 @@ func TestInitDeclaresTheCodexServerInTheHomeAndProfileOfTheAccount(t *testing.T)
 		t.Errorf("output does not name the account:\n%s", out)
 	}
 }
+
+// `codex mcp add` and `remove` write only config.toml, so a server that the
+// profile declares stays in force after them. Init names the file instead.
+func TestInitLeavesAServerThatTheProfileDeclaresToYou(t *testing.T) {
+	w := newInitWorld(t, devSite())
+	w.codex = true
+	inRepo(t, w.server.URL)
+	home := t.TempDir()
+	w.execOut["CODEX_HOME="+home+" codex -p work mcp get loupe --json"] = codexDeclaration(true, "npx")
+	profile := filepath.Join(home, "work.config.toml")
+	writeFile(t, profile, "[mcp_servers.loupe]\ncommand = \"npx\"\nargs = [\"mcp\"]\n")
+	path, _ := defaultRulesPath()
+	writeFile(t, path, "accounts:\n  cdx:\n    harness: codex\n    codexHome: "+home+"\n    profile: work\ndefaults:\n  account: cdx\n")
+
+	out, err := runInitCmd(t, "y\nn\n", "--mcp")
+	if err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	if w.called("CODEX_HOME="+home+" codex -p work mcp remove") || w.called("CODEX_HOME="+home+" codex -p work mcp add") {
+		t.Errorf("init changed config.toml, which Codex does not start: %v", w.execCalls)
+	}
+	if !strings.Contains(out, "Codex: failed, profile work declares its own `loupe` MCP server") || !strings.Contains(out, profile) {
+		t.Errorf("output does not name the profile file:\n%s", out)
+	}
+	if strings.Contains(out, "Codex approval") {
+		t.Errorf("init approved the tools of a server it did not connect:\n%s", out)
+	}
+}

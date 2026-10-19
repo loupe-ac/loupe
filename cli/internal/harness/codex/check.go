@@ -34,6 +34,8 @@ type tomlConfig struct {
 }
 
 type serverConf struct {
+	Command                  string `toml:"command"`
+	URL                      string `toml:"url"`
 	DefaultToolsApprovalMode string `toml:"default_tools_approval_mode"`
 }
 

@@ -110,6 +110,19 @@ func approveIn(path string) (bool, error) {
 	return true, os.Rename(next, path)
 }
 
+// ProfileDeclaration returns the profile file when it declares the loupe MCP
+// server with its own command or url. Codex then starts that declaration, and
+// `codex mcp add` and `codex mcp remove` change only config.toml.
+func ProfileDeclaration(home, profile string) (string, bool) {
+	if profile == "" {
+		return "", false
+	}
+	f := loadFiles(profileFile(home, profile))[0]
+	s := f.cfg.McpServers["loupe"]
+
+	return f.path, f.err == nil && (s.Command != "" || s.URL != "")
+}
+
 // Home is the Codex home folder: $CODEX_HOME, or ~/.codex.
 func Home() (string, error) {
 	if home := strings.TrimSpace(os.Getenv("CODEX_HOME")); home != "" {

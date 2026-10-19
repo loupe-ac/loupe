@@ -149,3 +149,24 @@ func TestApproveToolsApprovesAServerOnlyTheProfileDeclares(t *testing.T) {
 		t.Errorf("config.toml changed:\n%s", got)
 	}
 }
+
+func TestProfileDeclarationFindsAServerTheProfileStarts(t *testing.T) {
+	home := writeConfig(t, "[mcp_servers.loupe]\ncommand = \"loupe\"\nargs = [\"mcp\"]\n")
+	profile := filepath.Join(home, "work.config.toml")
+	for body, want := range map[string]bool{
+		"[mcp_servers.loupe]\ncommand = \"npx\"\n":                        true,
+		"[mcp_servers.loupe]\nurl = \"https://loupe.test/mcp\"\n":         true,
+		"[mcp_servers.loupe]\ndefault_tools_approval_mode = \"prompt\"\n": false,
+		"model = \"o3\"\n": false,
+	} {
+		if err := os.WriteFile(profile, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if path, got := ProfileDeclaration(home, "work"); got != want || path != profile {
+			t.Errorf("ProfileDeclaration with %q: %s, %v", body, path, got)
+		}
+	}
+	if _, got := ProfileDeclaration(home, ""); got {
+		t.Error("ProfileDeclaration found a declaration with no profile")
+	}
+}

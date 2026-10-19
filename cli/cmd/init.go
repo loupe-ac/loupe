@@ -468,6 +468,7 @@ func initCodexServer(ctx context.Context, cmd *cobra.Command, dir string, link p
 		step(out, "Codex", "skipped", "--no-mcp is set; to give Codex the Loupe tools, run `"+add+"`")
 	case !link.writeMcp && !confirm(out, cmd.InOrStdin(), "Declare `loupe mcp` to Codex"+t.suffix()+"?"):
 		step(out, "Codex", "skipped", "to give Codex the Loupe tools, run `"+add+"`")
+	case t.profileDeclares(out):
 	default:
 		if raw, err := t.run(ctx, dir, "mcp", "add", mcpjson.ServerKey, "--", "loupe", "mcp"); err != nil {
 			step(out, "Codex", "failed", fmt.Sprintf("%v%s; run `%s`", err, indented(raw), add))
@@ -493,6 +494,9 @@ func replaceCodexServer(ctx context.Context, cmd *cobra.Command, dir string, t c
 		shown = "a server init cannot read"
 	}
 	fmt.Fprintf(out, "Codex%s starts %q as %s, which is not `loupe mcp`, so the bridge turns its Codex account off.\n", t.suffix(), mcpjson.ServerKey, shown)
+	if t.profileDeclares(out) {
+		return false
+	}
 	if !confirm(out, cmd.InOrStdin(), "Replace it with `loupe mcp`?") {
 		step(out, "Codex", "skipped", "to replace it, run `"+fix+"`")
 
@@ -559,6 +563,22 @@ func (t codexTarget) suffix() string {
 	}
 
 	return ""
+}
+
+// profileDeclares reports a profile file that declares the server itself.
+// `codex mcp add` and `remove` write only config.toml, so init leaves that
+// declaration to you rather than report a change Codex does not start.
+func (t codexTarget) profileDeclares(out io.Writer) bool {
+	home := t.home
+	if home == "" {
+		home, _ = codex.Home()
+	}
+	path, ok := codex.ProfileDeclaration(home, t.profile)
+	if ok {
+		step(out, "Codex", "failed", "profile "+t.profile+" declares its own `"+mcpjson.ServerKey+"` MCP server; set command = \"loupe\" and args = [\"mcp\"] under [mcp_servers."+mcpjson.ServerKey+"] in "+path)
+	}
+
+	return ok
 }
 
 // configFile is the config.toml of the account's Codex home.
