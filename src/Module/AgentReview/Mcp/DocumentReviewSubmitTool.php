@@ -20,7 +20,7 @@ use Mcp\Exception\ToolCallException;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 
-#[McpTool(name: self::NAME, description: 'Submit the review of a draft design document of a card. Only a running design review worker of the card can call it: the call must come from the loupe CLI session of a worker run of the design-review work on this card. Pass the cardId, the documentId of a draft that the card links, the versionNumber that you read, a summary, and the findings. Each finding has a severity (important, nit or pre-existing), a title and a body, and names no file. A finding can set needsPerson, for a gap that a worker cannot settle from the design and the code alone and that the owner must decide. The review fails when a finding without needsPerson has a severity that the project counts as failing, important by default.')]
+#[McpTool(name: self::NAME, description: 'Submit the review of a draft design document of a card. Only a running design review worker of the card can call it: the call must come from the loupe CLI session of a worker run with the design-review role on this card. Pass the cardId, the documentId of a draft that the card links, the versionNumber that you read, a summary, and the findings. Each finding has a severity (important, nit or pre-existing), a title and a body, and names no file. A finding can set needsPerson, for a gap that a worker cannot settle from the design and the code alone and that the owner must decide. The review fails when a finding without needsPerson has a severity that the project counts as failing, important by default.')]
 final readonly class DocumentReviewSubmitTool
 {
     public const string NAME = 'document_review_submit';

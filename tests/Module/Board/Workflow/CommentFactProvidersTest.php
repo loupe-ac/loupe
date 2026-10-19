@@ -69,6 +69,7 @@ final class CommentFactProvidersTest extends KernelTestCase
             workKind: 'fix',
             state: $state,
             receivedAt: $receivedAt,
+            role: 'fix',
         );
         $this->em()->persist($run);
         $this->em()->flush();

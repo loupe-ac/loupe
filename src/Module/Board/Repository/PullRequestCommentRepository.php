@@ -67,21 +67,21 @@ class PullRequestCommentRepository extends ServiceEntityRepository
     /**
      * A run that ended before the engine read it still counts while it ended recently, and an old closed run never does.
      *
-     * @return list<WorkerRun> the open or recently ended worker runs of the work kind on the card that have no comment row, by id
+     * @return list<WorkerRun> the open or recently ended worker runs of the role on the card that have no comment row, by id
      */
-    public function findUncommentedRecentRuns(Uuid $cardId, string $workKind, \DateTimeImmutable $since): array
+    public function findUncommentedRecentRuns(Uuid $cardId, string $role, \DateTimeImmutable $since): array
     {
         /** @var list<WorkerRun> $runs */
         $runs = $this->getEntityManager()->createQuery(
             'SELECT r FROM '.WorkerRun::class.' r LEFT JOIN '.PullRequestComment::class.' comment WITH comment.runId = r.id
-            WHERE r.subjectType = :cardSubject AND r.subjectId = :cardId AND r.kind = :kind AND r.workKind = :workKind
+            WHERE r.subjectType = :cardSubject AND r.subjectId = :cardId AND r.kind = :kind AND r.role = :role
                 AND (r.state IN (:openStates) OR COALESCE(r.endedAt, r.receivedAt) >= :since) AND comment.id IS NULL
             ORDER BY r.id ASC',
         )
             ->setParameter('cardSubject', WorkSubject::CARD)
             ->setParameter('cardId', $cardId, UuidType::NAME)
             ->setParameter('kind', WorkerRunKind::Worker->value)
-            ->setParameter('workKind', $workKind)
+            ->setParameter('role', $role)
             ->setParameter('openStates', array_map(static fn (WorkerRunState $state): string => $state->value, WorkerRunState::openStates()))
             ->setParameter('since', $since)
             ->getResult();
