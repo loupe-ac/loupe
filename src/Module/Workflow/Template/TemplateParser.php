@@ -98,9 +98,12 @@ final readonly class TemplateParser
     {
         $errors = [];
         foreach (array_keys($source) as $key) {
-            if (!\in_array($key, ['rules', 'requests'], true)) {
-                $errors[] = \sprintf('%s: unknown key, app rules hold only "rules" and "requests"', $key);
+            if (!\in_array($key, ['rules', 'requests', 'proposalSlot'], true)) {
+                $errors[] = \sprintf('%s: unknown key, app rules hold only "rules", "requests" and "proposalSlot"', $key);
             }
+        }
+        if (\array_key_exists('proposalSlot', $source) && (!\is_string($source['proposalSlot']) || '' === $source['proposalSlot'])) {
+            $errors[] = 'proposalSlot: must be a non-empty string';
         }
         $rules = $this->rules(self::topLevelList($source, 'rules', $errors), [], null, $errors, lenient: false, app: true);
 
@@ -109,6 +112,18 @@ final readonly class TemplateParser
         }
 
         return $rules;
+    }
+
+    /**
+     * The slot key of the column where the cards of ticked proposals land, or null when the file names none.
+     *
+     * @param array<mixed> $source
+     */
+    public function parseAppProposalSlot(array $source): ?string
+    {
+        $slot = $source['proposalSlot'] ?? null;
+
+        return \is_string($slot) && '' !== $slot ? $slot : null;
     }
 
     /**
@@ -402,7 +417,14 @@ final readonly class TemplateParser
                 $stageWork = null;
             }
             $seen[$key] = true;
-            $slots[] = new Slot($key, $label, $stageWork);
+            $tone = null;
+            if (\array_key_exists('tone', $entry)) {
+                $tone = \is_string($entry['tone']) ? LabelTone::tryFrom($entry['tone']) : null;
+                if (null === $tone) {
+                    $errors[] = \sprintf('%s tone: must be one of %s', $where, implode(', ', array_map(static fn (LabelTone $case): string => $case->value, LabelTone::cases())));
+                }
+            }
+            $slots[] = new Slot($key, $label, $stageWork, $tone);
         }
 
         return $slots;

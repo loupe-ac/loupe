@@ -54,6 +54,8 @@ use Symfony\Component\Yaml\Yaml;
 
 final class TemplateParserTest extends TestCase
 {
+    private const string TONES = 'neutral, lime, purple, green, amber, red, teal, sky, blue, indigo, pink, orange';
+
     private TemplateParser $parser;
 
     private Actions $actions;
@@ -151,6 +153,24 @@ final class TemplateParserTest extends TestCase
 
         self::assertSame('implement', $template->slot('build')?->stageWork);
         self::assertNull($template->slot('review')?->stageWork);
+    }
+
+    public function test_a_slot_names_the_tone_of_its_column(): void
+    {
+        $source = self::valid();
+        $source['slots'][0]['tone'] = 'lime';
+
+        $template = $this->parser->parse($source);
+
+        self::assertSame(LabelTone::Lime, $template->slot('build')?->tone);
+        self::assertNull($template->slot('review')?->tone);
+    }
+
+    public function test_the_app_rules_name_the_slot_of_the_proposal_cards(): void
+    {
+        self::assertSame('next', $this->parser->parseAppProposalSlot(['rules' => [], 'proposalSlot' => 'next']));
+        self::assertNull($this->parser->parseAppProposalSlot(['rules' => []]));
+        self::assertSame([], $this->parser->parseAppRules(['rules' => [], 'proposalSlot' => 'next']));
     }
 
     public function test_it_parses_a_valid_template(): void
@@ -808,6 +828,16 @@ final class TemplateParserTest extends TestCase
 
             return $t;
         }, 'rules[1] (to-review) then: an action must have exactly one key'];
+        yield 'tone that is not a string' => [static function (array $t): array {
+            $t['slots'][0]['tone'] = 12;
+
+            return $t;
+        }, 'slots[0] tone: must be one of '.self::TONES];
+        yield 'tone that is unknown' => [static function (array $t): array {
+            $t['slots'][0]['tone'] = 'mauve';
+
+            return $t;
+        }, 'slots[0] tone: must be one of '.self::TONES];
         yield 'stage work that is not a string' => [static function (array $t): array {
             $t['slots'][0]['stageWork'] = 12;
 
@@ -1381,7 +1411,9 @@ final class TemplateParserTest extends TestCase
         yield 'a move to a slot' => [$rule(['move' => ['to' => 'next']]), ['rules[0] (app-rule) then.move.to: unknown slot "next"']];
         yield 'no rules key' => [[], ['rules: is missing']];
         yield 'rules not a list' => [['rules' => ['a' => 1]], ['rules: must be a list']];
-        yield 'another top-level key' => [['rules' => [], 'slots' => []], ['slots: unknown key, app rules hold only "rules" and "requests"']];
+        yield 'another top-level key' => [['rules' => [], 'slots' => []], ['slots: unknown key, app rules hold only "rules", "requests" and "proposalSlot"']];
+        yield 'a proposal slot that is not a string' => [['rules' => [], 'proposalSlot' => 12], ['proposalSlot: must be a non-empty string']];
+        yield 'an empty proposal slot' => [['rules' => [], 'proposalSlot' => ''], ['proposalSlot: must be a non-empty string']];
     }
 
     /**
