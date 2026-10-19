@@ -19,6 +19,10 @@ The design stage skills send you here before their own steps. Follow every rule 
 1. Load the adapter for your harness from the `../../loupe-stage-implementation/references/harnesses/` folder. Use `claude-code.md` in Claude Code, `codex.md` in Codex, and `generic.md` in any other harness.
 2. Read the repository profile at `.loupe/lifecycle.md` in the repository root. When the file, or a section a step needs, is missing, stop with `STAGE RESULT: blocked: no <section> in .loupe/lifecycle.md`. The `Forge` section is optional, and the forge pick in `../../loupe-stage-implementation/references/commands.md` says how it works.
 
+## Document tags
+
+The optional profile section `Documents` has two lines: the tag of the product design, and the tags of the tech design. A missing section, or a missing line, means the defaults. The product design tag is `product-design`. The tech design tags are `tech-design` and `decisions`. A document matches by its tags, or by a title that starts `Product design` or `Tech design`. In a skill, "the product design tag" and "the tech design tags" mean these values. A missing `Documents` section never blocks a stage.
+
 ## First steps
 
 1. Connect to the Loupe tools as the harness adapter says. When that fails, stop with `STAGE RESULT: loupe MCP unavailable`.

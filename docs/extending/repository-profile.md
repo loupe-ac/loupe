@@ -31,15 +31,20 @@ rules as instructions, so write each one as a short, direct sentence.
 | `Merge` | The merge method, the approver whose approval counts, and the base branches that the merge stage may merge into | Merge |
 | `Repair` | The actions that a repair worker may take after a rule's work failed | Repair |
 
-Three sections are optional. A missing optional section blocks nothing.
+Four sections are optional. A missing optional section blocks nothing.
 
 1. `Forge` names the forge with one value, such as `github`. Without it, the
    worker reads the forge from the pull request link of the card, then from
    the host of the git remote.
-2. `Visual check` tells a worker how to screenshot a changed page: the paths
+2. `Documents` names the tags that mark a design document. The first line
+   gives the tag of the product design, and the second gives the tags of the
+   tech design. Without the section, the tags are `product-design`, and
+   `tech-design` with `decisions`. Workflow rules match these tags, so set
+   them only when your workflow template matches other tags.
+3. `Visual check` tells a worker how to screenshot a changed page: the paths
    that trigger the check, the app URL, how to sign in, the browser and the
    widths.
-3. `Epics` holds the epic branch pattern, how a child of an epic merges, and
+4. `Epics` holds the epic branch pattern, how a child of an epic merges, and
    the epic preview. The merge stage needs it only when the project uses epic
    branches.
 
