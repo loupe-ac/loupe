@@ -3,7 +3,7 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "scripts": {
-    "build:widget": "esbuild public/site-review/widget.js --minify --target=es2020 --outfile=var/widget.min.js"
+    "build:widget": "esbuild public/live-review/widget.js --minify --target=es2020 --outfile=var/widget.min.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

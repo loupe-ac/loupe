@@ -30,7 +30,7 @@ final readonly class LogWidgetOriginMismatch
     public function __invoke(ResponseEvent $event): void
     {
         $request = $event->getRequest();
-        if (!str_starts_with($request->getPathInfo(), '/api/site-review')) {
+        if (!str_starts_with($request->getPathInfo(), '/api/live-review')) {
             return;
         }
 

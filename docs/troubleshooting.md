@@ -6,7 +6,7 @@ description: "Symptoms, and what actually causes them. Grouped by what you obser
 ## Nothing queued ever happens
 
 Mail is never delivered, exports never build, expired archives are never purged,
-the trial sweep never runs, the site-review outbox never drains — and every one
+the trial sweep never runs, the live-review outbox never drains — and every one
 of them fails silently, because the request that queued the work still returns
 200.
 
@@ -57,7 +57,7 @@ not. See [Object storage](extending/object-storage.md).
 If uploads to S3 fail instead, it is likely the canned ACL — no single value
 works on every provider. See [Known gaps](known-gaps.md).
 
-## Site-review comments never reach the agent
+## Live-review comments never reach the agent
 
 Push needs a Mercure hub, and without one the publish failure is only logged.
 Submissions are not lost: they sit in the outbox, visible at

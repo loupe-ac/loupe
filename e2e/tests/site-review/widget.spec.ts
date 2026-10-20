@@ -1,7 +1,7 @@
 /**
  * End-to-end tests for the server-backed site-review annotation widget.
  *
- * The dev-only harness page (/dev/site-review-harness) finds-or-creates the
+ * The dev-only harness page (/dev/live-review-harness) finds-or-creates the
  * `e2e-harness` site for the user, deletes its comments and allows the page's
  * own origin on every load — so each test starts from a clean site by loading
  * the harness. The page carries no credential: the widget signs in with OAuth
@@ -10,7 +10,7 @@
  *
  * There is no send step. Every saved comment POSTs to /api/board/feedback,
  * which files it on a card, and is Pending — live for the agent — from that
- * moment; the list rehydrates from GET /api/site-review/review on load, edits
+ * moment; the list rehydrates from GET /api/live-review/review on load, edits
  * PATCH and deletes DELETE. Only a Pending comment is still editable, so once
  * the agent addresses one the widget's PATCH/DELETE 404s by design.
  *
@@ -52,10 +52,10 @@ const e2eEmail = (): string =>
  * The widget appends `?context=` when the page names a card, so a glob without
  * the trailing star silently misses that form and the real endpoint answers.
  */
-const REVIEW_ROUTE = '**/api/site-review/review*';
+const REVIEW_ROUTE = '**/api/live-review/review*';
 
 const harnessUrl = (): string =>
-    `/dev/site-review-harness?email=${encodeURIComponent(e2eEmail())}`;
+    `/dev/live-review-harness?email=${encodeURIComponent(e2eEmail())}`;
 
 const keepHarnessUrl = (): string => `${harnessUrl()}&keep=1`;
 
@@ -133,7 +133,7 @@ const registerUser = async (
 const gotoHarness = async (page: Page, url: string): Promise<void> => {
     const booted = page.waitForResponse(
         (response) =>
-            response.url().includes('/api/site-review/review') &&
+            response.url().includes('/api/live-review/review') &&
             response.request().method() === 'GET',
     );
     await page.goto(url);
@@ -176,7 +176,7 @@ const clickSave = async (page: Page): Promise<void> => {
             (response) =>
                 (response.url().includes('/api/board/feedback') &&
                     response.request().method() === 'POST') ||
-                (response.url().includes('/api/site-review/comments/') &&
+                (response.url().includes('/api/live-review/comments/') &&
                     response.request().method() === 'PATCH'),
         ),
         page.getByRole('button', { name: 'Save note' }).click(),
@@ -251,11 +251,11 @@ const fetchReviewComments = (
 > =>
     page.evaluate(async () => {
         const script = document.querySelector<HTMLScriptElement>(
-            'script[src*="site-review/widget.js"]',
+            'script[src*="live-review/widget.js"]',
         )!;
         const key = `loupe-site-review:oauth:${new URL(script.src).origin}:${script.dataset.project}`;
         const { accessToken } = JSON.parse(sessionStorage.getItem(key)!);
-        const response = await fetch('/api/site-review/review', {
+        const response = await fetch('/api/live-review/review', {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
         const { comments } = (await response.json()) as {
@@ -456,7 +456,7 @@ const fillNote = async (page: Page, body: string): Promise<void> => {
     await siteReviewPanelSettled(page);
 };
 
-const HARNESS_REVIEW_TITLE = 'Review: /dev/site-review-harness';
+const HARNESS_REVIEW_TITLE = 'Review: /dev/live-review-harness';
 
 test('a review with no destination opens on the destination view', async ({
     page,
@@ -636,7 +636,7 @@ test('epic mode shows a type selector when the template has two grouping types',
 }) => {
     // Both shipped templates declare one grouping type, so the start request
     // is rewritten to name two. The server still holds the real template.
-    await page.route('**/api/site-review/review*', async (route) => {
+    await page.route('**/api/live-review/review*', async (route) => {
         const response = await route.fetch();
         const payload = await response.json();
         payload.parentTypes = [
@@ -696,7 +696,7 @@ test('a keep=1 reload rehydrates the live comments into pins and list', async ({
 
     // Reload the harness with keep=1: the comments survive, because they belong
     // to the site rather than to the grant, and the widget boots by rehydrating
-    // from GET /api/site-review/review.
+    // from GET /api/live-review/review.
     await gotoHarness(page, keepUrl);
 
     // The launcher badge shows the rehydrated count without any interaction.
@@ -847,7 +847,7 @@ test('a comment the agent already addressed can no longer be edited', async ({
     // as a 404 on PATCH. The widget must say so plainly rather than offering a
     // retry that would fail the same way. The 404 also makes it reconcile, so
     // the frozen row drops out of the list.
-    await page.route('**/api/site-review/comments/*', (route) => {
+    await page.route('**/api/live-review/comments/*', (route) => {
         void route.fulfill({
             status: 404,
             contentType: 'application/json',
@@ -991,7 +991,7 @@ test('a wrong-scope 403 names the access the sign-in is missing', async ({
     // opened and stayed non-fatal or never rendered at all. Board card 191.
     await expect(panel).toBeVisible();
     await expect(panel.getByText(/can.t connect/i)).toBeVisible();
-    await expect(panel.getByText(/does not cover site review/i)).toBeVisible();
+    await expect(panel.getByText(/does not cover live review/i)).toBeVisible();
 });
 
 test('a grant revoked mid-session signs the reviewer out and clears the on-page pins', async ({
@@ -1180,7 +1180,7 @@ test('Mark resolved in the row menu resolves the note', async ({ page }) => {
     const [resolved] = await Promise.all([
         page.waitForResponse(
             (response) =>
-                /\/api\/site-review\/comments\/[^/]+\/resolve$/.test(
+                /\/api\/live-review\/comments\/[^/]+\/resolve$/.test(
                     response.url(),
                 ) && response.request().method() === 'POST',
         ),
@@ -1349,7 +1349,7 @@ test('re-executing the script does not stack a second widget', async ({
         () =>
             new Promise<void>((resolve) => {
                 const s = document.createElement('script');
-                s.src = '/site-review/widget.js';
+                s.src = '/live-review/widget.js';
                 s.setAttribute('data-project', 'x');
                 s.onload = () => resolve();
                 document.body.appendChild(s);
@@ -2589,7 +2589,7 @@ const saveComposed = async (page: Page, body: string): Promise<void> => {
 const openWithComments = async (page: Page, url: string): Promise<void> => {
     await Promise.all([
         page.waitForResponse((response) =>
-            response.url().includes('/api/site-review/review'),
+            response.url().includes('/api/live-review/review'),
         ),
         page.goto(url),
     ]);
@@ -3144,11 +3144,11 @@ const fetchReviewStrokes = (
 > =>
     page.evaluate(async () => {
         const script = document.querySelector<HTMLScriptElement>(
-            'script[src*="site-review/widget.js"]',
+            'script[src*="live-review/widget.js"]',
         )!;
         const key = `loupe-site-review:oauth:${new URL(script.src).origin}:${script.dataset.project}`;
         const { accessToken } = JSON.parse(sessionStorage.getItem(key)!);
-        const response = await fetch('/api/site-review/review', {
+        const response = await fetch('/api/live-review/review', {
             headers: { Authorization: `Bearer ${accessToken}` },
         });
         const { comments } = (await response.json()) as {
@@ -4206,7 +4206,7 @@ const recordListRequests = (
     page.on('request', (request) => {
         const url = new URL(request.url());
         if (
-            url.pathname === '/api/site-review/review' &&
+            url.pathname === '/api/live-review/review' &&
             request.method() === 'GET'
         ) {
             seen.push({
@@ -4225,7 +4225,7 @@ test('a page that names a card lists the notes of that card', async ({
     await registerUser(page);
     const requests = recordListRequests(page);
     // The harness names no card, so the test adds the attribute on the way in.
-    await page.route('**/dev/site-review-harness*', async (route) => {
+    await page.route('**/dev/live-review-harness*', async (route) => {
         const response = await route.fetch();
         const body = (await response.text()).replace(
             'data-project=',

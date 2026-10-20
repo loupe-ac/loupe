@@ -24,7 +24,7 @@ const siteReviewWidget = isDevServer && env.PUBLIC_SITE_REVIEW_PROJECT
   ? [{
       tag: 'script',
       attrs: {
-        src: `${widgetHost}/site-review/widget.js`,
+        src: `${widgetHost}/live-review/widget.js`,
         'data-project': env.PUBLIC_SITE_REVIEW_PROJECT,
       },
     }]
@@ -33,6 +33,9 @@ const siteReviewWidget = isDevServer && env.PUBLIC_SITE_REVIEW_PROJECT
 export default defineConfig({
   site: 'https://ubermuda.github.io',
   base,
+  redirects: {
+    '/using/site-review': '/using/live-review',
+  },
   markdown: {
     remarkPlugins: [[remarkDocsLinks, { docsDir, base }]],
   },
@@ -51,7 +54,7 @@ export default defineConfig({
         },
         ...siteReviewWidget,
       ],
-      description: 'A document- and site-review tool for humans working with AI agents.',
+      description: 'A document- and live-review tool for humans working with AI agents.',
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/ubermuda/loupe' },
       ],
@@ -79,7 +82,7 @@ export default defineConfig({
             { slug: 'using/documents' },
             { slug: 'using/mcp' },
             { slug: 'using/connected-apps' },
-            { slug: 'using/site-review' },
+            { slug: 'using/live-review' },
             { slug: 'using/board' },
             { slug: 'using/workflows' },
             { slug: 'using/inbox' },

@@ -37,10 +37,10 @@ final class WidgetTokenSurfaceTest extends WebTestCase
     {
         $id = (string) Uuid::v7();
 
-        yield 'add comment' => [Request::METHOD_POST, '/api/site-review/comments'];
-        yield 'update comment' => [Request::METHOD_PATCH, '/api/site-review/comments/'.$id];
-        yield 'resolve comment' => [Request::METHOD_POST, '/api/site-review/comments/'.$id.'/resolve'];
-        yield 'pending comments' => [Request::METHOD_GET, '/api/site-review/review'];
+        yield 'add comment' => [Request::METHOD_POST, '/api/live-review/comments'];
+        yield 'update comment' => [Request::METHOD_PATCH, '/api/live-review/comments/'.$id];
+        yield 'resolve comment' => [Request::METHOD_POST, '/api/live-review/comments/'.$id.'/resolve'];
+        yield 'pending comments' => [Request::METHOD_GET, '/api/live-review/review'];
         yield 'list cards' => [Request::METHOD_GET, '/api/board/cards'];
         yield 'create card' => [Request::METHOD_POST, '/api/board/cards'];
         yield 'add feedback' => [Request::METHOD_POST, '/api/board/feedback'];

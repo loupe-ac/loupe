@@ -39,7 +39,7 @@ dies with the command:
 
 ## The preview token of a worktree
 
-`just worktree-up` mints a [preview token](../using/site-review.md#preview-sites)
+`just worktree-up` mints a [preview token](../using/live-review.md#preview-sites)
 for the worktree. It writes the token to `SITE_REVIEW_WIDGET_PREVIEW_TOKEN` in
 the `.env.local` of the worktree. The widget then signs in with no popup.
 `just worktree-down` revokes the token.

@@ -27,7 +27,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
  * review batch.
  */
 #[Route(
-    '/api/site-review/review',
+    '/api/live-review/review',
     name: 'api_site_review_pending_comments',
     methods: ['GET'],
 )]

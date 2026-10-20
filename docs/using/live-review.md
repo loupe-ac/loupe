@@ -1,9 +1,9 @@
 ---
-title: "Site review"
+title: "Live review"
 description: "An embeddable widget for notes on live web pages. Each note becomes feedback on a board card."
 ---
 
-The site-review widget brings the select-and-comment flow to any web page. A
+The live-review widget brings the select-and-comment flow to any web page. A
 reviewer picks an element, or selects a passage of text, and writes a note
 about it. The note saves when the reviewer presses Save. Each note becomes
 feedback on a card of the project [board](board.md), and the agent reads it
@@ -20,7 +20,7 @@ with a Loupe account before they write a note. The project's Connections page
 shows the snippet with the project ID filled in:
 
 ```html
-<script src="https://your-instance/site-review/widget.js" data-project="PROJECT-ID"></script>
+<script src="https://your-instance/live-review/widget.js" data-project="PROJECT-ID"></script>
 ```
 
 The ID is the project's UUID, the same one that is in the project's URLs. The
@@ -52,7 +52,7 @@ for now. Loupe refuses any other account on the consent page.
 The widget keeps its tokens in the tab's session storage, so a new tab signs in
 again. It renews its access in the background. When the renewal fails, the
 widget shows the sign-in button again. This happens, for example, after you
-revoke **Loupe site-review widget** under **Connected apps**. Removing a site
+revoke **Loupe live-review widget** under **Connected apps**. Removing a site
 from the list stops new sign-ins from that site. Revoke the app to end a sign-in
 that already exists.
 
@@ -107,7 +107,7 @@ A card that the widget creates has these values:
 - The type is the default type of the workflow template for a note card or a review card, and the type with the children capability for an epic.
 - The column is the board's Backlog.
 - The reporter is `reviewer`.
-- The source is the site review widget. The card shows a site review badge.
+- The source is the live review widget. The card shows a live review badge.
 - A note card takes its title from the start of the note, cut at a word to 80 characters, with "…" at the end when the note is longer.
 - The card body holds the whole note.
 - When you edit the note while the card sits in Backlog and nobody has changed it, the title and the body follow the edit. After that the card keeps its own text.
@@ -141,7 +141,7 @@ A preview page can sign the widget in with no popup. It sets
 `data-preview-token`. See [Environment variables](../reference/environment.md).
 
 ```html
-<script src="https://your-instance/site-review/widget.js" data-project="PROJECT-ID" data-preview-token="TOKEN"></script>
+<script src="https://your-instance/live-review/widget.js" data-project="PROJECT-ID" data-preview-token="TOKEN"></script>
 ```
 
 The widget sends the token as its sign-in. It shows the review tools at once,
@@ -260,7 +260,7 @@ again**.
 ### What the review says on GitHub
 
 Every review that Loupe posts opens with one line. The line says that the
-review comes from the Loupe site review of the card, and links to the
+review comes from the Loupe live review of the card, and links to the
 **Feedback** tab of the card. It also links to the page of the first note, when
 the review has a note. Only members of the project can open the card link. The
 message and the notes follow the line, and an approval with no message posts
@@ -282,7 +282,7 @@ A client must reuse it with unchanged content when it retries.
 Its scope is one project, and it lives as long as the stored note.
 Reusing it with different content returns HTTP 409 with `delivery_conflict`.
 
-An old copy of the widget script saved through `POST /api/site-review/comments`.
+An old copy of the widget script saved through `POST /api/live-review/comments`.
 That route now answers HTTP 410 with `widget_outdated`, and the widget tells the reviewer to reload the page.
 
 ## Resolving a note

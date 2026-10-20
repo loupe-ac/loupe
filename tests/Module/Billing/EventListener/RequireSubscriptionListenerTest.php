@@ -165,7 +165,7 @@ final class RequireSubscriptionListenerTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function machinePaths(): iterable
     {
-        yield 'api' => ['/api/site-review/batches'];
+        yield 'api' => ['/api/live-review/batches'];
         yield 'mcp' => ['/mcp'];
     }
 
