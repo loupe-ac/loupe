@@ -20,8 +20,11 @@ public enum Simctl {
     }
 
     public static func foregroundApp(udid: String) async -> SimulatorApp? {
-        guard let listing = try? await ProcessRunner.run(executable: xcrun, arguments: ["simctl", "spawn", udid, "launchctl", "list"]),
-              let bundle = ForegroundApp.pick(launchctl: String(decoding: listing, as: UTF8.self)) else { return nil }
+        guard let listing = try? await ProcessRunner.run(executable: xcrun, arguments: ["simctl", "spawn", udid, "launchctl", "list"]) else { return nil }
+        let running = ForegroundApp.running(launchctl: String(decoding: listing, as: UTF8.self))
+        guard !running.isEmpty,
+              let ps = try? await ProcessRunner.run(executable: "/bin/ps", arguments: ["-o", "pid=,pri=", "-p", running.map { String($0.pid) }.joined(separator: ",")]),
+              let bundle = ForegroundApp.pick(running: running, priorities: ForegroundApp.priorities(ps: String(decoding: ps, as: UTF8.self))) else { return nil }
         let apps = try? await ProcessRunner.run(executable: xcrun, arguments: ["simctl", "listapps", udid])
         let name = apps.flatMap { ForegroundApp.displayName(listapps: $0, bundleId: bundle) }
 

@@ -108,24 +108,50 @@ final class GeometryTests: XCTestCase {
 }
 
 final class ForegroundAppTests: XCTestCase {
-    func testPrefersTheLastLaunchedThirdPartyApp() {
-        let output = """
-        PID\tStatus\tLabel
-        700\t0\tUIKitApplication:com.apple.mobilecal[f26a][rb-legacy]
-        710\t0\tUIKitApplication:com.example.One[1111][rb-legacy]
-        720\t0\tUIKitApplication:com.example.Two[2222][rb-legacy]
-        730\t0\tUIKitApplication:com.apple.Spotlight[3333][rb-legacy]
-        """
-        XCTAssertEqual(ForegroundApp.pick(launchctl: output), "com.example.Two")
+    private let listing = """
+    PID\tStatus\tLabel
+    700\t0\tUIKitApplication:com.apple.Preferences[f26a][rb-legacy]
+    710\t0\tUIKitApplication:com.example.One[1111][rb-legacy]
+    720\t0\tUIKitApplication:com.example.Two[2222][rb-legacy]
+    730\t0\tUIKitApplication:com.apple.Spotlight[3333][rb-legacy]
+    740\t0\tUIKitApplication:com.apple.chrono.WidgetRenderer-Default[9][rb-legacy]
+    1\t0\tcom.apple.something
+    """
+
+    private func pick(_ ps: String) -> String? {
+        ForegroundApp.pick(running: ForegroundApp.running(launchctl: listing), priorities: ForegroundApp.priorities(ps: ps))
     }
 
-    func testFallsBackToASystemApp() {
-        let output = "700\t0\tUIKitApplication:com.apple.mobilecal[f26a][rb-legacy]\n710\t0\tUIKitApplication:com.apple.chrono.WidgetRenderer-Default[9][rb-legacy]"
-        XCTAssertEqual(ForegroundApp.pick(launchctl: output), "com.apple.mobilecal")
+    func testReadsTheRunningApps() {
+        XCTAssertEqual(ForegroundApp.running(launchctl: listing).map(\.pid), [700, 710, 720, 730, 740])
+        XCTAssertEqual(ForegroundApp.running(launchctl: listing)[1].bundleId, "com.example.One")
+    }
+
+    func testReadsThePriorities() {
+        XCTAssertEqual(ForegroundApp.priorities(ps: "  700   4\n 7100  47\nbad\n"), [700: 4, 7100: 47])
+    }
+
+    /// The owner opens Two, goes back to One, and saves: One is in front, though Two launched last.
+    func testTakesTheAppInFrontAfterASwitch() {
+        XCTAssertEqual(pick("700 4\n710 47\n720 31\n730 4\n740 4"), "com.example.One")
+        XCTAssertEqual(pick("700 4\n710 4\n720 47\n730 4\n740 4"), "com.example.Two")
+    }
+
+    func testTakesASystemAppInFrontOverAThirdPartyAppBehindIt() {
+        XCTAssertEqual(pick("700 47\n710 4\n720 4\n730 4\n740 4"), "com.apple.Preferences")
+    }
+
+    /// On the home screen the widget renderer runs in front, and no reviewed app does.
+    func testNoAppInFrontOnTheHomeScreen() {
+        XCTAssertNil(pick("700 4\n710 4\n720 4\n730 4\n740 47"))
+    }
+
+    func testNoAppWhenTwoAreLevel() {
+        XCTAssertNil(pick("700 4\n710 47\n720 47\n730 4\n740 4"))
     }
 
     func testNoAppRunning() {
-        XCTAssertNil(ForegroundApp.pick(launchctl: "1\t0\tcom.apple.something"))
+        XCTAssertNil(ForegroundApp.pick(running: ForegroundApp.running(launchctl: "1\t0\tcom.apple.something"), priorities: [1: 47]))
     }
 
     func testDisplayName() {
