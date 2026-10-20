@@ -17,7 +17,7 @@ final readonly class CardNoteSnapshot
     ) {
     }
 
-    /** @return list<array{id: string, url: string, body: string, anchorCount: int}> */
+    /** @return list<array{id: string, url: ?string, body: string, anchorCount: int}> */
     public function pendingOf(Card $card): array
     {
         $pending = array_filter(

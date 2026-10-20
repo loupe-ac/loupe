@@ -15,10 +15,13 @@ use App\Module\Board\Entity\Forge;
 use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Service\CardExporter;
 use App\Module\Project\Entity\Project;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
+use App\Module\SiteReview\Entity\SiteReviewScreenshot;
 use App\Module\Workflow\Contract\Actor;
 use App\Tests\Module\Board\BoardColumnFixtures;
+use App\Tests\Support\TinyImage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -167,7 +170,10 @@ final class CardExporterTest extends KernelTestCase
         self::assertSame([
             [
                 'id' => (string) $drawn->id,
+                'surface' => 'web',
                 'url' => 'https://example.com/checkout',
+                'native' => null,
+                'screenshot' => null,
                 'context' => 'card:preview',
                 'anchors' => [
                     ['selector' => '.hero h1', 'text' => 'Hello world', 'quote' => 'Hello', 'quotePrefix' => 'Say ', 'quoteSuffix' => ' world'],
@@ -179,7 +185,10 @@ final class CardExporterTest extends KernelTestCase
             ],
             [
                 'id' => (string) $plain->id,
+                'surface' => 'web',
                 'url' => 'https://example.com/',
+                'native' => null,
+                'screenshot' => null,
                 'context' => null,
                 'anchors' => [],
                 'body' => 'A page note',
@@ -188,6 +197,35 @@ final class CardExporterTest extends KernelTestCase
                 'createdAt' => $createdAt->modify('+1 hour')->format(\DateTimeInterface::ATOM),
             ],
         ], $rows[0]['feedback']);
+    }
+
+    public function test_a_native_note_exports_its_facts_and_its_screenshot_as_base64(): void
+    {
+        $owner = $this->user('card-export-native');
+        $project = new Project($owner, 'export-'.uniqid());
+        $this->em->persist($project);
+        $this->seedColumns($project);
+        $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Native feedback', body: '', number: 1, type: 'site-review', origin: Actor::Reviewer, position: 0);
+        $this->em->persist($card);
+        $facts = ['app' => ['name' => 'Treadmatic', 'bundleId' => 'com.example.treadmatic']];
+        $note = new SiteReviewComment($project, 0, 'Clipped', null, surface: ReviewSurface::IosSimulator, native: $facts);
+        $this->em->persist($note);
+        $this->em->persist(new CardSiteReviewComment($card, $note, true));
+        $png = TinyImage::png(3, 2);
+        $this->em->persist(new SiteReviewScreenshot($note, $project, 'image/png', $png, \strlen($png), 3, 2));
+        $this->em->flush();
+        $this->em->clear();
+
+        $rows = iterator_to_array($this->exporter->export($owner), false);
+
+        $feedback = $rows[0]['feedback'][0];
+        self::assertSame('ios-simulator', $feedback['surface']);
+        self::assertNull($feedback['url']);
+        self::assertSame($facts, $feedback['native']);
+        self::assertSame(
+            ['contentType' => 'image/png', 'width' => 3, 'height' => 2, 'size' => \strlen($png), 'base64' => base64_encode($png)],
+            $feedback['screenshot'],
+        );
     }
 
     public function test_a_child_exports_its_epic_and_an_epic_its_lane_setting(): void

@@ -29,7 +29,7 @@ class CardVerdict
     public private(set) ?Uuid $id = null;
 
     /**
-     * @param list<array{id: string, url: string, body: string, anchorCount: int}> $notes
+     * @param list<array{id: string, url: ?string, body: string, anchorCount: int}> $notes
      */
     public function __construct(
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]

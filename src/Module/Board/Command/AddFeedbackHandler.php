@@ -16,6 +16,8 @@ use App\Module\Board\Service\FeedbackCardTitle;
 use App\Module\SiteReview\Command\AddCommentCommand;
 use App\Module\SiteReview\Command\AddCommentHandler;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
+use App\Module\SiteReview\Service\DecodedScreenshot;
+use App\Module\SiteReview\Service\ScreenshotDecoder;
 use App\Module\Workflow\Contract\Actor;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 use Doctrine\DBAL\LockMode;
@@ -47,6 +49,7 @@ final readonly class AddFeedbackHandler
         private Auditor $auditor,
         private EventDispatcherInterface $events,
         private CardTypeCatalog $catalog,
+        private ScreenshotDecoder $screenshotDecoder,
     ) {
     }
 
@@ -56,11 +59,14 @@ final readonly class AddFeedbackHandler
             throw new DomainErrors(['deliveryId' => 'delivery_invalid']);
         }
 
+        // Checked before any write, so a refused image leaves no card behind.
+        $screenshot = null === $command->screenshot ? null : $this->screenshotDecoder->decode($command->screenshot);
+
         $created = false;
         // The sub-handlers open nested transactions, which run as savepoints of
         // this one. Every refusal leaves this closure as a value, because a throw
         // closes the EntityManager, and none can happen once a card exists.
-        $link = $this->em->wrapInTransaction(function () use ($command, &$created): CardSiteReviewComment|DomainErrors {
+        $link = $this->em->wrapInTransaction(function () use ($command, $screenshot, &$created): CardSiteReviewComment|DomainErrors {
             $this->em->lock($command->project, LockMode::PESSIMISTIC_WRITE);
 
             $retried = null === $command->deliveryId ? null : $this->siteReviewComments->findOneBy([
@@ -71,7 +77,7 @@ final readonly class AddFeedbackHandler
                 try {
                     // Called for its payload check: a changed body or target under
                     // a known delivery id is a conflict, not a retry.
-                    ($this->addComment)($this->addCommentCommand($command));
+                    ($this->addComment)($this->addCommentCommand($command, $screenshot));
                 } catch (DomainErrors $conflict) {
                     return $conflict;
                 }
@@ -96,7 +102,7 @@ final readonly class AddFeedbackHandler
                 source: new CardSource(CardSourceKind::Widget),
             ));
 
-            $comment = ($this->addComment)($this->addCommentCommand($command));
+            $comment = ($this->addComment)($this->addCommentCommand($command, $screenshot));
             $link = new CardSiteReviewComment($card, $comment, $createdCard, $createdCard ? $card->title : null, $createdCard ? $card->body : null);
             $this->em->persist($link);
             $created = true;
@@ -166,7 +172,7 @@ final readonly class AddFeedbackHandler
         return null;
     }
 
-    private function addCommentCommand(AddFeedbackCommand $command): AddCommentCommand
+    private function addCommentCommand(AddFeedbackCommand $command, ?DecodedScreenshot $screenshot): AddCommentCommand
     {
         return new AddCommentCommand(
             project: $command->project,
@@ -177,6 +183,9 @@ final readonly class AddFeedbackHandler
             context: $command->context,
             deliveryId: $command->deliveryId,
             deliveryScope: self::deliveryScope($command),
+            surface: $command->surface,
+            native: $command->native,
+            screenshot: $screenshot,
         );
     }
 

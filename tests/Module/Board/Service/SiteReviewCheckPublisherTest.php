@@ -88,6 +88,17 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
         self::assertSame('- https://app.example/page: Footer overlaps', $call['summary']);
     }
 
+    public function test_a_native_note_has_no_page_to_list_in_the_summary(): void
+    {
+        $card = $this->card($this->project);
+        $this->openPullRequest($card, 7, 'sha-1');
+        $this->verdict($card, 7, [$this->note($card, 'Button is clipped')], null);
+
+        $this->publish($card);
+
+        self::assertSame('- Button is clipped', $this->writer->published[0]['summary']);
+    }
+
     public function test_the_note_of_another_card_on_the_pull_request_fails_the_check_and_shows_in_the_summary(): void
     {
         $first = $this->card($this->project);
@@ -292,14 +303,14 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
     }
 
     /** @param list<SiteReviewComment> $notes */
-    private function verdict(Card $card, int $number, array $notes): void
+    private function verdict(Card $card, int $number, array $notes, ?string $url = 'https://app.example/page'): void
     {
         $verdict = new CardVerdict(
             $card,
             CardVerdictKind::Comment,
             $this->project->owner,
             'Notes',
-            array_map(static fn (SiteReviewComment $note): array => ['id' => (string) $note->id, 'url' => 'https://app.example/page', 'body' => $note->body, 'anchorCount' => 1], $notes),
+            array_map(static fn (SiteReviewComment $note): array => ['id' => (string) $note->id, 'url' => $url, 'body' => $note->body, 'anchorCount' => 1], $notes),
         );
         $this->em->persist($verdict);
         $this->em->persist(new CardVerdictDelivery($verdict, $this->linkedPullRequestRow($card, $number)));

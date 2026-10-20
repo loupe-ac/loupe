@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Module\SiteReview\Command;
 
 use App\Exception\DomainErrors;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Entity\SiteReviewScreenshot;
 use App\Module\SiteReview\Event\SiteReviewCommentCreated;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
 use Doctrine\DBAL\LockMode;
@@ -38,6 +40,13 @@ final readonly class AddCommentHandler
         if (null !== $command->deliveryScope) {
             $delivered[] = $command->deliveryScope;
         }
+        // Same rule for the surface, the native facts and the image: only a note
+        // that has them adds an entry, so a web note without a screenshot keeps
+        // the hash it was stored with. The image counts by its bytes, because a
+        // retry that swaps the image saved the wrong note.
+        if (ReviewSurface::Web !== $command->surface || null !== $command->screenshot) {
+            $delivered[] = [$command->surface->value, $command->native, $command->screenshot?->sha256];
+        }
         $deliveryHash = null === $deliveryId ? null : hash('sha256', json_encode(
             $delivered,
             \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION,
@@ -66,6 +75,8 @@ final readonly class AddCommentHandler
                 context: $command->context,
                 deliveryId: $deliveryId,
                 deliveryHash: $deliveryHash,
+                surface: $command->surface,
+                native: $command->native,
             );
             foreach ($command->anchors as $anchor) {
                 $comment->addAnchor(
@@ -83,6 +94,17 @@ final readonly class AddCommentHandler
                 $command->strokes,
             );
             $this->em->persist($comment);
+            if (null !== $command->screenshot) {
+                $this->em->persist(new SiteReviewScreenshot(
+                    comment: $comment,
+                    project: $command->project,
+                    contentType: $command->screenshot->contentType,
+                    bytes: $command->screenshot->bytes,
+                    size: $command->screenshot->size,
+                    width: $command->screenshot->width,
+                    height: $command->screenshot->height,
+                ));
+            }
             $this->em->flush();
             $this->events->dispatch(new SiteReviewCommentCreated($comment));
             $created = true;
