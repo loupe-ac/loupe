@@ -46,7 +46,7 @@ func reviewFail(err error) reviewError {
 	case errors.Is(err, api.ErrProjectNotCovered):
 		return reviewError{"not_owner", "this login does not cover the project"}
 	case signedOut(err):
-		return reviewError{"signed_out", "sign in again to allow site review"}
+		return reviewError{"signed_out", "sign in again to allow live review"}
 	}
 
 	return reviewError{"request_failed", err.Error()}

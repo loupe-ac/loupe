@@ -115,7 +115,7 @@ func (c *Client) SiteReviewTargets(ctx context.Context, query string, parent boo
 func (c *Client) SiteReviewNotes(ctx context.Context, scope string) (json.RawMessage, error) {
 	params := url.Values{"surface": {"ios-simulator"}, "scope": {scope}}
 
-	return c.siteReviewRequest(ctx, http.MethodGet, "/api/site-review/review?"+params.Encode(), nil)
+	return c.siteReviewRequest(ctx, http.MethodGet, "/api/live-review/review?"+params.Encode(), nil)
 }
 
 // SaveSiteReviewNote posts one feedback request body and returns the answer.

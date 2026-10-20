@@ -66,7 +66,7 @@ func newReviewServer(t *testing.T) *reviewServer {
 				return
 			}
 			fmt.Fprint(w, `{"cards":[{"cardId":"c1","number":7,"title":"T","status":"todo"}]}`)
-		case "/api/site-review/review":
+		case "/api/live-review/review":
 			// Each destination holds its own notes, as the server scopes them.
 			switch r.URL.Query().Get("scope") {
 			case "card:" + reviewCardA:
