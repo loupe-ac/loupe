@@ -58,7 +58,29 @@ func newLoginCmd() *cobra.Command {
 // deviceLogin runs the device flow: it prints the page and the code, waits for
 // the person to approve them, and stores the tokens. It prints no token.
 func deviceLogin(cmd *cobra.Command, baseURL string) error {
-	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
+	out := cmd.OutOrStdout()
+
+	err := runDeviceFlow(cmd.Context(), baseURL, func(device oauth.Device) {
+		code := oauth.DisplayUserCode(device.UserCode)
+		if device.VerificationURIComplete != "" {
+			fmt.Fprintf(out, "Open this page in a browser where you are signed in to Loupe:\n\n  %s\n\nCheck that the page shows the code %s, then choose Allow.\n", device.VerificationURIComplete, code)
+		} else {
+			fmt.Fprintf(out, "Open this page in a browser where you are signed in to Loupe:\n\n  %s\n\nType the code %s, then choose Allow.\n", device.VerificationURI, code)
+		}
+		fmt.Fprintln(out, "Waiting for your answer...")
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, "Logged in. Tokens saved.")
+
+	return nil
+}
+
+// runDeviceFlow starts the device flow, hands the grant to announce, waits for
+// the approval, checks the token and stores it.
+func runDeviceFlow(parent context.Context, baseURL string, announce func(oauth.Device)) error {
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt)
 	defer stop()
 
 	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
@@ -67,15 +89,7 @@ func deviceLogin(cmd *cobra.Command, baseURL string) error {
 	if err != nil {
 		return err
 	}
-
-	out := cmd.OutOrStdout()
-	code := oauth.DisplayUserCode(device.UserCode)
-	if device.VerificationURIComplete != "" {
-		fmt.Fprintf(out, "Open this page in a browser where you are signed in to Loupe:\n\n  %s\n\nCheck that the page shows the code %s, then choose Allow.\n", device.VerificationURIComplete, code)
-	} else {
-		fmt.Fprintf(out, "Open this page in a browser where you are signed in to Loupe:\n\n  %s\n\nType the code %s, then choose Allow.\n", device.VerificationURI, code)
-	}
-	fmt.Fprintln(out, "Waiting for your answer...")
+	announce(device)
 
 	tokens, err := flow.Poll(ctx, device)
 	if err != nil {
@@ -87,10 +101,6 @@ func deviceLogin(cmd *cobra.Command, baseURL string) error {
 	if _, err := api.New(baseURL, tokens.AccessToken, hc).Sites(checkCtx); err != nil {
 		return err
 	}
-	if err := config.Save(config.Config{BaseURL: baseURL, OAuth: &tokens}); err != nil {
-		return err
-	}
-	fmt.Fprintln(out, "Logged in. Tokens saved.")
 
-	return nil
+	return config.Save(config.Config{BaseURL: baseURL, OAuth: &tokens})
 }

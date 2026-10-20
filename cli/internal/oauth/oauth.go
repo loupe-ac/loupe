@@ -26,7 +26,9 @@ const ClientID = "loupe-cli"
 // Scope is what the CLI asks for. `agent` reaches the bridge endpoints, `mcp`
 // reaches the MCP endpoint that `loupe mcp` forwards to, and `projects` covers
 // every project the person owns, so a new project needs no new login.
-const Scope = "agent mcp projects"
+// `site-review` reaches the notes, the cards and the feedback routes of the
+// Live review panel.
+const Scope = "agent mcp projects site-review"
 
 // DeviceGrant is the grant type of a device token poll.
 const DeviceGrant = "urn:ietf:params:oauth:grant-type:device_code"

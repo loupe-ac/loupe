@@ -79,6 +79,12 @@ It prints a note, and never fails, when:
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.
 
+## `loupe review` (hidden helpers)
+
+`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `targets`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them.
+
+A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
+
 ## `loupe credential`
 
 Prints a GitHub token for the worker that calls it. A worker runs it through
