@@ -150,6 +150,17 @@ final class ForegroundAppTests: XCTestCase {
         XCTAssertNil(pick("700 4\n710 47\n720 47\n730 4\n740 4"))
     }
 
+    func testTakesTheSoleRunningAppInFront() {
+        let sole = ForegroundApp.running(launchctl: "710\t0\tUIKitApplication:com.example.One[1111][rb-legacy]")
+        XCTAssertEqual(ForegroundApp.pick(running: sole, priorities: [710: 47]), "com.example.One")
+    }
+
+    func testNoAppInFrontWhenTheSoleRunningAppIsBehind() {
+        let sole = ForegroundApp.running(launchctl: "710\t0\tUIKitApplication:com.example.One[1111][rb-legacy]")
+        XCTAssertNil(ForegroundApp.pick(running: sole, priorities: [710: 4]))
+        XCTAssertNil(ForegroundApp.pick(running: sole, priorities: [710: 31]))
+    }
+
     func testNoAppRunning() {
         XCTAssertNil(ForegroundApp.pick(running: ForegroundApp.running(launchctl: "1\t0\tcom.apple.something"), priorities: [1: 47]))
     }

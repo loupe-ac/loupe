@@ -51,11 +51,16 @@ public enum ForegroundApp {
         return result
     }
 
-    /// The app on screen runs above the priority of the apps behind it. With no
-    /// app above the others, such as on the home screen, no app is in front.
+    /// The Mach default priority. An app behind the screen never runs above it.
+    private static let defaultPriority = 31
+
+    /// The app on screen runs above the priority of the apps behind it, and above
+    /// the default, so a sole running app can be in front. With no app above the
+    /// others, such as on the home screen, no app is in front.
     public static func pick(running: [Running], priorities: [Int: Int]) -> String? {
         let ranked = running.compactMap { app in priorities[app.pid].map { (app: app, pri: $0) } }
-        guard let floor = ranked.map(\.pri).min() else { return nil }
+        guard let lowest = ranked.map(\.pri).min() else { return nil }
+        let floor = min(lowest, defaultPriority)
         let usable = ranked.filter { !background.contains($0.app.bundleId) && !$0.app.bundleId.contains("WidgetRenderer") }
         guard let top = usable.map(\.pri).max(), top > floor else { return nil }
         let front = usable.filter { $0.pri == top }
