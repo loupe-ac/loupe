@@ -186,7 +186,7 @@ struct CardSearchView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField(scope == .epics ? "Search epics" : "Search cards", text: $query)
+            TextField(scope == .epics ? "Search epics by title or number" : "Search cards by title or number", text: $query)
                 .textFieldStyle(.roundedBorder)
             ScrollView {
                 VStack(alignment: .leading, spacing: 6) {
