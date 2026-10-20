@@ -486,3 +486,93 @@ final class ImageRendererTests: XCTestCase {
         XCTAssertNil(ImageRenderer.render(png: Data([1, 2, 3]), marks: Marks()))
     }
 }
+
+final class CaptureSessionTests: XCTestCase {
+    private let jpeg = RenderedImage(jpeg: Data([0xFF, 0xD8]), width: 1, height: 1)
+    private let element = Element(role: "AXButton", roleDescription: "button", label: "Buy", frame: Frame(x: 0, y: 0, width: 50, height: 20), inNavigationBar: false)
+
+    private func made(element: Element? = nil) -> Capture {
+        Capture(device: BootedDevice(name: "iPhone", udid: "A", osVersion: "26.5"), app: nil, screenTitle: "Home", element: element,
+                mapper: ScreenMapper(screen: Frame(x: 0, y: 0, width: 100, height: 200), imageWidth: 100, imageHeight: 200)!, png: Data())
+    }
+
+    private func marked(_ session: inout CaptureSession) {
+        let token = session.beginFreeze()
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), render: { _ in self.jpeg }), .ready)
+    }
+
+    func testASecondPickLeavesNothingToSaveWhileItsScreenshotIsTaken() {
+        var session = CaptureSession()
+        marked(&session)
+        XCTAssertNotNil(session.ready)
+
+        let second = session.beginFreeze()
+        XCTAssertNil(session.capture)
+        XCTAssertNil(session.ready)
+
+        XCTAssertEqual(session.endFreeze(second, with: nil), .screenshotFailed)
+        XCTAssertNil(session.ready)
+    }
+
+    func testAnOlderScreenshotDoesNotReplaceANewerPick() {
+        var session = CaptureSession()
+        let first = session.beginFreeze()
+        let second = session.beginFreeze()
+        XCTAssertEqual(session.endFreeze(first, with: made(element: element), render: { _ in self.jpeg }), .stale)
+        XCTAssertTrue(session.freezing)
+        XCTAssertEqual(session.endFreeze(second, with: made(element: element), render: { _ in self.jpeg }), .ready)
+        XCTAssertNotNil(session.ready)
+    }
+
+    func testAClearMakesTheScreenshotInFlightStale() {
+        var session = CaptureSession()
+        let token = session.beginFreeze()
+        session.clear()
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), render: { _ in self.jpeg }), .stale)
+        XCTAssertNil(session.capture)
+    }
+
+    func testAStrokeThatFailsToRenderKeepsSaveOffUntilARenderSucceeds() {
+        var session = CaptureSession()
+        marked(&session)
+
+        XCTAssertFalse(session.add(stroke: [CGPoint(x: 1, y: 1), CGPoint(x: 5, y: 5)], render: { _ in nil }))
+        XCTAssertEqual(session.capture?.strokes.count, 1)
+        XCTAssertNil(session.ready)
+
+        XCTAssertTrue(session.add(stroke: [CGPoint(x: 2, y: 2), CGPoint(x: 6, y: 6)], render: { $0.strokes.count == 2 ? self.jpeg : nil }))
+        XCTAssertNotNil(session.ready)
+    }
+
+    func testAFailedRenderOfANewPickIsNotSavable() {
+        var session = CaptureSession()
+        let token = session.beginFreeze()
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), render: { _ in nil }), .renderFailed)
+        XCTAssertNil(session.ready)
+    }
+
+    func testStrokesDrawnDuringTheScreenshotJoinTheCapture() {
+        var session = CaptureSession()
+        let token = session.beginFreeze()
+        XCTAssertTrue(session.add(stroke: [CGPoint(x: 1, y: 1), CGPoint(x: 5, y: 5)], render: { _ in nil }))
+        XCTAssertEqual(session.endFreeze(token, with: made(), render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.ready?.strokes.count, 1)
+    }
+}
+
+final class LatestRequestTests: XCTestCase {
+    func testOnlyTheNewestAnswerIsUsedWhenAnswersArriveInReverse() {
+        var requests = LatestRequest()
+        let cardA = requests.begin()
+        let cardB = requests.begin()
+        XCTAssertTrue(requests.isCurrent(cardB))
+        XCTAssertFalse(requests.isCurrent(cardA))
+    }
+
+    func testACancelDropsTheAnswerInFlight() {
+        var requests = LatestRequest()
+        let token = requests.begin()
+        requests.cancel()
+        XCTAssertFalse(requests.isCurrent(token))
+    }
+}

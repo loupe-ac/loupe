@@ -14,18 +14,6 @@ enum Auth: Equatable {
 
 enum Mode { case pick, draw }
 
-/// What the owner marked: a frozen screenshot with the element or the strokes drawn on it.
-struct Capture {
-    var device: BootedDevice
-    var app: SimulatorApp?
-    var screenTitle: String
-    var element: Element?
-    var mapper: ScreenMapper
-    var png: Data
-    var strokes: [[CGPoint]] = []
-    var image: RenderedImage
-}
-
 final class AppModel: ObservableObject {
     let options: LaunchOptions
     private let client: HelperClient
@@ -35,13 +23,13 @@ final class AppModel: ObservableObject {
     private var hover: Element?
     private var lastMove = Date.distantPast
     private var drawing: [CGPoint]?
-    private var freezing = false
     private var placed = false
     private var windows: [Located] = []
     private var deliveries = DeliveryKeeper()
     private var statusInFlight = false
     private var signInShownAt: Date?
-    private var freezeGeneration = 0
+    private var notesRequest = LatestRequest()
+    private var destinationsRequest = LatestRequest()
 
     @Published var trusted = AXIsProcessTrusted()
     @Published var auth: Auth = .checking
@@ -54,7 +42,7 @@ final class AppModel: ObservableObject {
     @Published var openNotes: [OpenNote] = []
     @Published var located: Located?
     @Published var mode: Mode = .pick { didSet { modeChanged() } }
-    @Published var capture: Capture?
+    @Published private(set) var session = CaptureSession()
     @Published var nothingToPick = false
     @Published var note = ""
     @Published var saving = false
@@ -152,27 +140,36 @@ final class AppModel: ObservableObject {
 
     func loadDestinations() {
         guard let project else { return }
+        let token = destinationsRequest.begin()
         Task {
             let cards = (try? await client.targets(project: project)) ?? []
             let epics = (try? await client.targets(project: project, parentsOnly: true)) ?? []
-            await MainActor.run { self.targets = cards; self.parents = epics }
+            await MainActor.run {
+                guard self.destinationsRequest.isCurrent(token) else { return }
+                self.targets = cards
+                self.parents = epics
+            }
         }
         loadOpenNotes()
     }
 
+    /// Only the answer to the newest request fills the list, so it always matches `Saves to`.
     func loadOpenNotes() {
         guard let project, case let .card(id, _) = destination else {
+            notesRequest.cancel()
             openNotes = []
             return
         }
+        let token = notesRequest.begin()
         Task {
             let list = (try? await client.notes(project: project, cardId: id)) ?? []
-            await MainActor.run { self.openNotes = list }
+            await MainActor.run { if self.notesRequest.isCurrent(token) { self.openNotes = list } }
         }
     }
 
     func choose(destination next: Destination) {
         guard !saving else { return }
+        if next != destination { openNotes = [] }
         destination = next
         loadOpenNotes()
     }
@@ -185,7 +182,7 @@ final class AppModel: ObservableObject {
         let now = AXIsProcessTrusted()
         if now != trusted { trusted = now }
         if auth != .ready { refreshAuth() }
-        guard reviewing, capture == nil, !freezing else { return }
+        guard reviewing, capture == nil, !session.freezing else { return }
         Task.detached {
             let devices = await Simctl.bootedDevices()
             let found = DeviceHub.locate(devices: devices)
@@ -198,7 +195,7 @@ final class AppModel: ObservableObject {
 
     /// Reviews the simulator window under the pointer. A capture in progress keeps its window.
     private func followPointer(force: Bool = false) {
-        guard reviewing, capture == nil, !freezing, drawing == nil else { return }
+        guard reviewing, capture == nil, !session.freezing, drawing == nil else { return }
         let index = WindowChooser.choose(
             ids: windows.map(\.device.udid), windows: windows.map(\.window),
             pointer: globalPoint(NSEvent.mouseLocation), current: located?.device.udid
@@ -288,20 +285,17 @@ final class AppModel: ObservableObject {
     private func pick(at point: CGPoint, located: Located) {
         updateHover(at: point)
         guard let element = hover else {
+            session.clear()
             nothingToPick = true
-            freezeGeneration += 1
-            freezing = false
-            capture = nil
             updateOverlays()
             return
         }
         nothingToPick = false
-        pendingStrokes = []
-        freeze(located: located, element: element, strokes: [])
+        freeze(located: located, element: element)
     }
 
     private func freezeIfNeeded(_ located: Located) {
-        if capture == nil, !freezing { freeze(located: located, element: nil, strokes: []) }
+        if capture == nil, !session.freezing { freeze(located: located, element: nil) }
     }
 
     private func finishStroke() {
@@ -311,16 +305,13 @@ final class AppModel: ObservableObject {
             return
         }
         drawing = nil
-        if var current = capture {
-            current.strokes.append(stroke)
-            if let next = rerender(current) { capture = next } else { message = Self.renderFailed }
-            updateOverlays()
+        if session.add(stroke: stroke) {
+            if message == Self.renderFailed { message = nil }
         } else {
-            pendingStrokes.append(stroke)
+            message = Self.renderFailed
         }
+        updateOverlays()
     }
-
-    private var pendingStrokes: [[CGPoint]] = []
 
     /// A click in Draw that made no stroke leaves no mark, so its screenshot is dropped.
     private func dropIfUnmarked() {
@@ -328,49 +319,33 @@ final class AppModel: ObservableObject {
         clearCapture()
     }
 
-    private static let renderFailed = "The marked screenshot could not be drawn. Pick or draw again."
+    private static let renderFailed = "The marked screenshot could not be drawn. Draw again, or pick again."
 
-    private func rerender(_ capture: Capture) -> Capture? {
-        let marks = Marks(
-            box: capture.element.map { capture.mapper.pixels($0.frame) },
-            strokes: capture.strokes.compactMap { capture.mapper.stroke(from: $0) }
-        )
-        guard let image = ImageRenderer.render(png: capture.png, marks: marks), !image.jpeg.isEmpty else { return nil }
-        var next = capture
-        next.image = image
-
-        return next
-    }
-
-    private func freeze(located: Located, element: Element?, strokes: [[CGPoint]]) {
-        freezeGeneration += 1
-        let generation = freezeGeneration
-        freezing = true
+    /// A new freeze drops the old capture, so Save stays off until the new screenshot is ready.
+    private func freeze(located: Located, element: Element?) {
+        let token = session.beginFreeze()
+        updateOverlays()
         Task.detached {
             let png = await Simctl.screenshotPNG(udid: located.device.udid)
             let app = await Simctl.foregroundApp(udid: located.device.udid)
             let title = Self.screenTitle(at: located)
             await MainActor.run {
-                guard generation == self.freezeGeneration else { return }
-                self.freezing = false
-                guard let png, let size = ImageRenderer.size(png: png),
-                      let mapper = ScreenMapper(screen: located.screen, imageWidth: size.width, imageHeight: size.height) else {
-                    self.message = "The simulator screenshot failed."
-                    return
+                let made = png.flatMap { png in
+                    ImageRenderer.size(png: png)
+                        .flatMap { ScreenMapper(screen: located.screen, imageWidth: $0.width, imageHeight: $0.height) }
+                        .map { Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: $0, png: png) }
                 }
-                let made = Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: mapper, png: png,
-                                   strokes: strokes + self.pendingStrokes,
-                                   image: RenderedImage(jpeg: Data(), width: 0, height: 0))
-                self.pendingStrokes = []
-                guard let rendered = self.rerender(made) else {
+                switch self.session.endFreeze(token, with: made) {
+                case .stale: return
+                case .screenshotFailed: self.message = "The simulator screenshot failed."
+                case .renderFailed:
                     self.message = Self.renderFailed
-                    self.updateOverlays()
-                    return
+                    self.dropIfUnmarked()
+                case .ready:
+                    self.message = nil
+                    self.notice = nil
+                    self.dropIfUnmarked()
                 }
-                self.capture = rendered
-                self.message = nil
-                self.notice = nil
-                self.dropIfUnmarked()
                 self.updateOverlays()
             }
         }
@@ -382,24 +357,23 @@ final class AppModel: ObservableObject {
 
     // MARK: Save
 
+    var capture: Capture? { session.capture }
+
     func clearCapture() {
-        freezeGeneration += 1
-        freezing = false
-        capture = nil
+        session.clear()
         nothingToPick = false
         hover = nil
-        pendingStrokes = []
         updateOverlays()
     }
 
     var canSave: Bool {
-        guard let capture, !saving else { return false }
+        guard let capture = session.ready, !saving else { return false }
 
-        return Note.canSave(body: note, jpeg: capture.image.jpeg, marked: capture.element != nil || !capture.strokes.isEmpty)
+        return Note.canSave(body: note, jpeg: capture.image.jpeg, marked: capture.marked)
     }
 
     func save() {
-        guard let capture, let project, canSave else { return }
+        guard let capture = session.ready, let project, canSave else { return }
         let body = note.trimmingCharacters(in: .whitespacesAndNewlines)
         let element = capture.element.map { e in
             NoteElement(role: e.displayRole, label: e.label.isEmpty ? nil : e.label, identifier: e.identifier.isEmpty ? nil : e.identifier,
