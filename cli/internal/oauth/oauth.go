@@ -37,8 +37,8 @@ const DeviceGrant = "urn:ietf:params:oauth:grant-type:device_code"
 // not leave with a token that dies on the way.
 const expirySkew = time.Minute
 
-// slowDownStep is what RFC 8628 adds to the interval at each slow_down.
-const slowDownStep = 5 * time.Second
+// SlowDownStep is what RFC 8628 adds to the interval at each slow_down.
+const SlowDownStep = 5 * time.Second
 
 // maxBody caps a token endpoint answer.
 const maxBody = 64 << 10
@@ -46,6 +46,10 @@ const maxBody = 64 << 10
 var (
 	// ErrAccessDenied means the person chose Deny on the verification page.
 	ErrAccessDenied = errors.New("the sign-in was denied in the browser")
+	// ErrPending means nobody approved or denied the code yet.
+	ErrPending = errors.New("the sign-in waits for approval")
+	// ErrSlowDown means the server asks for a longer interval between polls.
+	ErrSlowDown = errors.New("the sign-in polls too fast")
 	// ErrExpired means the code expired before anyone approved it.
 	ErrExpired = errors.New("the code expired before it was approved: run `loupe login` again")
 	// ErrLoginExpired means the refresh token no longer works: it expired, it
@@ -136,26 +140,40 @@ func (f Flow) Poll(ctx context.Context, d Device) (config.OAuthTokens, error) {
 			return config.OAuthTokens{}, err
 		}
 
-		status, body, err := f.post(ctx, "/oauth/token", url.Values{"grant_type": {DeviceGrant}, "client_id": {ClientID}, "device_code": {d.DeviceCode}})
-		if err != nil {
-			return config.OAuthTokens{}, fmt.Errorf("poll for the tokens: %w", err)
-		}
-		if status == http.StatusOK {
-			return f.tokens(body)
-		}
-
-		switch errorCode(body) {
-		case "authorization_pending":
-		case "slow_down":
-			interval += slowDownStep
-		case "access_denied":
-			return config.OAuthTokens{}, ErrAccessDenied
-		case "expired_token":
-			return config.OAuthTokens{}, ErrExpired
+		tokens, err := f.Exchange(ctx, d.DeviceCode)
+		switch {
+		case errors.Is(err, ErrPending):
+		case errors.Is(err, ErrSlowDown):
+			interval += SlowDownStep
 		default:
-			return config.OAuthTokens{}, fmt.Errorf("poll for the tokens: %w", serverError(status, body))
+			return tokens, err
 		}
 	}
+}
+
+// Exchange asks the token endpoint once for the tokens of a device code. It
+// gives ErrPending or ErrSlowDown while nobody has approved the code.
+func (f Flow) Exchange(ctx context.Context, deviceCode string) (config.OAuthTokens, error) {
+	status, body, err := f.post(ctx, "/oauth/token", url.Values{"grant_type": {DeviceGrant}, "client_id": {ClientID}, "device_code": {deviceCode}})
+	if err != nil {
+		return config.OAuthTokens{}, fmt.Errorf("poll for the tokens: %w", err)
+	}
+	if status == http.StatusOK {
+		return f.tokens(body)
+	}
+
+	switch errorCode(body) {
+	case "authorization_pending":
+		return config.OAuthTokens{}, ErrPending
+	case "slow_down":
+		return config.OAuthTokens{}, ErrSlowDown
+	case "access_denied":
+		return config.OAuthTokens{}, ErrAccessDenied
+	case "expired_token":
+		return config.OAuthTokens{}, ErrExpired
+	}
+
+	return config.OAuthTokens{}, fmt.Errorf("poll for the tokens: %w", serverError(status, body))
 }
 
 // Refresh spends refreshToken for a new access token and a new refresh token.

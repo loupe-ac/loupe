@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -301,31 +302,165 @@ func TestReviewSaveRefusesBadInput(t *testing.T) {
 	}
 }
 
-func TestReviewSignInPrintsTheCodeThenOk(t *testing.T) {
-	useLoginConfigHome(t)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// signInServer answers the device flow. Each token request takes the next
+// answer of tokenAnswers, and the last answer repeats.
+type signInServer struct {
+	*httptest.Server
+	mu           sync.Mutex
+	tokenAnswers []string
+	tokenCalls   int
+}
+
+func newSignInServer(t *testing.T, tokenAnswers ...string) *signInServer {
+	t.Helper()
+	ss := &signInServer{tokenAnswers: tokenAnswers}
+	ss.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/oauth/device-authorization":
 			fmt.Fprint(w, `{"device_code":"dev-1","user_code":"BCDFGHJK","verification_uri":"https://loupe.test/d","expires_in":600,"interval":1}`)
 		case "/oauth/token":
-			fmt.Fprint(w, `{"token_type":"Bearer","access_token":"eyJ.access","refresh_token":"refresh-1","expires_in":3600}`)
+			ss.mu.Lock()
+			answer := ss.tokenAnswers[min(ss.tokenCalls, len(ss.tokenAnswers)-1)]
+			ss.tokenCalls++
+			ss.mu.Unlock()
+			if strings.Contains(answer, `"error"`) {
+				w.WriteHeader(http.StatusBadRequest)
+			}
+			fmt.Fprint(w, answer)
+		case "/api/projects":
+			fmt.Fprintf(w, `{"sites":[{"id":%q,"slug":"a","name":"Alpha"}]}`, reviewProjectA)
+		case "/api/live-review/review":
+			fmt.Fprint(w, `{"comments":[]}`)
 		default:
-			fmt.Fprint(w, `{"sites":[]}`)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
-	t.Cleanup(server.Close)
-	t.Setenv("LOUPE_URL", server.URL)
+	t.Cleanup(ss.Close)
+	t.Setenv("LOUPE_URL", ss.URL)
+
+	return ss
+}
+
+func (ss *signInServer) calls() int {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	return ss.tokenCalls
+}
+
+// useReviewClock lets a test move the clock of the pending sign-in.
+func useReviewClock(t *testing.T) func(time.Duration) {
+	t.Helper()
+	now := time.Now()
+	reviewNow = func() time.Time { return now }
+	t.Cleanup(func() { reviewNow = time.Now })
+
+	return func(d time.Duration) { now = now.Add(d) }
+}
+
+const signInTokens = `{"token_type":"Bearer","access_token":"eyJ.access","refresh_token":"refresh-1","expires_in":3600}`
+
+func TestReviewSignInPrintsTheCodeAndExits(t *testing.T) {
+	useLoginConfigHome(t)
+	ss := newSignInServer(t, signInTokens)
 
 	got, err := runReview(t, "", "sign-in")
-	lines := strings.Split(got, "\n")
-	if err != nil || len(lines) != 2 || lines[0] != `{"code":"BCDF-GHJK","url":"https://loupe.test/d"}` || lines[1] != `{"state":"ok"}` {
+	if err != nil || got != `{"code":"BCDF-GHJK","url":"https://loupe.test/d"}` {
 		t.Fatalf("sign-in = %q, %v", got, err)
 	}
-	if strings.Contains(got, "eyJ.access") || strings.Contains(got, "dev-1") {
-		t.Fatalf("output holds a secret: %q", got)
+	if ss.calls() != 0 {
+		t.Fatalf("sign-in asked for the tokens %d times", ss.calls())
+	}
+	if _, err := config.Load(); err == nil {
+		t.Fatal("sign-in saved a login before approval")
+	}
+	if pending, err := config.LoadPendingSignIn(); err != nil || pending == nil || pending.DeviceCode != "dev-1" {
+		t.Fatalf("pending sign-in = %+v, %v", pending, err)
+	}
+}
+
+func TestReviewStatusFinishesThePendingSignIn(t *testing.T) {
+	useLoginConfigHome(t)
+	advance := useReviewClock(t)
+	ss := newSignInServer(t, `{"error":"authorization_pending"}`, `{"error":"slow_down"}`, signInTokens)
+	if _, err := runReview(t, "", "sign-in"); err != nil {
+		t.Fatal(err)
+	}
+
+	steps := []struct {
+		wait  time.Duration
+		want  string
+		calls int
+	}{
+		{0, `{"state":"pending"}`, 0},
+		{time.Second, `{"state":"pending"}`, 1},
+		{time.Second, `{"state":"pending"}`, 2},
+		{time.Second, `{"state":"pending"}`, 2},
+		{5 * time.Second, `{"state":"ok"}`, 3},
+		{time.Minute, `{"state":"ok"}`, 3},
+	}
+	for i, step := range steps {
+		advance(step.wait)
+		got, err := runReview(t, "", "status")
+		if err != nil || got != step.want || ss.calls() != step.calls {
+			t.Fatalf("step %d: status = %q, %v after %d token calls", i, got, err, ss.calls())
+		}
+		if strings.Contains(got, "eyJ.access") || strings.Contains(got, "dev-1") {
+			t.Fatalf("output holds a secret: %q", got)
+		}
 	}
 	if _, err := config.Load(); err != nil {
 		t.Fatalf("tokens not saved: %v", err)
+	}
+	if pending, err := config.LoadPendingSignIn(); err != nil || pending != nil {
+		t.Fatalf("pending sign-in kept: %+v, %v", pending, err)
+	}
+}
+
+func TestALoginEndsThePendingSignIn(t *testing.T) {
+	useLoginConfigHome(t)
+	ss := newSignInServer(t, `{"error":"authorization_pending"}`)
+	if _, err := runReview(t, "", "sign-in"); err != nil {
+		t.Fatal(err)
+	}
+
+	tokens := config.OAuthTokens{AccessToken: "access-1", RefreshToken: "refresh-1", ExpiresAt: time.Now().Add(time.Hour)}
+	if err := saveDeviceLogin(context.Background(), ss.URL, deviceFlowClient(), tokens); err != nil {
+		t.Fatal(err)
+	}
+	if pending, err := config.LoadPendingSignIn(); err != nil || pending != nil {
+		t.Fatalf("pending sign-in kept: %+v, %v", pending, err)
+	}
+	if got, err := runReview(t, "", "status"); err != nil || got != `{"state":"ok"}` || ss.calls() != 0 {
+		t.Fatalf("status = %q, %v after %d token calls", got, err, ss.calls())
+	}
+}
+
+func TestReviewStatusDropsADeniedOrExpiredSignIn(t *testing.T) {
+	for name, tc := range map[string]struct {
+		wait  time.Duration
+		calls int
+	}{
+		"denied":  {2 * time.Second, 1},
+		"expired": {11 * time.Minute, 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			useLoginConfigHome(t)
+			advance := useReviewClock(t)
+			ss := newSignInServer(t, `{"error":"access_denied"}`)
+			if _, err := runReview(t, "", "sign-in"); err != nil {
+				t.Fatal(err)
+			}
+
+			advance(tc.wait)
+			if got, err := runReview(t, "", "status"); err != nil || got != `{"state":"signedOut"}` || ss.calls() != tc.calls {
+				t.Fatalf("status = %q, %v after %d token calls", got, err, ss.calls())
+			}
+			if pending, err := config.LoadPendingSignIn(); err != nil || pending != nil {
+				t.Fatalf("pending sign-in kept: %+v, %v", pending, err)
+			}
+		})
 	}
 }
 

@@ -83,7 +83,7 @@ func runDeviceFlow(parent context.Context, baseURL string, announce func(oauth.D
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt)
 	defer stop()
 
-	hc := &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
+	hc := deviceFlowClient()
 	flow := oauth.NewFlow(baseURL, hc)
 	device, err := flow.Start(ctx)
 	if err != nil {
@@ -96,11 +96,25 @@ func runDeviceFlow(parent context.Context, baseURL string, announce func(oauth.D
 		return err
 	}
 
+	return saveDeviceLogin(ctx, baseURL, hc, tokens)
+}
+
+// deviceFlowClient is the HTTP client of a device sign-in.
+func deviceFlowClient() *http.Client {
+	return &http.Client{Timeout: refreshTimeout, Transport: withUserAgent(nil)}
+}
+
+// saveDeviceLogin checks the tokens of a device sign-in with one real call,
+// then saves them as the login. A new login ends any pending review sign-in.
+func saveDeviceLogin(ctx context.Context, baseURL string, hc *http.Client, tokens config.OAuthTokens) error {
 	checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if _, err := api.New(baseURL, tokens.AccessToken, hc).Sites(checkCtx); err != nil {
 		return err
 	}
+	if err := config.Save(config.Config{BaseURL: baseURL, OAuth: &tokens}); err != nil {
+		return err
+	}
 
-	return config.Save(config.Config{BaseURL: baseURL, OAuth: &tokens})
+	return config.ClearPendingSignIn()
 }

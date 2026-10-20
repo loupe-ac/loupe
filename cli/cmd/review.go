@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/ubermuda/loupe/cli/internal/api"
@@ -122,6 +123,13 @@ func newReviewStatusCmd() *cobra.Command {
 				return err
 			}
 		}
+		waiting, err := finishSignIn(cmd.Context())
+		if err != nil {
+			return err
+		}
+		if waiting {
+			return state("pending")
+		}
 		cfg, err := config.Load()
 		if signedOut(err) {
 			return state("signedOut")
@@ -161,7 +169,7 @@ func newReviewStatusCmd() *cobra.Command {
 }
 
 func newReviewSignInCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "sign-in", Short: "Sign in with the device flow", Hidden: true}
+	cmd := &cobra.Command{Use: "sign-in", Short: "Start a device sign-in that status finishes", Hidden: true}
 	cmd.RunE = reviewRun(func(cmd *cobra.Command) error {
 		baseURL := resolveBaseURL("", os.Getenv("LOUPE_URL"))
 		if os.Getenv("LOUPE_URL") == "" {
@@ -170,24 +178,80 @@ func newReviewSignInCmd() *cobra.Command {
 			}
 		}
 
-		err := runDeviceFlow(cmd.Context(), baseURL, func(device oauth.Device) {
-			link := device.VerificationURIComplete
-			if link == "" {
-				link = device.VerificationURI
-			}
-			_ = reviewPrint(cmd, map[string]string{"code": oauth.DisplayUserCode(device.UserCode), "url": link})
-			if runtime.GOOS == "darwin" {
-				_ = exec.Command("open", link).Start()
-			}
+		device, err := oauth.NewFlow(baseURL, deviceFlowClient()).Start(cmd.Context())
+		if err != nil {
+			return err
+		}
+		interval := device.Interval
+		if interval <= 0 {
+			interval = 5
+		}
+		now := reviewNow()
+		err = config.SavePendingSignIn(config.PendingSignIn{
+			BaseURL:    baseURL,
+			DeviceCode: device.DeviceCode,
+			Interval:   interval,
+			ExpiresAt:  now.Add(time.Duration(device.ExpiresIn) * time.Second),
+			NextPollAt: now.Add(time.Duration(interval) * time.Second),
 		})
 		if err != nil {
 			return err
 		}
 
-		return reviewPrint(cmd, map[string]string{"state": "ok"})
+		link := device.VerificationURIComplete
+		if link == "" {
+			link = device.VerificationURI
+		}
+		if runtime.GOOS == "darwin" {
+			_ = exec.Command("open", link).Start()
+		}
+
+		return reviewPrint(cmd, map[string]string{"code": oauth.DisplayUserCode(device.UserCode), "url": link})
 	})
 
 	return cmd
+}
+
+// reviewNow is the clock of the pending sign-in, so a test can move it.
+var reviewNow = time.Now
+
+// finishSignIn spends the pending sign-in with at most one token request. It
+// reports true while the sign-in still waits for approval. A denied or expired
+// sign-in is dropped, so the login state decides what status prints.
+func finishSignIn(ctx context.Context) (bool, error) {
+	pending, err := config.LoadPendingSignIn()
+	if err != nil || pending == nil {
+		return false, err
+	}
+	now := reviewNow()
+	if !now.Before(pending.ExpiresAt) {
+		return false, config.ClearPendingSignIn()
+	}
+	if now.Before(pending.NextPollAt) {
+		return true, nil
+	}
+
+	hc := deviceFlowClient()
+	tokens, err := oauth.NewFlow(pending.BaseURL, hc).Exchange(ctx, pending.DeviceCode)
+	switch {
+	case errors.Is(err, oauth.ErrPending), errors.Is(err, oauth.ErrSlowDown):
+		if errors.Is(err, oauth.ErrSlowDown) {
+			pending.Interval += int(oauth.SlowDownStep / time.Second)
+		}
+		pending.NextPollAt = now.Add(time.Duration(pending.Interval) * time.Second)
+
+		return true, config.SavePendingSignIn(*pending)
+	case errors.Is(err, oauth.ErrAccessDenied), errors.Is(err, oauth.ErrExpired):
+		return false, config.ClearPendingSignIn()
+	case err != nil:
+		return false, err
+	}
+	// The server spends a device code once, so a failed save cannot retry it.
+	if err := config.ClearPendingSignIn(); err != nil {
+		return false, err
+	}
+
+	return false, saveDeviceLogin(ctx, pending.BaseURL, hc, tokens)
 }
 
 func newReviewProjectsCmd() *cobra.Command {
