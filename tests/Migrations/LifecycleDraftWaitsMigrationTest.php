@@ -19,7 +19,7 @@ final class LifecycleDraftWaitsMigrationTest extends KernelTestCase
 {
     use ActionScenario;
 
-    public function test_a_lifecycle_binding_with_the_old_design_checks_gets_the_shipped_copy_and_keeps_its_epic_branch_and_a_simple_binding_stays_unchanged(): void
+    public function test_a_lifecycle_binding_with_the_old_reviewable_rule_gets_the_shipped_copy_and_keeps_its_project_settings_and_a_simple_binding_stays_unchanged(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('migration-draft-waits');
@@ -42,18 +42,31 @@ final class LifecycleDraftWaitsMigrationTest extends KernelTestCase
         }, $rules);
         $old['version'] = 11;
         $old['epicBranch'] = 'feature/epic-{number}';
+        $old['approvalCoversConflictResolution'] = false;
         $connection->executeStatement('UPDATE workflow_bindings SET definition = CAST(? AS JSONB) WHERE project_id = ?', [json_encode($old, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION), $projectId]);
 
         $simpleBefore = $this->binding($connection, $simpleId);
 
+        $this->migrate($connection);
+
+        $expected = [...$this->service(ShippedTemplates::class)->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}', 'approvalCoversConflictResolution' => false];
+        self::assertEquals($expected, $this->row($connection, $projectId));
+        self::assertSame($simpleBefore, $this->binding($connection, $simpleId));
+        $migrated = $this->binding($connection, $projectId);
+
+        $this->migrate($connection);
+
+        self::assertSame($migrated, $this->binding($connection, $projectId));
+        self::assertSame($simpleBefore, $this->binding($connection, $simpleId));
+    }
+
+    private function migrate(Connection $connection): void
+    {
         $migration = new Version20261020151431($connection, new NullLogger());
         $migration->up(new Schema());
         foreach ($migration->getSql() as $query) {
             $connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
         }
-
-        self::assertEquals([...$this->service(ShippedTemplates::class)->source('lifecycle'), 'epicBranch' => 'feature/epic-{number}'], $this->row($connection, $projectId));
-        self::assertSame($simpleBefore, $this->binding($connection, $simpleId));
     }
 
     /** @return array<string, mixed> */
