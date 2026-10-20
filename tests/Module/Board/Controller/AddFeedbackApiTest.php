@@ -231,6 +231,10 @@ final class AddFeedbackApiTest extends WebTestCase
         yield 'not base64' => [['contentType' => 'image/png', 'data' => '***'], 'screenshot_invalid'];
         yield 'an svg' => [['contentType' => 'image/png', 'data' => base64_encode('<svg xmlns="http://www.w3.org/2000/svg"/>')], 'screenshot_invalid'];
         yield 'a png declared as a jpeg' => [['contentType' => 'image/jpeg', 'data' => base64_encode(TinyImage::png())], 'screenshot_invalid'];
+        yield 'an unsupported content type' => [['contentType' => 'image/svg+xml', 'data' => base64_encode(TinyImage::png())], 'screenshot_invalid'];
+        yield 'no content type' => [['data' => base64_encode(TinyImage::png())], 'screenshot_invalid'];
+        yield 'blank data' => [['contentType' => 'image/png', 'data' => ''], 'screenshot_invalid'];
+        yield 'no data' => [['contentType' => 'image/png'], 'screenshot_invalid'];
         yield 'over two mebibytes' => [['contentType' => 'image/png', 'data' => base64_encode(TinyImage::png().str_repeat("\x00", 2 * 1024 * 1024))], 'screenshot_too_large'];
     }
 
@@ -247,16 +251,6 @@ final class AddFeedbackApiTest extends WebTestCase
         self::assertSame(['error' => $error], $data);
         self::assertCount(0, $this->service(CardRepository::class)->findBy(['project' => $project]));
         self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM site_review_screenshots'));
-    }
-
-    public function test_a_screenshot_with_an_unknown_content_type_fails_validation(): void
-    {
-        $client = static::createClient();
-        [$raw] = $this->projectWithToken($client, 'feedback-api-shot-type@example.com');
-
-        $this->post($client, $raw, $this->nativeNote(['screenshot' => ['contentType' => 'image/svg+xml', 'data' => base64_encode(TinyImage::png())]]));
-
-        self::assertResponseStatusCodeSame(422);
     }
 
     /** @return iterable<string, array{callable(array<string, mixed>): array<string, mixed>}> */
