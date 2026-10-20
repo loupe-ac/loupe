@@ -205,14 +205,14 @@ work:
       Use the loupe-stage-fix-round skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}), column product-design.
       Fix reason: {reason}.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   tech-design:
     permissions: workspace
     prompt: |
       Use the loupe-stage-tech-design skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) entered tech-design.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
       If the card is no longer in tech-design, stop.
 
   tech-design-revise:
@@ -221,7 +221,7 @@ work:
       Use the loupe-stage-fix-round skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}), column tech-design.
       Fix reason: {reason}.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   design-review:
     model: opus
@@ -229,7 +229,7 @@ work:
     prompt: |
       Use the loupe-stage-design-review skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   review:
     model: opus
@@ -237,7 +237,7 @@ work:
     prompt: |
       Use the loupe-stage-review skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   implement:
     permissions: full
@@ -247,7 +247,7 @@ work:
     prompt: |
       Use the loupe-stage-implementation skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) entered implementation.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
       If the card is no longer in implementation, stop.
 
   breakdown:
@@ -255,7 +255,7 @@ work:
     prompt: |
       Use the loupe-stage-implementation skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}) entered implementation.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
       If the card is no longer in implementation, stop.
 
   fix:
@@ -267,7 +267,7 @@ work:
       Use the loupe-stage-fix-round skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       A pull request of the card needs a fix.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   merge:
     permissions: full
@@ -275,7 +275,7 @@ work:
       Use the loupe-stage-merge skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Loupe asks for merge work.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   sync:
     permissions: full
@@ -283,7 +283,7 @@ work:
       Use the loupe-stage-merge skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Loupe asks for sync work.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   sync-epic:
     permissions: full
@@ -299,7 +299,7 @@ work:
       Merge origin/<default branch> into it, and push the result to epic/<n> without force.
       When the merge conflicts, abort it, push nothing, and stop with `STAGE RESULT: blocked: merge conflict`.
       Change nothing else. Loupe reads the end of this run to know the epic branch is up to date.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   epic-preview:
     permissions: full
@@ -310,7 +310,7 @@ work:
       Use the loupe-stage-merge skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Loupe asks for epic preview work.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   repair:
     permissions: full
@@ -323,7 +323,7 @@ work:
       Use the loupe-stage-repair skill.
       Card {cardNumber} (cardId {cardId}) in project {project} (projectId {projectId}).
       Rule {ruleId} failed with {reason}.
-      Loupe instance https://loupe.ac.
+      Loupe instance https://app.loupe.ac.
 
   teardown:
     action: command
@@ -462,7 +462,7 @@ its path, and the round runs there:
 ```sh
 card=405 card_id=01a0f4b8-0ec7-7b8e-b4e5-3cd6408919ef pr=710
 dir=$(bin/worktrees/bridge-before.sh "$card" "$card_id" "$pr") && cd "$dir" && \
-claude -p --permission-mode bypassPermissions -- "Use the loupe-stage-fix-round skill. Card $card (cardId $card_id) in project loupe (projectId <project id>), column in-review. Loupe instance https://loupe.ac."
+claude -p --permission-mode bypassPermissions -- "Use the loupe-stage-fix-round skill. Card $card (cardId $card_id) in project loupe (projectId <project id>), column in-review. Loupe instance https://app.loupe.ac."
 ```
 
 The prompt names the column the card is in. A card in Implementation with an

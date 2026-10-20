@@ -28,7 +28,7 @@ The steps, in order:
 | Flag | Purpose |
 |---|---|
 | `--project` | The project, by id or slug, instead of a choice from a list |
-| `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://loupe.ac` |
+| `--url` | The Loupe instance to sign in to. Else `LOUPE_URL`, else `https://app.loupe.ac` |
 | `--rules` | Read and write this rule file instead of the one in your config directory |
 | `--reset` | Write the first-run rules again, and keep the `projects` map |
 | `--force`, `--mcp`, `--no-mcp`, `--mcp-json` | Work as they do for `loupe project link` |

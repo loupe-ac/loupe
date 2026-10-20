@@ -59,7 +59,7 @@ parameters:
     # and the `claude mcp add` command.
     app.mcp.server_name: 'loupe'
     # Documentation site, linked from the landing page.
-    app.docs_url: 'https://ubermuda.github.io/loupe'
+    app.docs_url: 'https://loupe.ac/docs'
     # Where the container puts the stamped docs. The sitemap lists the pages found there.
     app.site.docs_dir: '/var/www/docs'
     # Revision of the terms of service, as the date they took effect. Bumping it

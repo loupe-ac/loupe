@@ -65,7 +65,7 @@ if [ -n "$missing" ]; then
     while read -r name; do
         [ -z "$name" ] && continue
         summary=$(awk -F'\t' -v n="$name" '$1 == n { print $2; exit }' <<<"$desc")
-        # "(e.g. loupe.ac)" must not read as the end of the sentence.
+        # "(e.g. app.loupe.ac)" must not read as the end of the sentence.
         guarded=${summary//e.g. /e.g.$'\001'}
         guarded=${guarded//i.e. /i.e.$'\001'}
         summary=${guarded%%. *}

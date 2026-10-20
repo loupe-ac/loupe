@@ -44,7 +44,7 @@ variable "health_check_path" {
 variable "custom_domain" {
   type        = string
   default     = ""
-  description = "Custom domain to serve the app on (e.g. loupe.ac, or app.example.com). Empty serves only on the assigned *.ondigitalocean.app hostname."
+  description = "Custom domain to serve the app on (e.g. app.loupe.ac, or app.example.com). Empty serves only on the assigned *.ondigitalocean.app hostname."
 }
 
 variable "domain_zone" {

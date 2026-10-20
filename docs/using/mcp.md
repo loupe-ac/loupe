@@ -62,7 +62,7 @@ project comes from the repository rather than from the credential.
 Install the CLI, sign in once, and name the project in each repository:
 
 ```bash
-curl -fsSL https://<your Loupe>/install.sh | sh
+curl -fsSL https://<your Loupe>/install.sh | sh   # hosted: https://app.loupe.ac/install.sh
 # or, with Homebrew: brew install ubermuda/tap/loupe
 loupe login                  # a browser sign-in, once per machine
 cd ~/code/my-project
@@ -159,6 +159,8 @@ In Claude Code, add the server, then sign in:
 claude mcp add --transport http loupe https://loupe.example.com/mcp
 claude mcp login loupe
 ```
+
+The hosted instance answers at `https://app.loupe.ac/mcp`.
 
 You can also run `/mcp` inside Claude Code and select the server. Claude Code
 opens the Loupe consent page in your browser. Sign in, choose the project, and
