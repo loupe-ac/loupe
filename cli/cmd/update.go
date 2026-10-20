@@ -449,6 +449,9 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	}
 	if current {
 		fmt.Fprintln(out, "current at "+s.version)
+		if semver {
+			s.ensurePanel(ctx, out, u, dir, releases, running)
+		}
 
 		return nil
 	}
@@ -480,4 +483,48 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	fmt.Fprintf(out, "installed %s over %s\n", to, exe)
 
 	return nil
+}
+
+// ensurePanel installs the Live review panel of the running version when a
+// macOS install lacks it. An updater of an earlier release unpacks only the
+// binary, so a user who updated by it reaches the first release with a panel
+// with no panel. A failure prints a warning and changes nothing else.
+func (s selfUpdate) ensurePanel(ctx context.Context, out io.Writer, u *updater, dir string, releases []update.Release, running update.Version) {
+	if s.goos != "darwin" || update.PanelSettled(dir, running.String()) {
+		return
+	}
+	if _, ok := libexecPanel(s.executable); ok {
+		return
+	}
+	c, found := update.PickWhere(releases, s.goos, s.goarch, func(v update.Version) bool { return update.Compare(v, running) == 0 })
+	if !found {
+		fmt.Fprintf(out, "warning: no release of %s ships the Live review panel for this platform\n", running)
+
+		return
+	}
+	archive, err := update.Download(ctx, u.hc, c.Archive.URL)
+	if err == nil {
+		var checksums []byte
+		if checksums, err = update.Download(ctx, u.hc, c.Checksums.URL); err == nil {
+			err = update.Verify(archive, checksums, c.Archive.Name)
+		}
+	}
+	if err != nil {
+		fmt.Fprintf(out, "warning: could not fetch the Live review panel for %s: %v\n", running, err)
+
+		return
+	}
+	dest := update.PanelDir(dir, running.String())
+	extracted, err := update.ExtractPanel(archive, dest)
+	switch {
+	case err != nil:
+		fmt.Fprintf(out, "warning: could not install the Live review panel for %s: %v\n", running, err)
+	case !extracted:
+		if err := update.MarkNoPanel(dir, running.String()); err != nil {
+			fmt.Fprintf(out, "warning: %v\n", err)
+		}
+		fmt.Fprintf(out, "the release %s ships no Live review panel\n", running)
+	default:
+		fmt.Fprintf(out, "installed the Live review panel for %s in %s\n", running, dest)
+	}
 }
