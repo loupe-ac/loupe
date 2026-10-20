@@ -21,7 +21,13 @@ import (
 // screenshot of about 3 MB.
 const maxReviewInput = 4 << 20
 
-var lowerUUID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+const uuidPattern = `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`
+
+var lowerUUID = regexp.MustCompile(`^` + uuidPattern + `$`)
+
+// noteScope matches the destinations the widget lists notes for: one card, the
+// children of an epic, or the cards of one review session, at most 50.
+var noteScope = regexp.MustCompile(`^(?:(?:card|epic):` + uuidPattern + `|cards:` + uuidPattern + `(?:,` + uuidPattern + `){0,49})$`)
 
 // reviewError is the failure a review helper prints as its one JSON object.
 type reviewError struct {
@@ -130,7 +136,7 @@ func newReviewStatusCmd() *cobra.Command {
 			}
 			probe = sites[0].ID
 		}
-		_, err = client.WithProject(probe).SiteReviewNotes(cmd.Context())
+		_, err = client.WithProject(probe).SiteReviewNotes(cmd.Context(), "")
 		switch {
 		case err == nil:
 			return state("ok")
@@ -203,22 +209,25 @@ func newReviewProjectsCmd() *cobra.Command {
 }
 
 // newReviewReadCmd builds a helper that reads from the server for one project.
-func newReviewReadCmd(use, key string, withQuery bool, read func(ctx context.Context, c *api.Client, query string) (json.RawMessage, error)) *cobra.Command {
-	var project, query string
+// flags adds the options of the helper, and check refuses a bad option before
+// any request.
+func newReviewReadCmd(use, key string, flags func(cmd *cobra.Command), check func() error, read func(ctx context.Context, c *api.Client) (json.RawMessage, error)) *cobra.Command {
+	var project string
 	cmd := &cobra.Command{Use: use, Hidden: true}
 	cmd.Flags().StringVar(&project, "project", "", "project id (required)")
-	if withQuery {
-		cmd.Flags().StringVar(&query, "query", "", "search text")
-	}
+	flags(cmd)
 	cmd.RunE = reviewRun(func(cmd *cobra.Command) error {
 		if err := checkReviewProject(project); err != nil {
+			return err
+		}
+		if err := check(); err != nil {
 			return err
 		}
 		client, err := reviewClient(project)
 		if err != nil {
 			return err
 		}
-		answer, err := read(cmd.Context(), client, query)
+		answer, err := read(cmd.Context(), client)
 		if err != nil {
 			return err
 		}
@@ -230,14 +239,30 @@ func newReviewReadCmd(use, key string, withQuery bool, read func(ctx context.Con
 }
 
 func newReviewTargetsCmd() *cobra.Command {
-	return newReviewReadCmd("targets", "cards", true, func(ctx context.Context, c *api.Client, q string) (json.RawMessage, error) {
-		return c.SiteReviewTargets(ctx, q)
+	var query string
+	var parent bool
+
+	return newReviewReadCmd("targets", "cards", func(cmd *cobra.Command) {
+		cmd.Flags().StringVar(&query, "query", "", "search text")
+		cmd.Flags().BoolVar(&parent, "parent", false, "list only the cards that can hold children")
+	}, func() error { return nil }, func(ctx context.Context, c *api.Client) (json.RawMessage, error) {
+		return c.SiteReviewTargets(ctx, query, parent)
 	})
 }
 
 func newReviewNotesCmd() *cobra.Command {
-	return newReviewReadCmd("notes", "notes", false, func(ctx context.Context, c *api.Client, _ string) (json.RawMessage, error) {
-		return c.SiteReviewNotes(ctx)
+	var scope string
+
+	return newReviewReadCmd("notes", "notes", func(cmd *cobra.Command) {
+		cmd.Flags().StringVar(&scope, "scope", "", "destination: card:<id>, epic:<id> or cards:<id>,<id> (required)")
+	}, func() error {
+		if !noteScope.MatchString(scope) {
+			return reviewError{"invalid_scope", "--scope must be card:<id>, epic:<id> or cards:<id>,<id> with lower-case ids"}
+		}
+
+		return nil
+	}, func(ctx context.Context, c *api.Client) (json.RawMessage, error) {
+		return c.SiteReviewNotes(ctx, scope)
 	})
 }
 

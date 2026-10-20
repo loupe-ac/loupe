@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -18,6 +19,8 @@ const (
 	reviewProjectA = "0192f3c4-5d6e-7f80-9123-456789abcdef"
 	reviewProjectB = "0192f3c4-5d6e-7f80-9123-456789abcdf0"
 	reviewOutsider = "0192f3c4-5d6e-7f80-9123-456789abcdf1"
+	reviewCardA    = "0192f3c4-5d6e-7f80-9123-4567890000a1"
+	reviewCardB    = "0192f3c4-5d6e-7f80-9123-4567890000b2"
 )
 
 // reviewServer behaves like the project resolver for an owner of two projects.
@@ -25,6 +28,7 @@ type reviewServer struct {
 	*httptest.Server
 	mu       sync.Mutex
 	requests []string
+	queries  []string
 	headers  []string
 	bodies   []string
 }
@@ -36,6 +40,7 @@ func newReviewServer(t *testing.T) *reviewServer {
 		data, _ := io.ReadAll(r.Body)
 		rs.mu.Lock()
 		rs.requests = append(rs.requests, r.Method+" "+r.URL.Path)
+		rs.queries = append(rs.queries, r.URL.RawQuery)
 		rs.headers = append(rs.headers, r.Header.Get("X-Loupe-Project"))
 		rs.bodies = append(rs.bodies, string(data))
 		rs.mu.Unlock()
@@ -54,9 +59,22 @@ func newReviewServer(t *testing.T) *reviewServer {
 		}
 		switch r.URL.Path {
 		case "/api/board/cards":
+			if r.URL.Query().Get("parent") == "1" {
+				fmt.Fprint(w, `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}`)
+
+				return
+			}
 			fmt.Fprint(w, `{"cards":[{"cardId":"c1","number":7,"title":"T","status":"todo"}]}`)
 		case "/api/site-review/review":
-			fmt.Fprint(w, `{"comments":[]}`)
+			// Each destination holds its own notes, as the server scopes them.
+			switch r.URL.Query().Get("scope") {
+			case "card:" + reviewCardA:
+				fmt.Fprint(w, `{"comments":[{"id":"na"}]}`)
+			case "card:" + reviewCardB:
+				fmt.Fprint(w, `{"comments":[{"id":"nb"}]}`)
+			default:
+				fmt.Fprint(w, `{"comments":[]}`)
+			}
 		case "/api/board/feedback":
 			w.WriteHeader(http.StatusCreated)
 			fmt.Fprint(w, `{"id":"n1"}`)
@@ -67,6 +85,13 @@ func newReviewServer(t *testing.T) *reviewServer {
 	t.Cleanup(rs.Close)
 
 	return rs
+}
+
+func (rs *reviewServer) lastQuery() string {
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+
+	return rs.queries[len(rs.queries)-1]
 }
 
 func (rs *reviewServer) lastHeader() string {
@@ -108,8 +133,8 @@ func TestReviewTargetsNotesAndSaveSendTheGivenProject(t *testing.T) {
 	if err != nil || !strings.HasPrefix(got, `{"cards":[{`) || rs.lastHeader() != reviewProjectB {
 		t.Fatalf("targets = %q, %v, header %q", got, err, rs.lastHeader())
 	}
-	got, err = runReview(t, "", "notes", "--project", reviewProjectA)
-	if err != nil || got != `{"notes":{"comments":[]}}` || rs.lastHeader() != reviewProjectA {
+	got, err = runReview(t, "", "notes", "--project", reviewProjectA, "--scope", "card:"+reviewCardA)
+	if err != nil || got != `{"notes":{"comments":[{"id":"na"}]}}` || rs.lastHeader() != reviewProjectA {
 		t.Fatalf("notes = %q, %v, header %q", got, err, rs.lastHeader())
 	}
 	got, err = runReview(t, `{"comment":"hi"}`, "save", "--project", reviewProjectA)
@@ -118,6 +143,34 @@ func TestReviewTargetsNotesAndSaveSendTheGivenProject(t *testing.T) {
 	}
 	if rs.bodies[len(rs.bodies)-1] != `{"comment":"hi"}` {
 		t.Fatalf("save posted %q", rs.bodies[len(rs.bodies)-1])
+	}
+}
+
+func TestReviewNotesListOnlyTheGivenDestination(t *testing.T) {
+	rs := signedInTo(t)
+
+	for scope, want := range map[string]string{
+		"card:" + reviewCardA:                      `{"notes":{"comments":[{"id":"na"}]}}`,
+		"card:" + reviewCardB:                      `{"notes":{"comments":[{"id":"nb"}]}}`,
+		"epic:" + reviewCardA:                      `{"notes":{"comments":[]}}`,
+		"cards:" + reviewCardA + "," + reviewCardB: `{"notes":{"comments":[]}}`,
+	} {
+		got, err := runReview(t, "", "notes", "--project", reviewProjectA, "--scope", scope)
+		if err != nil || got != want {
+			t.Fatalf("%s = %q, %v, want %q", scope, got, err, want)
+		}
+		if q, _ := url.ParseQuery(rs.lastQuery()); q.Get("scope") != scope || q.Get("surface") != "ios-simulator" {
+			t.Fatalf("%s sent query %q", scope, rs.lastQuery())
+		}
+	}
+}
+
+func TestReviewTargetsAsksForParentCards(t *testing.T) {
+	rs := signedInTo(t)
+
+	got, err := runReview(t, "", "targets", "--project", reviewProjectA, "--parent")
+	if err != nil || got != `{"cards":[{"cardId":"e1","number":9,"title":"Epic","status":"todo"}]}` || rs.lastQuery() != "parent=1" {
+		t.Fatalf("parent targets = %q, %v, query %q", got, err, rs.lastQuery())
 	}
 }
 
@@ -147,8 +200,8 @@ func TestReviewStatus(t *testing.T) {
 			t.Fatalf("%v = %q, %v, want %q", tc.args, got, err, tc.want)
 		}
 	}
-	if rs.lastHeader() != reviewOutsider {
-		t.Fatalf("last probe header %q", rs.lastHeader())
+	if rs.lastHeader() != reviewOutsider || rs.lastQuery() != "scope=&surface=ios-simulator" {
+		t.Fatalf("last probe header %q, query %q", rs.lastHeader(), rs.lastQuery())
 	}
 }
 
@@ -184,8 +237,8 @@ func TestReviewRefusesABadProjectBeforeAnyRequest(t *testing.T) {
 
 	for _, args := range [][]string{
 		{"targets", "--project", "nope"},
-		{"notes", "--project", strings.ToUpper(reviewProjectA)},
-		{"notes"},
+		{"notes", "--project", strings.ToUpper(reviewProjectA), "--scope", "card:" + reviewCardA},
+		{"notes", "--scope", "card:" + reviewCardA},
 		{"save", "--project", "nope"},
 		{"status", "--project", "nope"},
 	} {
@@ -199,10 +252,28 @@ func TestReviewRefusesABadProjectBeforeAnyRequest(t *testing.T) {
 	}
 }
 
+func TestReviewNotesRefusesABadScopeBeforeAnyRequest(t *testing.T) {
+	rs := signedInTo(t)
+
+	for _, scope := range []string{"", "card:", "card:nope", "card:" + strings.ToUpper(reviewCardA), "board:" + reviewCardA, "cards:", "cards:" + reviewCardA + ","} {
+		args := []string{"notes", "--project", reviewProjectA}
+		if scope != "" {
+			args = append(args, "--scope", scope)
+		}
+		got, err := runReview(t, "", args...)
+		if err == nil || !strings.Contains(got, `"error":"invalid_scope"`) {
+			t.Fatalf("%q = %q, %v", scope, got, err)
+		}
+	}
+	if len(rs.requests) != 0 {
+		t.Fatalf("requests sent: %v", rs.requests)
+	}
+}
+
 func TestReviewMapsServerRefusals(t *testing.T) {
 	signedInTo(t)
 
-	got, err := runReview(t, "", "notes", "--project", reviewOutsider)
+	got, err := runReview(t, "", "notes", "--project", reviewOutsider, "--scope", "card:"+reviewCardA)
 	if err == nil || !strings.Contains(got, `"error":"not_owner"`) {
 		t.Fatalf("notes = %q, %v", got, err)
 	}

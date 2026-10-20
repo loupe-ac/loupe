@@ -85,12 +85,20 @@ func (c *Client) siteReviewRequest(ctx context.Context, method, path string, pay
 	}
 }
 
-// SiteReviewTargets searches the open cards of the project. It returns the
-// `cards` list of the answer.
-func (c *Client) SiteReviewTargets(ctx context.Context, query string) (json.RawMessage, error) {
-	path := "/api/board/cards"
+// SiteReviewTargets searches the open cards of the project. With parent set it
+// lists only the cards that can hold children, which the epic mode picks from.
+// It returns the `cards` list of the answer.
+func (c *Client) SiteReviewTargets(ctx context.Context, query string, parent bool) (json.RawMessage, error) {
+	params := url.Values{}
 	if query != "" {
-		path += "?q=" + url.QueryEscape(query)
+		params.Set("q", query)
+	}
+	if parent {
+		params.Set("parent", "1")
+	}
+	path := "/api/board/cards"
+	if len(params) > 0 {
+		path += "?" + params.Encode()
 	}
 	raw, err := c.siteReviewRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
@@ -100,10 +108,14 @@ func (c *Client) SiteReviewTargets(ctx context.Context, query string) (json.RawM
 	return field(raw, "cards")
 }
 
-// SiteReviewNotes lists the pending notes of the iOS Simulator surface. It
-// returns the answer as the server sent it.
-func (c *Client) SiteReviewNotes(ctx context.Context) (json.RawMessage, error) {
-	return c.siteReviewRequest(ctx, http.MethodGet, "/api/site-review/review?surface=ios-simulator", nil)
+// SiteReviewNotes lists the pending iOS Simulator notes of one destination,
+// such as `card:<id>`. The server lists every note of the project when the
+// scope is absent, so the request always sends it, and an empty scope lists
+// nothing. It returns the answer as the server sent it.
+func (c *Client) SiteReviewNotes(ctx context.Context, scope string) (json.RawMessage, error) {
+	params := url.Values{"surface": {"ios-simulator"}, "scope": {scope}}
+
+	return c.siteReviewRequest(ctx, http.MethodGet, "/api/site-review/review?"+params.Encode(), nil)
 }
 
 // SaveSiteReviewNote posts one feedback request body and returns the answer.
