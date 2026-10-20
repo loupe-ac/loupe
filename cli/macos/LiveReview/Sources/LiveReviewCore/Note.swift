@@ -1,16 +1,18 @@
 import CryptoKit
 import Foundation
 
-/// Where a note goes: an open card, or a new card that the note titles.
+/// Where a note goes. These are the three choices of the web widget: one card for the
+/// review, a new card for each note, or a new card for each note under an epic.
 public enum Destination: Equatable, Sendable {
+    /// The first save makes the card, and the later notes of the review join it.
+    case reviewCard
     case card(id: String, label: String)
-    case newCard(parentId: String?)
+    case eachNote(parentId: String?)
 
-    /// After a save the review keeps the card the first note made.
     public func afterSave(_ result: SaveResult) -> Destination {
         switch self {
-        case .card: return self
-        case .newCard: return .card(id: result.cardId, label: result.label)
+        case .reviewCard: return .card(id: result.cardId, label: result.label)
+        case .card, .eachNote: return self
         }
     }
 }
@@ -66,6 +68,11 @@ public struct Note: Sendable {
         self.deliveryId = deliveryId
     }
 
+    /// A note saves only with text and a marked image, because the helper refuses an empty image.
+    public static func canSave(body: String, jpeg: Data) -> Bool {
+        !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !jpeg.isEmpty
+    }
+
     private struct Target: Encodable {
         var cardId: String?
         var newCard: NewCard?
@@ -92,7 +99,8 @@ public struct Note: Sendable {
         let target: Target
         switch destination {
         case let .card(id, _): target = Target(cardId: id)
-        case let .newCard(parent): target = Target(newCard: .init(parentCardId: parent))
+        case .reviewCard: target = Target(newCard: .init(parentCardId: nil))
+        case let .eachNote(parent): target = Target(newCard: .init(parentCardId: parent))
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]

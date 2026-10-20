@@ -8,6 +8,11 @@ func appKitRect(_ frame: Frame) -> NSRect {
     return NSRect(x: frame.x, y: height - frame.y - frame.height, width: frame.width, height: frame.height)
 }
 
+/// The inverse of `appKitRect`, for a point such as `NSEvent.mouseLocation`.
+func globalPoint(_ point: NSPoint) -> CGPoint {
+    CGPoint(x: point.x, y: (NSScreen.screens.first?.frame.height ?? 0) - point.y)
+}
+
 let markColor = NSColor(calibratedRed: 1.0, green: 0.55, blue: 0.0, alpha: 1)
 
 enum MouseKind { case down, drag, up }

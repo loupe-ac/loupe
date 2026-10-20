@@ -36,7 +36,8 @@ final class AppModel: ObservableObject {
     private var lastMove = Date.distantPast
     private var drawing: [CGPoint]?
     private var freezing = false
-    private var placedFor: String?
+    private var placed = false
+    private var windows: [Located] = []
     private var deliveries = DeliveryKeeper()
     private var statusInFlight = false
     private var signInShownAt: Date?
@@ -47,7 +48,7 @@ final class AppModel: ObservableObject {
     @Published var authError: String?
     @Published var project: String?
     @Published var projects: [Project] = []
-    @Published var destination: Destination = .newCard(parentId: nil)
+    @Published var destination: Destination = .reviewCard
     @Published var targets: [TargetCard] = []
     @Published var parents: [TargetCard] = []
     @Published var openNotes: [OpenNote] = []
@@ -58,6 +59,7 @@ final class AppModel: ObservableObject {
     @Published var note = ""
     @Published var saving = false
     @Published var message: String?
+    @Published var notice: String?
 
     init(options: LaunchOptions) {
         self.options = options
@@ -73,6 +75,7 @@ final class AppModel: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.overlay.passThrough(NSEvent.modifierFlags.contains(.option))
+            self?.followPointer()
         }
         refreshAuth()
     }
@@ -143,7 +146,7 @@ final class AppModel: ObservableObject {
     func choose(project id: String) {
         project = id
         preference.remember(id, for: options.folder)
-        destination = .newCard(parentId: nil)
+        destination = .reviewCard
         loadDestinations()
     }
 
@@ -186,18 +189,34 @@ final class AppModel: ObservableObject {
             let devices = await Simctl.bootedDevices()
             let found = DeviceHub.locate(devices: devices)
             await MainActor.run {
-                self.located = found
-                if let found { self.placePanel(beside: found) }
-                self.updateOverlays()
+                self.windows = found
+                self.followPointer(force: true)
             }
         }
     }
 
-    /// Puts the panel window next to the Device Hub window, once for each device.
+    /// Reviews the simulator window under the pointer. A capture in progress keeps its window.
+    private func followPointer(force: Bool = false) {
+        guard reviewing, capture == nil, !freezing, drawing == nil else { return }
+        let index = WindowChooser.choose(
+            ids: windows.map(\.device.udid), windows: windows.map(\.window),
+            pointer: globalPoint(NSEvent.mouseLocation), current: located?.device.udid
+        )
+        let next = index.map { windows[$0] }
+        let same = next?.device.udid == located?.device.udid && next?.screen == located?.screen && next?.window == located?.window
+        guard force || !same else { return }
+        if !same {
+            located = next
+            hover = nil
+        }
+        if let next { placePanel(beside: next) }
+        updateOverlays()
+    }
+
+    /// Puts the panel window next to the first Device Hub window it finds, once.
     private func placePanel(beside found: Located) {
-        guard placedFor != found.device.udid,
-              let window = NSApp.windows.first(where: { !($0 is NSPanel) && $0.isVisible }) else { return }
-        placedFor = found.device.udid
+        guard !placed, let window = NSApp.windows.first(where: { !($0 is NSPanel) && $0.isVisible }) else { return }
+        placed = true
         let hub = appKitRect(found.window)
         let visible = NSScreen.screens.first(where: { $0.frame.intersects(hub) })?.visibleFrame ?? hub
         var x = hub.maxX + 12
@@ -291,7 +310,7 @@ final class AppModel: ObservableObject {
         drawing = nil
         if var current = capture {
             current.strokes.append(stroke)
-            capture = rerender(current)
+            if let next = rerender(current) { capture = next } else { message = Self.renderFailed }
             updateOverlays()
         } else {
             pendingStrokes.append(stroke)
@@ -300,13 +319,16 @@ final class AppModel: ObservableObject {
 
     private var pendingStrokes: [[CGPoint]] = []
 
-    private func rerender(_ capture: Capture) -> Capture {
-        var next = capture
+    private static let renderFailed = "The marked screenshot could not be drawn. Pick or draw again."
+
+    private func rerender(_ capture: Capture) -> Capture? {
         let marks = Marks(
             box: capture.element.map { capture.mapper.pixels($0.frame) },
             strokes: capture.strokes.compactMap { capture.mapper.stroke(from: $0) }
         )
-        if let image = ImageRenderer.render(png: capture.png, marks: marks) { next.image = image }
+        guard let image = ImageRenderer.render(png: capture.png, marks: marks), !image.jpeg.isEmpty else { return nil }
+        var next = capture
+        next.image = image
 
         return next
     }
@@ -327,13 +349,18 @@ final class AppModel: ObservableObject {
                     self.message = "The simulator screenshot failed."
                     return
                 }
-                var made = Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: mapper, png: png,
+                let made = Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: mapper, png: png,
                                    strokes: strokes + self.pendingStrokes,
                                    image: RenderedImage(jpeg: Data(), width: 0, height: 0))
                 self.pendingStrokes = []
-                made = self.rerender(made)
-                self.capture = made
+                guard let rendered = self.rerender(made) else {
+                    self.message = Self.renderFailed
+                    self.updateOverlays()
+                    return
+                }
+                self.capture = rendered
                 self.message = nil
+                self.notice = nil
                 self.updateOverlays()
             }
         }
@@ -356,7 +383,9 @@ final class AppModel: ObservableObject {
     }
 
     var canSave: Bool {
-        capture != nil && !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !saving
+        guard let capture, !saving else { return false }
+
+        return Note.canSave(body: note, jpeg: capture.image.jpeg)
     }
 
     func save() {
@@ -376,12 +405,14 @@ final class AppModel: ObservableObject {
         draft.deliveryId = id
         saving = true
         message = nil
+        notice = nil
         Task {
             do {
                 let result = try await client.save(project: project, note: draft)
                 await MainActor.run {
                     self.saving = false
                     self.destination = self.destination.afterSave(result)
+                    self.notice = result.notice
                     self.note = ""
                     self.deliveries.reset()
                     self.clearCapture()
@@ -400,7 +431,9 @@ final class AppModel: ObservableObject {
     var destinationLabel: String {
         switch destination {
         case let .card(_, label): return label
-        case .newCard: return "New card"
+        case .reviewCard: return "One card for this review"
+        case .eachNote(nil): return "A new card for each note"
+        case let .eachNote(parentId?): return "A card for each note under \(parents.first { $0.id == parentId }?.label ?? "an epic")"
         }
     }
 

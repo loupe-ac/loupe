@@ -81,3 +81,16 @@ public extension ScreenMapper {
         })
     }
 }
+
+/// Picks the simulator window the owner works in: the one under the pointer, else the
+/// current one while it stays open, else the first.
+public enum WindowChooser {
+    public static func choose(ids: [String], windows: [Frame], pointer: CGPoint?, current: String?) -> Int? {
+        if let pointer, let under = windows.firstIndex(where: { $0.contains(x: Double(pointer.x), y: Double(pointer.y)) }) {
+            return under
+        }
+        if let current, let kept = ids.firstIndex(of: current) { return kept }
+
+        return ids.isEmpty ? nil : 0
+    }
+}

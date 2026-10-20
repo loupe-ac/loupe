@@ -46,6 +46,8 @@ public struct SaveResult: Equatable, Sendable {
     public var number: Int
     public var label: String
     public var url: String
+
+    public var notice: String { "Note saved to \(label)" }
 }
 
 /// Runs the `loupe` binary for every request to Loupe. Argument lists only, no shell.

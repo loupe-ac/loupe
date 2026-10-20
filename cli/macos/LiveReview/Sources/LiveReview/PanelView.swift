@@ -123,6 +123,7 @@ struct ReviewView: View {
             }
             SaveRow(model: model)
             if let message = model.message { Text(message).font(.caption).foregroundStyle(.red) }
+            if let notice = model.notice { Text(notice).font(.caption).foregroundStyle(.secondary) }
             OpenNotesView(model: model)
         }
     }
@@ -136,11 +137,12 @@ struct DestinationRow: View {
             Text("Saves to").font(.caption).foregroundStyle(.secondary)
             Spacer()
             Menu(model.destinationLabel) {
-                Button("New card for this review") { model.choose(destination: .newCard(parentId: nil)) }
+                Button("One card for this review") { model.choose(destination: .reviewCard) }
+                Button("A new card for each note") { model.choose(destination: .eachNote(parentId: nil)) }
                 if !model.parents.isEmpty {
-                    Menu("New card under an epic") {
+                    Menu("A card for each note under an epic") {
                         ForEach(model.parents) { epic in
-                            Button(epic.label) { model.choose(destination: .newCard(parentId: epic.id)) }
+                            Button(epic.label) { model.choose(destination: .eachNote(parentId: epic.id)) }
                         }
                     }
                 }

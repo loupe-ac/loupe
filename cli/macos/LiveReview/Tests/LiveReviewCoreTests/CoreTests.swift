@@ -166,27 +166,29 @@ final class NoteTests: XCTestCase {
     }
 
     func testNewCardNoteUnderAnEpic() throws {
-        let note = Note(body: "b", destination: .newCard(parentId: "e1"), native: native(), jpeg: Data(), deliveryId: "d")
+        let note = Note(body: "b", destination: .eachNote(parentId: "e1"), native: native(), jpeg: Data(), deliveryId: "d")
         let target = try object(note)["target"] as! [String: Any]
         XCTAssertNil(target["cardId"])
         XCTAssertEqual((target["newCard"] as? [String: Any])?["parentCardId"] as? String, "e1")
     }
 
     func testNewCardNoteWithoutParentSendsAnEmptyObject() throws {
-        let note = Note(body: "b", destination: .newCard(parentId: nil), native: native(), jpeg: Data(), deliveryId: "d")
-        let target = try object(note)["target"] as! [String: Any]
-        XCTAssertEqual((target["newCard"] as? [String: Any])?.count, 0)
+        for destination in [Destination.reviewCard, .eachNote(parentId: nil)] {
+            let note = Note(body: "b", destination: destination, native: native(), jpeg: Data(), deliveryId: "d")
+            let target = try object(note)["target"] as! [String: Any]
+            XCTAssertEqual((target["newCard"] as? [String: Any])?.count, 0)
+        }
     }
 
     func testSameDeliveryIdGivesSameBytes() throws {
-        let note = Note(body: "b", destination: .newCard(parentId: nil), native: native(), jpeg: Data([9]), deliveryId: "d")
+        let note = Note(body: "b", destination: .reviewCard, native: native(), jpeg: Data([9]), deliveryId: "d")
         XCTAssertEqual(try note.json(), try note.json())
     }
 
     func testDeliveryIdIsStableForSameContentAndNewWhenItChanges() throws {
         let frame = Frame(x: 1, y: 2, width: 3, height: 4)
         func note(body: String = "b", frame: Frame = frame, jpeg: Data = Data([1])) -> Note {
-            Note(body: body, destination: .newCard(parentId: nil), native: native(element: NoteElement(role: "Button", label: "x", identifier: nil, frame: frame)), jpeg: jpeg)
+            Note(body: body, destination: .reviewCard, native: native(element: NoteElement(role: "Button", label: "x", identifier: nil, frame: frame)), jpeg: jpeg)
         }
         var keeper = DeliveryKeeper()
         let first = try keeper.id(for: note())
@@ -201,10 +203,43 @@ final class NoteTests: XCTestCase {
         XCTAssertNotEqual(try keeper.id(for: note(body: "other", frame: Frame(x: 9, y: 2, width: 3, height: 4), jpeg: Data([2]))), image)
     }
 
-    func testFirstSaveFixesTheCard() {
+    func testOnlyTheReviewCardBecomesTheSavedCard() {
         let result = SaveResult(commentId: "n", cardId: "c9", number: 9, label: "#9 Review", url: "")
-        XCTAssertEqual(Destination.newCard(parentId: "e").afterSave(result), .card(id: "c9", label: "#9 Review"))
+        XCTAssertEqual(Destination.reviewCard.afterSave(result), .card(id: "c9", label: "#9 Review"))
+        XCTAssertEqual(Destination.eachNote(parentId: nil).afterSave(result), .eachNote(parentId: nil))
+        XCTAssertEqual(Destination.eachNote(parentId: "e").afterSave(result), .eachNote(parentId: "e"))
         XCTAssertEqual(Destination.card(id: "c1", label: "#1").afterSave(result), .card(id: "c1", label: "#1"))
+    }
+
+    func testSaveNoticeNamesTheCard() {
+        let result = SaveResult(commentId: "n", cardId: "c12", number: 12, label: "#12 Review: Find your treadmill", url: "")
+        XCTAssertEqual(result.notice, "Note saved to #12 Review: Find your treadmill")
+    }
+
+    func testANoteNeedsTextAndAMarkedImageToSave() {
+        XCTAssertTrue(Note.canSave(body: "Too small", jpeg: Data([0xFF, 0xD8])))
+        XCTAssertFalse(Note.canSave(body: "Too small", jpeg: Data()))
+        XCTAssertFalse(Note.canSave(body: "  \n", jpeg: Data([0xFF, 0xD8])))
+    }
+}
+
+final class WindowChooserTests: XCTestCase {
+    private let ids = ["pro", "e"]
+    private let windows = [Frame(x: 0, y: 0, width: 400, height: 800), Frame(x: 500, y: 0, width: 400, height: 800)]
+
+    func testPicksTheWindowUnderThePointer() {
+        XCTAssertEqual(WindowChooser.choose(ids: ids, windows: windows, pointer: CGPoint(x: 600, y: 100), current: "pro"), 1)
+        XCTAssertEqual(WindowChooser.choose(ids: ids, windows: windows, pointer: CGPoint(x: 100, y: 100), current: "e"), 0)
+    }
+
+    func testKeepsTheCurrentWindowWhenThePointerIsElsewhere() {
+        XCTAssertEqual(WindowChooser.choose(ids: ids, windows: windows, pointer: CGPoint(x: 2000, y: 100), current: "e"), 1)
+        XCTAssertEqual(WindowChooser.choose(ids: ids, windows: windows, pointer: nil, current: "e"), 1)
+    }
+
+    func testFallsBackToTheFirstWindow() {
+        XCTAssertEqual(WindowChooser.choose(ids: ids, windows: windows, pointer: nil, current: "gone"), 0)
+        XCTAssertNil(WindowChooser.choose(ids: [], windows: [], pointer: CGPoint(x: 1, y: 1), current: nil))
     }
 }
 
@@ -297,7 +332,7 @@ final class HelperClientTests: XCTestCase {
     func testSaveSendsTheNoteOnStdin() async throws {
         let record = Recorder()
         let facts = NativeFacts(appName: "A", bundleId: "b", deviceName: "d", udid: "u", osVersion: "1", screenTitle: "", element: nil)
-        let note = Note(body: "hello", destination: .newCard(parentId: nil), native: facts, jpeg: Data([1]), deliveryId: "d")
+        let note = Note(body: "hello", destination: .reviewCard, native: facts, jpeg: Data([1]), deliveryId: "d")
         let result = try await client("{\"commentId\":\"n\",\"cardId\":\"c\",\"number\":5,\"label\":\"#5 T\",\"url\":\"u\"}", record: record)
             .save(project: "p", note: note)
         XCTAssertEqual(result.number, 5)
@@ -342,7 +377,7 @@ final class HelperClientTests: XCTestCase {
         let script = try loupeScript("echo '{\"error\":\"early\",\"message\":\"bye\"}'\nexit 1")
         defer { script.cleanup() }
         let facts = NativeFacts(appName: "A", bundleId: "b", deviceName: "d", udid: "u", osVersion: "1", screenTitle: "", element: nil)
-        let note = Note(body: "hello", destination: .newCard(parentId: nil), native: facts, jpeg: Data(count: 1 << 20))
+        let note = Note(body: "hello", destination: .reviewCard, native: facts, jpeg: Data(count: 1 << 20))
         for _ in 0..<5 {
             do {
                 _ = try await HelperClient(loupePath: script.path).save(project: "p", note: note)

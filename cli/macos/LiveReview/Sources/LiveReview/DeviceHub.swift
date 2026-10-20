@@ -95,15 +95,14 @@ enum DeviceHub {
         return nil
     }
 
-    /// Finds the Device Hub window whose title names a booted device, and its screen group.
-    static func locate(devices: [BootedDevice]) -> Located? {
-        guard let pid, let windows = attribute(AXUIElementCreateApplication(pid), "AXWindows") as? [AXUIElement] else { return nil }
-        for window in windows {
+    /// Every Device Hub window whose title names a booted device, with its screen group.
+    static func locate(devices: [BootedDevice]) -> [Located] {
+        guard let pid, let windows = attribute(AXUIElementCreateApplication(pid), "AXWindows") as? [AXUIElement] else { return [] }
+
+        return windows.compactMap { window in
             guard let device = DeviceMatcher.match(title: string(window, "AXTitle"), in: devices),
-                  let group = findScreenGroup(in: window), let screen = frame(group), let box = frame(window) else { continue }
+                  let group = findScreenGroup(in: window), let screen = frame(group), let box = frame(window) else { return nil }
             return Located(device: device, screen: screen, window: box, group: group)
         }
-
-        return nil
     }
 }
