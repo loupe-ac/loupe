@@ -97,7 +97,7 @@ func TestNothingDeclaresTheServer(t *testing.T) {
 
 func TestALocalEntryIsWhatClaudeCodeUses(t *testing.T) {
 	dir, resolved := project(t)
-	configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.ac/mcp"}}}}}`)
+	configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"type":"http","url":"https://app.loupe.ac/mcp"}}}}}`)
 
 	got := effective(t, dir)
 	if ScopeLocal != got.Scope {
@@ -115,7 +115,7 @@ func TestALocalEntryIsWhatClaudeCodeUses(t *testing.T) {
 // Checking local alone reports nothing and leaves the repository inert.
 func TestAUserEntryIsUsedWhenNoLocalOneExists(t *testing.T) {
 	dir, _ := project(t)
-	configure(t, `{"mcpServers":{"loupe":{"url":"https://loupe.ac/mcp"}}}`)
+	configure(t, `{"mcpServers":{"loupe":{"url":"https://app.loupe.ac/mcp"}}}`)
 
 	got := effective(t, dir)
 	if ScopeUser != got.Scope {
@@ -167,7 +167,7 @@ func TestTheRepositoryFileIsTheLowestScope(t *testing.T) {
 func TestAnEntryForAnotherDirectoryIsNotOurs(t *testing.T) {
 	dir, _ := project(t)
 	_, other := project(t)
-	configure(t, `{"projects":{"`+other+`":{"mcpServers":{"loupe":{"url":"https://loupe.ac/mcp"}}}}}`)
+	configure(t, `{"projects":{"`+other+`":{"mcpServers":{"loupe":{"url":"https://app.loupe.ac/mcp"}}}}}`)
 
 	if got := effective(t, dir); got.Declared() {
 		t.Fatalf("Effective: got %+v, want nothing declared", got)
@@ -206,7 +206,7 @@ func TestWhatCountsAsStartingTheShim(t *testing.T) {
 		{"an extra argument", Entry{Command: "loupe", Args: []string{"mcp", "--verbose"}}, false},
 		{"no argument", Entry{Command: "loupe"}, false},
 		{"another program", Entry{Command: "loupe-proxy", Args: []string{"mcp"}}, false},
-		{"an http entry", Entry{Type: "http", URL: "https://loupe.ac/mcp"}, false},
+		{"an http entry", Entry{Type: "http", URL: "https://app.loupe.ac/mcp"}, false},
 	} {
 		if got := c.e.StartsMcpShim(); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
@@ -218,7 +218,7 @@ func TestWhatCountsAsStartingTheShim(t *testing.T) {
 // credential to a terminal and into whatever records that terminal.
 func TestTheSummaryCarriesNoCredential(t *testing.T) {
 	dir, resolved := project(t)
-	configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.ac/mcp","headers":{"Authorization":"Bearer s3cr3t"}}}}}}`)
+	configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"type":"http","url":"https://app.loupe.ac/mcp","headers":{"Authorization":"Bearer s3cr3t"}}}}}}`)
 
 	if summary := effective(t, dir).Entry.Summary(); strings.Contains(summary, "s3cr3t") || strings.Contains(summary, "Bearer") {
 		t.Fatalf("Summary leaks the credential: %q", summary)
@@ -257,7 +257,7 @@ func TestAddAsksClaudeCodeForTheUserScope(t *testing.T) {
 // changed nothing, and the person restarts their agent for no reason.
 func TestAddFailsWhenClaudeCodeReportsSuccessAndChangesNothing(t *testing.T) {
 	dir, _ := project(t)
-	configure(t, `{"mcpServers":{"loupe":{"url":"https://loupe.ac/mcp"}}}`)
+	configure(t, `{"mcpServers":{"loupe":{"url":"https://app.loupe.ac/mcp"}}}`)
 	fakeClaude(t, "echo 'MCP server loupe already exists in user config'\nexit 0")
 
 	err := Add(context.Background(), dir, "loupe", ScopeUser)
@@ -271,7 +271,7 @@ func TestAddFailsWhenClaudeCodeReportsSuccessAndChangesNothing(t *testing.T) {
 
 func TestRemoveAsksClaudeCodeForTheScopeItFoundTheEntryIn(t *testing.T) {
 	dir, resolved := project(t)
-	cfg := configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"url":"https://loupe.ac/mcp"}}}}}`)
+	cfg := configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"url":"https://app.loupe.ac/mcp"}}}}}`)
 	log := fakeClaude(t, "echo '{}' > "+filepath.Join(cfg, configName))
 
 	if err := Remove(context.Background(), dir, "loupe", ScopeLocal); err != nil {
@@ -289,7 +289,7 @@ func TestRemoveAsksClaudeCodeForTheScopeItFoundTheEntryIn(t *testing.T) {
 
 func TestRemoveFailsWhenTheEntryIsStillThere(t *testing.T) {
 	dir, resolved := project(t)
-	configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"url":"https://loupe.ac/mcp"}}}}}`)
+	configure(t, `{"projects":{"`+resolved+`":{"mcpServers":{"loupe":{"url":"https://app.loupe.ac/mcp"}}}}}`)
 	fakeClaude(t, "exit 0")
 
 	if err := Remove(context.Background(), dir, "loupe", ScopeLocal); err == nil {

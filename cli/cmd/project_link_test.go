@@ -250,7 +250,7 @@ func declareOther(t *testing.T, dir string) {
 	}
 	home := t.TempDir()
 	t.Setenv("CLAUDE_CONFIG_DIR", home)
-	body := `{"projects":{"` + resolved + `":{"mcpServers":{"loupe":{"type":"http","url":"https://loupe.ac/mcp"}}}}}`
+	body := `{"projects":{"` + resolved + `":{"mcpServers":{"loupe":{"type":"http","url":"https://app.loupe.ac/mcp"}}}}}`
 	if err := os.WriteFile(filepath.Join(home, ".claude.json"), []byte(body), 0o600); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}

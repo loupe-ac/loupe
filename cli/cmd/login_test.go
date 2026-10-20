@@ -101,7 +101,7 @@ func TestLoginDefaultsToTheHostedInstance(t *testing.T) {
 	if !strings.Contains(flag.Usage, DefaultBaseURL) {
 		t.Fatalf("--url help must name the default, got %q", flag.Usage)
 	}
-	if DefaultBaseURL != "https://loupe.ac" {
+	if DefaultBaseURL != "https://app.loupe.ac" {
 		t.Fatalf("DefaultBaseURL: got %q, want the hosted instance", DefaultBaseURL)
 	}
 }

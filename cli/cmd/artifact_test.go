@@ -97,7 +97,7 @@ func TestAPushNeedsExactlyOneOfNameAndArtifact(t *testing.T) {
 }
 
 func TestTheLinkJoinsTheInstanceAndThePath(t *testing.T) {
-	if got := artifactLink("https://loupe.ac/", "/projects/p/artifacts/a"); got != "https://loupe.ac/projects/p/artifacts/a" {
+	if got := artifactLink("https://app.loupe.ac/", "/projects/p/artifacts/a"); got != "https://app.loupe.ac/projects/p/artifacts/a" {
 		t.Fatalf("link = %q", got)
 	}
 }

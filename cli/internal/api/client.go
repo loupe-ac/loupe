@@ -188,8 +188,11 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := c.http.Do(req)
-	if err != nil || resp.StatusCode != http.StatusUnauthorized {
+	if err != nil {
 		return resp, err
+	}
+	if resp.StatusCode != http.StatusUnauthorized {
+		return c.unansweredCheck(resp)
 	}
 
 	fresh, err := c.tokens.Refresh(req.Context(), token)
@@ -209,7 +212,33 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 	}
 	retry.Header.Set("Authorization", "Bearer "+fresh)
 
-	return c.http.Do(retry)
+	resp, err = c.http.Do(retry)
+	if err != nil {
+		return resp, err
+	}
+
+	return c.unansweredCheck(resp)
+}
+
+// retiredAppHost is the address the app had before it moved to app.loupe.ac.
+// Its host now serves the marketing site and answers an HTML 404 to every API
+// path. A self-hosted server that is too old for a route also answers an HTML
+// 404, so only this host gets the message below.
+const retiredAppHost = "loupe.ac"
+
+// ErrInstanceUnanswered marks an HTML 404 from the retired app host. The API
+// answers its own 404 in JSON.
+var ErrInstanceUnanswered = errors.New("the instance address does not answer")
+
+// unansweredCheck turns an HTML 404 into ErrInstanceUnanswered, once for every
+// call that goes through do.
+func (c *Client) unansweredCheck(resp *http.Response) (*http.Response, error) {
+	if resp.StatusCode != http.StatusNotFound || !strings.EqualFold(resp.Request.URL.Hostname(), retiredAppHost) || !strings.HasPrefix(strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type"))), "text/html") {
+		return resp, nil
+	}
+	resp.Body.Close()
+
+	return nil, fmt.Errorf("%w: %s serves no API (HTTP 404). Run `loupe login --url <instance address>` to sign in to the right instance", ErrInstanceUnanswered, c.baseURL)
 }
 
 // BridgeHeader names the bridge on the events routes. The server serves them
