@@ -25,6 +25,7 @@ final readonly class CardView
      * @param ?CardProgress                                       $progress        null for a card that is not an epic
      * @param array<string, AgentReviewSummary>                   $agentReviews    keyed by the id of the pull request link, with no entry for a link that has no review
      * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts       in link order
+     * @param array<string, array{width: int, height: int}>       $screenshotSizes keyed by comment id, with no entry for a note that has no screenshot
      */
     public function __construct(
         public Card $card,
@@ -37,6 +38,7 @@ final readonly class CardView
         public StoredCardMarkers $markers = new StoredCardMarkers([]),
         public array $agentReviews = [],
         public array $artifacts = [],
+        public array $screenshotSizes = [],
     ) {
     }
 }

@@ -6,6 +6,7 @@ namespace App\Module\Board\Command;
 
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardLink;
+use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Repository\CardArtifactRepository;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardRepository;
@@ -13,6 +14,8 @@ use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Board\Service\CardAgentReviews;
 use App\Module\Board\Service\CardPullRequestStates;
 use App\Module\Board\Service\StoredCardMarkers;
+use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 
 final readonly class ShowCardHandler
@@ -26,6 +29,7 @@ final readonly class ShowCardHandler
         private CardTypeCatalog $catalog,
         private CardAgentReviews $agentReviews,
         private CardArtifactRepository $cardArtifacts,
+        private SiteReviewScreenshotRepository $siteReviewScreenshots,
     ) {
     }
 
@@ -44,9 +48,11 @@ final readonly class ShowCardHandler
         $pullRequestStates = $this->pullRequestStates->forCards([$command->card]);
         $cardId = (string) ($command->card->id ?? throw new \LogicException('A stored card has an id.'));
 
+        $links = $this->cardSiteReviewComments->findForCard($command->card);
+
         return new CardView(
             $command->card,
-            $this->cardSiteReviewComments->findForCard($command->card),
+            $links,
             array_map(
                 static fn (CardLink $link): RelatedCard => new RelatedCard($link->otherThan($command->card), $link->kindFor($command->card)),
                 $this->cardLinks->findForCard($command->card),
@@ -58,6 +64,7 @@ final readonly class ShowCardHandler
             $command->card->column->terminal ? new StoredCardMarkers([]) : StoredCardMarkers::of($command->card),
             $this->agentReviews->forCards([$command->card]),
             $this->cardArtifacts->findWithLatestVersionForCards([$command->card])[$cardId] ?? [],
+            $this->siteReviewScreenshots->findSizesByComments(array_map(static fn (CardSiteReviewComment $link): SiteReviewComment => $link->comment, $links)),
         );
     }
 }

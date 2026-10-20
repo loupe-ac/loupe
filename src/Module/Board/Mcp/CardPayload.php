@@ -25,6 +25,7 @@ use App\Module\Board\Service\PullRequestStateView;
 use App\Module\Board\Service\StoredCardMarkers;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
+use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
 use App\Module\Workflow\Contract\CardTypeCatalog;
 use App\Module\Workflow\Contract\MarkerKind;
 use App\Module\Workflow\Contract\StoredMarker;
@@ -40,7 +41,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  * @phpstan-type PullRequestStateSummary array{state: string, draft: bool, checks: string, failedChecks: list<string>, mergeability: string, review: string, readyToMerge: bool, refreshedAt: string}
  * @phpstan-type CardPullRequestSummary array{pullRequestId: string, url: string, forge: string, repository: ?string, number: ?int, state: ?PullRequestStateSummary, agentReview: ?AgentReviewSummary}
  * @phpstan-type FeedbackAnchorSummary array{selector: string, text: string, quote: ?string, quotePrefix: ?string, quoteSuffix: ?string}
- * @phpstan-type FeedbackSummary array{id: string, url: ?string, anchors: list<FeedbackAnchorSummary>, body: string, hasDrawing: bool, status: string, context: ?string, createdAt: string}
+ * @phpstan-type ScreenshotSize array{width: int, height: int}
+ * @phpstan-type FeedbackSummary array{id: string, url: ?string, surface: string, native: ?array<string, mixed>, screenshot: ?ScreenshotSize, anchors: list<FeedbackAnchorSummary>, body: string, hasDrawing: bool, status: string, context: ?string, createdAt: string}
  * @phpstan-type CardDocumentSummary array{documentId: string, title: string, status: string}
  * @phpstan-type CardArtifactSummary array{artifactId: string, name: string, versionNumber: int, archived: bool, path: string}
  * @phpstan-type CardRelatedCardSummary array{cardId: string, number: int, title: string, status: string, kind: string}
@@ -64,6 +66,7 @@ final readonly class CardPayload
         private CardAgentReviews $agentReviews,
         private TranslatorInterface $translator,
         private CardArtifactRepository $cardArtifacts,
+        private SiteReviewScreenshotRepository $siteReviewScreenshots,
     ) {
     }
 
@@ -77,7 +80,7 @@ final readonly class CardPayload
     {
         $card = $view->card;
 
-        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->markers, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? []);
+        return $this->render($card, $view->siteReviewLinks, $view->relatedCards, $view->children, $view->pullRequestStates, $this->agentReviews->forCards([$card]), null === $card->id ? null : $this->cardPauses->findActiveForCard($card), $view->markers, $this->cardArtifacts->findWithLatestVersionForCards([$card])[(string) $card->id] ?? [], $this->siteReviewScreenshots->findSizesByComments(self::commentsOf($view->siteReviewLinks)));
     }
 
     /**
@@ -101,6 +104,7 @@ final readonly class CardPayload
         $reviews = $this->agentReviews->forCards($cards);
         $pausesByCard = $this->cardPauses->findActiveForCardIds(array_values(array_filter(array_map(static fn (Card $card): ?Uuid => $card->id, $cards))));
         $artifactsByCard = $this->cardArtifacts->findWithLatestVersionForCards($cards);
+        $sizes = $this->siteReviewScreenshots->findSizesByComments(self::commentsOf(array_merge(...array_values($commentsByCard))));
 
         return array_map(
             fn (Card $card): array => $this->render(
@@ -116,6 +120,7 @@ final readonly class CardPayload
                 $pausesByCard[(string) $card->id] ?? null,
                 StoredCardMarkers::of($card),
                 $artifactsByCard[(string) $card->id] ?? [],
+                $sizes,
             ),
             $cards,
         );
@@ -167,10 +172,11 @@ final readonly class CardPayload
      * @param list<Card>                                          $children     empty for a card whose type may not have children
      * @param array<string, AgentReviewSummary>                   $reviews      keyed by pull request link id
      * @param list<array{link: CardArtifact, versionNumber: int}> $artifacts
+     * @param array<string, ScreenshotSize>                       $sizes        the screenshot size of each comment that has one, keyed by comment id
      *
      * @return CardSummary
      */
-    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, StoredCardMarkers $markers, array $artifacts): array
+    private function render(Card $card, array $links, array $relatedCards, array $children, PullRequestStates $states, array $reviews, ?CardPause $pause, StoredCardMarkers $markers, array $artifacts, array $sizes): array
     {
         $progress = $this->catalog->forProject($card->project->requireId())->get($card->type)->children
             ? ['done' => \count(array_filter($children, static fn (Card $child): bool => $child->column->terminal)), 'total' => \count($children)]
@@ -226,7 +232,7 @@ final readonly class CardPayload
             // Feedback a reviewer left on this card. Read only: an agent marks
             // one addressed through feedback_mark_addressed.
             'siteReviewComments' => array_map(
-                static fn (CardSiteReviewComment $link): array => self::feedback($link->comment),
+                static fn (CardSiteReviewComment $link): array => self::feedback($link->comment, $sizes[(string) $link->comment->id] ?? null),
                 $links,
             ),
             // The kind reads from this card's side: the target of a blocks
@@ -278,13 +284,18 @@ final readonly class CardPayload
     /**
      * One feedback item, in the shape card_get and feedback_list share.
      *
+     * @param ScreenshotSize|null $screenshot the size of the note's screenshot, null for a note with none
+     *
      * @return FeedbackSummary
      */
-    public static function feedback(SiteReviewComment $comment): array
+    public static function feedback(SiteReviewComment $comment, ?array $screenshot): array
     {
         return [
             'id' => (string) $comment->id,
             'url' => $comment->url,
+            'surface' => $comment->surface->value,
+            'native' => $comment->native,
+            'screenshot' => $screenshot,
             'anchors' => array_values(array_map(
                 static fn (SiteReviewCommentAnchor $anchor): array => [
                     'selector' => $anchor->selector,
@@ -305,6 +316,16 @@ final readonly class CardPayload
             'context' => $comment->context,
             'createdAt' => $comment->createdAt->format(\DATE_ATOM),
         ];
+    }
+
+    /**
+     * @param list<CardSiteReviewComment> $links
+     *
+     * @return list<SiteReviewComment>
+     */
+    private static function commentsOf(array $links): array
+    {
+        return array_map(static fn (CardSiteReviewComment $link): SiteReviewComment => $link->comment, $links);
     }
 
     /** @return ?PullRequestStateSummary */

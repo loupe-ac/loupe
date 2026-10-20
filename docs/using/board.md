@@ -990,8 +990,11 @@ It pages the same way `card_list` does: `perPage` holds 25 rows by default and
 row is the same summary `card_list` returns, so call `card_get` for a body.
 
 `card_get` returns one card with its full Markdown body, every pull request
-linked to it, and all of its feedback, under `siteReviewComments`. Use a card id that
-`card_list`, `card_search` or `card_create` gave you, or the card number.
+linked to it, and all of its feedback, under `siteReviewComments`. Each feedback item
+carries `surface`, `native` and `screenshot`, and the answer carries the images of the
+pending notes after the JSON, at most ten, with `imagesOmitted` for the rest. See
+[A feedback item says where it came from](mcp.md#a-feedback-item-says-where-it-came-from-and-may-carry-an-image).
+Use a card id that `card_list`, `card_search` or `card_create` gave you, or the card number.
 
 Each entry of `pullRequests` carries `state`, the last state Loupe read:
 `state`, `draft`, `checks`, `failedChecks`, `mergeability`, `review`,
@@ -1184,7 +1187,11 @@ preview page can lock the widget to one card, through `data-context` and
 `SITE_REVIEW_WIDGET_CONTEXT`. See [Live review](live-review.md#a-preview-page-locks-the-card).
 
 The card page's **Feedback** tab lists each note with its page, its elements
-and its status. A note moves through three states:
+and its status. A note from a native app shows the source **iOS simulator**
+instead of the widget, and no page link. Its **Captured elements** list holds the
+device, the iOS version, the app, the screen title and the element the reviewer
+picked. A note that has a screenshot shows a thumbnail. Press the thumbnail to
+open the full image in a dialog. A note moves through three states:
 
 | Status | Who sets it |
 |---|---|

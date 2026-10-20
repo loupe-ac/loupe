@@ -1,17 +1,51 @@
+{% set native = link.comment.surface.value == 'ios-simulator' ? (link.comment.native ?? {}) : null %}
+{% set screenshotSize = screenshotSizes[link.comment.id ~ ''] ?? null %}
 <article class="lp-conversation-entry" data-site-feedback="{{ link.comment.id }}">
-    <twig:Ds:Avatar icon="lucide:globe-2" size="sm" shape="square" tone="tint" />
+    <twig:Ds:Avatar :icon="native is null ? 'lucide:globe-2' : 'lucide:smartphone'" size="sm" shape="square" tone="tint" />
     <div>
-        <div class="lp-card-feedback-list__head"><span>{{ 'site_review.source.widget'|trans }}</span><twig:Ds:StatusChip :modifier="link.comment.status.value" :dot="false">{{ ('site_review.comment.status.' ~ link.comment.status.value)|trans }}</twig:Ds:StatusChip></div>
+        <div class="lp-card-feedback-list__head"><span>{{ (native is null ? 'site_review.source.widget' : 'site_review.source.ios_simulator')|trans }}</span><twig:Ds:StatusChip :modifier="link.comment.status.value" :dot="false">{{ ('site_review.comment.status.' ~ link.comment.status.value)|trans }}</twig:Ds:StatusChip></div>
         <p class="lp-inbox-item__answer-text">{{ link.comment.body }}</p>
         {% if link.comment.url is not null and (link.comment.url starts with 'https://' or link.comment.url starts with 'http://') %}
             <a href="{{ link.comment.url }}" rel="noopener noreferrer nofollow" target="_blank">{{ 'site_review.comment.open_source'|trans }}</a>
         {% endif %}
+        {% if screenshotSize is not null %}
+            <div data-controller="modal" class="lp-feedback-screenshot">
+                <button type="button" class="lp-feedback-screenshot__trigger" data-action="click->modal#open" aria-label="{{ 'site_review.feedback.screenshot_open'|trans }}">
+                    <img class="lp-feedback-screenshot__thumbnail" src="{{ path('app_card_feedback_screenshot', {id: link.id}) }}" width="{{ screenshotSize.width }}" height="{{ screenshotSize.height }}" alt="{{ 'site_review.feedback.screenshot_alt'|trans }}" loading="lazy">
+                </button>
+                <twig:Ds:Dialog aria-labelledby="feedback-screenshot-title-{{ link.id }}" data-action="cancel->modal#close">
+                    <h3 class="lp-dialog-title" id="feedback-screenshot-title-{{ link.id }}">{{ 'site_review.feedback.screenshot_title'|trans }}</h3>
+                    <img class="lp-feedback-screenshot__full" src="{{ path('app_card_feedback_screenshot', {id: link.id}) }}" width="{{ screenshotSize.width }}" height="{{ screenshotSize.height }}" alt="{{ 'site_review.feedback.screenshot_alt'|trans }}" loading="lazy">
+                    <twig:Ds:FormActions>
+                        <twig:Ds:Button type="button" data-action="click->modal#close">{{ 'site_review.feedback.screenshot_close'|trans }}</twig:Ds:Button>
+                    </twig:Ds:FormActions>
+                </twig:Ds:Dialog>
+            </div>
+        {% endif %}
         <details class="lp-site-review-selector">
             <summary>{{ 'site_review.feedback.captured_elements'|trans }}</summary>
-            {% for anchor in link.comment.anchors %}
-                {% if anchor.text is not empty %}<blockquote>{{ anchor.text }}</blockquote>{% endif %}
-                <code>{{ anchor.selector }}</code>
-            {% else %}<p>{{ 'site_review.comment.general_page'|trans }}</p>{% endfor %}
+            {% if native is not null %}
+                {% set app = [native.app.name ?? null, native.app.bundleId ?? null]|filter(part => part is not empty)|join(' / ') %}
+                {% set facts = {
+                    'site_review.native.device': native.device.name ?? null,
+                    'site_review.native.os_version': native.device.osVersion ?? null,
+                    'site_review.native.app': app,
+                    'site_review.native.screen': native.screen.title ?? null,
+                    'site_review.native.element_role': native.element.role ?? null,
+                    'site_review.native.element_label': native.element.label ?? null,
+                    'site_review.native.element_identifier': native.element.identifier ?? null,
+                } %}
+                <dl class="lp-feedback-native-facts">
+                    {% for key, value in facts|filter(value => value is not empty) %}
+                        <div><dt>{{ key|trans }}</dt><dd>{{ value }}</dd></div>
+                    {% endfor %}
+                </dl>
+            {% else %}
+                {% for anchor in link.comment.anchors %}
+                    {% if anchor.text is not empty %}<blockquote>{{ anchor.text }}</blockquote>{% endif %}
+                    <code>{{ anchor.selector }}</code>
+                {% else %}<p>{{ 'site_review.comment.general_page'|trans }}</p>{% endfor %}
+            {% endif %}
         </details>
         <div class="lp-feedback-detail__actions">
             {% if link.comment.status.value != 'resolved' and is_granted(constant('App\\Module\\Board\\Security\\CardFeedbackVoter::RESOLVE'), link) %}

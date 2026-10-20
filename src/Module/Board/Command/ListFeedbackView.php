@@ -10,12 +10,14 @@ use App\Module\SiteReview\Entity\SiteReviewComment;
 final readonly class ListFeedbackView
 {
     /**
-     * @param list<SiteReviewComment>              $feedback in project order
-     * @param array<string, CardSiteReviewComment> $links    the card link of each item, keyed by comment id
+     * @param list<SiteReviewComment>                       $feedback in project order
+     * @param array<string, CardSiteReviewComment>          $links    the card link of each item, keyed by comment id
+     * @param array<string, array{width: int, height: int}> $sizes    the screenshot size of each item that has one, keyed by comment id
      */
     public function __construct(
         public array $feedback,
         public array $links,
+        public array $sizes,
     ) {
     }
 }

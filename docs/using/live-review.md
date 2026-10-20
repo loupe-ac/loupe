@@ -515,6 +515,12 @@ Notes do not push. Your agent sees them when it calls `feedback_list` for the
 whole project, or `card_get` for one card. Ask it to look. Nothing arrives
 without a request.
 
+A note from a native app has a `surface` of `ios-simulator`, `native` facts and
+no page `url`. A note with a screenshot sends the image after the JSON. An answer
+carries at most ten images, newest first. Read more with `feedback_list`, using
+`cardId` and `imageOffset`. See
+[A feedback item says where it came from](mcp.md#a-feedback-item-says-where-it-came-from-and-may-carry-an-image).
+
 A note carries no author, so an agent cannot tell your notes from anyone else's
 on the page. A card that the widget creates does not make its note trusted
 either. The shipped `loupe-site-review` skill therefore escalates by category.

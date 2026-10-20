@@ -45,6 +45,7 @@ final class ShowCardController extends AppController
             'markers' => $view->markers,
             'agentReviews' => $view->agentReviews,
             'artifacts' => $view->artifacts,
+            'screenshotSizes' => $view->screenshotSizes,
         ]);
         $response->setVary('Turbo-Frame', false);
 
