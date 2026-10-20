@@ -4611,7 +4611,7 @@
             </trans-unit>
             <trans-unit id="landing.features.site_review.text">
                 <source>landing.features.site_review.text</source>
-                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card.</target>
+                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card. Review an iOS app in the simulator the same way.</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.caption">
                 <source>landing.features.site_review.caption</source>
