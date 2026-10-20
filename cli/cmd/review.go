@@ -45,11 +45,16 @@ func reviewFail(err error) reviewError {
 		return failure
 	case errors.Is(err, api.ErrProjectNotCovered):
 		return reviewError{"not_owner", "this login does not cover the project"}
-	case errors.Is(err, api.ErrScopeMissing), errors.Is(err, config.ErrNotLoggedIn):
+	case signedOut(err):
 		return reviewError{"signed_out", "sign in again to allow site review"}
 	}
 
 	return reviewError{"request_failed", err.Error()}
+}
+
+// signedOut reports an error that only a new sign-in fixes.
+func signedOut(err error) bool {
+	return errors.Is(err, api.ErrScopeMissing) || errors.Is(err, config.ErrNotLoggedIn) || errors.Is(err, oauth.ErrLoginExpired)
 }
 
 // reviewPrint writes one JSON object and a newline.
@@ -118,7 +123,7 @@ func newReviewStatusCmd() *cobra.Command {
 			}
 		}
 		cfg, err := config.Load()
-		if errors.Is(err, config.ErrNotLoggedIn) {
+		if signedOut(err) {
 			return state("signedOut")
 		}
 		if err != nil {
@@ -128,6 +133,9 @@ func newReviewStatusCmd() *cobra.Command {
 		probe := project
 		if probe == "" {
 			sites, err := client.Sites(cmd.Context())
+			if signedOut(err) {
+				return state("signedOut")
+			}
 			if err != nil {
 				return err
 			}
@@ -142,7 +150,7 @@ func newReviewStatusCmd() *cobra.Command {
 			return state("ok")
 		case errors.Is(err, api.ErrProjectNotCovered):
 			return state("notOwner")
-		case errors.Is(err, api.ErrScopeMissing):
+		case signedOut(err):
 			return state("signedOut")
 		}
 

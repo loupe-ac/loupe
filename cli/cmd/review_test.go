@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ubermuda/loupe/cli/internal/config"
 )
@@ -325,5 +326,40 @@ func TestReviewSignInPrintsTheCodeThenOk(t *testing.T) {
 	}
 	if _, err := config.Load(); err != nil {
 		t.Fatalf("tokens not saved: %v", err)
+	}
+}
+
+func TestReviewReportsAnExpiredLoginAsSignedOut(t *testing.T) {
+	useLoginConfigHome(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/oauth/token" {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `{"error":"invalid_grant"}`)
+
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(server.Close)
+	save := func() {
+		login := testLogin(server.URL)
+		login.OAuth.ExpiresAt = time.Now().Add(-time.Hour)
+		if err := config.Save(login); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, args := range [][]string{{"status"}, {"status", "--project", reviewProjectA}} {
+		save()
+		if got, err := runReview(t, "", args...); err != nil || got != `{"state":"signedOut"}` {
+			t.Fatalf("%v = %q, %v", args, got, err)
+		}
+	}
+	for _, args := range [][]string{{"projects"}, {"notes", "--project", reviewProjectA, "--scope", "card:" + reviewCardA}} {
+		save()
+		if got, err := runReview(t, "", args...); err == nil || !strings.Contains(got, `"error":"signed_out"`) {
+			t.Fatalf("%v = %q, %v", args, got, err)
+		}
 	}
 }
