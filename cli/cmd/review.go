@@ -93,11 +93,13 @@ func checkReviewProject(id string) error {
 
 func newReviewCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:    "review",
-		Short:  "Helpers for the Live review panel",
-		Hidden: true,
+		Use:   "review",
+		Short: "Review a native app in the local simulator",
+		Long: "Live review lets you test a native app in the local iOS simulator and save notes " +
+			"with a screenshot to a Loupe project. Run loupe review ios to open the panel. " +
+			"The other subcommands are helpers that the panel runs.",
 	}
-	cmd.AddCommand(newReviewStatusCmd(), newReviewSignInCmd(), newReviewProjectsCmd(), newReviewTargetsCmd(), newReviewNotesCmd(), newReviewSaveCmd())
+	cmd.AddCommand(newReviewIOSCmd(), newReviewStatusCmd(), newReviewSignInCmd(), newReviewProjectsCmd(), newReviewTargetsCmd(), newReviewNotesCmd(), newReviewSaveCmd())
 
 	return cmd
 }
