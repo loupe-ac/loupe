@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
 
-# Deliberately not path-filtered, unlike the docs deploy. These are required
+# Deliberately not path-filtered. These are required
 # checks: a filtered check never reports on a pull request it skipped, and a
 # pull request waiting for a report that will never arrive cannot be merged at
 # all. The local documentation-only carve-out in AGENTS.md is about a human
@@ -192,6 +192,33 @@ jobs:
         with:
           node: 'true'
       - run: just js-test
+
+  # Builds the docs as the image build does, and checks that each page carries
+  # the two chrome markers and its page navigation. The Dockerfile `docs` stage
+  # runs the same steps, so a red image build shows up here first.
+  docs-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # Not ./.github/actions/setup, which installs the composer dependencies.
+      # The fold reads and writes text and loads nothing.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+      - run: php bin/changelog.php --keep
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: website
+      - run: npm run build
+        working-directory: website
+      - run: npm run check
+        working-directory: website
 
   # The Go CLI needs neither PHP nor the project's dependencies, so this leg
   # skips the setup action and takes just alone; the recipe brings its own

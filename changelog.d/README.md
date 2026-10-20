@@ -30,11 +30,12 @@ workflow earns none either.
 
 ## The fragments reach a reader twice
 
-The documentation site folds them on every deploy. `.github/workflows/docs.yml`
-runs `php bin/changelog.php --keep` before Astro reads `docs/`, so the published
-changelog carries every fragment that has merged. `--keep` leaves the files
-alone, because that checkout is thrown away and nothing commits the result. Your
-entry is published as soon as the branch lands. Nobody has to do anything.
+The documentation site folds them on every image build. The `docs` stage of
+`docker/prod/Dockerfile` runs `php bin/changelog.php --keep` before Astro reads
+`docs/`, so the published changelog carries every fragment that has merged.
+`--keep` leaves the files alone, because that build is thrown away and nothing
+commits the result. Your entry is published with the next deploy. Nobody has to
+do anything.
 
 A release folds them for good:
 

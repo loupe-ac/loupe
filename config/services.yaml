@@ -60,6 +60,8 @@ parameters:
     app.mcp.server_name: 'loupe'
     # Documentation site, linked from the landing page.
     app.docs_url: 'https://ubermuda.github.io/loupe'
+    # Where the container puts the stamped docs. The sitemap lists the pages found there.
+    app.site.docs_dir: '/var/www/docs'
     # Revision of the terms of service, as the date they took effect. Bumping it
     # re-prompts every account for acceptance on their next HTML navigation.
     app.terms.version: '2026-08-20'

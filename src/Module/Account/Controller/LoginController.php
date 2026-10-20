@@ -38,7 +38,7 @@ class LoginController extends AppController
         ]);
 
         // A visitor who reaches this page is signed out, so a cookie that says otherwise is stale.
-        $stale = $request->cookies->has(SignedInCookie::NAME) ? $this->signedInCookie->clear($request->isSecure()) : null;
+        $stale = $request->cookies->has(SignedInCookie::NAME) ? $this->signedInCookie->clear($request->isSecure(), $request->getHost()) : null;
         if (null !== $stale) {
             $response->headers->setCookie($stale);
         }

@@ -34,12 +34,13 @@ terraform/
 graft/
 cli/*
 !cli/install.sh
-# The marketing site is a separate Astro project, deployed on its own; the PHP
-# runtime never serves it. With its node_modules and dist it is ~234 MB, which
-# was over half the image.
-website/
+# The docs build (the `docs` stage of docker/prod/Dockerfile) needs website/ and
+# docs/, but not the 234 MB of node_modules and dist that a local build leaves.
+website/node_modules/
+website/dist/
+website/.astro/
+website/.env
 .vite/
-docs/
 test-results/
 .agents/
 .superpowers/

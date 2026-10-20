@@ -93,10 +93,17 @@ so restart `just docs` after you change it.
 
 ## Deployment
 
-`.github/workflows/docs.yml` builds this site and deploys it to GitHub Pages.
-The `base` is now `/docs` and `site` is `https://loupe.ac`, so a Pages copy
-shows broken asset paths until the docs move to loupe.ac.
-It runs on each push to `main` that changes `docs/`, `website/` or a changelog
-fragment. Before the build, it folds the changelog fragments into the
-published changelog, and commits nothing. The site is served at
-`https://ubermuda.github.io/loupe/`.
+The `docs` stage of `docker/prod/Dockerfile` builds this site into the app
+image. It folds the changelog fragments into the published changelog first, and
+commits nothing. The runtime stage keeps the output in `/var/www/docs-build`.
+
+When a container starts with `SITE_HOST` set, the entrypoint runs
+`bin/console app:site:stamp-docs`. The command copies the build to
+`/var/www/docs`, and puts the site bar and footer of that instance in place of
+the two markers of each page. It stops the start when a marker is left or a
+link names an unknown host. nginx serves `/var/www/docs` under `/docs/` on the
+site host only.
+
+The `docs-build` job of `.github/workflows/ci.yml` builds the site on each pull
+request and runs `npm run check`. A docs change goes live with the next deploy
+of the app.
