@@ -27,6 +27,9 @@ final readonly class SiteHost
         string $appUrl,
     ) {
         $host = strtolower(trim($configured ?? ''));
+        if (str_contains($host, '://')) {
+            $host = (string) parse_url($host, \PHP_URL_HOST);
+        }
         $this->host = '' === $host ? null : $host;
         $this->appUrl = rtrim($appUrl, '/');
         $appHost = parse_url($appUrl, \PHP_URL_HOST);

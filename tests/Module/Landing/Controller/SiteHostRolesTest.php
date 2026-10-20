@@ -79,7 +79,6 @@ final class SiteHostRolesTest extends WebTestCase
         yield 'api' => ['/api/projects'];
         yield 'install script' => ['/install.sh'];
         yield 'widget script' => ['/site-review/widget.js'];
-        yield 'webhook' => ['/webhooks/stripe'];
         yield 'unknown path' => ['/no-such-page'];
     }
 
@@ -88,9 +87,37 @@ final class SiteHostRolesTest extends WebTestCase
     {
         $client = $this->split();
 
-        $this->get($client, self::SITE, $path, method: str_starts_with($path, '/webhooks/') ? Request::METHOD_POST : Request::METHOD_GET);
+        $this->get($client, self::SITE, $path, method: Request::METHOD_GET);
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function wrongMethods(): iterable
+    {
+        yield 'webhook read' => [Request::METHOD_GET, '/webhooks/stripe'];
+        yield 'webhook write' => [Request::METHOD_POST, '/webhooks/stripe'];
+        yield 'app page written' => [Request::METHOD_POST, '/projects'];
+        yield 'site page written' => [Request::METHOD_POST, '/privacy'];
+    }
+
+    #[DataProvider('wrongMethods')]
+    public function test_the_site_host_answers_a_wrong_method_with_a_plain_404(string $method, string $path): void
+    {
+        $client = $this->split();
+
+        $this->get($client, self::SITE, $path, method: $method);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function test_the_app_host_keeps_its_405(): void
+    {
+        $client = $this->split();
+
+        $this->get($client, 'localhost', '/webhooks/stripe');
+
+        self::assertResponseStatusCodeSame(405);
     }
 
     public function test_the_same_paths_still_answer_on_the_app_host(): void
@@ -177,6 +204,44 @@ final class SiteHostRolesTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.lp-home');
         self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+    }
+
+    public function test_the_waitlist_notify_form_posts_on_the_site_host_without_a_session(): void
+    {
+        $client = $this->split();
+        $crawler = $client->request(Request::METHOD_GET, '/', server: ['HTTP_HOST' => self::SITE]);
+        $form = $crawler->filter('turbo-frame#waitlist-notify form')->form(['waitlist_join_form[email]' => 'site-host-notify@example.com']);
+
+        $client->submit($form, [], ['HTTP_HOST' => self::SITE, 'HTTP_ORIGIN' => 'http://'.self::SITE]);
+
+        self::assertResponseRedirects();
+        self::assertStringStartsWith('/waitlist/notify?joined=1', (string) $client->getResponse()->headers->get('Location'));
+        self::assertFalse($client->getResponse()->headers->has('Set-Cookie'));
+    }
+
+    public function test_the_waitlist_notify_form_refuses_a_bad_token_on_the_site_host(): void
+    {
+        $client = $this->split();
+        $crawler = $client->request(Request::METHOD_GET, '/', server: ['HTTP_HOST' => self::SITE]);
+        $form = $crawler->filter('turbo-frame#waitlist-notify form')->form([
+            'waitlist_join_form[email]' => 'site-host-bad-token@example.com',
+            'waitlist_join_form[_token]' => 'forged',
+        ]);
+
+        $client->submit($form, [], ['HTTP_HOST' => self::SITE, 'HTTP_ORIGIN' => 'http://'.self::SITE]);
+
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function test_the_waitlist_notify_form_refuses_a_foreign_origin_on_the_site_host(): void
+    {
+        $client = $this->split();
+        $crawler = $client->request(Request::METHOD_GET, '/', server: ['HTTP_HOST' => self::SITE]);
+        $form = $crawler->filter('turbo-frame#waitlist-notify form')->form(['waitlist_join_form[email]' => 'site-host-origin@example.com']);
+
+        $client->submit($form, [], ['HTTP_HOST' => self::SITE, 'HTTP_ORIGIN' => 'http://evil.example', 'HTTP_REFERER' => 'http://evil.example/']);
+
+        self::assertResponseStatusCodeSame(422);
     }
 
     public function test_an_instance_with_no_site_host_sends_a_signed_out_visitor_to_sign_in(): void

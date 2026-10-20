@@ -256,10 +256,6 @@ set_env "$root/.env.local" WORKTREE_DB_SUFFIX "_wt_$token"
 # main .env's http://localhost.
 set_env "$root/.env.local" DEFAULT_URI "https://$host"
 
-# One host plays both roles in a worktree, so its home page and app routes
-# answer on the same address.
-set_env "$root/.env.local" SITE_HOST "$host"
-
 # This worktree's own Mailpit, so concurrent e2e suites cannot read (or clear)
 # each other's mail. Read by MAILER_DSN in .env.dev; must match the network
 # alias declared for the mailpit service in docker/compose/worktree.yaml.

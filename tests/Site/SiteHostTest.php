@@ -26,6 +26,14 @@ final class SiteHostTest extends TestCase
         self::assertSame('https://loupe.ac', $siteHost->origin());
     }
 
+    public function test_an_address_is_read_as_its_host(): void
+    {
+        $siteHost = new SiteHost('https://app.loupe.dev.localhost:8443/', 'https://app.loupe.dev.localhost');
+
+        self::assertSame('app.loupe.dev.localhost', $siteHost->host);
+        self::assertFalse($siteHost->isSplit());
+    }
+
     public function test_the_app_host_as_site_host_is_one_host_with_both_roles(): void
     {
         $siteHost = new SiteHost('localhost', 'http://localhost:8080/');

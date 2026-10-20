@@ -95,6 +95,7 @@ final class SiteChromeTest extends KernelTestCase
         self::assertCount(1, $button);
         self::assertNotNull($button->attr('hidden'));
         self::assertStringContainsString('Go to app', $html);
+        self::assertCount(2, (new Crawler('<body>'.$html.'</body>'))->filter('[data-site-chrome="signed-out"]'));
     }
 
     public function test_the_footer_always_lists_blog_on_a_split_instance(): void
