@@ -23,6 +23,7 @@ final class ChromeCssExtractorTest extends TestCase
         @layer base {
           *, ::after, ::before { box-sizing: border-box; margin: 0; }
           html, :host { font-family: var(--font-sans); }
+          [hidden]:where(:not([hidden='until-found'])) { display: none !important; }
         }
         @layer utilities {
           .w-4 { width: calc(var(--spacing) * 4); }
@@ -80,6 +81,14 @@ final class ChromeCssExtractorTest extends TestCase
         $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertMatchesRegularExpression('/@media \(pointer: coarse\)\s*\{\s*\.lp-home-nav__link\s*\{/', $css);
+    }
+
+    /** The site bar hides one of its two primary actions, and `.lp-btn` sets a display that only this rule beats. */
+    public function test_it_keeps_the_base_rule_that_hides_a_hidden_element(): void
+    {
+        $css = new ChromeCssExtractor()->extract(self::CSS, '<p>plain</p>');
+
+        self::assertStringContainsString("[hidden]:where(:not([hidden='until-found'])) { display: none !important; }", $css);
     }
 
     public function test_it_keeps_only_the_custom_properties_that_the_kept_rules_use(): void
