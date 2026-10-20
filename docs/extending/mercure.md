@@ -1,9 +1,9 @@
 ---
 title: "Mercure hub"
-description: "Optional. Needed for site-review push, the live board and the live inbox count; without it, submissions still save."
+description: "Optional. Needed for live-review push, the live board and the live inbox count; without it, submissions still save."
 ---
 
-Site-review push, the live board, the worker run lists and the live inbox count are the things that need a Mercure hub. Leaving it off is a
+Live-review push, the live board, the worker run lists and the live inbox count are the things that need a Mercure hub. Leaving it off is a
 supported state: submissions reach the outbox first and a scheduled drain
 replays them once a hub exists, so nothing is lost — but nothing reaches a
 running agent either, and the publish failure is only logged. It degrades

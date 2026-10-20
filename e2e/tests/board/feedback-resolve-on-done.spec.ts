@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 
 test('moving a card to Done resolves the feedback on it', async ({ page }) => {
     const harness = await page.request.get(
-        '/dev/site-review-harness?email=' + encodeURIComponent(EMAIL),
+        '/dev/live-review-harness?email=' + encodeURIComponent(EMAIL),
     );
     expect(harness.ok()).toBeTruthy();
     const projectId = /data-project="([^"]+)"/.exec(await harness.text())?.[1];

@@ -10,7 +10,7 @@ const globals = require('globals');
 
 module.exports = [
     {
-        files: ['public/site-review/widget.js'],
+        files: ['public/live-review/widget.js'],
         ...js.configs.recommended,
         languageOptions: {
             ecmaVersion: 2022,

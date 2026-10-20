@@ -29,7 +29,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * buttons can show for that card. Any other value is ignored.
  */
 #[Route(
-    '/dev/site-review-harness',
+    '/dev/live-review-harness',
     name: 'app_dev_site_review_harness',
     methods: ['GET'],
 )]

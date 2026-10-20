@@ -21,7 +21,7 @@ A skill's name prefix says which side of the product you stand on. A `loupe-*` s
 | `project-deploy` | Deploying to production, `terraform apply`, verifying the live version |
 | `project-translations` | UI strings, translation keys, or adding a new locale |
 | `loupe-design-rebuild` | Rebuilding the Design System artifact from the export: `app:design-system:export`, the pending-rebuild to-do |
-| `project-site-review` | The site-review widget (`public/site-review/widget.js`), `src/Module/SiteReview/`, its API routes, dev harness or e2e specs |
+| `project-site-review` | The site-review widget (`public/live-review/widget.js`), `src/Module/SiteReview/`, its API routes, dev harness or e2e specs |
 | `loupe-documents` | Writing or revising any document submitted to the Loupe app through the `loupe` MCP |
 | `project-tech-design` | A technical design that settles an architecture, an entity model, a module boundary, or a subsystem |
 | `loupe-site-review` | Acting on site-review feedback through the `loupe` MCP: `feedback_list` or `card_get`, fixing feedback, `feedback_mark_addressed` |

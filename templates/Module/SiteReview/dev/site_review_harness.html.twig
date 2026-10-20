@@ -5,11 +5,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Site review harness</title>
+    <title>Live review harness</title>
 </head>
 <body>
-    <h1 id="title">Site review harness</h1>
-    <p>A dev-only page for exercising the site-review annotation widget in e2e tests.</p>
+    <h1 id="title">Live review harness</h1>
+    <p>A dev-only page for exercising the live-review annotation widget in e2e tests.</p>
     <button id="target-me" class="card" type="button">A button to comment on</button>
     {# `hide` drops a target so a reload leaves a saved multi-anchor comment degraded. #}
     {% if hide != 'target-two' %}
@@ -29,6 +29,6 @@
     <p id="prose-repeat">First run: the same phrase here. Second run: the same phrase here.</p>
     {# Room to scroll, and last so it pushes no target below the fold. #}
     <div id="spacer" style="height: 1600px"></div>
-    <script src="/site-review/widget.js" data-project="{{ projectId }}"{% if context %} data-context="{{ context }}"{% endif %}></script>
+    <script src="/live-review/widget.js" data-project="{{ projectId }}"{% if context %} data-context="{{ context }}"{% endif %}></script>
 </body>
 </html>

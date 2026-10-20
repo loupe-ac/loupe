@@ -64,7 +64,7 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertEqualsWithDelta(time() + 14 * 86400, new \DateTimeImmutable($body['expiresAt'])->getTimestamp(), 60);
         self::assertSame(1, (int) $this->connection->fetchOne("SELECT COUNT(*) FROM oauth_preview_tokens WHERE label = 'pr-12'"));
 
-        $this->call(Request::METHOD_GET, '/api/site-review/review', $body['token']);
+        $this->call(Request::METHOD_GET, '/api/live-review/review', $body['token']);
         self::assertResponseIsSuccessful();
     }
 
@@ -75,11 +75,11 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertNull($this->connection->fetchOne('SELECT last_used_at FROM oauth_preview_tokens WHERE access_token_id = :id', ['id' => $id]));
 
         $previewJwt = $this->mintJwt();
-        $this->call(Request::METHOD_GET, '/api/site-review/review', $previewJwt);
+        $this->call(Request::METHOD_GET, '/api/live-review/review', $previewJwt);
         self::assertResponseIsSuccessful();
         self::assertNotNull($this->connection->fetchOne('SELECT last_used_at FROM oauth_preview_tokens WHERE access_token_id = :id', ['id' => self::tokenIdOf($previewJwt)]));
 
-        $this->call(Request::METHOD_GET, '/api/site-review/review', $preview);
+        $this->call(Request::METHOD_GET, '/api/live-review/review', $preview);
         self::assertResponseIsSuccessful();
         self::assertSame(2, (int) $this->connection->fetchOne('SELECT COUNT(*) FROM oauth_preview_tokens'));
     }
@@ -103,9 +103,9 @@ final class PreviewTokenApiTest extends WebTestCase
         $this->call(Request::METHOD_POST, $path, $agent, '{"label":"pr-12"}');
         $second = $this->json()['token'];
 
-        $this->call(Request::METHOD_GET, '/api/site-review/review', $first);
+        $this->call(Request::METHOD_GET, '/api/live-review/review', $first);
         self::assertResponseStatusCodeSame(401);
-        $this->call(Request::METHOD_GET, '/api/site-review/review', $second);
+        $this->call(Request::METHOD_GET, '/api/live-review/review', $second);
         self::assertResponseIsSuccessful();
     }
 
@@ -173,7 +173,7 @@ final class PreviewTokenApiTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame(['revoked' => 1], $this->json());
 
-        $this->call(Request::METHOD_GET, '/api/site-review/review', $token);
+        $this->call(Request::METHOD_GET, '/api/live-review/review', $token);
         self::assertResponseStatusCodeSame(401);
 
         $this->call(Request::METHOD_DELETE, $this->mintPath((string) $this->project->id).'/pr%2012', $agent);

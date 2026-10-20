@@ -100,7 +100,7 @@ goreleaser release --snapshot --clean         # local dry run, no tag needed
 - A login with the **agent** scope. `loupe login` gets one in a browser, and a
   browser is the only way in. A machine with no browser anywhere cannot get a
   credential, and there is no replacement for CI. A project's widget token
-  carries the site-review scope instead. That token is embedded in page HTML and
+  carries the `site-review` scope instead. That token is embedded in page HTML and
   public by design, so the firewall refuses it on every endpoint the bridge
   needs.
 - A rule file, `rules.yaml`, beside `config.json`. See
@@ -1858,7 +1858,7 @@ that each worker gets.
 
 ## `loupe preview-token`
 
-Mints and revokes the preview token that signs the site-review widget in on a
+Mints and revokes the preview token that signs the live-review widget in on a
 preview site. A preview script calls `mint` when it creates a preview site,
 and `revoke` when it removes the site.
 

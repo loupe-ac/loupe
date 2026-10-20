@@ -21,7 +21,7 @@ test.beforeEach(async ({ page }) => {
 /** The site-review harness gives the account its project, so it runs first. */
 async function projectId(page: Page): Promise<string> {
     const harness = await page.request.get(
-        '/dev/site-review-harness?email=' + encodeURIComponent(EMAIL),
+        '/dev/live-review-harness?email=' + encodeURIComponent(EMAIL),
     );
     expect(harness.ok()).toBeTruthy();
     await page.goto('/');

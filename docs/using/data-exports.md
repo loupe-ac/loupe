@@ -37,12 +37,12 @@ epic. A card with no epic carries `null` in both. Each card also carries
 `laneEnabled`, which says whether the board draws an epic as a lane. Only an
 epic reads it, and every other card carries the default, `true`.
 
-Each card in `cards.json` also carries `feedback`, the site-review notes on the
+Each card in `cards.json` also carries `feedback`, the live-review notes on the
 card. Each item gives the `id`, the page `url`, the page `context`, the
 `anchors`, the `body`, the drawing `strokes`, the `status` and `createdAt`. The
-strokes are the full vector points. The archive has no separate site-review file.
+strokes are the full vector points. The archive has no separate live-review file.
 
-`card-verdicts.json` holds the verdicts the user sent from the site-review widget. Each
+`card-verdicts.json` holds the verdicts the user sent from the live-review widget. Each
 item gives the `id`, the `cardId`, the `kind`, the `message`, the copied `notes`,
 the `createdAt` and the `deliveries`. A delivery names the pull request, its
 `state`, its `reason`, the `reviewUrl` and the `settledAt`. The file never holds

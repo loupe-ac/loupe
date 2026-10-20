@@ -32,7 +32,7 @@ test('a reviewer signs in through the popup and saves a comment', async ({
 }) => {
     await suppressToolbar(page);
     await page.goto(
-        `/dev/site-review-harness?email=${encodeURIComponent(EMAIL)}`,
+        `/dev/live-review-harness?email=${encodeURIComponent(EMAIL)}`,
     );
 
     // A signed-out widget collapses its quick actions once the boot load
@@ -135,7 +135,7 @@ test('the collapsing quick actions never cover the Review button', async ({
         observer.observe(document, { childList: true, subtree: true });
     });
     await page.goto(
-        `/dev/site-review-harness?email=${encodeURIComponent(EMAIL)}`,
+        `/dev/live-review-harness?email=${encodeURIComponent(EMAIL)}`,
     );
 
     const read = (): Promise<Sampled> =>

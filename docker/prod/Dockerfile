@@ -6,7 +6,7 @@ FROM node:22-alpine AS widget
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts=false --no-audit --no-fund
-COPY public/site-review/widget.js public/site-review/widget.js
+COPY public/live-review/widget.js public/live-review/widget.js
 RUN npm run build:widget
 
 # Pinned by digest so the same Dockerfile always produces the same base layer:
@@ -76,7 +76,7 @@ RUN printf 'memory_limit=-1\n' > /usr/local/etc/php/conf.d/zz-build.ini
 
 COPY . .
 
-COPY --from=widget /build/var/widget.min.js public/site-review/widget.js
+COPY --from=widget /build/var/widget.min.js public/live-review/widget.js
 
 RUN set -eux; \
 	mkdir -p var/cache var/log var/share var/tailwind var/exports; \
