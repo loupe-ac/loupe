@@ -24,6 +24,15 @@ const noPanelMarker = "no-panel"
 // ErrPanelTooBig reports an archive whose panel is larger than the caps allow.
 var ErrPanelTooBig = errors.New("the panel in the archive is too large")
 
+// ErrPanelUnsafe reports an archive that holds an unsafe path, link or file
+// type. It points to a tampered archive, where ErrPanelTooBig and an error of
+// the disk do not.
+var ErrPanelUnsafe = errors.New("the archive holds an unsafe panel entry")
+
+func unsafeEntry(format string, args ...any) error {
+	return fmt.Errorf("%w: %s", ErrPanelUnsafe, fmt.Sprintf(format, args...))
+}
+
 // The caps stop an archive that unpacks to far more than a real panel. They
 // are variables so a test can lower them.
 var (
@@ -130,11 +139,11 @@ func ExtractPanel(archive []byte, destDir string) (bool, error) {
 // itself. inApp is false for an entry outside the app.
 func panelEntryPath(name string) (inner string, inApp bool, err error) {
 	if strings.HasPrefix(name, "/") || strings.Contains(name, "\\") {
-		return "", false, fmt.Errorf("the archive holds the unsafe path %q", name)
+		return "", false, unsafeEntry("the path %q", name)
 	}
 	for seg := range strings.SplitSeq(name, "/") {
 		if seg == ".." {
-			return "", false, fmt.Errorf("the archive holds the unsafe path %q", name)
+			return "", false, unsafeEntry("the path %q", name)
 		}
 	}
 	clean := path.Clean(name)
@@ -149,7 +158,7 @@ func panelEntryPath(name string) (inner string, inApp bool, err error) {
 func extractPanelEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) error {
 	if inner == "" {
 		if hdr.Typeflag != tar.TypeDir {
-			return fmt.Errorf("the archive holds %s as something other than a folder", PanelAppName)
+			return unsafeEntry("%s is not a folder", PanelAppName)
 		}
 
 		return nil
@@ -163,6 +172,9 @@ func extractPanelEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) e
 			return err
 		}
 		f, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if errors.Is(err, fs.ErrExist) {
+			return unsafeEntry("%q appears twice", hdr.Name)
+		}
 		if err != nil {
 			return err
 		}
@@ -180,7 +192,7 @@ func extractPanelEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) e
 		return f.Close()
 	case tar.TypeSymlink:
 		if !symlinkStaysInside(inner, hdr.Linkname) {
-			return fmt.Errorf("the archive holds the symlink %q to %q, which leaves the app", hdr.Name, hdr.Linkname)
+			return unsafeEntry("the symlink %q to %q leaves the app", hdr.Name, hdr.Linkname)
 		}
 		if err := ensurePanelDir(staging, path.Dir(inner)); err != nil {
 			return err
@@ -188,7 +200,7 @@ func extractPanelEntry(tr *tar.Reader, hdr *tar.Header, staging, inner string) e
 
 		return os.Symlink(hdr.Linkname, target)
 	default:
-		return fmt.Errorf("the archive holds %q, which is not a file, folder or symlink", hdr.Name)
+		return unsafeEntry("%q is not a file, folder or symlink", hdr.Name)
 	}
 }
 
@@ -224,7 +236,7 @@ func ensurePanelDir(root, rel string) error {
 			return err
 		}
 		if !info.IsDir() {
-			return fmt.Errorf("the archive writes through %q, which is not a folder", seg)
+			return unsafeEntry("an entry writes through %q, which is not a folder", seg)
 		}
 	}
 
@@ -251,7 +263,7 @@ func checkSymlinks(staging string) error {
 			return err
 		}
 		if resolved != real && !strings.HasPrefix(resolved, real+string(filepath.Separator)) {
-			return fmt.Errorf("the archive holds a symlink that leaves the app: %s", strings.TrimPrefix(p, staging+"/"))
+			return unsafeEntry("the symlink %s leaves the app", strings.TrimPrefix(p, staging+"/"))
 		}
 
 		return nil

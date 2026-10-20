@@ -214,6 +214,11 @@ Expected: the prompt names **Live review**. It does not name the terminal or
 `loupe`. After you tick **Live review** in the list, the panel leaves the
 permission view without a restart.
 
+Also note whether macOS asks for the Screen Recording permission. The panel
+reads the window titles of Device Hub with the window list of the system, and
+macOS can ask for that permission for another app's window titles. Write the
+answer in the result line.
+
 Result:
 
 ### The permission survives a rebuild with the same certificate

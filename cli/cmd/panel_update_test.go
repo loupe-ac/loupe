@@ -272,3 +272,115 @@ func TestUpdateInstallsThePanelOfANewBinaryThroughStage(t *testing.T) {
 		t.Fatalf("the panel is missing: %v", err)
 	}
 }
+
+func TestTheUpdaterInstallsTheMissingPanelOfACurrentBinary(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0")
+	gh.setArchive(panelArchive(t, "binary"))
+	h := darwinUpdater(t, gh, "1.0.0")
+
+	h.u.check(context.Background())
+
+	if data, err := os.ReadFile(panelPath(h.u.dir, "1.0.0")); err != nil || string(data) != "panel" {
+		t.Fatalf("panel = %q, %v", data, err)
+	}
+	if h.u.state().State != updateCurrent {
+		t.Fatalf("state = %+v", h.u.state())
+	}
+}
+
+func TestTheUpdaterInstallsTheMissingPanelWhenAnUpdateWaitsForTheOwner(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0", "cli/v1.2.0")
+	gh.setArchive(panelArchive(t, "binary"))
+	h := darwinUpdater(t, gh, "1.0.0")
+	h.auto = false
+
+	h.u.check(context.Background())
+
+	if _, err := os.Stat(panelPath(h.u.dir, "1.0.0")); err != nil {
+		t.Fatalf("the panel is missing: %v", err)
+	}
+	if h.u.state().State != updateOff {
+		t.Fatalf("state = %+v", h.u.state())
+	}
+}
+
+func TestAFailedPanelFetchLogsAndKeepsTheCheckCurrent(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0")
+	gh.setArchive(panelArchive(t, "binary"))
+	gh.checksums = []byte(strings.Repeat("0", 64) + "  " + gh.assetName() + "\n")
+	h := darwinUpdater(t, gh, "1.0.0")
+
+	res := h.u.run(context.Background(), false)
+
+	if !res.OK || res.Outcome != updateCurrent || h.events("update_panel_failed") != 1 {
+		t.Fatalf("result = %+v, log = %s", res, h.log.String())
+	}
+}
+
+func TestAPanelThatCannotBeWrittenDoesNotBlockTheBinary(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	gh.setArchive(panelArchive(t, "new binary"))
+	h := darwinUpdater(t, gh, "1.0.0")
+	if err := os.WriteFile(filepath.Join(h.u.dir, "live-review"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	h.u.check(context.Background())
+
+	if len(h.staged) != 1 {
+		t.Fatalf("hook calls = %v, log = %s", h.staged, h.log.String())
+	}
+	if data, err := os.ReadFile(update.StagePath(h.u.dir, "1.2.0")); err != nil || string(data) != "new binary" {
+		t.Fatalf("staged binary = %q, %v", data, err)
+	}
+	if h.events("update_stage_failed") != 1 {
+		t.Fatalf("log = %s", h.log.String())
+	}
+}
+
+func TestAFailedPanelLeavesNoMarkerSoALaterCheckRetries(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.2.0")
+	gh.setArchive(panelArchive(t, "new binary"))
+	h := darwinUpdater(t, gh, "1.0.0")
+	blocker := filepath.Join(h.u.dir, "live-review")
+	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h.u.check(context.Background())
+	if err := os.Remove(blocker); err != nil {
+		t.Fatal(err)
+	}
+
+	h.u.check(context.Background())
+
+	if _, err := os.Stat(panelPath(h.u.dir, "1.2.0")); err != nil {
+		t.Fatalf("the second check did not retry: %v", err)
+	}
+}
+
+func TestUpdatePrunesOldVersionsAfterTheSwap(t *testing.T) {
+	gh := newFakeGitHub(t, "new binary", "cli/v1.0.0", "cli/v1.2.0")
+	gh.setArchive(panelArchive(t, "new binary"))
+	self := darwinSelfUpdate(t, gh, "1.0.0")
+	dir := mustConfigDir(t)
+	if _, err := update.ExtractPanel(panelArchive(t, "x"), update.PanelDir(dir, "0.9.0")); err != nil {
+		t.Fatal(err)
+	}
+	versionDir(t, dir, "0.9.0")
+
+	if _, err := updateCmd(t, self); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, gone := range []string{update.PanelDir(dir, "0.9.0"), filepath.Join(dir, "versions", "0.9.0")} {
+		if _, err := os.Stat(gone); err == nil {
+			t.Fatalf("%s must be gone", gone)
+		}
+	}
+	if _, err := os.Stat(panelPath(dir, "1.2.0")); err != nil {
+		t.Fatalf("the new panel must stay: %v", err)
+	}
+	if _, err := os.Stat(update.StagePath(dir, "1.2.0")); err != nil {
+		t.Fatalf("the new version must stay: %v", err)
+	}
+}

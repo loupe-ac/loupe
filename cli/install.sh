@@ -56,6 +56,7 @@ install_panel() {
 	mkdir -p "$stage" "$panels/$2" || return 1
 	if ! { tar -xzpf "$1" -C "$stage" "Live review.app" && [ -d "$stage/Live review.app" ]; }; then
 		rm -rf "$stage"
+		rmdir "$panels/$2" 2>/dev/null
 		return 1
 	fi
 	# A directory rename cannot replace a full directory, so the old copy moves aside first.
