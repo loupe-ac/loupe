@@ -68,9 +68,9 @@ public struct Note: Sendable {
         self.deliveryId = deliveryId
     }
 
-    /// A note saves only with text and a marked image, because the helper refuses an empty image.
-    public static func canSave(body: String, jpeg: Data) -> Bool {
-        !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !jpeg.isEmpty
+    /// A note saves only with text and a marked image: a picked element or at least one finished stroke.
+    public static func canSave(body: String, jpeg: Data, marked: Bool) -> Bool {
+        marked && !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !jpeg.isEmpty
     }
 
     private struct Target: Encodable {

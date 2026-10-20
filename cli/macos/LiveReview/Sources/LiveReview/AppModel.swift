@@ -172,6 +172,7 @@ final class AppModel: ObservableObject {
     }
 
     func choose(destination next: Destination) {
+        guard !saving else { return }
         destination = next
         loadOpenNotes()
     }
@@ -264,8 +265,9 @@ final class AppModel: ObservableObject {
         updateOverlays()
     }
 
+    /// A save in flight owns the draft and the destination, so the overlay ignores the mouse until it ends.
     private func handle(_ kind: MouseKind, at point: CGPoint) {
-        guard reviewing, let located else { return }
+        guard reviewing, !saving, let located else { return }
         switch mode {
         case .pick:
             if kind == .down { pick(at: point, located: located) }
@@ -305,6 +307,7 @@ final class AppModel: ObservableObject {
     private func finishStroke() {
         guard let stroke = drawing, stroke.count >= 2 else {
             drawing = nil
+            dropIfUnmarked()
             return
         }
         drawing = nil
@@ -318,6 +321,12 @@ final class AppModel: ObservableObject {
     }
 
     private var pendingStrokes: [[CGPoint]] = []
+
+    /// A click in Draw that made no stroke leaves no mark, so its screenshot is dropped.
+    private func dropIfUnmarked() {
+        guard drawing == nil, let capture, capture.element == nil, capture.strokes.isEmpty else { return }
+        clearCapture()
+    }
 
     private static let renderFailed = "The marked screenshot could not be drawn. Pick or draw again."
 
@@ -361,6 +370,7 @@ final class AppModel: ObservableObject {
                 self.capture = rendered
                 self.message = nil
                 self.notice = nil
+                self.dropIfUnmarked()
                 self.updateOverlays()
             }
         }
@@ -385,7 +395,7 @@ final class AppModel: ObservableObject {
     var canSave: Bool {
         guard let capture, !saving else { return false }
 
-        return Note.canSave(body: note, jpeg: capture.image.jpeg)
+        return Note.canSave(body: note, jpeg: capture.image.jpeg, marked: capture.element != nil || !capture.strokes.isEmpty)
     }
 
     func save() {

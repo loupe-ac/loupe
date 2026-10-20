@@ -119,6 +119,7 @@ struct ReviewView: View {
                 TextEditor(text: $model.note)
                     .font(.body)
                     .frame(minHeight: 64)
+                    .disabled(model.saving)
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.4)))
             }
             SaveRow(model: model)
@@ -155,6 +156,7 @@ struct DestinationRow: View {
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
+            .disabled(model.saving)
         }
     }
 }

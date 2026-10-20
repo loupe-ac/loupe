@@ -217,9 +217,13 @@ final class NoteTests: XCTestCase {
     }
 
     func testANoteNeedsTextAndAMarkedImageToSave() {
-        XCTAssertTrue(Note.canSave(body: "Too small", jpeg: Data([0xFF, 0xD8])))
-        XCTAssertFalse(Note.canSave(body: "Too small", jpeg: Data()))
-        XCTAssertFalse(Note.canSave(body: "  \n", jpeg: Data([0xFF, 0xD8])))
+        XCTAssertTrue(Note.canSave(body: "Too small", jpeg: Data([0xFF, 0xD8]), marked: true))
+        XCTAssertFalse(Note.canSave(body: "Too small", jpeg: Data(), marked: true))
+        XCTAssertFalse(Note.canSave(body: "  \n", jpeg: Data([0xFF, 0xD8]), marked: true))
+    }
+
+    func testAClickWithNoStrokeLeavesTheNoteUnsavable() {
+        XCTAssertFalse(Note.canSave(body: "Too small", jpeg: Data([0xFF, 0xD8]), marked: false))
     }
 }
 
