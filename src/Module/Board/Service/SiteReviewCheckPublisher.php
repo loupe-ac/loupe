@@ -163,7 +163,8 @@ final readonly class SiteReviewCheckPublisher
         $lines = [];
         foreach (\array_slice($notes, 0, self::MAX_LISTED_NOTES) as $note) {
             $body = mb_strimwidth(preg_replace('/\s+/', ' ', trim($note['body'])) ?? '', 0, self::MAX_NOTE_WIDTH, '...');
-            $lines[] = \sprintf('- %s: %s', $note['url'], $body);
+            // A native note has no page to name.
+            $lines[] = null === $note['url'] ? '- '.$body : \sprintf('- %s: %s', $note['url'], $body);
         }
         if (\count($notes) > self::MAX_LISTED_NOTES) {
             $lines[] = $this->translator->trans('board.site_review_check.summary_more', ['%count%' => \count($notes) - self::MAX_LISTED_NOTES]);

@@ -10,13 +10,19 @@ use App\Module\Project\Entity\Project;
 use App\Module\SiteReview\Command\AddCommentCommand;
 use App\Module\SiteReview\Command\AddCommentHandler;
 use App\Module\SiteReview\Command\NewAnchor;
+use App\Module\SiteReview\Command\NewScreenshot;
 use App\Module\SiteReview\Command\NewStroke;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
+use App\Module\SiteReview\Entity\SiteReviewScreenshot;
 use App\Module\SiteReview\Event\SiteReviewCommentCreated;
 use App\Module\SiteReview\Repository\SiteReviewCommentRepository;
+use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
+use App\Module\SiteReview\Service\ScreenshotDecoder;
 use App\Tests\Support\DirectLogging;
 use App\Tests\Support\RecordingAuditor;
+use App\Tests\Support\TinyImage;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -234,43 +240,6 @@ final class AddCommentHandlerTest extends KernelTestCase
         $comment = ($this->handler)(new AddCommentCommand($project, 'a page note', 'https://app/x'));
 
         self::assertCount(0, $comment->anchors);
-        self::assertSame('', $comment->selector);
-        self::assertSame('', $comment->text);
-    }
-
-    /**
-     * The retained columns are written and never read. A previous image maps
-     * them as non-nullable, so a rollback onto this schema hydrates a row only
-     * when they carry anchor 0. Read them from the database, not from the
-     * in-memory entity, because the write is the part that has to hold.
-     */
-    public function test_a_new_comment_still_writes_anchor_zero_to_the_old_columns(): void
-    {
-        $project = $this->project('add-scalars@example.com');
-
-        $comment = ($this->handler)(new AddCommentCommand($project, 'these two', 'https://app/x', [
-            new NewAnchor('.first', 'First'),
-            new NewAnchor('.second', 'Second'),
-        ]));
-
-        $row = $this->em->getConnection()->fetchAssociative(
-            'SELECT selector, text FROM site_review_comments WHERE id = :id',
-            ['id' => (string) $comment->id],
-        );
-        self::assertSame(['selector' => '.first', 'text' => 'First'], $row);
-    }
-
-    public function test_a_page_note_writes_empty_strings_to_the_old_columns(): void
-    {
-        $project = $this->project('add-scalars-note@example.com');
-
-        $comment = ($this->handler)(new AddCommentCommand($project, 'a page note', 'https://app/x'));
-
-        $row = $this->em->getConnection()->fetchAssociative(
-            'SELECT selector, text FROM site_review_comments WHERE id = :id',
-            ['id' => (string) $comment->id],
-        );
-        self::assertSame(['selector' => '', 'text' => ''], $row);
     }
 
     public function test_deleting_a_comment_removes_its_anchors(): void
@@ -342,6 +311,173 @@ final class AddCommentHandlerTest extends KernelTestCase
     public function test_the_handler_keeps_no_logger_beside_the_auditor(): void
     {
         DirectLogging::assertRemovedFrom(AddCommentHandler::class);
+    }
+
+    /** @return array<string, mixed> */
+    private static function nativeFacts(string $screenTitle = 'Settings'): array
+    {
+        return [
+            'app' => ['name' => 'Treadmatic', 'bundleId' => 'com.example.treadmatic'],
+            'device' => ['name' => 'iPhone 17 Pro', 'udid' => 'A1B2C3D4', 'osVersion' => 'iOS-26-5'],
+            'screen' => ['title' => $screenTitle],
+            'element' => ['role' => 'AXButton', 'label' => 'Save', 'identifier' => null, 'frame' => ['x' => 10.0, 'y' => 20.0, 'width' => 80.0, 'height' => 44.0]],
+        ];
+    }
+
+    private function screenshot(string $bytes): \App\Module\SiteReview\Service\DecodedScreenshot
+    {
+        return new ScreenshotDecoder()->decode(new NewScreenshot('image/png', base64_encode($bytes)));
+    }
+
+    public function test_a_native_note_keeps_its_facts_and_has_no_page(): void
+    {
+        $project = $this->project('native-note@example.com');
+
+        $comment = ($this->handler)(new AddCommentCommand(
+            $project,
+            'Button is clipped',
+            null,
+            surface: ReviewSurface::IosSimulator,
+            native: self::nativeFacts(),
+        ));
+        $this->em->clear();
+
+        $stored = $this->siteReviewCommentRepository->find($comment->id);
+        self::assertInstanceOf(SiteReviewComment::class, $stored);
+        self::assertSame(ReviewSurface::IosSimulator, $stored->surface);
+        self::assertNull($stored->url);
+        self::assertSame(self::nativeFacts(), $stored->native);
+    }
+
+    public function test_a_screenshot_is_stored_with_its_comment_and_goes_with_it(): void
+    {
+        $project = $this->project('screenshot-note@example.com');
+        $png = TinyImage::png(4, 3);
+
+        $comment = ($this->handler)(new AddCommentCommand($project, 'Look', 'https://app/x', screenshot: $this->screenshot($png)));
+        $commentId = (string) $comment->id;
+        $this->em->clear();
+
+        $row = $this->em->getConnection()->fetchAssociative('SELECT content_type, size, width, height, project_id FROM site_review_screenshots WHERE comment_id = ?', [$commentId]);
+        self::assertSame(['content_type' => 'image/png', 'size' => \strlen($png), 'width' => 4, 'height' => 3, 'project_id' => (string) $project->id], $row);
+        $screenshots = self::getContainer()->get(SiteReviewScreenshotRepository::class);
+        self::assertInstanceOf(SiteReviewScreenshotRepository::class, $screenshots);
+        $screenshot = $screenshots->findOneBy(['comment' => Uuid::fromString($commentId)]);
+        self::assertInstanceOf(SiteReviewScreenshot::class, $screenshot);
+        self::assertSame($png, $screenshot->contents());
+
+        $stored = $this->siteReviewCommentRepository->find($commentId);
+        self::assertInstanceOf(SiteReviewComment::class, $stored);
+        $this->em->remove($stored);
+        $this->em->flush();
+
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM site_review_screenshots WHERE comment_id = ?', [$commentId]));
+    }
+
+    public function test_a_web_note_without_a_screenshot_keeps_the_hash_it_was_stored_with(): void
+    {
+        $project = $this->project('hash-stable@example.com');
+
+        $comment = ($this->handler)(new AddCommentCommand(
+            $project,
+            'hello',
+            'https://app/x',
+            [new NewAnchor('.a', 'A')],
+            deliveryId: (string) Uuid::v4(),
+        ));
+        $withScope = ($this->handler)(new AddCommentCommand($project, 'hello', 'https://app/x', deliveryId: (string) Uuid::v4(), deliveryScope: 'card:1'));
+
+        $flags = \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION;
+        self::assertSame(hash('sha256', json_encode(['hello', 'https://app/x', [new NewAnchor('.a', 'A')], [], null], $flags)), $comment->deliveryHash);
+        self::assertSame(hash('sha256', json_encode(['hello', 'https://app/x', [], [], null, 'card:1'], $flags)), $withScope->deliveryHash);
+    }
+
+    public function test_a_retry_of_a_native_note_returns_the_stored_note(): void
+    {
+        $project = $this->project('native-retry@example.com');
+        $command = new AddCommentCommand(
+            $project,
+            'Button is clipped',
+            null,
+            deliveryId: (string) Uuid::v4(),
+            surface: ReviewSurface::IosSimulator,
+            native: self::nativeFacts(),
+            screenshot: $this->screenshot(TinyImage::png(2, 2)),
+        );
+
+        $first = ($this->handler)($command);
+        $second = ($this->handler)($command);
+
+        self::assertSame($first, $second);
+        self::assertSame(1, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM site_review_screenshots WHERE comment_id = ?', [(string) $first->id]));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function changedNativeParts(): iterable
+    {
+        yield 'the image' => ['image'];
+        yield 'a native fact' => ['fact'];
+        yield 'the surface' => ['surface'];
+        yield 'the image added to a note without one' => ['added'];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('changedNativeParts')]
+    public function test_a_retry_that_changes_the_image_or_a_native_fact_is_a_conflict(string $change): void
+    {
+        $project = $this->project('native-conflict-'.str_replace(' ', '-', $change).'@example.com');
+        $deliveryId = (string) Uuid::v4();
+        $original = new AddCommentCommand(
+            $project,
+            'Button is clipped',
+            'added' === $change ? 'https://app/x' : null,
+            deliveryId: $deliveryId,
+            surface: 'added' === $change ? ReviewSurface::Web : ReviewSurface::IosSimulator,
+            native: 'added' === $change ? null : self::nativeFacts(),
+            screenshot: 'added' === $change ? null : $this->screenshot(TinyImage::png(2, 2)),
+        );
+        ($this->handler)($original);
+
+        $changed = match ($change) {
+            'image' => new AddCommentCommand($project, 'Button is clipped', null, deliveryId: $deliveryId, surface: ReviewSurface::IosSimulator, native: self::nativeFacts(), screenshot: $this->screenshot(TinyImage::png(3, 3))),
+            'fact' => new AddCommentCommand($project, 'Button is clipped', null, deliveryId: $deliveryId, surface: ReviewSurface::IosSimulator, native: self::nativeFacts('Profile'), screenshot: $this->screenshot(TinyImage::png(2, 2))),
+            'surface' => new AddCommentCommand($project, 'Button is clipped', 'https://app/x', deliveryId: $deliveryId, screenshot: $this->screenshot(TinyImage::png(2, 2))),
+            default => new AddCommentCommand($project, 'Button is clipped', 'https://app/x', deliveryId: $deliveryId, screenshot: $this->screenshot(TinyImage::png(2, 2))),
+        };
+
+        try {
+            ($this->handler)($changed);
+            self::fail('A changed delivery must not reuse the original identity.');
+        } catch (DomainErrors $error) {
+            self::assertSame(['deliveryId' => 'delivery_conflict'], $error->errors);
+        }
+    }
+
+    public function test_the_database_refuses_a_note_whose_surface_and_page_disagree(): void
+    {
+        $project = $this->project('shape-check@example.com');
+        $insert = static fn (string $surface, ?string $url, ?string $native): string => \sprintf(
+            "INSERT INTO site_review_comments (id, status, position, body, url, created_at, project_id, surface, native) VALUES (gen_random_uuid(), 'pending', 0, 'b', %s, now(), '%s', '%s', %s)",
+            null === $url ? 'NULL' : "'".$url."'",
+            (string) $project->id,
+            $surface,
+            null === $native ? 'NULL' : "'".$native."'",
+        );
+        $connection = $this->em->getConnection();
+
+        foreach ([['web', null, null], ['web', 'https://a', '{}'], ['ios-simulator', 'https://a', '{}'], ['ios-simulator', null, null]] as [$surface, $url, $native]) {
+            // A refused statement aborts the test transaction, so each try gets a savepoint.
+            $connection->executeStatement('SAVEPOINT shape_check');
+            try {
+                $connection->executeStatement($insert($surface, $url, $native));
+                self::fail(\sprintf('A %s note with url %s and native %s must be refused.', $surface, var_export($url, true), var_export($native, true)));
+            } catch (\Doctrine\DBAL\Exception\DriverException $refused) {
+                self::assertStringContainsString('site_review_comments_surface_shape', $refused->getMessage());
+            }
+            $connection->executeStatement('ROLLBACK TO SAVEPOINT shape_check');
+        }
+
+        self::assertSame(1, $connection->executeStatement($insert('web', 'https://a', null)));
+        self::assertSame(1, $connection->executeStatement($insert('ios-simulator', null, '{}')));
     }
 
     /** @param non-empty-string $email */

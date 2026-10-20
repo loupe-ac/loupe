@@ -14,8 +14,13 @@ function fire(type, detail = {}, target = document) {
     target.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
 }
 
-function settle() {
-    return new Promise((resolve) => setTimeout(resolve, 50));
+// Waits for the SDK to finish its asynchronous step, up to two seconds. A fixed
+// pause was too short when the whole suite ran at once and the machine was busy.
+async function settle(done = () => true) {
+    const deadline = Date.now() + 2000;
+    do {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    } while (!done() && Date.now() < deadline);
 }
 
 beforeAll(() => {
@@ -108,7 +113,7 @@ it('gives each interaction its own trace and makes it the fetch parent', async (
     document.querySelector('meta[name="loupe-route"]').content =
         'app_card_show';
     fire('turbo:load');
-    await settle();
+    await settle(() => Sentry.spanToJSON(visit).end_timestamp !== undefined);
 
     const json = Sentry.spanToJSON(visit);
     expect(json.end_timestamp).toBeDefined();
@@ -119,8 +124,13 @@ it('gives each interaction its own trace and makes it the fetch parent', async (
 
 it('sends a live change as an inactive span in its own trace', async () => {
     const active = Sentry.getActiveSpan();
+    const before = started.length;
     traceLive('board.card_changed', now(), Promise.resolve());
-    await settle();
+    await settle(
+        () =>
+            started.length > before &&
+            Sentry.spanToJSON(started.at(-1)).end_timestamp !== undefined,
+    );
     expect(Sentry.getActiveSpan()).toBe(active);
     await Sentry.flush(2000);
 

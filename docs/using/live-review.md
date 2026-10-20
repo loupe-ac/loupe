@@ -282,6 +282,18 @@ A client must reuse it with unchanged content when it retries.
 Its scope is one project, and it lives as long as the stored note.
 Reusing it with different content returns HTTP 409 with `delivery_conflict`.
 
+The request can carry a note from a native app instead of a web page.
+Set `surface` to `ios-simulator` and send the facts in `native`, with no `url`.
+A web note keeps `surface` as `web` and sends `url`, and it sends no `native`.
+Either kind can send `screenshot` with `contentType` and base64 `data`.
+The image must be a JPEG or a PNG of 2 MiB or less when decoded.
+A larger image gets HTTP 422 with `screenshot_too_large`.
+Any other file gets HTTP 422 with `screenshot_invalid`.
+A retry that changes the surface, a native fact or the image returns `delivery_conflict`.
+
+`GET /api/live-review/review` lists the notes of the web surface.
+Pass `surface=ios-simulator` to list the notes of the native surface.
+
 An old copy of the widget script saved through `POST /api/live-review/comments`.
 That route now answers HTTP 410 with `widget_outdated`, and the widget tells the reviewer to reload the page.
 

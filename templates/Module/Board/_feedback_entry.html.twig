@@ -3,7 +3,7 @@
     <div>
         <div class="lp-card-feedback-list__head"><span>{{ 'site_review.source.widget'|trans }}</span><twig:Ds:StatusChip :modifier="link.comment.status.value" :dot="false">{{ ('site_review.comment.status.' ~ link.comment.status.value)|trans }}</twig:Ds:StatusChip></div>
         <p class="lp-inbox-item__answer-text">{{ link.comment.body }}</p>
-        {% if link.comment.url starts with 'https://' or link.comment.url starts with 'http://' %}
+        {% if link.comment.url is not null and (link.comment.url starts with 'https://' or link.comment.url starts with 'http://') %}
             <a href="{{ link.comment.url }}" rel="noopener noreferrer nofollow" target="_blank">{{ 'site_review.comment.open_source'|trans }}</a>
         {% endif %}
         <details class="lp-site-review-selector">

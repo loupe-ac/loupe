@@ -274,14 +274,8 @@
     const ALT_LABEL = IS_MAC ? '⌥' : 'Alt';
     const modHeld = (event) => (IS_MAC ? event.metaKey : event.ctrlKey);
 
-    // Anchors of a comment, tolerating a pre-anchors server that sends only the
-    // scalar selector/text pair.
-    const anchorsOf = (comment) => {
-        if (Array.isArray(comment.anchors)) return comment.anchors;
-        return comment.selector
-            ? [{ selector: comment.selector, text: comment.text || '' }]
-            : [];
-    };
+    const anchorsOf = (comment) =>
+        Array.isArray(comment.anchors) ? comment.anchors : [];
 
     // Strokes of a saved comment, tolerating a server that predates the column.
     const strokesOf = (comment) =>

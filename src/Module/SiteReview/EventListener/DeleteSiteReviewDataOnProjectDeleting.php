@@ -10,10 +10,10 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
  * Bulk-deletes the SiteReview-module subtree of a project:
- * site_review_comment_anchors, then site_review_comments. Runs inside
- * ProjectDeleter's transaction.
+ * site_review_screenshots, site_review_comment_anchors, then
+ * site_review_comments. Runs inside ProjectDeleter's transaction.
  *
- * A DQL DELETE runs no ORM cascade, so the anchors go first and by hand.
+ * A DQL DELETE runs no ORM cascade, so the children go first and by hand.
  */
 #[AsEventListener]
 final readonly class DeleteSiteReviewDataOnProjectDeleting
@@ -25,6 +25,10 @@ final readonly class DeleteSiteReviewDataOnProjectDeleting
 
     public function __invoke(ProjectDeleting $event): void
     {
+        $this->em->createQuery(
+            'DELETE App\Module\SiteReview\Entity\SiteReviewScreenshot s WHERE s.project = :project',
+        )->setParameter('project', $event->project)->execute();
+
         $this->em->createQuery(
             'DELETE App\Module\SiteReview\Entity\SiteReviewCommentAnchor a WHERE a.comment IN ('
             .'SELECT c2.id FROM App\Module\SiteReview\Entity\SiteReviewComment c2 WHERE c2.project = :project)',
