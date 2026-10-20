@@ -16,6 +16,8 @@ final class WidgetFileTest extends TestCase
 
         $src = (string) file_get_contents($path);
         self::assertStringContainsString('attachShadow', $src);
+        // The anchors are the record. A note reads no scalar selector or text.
+        self::assertStringNotContainsString('comment.selector', $src);
         self::assertStringContainsString('data-project', $src);
         self::assertStringContainsString('data-context', $src);
         // Read once per request and carried through the answer, never re-read

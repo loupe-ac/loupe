@@ -145,7 +145,7 @@ final readonly class VerdictReviewSettler
     /**
      * The first line names the Loupe site review and links to the notes, and to the preview when a note names one.
      *
-     * @param list<array{id: string, url: string, body: string, anchorCount: int}> $notes
+     * @param list<array{id: string, url: ?string, body: string, anchorCount: int}> $notes
      */
     private function body(Card $card, string $message, array $notes): string
     {
@@ -154,13 +154,14 @@ final readonly class VerdictReviewSettler
             $parts[] = trim($message);
         }
         foreach ($notes as $note) {
-            $parts[] = \sprintf("%s\n\n%s\n<!-- loupe-note:%s -->", $note['url'], $note['body'], $note['id']);
+            // A native note has no page, so its text leads.
+            $parts[] = \sprintf("%s%s\n<!-- loupe-note:%s -->", null === $note['url'] ? '' : $note['url']."\n\n", $note['body'], $note['id']);
         }
 
         return implode("\n\n", $parts);
     }
 
-    /** @param list<array{id: string, url: string, body: string, anchorCount: int}> $notes */
+    /** @param list<array{id: string, url: ?string, body: string, anchorCount: int}> $notes */
     private function sourceLine(Card $card, array $notes): string
     {
         $cardUrl = $this->urls->generate('app_board_card', [
@@ -171,9 +172,10 @@ final readonly class VerdictReviewSettler
         $line = $this->translator->trans('board.verdict.review.source', ['%number%' => $card->number, '%card_url%' => $cardUrl], 'messages', $this->locale);
 
         $first = $notes[0] ?? null;
-        $parts = null === $first ? false : parse_url($first['url']);
-        if (\is_array($parts) && isset($parts['scheme'], $parts['host']) && \in_array($parts['scheme'], ['http', 'https'], true)) {
-            $preview = str_replace([' ', '(', ')'], ['%20', '%28', '%29'], $first['url']);
+        $firstUrl = $first['url'] ?? null;
+        $parts = null === $firstUrl ? false : parse_url($firstUrl);
+        if (null !== $firstUrl && \is_array($parts) && isset($parts['scheme'], $parts['host']) && \in_array($parts['scheme'], ['http', 'https'], true)) {
+            $preview = str_replace([' ', '(', ')'], ['%20', '%28', '%29'], $firstUrl);
             $line .= ' '.$this->translator->trans('board.verdict.review.preview', ['%preview_url%' => $preview], 'messages', $this->locale);
         }
 

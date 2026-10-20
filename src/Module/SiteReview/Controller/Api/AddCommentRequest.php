@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Module\SiteReview\Controller\Api;
 
 use App\Module\SiteReview\Command\NewAnchor;
+use App\Module\SiteReview\Command\NewScreenshot;
 use App\Module\SiteReview\Command\NewStroke;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -29,9 +31,16 @@ class AddCommentRequest
         #[Assert\NotBlank(normalizer: 'trim')]
         public ?string $body = null,
 
+        // A web note needs the page it was made on, and a native note has none.
         #[Assert\Length(max: 2000)]
-        #[Assert\NotBlank(normalizer: 'trim')]
-        #[Assert\Url(protocols: ['http', 'https'], requireTld: false)]
+        #[Assert\When(
+            expression: 'this.surface.value == "web"',
+            constraints: [
+                new Assert\NotBlank(normalizer: 'trim'),
+                new Assert\Url(protocols: ['http', 'https'], requireTld: false),
+            ],
+            otherwise: [new Assert\IsNull()],
+        )]
         public ?string $url = null,
 
         #[Assert\All([new Assert\Type(SiteReviewAnchorInput::class)])]
@@ -60,6 +69,18 @@ class AddCommentRequest
 
         #[Assert\Uuid]
         public ?string $deliveryId = null,
+        public ReviewSurface $surface = ReviewSurface::Web,
+
+        #[Assert\Valid]
+        #[Assert\When(
+            expression: 'this.surface.value == "ios-simulator"',
+            constraints: [new Assert\NotNull()],
+            otherwise: [new Assert\IsNull()],
+        )]
+        public ?NativeInput $native = null,
+
+        #[Assert\Valid]
+        public ?ScreenshotInput $screenshot = null,
     ) {
     }
 
@@ -75,6 +96,13 @@ class AddCommentRequest
         $context = trim($this->context ?? '');
 
         return '' === $context ? null : $context;
+    }
+
+    public function newScreenshot(): ?NewScreenshot
+    {
+        return null === $this->screenshot
+            ? null
+            : new NewScreenshot($this->screenshot->contentType ?? '', $this->screenshot->data ?? '');
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\SiteReview\Repository;
 
 use App\Module\Project\Entity\Project;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -39,13 +40,14 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
      * reviewer may still edit or delete.
      *
      * $commentIds narrows the list to those comments. Null keeps the whole
-     * project, and an empty list finds nothing.
+     * project, and an empty list finds nothing. $surface keeps one kind of note,
+     * because the widget must never be handed a note from a native app.
      *
      * @param list<Uuid>|null $commentIds
      *
      * @return list<SiteReviewComment>
      */
-    public function findPendingForProject(Project $project, ?array $commentIds = null): array
+    public function findPendingForProject(Project $project, ?array $commentIds = null, ReviewSurface $surface = ReviewSurface::Web): array
     {
         if ([] === $commentIds) {
             return [];
@@ -56,8 +58,10 @@ class SiteReviewCommentRepository extends ServiceEntityRepository
             ->addSelect('a')
             ->andWhere('c.project = :project')
             ->andWhere('c.status = :status')
+            ->andWhere('c.surface = :surface')
             ->setParameter('project', $project)
             ->setParameter('status', SiteReviewCommentStatus::Pending)
+            ->setParameter('surface', $surface)
             ->orderBy('c.position', 'ASC')
             ->addOrderBy('a.position', 'ASC');
 
