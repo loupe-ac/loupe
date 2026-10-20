@@ -57,7 +57,7 @@ export default defineConfig({
       customCss: ['./src/styles/theme.css'],
       components: {
         Header: './src/components/SiteHeader.astro',
-        Footer: './src/components/SiteFooter.astro',
+        PageFrame: './src/components/SitePageFrame.astro',
         Sidebar: './src/components/SiteSidebar.astro',
       },
       description: 'A document- and site-review tool for humans working with AI agents.',

@@ -1,9 +1,13 @@
 ---
-import Default from '@astrojs/starlight/components/Footer.astro';
+import Default from '@astrojs/starlight/components/PageFrame.astro';
 import { FOOTER_MARKER } from '../chrome-markers.mjs';
 ---
 
-<Default><slot /></Default>
+<Default>
+  <slot name="header" slot="header" />
+  <slot name="sidebar" slot="sidebar" />
+  <slot />
+</Default>
 <div class="site-footer-wrap">
   <site-chrome part-name="footer">
     <template shadowrootmode="open"><Fragment set:html={FOOTER_MARKER} /></template>

@@ -9,7 +9,7 @@ COMPOSER_ALLOW_SUPERUSER=1 composer dump-env prod
 # docs. A failed stamp stops the start, so nginx never serves a page that still
 # holds a marker or a link to a wrong host. The worker and the release job share
 # this entrypoint and serve no docs, so they skip the stamp.
-if [ -n "${SITE_HOST:-}" ] && [ -d /var/www/docs-build ] && [[ "$*" == *" /etc/supervisord.conf" ]]; then
+if [ -n "${SITE_HOST:-}" ] && [ -d /var/www/docs-build ] && [[ "$*" == *"/etc/supervisord.conf" ]]; then
     su-exec www-data bin/console app:site:stamp-docs
 fi
 
