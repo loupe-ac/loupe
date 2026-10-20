@@ -292,18 +292,18 @@ final class AddFeedbackApiTest extends WebTestCase
         $web = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
         $native = $this->post($client, $raw, $this->nativeNote());
 
-        $ids = fn (string $query): array => array_column($this->get($client, $raw, '/api/site-review/review'.$query)['comments'] ?? [], 'id');
+        $ids = fn (string $query): array => array_column($this->get($client, $raw, '/api/live-review/review'.$query)['comments'] ?? [], 'id');
 
         self::assertSame([$web['commentId']], $ids(''));
         self::assertSame([$web['commentId']], $ids('?surface=web'));
         self::assertSame([$native['commentId']], $ids('?surface=ios-simulator'));
-        $listed = $this->get($client, $raw, '/api/site-review/review?surface=ios-simulator')['comments'][0];
+        $listed = $this->get($client, $raw, '/api/live-review/review?surface=ios-simulator')['comments'][0];
         self::assertNull($listed['url']);
         self::assertSame('ios-simulator', $listed['surface']);
         self::assertSame('com.example.treadmatic', $listed['native']['app']['bundleId']);
         self::assertSame(['selector' => '', 'text' => ''], ['selector' => $listed['selector'], 'text' => $listed['text']]);
 
-        $this->get($client, $raw, '/api/site-review/review?surface=android');
+        $this->get($client, $raw, '/api/live-review/review?surface=android');
         self::assertResponseStatusCodeSame(422);
     }
 
@@ -313,7 +313,7 @@ final class AddFeedbackApiTest extends WebTestCase
         [$raw] = $this->projectWithToken($client, 'feedback-api-list-legacy@example.com');
         $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
 
-        $listed = $this->get($client, $raw, '/api/site-review/review')['comments'][0];
+        $listed = $this->get($client, $raw, '/api/live-review/review')['comments'][0];
 
         self::assertSame('.footer', $listed['selector']);
         self::assertSame('Footer', $listed['text']);

@@ -33,4 +33,21 @@ final class PublicFeatureNameTest extends TestCase
 
         self::assertDoesNotMatchRegularExpression('/\bsite[ -]review\b/i', (string) $prose);
     }
+
+    public function test_no_file_calls_the_removed_api_path(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $old = '/api/site-review';
+        $hits = [];
+        foreach (['src', 'tests', 'config', 'docs', 'public', 'e2e/tests'] as $dir) {
+            $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root.'/'.$dir, \FilesystemIterator::SKIP_DOTS));
+            foreach ($files as $file) {
+                if ($file->isFile() && __FILE__ !== $file->getPathname() && str_contains((string) file_get_contents($file->getPathname()), $old)) {
+                    $hits[] = substr((string) $file->getPathname(), strlen($root) + 1);
+                }
+            }
+        }
+
+        self::assertSame([], $hits);
+    }
 }
