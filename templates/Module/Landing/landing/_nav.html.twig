@@ -12,10 +12,11 @@
         {% if app_source_url %}
             <a href="{{ app_source_url }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.github'|trans }}</a>
         {% endif %}
+        {% set signedIn = site_signed_in() %}
         <div class="lp-home-nav__actions">
-            <a href="{{ app_url('app_login') }}" data-site-chrome="signed-out" class="lp-home-nav__link">{{ 'landing.nav.login'|trans }}</a>
-            <twig:Ds:Button variant="primary" size="sm" href="{{ site_url(path('app_waitlist_join')) }}" data-site-chrome="signed-out" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="nav">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
-            <twig:Ds:Button variant="primary" size="sm" href="{{ app_url('app_home') }}" data-site-chrome="go-to-app" hidden>{{ 'landing.nav.go_to_app'|trans }}</twig:Ds:Button>
+            <a href="{{ app_url('app_login') }}" data-site-chrome="signed-out" class="lp-home-nav__link"{% if signedIn %} hidden{% endif %}>{{ 'landing.nav.login'|trans }}</a>
+            <twig:Ds:Button variant="primary" size="sm" href="{{ site_url(path('app_waitlist_join')) }}" data-site-chrome="signed-out" :hidden="signedIn" data-action="click->analytics#track click->modal#open" data-analytics-name-param="waitlist-click" data-analytics-button-param="nav">{{ 'landing.cta.join'|trans }}</twig:Ds:Button>
+            <twig:Ds:Button variant="primary" size="sm" href="{{ app_url('app_home') }}" data-site-chrome="go-to-app" :hidden="not signedIn">{{ 'landing.nav.go_to_app'|trans }}</twig:Ds:Button>
         </div>
     </nav>
 </header>

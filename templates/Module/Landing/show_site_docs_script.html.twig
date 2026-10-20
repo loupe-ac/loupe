@@ -1,0 +1,46 @@
+{% set analytics = analytics_script() %}
+(function () {
+    var appOrigin = {{ app_url('app_home')|trim('/', 'right')|json_encode|raw }};
+    var umami = {{ (analytics ? {src: analytics.src, websiteId: analytics.websiteId} : null)|json_encode|raw }};
+    var widget = {{ (site_review_widget_project ? {project: site_review_widget_project, backend: site_review_widget_backend|trim('/', 'right'), context: site_review_widget_context, public: site_review_widget_public} : null)|json_encode|raw }};
+    var match = document.cookie.match(/(?:^|; )loupe_signed_in=([^;]*)/);
+    var signal = match ? match[1] : '';
+    var signedIn = signal === '1' || signal === 'admin';
+
+    function load(src, attributes) {
+        var script = document.createElement('script');
+        script.src = src;
+        script.defer = true;
+        Object.keys(attributes).forEach(function (name) {
+            if (attributes[name]) {
+                script.setAttribute(name, attributes[name]);
+            }
+        });
+        document.head.appendChild(script);
+    }
+
+    function swap() {
+        document.querySelectorAll('[data-site-chrome="go-to-app"]').forEach(function (element) {
+            element.hidden = !signedIn;
+            if (signedIn) {
+                element.href = appOrigin + '/';
+            }
+        });
+        document.querySelectorAll('[data-site-chrome="signed-out"]').forEach(function (element) {
+            element.hidden = signedIn;
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', swap);
+    } else {
+        swap();
+    }
+
+    if (umami && !signedIn) {
+        load(umami.src, {'data-website-id': umami.websiteId, 'data-do-not-track': 'true'});
+    }
+    if (widget && (widget.public || signal === 'admin')) {
+        load(widget.backend + '/site-review/widget.js', {'data-project': widget.project, 'data-context': widget.context});
+    }
+})();

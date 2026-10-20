@@ -31,6 +31,11 @@ security:
         install_script:
             pattern: ^/install\.sh$
             security: false
+        # The docs script is the same for every visitor, so no session may be
+        # read and no cookie set: a shared cache keeps one copy.
+        site_docs_script:
+            pattern: ^/site/docs\.js$
+            security: false
         # The signed content links of a stored prototype. No security listener,
         # so no session is read or started and the response sets no cookie. The
         # signature in the path is the credential.
