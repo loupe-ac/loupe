@@ -2070,3 +2070,9 @@ gives the bridge no cursor, and the bridge then catches up nothing. A replayed
 work request that ended since runs nothing, because its claim fails. The
 [Replay section](../docs/extending/cli-bridge.md#replay) of the bridge
 documentation gives every rule.
+
+## Live review panel
+
+`cli/macos/LiveReview/` holds the Live review panel, a Swift package for macOS 13 and later.
+It reads the iOS Simulator window in Device Hub through the macOS accessibility interface, marks a screenshot, and saves the note with the hidden `loupe review` commands.
+Run `swift test` in that folder for its tests, and `Scripts/bundle.sh` to build `Live review.app` with an ad hoc signature for local use.
