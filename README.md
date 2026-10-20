@@ -1,6 +1,6 @@
 # Loupe
 
-Loupe is a document- and site-review tool for humans working with AI agents.
+Loupe is a document- and live-review tool for humans working with AI agents.
 
 **[loupe.ac](https://loupe.ac)** — the hosted instance ·
 **[Documentation](https://ubermuda.github.io/loupe/)** — install, connect an
@@ -10,7 +10,7 @@ An agent (or a person) submits a Markdown **document**; humans review it inline 
 selecting text, leaving comments, and either approving it or requesting changes.
 A **Model Context Protocol (MCP)** endpoint lets AI coding agents create documents
 and hand back a review URL, so a long-form plan or spec gets considered human
-feedback instead of scrolling past in a terminal. A companion **site-review**
+feedback instead of scrolling past in a terminal. A companion **live-review**
 widget brings the same select-and-comment
 flow to live web pages.
 
@@ -22,13 +22,13 @@ Built with Symfony, Tailwind CSS and Symfony UX (Stimulus + Turbo).
   passages, approve or request changes, and revise across versions.
 - **MCP endpoint** — an agent signs in through OAuth and calls
   `document_create` / `document_revise`, receiving a shareable review URL.
-- **Site review** — an embeddable widget for
+- **Live review** — an embeddable widget for
   leaving review comments on any web page, streamed back to the reviewer over
   Mercure.
 - **Command-line bridge** *(preview, unreleased)* — a Go binary
   ([`cli/`](cli/README.md)) that watches your board and runs a non-interactive
   Claude Code worker for every card moved to `next`.
-- **Scoped OAuth access** — separate MCP, agent and site-review scopes. An agent
+- **Scoped OAuth access** — separate MCP, agent and `site-review` scopes. An agent
   signs in through your browser, and nobody copies a credential by hand.
 
 ## Try it
@@ -72,7 +72,7 @@ here on GitHub:
   and takes you through a first review
 - [Installing Loupe](docs/operating/install/index.md) gives five ways to run it,
   and helps you choose one
-- [Using Loupe](docs/using/documents.md) — documents, MCP, site review, admin
+- [Using Loupe](docs/using/documents.md) — documents, MCP, live review, admin
 - [Extending Loupe](docs/extending/reverse-proxy.md) — proxy, Mercure, object
   storage, social login, billing
 - [Operating](docs/operating/first-run.md) — first run, recovery, backups

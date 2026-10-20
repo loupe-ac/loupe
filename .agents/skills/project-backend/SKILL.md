@@ -206,7 +206,7 @@ Admin-facing controllers for a feature live under `Controller/Admin/` in that fe
 
 A controller that consumes or produces JSON for a machine client, such as a widget, an SPA or a third party, is an API controller, and it follows different conventions from a UI controller.
 
-- It lives under a `Controller/Api/` sub-namespace in the module, `App\Module\X\Controller\Api`. The route name is prefixed `api_`, such as `api_site_review_submit`, and the route path is prefixed `/api/`, such as `/api/site-review/batches`. Keep an existing public path stable even after you move the class, because external callers, CORS subscribers and firewall `access_control` rules key on the path.
+- It lives under a `Controller/Api/` sub-namespace in the module, `App\Module\X\Controller\Api`. The route name is prefixed `api_`, such as `api_site_review_submit`, and the route path is prefixed `/api/`, such as `/api/live-review/batches`. Keep an existing public path stable even after you move the class, because external callers, CORS subscribers and firewall `access_control` rules key on the path.
 - Bind input with `#[MapRequestPayload]`, never with a Symfony form. Type-hint the action parameter with a request DTO. Symfony deserializes the JSON body into the DTO, runs the validator, and returns 422 on failure with no manual error assembly. Do not build a `FormType` with `$form->submit($decodedArray)` for JSON, and do not hand-roll `json_decode` with `is_array` checks.
   ```php
   public function __invoke(#[MapRequestPayload] SubmitBatchRequest $payload): JsonResponse

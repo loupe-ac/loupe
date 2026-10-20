@@ -61,7 +61,7 @@ final class RateLimitSiteReviewWritesTest extends TestCase
         $listener = $this->listenerAuthenticatedAs('widget-token-1');
 
         $listener($this->write('203.0.113.7'));
-        $listener($this->request('GET', '/api/site-review/comments', '203.0.113.7'));
+        $listener($this->request('GET', '/api/live-review/comments', '203.0.113.7'));
         $listener($this->request('GET', '/api/board/cards/0198a2c0-0000-7000-8000-000000000001/verdict', '203.0.113.7'));
         $this->addToAssertionCount(1);
     }
@@ -87,7 +87,7 @@ final class RateLimitSiteReviewWritesTest extends TestCase
 
     private function write(string $ip): RequestEvent
     {
-        return $this->request('POST', '/api/site-review/comments', $ip);
+        return $this->request('POST', '/api/live-review/comments', $ip);
     }
 
     private function request(string $method, string $path, string $ip): RequestEvent

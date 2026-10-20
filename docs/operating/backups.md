@@ -13,7 +13,7 @@ the first:
 
 1. **Postgres.** Everything the application owns — accounts, projects,
    documents and their versions, comments, tags, the messenger queues and the
-   site-review outbox.
+   live-review outbox.
 
    ```bash
    pg_dump "$DATABASE_URL" --format=custom --file=loupe-$(date +%F).dump

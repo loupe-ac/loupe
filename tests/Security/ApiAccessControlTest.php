@@ -14,7 +14,7 @@ use Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken;
 /**
  * Guards the deny-by-default rule on ^/api in config/packages/security.yaml.
  *
- * The api firewall matches every /api path but only /api/site-review names a
+ * The api firewall matches every /api path but only /api/live-review names a
  * scope, and every API-token user also carries ROLE_USER — so an /api endpoint
  * added without its own access_control rule would be authorized by the ^/
  * catch-all for any scoped token. These tests assert the decision itself rather
@@ -35,7 +35,7 @@ final class ApiAccessControlTest extends KernelTestCase
 
     public function test_the_deny_rule_does_not_shadow_the_site_review_scope(): void
     {
-        self::assertTrue($this->decide('/api/site-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
+        self::assertTrue($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
     }
 
     public function test_a_site_review_token_stays_denied_outside_its_own_prefix(): void
@@ -158,7 +158,7 @@ final class ApiAccessControlTest extends KernelTestCase
      */
     public function test_the_agent_scope_and_the_site_review_scope_do_not_reach_each_other(): void
     {
-        self::assertFalse($this->decide('/api/site-review/review/submit', ['ROLE_USER', 'ROLE_API_AGENT']));
+        self::assertFalse($this->decide('/api/live-review/review/submit', ['ROLE_USER', 'ROLE_API_AGENT']));
         self::assertFalse($this->decide('/api/board/cards', ['ROLE_USER', 'ROLE_API_AGENT']));
         self::assertFalse($this->decide('/api/projects', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));
         self::assertFalse($this->decide('/api/events', ['ROLE_USER', 'ROLE_API_SITE_REVIEW']));

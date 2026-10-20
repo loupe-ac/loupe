@@ -22,7 +22,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  *
  * The path is a Board one on purpose, and `config/packages/security.yaml`
  * grants it to ROLE_API_SITE_REVIEW in its own line rather than folding it under
- * the ^/api/site-review prefix, so a reader of that file sees that a widget
+ * the ^/api/live-review prefix, so a reader of that file sees that a widget
  * token may write to the board.
  */
 #[Route(

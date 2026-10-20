@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * this path stays and tells that copy to reload rather than answering 404.
  */
 #[Route(
-    '/api/site-review/comments',
+    '/api/live-review/comments',
     name: 'api_site_review_comment_add',
     methods: ['POST'],
 )]

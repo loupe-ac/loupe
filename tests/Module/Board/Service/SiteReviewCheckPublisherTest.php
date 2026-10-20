@@ -24,10 +24,15 @@ use App\Module\SiteReview\Entity\SiteReviewCommentStatus;
 use App\Tests\Module\Board\CardVerdictScenario;
 use App\Tests\Module\Board\Fake\FakeCheckWriter;
 use App\Tests\Module\Board\Mcp\BoardToolScenario;
+use Doctrine\DBAL\Schema\Schema;
 use Doctrine\ORM\EntityManagerInterface;
+use DoctrineMigrations\Version20261020150107;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Contracts\Translation\TranslatorInterface;
+
+require_once __DIR__.'/../../../../migrations/Version20261020150107.php';
 
 final class SiteReviewCheckPublisherTest extends KernelTestCase
 {
@@ -67,8 +72,8 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertCount(1, $this->writer->published);
         $call = $this->writer->published[0];
-        self::assertSame(['Loupe site review', 'sha-1', PullRequestCheckConclusion::Success, null], [$call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
-        self::assertSame('No open site review notes', $call['title']);
+        self::assertSame(['Loupe live review', 'sha-1', PullRequestCheckConclusion::Success, null], [$call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
+        self::assertSame('No open live review notes', $call['title']);
         $state = $this->stateOf($pullRequest);
         self::assertSame(['sha-1', 'success', 0, 101], [$state->headSha, $state->conclusion, $state->noteCount, $state->checkRunId]);
     }
@@ -84,7 +89,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         $call = $this->writer->published[0];
         self::assertSame(PullRequestCheckConclusion::Failure, $call['conclusion']);
-        self::assertSame('One site review note is open', $call['title']);
+        self::assertSame('One live review note is open', $call['title']);
         self::assertSame('- https://app.example/page: Footer overlaps', $call['summary']);
     }
 
@@ -198,6 +203,29 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
         self::assertSame(1, $this->stateOf($pullRequest)->noteCount);
     }
 
+    public function test_a_check_posted_under_the_old_name_posts_again_on_its_run_after_the_rename_migration(): void
+    {
+        $card = $this->card($this->project);
+        $pullRequest = $this->openPullRequest($card, 7, 'sha-1');
+        $this->publish($card);
+        $connection = $this->em->getConnection();
+
+        $migration = new Version20261020150107($connection, new NullLogger());
+        $migration->up(new Schema());
+        foreach ($migration->getSql() as $query) {
+            $connection->executeStatement($query->getStatement(), $query->getParameters(), $query->getTypes());
+        }
+        $this->em->refresh($this->stateOf($pullRequest));
+        $wanted = $this->service(SiteReviewFactProvider::class)->wantedChecks([$pullRequest])[(string) $pullRequest->id];
+        $this->publish($card);
+
+        self::assertNull($wanted->postedNotesDigest);
+        self::assertCount(2, $this->writer->published);
+        self::assertSame('Loupe live review', $this->writer->published[1]['name']);
+        self::assertSame(101, $this->writer->published[1]['runId']);
+        self::assertSame($wanted->notesDigest, $this->stateOf($pullRequest)->notesDigest);
+    }
+
     public function test_a_new_head_starts_a_new_run(): void
     {
         $card = $this->card($this->project);
@@ -256,7 +284,7 @@ final class SiteReviewCheckPublisherTest extends KernelTestCase
 
         self::assertCount(1, $this->writer->published);
         $call = $this->writer->published[0];
-        self::assertSame([7, 'Loupe site review', 'sha-1', PullRequestCheckConclusion::Neutral, 101], [$call['number'], $call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
+        self::assertSame([7, 'Loupe live review', 'sha-1', PullRequestCheckConclusion::Neutral, 101], [$call['number'], $call['name'], $call['sha'], $call['conclusion'], $call['runId']]);
         self::assertSame('Loupe no longer keeps this check', $call['title']);
         self::assertSame('No card links this pull request any more, so this check does not block it.', $call['summary']);
     }

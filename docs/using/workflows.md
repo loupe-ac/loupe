@@ -361,12 +361,12 @@ the code lives in several repositories and Loupe cannot merge in one of them,
 the write refuses, and a person merges by hand.
 
 Two more writes come from the [rules the app adds](#rules-the-app-adds). They
-act on a site-review verdict, and they never ask a bridge for work:
+act on a live-review verdict, and they never ask a bridge for work:
 
 | Write | Does |
 |---|---|
 | `post-review` | Posts each unsent verdict as a review on the open GitHub pull requests that the reviewer picked. The review goes out under the reviewer's own GitHub account |
-| `site-review-check` | Keeps a check named "Loupe site review" on each open GitHub pull request of the card. The check counts the notes of every card that links the pull request. The check goes out as the GitHub App |
+| `site-review-check` | Keeps a check named "Loupe live review" on each open GitHub pull request of the card. The check counts the notes of every card that links the pull request. The check goes out as the GitHub App |
 
 A review that the reviewer sends on their own pull request becomes a comment,
 because GitHub refuses a review from the author of a pull request.
@@ -845,7 +845,7 @@ proposals land, with the key `proposalSlot`. Loupe ships it as `next`.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the
-[site-review widget](site-review.md). Each reads one condition of the Board
+[live-review widget](live-review.md). Each reads one condition of the Board
 group, and each fires one write. The rules `sync-agent-review-check` and `comment-agent-review` also watch
 every column. They read conditions of the Agent review group:
 
