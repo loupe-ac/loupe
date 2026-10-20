@@ -27,7 +27,7 @@ final readonly class PullRequestSnapshot
         public PullRequestMergeability $mergeability = PullRequestMergeability::Unknown,
         public PullRequestReview $review = PullRequestReview::None,
         public bool $readyToMerge = false,
-        public ?string $changesRequestedSha = null,
+        public ?\DateTimeImmutable $changesRequestedAt = null,
         public ?\DateTimeImmutable $openedAt = null,
         public ?\DateTimeImmutable $mergedAt = null,
         public ?\DateTimeImmutable $approvedAt = null,
@@ -72,7 +72,7 @@ final readonly class PullRequestSnapshot
             && $this->mergeability === $other->mergeability
             && $this->review === $other->review
             && $this->readyToMerge === $other->readyToMerge
-            && $this->changesRequestedSha === $other->changesRequestedSha
+            && $this->changesRequestedAt == $other->changesRequestedAt
             && (null === $this->defaultBranch || null === $other->defaultBranch || $this->defaultBranch === $other->defaultBranch);
     }
 }

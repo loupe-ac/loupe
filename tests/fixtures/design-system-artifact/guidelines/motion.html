@@ -1,0 +1,46 @@
+<!-- @dsCard group="Motion" viewport="700x220" subtitle="6 tokens" name="Motion" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Motion</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components/bundle.css">
+<style>
+  body { padding: 14px 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .sw { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .chip { height: 44px; border-radius: 8px; border: 1px solid var(--border-faint); background: var(--surface-1); }
+  .n { font-family: var(--font-mono); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .v { font-family: var(--font-mono); font-size: 10px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="sw" title="Hover and press feedback.">
+    <span class="n">--duration-fast</span>
+    <span class="v">120ms</span>
+  </div>
+  <div class="sw" title="Menus, popovers and disclosures.">
+    <span class="n">--duration-base</span>
+    <span class="v">200ms</span>
+  </div>
+  <div class="sw" title="Panels and dialogs that travel.">
+    <span class="n">--duration-slow</span>
+    <span class="v">320ms</span>
+  </div>
+  <div class="sw" title="The default curve for a state change.">
+    <span class="n">--ease-standard</span>
+    <span class="v">cubic-bezier(0.4, 0, 0.2, 1)</span>
+  </div>
+  <div class="sw" title="The deck fans out, and an epic lane opens and closes, on these curves.">
+    <span class="n">--ease-deck</span>
+    <span class="v">cubic-bezier(0.2, 0.8, 0.2, 1)</span>
+  </div>
+  <div class="sw" title="The deck fans out, and an epic lane opens and closes, on these curves.">
+    <span class="n">--ease-lane</span>
+    <span class="v">cubic-bezier(0.3, 0.8, 0.2, 1)</span>
+  </div>
+</div>
+</body>
+</html>

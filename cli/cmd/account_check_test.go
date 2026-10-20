@@ -100,12 +100,12 @@ func TestCheckAccountsChecksEachUsedAccount(t *testing.T) {
 func TestTheHeartbeatReportsEachAccountWithNoPath(t *testing.T) {
 	loggedInClaude(t)
 	set, _ := accountSet(t)
-	if hb := heartbeatBody(set, ""); hb.Accounts != nil {
+	if hb := heartbeatBody(set); hb.Accounts != nil {
 		t.Fatalf("an unchecked set reports accounts: %+v", hb.Accounts)
 	}
 
 	set.SetAccountProblems(accountsOff(checkAccounts(context.Background(), set)))
-	hb := heartbeatBody(set, "")
+	hb := heartbeatBody(set)
 	want := []api.AccountReport{
 		{Name: "broken", Harness: "claude-code", State: api.AccountFailing, Reason: "env file does not read", Used: true},
 		{Name: "in", Harness: "claude-code", State: api.AccountReady, Used: true},
@@ -136,7 +136,7 @@ func TestACheckedSetOfCommandsSendsUnusedAccountRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	set.SetAccountProblems(accountsOff(checkAccounts(context.Background(), set)))
-	b, err := json.Marshal(heartbeatBody(set, ""))
+	b, err := json.Marshal(heartbeatBody(set))
 	if err != nil {
 		t.Fatal(err)
 	}

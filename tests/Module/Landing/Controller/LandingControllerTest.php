@@ -89,6 +89,17 @@ final class LandingControllerTest extends WebTestCase
         }
     }
 
+    public function test_home_page_names_the_design_canvas_and_not_the_standalone_claude_design_app(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextSame('#integrations .lp-home-tile:nth-child(2) .lp-home-tile__name', 'Design canvas');
+        self::assertStringNotContainsString('claude design', strtolower($client->getCrawler()->filter('main')->text()));
+    }
+
     public function test_home_page_footer_links_to_the_loupe_x_account_and_not_to_bluesky(): void
     {
         $client = static::createClient();

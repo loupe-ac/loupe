@@ -1,0 +1,36 @@
+<!-- @dsCard group="Layout" width=700 height=120 subtitle="The trail at the top of a page: links to the parent pages and the current page last." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { padding: 0; }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .chrome { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--chrome); border-radius: 6px; }
+  .row > dialog[open] { position: static; margin: 0; }
+  .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../ds-mount.js"></script>
+<script type="text/babel">
+const { Breadcrumbs } =
+  dsFind('Breadcrumbs');
+
+function Demo() {
+  return (
+    <div className="col">
+        <div style={{ padding: 12 }}>
+          <Breadcrumbs items={[{ label: 'Documents', href: '#' }, { label: 'Tech design' }]} />
+        </div>
+
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

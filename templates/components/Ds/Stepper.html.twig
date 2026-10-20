@@ -1,0 +1,25 @@
+{#
+  Props:  @comment-budget-ignore
+    steps      list   The label of each step, already translated.
+    current    int    The step in progress, counted from 1. It also fills data-wizard-step.
+    complete   bool   Marks every step done, for the final screen.
+  The current step carries aria-current="step". Name the list with an aria-label attribute.
+  Any other attribute, class included, is passed to the list.
+#}
+{%- props steps = [], current = 1, complete = false -%}
+<ol{{ attributes.defaults({class: 'lp-stepper', 'data-wizard-step': current}) }}>
+    {%- for label in steps -%}
+        {%- set state = (complete or loop.index < current) ? 'done' : (loop.index == current ? 'current' : 'upcoming') -%}
+        {%- if not loop.first %}
+        <li class="lp-stepper__bar" aria-hidden="true"></li>
+        {%- endif %}
+        <li class="lp-stepper__step lp-stepper__step--{{ state }}"{{ state == 'current' ? ' aria-current="step"' }}>
+            {%- if state == 'done' -%}
+                <twig:ux:icon name="lucide:check" class="lp-icon lp-icon--lg" aria-hidden="true" />
+            {%- else -%}
+                <span class="lp-stepper__number">{{ loop.index }}</span>
+            {%- endif -%}
+            {{ label }}
+        </li>
+    {%- endfor %}
+</ol>

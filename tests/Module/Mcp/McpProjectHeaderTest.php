@@ -63,7 +63,7 @@ final class McpProjectHeaderTest extends WebTestCase
 
         self::assertSame(200, $client->getResponse()->getStatusCode());
         self::assertTrue($answer['result']['isError']);
-        self::assertStringStartsWith('The project this request names is not a project id ("the-board"). Run `loupe init`', $answer['result']['content'][0]['text']);
+        self::assertStringStartsWith('The project this request names is not a project id ("the-board"). Run `loupe project link`', $answer['result']['content'][0]['text']);
     }
 
     public function test_no_header_leaves_the_bound_project_in_place(): void

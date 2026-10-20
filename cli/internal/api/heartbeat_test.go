@@ -462,3 +462,55 @@ func TestHeartbeatClipsEntriesAndWorktrees(t *testing.T) {
 		t.Fatalf("sent %d entries and %d worktrees", len(sent.CommandEntries), len(sent.Worktrees))
 	}
 }
+
+func TestHeartbeatSendsRepositoriesOnlyWhenTheListIsSetAndClipsIt(t *testing.T) {
+	var body string
+	var sent Heartbeat
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		sent = Heartbeat{}
+		_ = json.Unmarshal(raw, &sent)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+	client := New(server.URL, "t", server.Client())
+
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, Heartbeat{CLIVersion: "v"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(body, "repositories") {
+		t.Fatalf("a nil list sent a key: %s", body)
+	}
+
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, Heartbeat{CLIVersion: "v", Repositories: []RepositoryReport{}}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body, `"repositories":[]`) {
+		t.Fatalf("an empty list sent no []: %s", body)
+	}
+
+	hb := Heartbeat{CLIVersion: "v", Repositories: []RepositoryReport{{ProjectID: "p", Path: "/r", RemoteURL: "u"}}}
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	if want := `"repositories":[{"projectId":"p","path":"/r","remoteUrl":"u"}]`; !strings.Contains(body, want) {
+		t.Fatalf("body lacks %s: %s", want, body)
+	}
+
+	hb = Heartbeat{CLIVersion: "v", Repositories: make([]RepositoryReport, MaxRepositories+5)}
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent.Repositories) != MaxRepositories {
+		t.Fatalf("sent %d repositories", len(sent.Repositories))
+	}
+
+	hb = Heartbeat{CLIVersion: "v", GitIdentities: make([]GitIdentityReport, MaxGitIdentities+5)}
+	if _, err := client.Heartbeat(context.Background(), heartbeatBridgeID, hb); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent.GitIdentities) != MaxGitIdentities {
+		t.Fatalf("sent %d git identities", len(sent.GitIdentities))
+	}
+}

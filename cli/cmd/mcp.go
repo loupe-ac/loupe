@@ -34,7 +34,7 @@ func newMcpCmd() *cobra.Command {
 			"defines no tools of its own, so a tool Loupe adds reaches your agent with no new " +
 			"release of this CLI.\n\n" +
 			"The project comes from " + projectfile.Name + " in the directory the command runs in. " +
-			"Write that file with `loupe init`. With no file, the server uses the single project " +
+			"Write that file with `loupe project link`. With no file, the server uses the single project " +
 			"your login covers, and refuses when your login covers several. A change to the file " +
 			"applies at the next request, and a note on stderr names the new project.\n\n" +
 			"Every message goes to stdout and every diagnostic to stderr, because stdout is the " +

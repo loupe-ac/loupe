@@ -1,0 +1,45 @@
+<!-- @dsCard group="Core" width=700 height=420 subtitle="The state of a card with its reason, its facts, what clears it, and the other states that apply." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { padding: 16px 18px; }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .chrome { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--chrome); border-radius: 6px; }
+  .row > dialog[open] { position: static; margin: 0; }
+  .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../ds-mount.js"></script>
+<script type="text/babel">
+const { StatusBox } =
+  dsFind('StatusBox');
+
+function Demo() {
+  return (
+    <div className="col">
+      <StatusBox
+        kind="stuck"
+        title="Status"
+        chip="Stuck for 2 h"
+        lead="A pull request waits for a merge."
+        fields={[{ label: 'Since', value: '14:02, 2 hours ago' }, { label: 'To unstick it', value: 'Merge the pull request.', wide: true }]}
+
+        othersTitle="Also true"
+        others={[{ kind: 'waiting', label: 'Waiting', lead: 'A review is open.', since: '1 h' }]}
+
+      />
+      <StatusBox kind="working" title="Status" chip="Working" lead="A worker runs on this card." />
+
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

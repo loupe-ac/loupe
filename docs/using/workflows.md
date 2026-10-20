@@ -26,7 +26,7 @@ Loupe ships two templates.
 | **Lifecycle** | The process of this repository: product design, tech design, implementation, review and merge, with epics and blockers |
 | **Simple** | Any board. A merge moves the card to the terminal column |
 
-A new project picks its template during setup. The template creates its columns
+A new project gets the Lifecycle template. The setup form has no template field. The template creates its columns
 with its slots linked. A project that existed before the workflow engine got a
 template when the engine was switched on. A board that had a column for each
 Lifecycle slot got Lifecycle, and every other board got Simple. A project that already had a
@@ -163,6 +163,10 @@ markers:
   follows the project, reports the kind of work and was seen in the last three
   heartbeat intervals could take it. The marker counts from the later of the
   start of the wait and the moment the last such bridge went quiet.
+- `card.run.work_no_capable_taker`: a work request of the card waits, a bridge
+  that follows the project is online, and none of those bridges can run the
+  work. A bridge runs a kind of work when its rule file maps the kind, or when
+  it reports `app-prompts` and the request ships a prompt.
 - `card.run.work_taker_paused`: a work request of the card waits, and every
   online bridge that could take it is paused. A bridge counts as paused while
   you paused it, or while its last heartbeat said so.
@@ -397,7 +401,7 @@ back to Implementation at once when it has no open blocker.
 
 | Slot | The workflow |
 |---|---|
-| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries three [discovery](workshop.md#run-discovery) checks, for a design system, for a Claude Design project that mirrors it, and for a starter Claude Design project. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
+| Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
 | Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
 | Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
@@ -810,13 +814,29 @@ A request of an app rule can carry a prompt that ships with Loupe. A bridge that
 sets `appPrompts: true` runs it for a kind that its `work:` map does not hold.
 See [Command-line bridge](../extending/cli-bridge.md#work-requests).
 
-The app adds six rules.
+Every work request of the Lifecycle template also carries the prompt that Loupe
+ships for its kind. This covers all 17 kinds, such as `tech-design`, `implement`,
+`fix`, `merge` and `repair`. A `work:` entry of the bridge rule file still wins
+over the shipped prompt.
+
+The app adds seven rules.
 
 The rule `discovery` watches the Backlog. It asks for work of
 kind `discovery` when the card carries a requested
 [discovery run](workshop.md#run-discovery), and it sends the discovery prompt
-with the request. A request that no bridge takes expires, and the run fails with
-the reason that no bridge took the work.
+with the request. The rule sets `onNoTaker: fail`, so the request fails at once
+when no online bridge could take it, and the run fails with the cause: no bridge
+serves the project, or a bridge is online and cannot run discovery. A request
+that a capable bridge does not claim in time expires, and the run fails with the
+reason that no bridge took the work.
+
+The rule `discovery-revise` also watches the Backlog. It asks for work of kind
+`discovery-revise` when you asked for changes to the report of a
+[discovery run](workshop.md#review-the-report), and it sends the revision prompt
+with the request. The worker submits a new version of the same report. An
+approval of the report while the worker revises it cancels the request. The rule
+also sets `onNoTaker: fail`, so the run fails at once with the cause when no
+online bridge can take the revision.
 
 The rule `discovery-approved` also watches the Backlog. It moves the card to the
 first terminal column when the owner approved the report of the discovery run.
@@ -918,6 +938,12 @@ holds the same reason. A request rule can set the reason with the optional
 `reason` parameter. The parameter replaces the reason that the state of the
 pull request gives, in the context and in the event. The fix rules for the
 [agent review](#agent-review) use `reason: agent-review`.
+
+A request rule can set the optional `onNoTaker` parameter to `fail`. The engine
+then expires an open request of the rule as soon as no online bridge that
+follows the project could take it. The card does not pause, and the module that
+owns the work reads the cause from the reason of the request. A request without
+the parameter waits for the work timeout instead.
 
 The `move` action takes the optional parameter `outcome`. It has one value,
 `merged`. A move that sets it records in the card history that the card moved

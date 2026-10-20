@@ -17,11 +17,12 @@ use Mcp\Exception\ToolCallException;
  * Reads the bridges that follow the project.
  *
  * @phpstan-import-type CommandEntryRow from Bridge
+ * @phpstan-import-type GitIdentityRow from Bridge
  *
  * @phpstan-type OpenRun array{runId: string, subjectType: string, subjectId: string, cardNumber: ?int, workKind: ?string, state: string}
- * @phpstan-type BridgeRow array{bridgeId: string, name: ?string, requestedName: ?string, pushLogin: ?string, liveness: 'live'|'quiet', lastSeenAt: ?string, cliVersion: string, pauseRequested: bool, pausedReported: ?bool, takesCommands: bool, takesReruns: bool, acceptsEntries: bool, commandEntries: list<CommandEntryRow>|null, workerPools: list<array{name: string, size: int, inUse: int, queued: int}>|null, workerPoolsReportedAt: ?string, accounts: list<array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used: bool}>|null, accountsReportedAt: ?string, openRuns: list<OpenRun>}
+ * @phpstan-type BridgeRow array{bridgeId: string, name: ?string, requestedName: ?string, gitIdentity: array{mode: 'agent_account'|'app_token'|'machine', commitName: string, pushLogin: string, githubUserId: ?int}|null, liveness: 'live'|'quiet', lastSeenAt: ?string, cliVersion: string, pauseRequested: bool, pausedReported: ?bool, takesCommands: bool, takesReruns: bool, acceptsEntries: bool, commandEntries: list<CommandEntryRow>|null, workerPools: list<array{name: string, size: int, inUse: int, queued: int}>|null, workerPoolsReportedAt: ?string, accounts: list<array{name: string, harness: string, state: 'ready'|'failing', reason: ?string, used: bool}>|null, accountsReportedAt: ?string, openRuns: list<OpenRun>}
  */
-#[McpTool(name: self::NAME, description: 'List the CLI bridges that follow this project. A bridge runs the workers of the project on a machine. Each bridge has bridgeId, name, requestedName, pushLogin, liveness, lastSeenAt, cliVersion, pauseRequested, pausedReported, takesCommands, takesReruns, acceptsEntries, commandEntries, workerPools, workerPoolsReportedAt, accounts, accountsReportedAt and openRuns. name is the name the bridge holds, or null. requestedName is the name its last heartbeat asked for, or null. A requestedName with a null name means another bridge of the owner already holds that name. pushLogin is the GitHub user the bridge pushes as, or null when it reported none. liveness is live while the bridge sends its heartbeat, and quiet when it missed several. lastSeenAt is the time of its last heartbeat. pauseRequested says that a person asked the bridge to start no new work. pausedReported says whether the bridge reported that it is paused, or is null when it reported nothing. takesCommands is false for an older bridge, which cannot resume or stop a run. takesReruns is false for a bridge that cannot run a failed command run again. acceptsEntries is true when the bridge adds a proposed command entry to its rule file after the owner confirms. commandEntries lists each command entry the bridge can run, with name, description, params, run and timeout, as its last heartbeat reported them, or is null. Each param has name, pattern and description, and a value must match its pattern whole. run is the argv with its placeholders. workerPools lists each pool of the bridge with its name, size, inUse and queued counts, as its last heartbeat reported them, or is null. accounts lists each account the bridge checked with name, harness, state ready or failing, reason, and used, as its last heartbeat reported them, or is null. used is false for an account that no rule uses, which turns off no rule when it fails. accountsReportedAt is the time of the heartbeat that carried the accounts. openRuns lists the queued, resumed, preparing, running and stopping runs of this project on the bridge, each with runId, subjectType, subjectId, cardNumber, workKind and state. subjectType names what the run is about, such as card, and subjectId is its id. cardNumber is null when the subject is no card. workKind is the kind of the work request the run ran, or null.')]
+#[McpTool(name: self::NAME, description: 'List the CLI bridges that follow this project. A bridge runs the workers of the project on a machine. Each bridge has bridgeId, name, requestedName, gitIdentity, liveness, lastSeenAt, cliVersion, pauseRequested, pausedReported, takesCommands, takesReruns, acceptsEntries, commandEntries, workerPools, workerPoolsReportedAt, accounts, accountsReportedAt and openRuns. name is the name the bridge holds, or null. requestedName is the name its last heartbeat asked for, or null. A requestedName with a null name means another bridge of the owner already holds that name. gitIdentity is the git identity of the bridge for this project, or null when it reported none. It has mode, commitName, pushLogin and githubUserId. mode is agent_account, app_token or machine. pushLogin is the GitHub login the pushes use, or empty when it is unknown. githubUserId is the numeric id of that login, or null. liveness is live while the bridge sends its heartbeat, and quiet when it missed several. lastSeenAt is the time of its last heartbeat. pauseRequested says that a person asked the bridge to start no new work. pausedReported says whether the bridge reported that it is paused, or is null when it reported nothing. takesCommands is false for an older bridge, which cannot resume or stop a run. takesReruns is false for a bridge that cannot run a failed command run again. acceptsEntries is true when the bridge adds a proposed command entry to its rule file after the owner confirms. commandEntries lists each command entry the bridge can run, with name, description, params, run and timeout, as its last heartbeat reported them, or is null. Each param has name, pattern and description, and a value must match its pattern whole. run is the argv with its placeholders. workerPools lists each pool of the bridge with its name, size, inUse and queued counts, as its last heartbeat reported them, or is null. accounts lists each account the bridge checked with name, harness, state ready or failing, reason, and used, as its last heartbeat reported them, or is null. used is false for an account that no rule uses, which turns off no rule when it fails. accountsReportedAt is the time of the heartbeat that carried the accounts. openRuns lists the queued, resumed, preparing, running and stopping runs of this project on the bridge, each with runId, subjectType, subjectId, cardNumber, workKind and state. subjectType names what the run is about, such as card, and subjectId is its id. cardNumber is null when the subject is no card. workKind is the kind of the work request the run ran, or null.')]
 final readonly class BridgeListTool
 {
     public const string NAME = 'bridge_list';
@@ -57,7 +58,7 @@ final readonly class BridgeListTool
                     'bridgeId' => $connection->bridge->id->toRfc4122(),
                     'name' => $connection->bridge->name,
                     'requestedName' => $connection->bridge->requestedName,
-                    'pushLogin' => $connection->bridge->pushLogin,
+                    'gitIdentity' => self::gitIdentityOf($connection->bridge->gitIdentities, (string) $project->id),
                     'liveness' => $connection->status->quiet ? 'quiet' : 'live',
                     'lastSeenAt' => $connection->status->lastSeenAt?->format(\DATE_ATOM),
                     'cliVersion' => $connection->bridge->cliVersion,
@@ -80,5 +81,17 @@ final readonly class BridgeListTool
         } catch (\Throwable $e) {
             throw new ToolCallException('The bridges could not be read. The error has been logged.', previous: $e);
         }
+    }
+
+    /**
+     * @param list<GitIdentityRow>|null $rows
+     *
+     * @return array{mode: 'agent_account'|'app_token'|'machine', commitName: string, pushLogin: string, githubUserId: ?int}|null
+     */
+    private static function gitIdentityOf(?array $rows, string $projectId): ?array
+    {
+        $row = array_find($rows ?? [], static fn (array $candidate): bool => $candidate['projectId'] === $projectId);
+
+        return null === $row ? null : ['mode' => $row['mode'], 'commitName' => $row['commitName'], 'pushLogin' => $row['pushLogin'], 'githubUserId' => $row['githubUserId']];
     }
 }

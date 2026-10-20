@@ -126,6 +126,8 @@ final class ConnectAgentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('#agent-connection'));
         self::assertCount(1, $crawler->filter('#site-review-widget'));
+        $panels = $crawler->filter('.lp-connect-settings > [id]')->each(static fn (\Symfony\Component\DomCrawler\Crawler $node): string => (string) $node->attr('id'));
+        self::assertSame(['agent-connection', 'repositories', 'git-identity', 'site-review-widget'], $panels);
 
         // The global MCP endpoint path renders among the fields. The host differs
         // under test, so only the path is matched.
@@ -134,11 +136,17 @@ final class ConnectAgentControllerTest extends WebTestCase
         );
         self::assertNotEmpty(array_filter($fieldValues, static fn (string $value): bool => str_contains($value, '/mcp')));
 
-        // Three copyable configurations, each behind a disclosure that starts
-        // shut. The step opens as a list of choices, not three stacked blocks.
-        self::assertCount(3, $crawler->filter('details.lp-install .lp-code-dark'));
-        self::assertCount(3, $crawler->filter('details.lp-install'));
+        // Two hand-wired configurations, each behind a disclosure that starts
+        // shut, and all of them inside the one collapsed block of other ways.
+        self::assertCount(2, $crawler->filter('details.lp-install .lp-code-dark'));
+        self::assertCount(2, $crawler->filter('details.lp-install'));
         self::assertCount(0, $crawler->filter('details.lp-install[open]'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"]:not([open])'));
+        // Every disclosure of the page animates through the disclosure controller.
+        self::assertCount(0, $crawler->filter('details[data-testid="connect-other-ways"] details:not([data-controller="disclosure"]):not(.lp-install)'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"][data-controller="disclosure"] > summary .lp-connect-other__caret'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"] > [data-disclosure-target="content"]'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"] details.lp-install[data-testid="install-cli"]'));
 
         // No page may hand out a credential any more, so no snippet carries one.
         self::assertStringNotContainsString('YOUR_TOKEN', $crawler->text());
@@ -168,19 +176,16 @@ final class ConnectAgentControllerTest extends WebTestCase
         self::assertStringContainsString('curl -fsSL "http://localhost/setup.md?project='.$project->id.'"', $prompt->text());
         self::assertStringContainsString('/setup.md?project='.$project->id, (string) $prompt->closest('.lp-code-dark')?->filter('[data-controller="clipboard"]')->attr('data-clipboard-text-value'));
 
-        // One way in carries the recommended tag, and it is the prompt.
-        self::assertCount(1, $crawler->filter('.lp-connect-tag'));
-        self::assertCount(0, $crawler->filter('details.lp-install .lp-connect-tag'));
+        self::assertCount(1, $crawler->filter('details[data-testid="connect-other-ways"] [data-testid="setup-prompt"]'));
     }
 
-    /** The Homebrew line is a shell comment, so a person who pastes the whole block does not install twice. */
-    public function test_the_loupe_cli_method_installs_the_cli_first(): void
+    public function test_the_page_leads_with_loupe_init_for_the_project_and_links_the_docs(): void
     {
         $client = static::createClient();
         $em = static::getContainer()->get(EntityManagerInterface::class);
 
-        $owner = $this->user($em, 'connect-install@example.com');
-        $project = new Project($owner, 'connect-site-install');
+        $owner = $this->user($em, 'connect-init@example.com');
+        $project = new Project($owner, 'connect-site-init');
         $em->persist($project);
         $em->flush();
         $em->clear();
@@ -189,12 +194,30 @@ final class ConnectAgentControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/connect');
 
         self::assertResponseIsSuccessful();
-        self::assertSame([
-            'curl -fsSL http://localhost/install.sh | sh',
-            '# or, with Homebrew: brew install ubermuda/tap/loupe',
-            'loupe login --url http://localhost',
-            'loupe init',
-        ], explode("\n", $crawler->filter('[data-testid="install-loupe_cli"] .lp-code-dark__body')->text(null, false)));
+        self::assertSame('loupe init --project '.$project->id, trim($crawler->filter('[data-testid="connect-init-command"]')->text()));
+        self::assertCount(0, $crawler->filter('details[data-testid="connect-other-ways"] [data-testid="connect-init-command"]'));
+        self::assertStringContainsString('/using/mcp/', (string) $crawler->filter('[data-connect-docs-link]')->attr('href'));
+    }
+
+    public function test_the_origin_field_starts_with_the_project_website_until_an_origin_is_saved(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $owner = $this->user($em, 'connect-origin@example.com');
+        $project = new Project($owner, 'connect-site-origin', domain: 'acme.example');
+        $em->persist($project);
+        $em->flush();
+        $em->clear();
+        $client->loginUser($owner);
+
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/connect');
+        self::assertResponseIsSuccessful();
+        self::assertSame('https://acme.example', trim($crawler->filter('textarea[name$="[origins]"]')->text()));
+
+        $stored = $em->find(Project::class, $project->id);
+        self::assertInstanceOf(Project::class, $stored);
+        self::assertSame([], $stored->allowedOrigins);
     }
 
     public function test_non_owner_is_denied(): void

@@ -1,0 +1,47 @@
+<!-- @dsCard group="Core" width=700 height=150 subtitle="A small coloured label for a category or a tone." -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { padding: 16px 18px; }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .col { display: flex; flex-direction: column; gap: 10px; }
+  .chrome { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--chrome); border-radius: 6px; }
+  .row > dialog[open] { position: static; margin: 0; }
+  .row > .lp-tooltip { position: static; margin: 0; visibility: visible; opacity: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../ds-mount.js"></script>
+<script type="text/babel">
+const { Tag } =
+  dsFind('Tag');
+
+function Demo() {
+  return (
+    <div className="col">
+      <div className="row">
+        <Tag tone="neutral">neutral</Tag>
+        <Tag tone="lime">lime</Tag>
+        <Tag tone="purple">purple</Tag>
+        <Tag tone="green">green</Tag>
+        <Tag tone="amber">amber</Tag>
+        <Tag tone="red">red</Tag>
+        <Tag tone="teal">teal</Tag>
+        <Tag tone="sky">sky</Tag>
+        <Tag tone="blue">blue</Tag>
+        <Tag tone="indigo">indigo</Tag>
+        <Tag tone="pink">pink</Tag>
+        <Tag tone="orange">orange</Tag>
+      </div>
+
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

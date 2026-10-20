@@ -111,7 +111,7 @@ func projectProblems(ctx context.Context, binary string, env []string, configDir
 	// A declared entry wins over a plugin, so a wrong one fails whatever the
 	// plugins serve.
 	if got.Declared() && !got.Correct() {
-		problems = append(problems, harness.Problem{Reason: "loupe MCP server is not loupe mcp for project " + slug, Detail: got.Where() + " starts " + got.Entry.Summary() + "; run `loupe init --mcp` in " + dir})
+		problems = append(problems, harness.Problem{Reason: "loupe MCP server is not loupe mcp for project " + slug, Detail: got.Where() + " starts " + got.Entry.Summary() + "; run `loupe project link --mcp` in " + dir})
 	}
 	if got.Correct() {
 		serverEnv := env
@@ -135,7 +135,7 @@ func projectProblems(ctx context.Context, binary string, env []string, configDir
 		return append(problems, harness.Problem{Reason: reason + " for project " + slug, Detail: "claude plugin list --json in " + dir + ": " + err.Error()})
 	}
 	if !got.Declared() && !slices.ContainsFunc(plugins, servesLoupe) {
-		detail := "declare it with `loupe init --mcp` in " + dir
+		detail := "declare it with `loupe project link --mcp` in " + dir
 		if mcpErr != nil {
 			detail = mcpErr.Error()
 		}

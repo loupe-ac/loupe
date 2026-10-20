@@ -26,6 +26,8 @@ final class WorkflowGetToolTest extends KernelTestCase
     private const string DISCOVERY_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-discovery skill';
     private const string ANALYSIS_CHECK = 'The Loupe plugin skills are installed for the agent, with the loupe-analysis skill';
     private const string ANALYSIS_BRIDGE_CHECK = 'The bridge rule file maps the analysis kind, or sets appPrompts to true';
+    private const string DISCOVERY_REVISE_BRIDGE_CHECK = 'The bridge rule file maps the discovery-revise kind, or sets appPrompts to true';
+
     private const string DISCOVERY_BRIDGE_CHECK = 'The bridge rule file maps the discovery kind, or sets appPrompts to true';
 
     protected function setUp(): void
@@ -41,13 +43,13 @@ final class WorkflowGetToolTest extends KernelTestCase
 
         $answer = $this->tool()();
 
-        self::assertSame(['key' => 'lifecycle', 'version' => 10], $answer['template']);
+        self::assertSame(['key' => 'lifecycle', 'version' => 11], $answer['template']);
         self::assertTrue($answer['approvalCoversConflictResolution']);
         self::assertSame('epic/{number}', $answer['epicBranch']);
         $kinds = array_column($answer['kinds'], null, 'kind');
         self::assertSame([
             'product-design', 'product-design-revise', 'design-review', 'tech-design', 'tech-design-revise', 'tech-design-recheck', 'implement', 'breakdown',
-            'fix', 'review', 'rebase-stacked', 'sync', 'merge', 'teardown', 'epic-preview', 'sync-epic', 'discovery', 'analysis',
+            'fix', 'review', 'rebase-stacked', 'sync', 'merge', 'teardown', 'epic-preview', 'sync-epic', 'discovery', 'discovery-revise', 'analysis',
         ], array_column($answer['kinds'], 'kind'));
         self::assertSame('template', $kinds['implement']['origin']);
         self::assertSame(['implement'], $kinds['implement']['rules']);
@@ -90,6 +92,7 @@ final class WorkflowGetToolTest extends KernelTestCase
         self::assertSame([
             ['kind' => 'teardown', 'origin' => 'template', 'rules' => ['teardown'], 'checks' => []],
             ['kind' => 'discovery', 'origin' => 'app', 'rules' => ['discovery'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_BRIDGE_CHECK]],
+            ['kind' => 'discovery-revise', 'origin' => 'app', 'rules' => ['discovery-revise'], 'checks' => [self::DISCOVERY_CHECK, self::DISCOVERY_REVISE_BRIDGE_CHECK]],
             ['kind' => 'analysis', 'origin' => 'app', 'rules' => ['insights.analysis'], 'checks' => [self::ANALYSIS_CHECK, self::ANALYSIS_BRIDGE_CHECK]],
         ], $answer['kinds']);
         self::assertSame([null], array_values(array_unique(array_column($answer['columns'], 'slot'))));

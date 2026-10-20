@@ -134,7 +134,7 @@ card. The second line gives the pull request and its last verdict, for example
 notes on the card. The footer has one action. It is **Finish review** when the
 card has an open pull request, and **Open #N in Loupe** when it has none.
 
-## Preview sign-in
+## Preview sites
 
 A preview page can sign the widget in with no popup. It sets
 `SITE_REVIEW_WIDGET_PREVIEW_TOKEN`, and the embed carries the value in
@@ -160,6 +160,32 @@ card reaches a terminal column, or when the owner revokes it.
 
 The page source carries the token. Use it on internal preview pages only. The
 allowed sites of the project do not limit where a token works.
+
+### Minting and revoking a token
+
+The `loupe preview-token` command mints and revokes these tokens. It works for
+any preview setup. For example, a CI job can mint a token for each preview
+deploy, pass it to the page as `data-preview-token`, and revoke it when the
+deploy goes away.
+
+```bash
+loupe preview-token mint --project <id> --label <preview> [--card <cardId>]
+loupe preview-token revoke --project <id> --label <preview>
+```
+
+`mint` prints the token on one line. With `--card`, the token also carries the
+card that the preview shows. The label names the preview, such as a branch or a
+worktree. A token lives 14 days at most.
+
+A second `mint` with the same label revokes the first token. `mint` exits with
+status 1, and prints the reason on stderr, when the server refuses. `revoke`
+exits with status 0 also when no live token has the label.
+
+`--instance <url>` makes the command refuse unless you are signed in to that
+instance. Use it when a script must never mint on another instance.
+
+A project owner sees and revokes every token under Account > Connected apps. To
+set up the CLI, see [Installing the CLI](../getting-started/cli.md).
 
 ## Sending a verdict
 

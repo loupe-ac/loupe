@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Artifact\Service;
 
-/** The tool an artifact came from, read from the shape of its source link. */
+/**
+ * The tool an artifact came from, read from the shape of its source link. A Design
+ * canvas lives at claude.ai/artifact/<id>, so it reads as ClaudeArtifact. Only an
+ * older standalone canvas link, claude.ai/design/, reads as ClaudeDesign.
+ */
 enum ArtifactSourceKind: string
 {
     case ClaudeDesign = 'claude-design';

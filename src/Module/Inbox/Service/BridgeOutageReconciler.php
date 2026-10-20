@@ -143,7 +143,7 @@ final readonly class BridgeOutageReconciler
      */
     private function withoutTaker(array $readings): array
     {
-        return array_filter($readings, static fn (array $row): bool => WorkTakerState::None === $row['reading']->state);
+        return array_filter($readings, static fn (array $row): bool => \in_array($row['reading']->state, [WorkTakerState::None, WorkTakerState::NotCapable], true));
     }
 
     /**

@@ -1,19 +1,21 @@
 {#- The readiness checklist. Props: project, readiness, layout (full or sidebar). The sidebar carries its own hide control. -#}
-<section class="lp-readiness-checklist"{% if layout == 'sidebar' %} data-readiness-guide data-readiness-layout="sidebar"{% endif %} aria-labelledby="readiness-checklist-title">
+<section class="lp-readiness-checklist"{% if layout == 'sidebar' %} data-readiness-guide data-readiness-layout="sidebar" aria-labelledby="readiness-checklist-title"{% else %} aria-label="{{ 'readiness.guide.title'|trans }}"{% endif %}>
+    {% if layout == 'sidebar' %}
     <twig:Ds:SectionHeading titleId="readiness-checklist-title" :description="'readiness.guide.count'|trans({'%done%': readiness.doneCount, '%total%': readiness.total})">{{ 'readiness.guide.title'|trans }}
         <twig:block name="actions">
-            {% if layout == 'sidebar' %}
             <twig:Ds:ActionForm :action="path('app_readiness_guide_hide', {id: project.id})" token="readiness-guide-hide">
                 <button type="submit" class="lp-workshop-icon-link" aria-label="{{ 'readiness.guide.hide'|trans }}" data-readiness-hide><twig:ux:icon name="lucide:x" /></button>
             </twig:Ds:ActionForm>
-            {% endif %}
         </twig:block>
     </twig:Ds:SectionHeading>
-    <ul class="lp-readiness-checklist__list">
-        {% for row in readiness.rows %}
+    {% endif %}
+    {% for group, rows in readiness.groups %}
+    <h3 class="lp-readiness-checklist__group" id="readiness-group-{{ layout }}-{{ group }}">{{ ('readiness.guide.group.' ~ group)|trans }}</h3>
+    <ul class="lp-readiness-checklist__list" aria-labelledby="readiness-group-{{ layout }}-{{ group }}" data-readiness-group="{{ group }}">
+        {% for row in rows %}
         <li class="lp-readiness-row" data-readiness-row="{{ row.key }}" data-readiness-done="{{ row.done ? 1 : 0 }}"{% if row.discoveryState is not null %} data-readiness-discovery-state="{{ row.discoveryState }}"{% endif %}>
             <span class="lp-readiness-row__mark">{% if row.done %}<twig:ux:icon name="lucide:circle-check" />{% else %}<twig:ux:icon name="lucide:circle" />{% endif %}</span>
-            <span class="lp-readiness-row__text"><strong>{{ row.label|trans }}</strong><small>{{ row.detail is not null ? row.detail|trans : row.status|trans(row.statusParameters) }}</small></span>
+            <span class="lp-readiness-row__text"><strong>{{ row.label|trans }}</strong><small>{{ row.detail is not null ? row.detail|trans : row.status|trans(row.statusParameters) }}{% if row.seenAt is not null %} · {{ 'readiness.row.bridge.seen'|trans }} <twig:Ds:RelativeTime :datetime="row.seenAt" />{% endif %}</small></span>
             {% if row.actionUrl and row.actionCsrfTokenId %}
             <twig:Ds:ActionForm :action="row.actionUrl" :token="row.actionCsrfTokenId" class="lp-readiness-row__action">
                 <button type="submit" class="lp-workshop-text-link" data-readiness-action>{{ row.actionLabel|trans }} <twig:ux:icon name="lucide:chevron-right" /></button>
@@ -24,4 +26,5 @@
         </li>
         {% endfor %}
     </ul>
+    {% endfor %}
 </section>

@@ -2129,7 +2129,6 @@
                 <target>Add project</target>
             </trans-unit>
             <trans-unit id="project.form.create_project_form.description.label"><source>project.form.create_project_form.description.label</source><target>Description (optional)</target></trans-unit>
-            <trans-unit id="project.form.create_project_form.workflow_template.label"><source>project.form.create_project_form.workflow_template.label</source><target>Workflow</target></trans-unit>
             <trans-unit id="project.form.create_project_form.name.label">
                 <source>project.form.create_project_form.name.label</source>
                 <target>Project name</target>
@@ -2394,10 +2393,14 @@
             </trans-unit>
 
             <!-- Connect agent (handoff §5) -->
-            <trans-unit id="project.connect.card.agent.title"><source>project.connect.card.agent.title</source><target>Agent connection</target></trans-unit>
             <trans-unit id="project.connect.card.widget.title"><source>project.connect.card.widget.title</source><target>Site review widget</target></trans-unit>
-            <trans-unit id="project.connect.configure"><source>project.connect.configure</source><target>Configure connection</target></trans-unit>
-            <trans-unit id="project.connect.dialog.close"><source>project.connect.dialog.close</source><target>Close</target></trans-unit>
+            <trans-unit id="project.connect.machines.title"><source>project.connect.machines.title</source><target>Machines</target></trans-unit>
+            <trans-unit id="project.connect.machines.version"><source>project.connect.machines.version</source><target>loupe %version%</target></trans-unit>
+            <trans-unit id="project.connect.machines.add.title"><source>project.connect.machines.add.title</source><target>Connect another machine</target></trans-unit>
+            <trans-unit id="project.connect.machines.add.hint"><source>project.connect.machines.add.hint</source><target>Install the CLI, then run this in the repository.</target></trans-unit>
+            <trans-unit id="project.connect.machines.add.label"><source>project.connect.machines.add.label</source><target>Terminal</target></trans-unit>
+            <trans-unit id="project.connect.other.summary"><source>project.connect.other.summary</source><target>Other ways to connect: a remote client by URL, or a committed .mcp.json</target></trans-unit>
+            <trans-unit id="project.connect.docs_link"><source>project.connect.docs_link</source><target>See every MCP tool in the docs</target></trans-unit>
             <trans-unit id="project.connect.page.title">
                 <source>project.connect.page.title</source>
                 <target>Connect</target>
@@ -2425,10 +2428,6 @@
             <trans-unit id="project.connect.methods.eyebrow">
                 <source>project.connect.methods.eyebrow</source>
                 <target>Pick how you connect</target>
-            </trans-unit>
-            <trans-unit id="project.connect.methods.recommended">
-                <source>project.connect.methods.recommended</source>
-                <target>Recommended</target>
             </trans-unit>
             <trans-unit id="project.connect.skills.heading">
                 <source>project.connect.skills.heading</source>
@@ -2462,22 +2461,6 @@
                 <source>project.connect.setup_prompt.label</source>
                 <target>prompt · coding agent</target>
             </trans-unit>
-            <trans-unit id="project.connect.loupe_cli.heading">
-                <source>project.connect.loupe_cli.heading</source>
-                <target>Loupe CLI</target>
-            </trans-unit>
-            <trans-unit id="project.connect.loupe_cli.sub">
-                <source>project.connect.loupe_cli.sub</source>
-                <target>Install the CLI, sign in once, then write the config into the repository. Each repository names its own project in .loupe.yaml, so one login serves them all.</target>
-            </trans-unit>
-            <trans-unit id="project.connect.loupe_cli.homebrew">
-                <source>project.connect.loupe_cli.homebrew</source>
-                <target>or, with Homebrew:</target>
-            </trans-unit>
-            <trans-unit id="project.connect.loupe_cli.label">
-                <source>project.connect.loupe_cli.label</source>
-                <target>loupe · terminal</target>
-            </trans-unit>
             <trans-unit id="project.connect.cli.heading">
                 <source>project.connect.cli.heading</source>
                 <target>Claude Code</target>
@@ -2489,10 +2472,6 @@
             <trans-unit id="project.connect.cli.label">
                 <source>project.connect.cli.label</source>
                 <target>claude · terminal</target>
-            </trans-unit>
-            <trans-unit id="project.connect.widget.eyebrow">
-                <source>project.connect.widget.eyebrow</source>
-                <target>Then add this before &lt;/body&gt;</target>
             </trans-unit>
             <trans-unit id="project.connect.copy">
                 <source>project.connect.copy</source>
@@ -2621,6 +2600,10 @@
             <trans-unit id="readiness.report.description">
                 <source>readiness.report.description</source>
                 <target>The report of a discovery run. Tick the proposals to keep, then approve the report.</target>
+            </trans-unit>
+            <trans-unit id="readiness.report.revision_description">
+                <source>readiness.report.revision_description</source>
+                <target>The report revised after the owner asked for changes. The proposals are replaced.</target>
             </trans-unit>
             <trans-unit id="readiness.report.summary">
                 <source>readiness.report.summary</source>
@@ -2876,17 +2859,21 @@
             </trans-unit>
 
             <!-- First-run wizard -->
+            <trans-unit id="project.wizard.progress.label">
+                <source>project.wizard.progress.label</source>
+                <target>Setup progress</target>
+            </trans-unit>
             <trans-unit id="project.wizard.progress.step_1">
                 <source>project.wizard.progress.step_1</source>
-                <target>Create a project</target>
+                <target>Project</target>
             </trans-unit>
             <trans-unit id="project.wizard.progress.step_2">
                 <source>project.wizard.progress.step_2</source>
-                <target>Connect your agent</target>
+                <target>Your machine</target>
             </trans-unit>
             <trans-unit id="project.wizard.progress.step_3">
                 <source>project.wizard.progress.step_3</source>
-                <target>Add the widget</target>
+                <target>Ready for agents</target>
             </trans-unit>
             <trans-unit id="project.wizard.skip">
                 <source>project.wizard.skip</source>
@@ -2910,63 +2897,59 @@
             </trans-unit>
             <trans-unit id="project.wizard.connect.page.title">
                 <source>project.wizard.connect.page.title</source>
-                <target>Connect your agent</target>
+                <target>Connect your machine</target>
             </trans-unit>
             <trans-unit id="project.wizard.connect.heading">
                 <source>project.wizard.connect.heading</source>
-                <target>Connect your agent</target>
+                <target>Connect your machine</target>
             </trans-unit>
             <trans-unit id="project.wizard.connect.lead">
                 <source>project.wizard.connect.lead</source>
-                <target>Point your coding agent at this project over MCP so it can submit documents for review.</target>
+                <target>Agents run on your computer. One command signs you in, links this repository, installs the agent skills and starts the bridge.</target>
             </trans-unit>
-            <trans-unit id="project.wizard.connect.step.point.heading">
-                <source>project.wizard.connect.step.point.heading</source>
-                <target>Point your agent at it</target>
+            <trans-unit id="project.wizard.connect.install.heading">
+                <source>project.wizard.connect.install.heading</source>
+                <target>1. Install the CLI</target>
             </trans-unit>
-            <trans-unit id="project.wizard.connect.step.point.purpose">
-                <source>project.wizard.connect.step.point.purpose</source>
-                <target>Add the endpoint to your agent&apos;s MCP configuration, or run the one-liner if you use Claude Code.</target>
+            <trans-unit id="project.wizard.connect.install.label">
+                <source>project.wizard.connect.install.label</source>
+                <target>Terminal</target>
             </trans-unit>
-            <trans-unit id="project.wizard.widget.page.title">
-                <source>project.wizard.widget.page.title</source>
-                <target>Add the review widget</target>
+            <trans-unit id="project.wizard.connect.init.heading">
+                <source>project.wizard.connect.init.heading</source>
+                <target>2. Run it in your repository</target>
             </trans-unit>
-            <trans-unit id="project.wizard.widget.heading">
-                <source>project.wizard.widget.heading</source>
-                <target>Add the review widget</target>
+            <trans-unit id="project.wizard.connect.init.label">
+                <source>project.wizard.connect.init.label</source>
+                <target>Terminal, in your repository</target>
             </trans-unit>
-            <trans-unit id="project.wizard.widget.lead">
-                <source>project.wizard.widget.lead</source>
-                <target>Drop one script tag into your site to comment on live pages the way you comment on documents. You can skip this and add it later.</target>
+            <trans-unit id="project.wizard.connect.init.hint">
+                <source>project.wizard.connect.init.hint</source>
+                <target>Safe to run again. It skips what is already done.</target>
             </trans-unit>
-            <trans-unit id="project.wizard.widget.step.embed.heading">
-                <source>project.wizard.widget.step.embed.heading</source>
-                <target>Embed it in your site</target>
+            <trans-unit id="project.wizard.connect.sees.heading">
+                <source>project.wizard.connect.sees.heading</source>
+                <target>What Loupe sees</target>
             </trans-unit>
-            <trans-unit id="project.wizard.progress.step_4">
-                <source>project.wizard.progress.step_4</source>
+            <trans-unit id="project.wizard.connect.sees.hint">
+                <source>project.wizard.connect.sees.hint</source>
+                <target>Updates live</target>
+            </trans-unit>
+            <trans-unit id="project.wizard.connect.chip.done">
+                <source>project.wizard.connect.chip.done</source>
                 <target>Done</target>
+            </trans-unit>
+            <trans-unit id="project.wizard.connect.chip.waiting">
+                <source>project.wizard.connect.chip.waiting</source>
+                <target>Waiting</target>
+            </trans-unit>
+            <trans-unit id="project.wizard.connect.skip">
+                <source>project.wizard.connect.skip</source>
+                <target>Skip for now</target>
             </trans-unit>
             <trans-unit id="project.wizard.connect.continue">
                 <source>project.wizard.connect.continue</source>
-                <target>Continue</target>
-            </trans-unit>
-            <trans-unit id="project.wizard.done.page.title">
-                <source>project.wizard.done.page.title</source>
-                <target>You're all set</target>
-            </trans-unit>
-            <trans-unit id="project.wizard.done.heading">
-                <source>project.wizard.done.heading</source>
-                <target>You're all set</target>
-            </trans-unit>
-            <trans-unit id="project.wizard.done.widget_hint">
-                <source>project.wizard.done.widget_hint</source>
-                <target>You can add the review widget to your site any time from</target>
-            </trans-unit>
-            <trans-unit id="project.wizard.done.finish">
-                <source>project.wizard.done.finish</source>
-                <target>Go to dashboard</target>
+                <target>Continue to the Workshop</target>
             </trans-unit>
 
             <trans-unit id="nav.link.logout">
@@ -4223,14 +4206,6 @@
                 <source>site_review.site.reviews.not_loaded_action</source>
                 <target>See the snippet</target>
             </trans-unit>
-            <trans-unit id="project.connect.step.agent.heading">
-                <source>project.connect.step.agent.heading</source>
-                <target>Connect your agent</target>
-            </trans-unit>
-            <trans-unit id="project.connect.step.agent.purpose">
-                <source>project.connect.step.agent.purpose</source>
-                <target>So it can write and revise documents in this project.</target>
-            </trans-unit>
             <trans-unit id="project.connect.step.widget.heading">
                 <source>project.connect.step.widget.heading</source>
                 <target>Install the review widget</target>
@@ -4976,11 +4951,11 @@
             </trans-unit>
             <trans-unit id="landing.works_with.claude_design.name">
                 <source>landing.works_with.claude_design.name</source>
-                <target>Claude Design</target>
+                <target>Design canvas</target>
             </trans-unit>
             <trans-unit id="landing.works_with.claude_design.text">
                 <source>landing.works_with.claude_design.text</source>
-                <target>Store a Claude Design canvas as an artifact, and link it to a card.</target>
+                <target>Store a Design canvas from claude.ai as an artifact, and link it to a card.</target>
             </trans-unit>
             <trans-unit id="landing.works_with.more.name">
                 <source>landing.works_with.more.name</source>
@@ -6791,7 +6766,7 @@
             <trans-unit id="bridge.experiments.card_count"><source>bridge.experiments.card_count</source><target>{0} No cards|{1} 1 card|]1,Inf[ %count% cards</target></trans-unit>
             <trans-unit id="bridge.experiments.no_run"><source>bridge.experiments.no_run</source><target>No run yet</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.title"><source>bridge.experiments.empty.title</source><target>No experiments yet</target></trans-unit>
-            <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, declare it with its variants in the experiments list of rules.yaml. Then make a worker rule join it with experiment: and the experiment name.</target></trans-unit>
+            <trans-unit id="bridge.experiments.empty.description"><source>bridge.experiments.empty.description</source><target>To start an experiment, add variants to a worker entry under work: in rules.yaml. The kind of work names the experiment.</target></trans-unit>
             <trans-unit id="bridge.experiments.empty.docs"><source>bridge.experiments.empty.docs</source><target>Read how to set up an experiment</target></trans-unit>
             <trans-unit id="bridge.experiments.back"><source>bridge.experiments.back</source><target>All experiments</target></trans-unit>
             <trans-unit id="bridge.experiments.tabs.label"><source>bridge.experiments.tabs.label</source><target>Experiment views</target></trans-unit>
@@ -8357,6 +8332,44 @@
             <trans-unit id="github.repositories.flash.repository_removed"><source>github.repositories.flash.repository_removed</source><target>%path% is no longer connected.</target></trans-unit>
             <trans-unit id="github.repositories.flash.repository_missing"><source>github.repositories.flash.repository_missing</source><target>This project does not own that repository.</target></trans-unit>
             <trans-unit id="github.app.eyebrow"><source>github.app.eyebrow</source><target>GitHub App</target></trans-unit>
+            <trans-unit id="github.git_token.refused.title"><source>github.git_token.refused.title</source><target>Agents of this project cannot push.</target></trans-unit>
+            <trans-unit id="github.git_token.refused.app_not_configured"><source>github.git_token.refused.app_not_configured</source><target>The operator of this instance has not finished the setup of the GitHub App, so Loupe has no token to give. Ask the operator to set it up, or turn off the setting that lets Loupe manage the git identity of agents.</target></trans-unit>
+            <trans-unit id="github.git_token.refused.no_installation"><source>github.git_token.refused.no_installation</source><target>The GitHub App is not installed for the repository of this project. Install it, or turn off the setting that lets Loupe manage the git identity of agents.</target></trans-unit>
+            <trans-unit id="github.git_token.refused.installation_suspended"><source>github.git_token.refused.installation_suspended</source><target>The installation of the GitHub App is suspended. Unsuspend it, or turn off the setting that lets Loupe manage the git identity of agents.</target></trans-unit>
+            <trans-unit id="github.git_token.refused.no_repository"><source>github.git_token.refused.no_repository</source><target>The project has no repository that the GitHub App can open.</target></trans-unit>
+            <trans-unit id="github.git_token.refused.missing_grant"><source>github.git_token.refused.missing_grant</source><target>The GitHub App installation lacks write access for: %grants%. Grant it, or turn off the setting that lets Loupe manage the git identity of agents.</target></trans-unit>
+            <trans-unit id="github.git_token.refused.github_unavailable"><source>github.git_token.refused.github_unavailable</source><target>GitHub did not answer, so Loupe cannot tell whether agents can push. Try again later.</target></trans-unit>
+            <trans-unit id="github.git_token.error.project_not_found"><source>github.git_token.error.project_not_found</source><target>No project of yours has this handle.</target></trans-unit>
+            <trans-unit id="github.git_token.error.not_managed"><source>github.git_token.error.not_managed</source><target>Loupe does not manage the git identity of this project.</target></trans-unit>
+            <trans-unit id="github.identity.title"><source>github.identity.title</source><target>Git identity</target></trans-unit>
+            <trans-unit id="github.identity.help.managed"><source>github.identity.help.managed</source><target>Agents push as the Loupe app, so you can approve their pull requests.</target></trans-unit>
+            <trans-unit id="github.identity.help.unmanaged"><source>github.identity.help.unmanaged</source><target>Agents use the git setup of each machine. Loupe reads it and shows it below.</target></trans-unit>
+            <trans-unit id="github.identity.install"><source>github.identity.install</source><target>Install the GitHub App</target></trans-unit>
+            <trans-unit id="github.identity.empty_title"><source>github.identity.empty_title</source><target>No git identity yet</target></trans-unit>
+            <trans-unit id="github.identity.empty"><source>github.identity.empty</source><target>A machine reports the git identity of its agents when its bridge starts.</target></trans-unit>
+            <trans-unit id="github.identity.detected_at"><source>github.identity.detected_at</source><target>Detected</target></trans-unit>
+            <trans-unit id="github.identity.docs_link"><source>github.identity.docs_link</source><target>How to set up a separate agent account</target></trans-unit>
+            <trans-unit id="github.identity.chip.managed"><source>github.identity.chip.managed</source><target>Managed</target></trans-unit>
+            <trans-unit id="github.identity.chip.not_managed"><source>github.identity.chip.not_managed</source><target>Not managed</target></trans-unit>
+            <trans-unit id="github.identity.chip.detected"><source>github.identity.chip.detected</source><target>Detected</target></trans-unit>
+            <trans-unit id="github.identity.chip.check"><source>github.identity.chip.check</source><target>Check</target></trans-unit>
+            <trans-unit id="github.identity.chip.unknown"><source>github.identity.chip.unknown</source><target>Unknown</target></trans-unit>
+            <trans-unit id="github.identity.line.app-bot"><source>github.identity.line.app-bot</source><target>Pushes as the Loupe app</target></trans-unit>
+            <trans-unit id="github.identity.line.agent-account"><source>github.identity.line.agent-account</source><target>Pushes as %login%, the agent account set on this machine</target></trans-unit>
+            <trans-unit id="github.identity.line.agent-account-unverified"><source>github.identity.line.agent-account-unverified</source><target>Commits as %name%. This machine has an agent account, but GitHub did not confirm its token. Set a new token with loupe agent-account set.</target></trans-unit>
+            <trans-unit id="github.identity.line.not-managed"><source>github.identity.line.not-managed</source><target>This machine runs an older CLI that does not report its git identity, so it keeps its own git setup. Run loupe update to let Loupe manage it.</target></trans-unit>
+            <trans-unit id="github.identity.line.detected"><source>github.identity.line.detected</source><target>Commits as %name%. Pushes as %login%.</target></trans-unit>
+            <trans-unit id="github.identity.line.owner-account"><source>github.identity.line.owner-account</source><target>Commits as %name%. Pushes as %login%, your GitHub account.</target></trans-unit>
+            <trans-unit id="github.identity.line.maybe-owner-account"><source>github.identity.line.maybe-owner-account</source><target>Commits as %name%. Pushes as %login%.</target></trans-unit>
+            <trans-unit id="github.identity.line.unknown"><source>github.identity.line.unknown</source><target>Commits as %name%. The push account is unknown: git gave no GitHub login on this machine.</target></trans-unit>
+            <trans-unit id="github.identity.warning.owner-account"><source>github.identity.warning.owner-account</source><target>This machine pushes as your GitHub account. You cannot approve its pull requests.</target></trans-unit>
+            <trans-unit id="github.identity.warning.maybe-owner-account"><source>github.identity.warning.maybe-owner-account</source><target>This machine pushes as %login%. If this is your own account, you cannot approve its pull requests.</target></trans-unit>
+            <trans-unit id="github.identity.flash.managed"><source>github.identity.flash.managed</source><target>Loupe now manages the git identity of agents.</target></trans-unit>
+            <trans-unit id="github.identity.flash.unmanaged"><source>github.identity.flash.unmanaged</source><target>Agents now use the git setup of each machine.</target></trans-unit>
+            <trans-unit id="github.identity.flash.invalid"><source>github.identity.flash.invalid</source><target>The form has expired. Reload the page and try again.</target></trans-unit>
+            <trans-unit id="github.form.change_git_identity_managed_form.managed.label"><source>github.form.change_git_identity_managed_form.managed.label</source><target>Loupe manages the git identity of agents</target></trans-unit>
+            <trans-unit id="github.form.change_git_identity_managed_form.save.label"><source>github.form.change_git_identity_managed_form.save.label</source><target>Save</target></trans-unit>
+            <trans-unit id="github.form.change_git_identity_managed_form.turn_off.label"><source>github.form.change_git_identity_managed_form.turn_off.label</source><target>Turn this off</target></trans-unit>
             <trans-unit id="github.app.purpose"><source>github.app.purpose</source><target>Install the Loupe App on a GitHub account, and select the repositories it can reach. Loupe connects each of them to this project.</target></trans-unit>
             <trans-unit id="github.app.follows"><source>github.app.follows</source><target>When you add or remove a repository in the App settings on GitHub, Loupe follows the change.</target></trans-unit>
             <trans-unit id="github.app.install"><source>github.app.install</source><target>Install on GitHub</target></trans-unit>
@@ -8422,6 +8435,8 @@
             <trans-unit id="workflow.waiting.not.card_discovery_requested"><source>workflow.waiting.not.card_discovery_requested</source><target>Waiting: the card has a requested discovery.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_discovery_approved"><source>workflow.waiting.card_discovery_approved</source><target>Waiting: the owner has not approved the discovery report of the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_discovery_approved"><source>workflow.waiting.not.card_discovery_approved</source><target>Waiting: the owner approved the discovery report of the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.card_discovery_revising"><source>workflow.waiting.card_discovery_revising</source><target>Waiting: no discovery report of the card needs a revision.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.card_discovery_revising"><source>workflow.waiting.not.card_discovery_revising</source><target>Waiting: a discovery report of the card needs a revision.</target></trans-unit>
             <trans-unit id="workflow.waiting.site_review_verdict_unsent"><source>workflow.waiting.site_review_verdict_unsent</source><target>Waiting: no verdict of the card waits to be sent.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.site_review_verdict_unsent"><source>workflow.waiting.not.site_review_verdict_unsent</source><target>Waiting: a verdict of the card waits to be sent.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_fix_run_uncommented"><source>workflow.waiting.card_fix_run_uncommented</source><target>Waiting: each open or recent fix run of the card has a pull request comment.</target></trans-unit>
@@ -8480,8 +8495,8 @@
             <trans-unit id="workflow.waiting.not.pr_behind"><source>workflow.waiting.not.pr_behind</source><target>Waiting: the pull request is behind its base.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_approval_covers_head"><source>workflow.waiting.pr_approval_covers_head</source><target>Waiting: fewer than %min% approvals cover the head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_approval_covers_head"><source>workflow.waiting.not.pr_approval_covers_head</source><target>Waiting: %min% or more approvals cover the head commit.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes on the head commit.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes on the head commit.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_changes_requested"><source>workflow.waiting.pr_changes_requested</source><target>Waiting: no review asks for changes that no fix run answered.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_changes_requested"><source>workflow.waiting.not.pr_changes_requested</source><target>Waiting: a review asks for changes that no fix run answered.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_merge_target"><source>workflow.waiting.pr_base_is_merge_target</source><target>Waiting: the pull request targets neither the default branch nor the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_base_is_merge_target"><source>workflow.waiting.not.pr_base_is_merge_target</source><target>Waiting: the pull request targets the default branch or the epic branch.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_base_is_epic_branch"><source>workflow.waiting.pr_base_is_epic_branch</source><target>Waiting: the pull request does not target the epic branch.</target></trans-unit>
@@ -8544,6 +8559,8 @@
             <trans-unit id="workflow.waiting.not.run_work_active"><source>workflow.waiting.not.run_work_active</source><target>Waiting: a matching work request is still active.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_no_taker"><source>workflow.waiting.run_work_no_taker</source><target>Waiting: every open work request has an online bridge that could take it.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_no_taker"><source>workflow.waiting.not.run_work_no_taker</source><target>Waiting: an open work request has no online bridge that could take it.</target></trans-unit>
+            <trans-unit id="workflow.waiting.run_work_no_capable_taker"><source>workflow.waiting.run_work_no_capable_taker</source><target>Waiting: no online bridge is unable to run an open work request.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.run_work_no_capable_taker"><source>workflow.waiting.not.run_work_no_capable_taker</source><target>Waiting: an online bridge cannot run an open work request.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_work_taker_paused"><source>workflow.waiting.run_work_taker_paused</source><target>Waiting: the bridges that could take the open work are not all paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.run_work_taker_paused"><source>workflow.waiting.not.run_work_taker_paused</source><target>Waiting: the only bridges that could take the open work are paused.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_worker_active"><source>workflow.waiting.run_worker_active</source><target>Waiting: no matching worker run is open.</target></trans-unit>
@@ -8723,45 +8740,70 @@
             <trans-unit id="workflow.refusal.detach-refused"><source>workflow.refusal.detach-refused</source><target>The board refused to remove the parent of the card.</target></trans-unit>
             <trans-unit id="project.edit.nav.readiness"><source>project.edit.nav.readiness</source><target>Agent readiness</target></trans-unit>
             <trans-unit id="readiness.guide.title"><source>readiness.guide.title</source><target>Ready for agents</target></trans-unit>
-            <trans-unit id="readiness.guide.count"><source>readiness.guide.count</source><target>%done% of %total%</target></trans-unit>
+            <trans-unit id="readiness.guide.count"><source>readiness.guide.count</source><target>%done% of %total% required steps done</target></trans-unit>
             <trans-unit id="readiness.guide.heading"><source>readiness.guide.heading</source><target>Get %project% ready for agents</target></trans-unit>
-            <trans-unit id="readiness.guide.description"><source>readiness.guide.description</source><target>Work through these checks, and agents can pick up cards on this project.</target></trans-unit>
             <trans-unit id="readiness.guide.hide"><source>readiness.guide.hide</source><target>Hide this guide</target></trans-unit>
-            <trans-unit id="readiness.discovery.title"><source>readiness.discovery.title</source><target>Run discovery</target></trans-unit>
-            <trans-unit id="readiness.discovery.body"><source>readiness.discovery.body</source><target>Discovery reads the repository and the workflow, then writes a readiness report for this project.</target></trans-unit>
+            <trans-unit id="readiness.guide.group.discovery"><source>readiness.guide.group.discovery</source><target>Ready for discovery</target></trans-unit>
+            <trans-unit id="readiness.guide.group.pull_requests"><source>readiness.guide.group.pull_requests</source><target>Ready for pull requests</target></trans-unit>
+            <trans-unit id="readiness.guide.group.optional"><source>readiness.guide.group.optional</source><target>Optional</target></trans-unit>
+            <trans-unit id="readiness.row.widget.label"><source>readiness.row.widget.label</source><target>Review widget</target></trans-unit>
+            <trans-unit id="readiness.row.widget.open"><source>readiness.row.widget.open</source><target>Collect feedback on your site</target></trans-unit>
+            <trans-unit id="readiness.row.widget.done"><source>readiness.row.widget.done</source><target>Sign-ins come from %origins%</target></trans-unit>
+            <trans-unit id="readiness.row.widget.action"><source>readiness.row.widget.action</source><target>Set up</target></trans-unit>
             <trans-unit id="readiness.row.agent.label"><source>readiness.row.agent.label</source><target>Agent connected</target></trans-unit>
             <trans-unit id="readiness.row.agent.done"><source>readiness.row.agent.done</source><target>Connected</target></trans-unit>
             <trans-unit id="readiness.row.agent.open"><source>readiness.row.agent.open</source><target>No agent yet</target></trans-unit>
             <trans-unit id="readiness.row.agent.action"><source>readiness.row.agent.action</source><target>Connect</target></trans-unit>
-            <trans-unit id="readiness.row.workflow.label"><source>readiness.row.workflow.label</source><target>Workflow</target></trans-unit>
-            <trans-unit id="readiness.row.workflow.done"><source>readiness.row.workflow.done</source><target>Chosen</target></trans-unit>
-            <trans-unit id="readiness.row.workflow.open"><source>readiness.row.workflow.open</source><target>Not chosen</target></trans-unit>
-            <trans-unit id="readiness.row.bridge.label"><source>readiness.row.bridge.label</source><target>Bridge running</target></trans-unit>
+            <trans-unit id="readiness.row.cli.label"><source>readiness.row.cli.label</source><target>CLI signed in</target></trans-unit>
+            <trans-unit id="readiness.row.cli.done"><source>readiness.row.cli.done</source><target>Signed in</target></trans-unit>
+            <trans-unit id="readiness.row.cli.quiet"><source>readiness.row.cli.quiet</source><target>Signed in, but it sends no heartbeat now</target></trans-unit>
+            <trans-unit id="readiness.row.cli.open"><source>readiness.row.cli.open</source><target>Not signed in</target></trans-unit>
+            <trans-unit id="readiness.row.cli.action"><source>readiness.row.cli.action</source><target>Install the CLI</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.label"><source>readiness.row.repository_linked.label</source><target>Repository linked</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.done"><source>readiness.row.repository_linked.done</source><target>Linked</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.open"><source>readiness.row.repository_linked.open</source><target>No repository folder reported yet</target></trans-unit>
+            <trans-unit id="readiness.row.repository_linked.action"><source>readiness.row.repository_linked.action</source><target>Link</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.label"><source>readiness.row.bridge.label</source><target>Bridge ready</target></trans-unit>
             <trans-unit id="readiness.row.bridge.done"><source>readiness.row.bridge.done</source><target>Running</target></trans-unit>
             <trans-unit id="readiness.row.bridge.open"><source>readiness.row.bridge.open</source><target>Not running</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable"><source>readiness.row.bridge.not_capable</source><target>Online, but it cannot run this work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable_app_prompts"><source>readiness.row.bridge.not_capable_app_prompts</source><target>Online, but it cannot run this work. Run `loupe init` again</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.done_on"><source>readiness.row.bridge.done_on</source><target>%machine% runs Loupe's work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable_on"><source>readiness.row.bridge.not_capable_on</source><target>%machine% is online, but it cannot run this work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.not_capable_app_prompts_on"><source>readiness.row.bridge.not_capable_app_prompts_on</source><target>%machine% is online, but it does not run the prompts Loupe sends. Run `loupe init` again</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.seen"><source>readiness.row.bridge.seen</source><target>seen</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.paused"><source>readiness.row.bridge.paused</source><target>Paused, so it takes no new work</target></trans-unit>
+            <trans-unit id="readiness.row.bridge.resume"><source>readiness.row.bridge.resume</source><target>Resume</target></trans-unit>
             <trans-unit id="readiness.row.bridge.action"><source>readiness.row.bridge.action</source><target>Start</target></trans-unit>
-            <trans-unit id="readiness.row.github.label"><source>readiness.row.github.label</source><target>GitHub App</target></trans-unit>
+            <trans-unit id="readiness.row.github.label"><source>readiness.row.github.label</source><target>Install the GitHub App</target></trans-unit>
             <trans-unit id="readiness.row.github.done"><source>readiness.row.github.done</source><target>Installed</target></trans-unit>
             <trans-unit id="readiness.row.github.open"><source>readiness.row.github.open</source><target>Not installed</target></trans-unit>
             <trans-unit id="readiness.row.github.action"><source>readiness.row.github.action</source><target>Install</target></trans-unit>
-            <trans-unit id="readiness.row.agent_account.label"><source>readiness.row.agent_account.label</source><target>Agent GitHub account</target></trans-unit>
+            <trans-unit id="readiness.row.agent_account.label"><source>readiness.row.agent_account.label</source><target>Who pushes the code</target></trans-unit>
             <trans-unit id="readiness.row.agent_account.no_login"><source>readiness.row.agent_account.no_login</source><target>No login recorded yet</target></trans-unit>
             <trans-unit id="readiness.row.agent_account.no_push"><source>readiness.row.agent_account.no_push</source><target>No running bridge pushes as %login% yet</target></trans-unit>
             <trans-unit id="readiness.row.agent_account.done"><source>readiness.row.agent_account.done</source><target>Agents push as %login%</target></trans-unit>
             <trans-unit id="readiness.row.agent_account.action"><source>readiness.row.agent_account.action</source><target>Set up</target></trans-unit>
-            <trans-unit id="readiness.row.repository.label"><source>readiness.row.repository.label</source><target>Repository</target></trans-unit>
+            <trans-unit id="readiness.row.repository.label"><source>readiness.row.repository.label</source><target>Run discovery</target></trans-unit>
             <trans-unit id="readiness.row.repository.open"><source>readiness.row.repository.open</source><target>Not run</target></trans-unit>
             <trans-unit id="readiness.row.repository.action"><source>readiness.row.repository.action</source><target>Run discovery</target></trans-unit>
             <trans-unit id="readiness.row.repository.no_bridge"><source>readiness.row.repository.no_bridge</source><target>Discovery waits for a running bridge</target></trans-unit>
+            <trans-unit id="readiness.row.repository.no_capable_bridge"><source>readiness.row.repository.no_capable_bridge</source><target>Discovery waits for a bridge that can run it</target></trans-unit>
+            <trans-unit id="readiness.row.repository.bridge_paused"><source>readiness.row.repository.bridge_paused</source><target>Discovery waits for a bridge that is not paused</target></trans-unit>
             <trans-unit id="readiness.row.repository.no_workflow"><source>readiness.row.repository.no_workflow</source><target>Discovery waits for a workflow</target></trans-unit>
             <trans-unit id="readiness.row.repository.automation_off"><source>readiness.row.repository.automation_off</source><target>Discovery waits for board automation</target></trans-unit>
             <trans-unit id="readiness.row.repository.running"><source>readiness.row.repository.running</source><target>Running on card #%number%</target></trans-unit>
             <trans-unit id="readiness.row.repository.card"><source>readiness.row.repository.card</source><target>Open card</target></trans-unit>
             <trans-unit id="readiness.row.repository.failed"><source>readiness.row.repository.failed</source><target>Discovery failed: %reason%</target></trans-unit>
             <trans-unit id="readiness.row.repository.retry"><source>readiness.row.repository.retry</source><target>Run again</target></trans-unit>
+            <trans-unit id="readiness.row.repository.revising"><source>readiness.row.repository.revising</source><target>A worker revises the report on card #%number%</target></trans-unit>
+            <trans-unit id="readiness.row.repository.open_report"><source>readiness.row.repository.open_report</source><target>Open report</target></trans-unit>
             <trans-unit id="readiness.row.repository.reported"><source>readiness.row.repository.reported</source><target>The report waits for your review</target></trans-unit>
             <trans-unit id="readiness.row.repository.done"><source>readiness.row.repository.done</source><target>Reviewed</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_bridge"><source>readiness.discovery.error.no_bridge</source><target>No bridge serves this project now. Start a bridge that serves this project, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.no_capable_bridge"><source>readiness.discovery.error.no_capable_bridge</source><target>A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.no_capable_bridge_app_prompts"><source>readiness.discovery.error.no_capable_bridge_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, then run discovery again.</target></trans-unit>
+            <trans-unit id="readiness.discovery.error.bridge_paused"><source>readiness.discovery.error.bridge_paused</source><target>Every bridge that can run discovery is paused. Resume new work on a bridge on the Agents page, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.no_workflow"><source>readiness.discovery.error.no_workflow</source><target>This project has no workflow. Choose a workflow for this project, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.automation_off"><source>readiness.discovery.error.automation_off</source><target>Board automation is off for this project. Switch on "Run the workflow of the board" on the Automation tab of the project settings, then run discovery again.</target></trans-unit>
             <trans-unit id="readiness.discovery.error.running"><source>readiness.discovery.error.running</source><target>Discovery already runs on card #%number%. Wait until that run ends.</target></trans-unit>
@@ -8772,7 +8814,7 @@
             <trans-unit id="readiness.settings.guide.hidden_at"><source>readiness.settings.guide.hidden_at</source><target>Hidden on %date%</target></trans-unit>
             <trans-unit id="readiness.settings.submit"><source>readiness.settings.submit</source><target>Save</target></trans-unit>
             <trans-unit id="readiness.settings.flash.saved"><source>readiness.settings.flash.saved</source><target>Readiness settings saved.</target></trans-unit>
-            <trans-unit id="readiness.form.update_readiness_settings_form.show_guide.label"><source>readiness.form.update_readiness_settings_form.show_guide.label</source><target>Show the readiness checklist on the Workshop</target></trans-unit>
+            <trans-unit id="readiness.form.update_readiness_settings_form.show_guide.label"><source>readiness.form.update_readiness_settings_form.show_guide.label</source><target>Show the readiness checklist</target></trans-unit>
             <trans-unit id="readiness.settings.agent_account.title"><source>readiness.settings.agent_account.title</source><target>Agent GitHub account</target></trans-unit>
             <trans-unit id="readiness.settings.agent_account.description"><source>readiness.settings.agent_account.description</source><target>Give the agents a GitHub user of their own, so that you can review and approve their pull requests.</target></trans-unit>
             <trans-unit id="readiness.settings.agent_account.link"><source>readiness.settings.agent_account.link</source><target>Set up the agent account</target></trans-unit>
@@ -8793,6 +8835,9 @@
             <trans-unit id="readiness.form.update_agent_account_form.login.help"><source>readiness.form.update_agent_account_form.login.help</source><target>Leave it empty to clear the recorded login.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.no_taker"><source>readiness.discovery.reason.no_taker</source><target>No bridge took the work.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.card_moved"><source>readiness.discovery.reason.card_moved</source><target>The discovery card left Backlog before the work ended.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.no_capable_taker"><source>readiness.discovery.reason.no_capable_taker</source><target>A bridge is online, but none can run discovery. Map the discovery kind in the bridge rule file, or set appPrompts to true.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.no_capable_taker_app_prompts"><source>readiness.discovery.reason.no_capable_taker_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, so the bridge reports the app-prompts capability.</target></trans-unit>
+            <trans-unit id="readiness.discovery.reason.worker_ended"><source>readiness.discovery.reason.worker_ended</source><target>The worker ended without a report. Open card #%number% to see its run.</target></trans-unit>
             <trans-unit id="board.verdict.action.post_review"><source>board.verdict.action.post_review</source><target>Posts your verdict as a review on the pull requests you pick.</target></trans-unit>
             <trans-unit id="board.verdict.review.source"><source>board.verdict.review.source</source><target>Sent from the Loupe site review of card %number%. [Open the notes in Loupe](%card_url%)</target></trans-unit>
             <trans-unit id="board.verdict.review.preview"><source>board.verdict.review.preview</source><target>· [Open the preview](%preview_url%)</target></trans-unit>
@@ -8891,7 +8936,7 @@
             <trans-unit id="artifact.error.no_files"><source>artifact.error.no_files</source><target>Send at least one file.</target></trans-unit>
             <trans-unit id="artifact.error.too_many_files"><source>artifact.error.too_many_files</source><target>The version has more files than the limit of this instance allows.</target></trans-unit>
             <trans-unit id="artifact.error.unsafe_path"><source>artifact.error.unsafe_path</source><target>Each path must be relative, with no empty or dot segment, no backslash and no control character, and at most 1024 characters.</target></trans-unit>
-            <trans-unit id="artifact.error.claude_design_canvas"><source>artifact.error.claude_design_canvas</source><target>A .dc.html file is a Claude Design canvas, and it does not render outside Claude Design. Push it with loupe artifact push from CLI 1.17.0 or later, which compiles the canvas to plain HTML.</target></trans-unit>
+            <trans-unit id="artifact.error.claude_design_canvas"><source>artifact.error.claude_design_canvas</source><target>A .dc.html file is a Design canvas, and it does not render outside claude.ai. Push it with loupe artifact push, which compiles the canvas to plain HTML.</target></trans-unit>
             <trans-unit id="artifact.error.duplicate_path"><source>artifact.error.duplicate_path</source><target>Two files have the same path.</target></trans-unit>
             <trans-unit id="artifact.error.bad_content_type"><source>artifact.error.bad_content_type</source><target>Each file needs a content type of at most 255 characters.</target></trans-unit>
             <trans-unit id="artifact.error.paths_mismatch"><source>artifact.error.paths_mismatch</source><target>Send one paths[] entry for each files[] entry, in the same order.</target></trans-unit>
@@ -8933,6 +8978,8 @@
             <trans-unit id="marker.run_open.remedy"><source>marker.run_open.remedy</source><target>Nothing. The card moves on when the worker ends.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online"><source>marker.no_bridge_online</source><target>No bridge is online to take this work.</target></trans-unit>
             <trans-unit id="marker.no_bridge_online.remedy"><source>marker.no_bridge_online.remedy</source><target>Start a bridge, or run `loupe login`.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge"><source>marker.no_capable_bridge</source><target>A bridge is online, but none can run this work.</target></trans-unit>
+            <trans-unit id="marker.no_capable_bridge.remedy"><source>marker.no_capable_bridge.remedy</source><target>Map this kind of work in the bridge rule file, or set `appPrompts: true`. Run `loupe init` again if the bridge is old.</target></trans-unit>
             <trans-unit id="marker.bridge_paused"><source>marker.bridge_paused</source><target>Work waits: the bridge is paused.</target></trans-unit>
             <trans-unit id="marker.bridge_paused.remedy"><source>marker.bridge_paused.remedy</source><target>Resume the bridge on the Agents page.</target></trans-unit>
             <trans-unit id="marker.link.agents"><source>marker.link.agents</source><target>Open the Agents page</target></trans-unit>

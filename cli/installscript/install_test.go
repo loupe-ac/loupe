@@ -323,11 +323,22 @@ func TestInstallPicksTheHighestReleaseOfTheMajor(t *testing.T) {
 	}
 	bin := filepath.Join(r.home, ".local", "bin", "loupe")
 	assertInstalled(t, bin)
-	assertContains(t, r.out, "1.10.0", bin, "Auto-update: off", "loupe update auto on", "loupe login --url <your Loupe URL>")
+	assertContains(t, r.out, "1.10.0", bin, "loupe init --url <your Loupe URL>")
 	if strings.Contains(r.out, "export PATH") {
 		t.Errorf("the output asks to change PATH, but the directory is on PATH:\n%s", r.out)
 	}
-	assertCalled(t, r, "update auto off --keep --rules "+filepath.Join(r.home, "rules.yaml"))
+	if strings.Contains(r.out, "Auto-update") {
+		t.Errorf("the output reports automatic updates, but nothing asked for them:\n%s", r.out)
+	}
+	assertCalled(t, r, "")
+	assertNoRuleFile(t, r)
+}
+
+func assertNoRuleFile(t *testing.T, r result) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(r.home, "rules.yaml")); err == nil {
+		t.Errorf("the script wrote a rule file")
+	}
 }
 
 func TestInstallReadsTheLinesTheServerInserts(t *testing.T) {
@@ -346,7 +357,7 @@ func TestInstallReadsTheLinesTheServerInserts(t *testing.T) {
 	if r.err != nil {
 		t.Fatalf("install failed: %v\n%s", r.err, r.out)
 	}
-	assertContains(t, r.out, "2.0.0", "loupe login --url https://loupe.example")
+	assertContains(t, r.out, "2.0.0", "loupe init --url https://loupe.example")
 }
 
 func TestInstallFromAPipe(t *testing.T) {
@@ -356,7 +367,7 @@ func TestInstallFromAPipe(t *testing.T) {
 		t.Fatalf("install failed: %v\n%s", r.err, r.out)
 	}
 	assertInstalled(t, filepath.Join(dir, "loupe"))
-	assertContains(t, r.out, "1.10.0", "loupe login --url")
+	assertContains(t, r.out, "1.10.0", "loupe init --url")
 }
 
 func TestInstallWithAutoUpdateTurnsItOn(t *testing.T) {
@@ -368,12 +379,15 @@ func TestInstallWithAutoUpdateTurnsItOn(t *testing.T) {
 	assertCalled(t, r, "update auto on --rules "+filepath.Join(r.home, "rules.yaml"))
 }
 
-func TestInstallKeepsAnExistingAutoUpdateKey(t *testing.T) {
+func TestInstallLeavesAnExistingRuleFileAlone(t *testing.T) {
 	r := run(t, setup{rules: "autoUpdate: on\n"})
 	if r.err != nil {
 		t.Fatalf("install failed: %v\n%s", r.err, r.out)
 	}
-	assertCalled(t, r, "update auto off --keep --rules "+filepath.Join(r.home, "rules.yaml"))
+	assertCalled(t, r, "")
+	if b, _ := os.ReadFile(filepath.Join(r.home, "rules.yaml")); string(b) != "autoUpdate: on\n" {
+		t.Errorf("the rule file changed: %q", b)
+	}
 }
 
 func TestInstallRefusesAChecksumMismatch(t *testing.T) {
@@ -432,11 +446,11 @@ func TestInstallRefusesAMalformedVersion(t *testing.T) {
 }
 
 func TestInstallWithoutARulesOverrideLetsLoupePickTheFile(t *testing.T) {
-	r := run(t, setup{noRulesEnv: true})
+	r := run(t, setup{noRulesEnv: true}, "--auto-update")
 	if r.err != nil {
 		t.Fatalf("install failed: %v\n%s", r.err, r.out)
 	}
-	assertCalled(t, r, "update auto off --keep")
+	assertCalled(t, r, "update auto on")
 }
 
 func TestInstallIgnoresChecksumsOfSimilarNames(t *testing.T) {
@@ -511,14 +525,18 @@ func TestInstallFollowsASymlinkOnPath(t *testing.T) {
 	}
 }
 
-func TestInstallAsksOnATerminal(t *testing.T) {
+func TestInstallAsksOnlyForTheDirectoryOnATerminal(t *testing.T) {
 	r := run(t, setup{onlyOnPath: true, tty: "~/custom\ny\n"})
 	if r.err != nil {
 		t.Fatalf("install failed: %v\n%s", r.err, r.out)
 	}
 	assertInstalled(t, filepath.Join(r.home, "custom", "loupe"))
-	assertContains(t, r.out, "Install directory", "Turn on automatic updates?")
-	assertCalled(t, r, "update auto on --keep --rules "+filepath.Join(r.home, "rules.yaml"))
+	assertContains(t, r.out, "Install directory")
+	if strings.Contains(r.out, "automatic updates?") {
+		t.Errorf("the script asks about automatic updates, which loupe init asks:\n%s", r.out)
+	}
+	assertCalled(t, r, "")
+	assertNoRuleFile(t, r)
 }
 
 func TestInstallTreatsACommentAnswerAsEmpty(t *testing.T) {
@@ -527,7 +545,7 @@ func TestInstallTreatsACommentAnswerAsEmpty(t *testing.T) {
 		t.Fatalf("install failed: %v\n%s", r.err, r.out)
 	}
 	assertInstalled(t, filepath.Join(r.home, ".local", "bin", "loupe"))
-	assertCalled(t, r, "update auto off --keep --rules "+filepath.Join(r.home, "rules.yaml"))
+	assertCalled(t, r, "")
 }
 
 func TestInstallSkipsPrereleasesAndDrafts(t *testing.T) {
@@ -583,5 +601,5 @@ func TestInstallFailsWhenAutoUpdateCannotBeTurnedOn(t *testing.T) {
 	bin := filepath.Join(r.home, ".local", "bin", "loupe")
 	assertInstalled(t, bin)
 	assertContains(t, r.out, "Installed loupe 1.10.0", "cannot write the rule file", "Auto-update: unknown",
-		"automatic updates are NOT on", "loupe update auto on", "loupe login --url")
+		"automatic updates are NOT on", "loupe update auto on", "loupe init --url")
 }

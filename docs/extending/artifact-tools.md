@@ -13,8 +13,8 @@ off on a new install. While it is off, the tool list hides the five tools, and a
 direct call returns "Artifacts are switched off on this instance."
 
 A worker reads artifacts and does not store them. A person stores a new version
-from an interactive session with `loupe artifact push`, which compiles a Claude
-Design canvas to a plain page first. See "Pushing a Claude Design canvas" in
+from an interactive session with `loupe artifact push`, which compiles a Design
+canvas to a plain page first. See "Pushing a Design canvas" in
 `docs/using/artifacts.md`.
 
 ## The tools

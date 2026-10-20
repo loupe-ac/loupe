@@ -1,0 +1,19 @@
+{# twig-cs-fixer-disable #}{% autoescape false %}
+/**
+ * {{ entry.summary }}
+ *
+ * @startingPoint section="{{ section }}" subtitle="A {{ entry.name }} at its second step" viewport="{{ entry.viewport }}"
+ */
+export interface {{ entry.name }}Props {
+    /** The label of each step. */
+    steps: string[];
+    /** The step in progress, counted from 1. */
+    current?: number;
+    /** Marks every step done, for the final screen. */
+    complete?: boolean;
+    className?: string;
+    [attribute: string]: unknown;
+}
+
+export declare function {{ entry.name }}(props: {{ entry.name }}Props): JSX.Element;
+{% endautoescape %}

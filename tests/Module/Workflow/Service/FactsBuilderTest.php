@@ -21,6 +21,7 @@ use App\Module\Board\Workflow\ParentFacts;
 use App\Module\Bridge\Entity\WorkerRun;
 use App\Module\Bridge\Entity\WorkRequest;
 use App\Module\Bridge\ValueObject\WorkerRunState;
+use App\Module\Bridge\ValueObject\WorkRequestContext;
 use App\Module\Bridge\ValueObject\WorkRequestState;
 use App\Module\Bridge\ValueObject\WorkSubject;
 use App\Module\Bridge\Workflow\LatestWorkFacts;
@@ -401,7 +402,7 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest->mergeability = PullRequestMergeability::Conflicting;
         $pullRequest->review = PullRequestReview::ChangesRequested;
         $pullRequest->headSha = 'abc';
-        $pullRequest->changesRequestedSha = 'abc';
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('-1 hour');
         $this->em()->flush();
 
         self::assertEquals(new PullRequestFacts(
@@ -449,7 +450,7 @@ final class FactsBuilderTest extends KernelTestCase
         self::assertSame(0, $this->facts($card)->pullRequest?->approvalsCoveringHead);
     }
 
-    public function test_changes_are_requested_only_when_a_changes_requested_review_covers_the_head(): void
+    public function test_changes_are_requested_until_a_done_fix_run_that_opened_after_the_review_answers_them(): void
     {
         self::bootKernel();
         $project = $this->workflowProject('facts-pr-changes-requested');
@@ -457,27 +458,38 @@ final class FactsBuilderTest extends KernelTestCase
         $pullRequest = $this->pullRequest($card);
         $pullRequest->review = PullRequestReview::ChangesRequested;
         $pullRequest->headSha = 'abc';
-        $pullRequest->changesRequestedSha = 'abc';
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('2026-10-19 14:55:00');
         $this->em()->flush();
         self::assertTrue($this->changesRequested($card));
 
         $pullRequest->headSha = 'def';
         $this->em()->flush();
-        self::assertFalse($this->changesRequested($card), 'A fix push leaves the review on an older commit.');
+        self::assertTrue($this->changesRequested($card), 'A new commit alone does not answer the review.');
 
-        $pullRequest->changesRequestedSha = null;
+        $this->fix($card, $pullRequest, '2026-10-19 14:49:00', WorkRequestState::Done);
+        self::assertTrue($this->changesRequested($card), 'A fix run that opened before the review did not read it.');
+
+        $this->fix($card, $pullRequest, '2026-10-19 15:00:00', WorkRequestState::Refused);
+        self::assertTrue($this->changesRequested($card), 'A fix run that did not end done answers nothing.');
+
+        $this->fix($card, $pullRequest, '2026-10-19 15:01:00', WorkRequestState::Done, 'https://github.com/other/repo/pull/'.$pullRequest->number);
+        self::assertTrue($this->changesRequested($card), 'A fix run of another repository answers nothing.');
+
+        $this->fix($card, $pullRequest, '2026-10-19 15:02:00', WorkRequestState::Done);
+        self::assertFalse($this->changesRequested($card), 'A done fix run that opened after the review answers it.');
+
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('2026-10-19 15:30:00');
         $this->em()->flush();
-        self::assertFalse($this->changesRequested($card), 'A review on an unknown commit does not cover the head.');
+        self::assertTrue($this->changesRequested($card), 'A newer review starts the clock again.');
 
-        $pullRequest->headSha = null;
+        $pullRequest->changesRequestedAt = null;
         $this->em()->flush();
-        self::assertFalse($this->changesRequested($card));
+        self::assertFalse($this->changesRequested($card), 'A row with no review time reads as no open request.');
 
+        $pullRequest->changesRequestedAt = new \DateTimeImmutable('2026-10-19 15:30:00');
         $pullRequest->review = PullRequestReview::Approved;
-        $pullRequest->headSha = 'abc';
-        $pullRequest->changesRequestedSha = 'abc';
         $this->em()->flush();
-        self::assertFalse($this->changesRequested($card), 'An approval after the change request ends it.');
+        self::assertFalse($this->changesRequested($card), 'An approval ends the request.');
     }
 
     public function test_a_finished_pull_request_closes_at_its_merge_or_its_last_read(): void
@@ -998,6 +1010,17 @@ final class FactsBuilderTest extends KernelTestCase
         $this->em()->flush();
 
         return $pullRequest;
+    }
+
+    private function fix(Card $card, ForgePullRequest $pullRequest, string $openedAt, WorkRequestState $state, ?string $url = null): void
+    {
+        $request = new WorkRequest($card->project, WorkSubject::CARD, $card->id ?? throw new \LogicException('A stored card has an id.'), $card->number, 'fix', null, 'fix-on-review', new \DateTimeImmutable($openedAt));
+        $request->role = 'fix';
+        $request->state = $state;
+        $request->settledAt = new \DateTimeImmutable($openedAt.' +5 minutes');
+        $request->context = new WorkRequestContext(pullRequestNumber: $pullRequest->number, pullRequestUrl: $url ?? 'https://github.com/'.self::REPOSITORY.'/pull/'.$pullRequest->number, reason: 'changes-requested');
+        $this->em()->persist($request);
+        $this->em()->flush();
     }
 
     /** @param list<string> $tags */

@@ -516,6 +516,7 @@ func (r *router) adoptLocked(run handoverRun) {
 		return
 	}
 	r.trackLocked(liveRun{p: p, began: run.Began, proc: workerProc{pid: run.PID, dir: run.Dir}})
+	forget := r.adoptCredentials(run)
 	r.log.Info("worker_adopted", append(about(p.event, p.rule), "worker_pool", p.slot, "session_id", p.spec.sessionID, "pid", run.PID)...)
 
 	wait := r.worker.adopt
@@ -527,8 +528,23 @@ func (r *router) adoptLocked(run handoverRun) {
 		defer r.wg.Done()
 
 		res := wait(r.workerContext(), run.Dir)
+		forget()
 		r.settle(p, endedRun{res: res, began: run.Began, elapsed: time.Since(run.Began)})
 	}()
+}
+
+// adoptCredentials makes the bridge answer credential requests for an adopted
+// run again, from the project and the credential mode that its run record
+// holds. The returned func forgets the run. The socket path of the worker
+// stays valid, because the new image listens on the inherited socket.
+func (r *router) adoptCredentials(run handoverRun) func() {
+	rec, err := readRunRecord(run.Dir)
+	if r.credentials == nil || err != nil || !(rec.Agent || rec.Managed) {
+		return func() {}
+	}
+	r.credentials.register(run.RunID, credentialRun{handle: rec.Project, dir: rec.Dir, agent: rec.Agent})
+
+	return func() { r.credentials.forget(run.RunID) }
 }
 
 // adoptBeforeLocked waits for the before command of a run a former image

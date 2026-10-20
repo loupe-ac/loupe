@@ -3,4 +3,5 @@
       <{{ entry.name }} severity="{{ severity }}">{{ severity|capitalize }} message</{{ entry.name }}>
 {% endfor %}
       <{{ entry.name }} severity="error" dismissLabel="Dismiss">Upload failed</{{ entry.name }}>
+      <{{ entry.name }} severity="warning" title="Agents cannot push">The setup is not finished, so Loupe has no token to give</{{ entry.name }}>
 {% endautoescape %}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bridge row states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/tokens.css">
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/components/bundle.css">
+<script src="ds/loupedesignsystem_686f56/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-ink)}a:hover{color:var(--ink)}
+</style>
+</helmet>
+<div style="width: 1280px; height: 900px; box-sizing: border-box; background: var(--bg); font-family: var(--font-sans); color: var(--text); padding: 48px 64px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-content: start">
+  <div style="display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">A · No bridge</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Bridge ready</span><span style="font-size: 13px; color: var(--text-dim)">No machine runs a bridge for Acme.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary" aria-expanded="true">Start</x-import></div>
+      </x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">B · Online, but it cannot run Loupe's work</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Bridge ready</span><span style="font-size: 13px; color: var(--status-pending-deep)">MacBook-Pro is online, but it does not run the prompts Loupe sends.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="pending" label="Needs setup"></x-import></div>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.Hint">Run this on MacBook-Pro to fix its setup:</x-import>
+          <x-import component-from-global-scope="LoupeDesignSystem_686f56.CodeBlock">
+            <div class="lp-code-dark__header"><span class="lp-code-dark__label">Terminal</span><x-import component-from-global-scope="LoupeDesignSystem_686f56.CopyButton" variant="text"><button type="button" class="lp-copy-button__chip">Copy</button></x-import></div>
+            <pre class="lp-code-dark__body"><code>loupe init --project acme</code></pre>
+          </x-import>
+        </div>
+      </x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">C · Ready</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Bridge ready</span><span style="font-size: 13px; color: var(--text-dim)">MacBook-Pro runs Loupe's work · seen 12 s ago</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Done"></x-import></div>
+      </x-import>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">A · Start, opened in place</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; flex-direction: column; gap: 16px">
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.SectionHeading"><h2>Start a bridge</h2></x-import>
+        <p style="margin: 0; font-size: 14px; color: var(--text-mute); line-height: 1.5">The bridge runs on your machine. It picks up the work this board asks for and starts an agent for it.</p>
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-label)">First time on this machine</span>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.CodeBlock">
+          <div class="lp-code-dark__header"><span class="lp-code-dark__label">Terminal</span><x-import component-from-global-scope="LoupeDesignSystem_686f56.CopyButton" variant="text"><button type="button" class="lp-copy-button__chip">Copy</button></x-import></div>
+          <pre class="lp-code-dark__body"><code>loupe init --project acme</code></pre>
+        </x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Hint">Sets up the machine and starts the bridge in the background.</x-import>
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-label)">Already set up, the bridge stopped</span>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.CodeBlock">
+          <div class="lp-code-dark__header"><span class="lp-code-dark__label">Terminal</span><x-import component-from-global-scope="LoupeDesignSystem_686f56.CopyButton" variant="text"><button type="button" class="lp-copy-button__chip">Copy</button></x-import></div>
+          <pre class="lp-code-dark__body"><code>loupe bridge run -d</code></pre>
+        </x-import>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.Flash" severity="info">Listening. This row turns green when the bridge says hello.</x-import>
+        <a href="#" style="font-size: 13px">How the bridge works</a>
+      </div>
+    </x-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

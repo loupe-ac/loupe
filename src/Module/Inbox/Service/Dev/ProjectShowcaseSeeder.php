@@ -161,7 +161,7 @@ final readonly class ProjectShowcaseSeeder
         $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_SESSION];
         $this->em->persist($bridge);
 
-        $item = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Todo, title: 'Rebuild the Claude Design project', blocking: false, createdAt: $now->modify('-5 minutes'));
+        $item = new InboxItem(project: $project, number: $this->inboxItems->nextNumber($project), kind: InboxItemKind::Todo, title: 'Rebuild the Design System artifact', blocking: false, createdAt: $now->modify('-5 minutes'));
         $item->suggestedActions = [['action' => 'start-session', 'reason' => 'The rebuild needs a session on your machine.', 'recommended' => true, 'cardId' => null, 'command' => null, 'proposedEntry' => null, 'prompt' => 'Use the loupe-design-rebuild skill in this checkout. First check that the branch is main, and run git pull --ff-only.']];
         $item->cards->add(new InboxItemCard($item, $card));
         $this->ask($project, [$item], $now->modify('-5 minutes'), 'The rebuild needs a session.', null);
@@ -381,7 +381,7 @@ final readonly class ProjectShowcaseSeeder
         $state->failedChecks = $failedChecks;
         $state->mergeability = $mergeability;
         $state->review = $review;
-        $state->changesRequestedSha = PullRequestReview::ChangesRequested === $review ? $state->headSha : null;
+        $state->changesRequestedAt = PullRequestReview::ChangesRequested === $review ? new \DateTimeImmutable('-30 minutes') : null;
         $state->refreshedAt = new \DateTimeImmutable('-5 minutes');
 
         return $link;

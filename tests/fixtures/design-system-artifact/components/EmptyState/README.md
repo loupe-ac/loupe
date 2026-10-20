@@ -1,0 +1,13 @@
+Loupe's empty state. The block that tells a user a list or page has no content yet.
+
+```jsx
+<EmptyState
+  icon={<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></svg>}
+  title="No documents yet"
+  body="Documents you create show up here"
+  linkLabel="Read the guide"
+  linkHref="#"
+/>
+```
+
+Titles are sentence case and never end in a full stop. Use at most one link. The component emits the real `lp-empty-state` classes of the app.

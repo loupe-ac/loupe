@@ -71,10 +71,10 @@ func TestCommandEntryReportsAreSortedWithTheirParams(t *testing.T) {
 }
 
 func TestHeartbeatBodyAddsTheEntryCapabilityOnOptIn(t *testing.T) {
-	if slices.Contains(heartbeatBody(commandSet(t, ""), "").Capabilities, rules.CapabilityAddEntry) {
+	if slices.Contains(heartbeatBody(commandSet(t, "")).Capabilities, rules.CapabilityAddEntry) {
 		t.Error("add-entry without acceptEntries")
 	}
-	hb := heartbeatBody(commandSet(t, "acceptEntries: true\n"), "")
+	hb := heartbeatBody(commandSet(t, "acceptEntries: true\n"))
 	if !slices.Contains(hb.Capabilities, rules.CapabilityAddEntry) || len(hb.CommandEntries) != 2 {
 		t.Fatalf("body = %+v", hb)
 	}
@@ -98,5 +98,44 @@ func TestWorktreeReportsReadGitAndOmitTheListOnFailure(t *testing.T) {
 	real, _ := filepath.EvalSymlinks(dir)
 	if len(got) != 1 || got[0].Branch != "main" || got[0].ProjectID != set.ProjectID("loupe") || !strings.HasSuffix(got[0].Path, filepath.Base(real)) {
 		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestOriginRemoteReadsGitAndDropsCredentials(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is missing")
+	}
+	dir := t.TempDir()
+	if got := originRemote(context.Background(), dir); got != "" {
+		t.Fatalf("a folder with no repository gave %q", got)
+	}
+	for _, args := range [][]string{{"init", "-b", "main"}, {"remote", "add", "origin", "https://user:secret@github.com/ubermuda/loupe.git"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	if got := originRemote(context.Background(), dir); got != "https://github.com/ubermuda/loupe.git" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestRepositoryReportsSkipAProjectWithNoResolvedID(t *testing.T) {
+	got := repositoryReports(context.Background(), commandSet(t, ""))
+	if got == nil || len(got) != 0 {
+		t.Fatalf("got %+v, want an empty list that clears the stored rows", got)
+	}
+}
+
+func TestWithoutCredentialsKeepsAnScpRemoteAndDropsTheOverlongOne(t *testing.T) {
+	for in, want := range map[string]string{
+		"git@github.com:ubermuda/loupe.git":     "git@github.com:ubermuda/loupe.git",
+		"https://github.com/ubermuda/loupe.git": "https://github.com/ubermuda/loupe.git",
+		"https://tok@github.com/ubermuda/l.git": "https://github.com/ubermuda/l.git",
+		"":                                      "",
+		strings.Repeat("a", maxRemoteURL+1):     "",
+	} {
+		if got := withoutCredentials(in); got != want {
+			t.Errorf("withoutCredentials(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

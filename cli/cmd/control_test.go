@@ -356,7 +356,7 @@ func TestServeControlAnswersOnlyAReload(t *testing.T) {
 	})
 
 	for name, line := range map[string]string{
-		"unknown op": `{"op":"stop"}` + "\n",
+		"unknown op": `{"op":"frobnicate"}` + "\n",
 		"malformed":  "reload\n",
 		"oversized":  `{"op":"reload","pad":"` + strings.Repeat("x", 1100) + `"}` + "\n",
 	} {

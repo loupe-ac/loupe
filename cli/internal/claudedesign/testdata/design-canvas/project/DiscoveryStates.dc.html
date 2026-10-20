@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Discovery row states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/tokens.css">
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/components/bundle.css">
+<script src="ds/loupedesignsystem_686f56/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:var(--accent-ink)}a:hover{color:var(--ink)}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1180px; box-sizing: border-box; background: var(--bg); font-family: var(--font-sans); color: var(--text); padding: 48px 64px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 40px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">1 · Not run</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Run discovery</span><span style="font-size: 13px; color: var(--text-mute)">Reads the repository and writes a report. Changes nothing.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary">Run discovery</x-import></div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">2 · Cannot start: automation is off</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Run discovery</span><span style="font-size: 13px; color: var(--text-mute)">The board's workflow is switched off, so no agent gets the work.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" href="#">Turn it on</x-import></div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">3 · Running</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><x-import component-from-global-scope="LoupeDesignSystem_686f56.StateMark" kind="working" label="Running">A worker on MacBook-Pro runs discovery.</x-import><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Discovery is running</span><span style="font-size: 13px; color: var(--text-mute)">On MacBook-Pro, for 3 min. Card #12 stays put until it ends.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="ghost" href="#">Watch the run</x-import></div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">4 · Report waits for you</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><x-import component-from-global-scope="LoupeDesignSystem_686f56.StateMark" kind="needs-you" label="Needs you">The report waits for your review.</x-import><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Review the report</span><span style="font-size: 13px; color: var(--text-mute)">5 checks ready, 3 gaps, 3 proposed cards. Tick the ones you want.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary" href="#">Open report</x-import></div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">5 · Revising after your comments</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><x-import component-from-global-scope="LoupeDesignSystem_686f56.StateMark" kind="working" label="Revising">A worker revises the report.</x-import><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">A worker revises the report</span><span style="font-size: 13px; color: var(--text-mute)">From your 4 comments. You get the new version in the inbox.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="ghost" href="#">Open report</x-import></div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">6 · Failed: no bridge could take it</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 14px"><x-import component-from-global-scope="LoupeDesignSystem_686f56.StateMark" kind="stuck" label="Did not start">No online bridge could run this work.</x-import><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Discovery did not start</span><span style="font-size: 13px; color: var(--status-danger-deep)">MacBook-Pro is online, but it cannot run Loupe's work.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button">Try again</x-import></div>
+        <x-import component-from-global-scope="LoupeDesignSystem_686f56.CodeBlock">
+          <div class="lp-code-dark__header"><span class="lp-code-dark__label">Run on MacBook-Pro</span><x-import component-from-global-scope="LoupeDesignSystem_686f56.CopyButton" variant="text"><button type="button" class="lp-copy-button__chip">Copy</button></x-import></div>
+          <pre class="lp-code-dark__body"><code>loupe init --project acme</code></pre>
+        </x-import>
+      </div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">7 · Failed: the worker ended without a report</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><x-import component-from-global-scope="LoupeDesignSystem_686f56.StateMark" kind="stuck" label="Failed">The worker ended without a report.</x-import><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Discovery failed</span><span style="font-size: 13px; color: var(--status-danger-deep)">The worker ended without a report. <a href="#">Read the run</a> to see why.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button">Run again</x-import></div>
+    </x-import>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">8 · Done</x-import>
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+      <div style="display: flex; align-items: center; gap: 14px"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Discovery reviewed</span><span style="font-size: 13px; color: var(--text-mute)">2 cards added to Next. <a href="#">Open the report</a></span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Done"></x-import></div>
+    </x-import>
+  </div>
+
+  <div style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; margin-top: 8px">
+    <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">Card #12 refuses a hand move while discovery runs</x-import>
+    <div style="display: flex; gap: 24px; align-items: flex-start">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusBox" kind="working" title="Discover what Acme needs for agents" chip="Running · 3 min" lead="Discovery is running on this card. It moves when the run ends." fields="{{lockFields}}" style="width: 520px"></x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Flash" severity="warning" dismiss-label="Dismiss">Discovery is running on this card. It moves when the run ends.</x-import>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { lockFields: [{ label: 'Column', value: 'Backlog' }, { label: 'Worker', value: 'MacBook-Pro' }] };
+  }
+}
+</script>
+</body>
+</html>

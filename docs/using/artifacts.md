@@ -81,8 +81,8 @@ loupe artifact push prototype/ --artifact 01a12d27-5bd5-73d0-aa2e-8d3cfc2e3337 -
 | `--card` | Link the artifact to a card, by its number or its id |
 | `--source-link` | Where the files came from, such as a design canvas link |
 | `--notes` | What changed in this version |
-| `--index` | The artboard that becomes `index.html` when the folder holds several canvases. See "Pushing a Claude Design canvas". |
-| `--out` | Write the compiled files to an empty or new folder, and store nothing. See "Pushing a Claude Design canvas". |
+| `--index` | The artboard that becomes `index.html` when the folder holds several canvases. See "Pushing a Design canvas". |
+| `--out` | Write the compiled files to an empty or new folder, and store nothing. See "Pushing a Design canvas". |
 | `--project` | The project id. Without it the command reads `.loupe.yaml`, then the one project your login covers. |
 
 Pass `--name` or `--artifact`, never both. A file is stored under its base name.
@@ -95,14 +95,35 @@ The command sends the id of the session that runs it, read from
 cannot store, so run the command from an interactive session. It prints the
 artifact id, the version number, the stable link and the link of that version.
 
-## Pushing a Claude Design canvas
+## Pushing a Design canvas
 
-A Claude Design canvas, a `.dc.html` file, shows as a broken page outside
-Claude Design. When the pushed folder holds a canvas, the command compiles it
-to a plain page before it stores anything. It runs the script of the canvas on
+A Design canvas, a `.dc.html` file, shows as a broken page outside claude.ai.
+A canvas comes from a Design artifact at `claude.ai/artifact/<id>`, or from an
+older standalone Claude Design project at `claude.ai/design/`, which closes on
+2026-12-14. When the pushed folder holds a canvas, the command compiles it to a
+plain page before it stores anything. It runs the script of the canvas on
 your machine, so you install nothing. The push leaves out the canvas file,
 `support.js` and `canvas.json`, which holds the layout of the canvas board. The
 artifact holds the compiled page.
+
+A Design canvas that installs a design system, such as the Loupe Design
+System, mounts its components with `<x-import>` elements. The compiled page
+keeps those components live. It loads React 18, the `bundle.js` of the design
+system and a small mount script, and the browser draws each component. The
+push stores React once as `_runtime/react.production.min.js` and
+`_runtime/react-dom.production.min.js`. It keeps only the files of the design
+system folder that a page loads: `components/bundle.js`, the stylesheets,
+`tokens.css` and `fonts/`. It drops the previews, the README files and the
+other files of that folder. A canvas with 11 artboards at two widths gives 23
+files, and a push of one version stops at the file limit of the instance, 50
+files by default.
+
+A phone artboard keeps its phone layout in a wide viewer. The browser reads a
+width media query against the viewer, not against the artboard. So the push
+writes one copy of the design system stylesheet for each artboard width, such
+as `bundle.w390.css`, with each width media query settled for that width.
+Artboards of the same width share one copy. The push reads each width from the
+`boards` of `canvas.json`.
 
 The artifact library holds plain files only. Loupe refuses a push that holds a
 `.dc.html` file, so a CLI older than 1.17.0, which sends a canvas as it is,
@@ -139,7 +160,7 @@ that matches no canvas, or more than one, stops the command and lists the
 canvases. With one canvas the flag must name that canvas. A link to the index
 artboard points at `index.html`.
 
-A blob is a file that Claude Design stores outside the canvas, for example an
+A blob is a file that the canvas stores outside its page, for example an
 image. The canvas refers to it as `/_blob/<id>`. Put the file in the folder as
 `_blob/<id>.<ext>`, at the root of the folder. The compiler then replaces each
 `/_blob/<id>` in an attribute, such as `src`, `href`, `poster`, `srcset` or
@@ -201,7 +222,7 @@ When the flag is on, the sidebar of a project shows an **Artifacts** link. It
 shows no count. It opens the library at
 `/projects/{project}/artifacts`. Each row shows the name of the artifact, its
 newest version, the number of files in that version, and where the files came
-from, such as a Claude Design canvas or a claude.ai artifact. It also shows who
+from, such as a claude.ai artifact, which covers a Design canvas, or an older Claude Design canvas. It also shows who
 stored the newest version, the first card that links to it with the number of
 other cards, and when it was stored. The artifact with the newest version comes
 first.

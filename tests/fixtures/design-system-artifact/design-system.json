@@ -1,0 +1,48 @@
+{
+  "v": 3,
+  "assetGroups": {
+    "fonts": {
+      "files": {},
+      "name": "fonts",
+      "order": []
+    },
+    "notes": {
+      "files": {},
+      "name": "notes",
+      "order": []
+    }
+  },
+  "blobs": {},
+  "createdOnFiles": {
+    "at": "2026-10-17T16:02:35.620Z",
+    "v": 1
+  },
+  "docs": {
+    "readme": "project/README.md",
+    "sections": []
+  },
+  "groups": [
+    "fonts",
+    "notes"
+  ],
+  "layout": "files",
+  "libraries": [
+    {
+      "name": "react",
+      "version": "18"
+    },
+    {
+      "name": "react-dom",
+      "version": "18"
+    }
+  ],
+  "namespace": "LoupeDesignSystem_686f56",
+  "sections": {},
+  "title": "Loupe Design System",
+  "lastChange": {
+    "by": "Geoffrey",
+    "at": "2026-10-17T16:20:00Z",
+    "via": "Claude (chat)",
+    "note": "Finished the migration: tokens.json, bundle, previews and cover in the Design System format"
+  }
+}

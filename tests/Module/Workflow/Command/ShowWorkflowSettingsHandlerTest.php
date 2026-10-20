@@ -58,7 +58,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
         self::assertSame('lifecycle', $template->key);
         self::assertSame('workflow.template.lifecycle.label', $template->labelKey);
         self::assertSame('workflow.template.lifecycle.description', $template->descriptionKey);
-        self::assertSame(10, $template->version);
+        self::assertSame(11, $template->version);
         self::assertSame($binding->boundAt->format('Y-m-d H:i:s'), $template->boundAt->format('Y-m-d H:i:s'));
         self::assertEquals([
             new WorkflowSlotView('next', 'workflow.slot.next', 'board.card.status.next'),
@@ -97,6 +97,7 @@ final class ShowWorkflowSettingsHandlerTest extends KernelTestCase
 
         self::assertEquals([
             new WorkflowRuleView('discovery', 'workflow.settings.where.backlog', 'workflow.settings.action.request', null, 'discovery', [new WorkflowConditionGroupView('workflow.source.readiness', [new WorkflowConditionView('card.discovery.requested', false, '')])], [], [], []),
+            new WorkflowRuleView('discovery-revise', 'workflow.settings.where.backlog', 'workflow.settings.action.request', null, 'discovery-revise', [new WorkflowConditionGroupView('workflow.source.readiness', [new WorkflowConditionView('card.discovery.revising', false, '')])], [], [], []),
             new WorkflowRuleView('discovery-approved', 'workflow.settings.where.backlog', 'workflow.settings.action.move', 'workflow.settings.where.any_terminal', null, [new WorkflowConditionGroupView('workflow.source.readiness', [new WorkflowConditionView('card.discovery.approved', false, '')])], [], [], []),
             new WorkflowRuleView('post-widget-review', 'workflow.settings.where.any', 'workflow.settings.action.forge_write', null, 'post-review', [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.site_review.verdict_unsent', false, '')])], [], [], []),
             new WorkflowRuleView('sync-site-review-check', 'workflow.settings.where.any', 'workflow.settings.action.forge_write', null, 'site-review-check', [new WorkflowConditionGroupView('workflow.source.board', [new WorkflowConditionView('card.site_review.check_stale', false, '')])], [], [], []),

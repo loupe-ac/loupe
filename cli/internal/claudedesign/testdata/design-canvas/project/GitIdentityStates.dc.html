@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Git identity states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/tokens.css">
+<link rel="stylesheet" href="ds/loupedesignsystem_686f56/components/bundle.css">
+<script src="ds/loupedesignsystem_686f56/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.pg-link{color:var(--accent-ink)}.pg-link:hover{color:var(--ink)}
+.pg-switch{appearance:none;-webkit-appearance:none;position:relative;flex-shrink:0;width:40px;height:24px;margin:1px 0 0;border-radius:999px;background:var(--border-strong);cursor:pointer;transition:background .15s}.pg-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:999px;background:var(--surface-1);transition:left .15s}.pg-switch:checked{background:var(--accent)}.pg-switch:checked::after{left:18px}.pg-switch:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 1140px; box-sizing: border-box; background: var(--bg); font-family: var(--font-sans); color: var(--text); padding: 48px 64px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-content: start">
+  <div style="display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">A · Managed, the default</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: flex-start; gap: 12px"><input type="checkbox" role="switch" class="pg-switch" id="gs1" checked aria-describedby="gs1h"><div style="display: flex; flex-direction: column; gap: 2px"><label for="gs1" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="gs1h" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents push as the Loupe app, so you can approve their pull requests.</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Pushes as the Loupe app</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Managed"></x-import></div>
+        </div>
+      </x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">B · Managed, with an agent account on one machine</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: flex-start; gap: 12px"><input type="checkbox" role="switch" class="pg-switch" id="gs2" checked aria-describedby="gs2h"><div style="display: flex; flex-direction: column; gap: 2px"><label for="gs2" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="gs2h" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents push as the Loupe app, so you can approve their pull requests.</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Pushes as the Loupe app</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Managed"></x-import></div><div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">build-box</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Pushes as <code style="font-family: var(--font-mono); font-size: 12.5px">acme-agent</code>, the agent account set on this machine</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Managed"></x-import></div>
+        </div>
+      </x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">C · Managed, but the GitHub App is not installed</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: flex-start; gap: 12px"><input type="checkbox" role="switch" class="pg-switch" id="gs3" checked aria-describedby="gs3h"><div style="display: flex; flex-direction: column; gap: 2px"><label for="gs3" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="gs3h" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents push as the Loupe app, so you can approve their pull requests.</span></div></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Flash" severity="warning">Agents cannot push yet. Install the GitHub App on github.com/acme/acme, or turn this off to push with the git setup of each machine.</x-import><div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Button" variant="primary" href="#">Install the GitHub App</x-import></div>
+        </div>
+      </x-import>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">D · Not managed, a separate account found</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: flex-start; gap: 12px"><input type="checkbox" role="switch" class="pg-switch" id="gs4" aria-describedby="gs4h"><div style="display: flex; flex-direction: column; gap: 2px"><label for="gs4" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="gs4h" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents use the git setup of each machine. Loupe reads it and shows it below.</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Commits as <code style="font-family: var(--font-mono); font-size: 12.5px">Acme Agent</code>. Pushes as <code style="font-family: var(--font-mono); font-size: 12.5px">acme-agent</code>. Detected 12 s ago.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="ok" label="Detected"></x-import></div>
+        </div>
+      </x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">E · Not managed, the machine pushes as you</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: flex-start; gap: 12px"><input type="checkbox" role="switch" class="pg-switch" id="gs5" aria-describedby="gs5h"><div style="display: flex; flex-direction: column; gap: 2px"><label for="gs5" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="gs5h" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents use the git setup of each machine. Loupe reads it and shows it below.</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Commits as <code style="font-family: var(--font-mono); font-size: 12.5px">Sam Owner</code>. Pushes as <code style="font-family: var(--font-mono); font-size: 12.5px">sam-owner</code>, your GitHub account.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="pending" label="Check"></x-import></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.Flash" severity="warning">GitHub does not let you approve your own pull requests, so agent work on MacBook-Pro waits for another reviewer.</x-import><a href="https://ubermuda.github.io/loupe/getting-started/agent-github-account/" class="pg-link" style="font-size: 13px">Use a separate GitHub account for agents</a>
+        </div>
+      </x-import>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Label">F · Not managed, Loupe cannot read the push account</x-import>
+      <x-import component-from-global-scope="LoupeDesignSystem_686f56.Panel">
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: flex-start; gap: 12px"><input type="checkbox" role="switch" class="pg-switch" id="gs6" aria-describedby="gs6h"><div style="display: flex; flex-direction: column; gap: 2px"><label for="gs6" style="font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer">Loupe manages the git identity of agents</label><span id="gs6h" style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Agents use the git setup of each machine. Loupe reads it and shows it below.</span></div></div><div style="display: flex; align-items: center; gap: 14px; padding: 10px 0 0; border-top: 1px solid var(--border-faint)"><div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">MacBook-Pro</span><span style="font-size: 13px; color: var(--text-dim); line-height: 1.45">Commits as <code style="font-family: var(--font-mono); font-size: 12.5px">Sam Owner</code>. The push account is unknown: git gave no GitHub login on this machine.</span></div><x-import component-from-global-scope="LoupeDesignSystem_686f56.StatusChip" modifier="neutral" label="Unknown"></x-import></div>
+        </div>
+      </x-import>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1140}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

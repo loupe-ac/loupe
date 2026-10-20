@@ -59,8 +59,8 @@ The owner can run `/loupe:product-design` by hand in Claude Code, from a card or
 from a one-line idea. The session creates the card in Product design, or moves
 an existing card there from an earlier column, such as Backlog or Next. Then it
 writes the product document with the owner. The session takes its intake from
-the card. When the Claude Design MCP is connected, it recommends one Claude
-Design session at the first choice with a visible side. The session asks every
+the card. When the `Artifact` tool can create a Design canvas, it recommends one
+Design canvas session at the first choice with a visible side. The session asks every
 open decision in the chat, and writes a decision fence only for a decision that
 the owner defers. When the questions end and the session has a prototype, the session compares the
 answers with it, and asks the owner about each conflict. Then it shows a recap with one
@@ -407,6 +407,9 @@ that change from one setup to the next.
    `just cs`, the targeted checks, the draft pull request, `changelog.d/`, the merge method and
    the column slugs that a stage moves a card to or reads. The slugs live there because a stage
    skill never reads the column list, which can be missing.
+   `loupe init` writes a starter profile when the repository has none, from
+   `cli/internal/profile`. It marks each guessed value "detected, check it", and
+   the discovery run proposes a card for each marked value that is wrong.
 2. A harness adapter maps the steps of a worker to the tools of one agent
    harness: connect to Loupe, load an instruction, run a long command,
    dispatch a sub-agent, and write and run a plan. The generic adapter is
@@ -493,9 +496,8 @@ comment in place when the block clears.
    `board_columns`.
 2. Read the project slug on the project settings page. When it is not `loupe`,
    change the `projects` key in the rule file.
-3. A new board already has `backlog` and `done`. Create the four other
-   columns with the slugs above: `product-design`, `tech-design`,
-   `implementation` and `in-review`.
+3. A new project gets the Lifecycle template, which creates the columns above
+   with their slugs. Check that the board has them.
 4. Write `rules.yaml`.
 5. Check that `rules.yaml` starts with `maxWorkers: 1`, then start the bridge
    with `loupe bridge run`.

@@ -160,7 +160,9 @@ final class StartDiscoveryControllerTest extends WebTestCase
     private function bridge(Project $project): void
     {
         $em = $this->em();
-        $em->persist(new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable()));
+        $bridge = new Bridge(AgentCredential::managed($em, $project->owner, $project->owner->id), Uuid::v4(), [(string) $project->id], 'b4e39aa7', new \DateTimeImmutable());
+        $bridge->capabilities = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
+        $em->persist($bridge);
         $em->flush();
     }
 

@@ -37,6 +37,29 @@ final class WorkTakersTest extends KernelTestCase
         self::assertNull($reading->quietAt);
     }
 
+    public function test_capable_for_reads_a_kind_with_no_request(): void
+    {
+        [$project, , $owner] = $this->scenario('capable-for');
+
+        self::assertSame(WorkTakerState::None, $this->service()->capableFor($project, 'discovery', true)->state);
+
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
+        $reading = $this->service()->capableFor($project, 'discovery', true);
+        self::assertSame([WorkTakerState::NotCapable, true], [$reading->state, $reading->appPromptsMissing]);
+
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['discovery']);
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', false)->state);
+    }
+
+    public function test_capable_for_takes_app_prompts_only_for_work_that_ships_a_prompt(): void
+    {
+        [$project, , $owner] = $this->scenario('capable-for-prompts');
+        $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: [], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS]);
+
+        self::assertSame(WorkTakerState::Available, $this->service()->capableFor($project, 'discovery', true)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->service()->capableFor($project, 'discovery', false)->state);
+    }
+
     public function test_an_online_bridge_that_runs_the_kind_is_a_taker(): void
     {
         [$project, $request, $owner] = $this->scenario('available');
@@ -143,7 +166,7 @@ final class WorkTakersTest extends KernelTestCase
         [$project, $request, $owner] = $this->scenario('other-kind');
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix']);
 
-        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
     }
 
     public function test_a_bridge_that_reports_no_kinds_is_no_taker(): void
@@ -151,7 +174,7 @@ final class WorkTakersTest extends KernelTestCase
         [$project, $request, $owner] = $this->scenario('no-kinds');
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: []);
 
-        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
     }
 
     public function test_a_bridge_with_app_prompts_takes_every_kind_whose_request_carries_a_prompt(): void
@@ -176,7 +199,7 @@ final class WorkTakersTest extends KernelTestCase
         $appPrompts = [Bridge::CAPABILITY_WORK_REQUESTS, Bridge::CAPABILITY_APP_PROMPTS];
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['fix'], capabilities: $appPrompts);
 
-        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
 
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['implement'], capabilities: $appPrompts);
 
@@ -192,7 +215,7 @@ final class WorkTakersTest extends KernelTestCase
 
         $reading = $this->read($project, $request);
 
-        self::assertSame(WorkTakerState::None, $reading->state);
+        self::assertSame(WorkTakerState::NotCapable, $reading->state);
         self::assertEquals($narrowed->narrowedAt, $reading->noTakerSince);
     }
 
@@ -221,7 +244,7 @@ final class WorkTakersTest extends KernelTestCase
         [$project, $request, $owner] = $this->scenario('capability', capability: 'interactive');
         $this->bridge($owner, $project, seenSecondsAgo: 10);
 
-        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
     }
 
     public function test_a_request_about_another_subject_needs_the_subject_capability_and_its_kind_on_that_subject(): void
@@ -231,7 +254,7 @@ final class WorkTakersTest extends KernelTestCase
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement']);
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:report', 'implement'], capabilities: $analysis);
 
-        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
 
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: $analysis);
 
@@ -266,7 +289,7 @@ final class WorkTakersTest extends KernelTestCase
         [$project, $request, $owner] = $this->scenario('card-kind-of-subject');
         $this->bridge($owner, $project, seenSecondsAgo: 10, workKinds: ['analysis:implement'], capabilities: [Bridge::CAPABILITY_WORK_REQUESTS, 'subject-analysis']);
 
-        self::assertSame(WorkTakerState::None, $this->read($project, $request)->state);
+        self::assertSame(WorkTakerState::NotCapable, $this->read($project, $request)->state);
     }
 
     public function test_a_bridge_that_does_not_follow_the_project_is_no_taker(): void
