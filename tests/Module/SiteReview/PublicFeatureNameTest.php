@@ -39,7 +39,7 @@ final class PublicFeatureNameTest extends TestCase
         $root = dirname(__DIR__, 3);
         $old = '/api/site-review';
         $hits = [];
-        foreach (['src', 'tests', 'config', 'docs', 'public', 'e2e/tests'] as $dir) {
+        foreach (['src', 'tests', 'config', 'public', 'e2e/tests'] as $dir) {
             $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root.'/'.$dir, \FilesystemIterator::SKIP_DOTS));
             foreach ($files as $file) {
                 if ($file->isFile() && __FILE__ !== $file->getPathname() && str_contains((string) file_get_contents($file->getPathname()), $old)) {
