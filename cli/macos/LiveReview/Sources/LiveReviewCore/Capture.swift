@@ -52,7 +52,7 @@ public struct LatestRequest: Sendable {
     public func isCurrent(_ token: Int) -> Bool { token == current }
 }
 
-public enum FreezeEnd: Equatable, Sendable { case stale, screenshotFailed, renderFailed, ready }
+public enum FreezeEnd: Equatable, Sendable { case stale, screenshotFailed, screenChanged, renderFailed, ready }
 
 /// The capture the panel holds and the screenshot it waits for. A failed render keeps the marks
 /// with a blank image, so Save stays off until a render of every mark succeeds.
@@ -80,10 +80,17 @@ public struct CaptureSession: Sendable {
         return freeze.begin()
     }
 
-    public mutating func endFreeze(_ token: Int, with made: Capture?, render: (Capture) -> RenderedImage? = { $0.render() }) -> FreezeEnd {
+    /// `titleNow` is the screen title read after the screenshot. A title that differs from the one
+    /// read at the pick means the screen moved, so the image and its facts may not match.
+    public mutating func endFreeze(_ token: Int, with made: Capture?, titleNow: String,
+                                   render: (Capture) -> RenderedImage? = { $0.render() }) -> FreezeEnd {
         guard freeze.isCurrent(token) else { return .stale }
         freezing = false
         guard var made else { return .screenshotFailed }
+        guard made.screenTitle == titleNow else {
+            pendingStrokes = []
+            return .screenChanged
+        }
         made.strokes += pendingStrokes
         pendingStrokes = []
         made.image = render(made) ?? .blank

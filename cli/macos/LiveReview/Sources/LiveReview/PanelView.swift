@@ -130,8 +130,14 @@ struct ReviewView: View {
     }
 }
 
+enum SearchScope: String, Identifiable {
+    case cards, epics
+    var id: String { rawValue }
+}
+
 struct DestinationRow: View {
     @ObservedObject var model: AppModel
+    @State private var search: SearchScope?
 
     var body: some View {
         HStack {
@@ -143,20 +149,66 @@ struct DestinationRow: View {
                 if !model.parents.isEmpty {
                     Menu("A card for each note under an epic") {
                         ForEach(model.parents) { epic in
-                            Button(epic.label) { model.choose(destination: .eachNote(parentId: epic.id)) }
+                            Button(epic.label) { model.choose(parent: epic) }
                         }
+                        Divider()
+                        Button("Search epics…") { search = .epics }
                     }
                 }
-                if !model.targets.isEmpty {
-                    Divider()
-                    ForEach(model.targets) { card in
-                        Button(card.label) { model.choose(destination: .card(id: card.id, label: card.label)) }
-                    }
+                Divider()
+                ForEach(model.targets) { card in
+                    Button(card.label) { model.choose(destination: .card(id: card.id, label: card.label)) }
                 }
+                Button("Search cards…") { search = .cards }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
             .disabled(model.saving)
+            .popover(item: $search, arrowEdge: .bottom) { scope in
+                CardSearchView(model: model, scope: scope) { card in
+                    search = nil
+                    if scope == .epics {
+                        model.choose(parent: card)
+                    } else {
+                        model.choose(destination: .card(id: card.id, label: card.label))
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct CardSearchView: View {
+    @ObservedObject var model: AppModel
+    let scope: SearchScope
+    let pick: (TargetCard) -> Void
+    @State private var query = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField(scope == .epics ? "Search epics" : "Search cards", text: $query)
+                .textFieldStyle(.roundedBorder)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(model.searchResults) { card in
+                        Button(card.label) { pick(card) }
+                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .frame(maxHeight: 220)
+            if model.searchResults.isEmpty && !model.searching {
+                Text("No card matches.").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(12)
+        .frame(width: 320)
+        .onAppear { model.clearSearch() }
+        .task(id: query) {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled else { return }
+            await model.search(query, parentsOnly: scope == .epics)
         }
     }
 }

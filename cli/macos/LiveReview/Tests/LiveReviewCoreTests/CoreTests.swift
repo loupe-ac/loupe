@@ -535,7 +535,7 @@ final class CaptureSessionTests: XCTestCase {
 
     private func marked(_ session: inout CaptureSession) {
         let token = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", render: { _ in self.jpeg }), .ready)
     }
 
     func testASecondPickLeavesNothingToSaveWhileItsScreenshotIsTaken() {
@@ -547,7 +547,7 @@ final class CaptureSessionTests: XCTestCase {
         XCTAssertNil(session.capture)
         XCTAssertNil(session.ready)
 
-        XCTAssertEqual(session.endFreeze(second, with: nil), .screenshotFailed)
+        XCTAssertEqual(session.endFreeze(second, with: nil, titleNow: "Home"), .screenshotFailed)
         XCTAssertNil(session.ready)
     }
 
@@ -555,9 +555,9 @@ final class CaptureSessionTests: XCTestCase {
         var session = CaptureSession()
         let first = session.beginFreeze()
         let second = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(first, with: made(element: element), render: { _ in self.jpeg }), .stale)
+        XCTAssertEqual(session.endFreeze(first, with: made(element: element), titleNow: "Home", render: { _ in self.jpeg }), .stale)
         XCTAssertTrue(session.freezing)
-        XCTAssertEqual(session.endFreeze(second, with: made(element: element), render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(second, with: made(element: element), titleNow: "Home", render: { _ in self.jpeg }), .ready)
         XCTAssertNotNil(session.ready)
     }
 
@@ -565,7 +565,7 @@ final class CaptureSessionTests: XCTestCase {
         var session = CaptureSession()
         let token = session.beginFreeze()
         session.clear()
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), render: { _ in self.jpeg }), .stale)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", render: { _ in self.jpeg }), .stale)
         XCTAssertNil(session.capture)
     }
 
@@ -584,15 +584,28 @@ final class CaptureSessionTests: XCTestCase {
     func testAFailedRenderOfANewPickIsNotSavable() {
         var session = CaptureSession()
         let token = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), render: { _ in nil }), .renderFailed)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", render: { _ in nil }), .renderFailed)
         XCTAssertNil(session.ready)
+    }
+
+    func testAScreenThatChangesDuringTheScreenshotGivesNoCapture() {
+        var session = CaptureSession()
+        let token = session.beginFreeze()
+        XCTAssertTrue(session.add(stroke: [CGPoint(x: 1, y: 1), CGPoint(x: 5, y: 5)], render: { _ in nil }))
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Settings", render: { _ in self.jpeg }), .screenChanged)
+        XCTAssertFalse(session.freezing)
+        XCTAssertNil(session.capture)
+
+        let next = session.beginFreeze()
+        XCTAssertEqual(session.endFreeze(next, with: made(), titleNow: "Home", render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.ready?.strokes.count, 0)
     }
 
     func testStrokesDrawnDuringTheScreenshotJoinTheCapture() {
         var session = CaptureSession()
         let token = session.beginFreeze()
         XCTAssertTrue(session.add(stroke: [CGPoint(x: 1, y: 1), CGPoint(x: 5, y: 5)], render: { _ in nil }))
-        XCTAssertEqual(session.endFreeze(token, with: made(), render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(token, with: made(), titleNow: "Home", render: { _ in self.jpeg }), .ready)
         XCTAssertEqual(session.ready?.strokes.count, 1)
     }
 }

@@ -30,6 +30,7 @@ final class AppModel: ObservableObject {
     private var signInShownAt: Date?
     private var notesRequest = LatestRequest()
     private var destinationsRequest = LatestRequest()
+    private var searchRequest = LatestRequest()
 
     @Published var trusted = AXIsProcessTrusted()
     @Published var auth: Auth = .checking
@@ -40,6 +41,9 @@ final class AppModel: ObservableObject {
     @Published var destination: Destination = .reviewCard
     @Published var targets: [TargetCard] = []
     @Published var parents: [TargetCard] = []
+    @Published private var chosenParent: TargetCard?
+    @Published var searchResults: [TargetCard] = []
+    @Published var searching = false
     @Published var openNotes: [OpenNote] = []
     @Published var located: Located?
     @Published var mode: Mode = .pick { didSet { modeChanged() } }
@@ -171,6 +175,32 @@ final class AppModel: ObservableObject {
             let list = (try? await client.notes(project: project, cardId: id)) ?? []
             await MainActor.run { if self.notesRequest.isCurrent(token) { self.openNotes = list } }
         }
+    }
+
+    /// The menu lists the first cards only, so a search reaches every card of the project.
+    func search(_ query: String, parentsOnly: Bool) async {
+        guard let project else { return }
+        let token = await MainActor.run { () -> Int in
+            self.searching = true
+            return self.searchRequest.begin()
+        }
+        let cards = (try? await client.targets(project: project, query: query, parentsOnly: parentsOnly)) ?? []
+        await MainActor.run {
+            guard self.searchRequest.isCurrent(token) else { return }
+            self.searchResults = cards
+            self.searching = false
+        }
+    }
+
+    func clearSearch() {
+        searchRequest.cancel()
+        searchResults = []
+        searching = false
+    }
+
+    func choose(parent card: TargetCard) {
+        chosenParent = card
+        choose(destination: .eachNote(parentId: card.id))
     }
 
     func choose(destination next: Destination) {
@@ -328,22 +358,26 @@ final class AppModel: ObservableObject {
     private static let renderFailed = "The marked screenshot could not be drawn. Draw again, or pick again."
 
     /// A new freeze drops the old capture, so Save stays off until the new screenshot is ready.
+    /// The title is read at the pick and again after the screenshot, so a screen that moved gives no capture.
     private func freeze(located: Located, element: Element?) {
         let token = session.beginFreeze()
+        let title = Self.screenTitle(at: located)
         updateOverlays()
         Task.detached {
-            let png = await Simctl.screenshotPNG(udid: located.device.udid)
             let app = await Simctl.foregroundApp(udid: located.device.udid)
-            let title = Self.screenTitle(at: located)
+            let png = await Simctl.screenshotPNG(udid: located.device.udid)
             await MainActor.run {
                 let made = png.flatMap { png in
                     ImageRenderer.size(png: png)
                         .flatMap { ScreenMapper(screen: located.screen, imageWidth: $0.width, imageHeight: $0.height) }
                         .map { Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: $0, png: png) }
                 }
-                switch self.session.endFreeze(token, with: made) {
+                switch self.session.endFreeze(token, with: made, titleNow: Self.screenTitle(at: located)) {
                 case .stale: return
                 case .screenshotFailed: self.message = "The simulator screenshot failed."
+                case .screenChanged:
+                    self.hover = nil
+                    self.message = "The screen changed during the screenshot. Pick again."
                 case .renderFailed:
                     self.message = Self.renderFailed
                     self.dropIfUnmarked()
@@ -423,7 +457,9 @@ final class AppModel: ObservableObject {
         case let .card(_, label): return label
         case .reviewCard: return "One card for this review"
         case .eachNote(nil): return "A new card for each note"
-        case let .eachNote(parentId?): return "A card for each note under \(parents.first { $0.id == parentId }?.label ?? "an epic")"
+        case let .eachNote(parentId?):
+            let label = chosenParent?.id == parentId ? chosenParent?.label : parents.first { $0.id == parentId }?.label
+            return "A card for each note under \(label ?? "an epic")"
         }
     }
 
