@@ -85,12 +85,23 @@ module "app" {
   # domain and every sub-address. With a DigitalOcean zone, App Platform writes
   # its records and TXT challenge. A domain added in the console is dropped by
   # the next apply.
-  extra_domains = var.artifact_content_host == "" ? [] : [{
-    name     = var.artifact_content_host
-    type     = "ALIAS"
-    wildcard = true
-    zone     = var.artifact_content_zone
-  }]
+  #
+  # The site host is a second domain of the same app, in the same DNS zone as
+  # the custom domain. Without one, or when it is the custom domain itself, no
+  # entry is added.
+  extra_domains = concat(
+    var.artifact_content_host == "" ? [] : [{
+      name     = var.artifact_content_host
+      type     = "ALIAS"
+      wildcard = true
+      zone     = var.artifact_content_zone
+    }],
+    var.site_host == "" || var.site_host == var.custom_domain ? [] : [{
+      name = var.site_host
+      type = "ALIAS"
+      zone = var.domain_zone
+    }],
+  )
 
   # Off for the first apply — the job cannot reach the database until the
   # one-time schema GRANT has run, and a failing PRE_DEPLOY job fails the whole
