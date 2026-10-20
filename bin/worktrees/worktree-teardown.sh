@@ -78,6 +78,15 @@ if docker compose ps --status running --services 2>/dev/null | grep -qx php-fpm;
             kill "${proc#/proc/}" 2>/dev/null || true
         done
     ' sh "/var/www/html/${root#"$main"/}" || true
+
+    # The test cache lives in the container's temp dir; keep this formula in step
+    # with App\Kernel::getCacheDir().
+    test_cache=$(docker compose exec -T php-fpm php -r \
+        'echo sys_get_temp_dir()."/loupe-test-cache/".hash("xxh3", $argv[1]);' \
+        "/var/www/html/${root#"$main"/}" 2>/dev/null || true)
+    case "$test_cache" in
+        /*/loupe-test-cache/?*) docker compose exec -T php-fpm rm -rf "$test_cache" || true ;;
+    esac
 fi
 
 # Drop the databases if the stack is up (best-effort). --force terminates any
