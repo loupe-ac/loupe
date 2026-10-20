@@ -205,7 +205,7 @@
             {% if siteReviewLinks|length > 0 %}
             <ul class="lp-card-feedback-list">
                 {% for link in siteReviewLinks %}
-                    <li>{% include '@Board/_feedback_entry.html.twig' with {link: link, surface: 'feedback'} only %}</li>
+                    <li>{% include '@Board/_feedback_entry.html.twig' with {link: link, surface: 'feedback', screenshotSizes: screenshotSizes} only %}</li>
                 {% endfor %}
             </ul>
             {% else %}<p class="lp-card-detail__empty">{{ 'board.card.site_review.empty'|trans }}</p>{% endif %}

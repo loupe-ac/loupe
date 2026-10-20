@@ -458,6 +458,36 @@ name". Act on the words. Ask the reviewer when they do not say enough, rather
 than guessing what the drawing meant. The reviewer's own data export carries the
 points in full, under `strokes` in each card's `feedback` in `cards.json`.
 
+### A feedback item says where it came from and may carry an image
+
+`feedback_list` and `card_get` give each feedback item three more fields.
+
+- `surface` is `web` for a note from a page, or `ios-simulator` for a note from a
+  native app.
+- `native` is null for a web note. For a native note it holds the app (`name`,
+  `bundleId`), the device (`name`, `udid`, `osVersion`), the screen (`title`) and the
+  element the reviewer picked (`role`, `label`, `identifier`, `frame`). The element
+  is null when the reviewer picked none. A native note has a null `url`.
+- `screenshot` is null when the note has no image. Otherwise it holds the `width` and
+  `height` of the image in pixels.
+
+The images themselves follow the JSON in the answer, as image content. An answer
+carries the images of pending notes only, newest note first, and at most ten of them.
+A line of text before each image reads `Screenshot of feedback <id>:`, with the `id`
+of its note.
+
+`card_get` adds `imagesOmitted`, the number of pending images left out of the answer.
+`feedback_list` takes two more parameters:
+
+| Parameter | Use |
+|---|---|
+| `cardId` | List the feedback of one card only. |
+| `imageOffset` | Skip this many images. Start at 0. |
+
+`feedback_list` also returns `nextImageOffset`. Pass it as `imageOffset` to read the
+next ten images. It is null when no image remains. To read the images that `card_get`
+left out, call `feedback_list` with the `cardId` of the card and `imageOffset` 10.
+
 ## Two things agents get wrong
 
 **Comment ids do not survive `document_revise`.** Re-anchoring copies a comment
