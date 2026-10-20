@@ -266,13 +266,8 @@ final class ChromeCssExtractor
         if ([] === $matches[1]) {
             return $inBase;
         }
-        foreach ($matches[1] as $class) {
-            if (!isset($classes[(string) preg_replace('/\\\\(.)/', '$1', $class)])) {
-                return false;
-            }
-        }
 
-        return true;
+        return array_all($matches[1], fn ($class) => isset($classes[(string) preg_replace('/\\\\(.)/', '$1', $class)]));
     }
 
     /** @return list<string> */

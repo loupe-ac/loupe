@@ -29,7 +29,7 @@ final class StampDocsHandlerTest extends KernelTestCase
     protected function setUp(): void
     {
         $this->work = sys_get_temp_dir().'/stamp-docs-'.bin2hex(random_bytes(4));
-        (new Filesystem())->mkdir([$this->work.'/build/getting-started', $this->work.'/served']);
+        new Filesystem()->mkdir([$this->work.'/build/getting-started', $this->work.'/served']);
         file_put_contents($this->work.'/build/getting-started/index.html', self::PAGE);
         file_put_contents($this->work.'/app.css', self::CSS);
         foreach (['SITE_HOST' => 'site.example', 'DEFAULT_URI' => 'https://app.example'] as $name => $value) {
@@ -41,7 +41,7 @@ final class StampDocsHandlerTest extends KernelTestCase
     #[\Override]
     protected function tearDown(): void
     {
-        (new Filesystem())->remove($this->work);
+        new Filesystem()->remove($this->work);
         foreach ($this->previous as $name => $value) {
             $_ENV[$name] = $_SERVER[$name] = $value;
         }

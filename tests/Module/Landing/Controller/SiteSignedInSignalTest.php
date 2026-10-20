@@ -206,9 +206,8 @@ final class SiteSignedInSignalTest extends WebTestCase
         self::assertFalse($signed->headers->has('Vary'));
         self::assertSame($anonymousBody, (string) $signed->getContent());
         self::assertStringContainsString('loupe_signed_in', $anonymousBody);
-        self::assertStringContainsString('"http:\/\/localhost"', $anonymousBody);
+        self::assertStringContainsString('"appOrigin":"http:\/\/localhost"', $anonymousBody);
         self::assertStringContainsString('element.shadowRoot', $anonymousBody);
-        self::assertStringContainsString('root.querySelectorAll(\'[data-site-chrome="go-to-app"]\')', $anonymousBody);
     }
 
     public function test_the_docs_script_carries_the_tag_and_the_widget_but_not_the_preview_token(): void

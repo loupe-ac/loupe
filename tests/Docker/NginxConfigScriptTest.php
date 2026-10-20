@@ -17,14 +17,14 @@ final class NginxConfigScriptTest extends TestCase
     protected function setUp(): void
     {
         $this->work = sys_get_temp_dir().'/nginx-config-'.bin2hex(random_bytes(4));
-        (new Filesystem())->mkdir([$this->work.'/snippets', $this->work.'/http.d', $this->work.'/docs']);
+        new Filesystem()->mkdir([$this->work.'/snippets', $this->work.'/http.d', $this->work.'/docs']);
         file_put_contents($this->work.'/resolv.conf', "nameserver 10.0.0.2\n");
     }
 
     #[\Override]
     protected function tearDown(): void
     {
-        (new Filesystem())->remove($this->work);
+        new Filesystem()->remove($this->work);
     }
 
     public function test_a_split_instance_gets_a_site_server_with_the_docs_and_the_blog(): void

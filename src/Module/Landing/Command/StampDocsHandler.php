@@ -75,7 +75,7 @@ final readonly class StampDocsHandler
         $this->filesystem->mirror($command->source, $command->target, null, ['override' => true, 'delete' => true]);
 
         $pages = 0;
-        foreach ((new Finder())->files()->in($command->target)->name('*.html') as $file) {
+        foreach (new Finder()->files()->in($command->target)->name('*.html') as $file) {
             $path = $file->getPathname();
             $name = $file->getRelativePathname();
             $html = (string) file_get_contents($path);

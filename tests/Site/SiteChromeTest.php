@@ -90,12 +90,12 @@ final class SiteChromeTest extends KernelTestCase
     {
         $html = $this->render('@Landing/landing/_nav.html.twig', self::SITE_HOST, '');
 
-        $button = (new Crawler('<body>'.$html.'</body>'))->filter('a[data-site-chrome="go-to-app"]');
+        $button = new Crawler('<body>'.$html.'</body>')->filter('a[data-site-chrome="go-to-app"]');
 
         self::assertCount(1, $button);
         self::assertNotNull($button->attr('hidden'));
         self::assertStringContainsString('Go to app', $html);
-        self::assertCount(2, (new Crawler('<body>'.$html.'</body>'))->filter('[data-site-chrome="signed-out"]'));
+        self::assertCount(2, new Crawler('<body>'.$html.'</body>')->filter('[data-site-chrome="signed-out"]'));
     }
 
     public function test_the_footer_always_lists_blog_on_a_split_instance(): void

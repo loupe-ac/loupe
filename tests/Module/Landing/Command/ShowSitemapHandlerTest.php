@@ -26,7 +26,7 @@ final class ShowSitemapHandlerTest extends KernelTestCase
     #[\Override]
     protected function tearDown(): void
     {
-        (new Filesystem())->remove($this->docs);
+        new Filesystem()->remove($this->docs);
         $_ENV['SITE_HOST'] = $_SERVER['SITE_HOST'] = $this->previousSiteHost;
         parent::tearDown();
     }
@@ -60,7 +60,7 @@ final class ShowSitemapHandlerTest extends KernelTestCase
 
     public function test_a_broken_sitemap_index_lists_the_site_pages_alone(): void
     {
-        (new Filesystem())->mkdir($this->docs);
+        new Filesystem()->mkdir($this->docs);
         file_put_contents($this->docs.'/sitemap-index.xml', '<sitemapindex><sitemap><loc>');
 
         self::assertContains('https://site.example/privacy', $this->locations());
@@ -79,7 +79,7 @@ final class ShowSitemapHandlerTest extends KernelTestCase
      */
     private function writeSitemaps(array $index, array $files): void
     {
-        (new Filesystem())->mkdir($this->docs);
+        new Filesystem()->mkdir($this->docs);
         $entries = implode('', array_map(static fn (string $loc): string => '<sitemap><loc>'.$loc.'</loc></sitemap>', $index));
         file_put_contents($this->docs.'/sitemap-index.xml', '<?xml version="1.0"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.$entries.'</sitemapindex>');
         foreach ($files as $name => $urls) {

@@ -56,7 +56,7 @@ final class ChromeCssExtractorTest extends TestCase
 
     public function test_it_keeps_the_rules_of_the_classes_in_the_markup(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, self::HTML);
+        $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertStringContainsString('.lp-home-nav {', $css);
         self::assertStringContainsString('.lp-home-nav__link:hover', $css);
@@ -67,7 +67,7 @@ final class ChromeCssExtractorTest extends TestCase
 
     public function test_it_drops_rules_that_name_a_class_the_markup_lacks(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, self::HTML);
+        $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertStringNotContainsString('lp-review', $css);
         self::assertStringNotContainsString('.w-9', $css);
@@ -77,14 +77,14 @@ final class ChromeCssExtractorTest extends TestCase
 
     public function test_it_keeps_the_selectors_of_a_list_that_the_markup_uses(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, self::HTML);
+        $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertMatchesRegularExpression('/@media \(pointer: coarse\)\s*\{\s*\.lp-home-nav__link\s*\{/', $css);
     }
 
     public function test_it_keeps_only_the_custom_properties_that_the_kept_rules_use(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, self::HTML);
+        $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         foreach (['--spacing:', '--chrome:', '--accent:', '--font-sans:'] as $declaration) {
             self::assertStringContainsString($declaration, $css);
@@ -96,7 +96,7 @@ final class ChromeCssExtractorTest extends TestCase
 
     public function test_it_gives_a_registered_property_its_initial_value_inside_the_shadow_root(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, self::HTML);
+        $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertStringNotContainsString('@property', $css);
         self::assertMatchesRegularExpression('/@layer properties\s*\{[^}]*\*[^}]*--tw-border-style: solid/s', $css);
@@ -105,14 +105,14 @@ final class ChromeCssExtractorTest extends TestCase
 
     public function test_it_keeps_the_layer_order_statement(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, self::HTML);
+        $css = new ChromeCssExtractor()->extract(self::CSS, self::HTML);
 
         self::assertStringContainsString('@layer properties, theme, base, components, utilities;', $css);
     }
 
     public function test_markup_with_no_known_class_gives_the_base_alone(): void
     {
-        $css = (new ChromeCssExtractor())->extract(self::CSS, '<p>plain</p>');
+        $css = new ChromeCssExtractor()->extract(self::CSS, '<p>plain</p>');
 
         self::assertStringNotContainsString('.lp-home-nav', $css);
         self::assertStringContainsString('box-sizing', $css);
