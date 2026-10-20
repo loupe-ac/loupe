@@ -12,7 +12,7 @@ struct Located {
 
 /// Reads the Device Hub app of Xcode 27 through the accessibility interface.
 enum DeviceHub {
-    static let processName = "Device Hub"
+    static let processName = HubFocus.processName
     private static let screenSubrole = "iOSContentGroup"
 
     /// NSRunningApplication reports a process id of -1 for Device Hub, so the id comes from its windows.

@@ -12,7 +12,7 @@ enum Auth: Equatable {
     case ready
 }
 
-enum Mode { case pick, draw }
+enum Mode { case pick, draw, navigate }
 
 final class AppModel: ObservableObject {
     let options: LaunchOptions
@@ -49,6 +49,8 @@ final class AppModel: ObservableObject {
     @Published var mode: Mode = .pick { didSet { modeChanged() } }
     @Published private(set) var session = CaptureSession()
     @Published var nothingToPick = false
+    @Published private(set) var hubActive = false
+    @Published private(set) var focusRequest = 0
     @Published var note = ""
     @Published var saving = false
     @Published var message: String?
@@ -68,6 +70,7 @@ final class AppModel: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.overlay.passThrough(NSEvent.modifierFlags.contains(.option))
+            self?.checkFocus()
             self?.followPointer()
         }
         refreshAuth()
@@ -260,11 +263,30 @@ final class AppModel: ObservableObject {
 
     private func modeChanged() {
         nothingToPick = false
+        hover = nil
+        updateOverlays()
+    }
+
+    /// The marks follow Device Hub: another app in front hides them, as Navigate mode does.
+    private func checkFocus() {
+        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        let windows = list.map { info in
+            HubFocus.Window(pid: info[kCGWindowOwnerPID as String] as? Int32 ?? 0, owner: info[kCGWindowOwnerName as String] as? String ?? "",
+                            layer: info[kCGWindowLayer as String] as? Int ?? 0)
+        }
+        let front = NSWorkspace.shared.frontmostApplication.map { HubFocus.FrontApp(pid: $0.processIdentifier, bundleId: $0.bundleIdentifier) }
+        let active = HubFocus.active(front: front, ownPid: ProcessInfo.processInfo.processIdentifier, windows: windows)
+        guard active != hubActive else { return }
+        hubActive = active
+        if !active {
+            hover = nil
+            if drawing != nil { finishStroke() }
+        }
         updateOverlays()
     }
 
     private func updateOverlays() {
-        guard let located, reviewing else {
+        guard let located, reviewing, hubActive, mode != .navigate else {
             overlay.hide()
             return
         }
@@ -315,6 +337,8 @@ final class AppModel: ObservableObject {
             case .up:
                 finishStroke()
             }
+        case .navigate:
+            break
         }
     }
 
@@ -328,6 +352,14 @@ final class AppModel: ObservableObject {
         }
         nothingToPick = false
         freeze(located: located, element: element)
+        focusNote()
+    }
+
+    /// Brings the panel to the front, so the owner types the note at once.
+    private func focusNote() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.windows.first { !($0 is NSPanel) && $0.isVisible }?.makeKeyAndOrderFront(nil)
+        focusRequest += 1
     }
 
     private func freezeIfNeeded(_ located: Located) {
@@ -359,21 +391,26 @@ final class AppModel: ObservableObject {
 
     /// A new freeze drops the old capture, so Save stays off until the new screenshot is ready.
     /// The title and the app are read before and after the screenshot, so a screen that moved gives no capture.
+    /// The first app read runs beside the screenshot, and the app name beside the second read, to keep a pick quick.
     private func freeze(located: Located, element: Element?) {
-        let token = session.beginFreeze()
+        let token = session.beginFreeze(element: element)
         let title = Self.screenTitle(at: located)
         updateOverlays()
+        let udid = located.device.udid
         Task.detached {
-            let app = await Simctl.foregroundApp(udid: located.device.udid)
-            let png = await Simctl.screenshotPNG(udid: located.device.udid)
-            let appNow = await Simctl.foregroundApp(udid: located.device.udid)
+            async let before = Simctl.foregroundBundle(udid: udid)
+            async let shot = Simctl.screenshotPNG(udid: udid)
+            let (bundle, png) = await (before, shot)
+            async let after = Simctl.foregroundBundle(udid: udid)
+            async let named = Simctl.app(udid: udid, bundleId: bundle)
+            let (bundleNow, app) = await (after, named)
             await MainActor.run {
                 let made = png.flatMap { png in
                     ImageRenderer.size(png: png)
                         .flatMap { ScreenMapper(screen: located.screen, imageWidth: $0.width, imageHeight: $0.height) }
                         .map { Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: $0, png: png) }
                 }
-                switch self.session.endFreeze(token, with: made, titleNow: Self.screenTitle(at: located), appNow: appNow) {
+                switch self.session.endFreeze(token, with: made, titleNow: Self.screenTitle(at: located), bundleNow: bundleNow) {
                 case .stale: return
                 case .screenshotFailed: self.message = "The simulator screenshot failed."
                 case .screenChanged:

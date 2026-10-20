@@ -532,11 +532,13 @@ The project comes from `.loupe.yaml` in the folder. [`loupe project link`](../re
 To leave a note:
 
 1. Choose **Pick element** or **Draw**.
-2. In **Pick element**, click an element in the simulator. The panel marks the element and shows its role, its label and its identifier.
+2. In **Pick element**, click an element in the simulator. The panel marks the element and shows its role, its label and its identifier at once. A spinner shows while it takes the screenshot. The note field then has the focus.
 3. In **Draw**, draw on the simulator screen. You can draw more than once for one note.
-4. Hold Option to use the simulator as usual, for example to scroll or to tap.
+4. Choose **Navigate** to use the simulator as usual, for example to scroll or to tap. Hold Option to do the same for a moment in the other modes.
 5. Type the note.
 6. Choose **Save**.
+
+The panel marks the simulator only while Device Hub, or the panel in front of it, is the active window. Switch to another app and the marks go away until you come back.
 
 When nothing at the point has an accessibility element, the panel says "Nothing to pick here." and offers **Draw**.
 

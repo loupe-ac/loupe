@@ -535,7 +535,7 @@ final class CaptureSessionTests: XCTestCase {
 
     private func marked(_ session: inout CaptureSession) {
         let token = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", appNow: nil, render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", bundleNow: nil, render: { _ in self.jpeg }), .ready)
     }
 
     func testASecondPickLeavesNothingToSaveWhileItsScreenshotIsTaken() {
@@ -547,7 +547,7 @@ final class CaptureSessionTests: XCTestCase {
         XCTAssertNil(session.capture)
         XCTAssertNil(session.ready)
 
-        XCTAssertEqual(session.endFreeze(second, with: nil, titleNow: "Home", appNow: nil), .screenshotFailed)
+        XCTAssertEqual(session.endFreeze(second, with: nil, titleNow: "Home", bundleNow: nil), .screenshotFailed)
         XCTAssertNil(session.ready)
     }
 
@@ -555,9 +555,9 @@ final class CaptureSessionTests: XCTestCase {
         var session = CaptureSession()
         let first = session.beginFreeze()
         let second = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(first, with: made(element: element), titleNow: "Home", appNow: nil, render: { _ in self.jpeg }), .stale)
+        XCTAssertEqual(session.endFreeze(first, with: made(element: element), titleNow: "Home", bundleNow: nil, render: { _ in self.jpeg }), .stale)
         XCTAssertTrue(session.freezing)
-        XCTAssertEqual(session.endFreeze(second, with: made(element: element), titleNow: "Home", appNow: nil, render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(second, with: made(element: element), titleNow: "Home", bundleNow: nil, render: { _ in self.jpeg }), .ready)
         XCTAssertNotNil(session.ready)
     }
 
@@ -565,7 +565,7 @@ final class CaptureSessionTests: XCTestCase {
         var session = CaptureSession()
         let token = session.beginFreeze()
         session.clear()
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", appNow: nil, render: { _ in self.jpeg }), .stale)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", bundleNow: nil, render: { _ in self.jpeg }), .stale)
         XCTAssertNil(session.capture)
     }
 
@@ -584,7 +584,7 @@ final class CaptureSessionTests: XCTestCase {
     func testAFailedRenderOfANewPickIsNotSavable() {
         var session = CaptureSession()
         let token = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", appNow: nil, render: { _ in nil }), .renderFailed)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Home", bundleNow: nil, render: { _ in nil }), .renderFailed)
         XCTAssertNil(session.ready)
     }
 
@@ -593,11 +593,11 @@ final class CaptureSessionTests: XCTestCase {
         let mail = SimulatorApp(bundleId: "com.example.mail", name: "Mail")
         var session = CaptureSession()
         let token = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(token, with: made(app: shop), titleNow: "Home", appNow: mail, render: { _ in self.jpeg }), .screenChanged)
+        XCTAssertEqual(session.endFreeze(token, with: made(app: shop), titleNow: "Home", bundleNow: mail.bundleId, render: { _ in self.jpeg }), .screenChanged)
         XCTAssertNil(session.capture)
 
         let next = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(next, with: made(app: shop), titleNow: "Home", appNow: shop, render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(next, with: made(app: shop), titleNow: "Home", bundleNow: shop.bundleId, render: { _ in self.jpeg }), .ready)
         XCTAssertEqual(session.ready?.app, shop)
     }
 
@@ -605,20 +605,37 @@ final class CaptureSessionTests: XCTestCase {
         var session = CaptureSession()
         let token = session.beginFreeze()
         XCTAssertTrue(session.add(stroke: [CGPoint(x: 1, y: 1), CGPoint(x: 5, y: 5)], render: { _ in nil }))
-        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Settings", appNow: nil, render: { _ in self.jpeg }), .screenChanged)
+        XCTAssertEqual(session.endFreeze(token, with: made(element: element), titleNow: "Settings", bundleNow: nil, render: { _ in self.jpeg }), .screenChanged)
         XCTAssertFalse(session.freezing)
         XCTAssertNil(session.capture)
 
         let next = session.beginFreeze()
-        XCTAssertEqual(session.endFreeze(next, with: made(), titleNow: "Home", appNow: nil, render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(next, with: made(), titleNow: "Home", bundleNow: nil, render: { _ in self.jpeg }), .ready)
         XCTAssertEqual(session.ready?.strokes.count, 0)
+    }
+
+    func testThePickedElementShowsBeforeItsScreenshotIsReady() {
+        var session = CaptureSession()
+        let token = session.beginFreeze(element: element)
+        XCTAssertEqual(session.picked, element)
+        XCTAssertNil(session.ready)
+
+        XCTAssertEqual(session.endFreeze(token, with: nil, titleNow: "Home", bundleNow: nil), .screenshotFailed)
+        XCTAssertNil(session.picked)
+    }
+
+    func testAClearDropsThePickedElement() {
+        var session = CaptureSession()
+        _ = session.beginFreeze(element: element)
+        session.clear()
+        XCTAssertNil(session.picked)
     }
 
     func testStrokesDrawnDuringTheScreenshotJoinTheCapture() {
         var session = CaptureSession()
         let token = session.beginFreeze()
         XCTAssertTrue(session.add(stroke: [CGPoint(x: 1, y: 1), CGPoint(x: 5, y: 5)], render: { _ in nil }))
-        XCTAssertEqual(session.endFreeze(token, with: made(), titleNow: "Home", appNow: nil, render: { _ in self.jpeg }), .ready)
+        XCTAssertEqual(session.endFreeze(token, with: made(), titleNow: "Home", bundleNow: nil, render: { _ in self.jpeg }), .ready)
         XCTAssertEqual(session.ready?.strokes.count, 1)
     }
 }
@@ -659,5 +676,41 @@ final class ProjectSelectionTests: XCTestCase {
         XCTAssertNil(selection.id)
         XCTAssertTrue(selection.choose("owned"))
         XCTAssertEqual(selection.id, "owned")
+    }
+}
+
+final class HubFocusTests: XCTestCase {
+    private let own: Int32 = 500
+    private let hub = HubFocus.Window(pid: 70, owner: "Device Hub", layer: 0)
+    private let chrome = HubFocus.Window(pid: 80, owner: "Google Chrome", layer: 0)
+    private let hubFront = HubFocus.FrontApp(pid: -1, bundleId: HubFocus.bundleId)
+
+    func testActiveWhenDeviceHubIsInFront() {
+        XCTAssertTrue(HubFocus.active(front: hubFront, ownPid: own, windows: [HubFocus.Window(pid: 1, owner: "Window Server", layer: 24), hub, chrome]))
+    }
+
+    func testInactiveWhenAnotherAppIsInFront() {
+        XCTAssertFalse(HubFocus.active(front: HubFocus.FrontApp(pid: 80, bundleId: "com.google.Chrome"), ownPid: own, windows: [chrome, hub]))
+        XCTAssertFalse(HubFocus.active(front: nil, ownPid: own, windows: [chrome, hub]))
+    }
+
+    func testActiveWhateverIdTheFrontDeviceHubReports() {
+        XCTAssertTrue(HubFocus.active(front: HubFocus.FrontApp(pid: 70, bundleId: nil), ownPid: own, windows: [hub]))
+        XCTAssertTrue(HubFocus.active(front: HubFocus.FrontApp(pid: -1, bundleId: nil), ownPid: own, windows: [hub]))
+        XCTAssertTrue(HubFocus.active(front: nil, ownPid: own, windows: [hub]))
+    }
+
+    func testInactiveWhenAnAppWithNoWindowIsInFront() {
+        XCTAssertFalse(HubFocus.active(front: HubFocus.FrontApp(pid: 90, bundleId: "com.apple.finder"), ownPid: own, windows: [hub, chrome]))
+    }
+
+    func testActiveWhenThePanelIsInFrontOfDeviceHub() {
+        let panel = HubFocus.Window(pid: own, owner: "Live review", layer: 0)
+        XCTAssertTrue(HubFocus.active(front: HubFocus.FrontApp(pid: own, bundleId: nil), ownPid: own, windows: [panel, hub, chrome]))
+    }
+
+    func testInactiveWhenThePanelIsInFrontOfAnotherApp() {
+        let panel = HubFocus.Window(pid: own, owner: "Live review", layer: 0)
+        XCTAssertFalse(HubFocus.active(front: HubFocus.FrontApp(pid: own, bundleId: nil), ownPid: own, windows: [panel, chrome, hub]))
     }
 }

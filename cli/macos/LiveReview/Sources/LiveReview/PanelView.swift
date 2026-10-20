@@ -92,6 +92,7 @@ struct ProjectPicker: View {
 
 struct ReviewView: View {
     @ObservedObject var model: AppModel
+    @FocusState private var noteFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -99,14 +100,17 @@ struct ReviewView: View {
             Picker("", selection: $model.mode) {
                 Text("Pick element").tag(Mode.pick)
                 Text("Draw").tag(Mode.draw)
+                Text("Navigate").tag(Mode.navigate)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            if model.mode == .pick {
+            if model.mode == .navigate {
+                Text("Use the simulator as usual. Choose Pick element or Draw to mark it.").font(.callout).foregroundStyle(.secondary)
+            } else if model.mode == .pick {
                 if model.nothingToPick {
                     NothingToPickView(model: model)
-                } else if let capture = model.capture, let element = capture.element {
-                    PickedElementView(capture: capture, element: element)
+                } else if let element = model.session.picked {
+                    PickedElementView(element: element, appName: model.capture?.app?.name, loading: model.session.freezing)
                 } else {
                     Text("Click an element in the simulator.").font(.callout).foregroundStyle(.secondary)
                 }
@@ -120,7 +124,9 @@ struct ReviewView: View {
                     .font(.body)
                     .frame(minHeight: 64)
                     .disabled(model.saving)
+                    .focused($noteFocused)
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.4)))
+                    .onChange(of: model.focusRequest) { _ in noteFocused = true }
             }
             SaveRow(model: model)
             if let message = model.message { Text(message).font(.caption).foregroundStyle(.red) }
@@ -214,15 +220,23 @@ struct CardSearchView: View {
 }
 
 struct PickedElementView: View {
-    let capture: Capture
     let element: Element
+    let appName: String?
+    let loading: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(element.label.isEmpty ? element.displayRole : "\(element.displayRole) · “\(element.label)”").fontWeight(.semibold)
-            Text("\(capture.app?.name ?? "Unknown app") · \(element.identifier.isEmpty ? "no identifier" : element.identifier)")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundStyle(.secondary)
+            if loading {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Taking the screenshot…").font(.caption).foregroundStyle(.secondary)
+                }
+            } else {
+                Text("\(appName ?? "Unknown app") · \(element.identifier.isEmpty ? "no identifier" : element.identifier)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -257,8 +271,14 @@ struct SaveRow: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: 96)
+                    .frame(width: 96, height: 96)
+                    .background(Color(nsColor: .textBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.5)))
+            } else if model.session.freezing {
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(width: 96, height: 96)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.5)))
             } else {
                 Text("Pick or draw first").font(.caption).foregroundStyle(.secondary)

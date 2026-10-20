@@ -59,6 +59,7 @@ public enum FreezeEnd: Equatable, Sendable { case stale, screenshotFailed, scree
 public struct CaptureSession: Sendable {
     public private(set) var capture: Capture?
     public private(set) var freezing = false
+    private var pendingElement: Element?
     private var pendingStrokes: [[CGPoint]] = []
     private var freeze = LatestRequest()
 
@@ -71,23 +72,28 @@ public struct CaptureSession: Sendable {
         return capture
     }
 
+    /// The element the panel shows: the picked one shows at once, before its screenshot is ready.
+    public var picked: Element? { capture?.element ?? (freezing ? pendingElement : nil) }
+
     /// Drops the old capture, so Save cannot send it while the new screenshot is taken.
-    public mutating func beginFreeze() -> Int {
+    public mutating func beginFreeze(element: Element? = nil) -> Int {
         capture = nil
+        pendingElement = element
         pendingStrokes = []
         freezing = true
 
         return freeze.begin()
     }
 
-    /// `titleNow` and `appNow` are read after the screenshot. A title or an app that differs from the one
+    /// `titleNow` and `bundleNow` are read after the screenshot. A title or an app that differs from the one
     /// read before it means the screen moved, so the image and its facts may not match.
-    public mutating func endFreeze(_ token: Int, with made: Capture?, titleNow: String, appNow: SimulatorApp?,
+    public mutating func endFreeze(_ token: Int, with made: Capture?, titleNow: String, bundleNow: String?,
                                    render: (Capture) -> RenderedImage? = { $0.render() }) -> FreezeEnd {
         guard freeze.isCurrent(token) else { return .stale }
         freezing = false
+        pendingElement = nil
         guard var made else { return .screenshotFailed }
-        guard made.screenTitle == titleNow, made.app?.bundleId == appNow?.bundleId else {
+        guard made.screenTitle == titleNow, made.app?.bundleId == bundleNow else {
             pendingStrokes = []
             return .screenChanged
         }
@@ -116,6 +122,7 @@ public struct CaptureSession: Sendable {
         freeze.cancel()
         freezing = false
         capture = nil
+        pendingElement = nil
         pendingStrokes = []
     }
 }
