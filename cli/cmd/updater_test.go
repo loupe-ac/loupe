@@ -31,19 +31,26 @@ type fakeGitHub struct {
 	archive   []byte
 	checksums []byte
 	failList  bool
+	goos      string
 	listed    int
 	downloads int
 }
 
 func newFakeGitHub(t *testing.T, binary string, tags ...string) *fakeGitHub {
 	t.Helper()
-	g := &fakeGitHub{tags: tags, archive: updateArchive(t, binary)}
-	sum := sha256.Sum256(g.archive)
-	g.checksums = []byte(hex.EncodeToString(sum[:]) + "  " + g.assetName() + "\n")
+	g := &fakeGitHub{tags: tags, goos: "linux"}
+	g.setArchive(updateArchive(t, binary))
 	g.server = httptest.NewServer(http.HandlerFunc(g.serve))
 	t.Cleanup(g.server.Close)
 
 	return g
+}
+
+// setArchive replaces the archive every release serves, and its checksum.
+func (g *fakeGitHub) setArchive(archive []byte) {
+	g.archive = archive
+	sum := sha256.Sum256(archive)
+	g.checksums = []byte(hex.EncodeToString(sum[:]) + "  " + g.assetName() + "\n")
 }
 
 // assetName is the one archive the fake serves, whatever the tag: a test's
@@ -67,7 +74,7 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		for _, tag := range g.tags {
 			v, _ := update.ParseVersion(strings.TrimPrefix(tag, "cli/"))
 			releases = append(releases, update.Release{TagName: tag, Assets: []update.Asset{
-				{Name: update.AssetName(v, "linux", "amd64"), URL: g.server.URL + "/dl/archive"},
+				{Name: update.AssetName(v, g.goos, "amd64"), URL: g.server.URL + "/dl/archive"},
 				{Name: "checksums.txt", URL: g.server.URL + "/dl/checksums/" + v.String()},
 			}})
 		}
@@ -79,7 +86,7 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		if v, ok := strings.CutPrefix(r.URL.Path, "/dl/checksums/"); ok {
 			g.downloads++
 			parsed, _ := update.ParseVersion(v)
-			_, _ = w.Write(bytes.ReplaceAll(g.checksums, []byte(g.assetName()), []byte(update.AssetName(parsed, "linux", "amd64"))))
+			_, _ = w.Write(bytes.ReplaceAll(g.checksums, []byte(g.assetName()), []byte(update.AssetName(parsed, g.goos, "amd64"))))
 
 			return
 		}

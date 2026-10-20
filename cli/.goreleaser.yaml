@@ -3,24 +3,44 @@ version: 2
 project_name: loupe
 
 builds:
-  - id: loupe
+  - id: loupe-darwin
     main: .
     binary: loupe
     # Static binaries: the keychain backends this CLI uses are pure Go, so
     # nothing here needs libc.
     env:
       - CGO_ENABLED=0
-    goos: [darwin, linux]
+    goos: [darwin]
     goarch: [amd64, arm64]
     # goreleaser reads git itself, so `loupe version` needs no shell here.
-    ldflags:
+    ldflags: &ldflags
       - -s -w
       - "-X github.com/ubermuda/loupe/cli/cmd.commit={{ .FullCommit }}"
       - "-X github.com/ubermuda/loupe/cli/cmd.dirty={{ .IsGitDirty }}"
       - "-X github.com/ubermuda/loupe/cli/cmd.version={{ .Version }}"
+  - id: loupe-linux
+    main: .
+    binary: loupe
+    env:
+      - CGO_ENABLED=0
+    goos: [linux]
+    goarch: [amd64, arm64]
+    ldflags: *ldflags
 
+# Both archives share one name template. Only the darwin archive carries the
+# Live review app, which the cli-release workflow builds into cli/panel/.
 archives:
-  - id: loupe
+  - id: loupe-darwin
+    ids: [loupe-darwin]
+    formats: [tar.gz]
+    name_template: "loupe_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # Setting files turns off the default README, so list it again.
+    files:
+      - README*
+      - src: "panel/Live review.app"
+        dst: "Live review.app"
+  - id: loupe-linux
+    ids: [loupe-linux]
     formats: [tar.gz]
     name_template: "loupe_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 

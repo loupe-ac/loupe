@@ -50,10 +50,12 @@ $linux_amd64
 
   def install
     bin.install "loupe"
+    libexec.install "Live review.app" if OS.mac?
   end
 
   test do
     assert_match version.to_s, shell_output("#{bin}/loupe version")
+    assert_path_exists libexec/"Live review.app" if OS.mac?
   end
 end
 EOF

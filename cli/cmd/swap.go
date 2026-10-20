@@ -96,27 +96,19 @@ func digest(path string) ([]byte, error) {
 }
 
 // pruneVersions removes each staged version but keep from dir, and from
-// update.json.
+// update.json. It removes the panel folder of each other version too.
 func pruneVersions(dir string, keep ...string) error {
-	root := filepath.Join(dir, "versions")
-	entries, err := os.ReadDir(root)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	for i, v := range keep {
 		if parsed, ok := update.ParseVersion(v); ok {
 			keep[i] = parsed.String()
 		}
 	}
-	var errs []error
-	for _, e := range entries {
-		if !slices.Contains(keep, e.Name()) {
-			errs = append(errs, os.RemoveAll(filepath.Join(root, e.Name())))
-		}
+	errs := pruneFolders(filepath.Join(dir, "live-review"), keep)
+	root := filepath.Join(dir, "versions")
+	if _, err := os.Stat(root); errors.Is(err, fs.ErrNotExist) {
+		return errors.Join(errs...)
 	}
+	errs = append(errs, pruneFolders(root, keep)...)
 	st, err := update.LoadState(dir)
 	if err != nil {
 		return errors.Join(append(errs, err)...)
@@ -128,4 +120,23 @@ func pruneVersions(dir string, keep ...string) error {
 	}
 
 	return errors.Join(append(errs, st.Save(dir))...)
+}
+
+// pruneFolders removes each folder of root that keep does not name.
+func pruneFolders(root string, keep []string) []error {
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return []error{err}
+	}
+	var errs []error
+	for _, e := range entries {
+		if !slices.Contains(keep, e.Name()) {
+			errs = append(errs, os.RemoveAll(filepath.Join(root, e.Name())))
+		}
+	}
+
+	return errs
 }

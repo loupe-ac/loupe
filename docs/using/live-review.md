@@ -509,6 +509,45 @@ while you look at the page.
 If you edit a note at the moment the agent picks it up, the widget refuses your
 save and tells you so. It does not discard your text without a word.
 
+## Reviewing an iOS app in the simulator
+
+You can review an iOS app that runs in the iOS Simulator. The Live review panel is a small macOS app. It sits beside the simulator and saves notes to your project.
+
+You need these things:
+
+- A Mac with Xcode 27. The panel reads the simulator in the Device Hub window of Xcode 27.
+- The `loupe` CLI, installed on macOS with the install script or Homebrew. [Installing the CLI](../getting-started/cli.md) gives the steps. The macOS install brings the panel, and `loupe update` brings the panel of each new version.
+- A booted simulator with your app, open in Device Hub.
+- The owner role in the project. A member who is not the owner sees "Only the owner of this project can review it."
+
+To start a review:
+
+1. Open a terminal in the folder of your app.
+2. Run `loupe review ios`. The command opens the panel and prints `Opened Live review for <folder>.`
+3. Allow the permission. On the first run, macOS asks for the Accessibility permission for **Live review**. Open System Settings, then Privacy & Security, then Accessibility, and tick **Live review**. The panel updates by itself. It reads the Device Hub window only.
+4. Choose **Sign in with Loupe**. The panel shows a code. Check that the browser page shows the same code, then choose **Allow**. A login from before this release needs one more sign-in, because the login now carries the `site-review` scope.
+
+The project comes from `.loupe.yaml` in the folder. [`loupe project link`](../reference/cli.md#loupe-project-link) writes it. Without that file, the panel lists your projects and asks which one the notes belong to. It remembers your pick for that folder.
+
+To leave a note:
+
+1. Choose **Pick element** or **Draw**.
+2. In **Pick element**, click an element in the simulator. The panel marks the element and shows its role, its label and its identifier.
+3. In **Draw**, draw on the simulator screen. You can draw more than once for one note.
+4. Hold Option to use the simulator as usual, for example to scroll or to tap.
+5. Type the note.
+6. Choose **Save**.
+
+When nothing at the point has an accessibility element, the panel says "Nothing to pick here." and offers **Draw**.
+
+The **Saves to** menu works as [Where notes go](#where-notes-go) says. It starts on **One card for this review**. The first save creates that card, and the later notes of the review join it. You can pick **A new card for each note**, a card for each note under an epic, or an existing card.
+
+The card page shows the note with a thumbnail of the screenshot. Choose the thumbnail to see the image at full size. The image holds your marks: the box of the element you picked, or your drawing. The note also lists the device, the iOS version, the app, the name of the screen, and the role, label and identifier of the element.
+
+The panel takes the name of the screen from the first heading on the screen. Else it takes the first text in the navigation bar. An app that exposes neither gives a note with no screen name. Your agent reads these facts as [Reaching your agent](#reaching-your-agent) says.
+
+The panel works with the [`loupe review ios`](../reference/cli.md#loupe-review-ios) command. A Linux install has no panel, and the command stops there.
+
 ## Reaching your agent
 
 Notes do not push. Your agent sees them when it calls `feedback_list` for the

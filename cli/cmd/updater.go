@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -357,6 +358,7 @@ func (u *updater) run(ctx context.Context, force bool) updateResult {
 
 		return u.result(outcomeFailed, "", err.Error())
 	}
+	u.keepPanel(ctx, releases)
 	skip := st.SkipSet()
 	if force {
 		skip = nil
@@ -429,7 +431,7 @@ func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidat
 	to := c.Version.String()
 	path := update.StagePath(u.dir, to)
 	if st.Staged[to] == path {
-		if _, err := os.Stat(path); err == nil {
+		if _, err := os.Stat(path); err == nil && (u.goos != "darwin" || update.PanelSettled(u.dir, to)) {
 			return path, nil
 		}
 	}
@@ -459,6 +461,15 @@ func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidat
 
 		return "", rejectedError{err}
 	}
+	if u.goos == "darwin" {
+		if err := u.stagePanel(archive, to); errors.Is(err, update.ErrPanelUnsafe) {
+			u.log.Warn("update_rejected", "from", u.version, "to", to, "reason", err.Error())
+
+			return "", rejectedError{err}
+		} else if err != nil {
+			u.log.Warn("update_stage_failed", "from", u.version, "to", to, "error", err.Error())
+		}
+	}
 	if err := update.WriteFile(path, binary, 0o755); err != nil {
 		u.log.Warn("update_stage_failed", "from", u.version, "to", to, "error", err.Error())
 
@@ -470,6 +481,77 @@ func (u *updater) stage(ctx context.Context, st *update.State, c update.Candidat
 	}
 
 	return path, nil
+}
+
+// stagePanel unpacks the panel of an archive into the panel folder of
+// version. An archive with no panel leaves a marker, so the next check
+// does not download it again. A failure leaves no marker, so a later check
+// tries again.
+func (u *updater) stagePanel(archive []byte, version string) error {
+	found, err := update.ExtractPanel(archive, update.PanelDir(u.dir, version))
+	if err != nil {
+		return fmt.Errorf("unpack the panel: %w", err)
+	}
+	if !found {
+		if err := update.MarkNoPanel(u.dir, version); err != nil {
+			u.log.Warn("update_stage_failed", "from", u.version, "to", version, "error", err.Error())
+		}
+	}
+
+	return nil
+}
+
+// keepPanel installs a missing panel of the running version for a check. A
+// failure only logs.
+func (u *updater) keepPanel(ctx context.Context, releases []update.Release) {
+	note, err := u.ensurePanel(ctx, releases)
+	if err != nil {
+		u.log.Warn("update_panel_failed", "version", u.version, "error", err.Error())
+	} else if note != "" {
+		u.log.Info("update_panel", "version", u.version, "note", note)
+	}
+}
+
+// ensurePanel installs the Live review panel of the running version when a
+// macOS install lacks it. An updater of an earlier release unpacks only the
+// binary, so a user who updated by it reaches the first release with a panel
+// with no panel. It returns a note for what it did, or an error.
+func (u *updater) ensurePanel(ctx context.Context, releases []update.Release) (string, error) {
+	running, ok := update.ParseVersion(u.version)
+	if u.goos != "darwin" || !ok || update.PanelSettled(u.dir, running.String()) {
+		return "", nil
+	}
+	if _, ok := libexecPanel(u.executable); ok {
+		return "", nil
+	}
+	c, found := update.PickWhere(releases, u.goos, u.goarch, func(v update.Version) bool { return update.Compare(v, running) == 0 })
+	if !found {
+		return "", fmt.Errorf("no release of %s ships the Live review panel for this platform", running)
+	}
+	archive, err := update.Download(ctx, u.hc, c.Archive.URL)
+	if err == nil {
+		var checksums []byte
+		if checksums, err = update.Download(ctx, u.hc, c.Checksums.URL); err == nil {
+			err = update.Verify(archive, checksums, c.Archive.Name)
+		}
+	}
+	if err != nil {
+		return "", fmt.Errorf("could not fetch the Live review panel for %s: %w", running, err)
+	}
+	dest := update.PanelDir(u.dir, running.String())
+	extracted, err := update.ExtractPanel(archive, dest)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("could not install the Live review panel for %s: %w", running, err)
+	case !extracted:
+		if err := update.MarkNoPanel(u.dir, running.String()); err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("the release %s ships no Live review panel", running), nil
+	}
+
+	return fmt.Sprintf("installed the Live review panel for %s in %s", running, dest), nil
 }
 
 // failed logs a check that did not reach GitHub. A shutdown is not a failure.
