@@ -80,14 +80,14 @@ public struct CaptureSession: Sendable {
         return freeze.begin()
     }
 
-    /// `titleNow` is the screen title read after the screenshot. A title that differs from the one
-    /// read at the pick means the screen moved, so the image and its facts may not match.
-    public mutating func endFreeze(_ token: Int, with made: Capture?, titleNow: String,
+    /// `titleNow` and `appNow` are read after the screenshot. A title or an app that differs from the one
+    /// read before it means the screen moved, so the image and its facts may not match.
+    public mutating func endFreeze(_ token: Int, with made: Capture?, titleNow: String, appNow: SimulatorApp?,
                                    render: (Capture) -> RenderedImage? = { $0.render() }) -> FreezeEnd {
         guard freeze.isCurrent(token) else { return .stale }
         freezing = false
         guard var made else { return .screenshotFailed }
-        guard made.screenTitle == titleNow else {
+        guard made.screenTitle == titleNow, made.app?.bundleId == appNow?.bundleId else {
             pendingStrokes = []
             return .screenChanged
         }

@@ -358,7 +358,7 @@ final class AppModel: ObservableObject {
     private static let renderFailed = "The marked screenshot could not be drawn. Draw again, or pick again."
 
     /// A new freeze drops the old capture, so Save stays off until the new screenshot is ready.
-    /// The title is read at the pick and again after the screenshot, so a screen that moved gives no capture.
+    /// The title and the app are read before and after the screenshot, so a screen that moved gives no capture.
     private func freeze(located: Located, element: Element?) {
         let token = session.beginFreeze()
         let title = Self.screenTitle(at: located)
@@ -366,13 +366,14 @@ final class AppModel: ObservableObject {
         Task.detached {
             let app = await Simctl.foregroundApp(udid: located.device.udid)
             let png = await Simctl.screenshotPNG(udid: located.device.udid)
+            let appNow = await Simctl.foregroundApp(udid: located.device.udid)
             await MainActor.run {
                 let made = png.flatMap { png in
                     ImageRenderer.size(png: png)
                         .flatMap { ScreenMapper(screen: located.screen, imageWidth: $0.width, imageHeight: $0.height) }
                         .map { Capture(device: located.device, app: app, screenTitle: title, element: element, mapper: $0, png: png) }
                 }
-                switch self.session.endFreeze(token, with: made, titleNow: Self.screenTitle(at: located)) {
+                switch self.session.endFreeze(token, with: made, titleNow: Self.screenTitle(at: located), appNow: appNow) {
                 case .stale: return
                 case .screenshotFailed: self.message = "The simulator screenshot failed."
                 case .screenChanged:
