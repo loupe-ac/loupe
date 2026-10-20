@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Landing\Service;
 
 use App\Module\Account\Service\RegistrationGate;
+use App\Site\SiteHost;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -22,9 +23,28 @@ final readonly class PublicPages
         'app_register' => false,
     ];
 
+    /** The routes a site host answers. Anything else gets the 404 page there. */
+    private const array SITE_ROUTES = [
+        'app_home',
+        'app_privacy',
+        'app_terms',
+        'app_ai_policy',
+        'app_waitlist_join',
+        'app_waitlist_notify',
+        'app_waitlist_modal',
+        'app_sitemap',
+        'app_robots',
+        'app_site_docs_script',
+        'ubermuda_health_check',
+        'app_livez',
+        '_preview_error',
+    ];
+
+    private const array LEGAL_ROUTES = ['app_privacy', 'app_terms', 'app_ai_policy'];
+
     public function __construct(
         private UrlGeneratorInterface $urlGenerator,
-        private HomePageGate $homePageGate,
+        private SiteHost $siteHost,
         private RegistrationGate $registrationGate,
 
         #[Autowire(param: 'app.url')]
@@ -44,6 +64,16 @@ final readonly class PublicPages
     public function isPublic(?string $route): bool
     {
         return null !== $route && \array_key_exists($route, self::PAGES);
+    }
+
+    public function isSiteRoute(?string $route): bool
+    {
+        return null !== $route && \in_array($route, self::SITE_ROUTES, true);
+    }
+
+    public function isLegalRoute(string $route): bool
+    {
+        return \in_array($route, self::LEGAL_ROUTES, true);
     }
 
     /** @return list<string> */
@@ -68,16 +98,16 @@ final readonly class PublicPages
         return $urls;
     }
 
-    /** Prefixes the configured address, never the request host, which a client chooses. */
+    /** Prefixes the site origin, never the request host, which a client chooses. */
     public function absoluteUrl(string $path): string
     {
-        return rtrim($this->appUrl, '/').$path;
+        return ($this->siteHost->origin() ?? rtrim($this->appUrl, '/')).$path;
     }
 
     private function isRendered(string $route): bool
     {
         return match ($route) {
-            'app_home' => $this->homePageGate->shows(),
+            'app_home' => $this->siteHost->isSet(),
             'app_waitlist_join' => $this->registrationGate->allowsNewAccounts() && !$this->registrationGate->isOpen(),
             default => true,
         };

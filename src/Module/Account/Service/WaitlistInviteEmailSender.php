@@ -6,11 +6,11 @@ namespace App\Module\Account\Service;
 
 use App\Module\Account\Entity\WaitlistEntry;
 use App\Module\Account\Repository\UserRepository;
+use App\Routing\PinnedUrlGenerator;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 class WaitlistInviteEmailSender
@@ -18,7 +18,7 @@ class WaitlistInviteEmailSender
     public function __construct(
         private readonly MailerInterface $mailer,
         private readonly TranslatorInterface $translator,
-        private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly PinnedUrlGenerator $urlGenerator,
         private readonly UserRepository $users,
 
         #[Autowire(param: 'app.mailer.from_address')]
@@ -39,7 +39,6 @@ class WaitlistInviteEmailSender
         $inviteUrl = $this->urlGenerator->generate(
             $returning ? 'app_billing_subscribe' : 'app_register',
             ['invite' => $plainToken],
-            UrlGeneratorInterface::ABSOLUTE_URL,
         );
 
         $subjectKey = $returning

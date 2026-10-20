@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Tests\Module\Landing\Controller;
 
 use App\Module\Account\Entity\User;
-use App\Module\Landing\Service\HomePageGate;
 use App\Module\Project\Entity\Project;
+use App\Site\SiteHost;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -37,7 +37,7 @@ final class LandingControllerTest extends WebTestCase
         return $user;
     }
 
-    public function test_anonymous_visitor_sees_the_home_page_where_the_gate_shows_it(): void
+    public function test_anonymous_visitor_sees_the_home_page_where_the_site_role_applies(): void
     {
         $client = static::createClient();
 
@@ -165,22 +165,22 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorNotExists('turbo-frame#waitlist-modal input[type="checkbox"]');
     }
 
-    public function test_anonymous_visitor_is_sent_to_login_where_the_gate_hides_the_page(): void
+    public function test_anonymous_visitor_is_sent_to_login_where_there_is_no_site_host(): void
     {
         $client = static::createClient();
         $client->disableReboot();
-        static::getContainer()->set(HomePageGate::class, new HomePageGate('https://loupe.example.com', 'loupe.ac'));
+        static::getContainer()->set(SiteHost::class, new SiteHost('', 'https://loupe.example.com'));
 
         $client->request(Request::METHOD_GET, '/');
 
         self::assertResponseRedirects('/login');
     }
 
-    public function test_anonymous_visitor_sees_the_page_on_the_hosted_service(): void
+    public function test_anonymous_visitor_sees_the_page_on_the_one_host_of_both_roles(): void
     {
         $client = static::createClient();
         $client->disableReboot();
-        static::getContainer()->set(HomePageGate::class, new HomePageGate('https://loupe.ac', 'loupe.ac'));
+        static::getContainer()->set(SiteHost::class, new SiteHost('loupe.ac', 'https://loupe.ac'));
 
         $client->request(Request::METHOD_GET, '/');
 

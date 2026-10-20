@@ -86,6 +86,9 @@ db_server_version = "18" # the cluster's actual PG major version
 # zone, App Platform writes the wildcard certificate's TXT records itself.
 # artifact_content_host = "example-content.com"
 
+# The public site host. Unset means no public site.
+# site_host = "loupe.ac"
+
 # An external blog that nginx serves under /blog. Host only.
 # blog_proxy_host = "blog.example.com"
 # artifact_content_zone = "example-content.com"

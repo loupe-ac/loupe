@@ -65,6 +65,12 @@ variable "artifact_content_host" {
   description = "ARTIFACT_CONTENT_HOST: the domain that serves stored prototypes, such as loupeusercontent.com. It must differ from the site of the app, so that a prototype shares no cookie with it. The app serves it with a wildcard domain, so each artifact gets its own sub-address. Empty serves the sealed preview on the app domain, and the health check warns."
 }
 
+variable "site_host" {
+  type        = string
+  default     = ""
+  description = "SITE_HOST: bare host name of the public site, such as loupe.ac. The app answers it with the site pages alone, and every other host with the app. Empty means no public site."
+}
+
 variable "blog_proxy_host" {
   type        = string
   default     = ""

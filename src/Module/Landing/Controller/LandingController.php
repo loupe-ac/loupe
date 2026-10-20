@@ -8,10 +8,11 @@ use App\Controller\AppController;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Form\WaitlistJoinFormType;
 use App\Module\Account\Form\WaitlistJoinRequest;
-use App\Module\Landing\Service\HomePageGate;
 use App\Module\Project\Command\ShowHomeCommand;
 use App\Module\Project\Command\ShowHomeHandler;
+use App\Site\SiteHost;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -20,17 +21,17 @@ class LandingController extends AppController
 {
     public function __construct(
         private readonly ShowHomeHandler $showHome,
-        private readonly HomePageGate $homePageGate,
+        private readonly SiteHost $siteHost,
         private readonly FormFactoryInterface $formFactory,
     ) {
     }
 
-    public function __invoke(): Response
+    public function __invoke(Request $request): Response
     {
         $user = $this->getUser();
 
         if (!$user instanceof User) {
-            if (!$this->homePageGate->shows()) {
+            if (!$this->siteHost->servesSiteOn($request->getHost())) {
                 return $this->redirectToRoute('app_login');
             }
 

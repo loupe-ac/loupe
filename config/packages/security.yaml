@@ -13,6 +13,11 @@ security:
         artifact_content_host:
             request_matcher: App\Module\Artifact\Security\ArtifactContentHostRequestMatcher
             security: false
+        # Every request to a site host that differs from the app host. Same
+        # shape as the content domain: no session is read, no cookie is set.
+        site_host:
+            request_matcher: App\Module\Landing\Security\SiteHostRequestMatcher
+            security: false
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false

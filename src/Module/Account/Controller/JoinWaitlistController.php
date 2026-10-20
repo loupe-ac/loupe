@@ -11,6 +11,7 @@ use App\Module\Account\Form\WaitlistJoinFormType;
 use App\Module\Account\Form\WaitlistJoinRequest;
 use App\Module\Account\Service\RegistrationGate;
 use App\Module\Account\Service\WaitlistJoinTicket;
+use App\Routing\PinnedUrlGenerator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -48,6 +49,7 @@ final class JoinWaitlistController extends AppController
         private readonly Auditor $auditor,
         private readonly FormFactoryInterface $formFactory,
         private readonly WaitlistJoinTicket $joinTicket,
+        private readonly PinnedUrlGenerator $appUrls,
 
         #[Autowire(service: 'limiter.waitlist_join')]
         private readonly RateLimiterFactory $waitlistJoinLimiter,
@@ -90,7 +92,7 @@ final class JoinWaitlistController extends AppController
         // The home page forms always join the waitlist, even while sign-up has
         // free slots: the private beta lets people in from the list.
         if (!$notify && !$modal && $this->gate->isOpen()) {
-            return $this->redirectToRoute('app_register');
+            return $this->redirect($this->appUrls->generate('app_register'));
         }
 
         // The home page Notify me form and waitlist dialog post here too. Each

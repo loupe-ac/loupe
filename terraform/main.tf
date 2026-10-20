@@ -151,6 +151,7 @@ module "app" {
     var.site_review_widget_context == "" ? {} : { SITE_REVIEW_WIDGET_CONTEXT = { value = var.site_review_widget_context } },
     var.site_review_widget_preview_token == "" ? {} : { SITE_REVIEW_WIDGET_PREVIEW_TOKEN = { value = var.site_review_widget_preview_token, type = "SECRET" } },
     var.artifact_content_host == "" ? {} : { ARTIFACT_CONTENT_HOST = { value = var.artifact_content_host } },
+    var.site_host == "" ? {} : { SITE_HOST = { value = var.site_host } },
     var.blog_proxy_host == "" ? {} : { BLOG_PROXY_HOST = { value = var.blog_proxy_host } },
     var.analytics_script_url == "" ? {} : { ANALYTICS_SCRIPT_URL = { value = var.analytics_script_url } },
     var.analytics_website_id == "" ? {} : { ANALYTICS_WEBSITE_ID = { value = var.analytics_website_id } },

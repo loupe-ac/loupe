@@ -26,6 +26,8 @@ services:
   php-fpm:
     environment:
       MERCURE_PUBLIC_URL: 'http://localhost:8081/.well-known/mercure'
+      # Same host as DEFAULT_URI, so the one host plays both roles.
+      SITE_HOST: 'localhost'
       # The dev stack collects coverage on every request. Nothing reads it in a
       # normal CI run, and it roughly doubles the PHPUnit leg on a small runner.
       # The weekly coverage workflow sets XDEBUG_MODE=coverage to turn it back on.

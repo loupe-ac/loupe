@@ -7,11 +7,14 @@ namespace App\Tests\Module\Account\Service;
 use App\Module\Account\Entity\DataExport;
 use App\Module\Account\Entity\User;
 use App\Module\Account\Service\DataExportEmailSender;
+use App\Routing\PinnedUrlGenerator;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing\RouterInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class DataExportEmailSenderTest extends TestCase
@@ -30,9 +33,9 @@ final class DataExportEmailSenderTest extends TestCase
                 $sentEmail = $email;
             });
 
-        /** @var UrlGeneratorInterface&MockObject $urlGenerator */
-        $urlGenerator = $this->createMock(UrlGeneratorInterface::class);
-        $urlGenerator->expects(self::once())
+        $router = $this->createMock(RouterInterface::class);
+        $router->method('getContext')->willReturn(new RequestContext());
+        $router->expects(self::once())
             ->method('generate')
             ->with(
                 'app_account_export_download',
@@ -40,6 +43,7 @@ final class DataExportEmailSenderTest extends TestCase
                 UrlGeneratorInterface::ABSOLUTE_URL,
             )
             ->willReturn('https://loupe.test/account/exports/'.$export->id.'/download?token=raw-token-value');
+        $urlGenerator = new PinnedUrlGenerator($router, 'https://loupe.test');
 
         $translator = $this->createStub(TranslatorInterface::class);
         $translator->method('trans')->willReturnArgument(0);
