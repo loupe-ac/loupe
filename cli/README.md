@@ -156,6 +156,14 @@ keychain. Loupe refuses such a token now, so that file reports you as logged
 out. Run `loupe login`, which clears the keychain entry as it writes the new
 login.
 
+## `loupe review` (hidden helpers)
+
+`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `targets`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them.
+
+`sign-in` starts a device sign-in, prints the code and the link, and exits. The panel then runs `status` until the sign-in ends. While nobody has approved the code, `status` prints `pending`. It finishes the sign-in with one token request at most per server interval. After an approval it saves the login and prints `ok`. After a denial or an expired code it prints `signedOut`.
+
+A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
+
 ## `loupe init`
 
 Sets Loupe up for the repository you stand in. Run it once after you install the
