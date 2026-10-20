@@ -157,6 +157,21 @@ it('opens the thread again when a stream replaces its card', async () => {
     expect(rowOf('early').classList).toContain('lp-comment-row--active');
 });
 
+it('opens nothing again when Escape comes before the replaced card reopens', async () => {
+    await mount();
+    rowOf('early').click();
+    const fresh = cardOf('early').cloneNode(true);
+    delete fresh.dataset.open;
+    cardOf('early').replaceWith(fresh);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await settle();
+
+    expect(fresh.dataset.open).toBeUndefined();
+    expect(opened).toHaveLength(1);
+    expect(rowOf('early').classList).not.toContain('lp-comment-row--active');
+});
+
 it('opens nothing again after its thread is deleted', async () => {
     await mount();
     rowOf('early').click();
