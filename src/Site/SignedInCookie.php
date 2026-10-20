@@ -28,18 +28,18 @@ final readonly class SignedInCookie
     ) {
     }
 
-    public function issue(bool $admin, bool $persistent, bool $secure): ?Cookie
+    public function issue(bool $admin, bool $persistent, bool $secure, string $responseHost): ?Cookie
     {
-        if (!$this->siteHost->isSplit()) {
+        if (!$this->reaches($responseHost)) {
             return null;
         }
 
         return $this->cookie($admin ? 'admin' : '1', $persistent ? time() + self::REMEMBER_ME_LIFETIME : 0, $secure);
     }
 
-    public function clear(bool $secure): ?Cookie
+    public function clear(bool $secure, string $responseHost): ?Cookie
     {
-        if (!$this->siteHost->isSplit()) {
+        if (!$this->reaches($responseHost)) {
             return null;
         }
 
@@ -58,6 +58,16 @@ final readonly class SignedInCookie
             'admin' => self::ADMIN,
             default => null,
         };
+    }
+
+    /** A browser drops a cookie whose domain is not the response host or a parent of it. */
+    private function reaches(string $responseHost): bool
+    {
+        $responseHost = strtolower($responseHost);
+        $siteHost = $this->siteHost->host;
+
+        return $this->siteHost->isSplit() && null !== $siteHost
+            && ($responseHost === $siteHost || str_ends_with($responseHost, '.'.$siteHost));
     }
 
     private function cookie(?string $value, int $expires, bool $secure): Cookie

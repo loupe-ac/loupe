@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-/** The test app host is `localhost`. The site host is `loupe.example`, so the two differ. */
+/** The site host is `loupe.example`, and the app answers on `app.loupe.example`, a sub-domain of it. */
 final class SignedInCookieFlowTest extends WebTestCase
 {
     private const string COOKIE = 'loupe_signed_in';
@@ -42,7 +42,12 @@ final class SignedInCookieFlowTest extends WebTestCase
     {
         $this->setSiteHost($siteHost);
 
-        return static::createClient();
+        $client = static::createClient();
+        if ('localhost' !== $siteHost && 'unrelated.example' !== $siteHost) {
+            $client->setServerParameter('HTTP_HOST', 'app.'.$siteHost);
+        }
+
+        return $client;
     }
 
     private function createUser(bool $admin = false): void
@@ -168,6 +173,16 @@ final class SignedInCookieFlowTest extends WebTestCase
         $client = $this->client('loupe.example');
 
         $client->request(Request::METHOD_GET, '/login');
+
+        self::assertNull($this->cookie($client));
+    }
+
+    public function test_a_site_host_that_is_not_a_parent_of_the_app_host_sets_no_cookie(): void
+    {
+        $client = $this->client('unrelated.example');
+        $this->createUser();
+
+        $this->signIn($client);
 
         self::assertNull($this->cookie($client));
     }

@@ -19,7 +19,7 @@ final readonly class ClearSignedInCookieOnLogout
 
     public function __invoke(LogoutEvent $event): void
     {
-        $cookie = $this->signedInCookie->clear($event->getRequest()->isSecure());
+        $cookie = $this->signedInCookie->clear($event->getRequest()->isSecure(), $event->getRequest()->getHost());
         if (null !== $cookie) {
             $event->getResponse()?->headers->setCookie($cookie);
         }

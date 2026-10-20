@@ -38,6 +38,7 @@ final readonly class SetSignedInCookieOnLoginSuccess
             admin: \in_array('ROLE_ADMIN', $user->getRoles(), true),
             persistent: $badge instanceof RememberMeBadge && $badge->isEnabled(),
             secure: $event->getRequest()->isSecure(),
+            responseHost: $event->getRequest()->getHost(),
         );
         if (null !== $cookie) {
             $response->headers->setCookie($cookie);

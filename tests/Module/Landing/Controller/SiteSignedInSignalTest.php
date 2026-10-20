@@ -174,6 +174,8 @@ final class SiteSignedInSignalTest extends WebTestCase
         $client->getKernel()->shutdown();
         $this->get($client, '/privacy');
         self::assertSelectorExists('script[src="https://app.example/site-review/widget.js"]');
+        self::assertStringNotContainsString('secret-preview-token', (string) $client->getResponse()->getContent());
+        self::assertSelectorNotExists('script[data-preview-token]');
 
         $this->setCookie($client, '1');
         $this->get($client, '/privacy');
@@ -205,6 +207,8 @@ final class SiteSignedInSignalTest extends WebTestCase
         self::assertSame($anonymousBody, (string) $signed->getContent());
         self::assertStringContainsString('loupe_signed_in', $anonymousBody);
         self::assertStringContainsString('"http:\/\/localhost"', $anonymousBody);
+        self::assertStringContainsString('element.shadowRoot', $anonymousBody);
+        self::assertStringContainsString('root.querySelectorAll(\'[data-site-chrome="go-to-app"]\')', $anonymousBody);
     }
 
     public function test_the_docs_script_carries_the_tag_and_the_widget_but_not_the_preview_token(): void

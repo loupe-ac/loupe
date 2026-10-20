@@ -19,15 +19,28 @@
         document.head.appendChild(script);
     }
 
-    function swap() {
-        document.querySelectorAll('[data-site-chrome="go-to-app"]').forEach(function (element) {
-            element.hidden = !signedIn;
-            if (signedIn) {
-                element.href = appOrigin + '/';
+    function chromeRoots() {
+        var roots = [document];
+        document.querySelectorAll('*').forEach(function (element) {
+            if (element.shadowRoot) {
+                roots.push(element.shadowRoot);
             }
         });
-        document.querySelectorAll('[data-site-chrome="signed-out"]').forEach(function (element) {
-            element.hidden = signedIn;
+
+        return roots;
+    }
+
+    function swap() {
+        chromeRoots().forEach(function (root) {
+            root.querySelectorAll('[data-site-chrome="go-to-app"]').forEach(function (element) {
+                element.hidden = !signedIn;
+                if (signedIn) {
+                    element.href = appOrigin + '/';
+                }
+            });
+            root.querySelectorAll('[data-site-chrome="signed-out"]').forEach(function (element) {
+                element.hidden = signedIn;
+            });
         });
     }
 
