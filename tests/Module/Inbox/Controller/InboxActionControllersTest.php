@@ -32,6 +32,7 @@ use App\Module\Inbox\Entity\InboxItemDocument;
 use App\Module\Inbox\Entity\InboxItemKind;
 use App\Module\Inbox\Entity\InboxItemState;
 use App\Module\Inbox\Repository\InboxActionRepository;
+use App\Module\Inbox\Repository\InboxAskRepository;
 use App\Module\Project\Entity\Project;
 use App\Module\Review\Entity\Document;
 use App\Module\Workflow\Contract\Actor;
@@ -539,6 +540,30 @@ final class InboxActionControllersTest extends WebTestCase
         $this->em()->flush();
 
         $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => $this->shownDigest()]);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('#inbox-item-'.$item->number, 'The command changed on the bridge since you opened this dialog.');
+        self::assertSame([], $this->actionsOf($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
+    public function test_a_run_command_whose_asking_bridge_changed_since_the_dialog_is_refused_in_place_and_queues_nothing(): void
+    {
+        $item = $this->commandTodo();
+        $digest = $this->shownDigest();
+        $other = new Bridge($this->project->owner, Uuid::v4(), [], 'c5f40bb8', new \DateTimeImmutable());
+        $other->capabilities = $this->bridge->capabilities;
+        $other->projects = $this->bridge->projects;
+        $other->lastSeenAt = $this->bridge->lastSeenAt;
+        $other->commandEntries = $this->bridge->commandEntries;
+        $other->worktrees = $this->bridge->worktrees;
+        $this->em()->persist($other);
+        foreach ($this->service(InboxAskRepository::class)->findBy(['project' => $this->project]) as $ask) {
+            $ask->bridgeId = $other->id;
+        }
+        $this->em()->flush();
+
+        $this->post($this->actionPath($item, 'run-command'), $item, ['note' => '', 'runDigest' => $digest]);
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('#inbox-item-'.$item->number, 'The command changed on the bridge since you opened this dialog.');

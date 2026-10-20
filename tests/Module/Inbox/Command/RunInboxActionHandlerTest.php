@@ -990,6 +990,48 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
     }
 
+    public function test_a_wait_that_moved_to_a_run_on_another_bridge_after_the_dialog_opened_is_refused_and_leaves_no_request(): void
+    {
+        $this->commandBridge();
+        $item = $this->runItem();
+        $this->suggestExport($this->workerRunOf($item));
+        $shown = $this->itemActions()->runCommandFor($item) ?? throw new \LogicException('The item has a command.');
+        $other = new Bridge($this->project->owner, Uuid::v4(), [], 'c5f40bb8', new \DateTimeImmutable());
+        $other->capabilities = $this->bridge->capabilities;
+        $other->projects = $this->bridge->projects;
+        $other->lastSeenAt = $this->bridge->lastSeenAt;
+        $other->commandEntries = $this->bridge->commandEntries;
+        $other->worktrees = $this->bridge->worktrees;
+        $this->em()->persist($other);
+        $newer = new WorkerRun(
+            project: $this->project,
+            bridgeId: $other->id,
+            subjectType: WorkSubject::CARD,
+            subjectId: $this->card->id ?? throw new \LogicException('Stored.'),
+            cardNumber: $this->card->number,
+            workKind: 'implement',
+            state: WorkerRunState::Blocked,
+            runKey: Uuid::v7(),
+            sessionId: Uuid::v4(),
+        );
+        $this->suggestExport($newer);
+        $this->em()->persist($newer);
+        $this->em()->flush();
+        $watch = $this->waitOf($item)->watch;
+        $watch->waits->add(new InboxCardWait($watch, InboxCardWaitTrigger::RunBlocked, InboxCardWaitType::WorkerRun, InboxCardWaitReason::Blocked, runId: $newer->id, startedAt: new \DateTimeImmutable('+1 minute')));
+        $this->em()->flush();
+
+        try {
+            ($this->runHandler())(new RunInboxActionCommand($item, InboxActionKind::RunCommand, '', $this->project->owner, runDigest: $shown->runDigest()));
+            self::fail('Expected a refusal.');
+        } catch (DomainErrors $e) {
+            self::assertSame(['action' => RunInboxActionHandler::COMMAND_CHANGED], $e->errors);
+        }
+
+        self::assertSame([], $this->service(InboxActionRepository::class)->findByItem($item));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM work_requests'));
+    }
+
     public function test_a_quiet_bridge_takes_the_run_as_a_request_that_waits_for_it(): void
     {
         $this->commandBridge();
@@ -1444,6 +1486,18 @@ final class RunInboxActionHandlerTest extends KernelTestCase
         $this->em()->flush();
 
         return $item;
+    }
+
+    private function workerRunOf(InboxItem $item): WorkerRun
+    {
+        $runId = $this->waitOf($item)->runId ?? throw new \LogicException('The wait names a run.');
+
+        return $this->em()->find(WorkerRun::class, $runId) ?? throw new \LogicException('The run is stored.');
+    }
+
+    private function suggestExport(WorkerRun $run): void
+    {
+        $run->resultFields = ['suggestedActions' => [['action' => 'run-command', 'reason' => 'Export it.', 'recommended' => true, 'command' => ['entry' => 'design-export', 'branch' => 'epic/42', 'params' => ['out' => 'var/out']]]]];
     }
 
     private function waitOf(InboxItem $item): InboxCardWait
