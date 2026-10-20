@@ -4,10 +4,7 @@
 
 {% block description %}{{ 'landing.meta.description'|trans }}{% endblock %}
 
-{% set marketingClass = 'lp-home' %}
 {% set marketingAttributes = {'data-controller': 'modal analytics'} %}
-
-{% block marketing_header %}{% include '@Landing/landing/_nav.html.twig' only %}{% endblock %}
 
 {% block marketing_main %}
         {% include '@Landing/landing/_hero.html.twig' only %}
@@ -18,7 +15,5 @@
         {% include '@Landing/landing/_open_source.html.twig' only %}
         {% include '@Landing/landing/_closing.html.twig' only %}
 {% endblock %}
-
-{% block marketing_footer %}{% include '@Landing/landing/_footer.html.twig' only %}{% endblock %}
 
 {% block marketing_after %}{% include '@Landing/landing/_waitlist_dialog.html.twig' with {modalForm: modalForm} only %}{% endblock %}

@@ -24,6 +24,7 @@ final class SiteUrlExtension extends AbstractExtension
         return [
             new TwigFunction('app_url', $this->appUrl(...)),
             new TwigFunction('site_url', $this->siteUrl(...)),
+            new TwigFunction('site_is_split', $this->siteHost->isSplit(...)),
         ];
     }
 

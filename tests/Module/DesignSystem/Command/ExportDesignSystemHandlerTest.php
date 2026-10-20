@@ -483,10 +483,10 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         $this->assertComponentFiles('MarketingShell');
 
         $jsx = $this->jsx('MarketingShell');
-        self::assertStringContainsString("const classes = ['lp-landing'];", $jsx);
-        self::assertStringContainsString('<header className="lp-landing-nav">', $jsx);
+        self::assertStringContainsString("const classes = ['lp-home'];", $jsx);
+        self::assertStringContainsString('<header className="lp-home-nav">', $jsx);
         self::assertStringContainsString('<main>{children}</main>', $jsx);
-        self::assertStringContainsString('<footer className="lp-landing-footer">', $jsx);
+        self::assertStringContainsString('<footer className="lp-home-footer">', $jsx);
 
         $types = $this->read('components/MarketingShell/MarketingShell.d.ts');
         self::assertStringContainsString('@startingPoint section="Layout"', $types);
@@ -495,20 +495,22 @@ final class ExportDesignSystemHandlerTest extends KernelTestCase
         self::assertStringContainsString('<MarketingShell>', $card);
     }
 
-    public function test_the_marketing_shell_export_names_every_link_of_the_shared_footer(): void
+    public function test_the_marketing_shell_export_names_the_headings_and_legal_links_of_the_site_footer(): void
     {
         $twig = static::getContainer()->get('twig');
         self::assertInstanceOf(Environment::class, $twig);
-        $footer = new Crawler($twig->render('_marketing_footer.html.twig'));
+        $footer = new Crawler($twig->render('@Landing/landing/_footer.html.twig'));
         $jsx = $this->jsx('MarketingShell');
 
-        $names = $footer->filter('footer a')->each(static fn (Crawler $link): string => $link->attr('aria-label') ?? trim($link->text()));
-        self::assertCount(8, $names);
+        $names = array_merge(
+            $footer->filter('.lp-home-footer__heading')->each(static fn (Crawler $node): string => trim($node->text())),
+            $footer->filter('nav[aria-label="Legal"] a')->each(static fn (Crawler $link): string => trim($link->text())),
+        );
+        self::assertCount(6, $names);
         foreach ($names as $name) {
             self::assertNotSame('', $name);
             self::assertStringContainsString($name, $jsx);
         }
-        self::assertStringContainsString('lp-landing-nav__brand--sm', $jsx);
     }
 
     public function test_the_brand_mark_export_draws_the_brand_name_and_each_option(): void
