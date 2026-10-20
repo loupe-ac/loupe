@@ -294,8 +294,9 @@ A retry that changes the surface, a native fact or the image returns `delivery_c
 `GET /api/live-review/review` lists the notes of the web surface.
 Pass `surface=ios-simulator` to list the notes of the native surface.
 
-An old copy of the widget script saved through `POST /api/live-review/comments`.
-That route now answers HTTP 410 with `widget_outdated`, and the widget tells the reviewer to reload the page.
+An old copy of the widget script saves through `POST /api/site-review/comments`.
+That path is gone and answers HTTP 404, so the old copy cannot save a note.
+Load the script from `/live-review/widget.js` to get the current widget.
 
 ## Resolving a note
 

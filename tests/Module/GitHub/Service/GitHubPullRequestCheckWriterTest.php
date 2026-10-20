@@ -85,7 +85,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         ], $this->sentBody());
     }
 
-    public function test_a_run_id_updates_the_run_and_sends_no_name_or_sha(): void
+    public function test_a_run_id_updates_the_run_under_the_given_name_and_sends_no_sha(): void
     {
         $pullRequest = $this->tracked('ubermuda/loupe', 72_010);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 4242])];
@@ -96,6 +96,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         self::assertSame('PATCH', $this->requests[1]['method']);
         self::assertSame('https://api.github.com/repos/ubermuda/loupe/check-runs/4242', $this->requests[1]['url']);
         self::assertSame([
+            'name' => 'Loupe live review',
             'status' => 'completed',
             'conclusion' => 'success',
             'output' => ['title' => 'No open note', 'summary' => 'Done.'],

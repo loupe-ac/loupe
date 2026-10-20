@@ -17,7 +17,7 @@ final class Version20261020150107 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        // A posted check keeps the name it had, and a check with no digest posts again on the same run.
+        // A check with no digest posts again on the same run, and that update renames the run.
         $this->addSql('UPDATE board_site_review_check_states SET notes_digest = NULL');
     }
 
