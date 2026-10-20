@@ -34,7 +34,8 @@ final class AppModel: ObservableObject {
     @Published var trusted = AXIsProcessTrusted()
     @Published var auth: Auth = .checking
     @Published var authError: String?
-    @Published var project: String?
+    @Published private var selection: ProjectSelection
+    var project: String? { selection.id }
     @Published var projects: [Project] = []
     @Published var destination: Destination = .reviewCard
     @Published var targets: [TargetCard] = []
@@ -52,7 +53,7 @@ final class AppModel: ObservableObject {
     init(options: LaunchOptions) {
         self.options = options
         client = HelperClient(loupePath: options.loupePath)
-        project = options.project ?? preference.project(for: options.folder)
+        selection = ProjectSelection(linked: options.project, remembered: preference.project(for: options.folder))
     }
 
     func start() {
@@ -83,7 +84,7 @@ final class AppModel: ObservableObject {
                 case .success(.pending): if case .waiting = self.auth {} else { self.auth = .waiting(code: nil) }
                 case .success(.signedOut): self.signedOutAnswer(startedAt: startedAt)
                 case .success(.noProject): self.auth = .noProject
-                case .success(.notOwner): self.auth = .notOwner; self.project = nil; self.loadProjects()
+                case .success(.notOwner): self.notOwner()
                 case let .failure(error): self.authError = error.localizedDescription
                 }
             }
@@ -115,6 +116,11 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func notOwner() {
+        auth = .notOwner
+        if selection.notOwner() { loadProjects() }
+    }
+
     private func signedIn() {
         auth = .ready
         authError = nil
@@ -132,7 +138,7 @@ final class AppModel: ObservableObject {
     }
 
     func choose(project id: String) {
-        project = id
+        guard selection.choose(id) else { return }
         preference.remember(id, for: options.folder)
         destination = .reviewCard
         loadDestinations()

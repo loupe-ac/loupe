@@ -576,3 +576,25 @@ final class LatestRequestTests: XCTestCase {
         XCTAssertFalse(requests.isCurrent(token))
     }
 }
+
+final class ProjectSelectionTests: XCTestCase {
+    func testLinkedProjectStaysWhenTheLoginIsNotItsOwner() {
+        var selection = ProjectSelection(linked: "linked", remembered: "other")
+        XCTAssertFalse(selection.notOwner())
+        XCTAssertEqual(selection.id, "linked")
+    }
+
+    func testLinkedProjectRefusesAPickOfAnotherProject() {
+        var selection = ProjectSelection(linked: "linked", remembered: nil)
+        XCTAssertFalse(selection.choose("owned"))
+        XCTAssertEqual(selection.id, "linked")
+    }
+
+    func testRememberedPickGivesWayWhenTheLoginIsNotItsOwner() {
+        var selection = ProjectSelection(linked: nil, remembered: "old")
+        XCTAssertTrue(selection.notOwner())
+        XCTAssertNil(selection.id)
+        XCTAssertTrue(selection.choose("owned"))
+        XCTAssertEqual(selection.id, "owned")
+    }
+}

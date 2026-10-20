@@ -43,3 +43,31 @@ public struct ProjectPreference {
 
     public func remember(_ project: String, for folder: String) { defaults.set(project, forKey: key(folder)) }
 }
+
+/// The review project. A project that `.loupe.yaml` links stays the target whatever the login,
+/// so a login that does not own it can never save elsewhere. A remembered pick gives way.
+public struct ProjectSelection: Equatable, Sendable {
+    public private(set) var id: String?
+    public let linked: Bool
+
+    public init(linked: String?, remembered: String?) {
+        id = linked ?? remembered
+        self.linked = linked != nil
+    }
+
+    /// The login does not own the project. Returns true when the owner must pick a project again.
+    public mutating func notOwner() -> Bool {
+        guard !linked else { return false }
+        id = nil
+
+        return true
+    }
+
+    /// Returns false for a linked project, which no pick replaces.
+    public mutating func choose(_ next: String) -> Bool {
+        guard !linked else { return false }
+        id = next
+
+        return true
+    }
+}

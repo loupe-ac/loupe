@@ -64,7 +64,7 @@ struct SignInView: View {
             case .noProject:
                 Text("Create a project in Loupe first, then open this panel again.").font(.callout)
             case .notOwner:
-                Text("This login does not cover that project.").font(.callout)
+                Text("Only the owner of this project can review it.").font(.callout)
             default:
                 Text("Sign in to save notes to Loupe.").font(.callout)
                 Button("Sign in with Loupe") { model.beginSignIn() }.buttonStyle(.borderedProminent)
