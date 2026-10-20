@@ -192,4 +192,4 @@ describes each step. [Command-line bridge](../extending/cli-bridge.md) describes
 what the bridge does, and [`cli/README.md`](../../cli/README.md) lists every
 flag.
 
-Preview tokens are described in [Site review](../using/site-review.md#preview-sites).
+Preview tokens are described in [Live review](../using/live-review.md#preview-sites).

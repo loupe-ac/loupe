@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { vi } from 'vitest';
 
-const SOURCE = readFileSync('public/site-review/widget.js', 'utf8');
+const SOURCE = readFileSync('public/live-review/widget.js', 'utf8');
 
 export const BACKEND = 'https://loupe.example';
 export const PROJECT = '01a0baf7-f542-7ce5-9b75-9dcbf05cf8c9';
@@ -30,7 +30,7 @@ export function signIn(project = PROJECT, accessToken = ACCESS_TOKEN) {
 }
 
 /**
- * Boots public/site-review/widget.js in jsdom.
+ * Boots public/live-review/widget.js in jsdom.
  *
  * The widget is a classic script wrapped in an IIFE and exports nothing, so a
  * test reaches its behaviour the way a page does: through the DOM it builds and
@@ -67,7 +67,7 @@ export function bootWidget({
     });
 
     const script = document.createElement('script');
-    script.src = `${BACKEND}/site-review/widget.js`;
+    script.src = `${BACKEND}/live-review/widget.js`;
     // An embed names its project. The reviewer signs in with OAuth.
     if (project !== null) script.setAttribute('data-project', project);
     if (project !== null && signedIn) signIn(project);
@@ -201,7 +201,7 @@ export function resetWidget(history) {
     // no change at all and passed or failed on test order.
     history.replaceState.call(window.history, {}, '', '/');
     document.head
-        .querySelectorAll('script[src*="site-review/widget.js"]')
+        .querySelectorAll('script[src*="live-review/widget.js"]')
         .forEach((element) => element.remove());
     [...document.documentElement.children]
         .filter((element) => element !== document.head)

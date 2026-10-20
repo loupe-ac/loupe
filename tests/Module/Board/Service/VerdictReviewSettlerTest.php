@@ -395,7 +395,7 @@ final class VerdictReviewSettlerTest extends KernelTestCase
             'tab' => 'feedback',
         ]);
 
-        return \sprintf('Sent from the Loupe site review of card %d. [Open the notes in Loupe](%s)%s', $card->number, $url, $suffix);
+        return \sprintf('Sent from the Loupe live review of card %d. [Open the notes in Loupe](%s)%s', $card->number, $url, $suffix);
     }
 
     private function settler(): VerdictReviewSettler

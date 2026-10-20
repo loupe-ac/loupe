@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
  */
 final class SiteReviewWidgetVisibilityTest extends WebTestCase
 {
-    private const string WIDGET = 'script[src="/site-review/widget.js"]';
+    private const string WIDGET = 'script[src="/live-review/widget.js"]';
 
     private const string PROJECT_ID = '0199c0de-0000-7000-8000-00000000beef';
 

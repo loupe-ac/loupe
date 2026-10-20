@@ -1,6 +1,6 @@
 ---
 name: project-site-review
-description: Use when working on the site-review widget or its backend, `public/site-review/widget.js`, anything under `src/Module/SiteReview/`, the site-review API routes, the dev harness, or `e2e/tests/site-review/`.
+description: Use when working on the site-review widget or its backend, `public/live-review/widget.js`, anything under `src/Module/SiteReview/`, the site-review API routes, the dev harness, or `e2e/tests/site-review/`.
 ---
 
 # Site review (working on it)
@@ -18,7 +18,7 @@ job has different hazards.
 
 ## The widget is not part of the app's frontend
 
-`public/site-review/widget.js` is a standalone, self-contained script that runs
+`public/live-review/widget.js` is a standalone, self-contained script that runs
 on third-party pages. The app does not build it, bundle it or style it.
 
 Do not apply `project-frontend` to it. Its design-token rules (`@theme`,
@@ -32,7 +32,7 @@ Invoke `project-frontend` only for a change in `assets/` or a Twig template.
 
 | Trap | What happens |
 |---|---|
-| Formatting it by hand | `just cs` runs prettier over `public/site-review/`, and `just lint` checks it. Run `just cs` before you commit. |
+| Formatting it by hand | `just cs` runs prettier over `public/live-review/`, and `just lint` checks it. Run `just cs` before you commit. |
 | Serena's edit tools | No language server is configured for JavaScript in this project. `replace_content` and friends fail with "No language servers available". Use Edit/Write. Serena reads are unaffected. |
 | `text-overflow` in the overlay | JS sets `display` as an inline style on several overlay nodes, which beats the stylesheet. `text-overflow: ellipsis` has no effect on a flex container's anonymous text item, so an `inline-flex` label hard-clips mid-word instead of ellipsing. Check the JS-applied `display` before debugging the CSS. |
 | Absolutely-positioned `display` | The overlay's label is `position: absolute`, so `display` blockifies: `inline-block` computes to `block`, `inline-flex` to `flex`. Computed style will not echo what you wrote. |
@@ -133,10 +133,10 @@ notice stay event-sourced on purpose, because zero is *correct* there.
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/site-review/review` | GET | Rehydrate the widget's list (Pending only) |
-| `/api/site-review/comments` | POST | Answers 410 `widget_outdated`, so a stale script tells its reviewer to reload |
-| `/api/site-review/comments/{id}` | PATCH | Edit (Pending only) |
-| `/api/site-review/comments/{id}/resolve` | POST | Resolve (Pending only) |
+| `/api/live-review/review` | GET | Rehydrate the widget's list (Pending only) |
+| `/api/live-review/comments` | POST | Answers 410 `widget_outdated`, so a stale script tells its reviewer to reload |
+| `/api/live-review/comments/{id}` | PATCH | Edit (Pending only) |
+| `/api/live-review/comments/{id}/resolve` | POST | Resolve (Pending only) |
 | `/api/board/feedback` | POST | Save a comment, its target card and the link in one request |
 | `/api/board/feedback/{id}` | DELETE | Delete a pending comment, and the card it created while that card is untouched: still in Backlog, no other comment, its site-review type and note title, empty body, no pull request, document or card link |
 | `/api/board/cards` | GET | Open cards for the widget's picker; `type=epic` lists epics alone |
@@ -154,7 +154,7 @@ The firewall grants each route by its own rule to `ROLE_API_AGENT`, which the
 
 The four `/api/board/` widget routes are Board paths on the `site-review` scope, and `config/packages/security.yaml`
 grants them in their own `access_control` lines rather than under the
-`^/api/site-review` prefix, so the grant is visible to anyone reading that file.
+`^/api/live-review` prefix, so the grant is visible to anyone reading that file.
 `WidgetApiPaths` is what keeps CORS and the write rate limit covering them: both
 listeners tested one prefix before, and a listener that tests one prefix
 silently exempts every other endpoint the widget reaches.
@@ -189,7 +189,7 @@ origin allowlist. Read it before you touch this area.
 
 ## The dev harness
 
-`/dev/site-review-harness?email=<user>` renders a page with the widget loaded
+`/dev/live-review-harness?email=<user>` renders a page with the widget loaded
 and the project reset. `&keep=1` preserves existing comments across a reload. It
 throws unless the user exists, so seed the user first:
 

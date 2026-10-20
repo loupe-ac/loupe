@@ -203,7 +203,7 @@ variable "admin_email" {
 variable "site_review_widget_backend" {
   type        = string
   default     = ""
-  description = "SITE_REVIEW_WIDGET_BACKEND: origin serving the site-review widget, and therefore the instance its comments file into. Empty (the default) means this instance."
+  description = "SITE_REVIEW_WIDGET_BACKEND: origin serving the live-review widget, and therefore the instance its comments file into. Empty (the default) means this instance."
 }
 
 variable "site_review_widget_context" {
@@ -216,19 +216,19 @@ variable "site_review_widget_preview_token" {
   type        = string
   default     = ""
   sensitive   = true
-  description = "SITE_REVIEW_WIDGET_PREVIEW_TOKEN: a preview token that signs the site-review widget in with no popup. Empty (the default) is right for production. A preview instance gets one from the loupe CLI."
+  description = "SITE_REVIEW_WIDGET_PREVIEW_TOKEN: a preview token that signs the live-review widget in with no popup. Empty (the default) is right for production. A preview instance gets one from the loupe CLI."
 }
 
 variable "site_review_widget_project" {
   type        = string
   default     = ""
-  description = "SITE_REVIEW_WIDGET_PROJECT: id of the project site-review comments should file into. The reviewer signs in through the OAuth popup, so no credential is in the page source."
+  description = "SITE_REVIEW_WIDGET_PROJECT: id of the project live-review comments should file into. The reviewer signs in through the OAuth popup, so no credential is in the page source."
 }
 
 variable "site_review_widget_public" {
   type        = string
   default     = ""
-  description = "SITE_REVIEW_WIDGET_PUBLIC: leave empty (the default) to show the site-review widget to administrators only. Set to 1 to offer it to every visitor — its comments are instructions an agent may act on, so only do that where you trust everyone who can reach the site."
+  description = "SITE_REVIEW_WIDGET_PUBLIC: leave empty (the default) to show the live-review widget to administrators only. Set to 1 to offer it to every visitor — its comments are instructions an agent may act on, so only do that where you trust everyone who can reach the site."
 }
 
 variable "analytics_script_url" {
@@ -402,7 +402,7 @@ variable "mercure_jwt_secret" {
   type        = string
   sensitive   = true
   default     = ""
-  description = "Shared key signing Mercure publisher and subscriber JWTs. Setting it turns the hub on (enable_mercure in main.tf keys off this); leaving it empty leaves site-review push disabled, so submissions save but never reach the bridge CLI. The module runs the hub and derives MERCURE_URL / MERCURE_PUBLIC_URL itself."
+  description = "Shared key signing Mercure publisher and subscriber JWTs. Setting it turns the hub on (enable_mercure in main.tf keys off this); leaving it empty leaves live-review push disabled, so submissions save but never reach the bridge CLI. The module runs the hub and derives MERCURE_URL / MERCURE_PUBLIC_URL itself."
 }
 
 variable "stripe_secret_key" {

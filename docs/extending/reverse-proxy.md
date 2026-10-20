@@ -23,6 +23,6 @@ and `db.…`.
 - **[`no-proxy/`](../../examples/no-proxy/)** — a compose override that publishes
   nginx on `http://localhost:8080` instead. No proxy, no certificate, nothing to
   trust; set `DEFAULT_URI` to match. Fine for the app, awkward for the
-  site-review widget — that README explains why.
+  live-review widget — that README explains why.
 
 Then `just up` from this repo.

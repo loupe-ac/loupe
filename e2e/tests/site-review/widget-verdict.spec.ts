@@ -27,7 +27,7 @@ const e2eEmail = (): string =>
     `e2e-site-review-verdict-${test.info().parallelIndex}@example.com`;
 
 const harnessUrl = (): string =>
-    `/dev/site-review-harness?email=${encodeURIComponent(e2eEmail())}`;
+    `/dev/live-review-harness?email=${encodeURIComponent(e2eEmail())}`;
 
 type VerdictAnswer = Record<string, unknown>;
 
@@ -92,7 +92,7 @@ const openLockedPage = async (
     await signWidgetIn(page, projectId!);
 
     const posted: Array<Record<string, unknown>> = [];
-    await page.route('**/api/site-review/review*', (route) =>
+    await page.route('**/api/live-review/review*', (route) =>
         json(route, {
             comments: [],
             context: { label: '#7 Preview card', url: null },
@@ -110,7 +110,7 @@ const openLockedPage = async (
             201,
         );
     });
-    await page.route('**/dev/site-review-harness*', async (route) => {
+    await page.route('**/dev/live-review-harness*', async (route) => {
         const response = await route.fetch();
         const body = (await response.text()).replace(
             'data-project=',

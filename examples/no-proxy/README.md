@@ -53,7 +53,7 @@ MERCURE_PUBLIC_URL=http://localhost:8081/.well-known/mercure
 The hub is opt-in; add `--profile mercure` and the `mercure` service to the
 command above to start it.
 
-## The catch: the site-review widget
+## The catch: the live-review widget
 
 The widget itself is scheme-agnostic — a `fetch` with a bearer token, no
 browser API that requires a secure context. Embedding it in a page served over

@@ -209,7 +209,7 @@ A connection carries one scope. The `mcp` scope binds to the one project you
 pick on the consent page, so every tool call knows which project it acts on.
 The `agent` scope reaches the CLI endpoints and binds to no project. The
 `site-review` scope reaches the comments of one project, which is what the
-site-review widget uses. See [Connected apps](connected-apps.md) for the whole
+live-review widget uses. See [Connected apps](connected-apps.md) for the whole
 table and for how to revoke a connection.
 
 `403 insufficient_scope` means the sign-in is valid and carries the wrong scope
@@ -297,7 +297,7 @@ Roughly in the order an agent uses them:
 | `tag_list` | The project's existing tag vocabulary |
 | `series_list` | The project's series, each with its document count and highest position |
 | `series_rename` | Rename a series; every document in it keeps its position |
-| `feedback_list` | The project's site-review feedback, each item with the card it belongs to (off with the board, see below) |
+| `feedback_list` | The project's live-review feedback, each item with the card it belongs to (off with the board, see below) |
 | `feedback_mark_addressed` | Mark feedback items acted on, so the next `feedback_list` skips them (off with the board, see below) |
 | `agent_review_submit` | Submit the review of a pull request of a card, with findings on file lines. A finding has the category `code` (the default) or `spec`, a gap between the pull request and the approved design. Only a `spec` finding can leave out the file and the lines. A `spec` finding can set `needsPerson` when a worker cannot settle it from the design and the code alone. The fix worker then asks the owner. Only a running worker of the card with the `code-review` role can call it. Loupe stores the review against the commit it names, and the `agent-review-check` forge write shows it as a check on the pull request. The result field `current` says whether that commit matches the last head commit that Loupe read from the forge |
 | `document_review_submit` | Submit the review of a draft design document of a card, with findings that name no file. A finding can set `needsPerson` for a gap that only the owner can settle, and such a finding does not fail the review. Only a running worker of the card with the `design-review` role can call it, and only for a draft that the card links. Loupe stores the review against the version number it names. The result field `current` says whether that version is still the newest |

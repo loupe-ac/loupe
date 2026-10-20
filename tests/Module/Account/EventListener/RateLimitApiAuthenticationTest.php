@@ -42,7 +42,7 @@ final class RateLimitApiAuthenticationTest extends TestCase
         $listener = $this->listener();
 
         for ($i = 0; $i < 10; ++$i) {
-            $listener($this->arriving('/api/site-review/comments', '203.0.113.7', method: Request::METHOD_GET));
+            $listener($this->arriving('/api/live-review/comments', '203.0.113.7', method: Request::METHOD_GET));
         }
 
         $this->addToAssertionCount(1);
@@ -57,7 +57,7 @@ final class RateLimitApiAuthenticationTest extends TestCase
         $listener->chargeFailure($this->failure('/mcp', '203.0.113.7', firewall: 'mcp'));
 
         $this->expectException(TooManyRequestsHttpException::class);
-        $listener($this->arriving('/api/site-review/batches', '203.0.113.7'));
+        $listener($this->arriving('/api/live-review/batches', '203.0.113.7'));
     }
 
     public function test_a_failure_on_the_interactive_firewall_is_not_charged(): void
@@ -102,10 +102,10 @@ final class RateLimitApiAuthenticationTest extends TestCase
     {
         $listener = $this->listener();
 
-        $listener->chargeFailure($this->failure('/api/site-review/comments', '203.0.113.7', method: Request::METHOD_GET));
+        $listener->chargeFailure($this->failure('/api/live-review/comments', '203.0.113.7', method: Request::METHOD_GET));
 
         $this->expectException(TooManyRequestsHttpException::class);
-        $listener($this->arriving('/api/site-review/comments', '203.0.113.7', method: Request::METHOD_GET));
+        $listener($this->arriving('/api/live-review/comments', '203.0.113.7', method: Request::METHOD_GET));
     }
 
     /**
