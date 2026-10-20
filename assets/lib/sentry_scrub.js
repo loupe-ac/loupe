@@ -264,7 +264,8 @@ export const KEPT_CSS_PROPERTIES = new Set([
 ]);
 
 // CSS keywords, and the font and animation names of Loupe's own
-// stylesheets. A test keeps the list complete against assets/styles.
+// stylesheets. A test keeps the list complete against assets/styles and
+// the compiled Tailwind stylesheet.
 export const KEPT_CSS_WORDS = new Set([
     '-apple-system',
     '-webkit-backdrop-filter',
@@ -317,6 +318,7 @@ export const KEPT_CSS_WORDS = new Set([
     'ease-out',
     'ellipse',
     'ellipsis',
+    'false',
     'fill',
     'filter',
     'fit-content',

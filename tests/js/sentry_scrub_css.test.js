@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
     KEPT_CSS_PROPERTIES,
@@ -238,3 +238,22 @@ describe('the stylesheets of the application', () => {
         },
     );
 });
+
+// Tailwind also compiles `[program:nginx]` in the supervisord files into an
+// arbitrary property. It is no CSS property, so the replay loses nothing.
+const NOT_CSS = /^program:/;
+const COMPILED = 'var/tailwind/app.built.css';
+
+describe.skipIf(!existsSync(COMPILED))(
+    'the compiled Tailwind stylesheet',
+    () => {
+        it('keeps every declaration, add a word to KEPT_CSS_WORDS when this fails', () => {
+            const source = readFileSync(COMPILED, 'utf8');
+            const before = declarations(source).filter((d) => !NOT_CSS.test(d));
+            const after = new Set(declarations(built(source)));
+
+            expect(before.length).toBeGreaterThan(5000);
+            expect(before.filter((d) => !after.has(d))).toEqual([]);
+        });
+    },
+);
