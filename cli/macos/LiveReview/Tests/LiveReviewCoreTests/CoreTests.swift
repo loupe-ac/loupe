@@ -640,6 +640,40 @@ final class CaptureSessionTests: XCTestCase {
     }
 }
 
+final class ThumbnailSquareTests: XCTestCase {
+    private let mapper = ScreenMapper(screen: Frame(x: 0, y: 0, width: 100, height: 200), imageWidth: 100, imageHeight: 200)!
+
+    private func capture(element: Frame? = nil, strokes: [[CGPoint]] = []) -> Capture {
+        Capture(device: BootedDevice(name: "iPhone", udid: "A", osVersion: "26.5"), app: nil, screenTitle: "Home",
+                element: element.map { Element(role: "AXButton", roleDescription: "button", label: "Buy", frame: $0, inNavigationBar: false) },
+                mapper: mapper, png: Data(), strokes: strokes)
+    }
+
+    func testWithNoMarksTheSquareIsCentred() {
+        XCTAssertEqual(capture().thumbnailSquare(width: 50, height: 100), CGRect(x: 0, y: 25, width: 50, height: 50))
+    }
+
+    func testTheSquareFollowsTheElementAndStopsAtTheEdge() {
+        XCTAssertEqual(capture(element: Frame(x: 0, y: 0, width: 50, height: 20)).thumbnailSquare(width: 50, height: 100),
+                       CGRect(x: 0, y: 0, width: 50, height: 50))
+        XCTAssertEqual(capture(element: Frame(x: 0, y: 180, width: 50, height: 20)).thumbnailSquare(width: 50, height: 100),
+                       CGRect(x: 0, y: 50, width: 50, height: 50))
+        XCTAssertEqual(capture(element: Frame(x: 0, y: 90, width: 100, height: 40)).thumbnailSquare(width: 50, height: 100),
+                       CGRect(x: 0, y: 30, width: 50, height: 50))
+    }
+
+    func testTheSquareCentresOnEveryMark() {
+        let strokes = [[CGPoint(x: 10, y: 120), CGPoint(x: 20, y: 140)]]
+        XCTAssertEqual(capture(element: Frame(x: 0, y: 20, width: 10, height: 20), strokes: strokes).thumbnailSquare(width: 50, height: 100),
+                       CGRect(x: 0, y: 15, width: 50, height: 50))
+    }
+
+    func testALandscapeImageMovesTheSquareSideways() {
+        XCTAssertEqual(capture(element: Frame(x: 90, y: 0, width: 10, height: 10)).thumbnailSquare(width: 200, height: 100),
+                       CGRect(x: 100, y: 0, width: 100, height: 100))
+    }
+}
+
 final class LatestRequestTests: XCTestCase {
     func testOnlyTheNewestAnswerIsUsedWhenAnswersArriveInReverse() {
         var requests = LatestRequest()

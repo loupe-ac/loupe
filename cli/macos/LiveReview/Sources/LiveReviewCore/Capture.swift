@@ -33,6 +33,25 @@ public struct Capture: Sendable {
 
         return image
     }
+
+    /// The largest square of an image of the screen, in its pixels, centred on the marks as far as the edges allow.
+    public func thumbnailSquare(width: Int, height: Int) -> CGRect {
+        let w = Double(width), h = Double(height)
+        let side = min(w, h)
+        var marks = strokes.compactMap { mapper.stroke(from: $0) }.flatMap(\.points)
+        if let element {
+            let box = mapper.pixels(element.frame)
+            marks += [CGPoint(x: box.x / mapper.imageWidth, y: box.y / mapper.imageHeight),
+                      CGPoint(x: (box.x + box.width) / mapper.imageWidth, y: (box.y + box.height) / mapper.imageHeight)]
+        }
+        let xs = marks.map(\.x), ys = marks.map(\.y)
+        let cx = xs.isEmpty ? 0.5 : (xs.min()! + xs.max()!) / 2
+        let cy = ys.isEmpty ? 0.5 : (ys.min()! + ys.max()!) / 2
+        let x = min(max(0, cx * w - side / 2), w - side).rounded(.down)
+        let y = min(max(0, cy * h - side / 2), h - side).rounded(.down)
+
+        return CGRect(x: x, y: y, width: side, height: side)
+    }
 }
 
 /// Hands out a token per request, so only the answer to the newest request is used.

@@ -267,12 +267,11 @@ struct SaveRow: View {
 
     var body: some View {
         HStack(alignment: .bottom) {
-            if let capture = model.capture, let image = NSImage(data: capture.image.jpeg) {
+            if let capture = model.capture, let image = thumbnail(of: capture) {
                 Image(nsImage: image)
                     .resizable()
-                    .scaledToFit()
+                    .scaledToFill()
                     .frame(width: 96, height: 96)
-                    .background(Color(nsColor: .textBackgroundColor))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.5)))
             } else if model.session.freezing {
@@ -289,6 +288,15 @@ struct SaveRow: View {
                 .disabled(!model.canSave)
                 .keyboardShortcut(.defaultAction)
         }
+    }
+
+    private func thumbnail(of capture: Capture) -> NSImage? {
+        guard let image = NSImage(data: capture.image.jpeg),
+              let full = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let square = full.cropping(to: capture.thumbnailSquare(width: full.width, height: full.height))
+        else { return nil }
+
+        return NSImage(cgImage: square, size: .zero)
     }
 }
 
