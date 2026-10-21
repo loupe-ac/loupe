@@ -251,6 +251,8 @@ describe('scrubTransaction', () => {
                             'url.path': '/x',
                             'sentry.op': 'pageload',
                             'lcp.url': 'https://app.test/i.png',
+                            'lcp.id': 'private-heading',
+                            'browser.web_vital.lcp.id': 'private-heading',
                             'lcp.element': 'img.cover[alt="Ada"]',
                             'cls.source.1': 'div[title="Ada"]',
                         },

@@ -18,6 +18,12 @@ final class SentryBrowserConfig extends AbstractExtension
 
         #[Autowire('%env(float:SENTRY_BROWSER_TRACES_SAMPLE_RATE)%')]
         private readonly float $tracesSampleRate,
+
+        #[Autowire('%env(float:SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE)%')]
+        private readonly float $replaysSessionSampleRate,
+
+        #[Autowire('%env(float:SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE)%')]
+        private readonly float $replaysOnErrorSampleRate,
         private readonly BuildIdentity $buildIdentity,
 
         #[Autowire(param: 'kernel.environment')]
@@ -38,7 +44,7 @@ final class SentryBrowserConfig extends AbstractExtension
      * With no server DSN, the trace meta tags carry an unsampled decision that the
      * browser would follow, so the page then starts its own trace instead.
      *
-     * @return array{dsn: string, tracesSampleRate: float, release: ?string, environment: string, continueTrace: bool}|null
+     * @return array{dsn: string, tracesSampleRate: float, replaysSessionSampleRate: float, replaysOnErrorSampleRate: float, release: ?string, environment: string, continueTrace: bool}|null
      */
     public function sentryBrowser(): ?array
     {
@@ -49,6 +55,8 @@ final class SentryBrowserConfig extends AbstractExtension
         return [
             'dsn' => $this->dsn,
             'tracesSampleRate' => $this->tracesSampleRate,
+            'replaysSessionSampleRate' => $this->replaysSessionSampleRate,
+            'replaysOnErrorSampleRate' => $this->replaysOnErrorSampleRate,
             'release' => $this->buildIdentity->version,
             'environment' => $this->environment,
             'continueTrace' => SentryDsnStatus::Valid === SentryDsnStatus::of($this->serverDsn),
