@@ -35,9 +35,11 @@ set `SENTRY_BROWSER_DSN`. These variables control it:
 |---|---|---|
 | `SENTRY_BROWSER_DSN` | empty | Where browser events go. It is not a secret, because each page that loads the SDK shows it. Empty loads no SDK. |
 | `SENTRY_BROWSER_TRACES_SAMPLE_RATE` | `1.0` | The share of page loads that the browser SDK traces, from `0.0` to `1.0`. While `SENTRY_DSN` is set, a page load continues the server trace, and `SENTRY_TRACES_SAMPLE_RATE` decides for it. |
+| `SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE` | `0.0` | The share of page visits that the browser records as a full replay, from `0.0` to `1.0`. `0.0` records none. |
+| `SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE` | `0.0` | The share of page visits whose last minute the browser sends as a replay when a JavaScript error happens, from `0.0` to `1.0`. `0.0` records none. |
 
 The browser sends page loads, Web Vitals, interaction traces and JavaScript
-errors. It posts them
+errors, and replays when you turn them on. It posts them
 directly to the ingest origin of the DSN, which Loupe adds to the
 Content-Security-Policy `connect-src` list. Loupe scrubs each browser event
 before it leaves the page. Every item in
@@ -71,6 +73,40 @@ Each span has two attributes:
 
 These two values show whether a tab gets slower as it ages. The browser sends
 no profile.
+
+### Session replay
+
+A replay is a recording of the page that Sentry plays back as a video. It is off
+until you set one of the two replay rates above to more than `0.0`. A page then
+loads a second Sentry file, `replay.min.js`. With both rates at `0.0` the page
+does not load it, and nothing is recorded.
+
+A replay shows the layout of the page, as it changed during the visit. A
+person with access to your Sentry project can see how many elements a page
+holds, which dialog opened, and where a person clicked. A replay is
+behaviour data, so tell your users when you turn it on.
+
+Loupe masks the page in the browser, before anything leaves it:
+
+1. All text and all form input become grey blocks.
+2. All images, video and other media are blocked.
+3. Each element keeps only a short list of layout attributes, such as `class`,
+   `type`, `role`, `width` and the `aria-` state attributes. Every other
+   attribute is removed. This covers `href`, `src`, `value`, `id`, `title`,
+   `aria-label` and every `data-` attribute, so no link target, CSRF token or
+   element id leaves the page.
+4. Every URL is cut to its origin. This covers the URL of the page and of
+   each stylesheet.
+5. CSS keeps no comment and no quoted text. A value that holds a word outside
+   a list of CSS words is removed. A `style` attribute keeps only layout
+   properties such as `top`, `left`, `width` and `transform`.
+6. Navigation, fetch, XHR and console breadcrumbs are dropped, as for an error.
+
+A replay does not record the text drawn by a CSS `content` rule. A browser
+sends the recording uncompressed, because Loupe cannot clean a compressed
+recording, so a replay uses more upload bandwidth than the same page without
+one. If the scrub fails, the browser drops that part of the replay and sends
+nothing unscrubbed.
 
 The *Sentry in the browser* row on `/admin/status` reports a malformed
 `SENTRY_BROWSER_DSN` as a failure, in the same way as the *Sentry* row.

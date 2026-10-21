@@ -191,6 +191,8 @@ module "app" {
     var.sentry_profiles_sample_rate == "" ? {} : { SENTRY_PROFILES_SAMPLE_RATE = { value = var.sentry_profiles_sample_rate } },
     var.sentry_browser_dsn == "" ? {} : { SENTRY_BROWSER_DSN = { value = var.sentry_browser_dsn } },
     var.sentry_browser_traces_sample_rate == "" ? {} : { SENTRY_BROWSER_TRACES_SAMPLE_RATE = { value = var.sentry_browser_traces_sample_rate } },
+    var.sentry_browser_replays_session_sample_rate == "" ? {} : { SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE = { value = var.sentry_browser_replays_session_sample_rate } },
+    var.sentry_browser_replays_on_error_sample_rate == "" ? {} : { SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE = { value = var.sentry_browser_replays_on_error_sample_rate } },
     var.github_app_slug == "" ? {} : { GITHUB_APP_SLUG = { value = var.github_app_slug } },
     var.github_app_client_id == "" ? {} : { GITHUB_APP_CLIENT_ID = { value = var.github_app_client_id } },
     var.github_app_client_secret == "" ? {} : { GITHUB_APP_CLIENT_SECRET = { value = var.github_app_client_secret, type = "SECRET" } },

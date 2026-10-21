@@ -1,0 +1,27 @@
+{
+  "origin": "http://127.0.0.1:62622",
+  "markers": {
+    "urlPath": "MARKERURLPATH",
+    "urlQuery": "MARKERURLQUERY",
+    "pushPath": "MARKERPUSHPATH",
+    "linkPath": "MARKERLINKPATH",
+    "hiddenValue": "MARKERHIDDENTOKEN",
+    "dataValue": "MARKERDATAVALUE",
+    "ariaLabel": "MARKERARIALABEL",
+    "title": "MARKERTITLE",
+    "imagePath": "MARKERIMAGEPATH",
+    "headingId": "markerheadingid",
+    "text": "MARKERVISIBLETEXT",
+    "changedLink": "MARKERCHANGEDLINK",
+    "quoted": "MARKERQUOTED",
+    "comment": "MARKERCOMMENT",
+    "cssUrlPath": "MARKERCSSURLPATH",
+    "customText": "MARKERCUSTOMTEXT",
+    "fontText": "MARKERFONTTEXT",
+    "accountId": "987654321",
+    "tabSize": "987654322",
+    "tabSizeRounded": "9.87654e+08",
+    "ruleQuoted": "MARKERRULEQUOTED",
+    "ruleCustom": "MARKERRULECUSTOM"
+  }
+}

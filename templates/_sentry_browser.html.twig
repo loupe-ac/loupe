@@ -7,10 +7,16 @@
     <meta name="loupe-route" content="{{ app.request.attributes.get('_route') }}">
     <meta name="sentry-browser-dsn" content="{{ sentryBrowser.dsn }}">
     <meta name="sentry-browser-traces-sample-rate" content="{{ sentryBrowser.tracesSampleRate }}">
+    <meta name="sentry-browser-replays-session-sample-rate" content="{{ sentryBrowser.replaysSessionSampleRate }}">
+    <meta name="sentry-browser-replays-on-error-sample-rate" content="{{ sentryBrowser.replaysOnErrorSampleRate }}">
     {% if sentryBrowser.release is not null %}
         <meta name="sentry-release" content="{{ sentryBrowser.release }}">
     {% endif %}
     <meta name="sentry-environment" content="{{ sentryBrowser.environment }}">
     {# A classic deferred script runs before the module scripts that follow it, so app.js finds window.Sentry. #}
     <script defer src="{{ asset('sentry/bundle.tracing.min.js') }}"></script>
+    {# The replay bundle adds the Replay integration to window.Sentry, so it loads after the tracing bundle and only when replay is on. #}
+    {% if sentryBrowser.replaysSessionSampleRate > 0 or sentryBrowser.replaysOnErrorSampleRate > 0 %}
+        <script defer src="{{ asset('sentry/replay.min.js') }}"></script>
+    {% endif %}
 {% endif %}

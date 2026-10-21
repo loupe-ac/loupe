@@ -450,6 +450,18 @@ variable "sentry_browser_traces_sample_rate" {
   description = "SENTRY_BROWSER_TRACES_SAMPLE_RATE, from 0.0 to 1.0, the share of page loads the browser SDK traces. Empty keeps the committed default of 1.0."
 }
 
+variable "sentry_browser_replays_session_sample_rate" {
+  type        = string
+  default     = ""
+  description = "SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE, from 0.0 to 1.0, the share of page visits the browser SDK records as a full replay. Empty keeps the committed default of 0.0."
+}
+
+variable "sentry_browser_replays_on_error_sample_rate" {
+  type        = string
+  default     = ""
+  description = "SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE, from 0.0 to 1.0, the share of page visits whose last 60 seconds the browser SDK sends when a JavaScript error happens. Empty keeps the committed default of 0.0."
+}
+
 variable "github_app_slug" {
   type        = string
   default     = ""
