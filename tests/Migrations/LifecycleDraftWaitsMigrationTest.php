@@ -40,7 +40,7 @@ final class LifecycleDraftWaitsMigrationTest extends KernelTestCase
 
             return $rule;
         }, $rules);
-        $old['version'] = 11;
+        $old['version'] = 12;
         $old['epicBranch'] = 'feature/epic-{number}';
         $old['approvalCoversConflictResolution'] = false;
         $connection->executeStatement('UPDATE workflow_bindings SET definition = CAST(? AS JSONB) WHERE project_id = ?', [json_encode($old, \JSON_THROW_ON_ERROR | \JSON_PRESERVE_ZERO_FRACTION), $projectId]);
