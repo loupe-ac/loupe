@@ -49,6 +49,13 @@ shared link to a public page. It is a list flag with two values, `hero` and
 change applies to every public page on the next page load. Sites such as X and
 Reddit can keep the old image for a link that they already fetched.
 
+The **site link** flags, `site.link.discord`, `site.link.x` and `site.link.source`,
+hold the outside links of the site footer and the app. Each is a text flag that
+takes a full `http` or `https` address. An empty flag hides the Discord and X
+links. An empty `site.link.source` makes the app use `APP_SOURCE_URL`. Any other
+value that is not a web address counts as empty. A change applies on the next
+page load. The docs pages take it at the next start of the web container.
+
 ## Audit log
 
 **`/admin/audit-log`** lists every recorded audit event on the instance, newest

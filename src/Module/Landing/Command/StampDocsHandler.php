@@ -10,6 +10,7 @@ use App\Module\Landing\Twig\LandingExtension;
 use App\Site\ChromeLinkAudit;
 use App\Site\SiteChrome;
 use App\Site\SiteHost;
+use App\Site\SiteLinks;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
@@ -33,6 +34,7 @@ final readonly class StampDocsHandler
         private LandingExtension $landing,
         private ChromeCssExtractor $cssExtractor,
         private Filesystem $filesystem,
+        private SiteLinks $siteLinks,
         private LoggerInterface $logger,
 
         #[Autowire(param: 'app.url')]
@@ -40,9 +42,6 @@ final readonly class StampDocsHandler
 
         #[Autowire(param: 'app.docs_url')]
         private string $docsUrl,
-
-        #[Autowire(param: 'app.source_url')]
-        private string $sourceUrl,
     ) {
     }
 
@@ -56,11 +55,12 @@ final readonly class StampDocsHandler
             return new StampDocsResult(0, [sprintf('The compiled stylesheet is missing: %s', $command->stylesheet)]);
         }
 
+        $hosts = $this->configuredHosts();
         $nav = $this->twig->render(self::NAV_TEMPLATE);
         $footer = $this->twig->render(self::FOOTER_TEMPLATE);
         $problems = [
-            ...ChromeLinkAudit::problems($nav, $this->configuredHosts(), !$this->siteHost->isSplit()),
-            ...ChromeLinkAudit::problems($footer, $this->configuredHosts(), !$this->siteHost->isSplit()),
+            ...ChromeLinkAudit::problems($nav, $hosts, !$this->siteHost->isSplit()),
+            ...ChromeLinkAudit::problems($footer, $hosts, !$this->siteHost->isSplit()),
         ];
         if ([] !== $problems) {
             return new StampDocsResult(0, $problems);
@@ -115,7 +115,7 @@ final readonly class StampDocsHandler
     private function configuredHosts(): array
     {
         $hosts = [$this->siteHost->host];
-        foreach ([$this->appUrl, $this->docsUrl, $this->sourceUrl] as $url) {
+        foreach ([$this->appUrl, $this->docsUrl, $this->siteLinks->sourceUrl(), $this->siteLinks->discordUrl(), $this->siteLinks->xUrl()] as $url) {
             $hosts[] = parse_url($url, \PHP_URL_HOST) ?: null;
         }
 

@@ -8,11 +8,15 @@ use App\Module\Landing\Command\StampDocsCommand;
 use App\Module\Landing\Command\StampDocsHandler;
 use App\Module\Landing\Command\StampDocsResult;
 use App\Site\SiteChrome;
+use App\Site\SiteLinks;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Filesystem\Filesystem;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
 use Twig\Loader\ChainLoader;
+use Ubermuda\FeatureFlagsBundle\Entity\FeatureFlag;
+use Ubermuda\FeatureFlagsBundle\Repository\FeatureFlagRepository;
 
 final class StampDocsHandlerTest extends KernelTestCase
 {
@@ -137,6 +141,35 @@ final class StampDocsHandlerTest extends KernelTestCase
         self::assertFileDoesNotExist($this->work.'/served/getting-started/index.html');
     }
 
+    public function test_it_accepts_the_host_of_the_x_flag_in_the_footer(): void
+    {
+        $result = $this->stamp(null, fn () => $this->setLink(SiteLinks::X_FLAG, 'https://x.com/loupehq'));
+
+        self::assertSame([], $result->problems);
+        self::assertStringContainsString('href="https://x.com/loupehq"', (string) file_get_contents($this->work.'/served/getting-started/index.html'));
+    }
+
+    public function test_it_accepts_the_host_of_a_source_flag(): void
+    {
+        $result = $this->stamp(null, fn () => $this->setLink(SiteLinks::SOURCE_FLAG, 'https://git.example/fork/loupe'));
+
+        self::assertSame([], $result->problems);
+        self::assertStringContainsString('href="https://git.example/fork/loupe"', (string) file_get_contents($this->work.'/served/getting-started/index.html'));
+    }
+
+    public function test_a_bad_link_value_is_left_out_and_does_not_fail_the_stamp(): void
+    {
+        $result = $this->stamp(null, function (): void {
+            $this->setLink(SiteLinks::X_FLAG, '/loupehq');
+            $this->setLink(SiteLinks::DISCORD_FLAG, 'javascript:alert(1)');
+        });
+
+        self::assertSame([], $result->problems);
+        $html = (string) file_get_contents($this->work.'/served/getting-started/index.html');
+        self::assertStringNotContainsString('javascript:', $html);
+        self::assertStringNotContainsString('/loupehq', $html);
+    }
+
     public function test_it_fails_when_the_source_folder_is_missing(): void
     {
         $result = $this->stamp($this->work.'/nowhere');
@@ -161,6 +194,18 @@ final class StampDocsHandlerTest extends KernelTestCase
         $this->stamp();
 
         self::assertFileDoesNotExist($this->work.'/served/old.html');
+    }
+
+    private function setLink(string $flag, string $value): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $repository = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $repository);
+        $row = $repository->findAllIndexed()[$flag] ?? null;
+        self::assertInstanceOf(FeatureFlag::class, $row, 'A migration seeds the row.');
+        $row->value = $value;
+        $em->flush();
     }
 
     private function stamp(?string $source = null, ?\Closure $afterBoot = null): StampDocsResult

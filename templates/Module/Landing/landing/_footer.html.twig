@@ -7,10 +7,12 @@
                 </a>
                 <p class="lp-home-footer__tagline">{{ 'landing.footer.tagline'|trans }}</p>
                 <div class="lp-home-footer__social">
-                    {% if app_source_url %}
-                        <a href="{{ app_source_url }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.source_label'|trans }}"><twig:UX:Icon name="simple-icons:github" class="w-4 h-4" aria-hidden="true" /></a>
+                    {% if site_source_url() %}
+                        <a href="{{ site_source_url() }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.source_label'|trans }}"><twig:UX:Icon name="simple-icons:github" class="w-4 h-4" aria-hidden="true" /></a>
                     {% endif %}
-                    <a href="https://x.com/loupehq" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.x_label'|trans }}"><twig:UX:Icon name="simple-icons:x" class="w-4 h-4" aria-hidden="true" /></a>
+                    {% if site_x_url() %}
+                        <a href="{{ site_x_url() }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.x_label'|trans }}"><twig:UX:Icon name="simple-icons:x" class="w-4 h-4" aria-hidden="true" /></a>
+                    {% endif %}
                 </div>
             </div>
             <nav class="lp-home-footer__column" aria-label="{{ 'landing.footer.product'|trans }}">
@@ -32,8 +34,8 @@
                     {% if site_is_split() or has_blog() %}
                         <li><a href="{{ site_url('/blog') }}" class="lp-home-footer__link">{{ 'landing.footer.blog'|trans }}</a></li>
                     {% endif %}
-                    {% if app_source_url %}
-                        <li><a href="{{ app_source_url }}" class="lp-home-footer__link" target="_blank" rel="noopener noreferrer">{{ 'footer.source.label'|trans }}</a></li>
+                    {% if site_source_url() %}
+                        <li><a href="{{ site_source_url() }}" class="lp-home-footer__link" target="_blank" rel="noopener noreferrer">{{ 'footer.source.label'|trans }}</a></li>
                     {% endif %}
                 </ul>
             </nav>

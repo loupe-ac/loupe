@@ -7,9 +7,6 @@ namespace App\Site;
 /** Facts about the site bar and footer that the docs stamp, the check and the tests share. */
 final class SiteChrome
 {
-    /** Hosts that the bar and footer link to and that no setting configures. */
-    public const array OUTSIDE_HOSTS = ['x.com'];
-
     /** The docs build leaves these markers in each page. website/src/chrome-markers.mjs holds the same strings. */
     public const string NAV_MARKER = '<!--LOUPE_SITE_NAV-->';
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Site\SiteLinks;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
@@ -33,9 +33,7 @@ final readonly class UpdateCheck
         private HttpClientInterface $githubApiClient,
         private CacheInterface $cache,
         private LoggerInterface $logger,
-
-        #[Autowire(param: 'app.source_url')]
-        private string $sourceUrl,
+        private SiteLinks $siteLinks,
     ) {
     }
 
@@ -117,9 +115,10 @@ final readonly class UpdateCheck
     /** @return string|null owner/name, or null when the source is not on GitHub */
     private function repository(): ?string
     {
-        $path = parse_url($this->sourceUrl, PHP_URL_PATH);
+        $sourceUrl = $this->siteLinks->sourceUrl();
+        $path = parse_url($sourceUrl, PHP_URL_PATH);
 
-        if ('github.com' !== parse_url($this->sourceUrl, PHP_URL_HOST) || !is_string($path)) {
+        if ('github.com' !== parse_url($sourceUrl, PHP_URL_HOST) || !is_string($path)) {
             return null;
         }
 

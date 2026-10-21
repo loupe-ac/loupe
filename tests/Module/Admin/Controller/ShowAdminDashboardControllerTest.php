@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Admin\Controller;
 
 use App\Module\Account\Entity\User;
+use App\Site\SiteLinks;
 use App\Tests\Support\AcceptedTerms;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -32,8 +33,7 @@ final class ShowAdminDashboardControllerTest extends WebTestCase
         $this->assertGreaterThan(0, $crawler->filter('a[href="/admin/waitlist"]')->count());
         // The admin area renders the admin bundle's layout, not the app's, so it
         // is the one place the AGPL source offer can silently go missing.
-        $sourceUrl = static::getContainer()->getParameter('app.source_url');
-        $this->assertIsString($sourceUrl);
+        $sourceUrl = static::getContainer()->get(SiteLinks::class)->sourceUrl();
         $this->assertGreaterThan(0, $crawler->filter('a[href="'.$sourceUrl.'"]')->count());
     }
 

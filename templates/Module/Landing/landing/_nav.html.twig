@@ -9,8 +9,8 @@
         {% if site_is_split() or has_blog() %}
             <a href="{{ site_url('/blog') }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.blog'|trans }}</a>
         {% endif %}
-        {% if app_source_url %}
-            <a href="{{ app_source_url }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.github'|trans }}</a>
+        {% if site_source_url() %}
+            <a href="{{ site_source_url() }}" class="lp-home-nav__link lp-home-nav__link--section">{{ 'landing.nav.github'|trans }}</a>
         {% endif %}
         {% set signedIn = site_signed_in() %}
         <div class="lp-home-nav__actions">
