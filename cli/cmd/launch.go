@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -32,7 +34,28 @@ var launchWaitDelay = time.Second
 
 // defaultScriptDir holds the launch scripts.
 func defaultScriptDir() string {
-	return filepath.Join(os.TempDir(), "loupe-sessions")
+	tmp, _ := config.TempDir()
+
+	return filepath.Join(tmp, "loupe-sessions")
+}
+
+// withSetupEnv adds LOUPE_CONFIG to env when the setup is not the default, so
+// a launch script exports it.
+func withSetupEnv(env []string) []string {
+	setup := config.Current()
+	if setup.Source == config.SourceDefault {
+		return env
+	}
+	env = withEnv(env, config.EnvVar, setup.Dir)
+	if setupPin == "" {
+		return env
+	}
+	path := os.Getenv("PATH")
+	if i := slices.IndexFunc(env, func(e string) bool { return strings.HasPrefix(e, "PATH=") }); i >= 0 {
+		path = strings.TrimPrefix(env[i], "PATH=")
+	}
+
+	return withEnv(env, "PATH", pinFirst(path))
 }
 
 // writeLaunchScript writes the script of one session into root and returns its
@@ -225,7 +248,7 @@ func (r *router) runLaunch(l launch) {
 		}
 	}
 	if err == nil {
-		path, err = writeLaunchScript(l.dir, p.spec.sessionID, adapter.Interactive(program, p.spec.harnessSpec(env)))
+		path, err = writeLaunchScript(l.dir, p.spec.sessionID, adapter.Interactive(program, p.spec.harnessSpec(withSetupEnv(env))))
 	}
 	if rec, ok := adapter.(harn.LaunchRecorder); ok && err == nil {
 		// A failed record only costs the usage of the session, so the launch goes on.

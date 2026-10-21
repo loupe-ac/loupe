@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
@@ -515,13 +516,15 @@ func (u *updater) keepPanel(ctx context.Context, releases []update.Release) {
 // ensurePanel installs the Live review panel of the running version when a
 // macOS install lacks it. An updater of an earlier release unpacks only the
 // binary, so a user who updated by it reaches the first release with a panel
-// with no panel. It returns a note for what it did, or an error.
+// with no panel. Only the default setup counts a Homebrew panel in libexec,
+// because findSetupPanel never looks there. It returns a note for what it did,
+// or an error.
 func (u *updater) ensurePanel(ctx context.Context, releases []update.Release) (string, error) {
 	running, ok := update.ParseVersion(u.version)
 	if u.goos != "darwin" || !ok || update.PanelSettled(u.dir, running.String()) {
 		return "", nil
 	}
-	if _, ok := libexecPanel(u.executable); ok {
+	if _, ok := libexecPanel(u.executable); ok && config.Current().Source == config.SourceDefault {
 		return "", nil
 	}
 	c, found := update.PickWhere(releases, u.goos, u.goarch, func(v update.Version) bool { return update.Compare(v, running) == 0 })

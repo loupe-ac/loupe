@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -61,7 +62,11 @@ func startDaemon(cmd *cobra.Command, o bridgeRunOptions) error {
 
 	// The child writes a failure to this file, which the parent shows when the
 	// child ends before it listens.
-	failure, err := os.CreateTemp("", "loupe-bridge-start-*")
+	tmp, err := config.TempDir()
+	if err != nil {
+		return err
+	}
+	failure, err := os.CreateTemp(tmp, "loupe-bridge-start-*")
 	if err != nil {
 		return fmt.Errorf("create the start log: %w", err)
 	}

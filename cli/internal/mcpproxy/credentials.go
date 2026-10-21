@@ -36,6 +36,21 @@ type Credentials struct {
 	Session func() string
 	// Base sends the request. A nil value uses http.DefaultTransport.
 	Base http.RoundTripper
+	// Setup is the folder of a setup other than the default, and "" for the
+	// default. A refusal names it.
+	Setup string
+	// ProjectSource says where the project came from, such as the project file
+	// or the link of a setup. A nil function means the project file.
+	ProjectSource func() string
+}
+
+func (c *Credentials) explain(project string, resp *http.Response, err error) (*http.Response, error) {
+	source := ".loupe.yaml"
+	if c.ProjectSource != nil {
+		source = c.ProjectSource()
+	}
+
+	return explain(project, source, c.Setup, resp, err)
 }
 
 // RoundTrip implements http.RoundTripper.
@@ -63,12 +78,12 @@ func (c *Credentials) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil || resp.StatusCode != http.StatusUnauthorized {
 		resp, err = markSessionGone(req, resp, err)
 
-		return explain(project, resp, err)
+		return c.explain(project, resp, err)
 	}
 
 	fresh, err := c.Tokens.Refresh(req.Context(), token)
 	if errors.Is(err, api.ErrNoRefresh) {
-		return explain(project, resp, nil)
+		return c.explain(project, resp, nil)
 	}
 	resp.Body.Close()
 	if err != nil {
@@ -78,7 +93,7 @@ func (c *Credentials) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err = c.send(req, fresh, project, session, rewind)
 	resp, err = markSessionGone(req, resp, err)
 
-	return explain(project, resp, err)
+	return c.explain(project, resp, err)
 }
 
 // sessionHeader names the MCP session a request belongs to.
@@ -138,7 +153,7 @@ func (c *Credentials) send(req *http.Request, token, project, session string, re
 // explain turns a refusal into a message that says what to do about it. The
 // MCP layer otherwise reports the status code alone, which tells a person
 // nothing about a scope or a project. It names the project the request sent.
-func explain(project string, resp *http.Response, err error) (*http.Response, error) {
+func explain(project, source, setup string, resp *http.Response, err error) (*http.Response, error) {
 	if err != nil || resp == nil {
 		return resp, err
 	}
@@ -150,10 +165,15 @@ func explain(project string, resp *http.Response, err error) (*http.Response, er
 	resp.Body.Close()
 
 	advice := "run `loupe login` again"
+	login := "the login"
+	if setup != "" {
+		advice = fmt.Sprintf("run `loupe -c %s login` again", setup)
+		login = "the login of the setup " + setup
+	}
 	if resp.StatusCode == http.StatusForbidden {
-		advice = "the login must cover this project and carry the mcp scope"
+		advice = login + " must cover this project and carry the mcp scope"
 		if project != "" {
-			advice = fmt.Sprintf("the login does not cover the project %s that %s names, or it carries no mcp scope", project, ".loupe.yaml")
+			advice = fmt.Sprintf("%s does not cover the project %s that %s names, or it carries no mcp scope", login, project, source)
 		}
 	}
 
