@@ -75,7 +75,7 @@ workflow gives goreleaser the version as `GORELEASER_CURRENT_TAG=vX.Y.Z`, with
 `--skip=publish,validate`. The `validate` step refuses a tag that git does not
 hold. The binary then reports the version `X.Y.Z`.
 
-A release needs five secrets in the GitHub repository. The macOS job signs and notarises the Live review panel with them, and the release fails when one is missing.
+The macOS job signs and notarises the Live review panel with five secrets in the GitHub repository. With none of them set, the release ships without the panel, and `loupe review ios` reports it missing. With some but not all, the release fails.
 
 | Secret | Value |
 |---|---|
