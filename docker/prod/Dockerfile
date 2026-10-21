@@ -36,7 +36,8 @@ WORKDIR /var/www/html
 # no toolchain.
 # pdo_pgsql: Postgres driver. intl: locale/translation. zip: composer/asset
 # handling. xsl: XSLT support. bcmath: arbitrary-precision arithmetic.
-# excimer: the sampling profiler that Sentry profiles need.
+# excimer: the sampling profiler that Sentry profiles need. It comes from the
+# upstream GitHub tag, pinned by checksum, rather than from an unverified PECL download.
 # OPcache is already built into php:8.5-fpm-alpine — it just needs tuning (opcache.ini).
 #
 # su-exec is how a worker container drops to www-data *after* the entrypoint has
@@ -50,9 +51,11 @@ WORKDIR /var/www/html
 RUN apk add --no-cache postgresql-libs libzip libxslt icu-libs icu-data-full bash nginx supervisor su-exec \
  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev libzip-dev libxslt-dev icu-dev \
  && docker-php-ext-install bcmath pdo_pgsql zip intl xsl \
- && pecl install excimer-1.2.6 \
- && docker-php-ext-enable excimer \
- && rm -rf /tmp/pear \
+ && curl -fsSL -o /tmp/excimer.tgz https://github.com/wikimedia/php-excimer/archive/refs/tags/1.2.6.tar.gz \
+ && echo "0f4cb07ed735cb8d517d837ade3dde43de7967ea5e02fee194a1deaef8f3850e  /tmp/excimer.tgz" | sha256sum -c - \
+ && mkdir /tmp/excimer && tar xzf /tmp/excimer.tgz -C /tmp/excimer --strip-components=1 \
+ && docker-php-ext-install /tmp/excimer \
+ && rm -rf /tmp/excimer /tmp/excimer.tgz \
  && apk del .build-deps
 
 # Pinned and copied rather than curl-piped from getcomposer.org: the installer
