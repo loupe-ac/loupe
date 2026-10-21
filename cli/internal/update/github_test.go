@@ -22,7 +22,7 @@ func TestFetchReleasesReadsTheReleasesList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if path != "/repos/ubermuda/loupe/releases" || query != "per_page=100&page=1" || accept != "application/vnd.github+json" || agent == "" {
+	if path != "/repos/loupe-ac/loupe/releases" || query != "per_page=100&page=1" || accept != "application/vnd.github+json" || agent == "" {
 		t.Fatalf("path = %q, query = %q, accept = %q, user agent = %q", path, query, accept, agent)
 	}
 	if len(releases) != 1 || releases[0].TagName != "cli/v1.2.0" || releases[0].Assets[0].URL != "https://x/c" {

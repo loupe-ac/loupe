@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 const codexThread = "01a11b44-0eb9-71f3-b3f1-3066d6b81ee6"

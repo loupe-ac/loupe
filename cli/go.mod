@@ -1,4 +1,4 @@
-module github.com/ubermuda/loupe/cli
+module github.com/loupe-ac/loupe/cli
 
 go 1.26.0
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/ubermuda/loupe/cli/internal/envfile"
+	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	"maps"
 	"os"
 	"os/exec"
@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/claudecode"
-	"github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/mcpjson"
+	"github.com/loupe-ac/loupe/cli/internal/claudecode"
+	"github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 )
 
 // checkTimeout bounds each claude command of a check.

@@ -19,23 +19,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
+	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
+	"github.com/loupe-ac/loupe/cli/internal/profile"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/harness/codex"
-	"github.com/ubermuda/loupe/cli/internal/mcpjson"
-	"github.com/ubermuda/loupe/cli/internal/profile"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
-	"github.com/ubermuda/loupe/cli/internal/rules"
-	"github.com/ubermuda/loupe/cli/internal/update"
 )
 
 const (
-	pluginMarketplace = "ubermuda/loupe"
+	pluginMarketplace = "loupe-ac/loupe"
 	pluginSpec        = "loupe@loupe"
 	playwrightCommand = "npx playwright install chromium"
 
-	codexSkillsRepository = "https://github.com/ubermuda/loupe"
+	codexSkillsRepository = "https://github.com/loupe-ac/loupe"
 	codexSkillsPath       = "plugins/loupe/skills"
 )
 

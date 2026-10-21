@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 func TestNormalizeRoundsAndClampsTheReadings(t *testing.T) {

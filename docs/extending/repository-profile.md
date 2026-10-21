@@ -135,5 +135,5 @@ Lifecycle workflow and its default column slugs.
 ```
 
 The profile of the Loupe repository itself is a longer example. It is at
-[`.loupe/lifecycle.md`](https://github.com/ubermuda/loupe/blob/main/.loupe/lifecycle.md)
+[`.loupe/lifecycle.md`](https://github.com/loupe-ac/loupe/blob/main/.loupe/lifecycle.md)
 in the Loupe repository.

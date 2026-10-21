@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // sessionWith writes a session of one model with two replies. The first reply

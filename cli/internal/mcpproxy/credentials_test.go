@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // rotating hands out stale until a refresh, then fresh.

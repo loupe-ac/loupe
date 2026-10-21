@@ -13,10 +13,10 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // hookFetcher downloads hook packages. Tests point it at a fake GitHub.

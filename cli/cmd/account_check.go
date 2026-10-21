@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	harn "github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // accountCheckTimeout bounds the checks of all the accounts of a set.

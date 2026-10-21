@@ -19,8 +19,8 @@ import (
 
 	"github.com/zalando/go-keyring"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // started marks the updater as running its loop, without the loop.

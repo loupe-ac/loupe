@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // The limits Fetch puts on one archive.

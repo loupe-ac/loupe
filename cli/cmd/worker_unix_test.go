@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // A stand-in claude prints its result with the ceiling it got on stdout, and

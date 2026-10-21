@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/loupe-ac/loupe/cli/internal/mcpproxy"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/ubermuda/loupe/cli/internal/mcpproxy"
 )
 
 // dialLoupe opens one MCP session against endpoint. A new transport per call,

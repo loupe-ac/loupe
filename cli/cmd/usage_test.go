@@ -12,7 +12,7 @@ import (
 
 	"github.com/zalando/go-keyring"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 const (

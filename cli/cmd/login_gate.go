@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/notify"
-	"github.com/ubermuda/loupe/cli/internal/oauth"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/notify"
+	"github.com/loupe-ac/loupe/cli/internal/oauth"
 )
 
 // loginPollInterval is how often a tripped gate looks at config.json.

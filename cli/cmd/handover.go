@@ -11,9 +11,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/event"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // handoverFormat is the one layout of the handover file this build reads.

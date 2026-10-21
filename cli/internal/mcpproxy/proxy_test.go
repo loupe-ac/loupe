@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/ubermuda/loupe/cli/internal/api"
 )
 
 // agent is the local end of the pipe: what an MCP client would write and read.

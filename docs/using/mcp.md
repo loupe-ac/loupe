@@ -230,7 +230,7 @@ The plugin ships skills, and no MCP server. `loupe login` and `loupe init` set
 the server up, so nothing here holds a credential and nothing asks you for one.
 
 ```bash
-claude plugin marketplace add ubermuda/loupe
+claude plugin marketplace add loupe-ac/loupe
 claude plugin install loupe@loupe
 ```
 

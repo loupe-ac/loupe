@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 const (

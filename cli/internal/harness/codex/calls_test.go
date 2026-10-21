@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/stream"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // probeThread is the main thread of a real Codex 0.155.1 run. It ran echo hi,

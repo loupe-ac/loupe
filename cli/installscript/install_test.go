@@ -32,7 +32,7 @@ fi
 // compact objects. Only numeric sort of the published 1.x tags picks 1.10.0.
 const releasesJSON = `[
   {
-    "url": "https://api.github.com/repos/ubermuda/loupe/releases/11",
+    "url": "https://api.github.com/repos/loupe-ac/loupe/releases/11",
     "tag_name": "cli/v1.11.0",
     "name": "loupe CLI v1.11.0",
     "draft": false,
@@ -124,7 +124,7 @@ func release(t *testing.T, s setup, requested *[]string) *httptest.Server {
 	}
 	var mu sync.Mutex
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/repos/ubermuda/loupe/releases" {
+		if r.URL.Path == "/repos/loupe-ac/loupe/releases" {
 			page := r.URL.Query().Get("page")
 			mu.Lock()
 			*requested = append(*requested, page)
@@ -139,7 +139,7 @@ func release(t *testing.T, s setup, requested *[]string) *httptest.Server {
 
 			return
 		}
-		prefix := "/ubermuda/loupe/releases/download/cli/v"
+		prefix := "/loupe-ac/loupe/releases/download/cli/v"
 		rest, ok := strings.CutPrefix(r.URL.Path, prefix)
 		version, file, found := strings.Cut(rest, "/")
 		if !ok || !found {

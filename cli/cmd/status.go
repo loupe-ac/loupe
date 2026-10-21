@@ -13,15 +13,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/claudecode"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
+	"github.com/loupe-ac/loupe/cli/internal/mcpproxy"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/claudecode"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/mcpjson"
-	"github.com/ubermuda/loupe/cli/internal/mcpproxy"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // The last line of `loupe status` on stdout. The error follows it on stderr.

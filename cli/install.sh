@@ -248,7 +248,7 @@ main() {
 		: >"$work/tags"
 		page=1
 		while [ "$page" -le 10 ]; do
-			fetch "$github_api/repos/ubermuda/loupe/releases?per_page=100&page=$page" "$work/page.json" ||
+			fetch "$github_api/repos/loupe-ac/loupe/releases?per_page=100&page=$page" "$work/page.json" ||
 				die "cannot read the release list from $github_api."
 			published_tags "$work/page.json" >"$work/page.tags"
 			[ -s "$work/page.tags" ] || break
@@ -260,7 +260,7 @@ main() {
 	fi
 
 	archive="loupe_${version}_${os}_${arch}.tar.gz"
-	base="$github_download/ubermuda/loupe/releases/download/cli/v$version"
+	base="$github_download/loupe-ac/loupe/releases/download/cli/v$version"
 	say "Downloading loupe $version for $os/$arch."
 	fetch "$base/$archive" "$work/$archive" || die "cannot download $base/$archive."
 	fetch "$base/checksums.txt" "$work/checksums.txt" || die "cannot download $base/checksums.txt."

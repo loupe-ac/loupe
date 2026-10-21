@@ -45,7 +45,7 @@ func TestFormulaNamesEveryArchiveAndItsSum(t *testing.T) {
 	assertContains(t, out, "class Loupe < Formula", `version "1.4.2"`, `license "AGPL-3.0-or-later"`, `bin.install "loupe"`,
 		`libexec.install "Live review.app" if OS.mac?`, `assert_path_exists libexec/"Live review.app" if OS.mac?`)
 	for _, p := range platforms {
-		url := "https://github.com/ubermuda/loupe/releases/download/cli/v1.4.2/loupe_1.4.2_" + p + ".tar.gz"
+		url := "https://github.com/loupe-ac/loupe/releases/download/cli/v1.4.2/loupe_1.4.2_" + p + ".tar.gz"
 		assertContains(t, out, `url "`+url+`"`+"\n      sha256 \""+sums[p]+`"`)
 	}
 

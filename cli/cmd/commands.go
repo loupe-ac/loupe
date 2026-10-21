@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/directive"
-	"github.com/ubermuda/loupe/cli/internal/event"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/directive"
+	"github.com/loupe-ac/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // The channels a command arrives on, as command_received names them.

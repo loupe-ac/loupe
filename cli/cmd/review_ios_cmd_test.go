@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 const iosProject = "01a0c0d9-905c-7922-a586-ccc8ce043704"

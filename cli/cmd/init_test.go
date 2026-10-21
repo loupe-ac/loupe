@@ -17,12 +17,12 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/profile"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/profile"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // initWorld is a fake Loupe instance and the programs init runs.
@@ -583,7 +583,7 @@ func TestInitInstallsThePluginWhenClaudeLacksIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init: %v\n%s", err, out)
 	}
-	if !w.called("claude plugin marketplace add ubermuda/loupe") || !w.called("claude plugin install loupe@loupe") {
+	if !w.called("claude plugin marketplace add loupe-ac/loupe") || !w.called("claude plugin install loupe@loupe") {
 		t.Errorf("exec calls = %v", w.execCalls)
 	}
 	if !strings.Contains(out, "Plugin: done") {
@@ -616,7 +616,7 @@ func TestInitPrintsThePluginCommandsAndGoesOnWhenInstallFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a plugin failure must not fail init: %v\n%s", err, out)
 	}
-	for _, want := range []string{"Plugin: failed", "claude plugin marketplace add ubermuda/loupe", "claude plugin install loupe@loupe", "Bridge: done"} {
+	for _, want := range []string{"Plugin: failed", "claude plugin marketplace add loupe-ac/loupe", "claude plugin install loupe@loupe", "Bridge: done"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}

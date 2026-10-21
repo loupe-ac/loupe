@@ -29,7 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ubermuda/loupe/cli/internal/mcpjson"
+	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
 )
 
 // configName is the file, in the home directory or in CLAUDE_CONFIG_DIR.

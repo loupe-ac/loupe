@@ -18,14 +18,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/transport"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
-	"github.com/ubermuda/loupe/cli/internal/rules"
-	"github.com/ubermuda/loupe/cli/internal/transport"
-	"github.com/ubermuda/loupe/cli/internal/update"
 )
 
 // refreshTimeout bounds a credentials fetch. http.DefaultClient has none at
@@ -535,7 +535,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 				return r.credentials.answer(ctx, runID)
 			},
-			env:    r.runEnv,
+			env: r.runEnv,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					return updateResult{From: version, Outcome: outcomeFailed, Problem: "this bridge runs no update checks"}

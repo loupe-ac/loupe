@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/artifactcompile"
 )
 
 //go:embed mount.js

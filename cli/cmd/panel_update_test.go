@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // panelArchive is an archive of the binary and a small Live review app.

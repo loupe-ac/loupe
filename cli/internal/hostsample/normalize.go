@@ -3,7 +3,7 @@ package hostsample
 import (
 	"math"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // Normalize rounds each core to one decimal and clamps the percents to

@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ubermuda/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 )
 
 // call is the expected form of one Call. A nil pointer field expects nil.

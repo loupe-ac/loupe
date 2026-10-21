@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/ubermuda/loupe/cli/internal/envfile"
-	"github.com/ubermuda/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/envfile"
+	"github.com/loupe-ac/loupe/cli/internal/harness"
 )
 
 // checkTimeout bounds each codex command of a check.

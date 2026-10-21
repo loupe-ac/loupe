@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // stopper stands in for the signaller and the timer of the stop ladder. The

@@ -65,10 +65,10 @@ export default defineConfig({
       },
       description: 'A document- and live-review tool for humans working with AI agents.',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/ubermuda/loupe' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/loupe-ac/loupe' },
       ],
       editLink: {
-        baseUrl: 'https://github.com/ubermuda/loupe/edit/main/docs/',
+        baseUrl: 'https://github.com/loupe-ac/loupe/edit/main/docs/',
       },
       sidebar: [
         { label: 'Introduction', slug: 'index' },

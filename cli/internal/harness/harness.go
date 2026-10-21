@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/stream"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // Harness is one coding agent the bridge can run.

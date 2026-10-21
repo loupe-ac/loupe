@@ -15,9 +15,9 @@ builds:
     # goreleaser reads git itself, so `loupe version` needs no shell here.
     ldflags: &ldflags
       - -s -w
-      - "-X github.com/ubermuda/loupe/cli/cmd.commit={{ .FullCommit }}"
-      - "-X github.com/ubermuda/loupe/cli/cmd.dirty={{ .IsGitDirty }}"
-      - "-X github.com/ubermuda/loupe/cli/cmd.version={{ .Version }}"
+      - "-X github.com/loupe-ac/loupe/cli/cmd.commit={{ .FullCommit }}"
+      - "-X github.com/loupe-ac/loupe/cli/cmd.dirty={{ .IsGitDirty }}"
+      - "-X github.com/loupe-ac/loupe/cli/cmd.version={{ .Version }}"
   - id: loupe-linux
     main: .
     binary: loupe

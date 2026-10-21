@@ -78,7 +78,7 @@ final class SiteChromeTest extends KernelTestCase
 
         self::assertContains('https://loupe.example/', $hrefs);
         self::assertContains('https://loupe.example/blog', $hrefs);
-        self::assertContains('https://github.com/ubermuda/loupe', $hrefs);
+        self::assertContains('https://github.com/loupe-ac/loupe', $hrefs);
         self::assertContains('https://loupe.example/waitlist', $hrefs);
         self::assertContains('http://localhost/login', $hrefs);
         self::assertContains('http://localhost/', $hrefs);

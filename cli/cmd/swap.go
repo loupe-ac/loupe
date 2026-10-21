@@ -12,7 +12,7 @@ import (
 	"slices"
 	"syscall"
 
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // swapBinary copies staged over target through a rename in the directory of

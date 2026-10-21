@@ -9,7 +9,7 @@ import { visit } from 'unist-util-visit';
 // Each link is therefore resolved against the file that wrote it and re-emitted
 // as a root-relative route. Targets outside docs/ cannot be routes at all and
 // become links to the repository instead.
-const REPO = 'https://github.com/ubermuda/loupe';
+const REPO = 'https://github.com/loupe-ac/loupe';
 
 const routeFor = (relativePath, base) => {
   const withoutExtension = relativePath.replace(/\.md$/, '');

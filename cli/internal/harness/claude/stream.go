@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 )
 
 // maxLine is the longest line the reader decodes. It skips a longer one.

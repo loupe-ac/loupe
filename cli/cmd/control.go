@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/config"
 )
 
 const (

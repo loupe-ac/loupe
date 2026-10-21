@@ -202,7 +202,7 @@ RUN install -d -o www-data -g www-data /var/www/docs
 # is one — a fork's image must not claim upstream as the source of code it is
 # not running. Labels are inherited, so the demo image built FROM this one
 # needs no copy of them.
-ARG APP_SOURCE_URL=https://github.com/ubermuda/loupe
+ARG APP_SOURCE_URL=https://github.com/loupe-ac/loupe
 LABEL org.opencontainers.image.source=$APP_SOURCE_URL
 LABEL org.opencontainers.image.licenses=AGPL-3.0-or-later
 

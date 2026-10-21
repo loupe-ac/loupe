@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"

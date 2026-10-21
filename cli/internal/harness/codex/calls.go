@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
 )
 
 // rawCall is one function_call or custom_tool_call line, with its output.

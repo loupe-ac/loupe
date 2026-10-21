@@ -581,7 +581,7 @@ cli-build goos="darwin" goarch="arm64":
     commit="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
     dirty=""
     [ -z "$(git status --porcelain 2>/dev/null)" ] || dirty=true
-    docker run --rm -v "{{justfile_directory()}}/cli":/cli -w /cli -e GOTOOLCHAIN=local -e CGO_ENABLED=0 -e GOOS={{goos}} -e GOARCH={{goarch}} -e LOUPE_COMMIT="$commit" -e LOUPE_DIRTY="$dirty" golang:1.26-alpine sh -c 'go build -ldflags "-X github.com/ubermuda/loupe/cli/cmd.commit=$LOUPE_COMMIT -X github.com/ubermuda/loupe/cli/cmd.dirty=$LOUPE_DIRTY" -o dist/loupe-{{goos}}-{{goarch}} .'
+    docker run --rm -v "{{justfile_directory()}}/cli":/cli -w /cli -e GOTOOLCHAIN=local -e CGO_ENABLED=0 -e GOOS={{goos}} -e GOARCH={{goarch}} -e LOUPE_COMMIT="$commit" -e LOUPE_DIRTY="$dirty" golang:1.26-alpine sh -c 'go build -ldflags "-X github.com/loupe-ac/loupe/cli/cmd.commit=$LOUPE_COMMIT -X github.com/loupe-ac/loupe/cli/cmd.dirty=$LOUPE_DIRTY" -o dist/loupe-{{goos}}-{{goarch}} .'
 
 # Build for this machine and install the binary onto your PATH (default ~/bin).
 cli-install dir="":
@@ -610,7 +610,7 @@ cli-install-release version="latest" dir="":
     target="{{dir}}"
     [ -n "$target" ] || target="$HOME/bin"
     target="${target/#\~/$HOME}"
-    repo="ubermuda/loupe"
+    repo="loupe-ac/loupe"
 
     # CLI releases are tagged cli/vX.Y.Z and share the list with app releases.
     # Like the self-updater, read up to 10 pages and take the highest stable one.
@@ -697,8 +697,34 @@ _cli-verify target:
 # Build the prod image. Defaults to linux/amd64 because App Platform runs amd64;
 # pass a platform to build for the host instead: `just build-prod linux/arm64`.
 # APP_VERSION is what /about reports; an image built without it says so instead.
-build-prod platform="linux/amd64":
-    docker buildx build --platform {{platform}} --load --build-arg APP_VERSION="$(just _app-version)" --build-arg APP_SOURCE_URL="${APP_SOURCE_URL:-https://github.com/ubermuda/loupe}" -t {{prod_image}} -f docker/prod/Dockerfile .
+build-prod platform="linux/amd64": _build-context-clean
+    docker buildx build --platform {{platform}} --load --build-arg APP_VERSION="$(just _app-version)" --build-arg APP_SOURCE_URL="${APP_SOURCE_URL:-https://github.com/loupe-ac/loupe}" -t {{prod_image}} -f docker/prod/Dockerfile .
+
+# Refuse a build context that holds files git does not track: they ship in the
+# image, and .dockerignore cannot read .git/info/exclude.
+_build-context-clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    status=0
+    untracked=$(git ls-files --others --exclude-standard)
+    if [ -n "$untracked" ]; then
+        echo "error: untracked files would ship in the prod image:" >&2
+        head -n 10 <<<"$untracked" | sed 's/^/  /' >&2
+        status=1
+    fi
+    exclude=$(git rev-parse --git-path info/exclude)
+    if [ -f "$exclude" ]; then
+        excluded=$(git ls-files --others --ignored --exclude-from="$exclude")
+        if [ -n "$excluded" ]; then
+            echo "error: files ignored only by $exclude would ship in the prod image:" >&2
+            head -n 10 <<<"$excluded" | sed 's/^/  /' >&2
+            status=1
+        fi
+    fi
+    if [ "$status" -ne 0 ]; then
+        echo "Commit or delete them, or add them to .dockerignore, then build again." >&2
+    fi
+    exit "$status"
 
 # Build and push the image without deploying — the first deploy needs this,
 # because the App Platform app does not exist yet to deploy to.
