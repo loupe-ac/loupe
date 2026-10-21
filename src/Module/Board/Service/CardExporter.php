@@ -15,7 +15,10 @@ use App\Module\Board\Repository\CardEventRepository;
 use App\Module\Board\Repository\CardLinkRepository;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
+use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
+use App\Module\SiteReview\Entity\SiteReviewScreenshot;
+use App\Module\SiteReview\Repository\SiteReviewScreenshotRepository;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -31,6 +34,7 @@ final readonly class CardExporter implements UserDataExporterInterface
         private CardLinkRepository $cardLinks,
         private CardSiteReviewCommentRepository $cardSiteReviewComments,
         private CardEventRepository $cardEvents,
+        private SiteReviewScreenshotRepository $siteReviewScreenshots,
         private TranslatorInterface $translator,
     ) {
     }
@@ -48,6 +52,12 @@ final readonly class CardExporter implements UserDataExporterInterface
         $links = $this->cardLinks->findForCards($cards);
 
         foreach ($cards as $card) {
+            $feedback = $this->cardSiteReviewComments->findForCard($card);
+            $screenshots = $this->siteReviewScreenshots->findByComments(array_map(
+                static fn (CardSiteReviewComment $link): SiteReviewComment => $link->comment,
+                $feedback,
+            ));
+
             yield [
                 'id' => (string) $card->id,
                 'project' => $card->project->name,
@@ -81,9 +91,13 @@ final readonly class CardExporter implements UserDataExporterInterface
                 )),
                 // In full, because feedback has no file of its own.
                 'feedback' => array_map(
-                    static fn (CardSiteReviewComment $link): array => [
+                    fn (CardSiteReviewComment $link): array => [
                         'id' => (string) $link->comment->id,
+                        'surface' => $link->comment->surface->value,
                         'url' => $link->comment->url,
+                        'native' => $link->comment->native,
+                        // An image is binary, so it travels as base64, as an artifact file does.
+                        'screenshot' => self::screenshotOf($screenshots[(string) $link->comment->id] ?? null),
                         'context' => $link->comment->context,
                         'anchors' => array_values(array_map(
                             static fn (SiteReviewCommentAnchor $anchor): array => [
@@ -100,7 +114,7 @@ final readonly class CardExporter implements UserDataExporterInterface
                         'status' => $link->comment->status->value,
                         'createdAt' => $link->comment->createdAt->format(\DateTimeInterface::ATOM),
                     ],
-                    $this->cardSiteReviewComments->findForCard($card),
+                    $feedback,
                 ),
                 'relatedCards' => array_map(
                     static fn (CardLink $link): array => [
@@ -125,5 +139,17 @@ final readonly class CardExporter implements UserDataExporterInterface
                 ),
             ];
         }
+    }
+
+    /** @return array{contentType: string, width: int, height: int, size: int, base64: string}|null */
+    private static function screenshotOf(?SiteReviewScreenshot $screenshot): ?array
+    {
+        return null === $screenshot ? null : [
+            'contentType' => $screenshot->contentType,
+            'width' => $screenshot->width,
+            'height' => $screenshot->height,
+            'size' => $screenshot->size,
+            'base64' => base64_encode($screenshot->contents()),
+        ];
     }
 }

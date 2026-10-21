@@ -68,7 +68,7 @@ final class WidgetTokensMatchAppTest extends TestCase
      */
     private function widgetMap(string $name): array
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 2).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 2).'/public/live-review/widget.js');
         self::assertSame(1, preg_match('/const '.$name.' = \{(.*?)\n    \};/s', $src, $block));
         if (!isset($block[1])) {
             self::fail('Block not found.');

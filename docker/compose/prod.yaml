@@ -87,7 +87,7 @@ x-app-environment: &app-environment
   # Optional: lets a post-deploy check read the running build from /healthz.
   # Empty means the endpoint never reports a version.
   HEALTH_PROBE_TOKEN: "${HEALTH_PROBE_TOKEN:-}"
-  # Optional: the id of the project site-review comments file into. The reviewer
+  # Optional: the id of the project live-review comments file into. The reviewer
   # signs in through the OAuth popup.
   SITE_REVIEW_WIDGET_PROJECT: "${SITE_REVIEW_WIDGET_PROJECT:-}"
   # Empty shows the widget to administrators only. "1" offers it to every
@@ -145,6 +145,8 @@ x-app-environment: &app-environment
   SENTRY_PROFILES_SAMPLE_RATE: "${SENTRY_PROFILES_SAMPLE_RATE:-1.0}"
   SENTRY_BROWSER_DSN: "${SENTRY_BROWSER_DSN:-}"
   SENTRY_BROWSER_TRACES_SAMPLE_RATE: "${SENTRY_BROWSER_TRACES_SAMPLE_RATE:-1.0}"
+  SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE: "${SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE:-0.0}"
+  SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE: "${SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE:-0.0}"
   GITHUB_APP_SLUG: "${GITHUB_APP_SLUG:-}"
   GITHUB_APP_CLIENT_ID: "${GITHUB_APP_CLIENT_ID:-}"
   GITHUB_APP_CLIENT_SECRET: "${GITHUB_APP_CLIENT_SECRET:-}"
@@ -255,7 +257,7 @@ services:
       database:
         condition: service_healthy
 
-  # Site-review push, and live refresh of open boards. The hub keeps its history
+  # Live-review push, and live refresh of open boards. The hub keeps its history
   # in /data/caddy/mercure.db with no size limit. No volume holds that file, so
   # recreating the container drops it. The outbox publishes again what a down
   # hub refused, and it cannot restore a lost history.

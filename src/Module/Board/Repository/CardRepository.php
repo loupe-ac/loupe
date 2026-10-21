@@ -176,7 +176,7 @@ class CardRepository extends ServiceEntityRepository
 
     /**
      * Open cards of a project for the widget's picker, newest first, optionally
-     * narrowed by a substring of the title.
+     * narrowed by a substring of the title or by a card number such as `12` or `#12`.
      *
      * Terminal columns are excluded: the picker exists to attach feedback to
      * work in flight, and a finished card is the one answer a reviewer almost
@@ -194,13 +194,20 @@ class CardRepository extends ServiceEntityRepository
             ->where('c.project = :project')
             ->andWhere('k.terminal = false')
             ->setParameter('project', $project)
-            ->orderBy('c.number', 'DESC')
             ->setMaxResults($limit);
 
-        if ('' !== $query) {
+        if (1 === preg_match('/^#?(\d{1,9})$/', $query, $match)) {
+            // A number names its card first, so a page of shared titles never hides it.
+            $qb->addSelect('CASE WHEN c.number = :n THEN 0 ELSE 1 END AS HIDDEN numberFirst')
+                ->andWhere('c.number = :n OR LOWER(c.title) LIKE :q ESCAPE \'!\'')
+                ->setParameter('n', (int) $match[1])
+                ->setParameter('q', self::titleContains($query))
+                ->orderBy('numberFirst');
+        } elseif ('' !== $query) {
             $qb->andWhere('LOWER(c.title) LIKE :q ESCAPE \'!\'')
                 ->setParameter('q', self::titleContains($query));
         }
+        $qb->addOrderBy('c.number', 'DESC');
         if ([] !== $types) {
             $qb->andWhere('c.type IN (:types)')->setParameter('types', $types);
         }

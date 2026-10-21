@@ -10,6 +10,7 @@ use App\Module\Board\Command\AddFeedbackCommand;
 use App\Module\Board\Command\AddFeedbackHandler;
 use App\Module\Project\Security\AuthenticatedProjectResolver;
 use App\Module\SiteReview\Command\NewStroke;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\SiteReviewDrawing;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
@@ -67,13 +68,16 @@ final class AddFeedbackController extends AppController
             $link = ($this->handler)(new AddFeedbackCommand(
                 project: $project,
                 body: $body,
-                url: trim($payload->url ?? ''),
+                url: ReviewSurface::Web === $payload->surface ? trim($payload->url ?? '') : null,
                 anchors: $anchors,
                 strokes: $strokes,
                 deliveryId: $payload->deliveryId,
                 cardId: $target->cardId,
                 parentCardId: $target->newCard?->parentCardId,
                 context: $payload->context(),
+                surface: $payload->surface,
+                native: $payload->native?->facts(),
+                screenshot: $payload->newScreenshot(),
             ));
         } catch (DomainErrors $error) {
             $field = array_key_first($error->errors);
@@ -82,6 +86,7 @@ final class AddFeedbackController extends AppController
             // a translation key the widget cannot name, so it gets a stable one.
             return match ($field) {
                 'target' => $this->json(['error' => $error->errors[$field]], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
+                'screenshot' => $this->json(['error' => $error->errors[$field]], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
                 'deliveryId' => $this->json(['error' => $error->errors[$field]], JsonResponse::HTTP_CONFLICT),
                 default => $this->json(['error' => 'feedback_refused'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY),
             };

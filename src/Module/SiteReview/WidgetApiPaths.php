@@ -8,7 +8,7 @@ namespace App\Module\SiteReview;
  * The API paths the embedded widget calls.
  *
  * CORS and the write rate limit are both path-scoped, and both used to test for
- * `/api/site-review` alone. The widget now also calls a Board path, and neither
+ * `/api/live-review` alone. The widget now also calls a Board path, and neither
  * protection would have covered it: a listener that tests one prefix silently
  * exempts every other endpoint the widget reaches.
  *
@@ -18,7 +18,7 @@ namespace App\Module\SiteReview;
 final class WidgetApiPaths
 {
     /** @var list<string> */
-    public const array PREFIXES = ['/api/site-review', '/api/board/cards', '/api/board/feedback'];
+    public const array PREFIXES = ['/api/live-review', '/api/board/cards', '/api/board/feedback'];
 
     public static function matches(string $path): bool
     {

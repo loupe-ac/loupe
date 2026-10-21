@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Observability;
 
 use App\Observability\SentryOriginEnvVarProcessor;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Container\ContainerInterface;
 use Symfony\Bridge\Twig\AppVariable;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -72,6 +73,9 @@ final class SentryBrowserWiringTest extends KernelTestCase
         self::assertSame(self::BROWSER_DSN, $page->filter('meta[name="sentry-browser-dsn"]')->attr('content'));
         self::assertSame('1', $page->filter('meta[name="sentry-browser-traces-sample-rate"]')->attr('content'));
         self::assertSame('test', $page->filter('meta[name="sentry-environment"]')->attr('content'));
+        self::assertSame('0', $page->filter('meta[name="sentry-browser-replays-session-sample-rate"]')->attr('content'));
+        self::assertSame('0', $page->filter('meta[name="sentry-browser-replays-on-error-sample-rate"]')->attr('content'));
+        self::assertCount(1, $page->filter('script[defer]'));
         self::assertStringContainsString('sentry/bundle.tracing', (string) $page->filter('script[defer]')->attr('src'));
         self::assertCount(0, $page->filter('meta[name="sentry-trace"]'));
         self::assertCount(0, $page->filter('meta[name="baggage"]'));
@@ -87,6 +91,29 @@ final class SentryBrowserWiringTest extends KernelTestCase
         self::assertCount(0, $tags(false)->filter('meta[name="sentry-trace"]'));
         self::assertCount(0, $tags(false)->filter('meta[name="baggage"]'));
         self::assertCount(1, $tags(false)->filter('meta[name="sentry-browser-dsn"]'));
+    }
+
+    /** @return iterable<string, array{float, float, bool}> */
+    public static function replayRates(): iterable
+    {
+        yield 'both off' => [0.0, 0.0, false];
+        yield 'session on' => [0.1, 0.0, true];
+        yield 'on error on' => [0.0, 1.0, true];
+    }
+
+    #[DataProvider('replayRates')]
+    public function test_the_replay_script_loads_after_tracing_only_when_a_replay_rate_is_above_zero(float $session, float $onError, bool $loads): void
+    {
+        $page = self::renderWithStubs(false, $session, $onError);
+        $sources = $page->filter('script[defer]')->each(static fn (Crawler $s): string => (string) $s->attr('src'));
+
+        self::assertSame((string) $session, $page->filter('meta[name="sentry-browser-replays-session-sample-rate"]')->attr('content'));
+        self::assertSame((string) $onError, $page->filter('meta[name="sentry-browser-replays-on-error-sample-rate"]')->attr('content'));
+        self::assertStringContainsString('sentry/bundle.tracing', $sources[0]);
+        self::assertSame($loads ? 2 : 1, \count($sources));
+        if ($loads) {
+            self::assertStringContainsString('sentry/replay', $sources[1]);
+        }
     }
 
     private function setEnv(string $name, string $value): void
@@ -111,10 +138,10 @@ final class SentryBrowserWiringTest extends KernelTestCase
         return new Crawler('<html><head>'.$twig->render('_sentry_browser.html.twig').'</head></html>');
     }
 
-    private static function renderWithStubs(bool $continueTrace): Crawler
+    private static function renderWithStubs(bool $continueTrace, float $session = 0.0, float $onError = 0.0): Crawler
     {
         $twig = new Environment(new FilesystemLoader(\dirname(__DIR__, 2).'/templates'));
-        $options = ['dsn' => self::BROWSER_DSN, 'tracesSampleRate' => 1.0, 'release' => null, 'environment' => 'test', 'continueTrace' => $continueTrace];
+        $options = ['dsn' => self::BROWSER_DSN, 'tracesSampleRate' => 1.0, 'replaysSessionSampleRate' => $session, 'replaysOnErrorSampleRate' => $onError, 'release' => null, 'environment' => 'test', 'continueTrace' => $continueTrace];
         $twig->addFunction(new TwigFunction('sentry_browser', static fn (): array => $options));
         $twig->addFunction(new TwigFunction('sentry_trace_meta', static fn (): string => '<meta name="sentry-trace" content="t">', ['is_safe' => ['html']]));
         $twig->addFunction(new TwigFunction('sentry_baggage_meta', static fn (): string => '<meta name="baggage" content="b">', ['is_safe' => ['html']]));

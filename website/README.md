@@ -77,7 +77,7 @@ rm -rf website/node_modules/.astro website/.astro
 Astro caches rendered Markdown, and a remark plugin changing is not something
 it invalidates on.
 
-## Site-review widget
+## Live-review widget
 
 Off unless `website/.env` carries a `PUBLIC_SITE_REVIEW_PROJECT`; see
 `.env.example`. Two guards, deliberately belt and braces. The env file is

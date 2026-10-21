@@ -97,7 +97,7 @@ The shipped markers are:
 | `conflicting` | Stuck | A pull request has a conflict and no fix is under way |
 | `ready-not-merged` | Stuck | A pull request stayed ready to merge for the stuck delay and no merge is under way |
 | `pull-request-idle` | Stuck, fallback | An open pull request had no card history for the stuck delay |
-| `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, and no open child shows a working or waiting marker |
+| `nothing-happened` | Stuck, fallback | A card in Product design, Tech design, Implementation or In review had no card history for the stuck delay, no child has an open worker run, and no child history is newer, and no open child shows a working or waiting marker |
 | `document-in-review` | Needs you | A document of the card waits for your review |
 | `waits-for-approval` | Needs you | A pull request waits for your approval |
 | `open-question` | Needs you | An inbox question names the card |
@@ -361,12 +361,12 @@ the code lives in several repositories and Loupe cannot merge in one of them,
 the write refuses, and a person merges by hand.
 
 Two more writes come from the [rules the app adds](#rules-the-app-adds). They
-act on a site-review verdict, and they never ask a bridge for work:
+act on a live-review verdict, and they never ask a bridge for work:
 
 | Write | Does |
 |---|---|
 | `post-review` | Posts each unsent verdict as a review on the open GitHub pull requests that the reviewer picked. The review goes out under the reviewer's own GitHub account |
-| `site-review-check` | Keeps a check named "Loupe site review" on each open GitHub pull request of the card. The check counts the notes of every card that links the pull request. The check goes out as the GitHub App |
+| `site-review-check` | Keeps a check named "Loupe live review" on each open GitHub pull request of the card. The check counts the notes of every card that links the pull request. The check goes out as the GitHub App |
 
 A review that the reviewer sends on their own pull request becomes a comment,
 because GitHub refuses a review from the author of a pull request.
@@ -403,7 +403,7 @@ back to Implementation at once when it has no open blocker.
 |---|---|
 | Product design | Asks for an interactive product design session when the card has no product document, and asks for a revision when the product document gets changes requested. When every document with the tag `product-design` is approved, the card moves to Tech design. The session request also carries two [discovery](workshop.md#run-discovery) checks, for a design system and for a Design System artifact that mirrors it. When the project settings file names a design system, the product document lists the components that the change reuses or changes. A draft product document gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
 | Tech design | Asks for the tech design when the card has no design document, and for a revision when it gets changes requested. When every document with the tag `tech-design` is approved, the card moves to Implementation once it has no open blocker. A card whose blocker is done gets one recheck first: an agent reads the approved design against the code on `main`, and the card moves on when the design still holds. See [Recheck of a design](#recheck-of-a-design). A draft tech design, with a draft deploy notes document, gets an [agent review](#agent-review-of-a-design) before the app publishes it to you |
-| Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
+| Implementation | Asks for the implementation, or for a breakdown of an epic into children. An epic gets its breakdown when it enters, with or without children. A pull request that is open, not a draft, whose required checks passed and whose [agent review](#agent-review) passed moves the card to In review, once no open pull request of the card is a draft. Failed checks, a conflict or a request for changes ask for a fix, 3 rounds at most. A fix rule waits while a session of the card waits for the answer to a blocking question. A card with no pull request whose implementation run finished with the reason `nothing-to-build` or `delivered-without-code` moves to the terminal column. See [Finishing without code](#finishing-without-code) |
 | In review | Asks for a fix as in Implementation. A pull request that turns back into a draft moves the card to Implementation. A stacked pull request whose parent merged gets a new base. An approved pull request that is behind gets its branch updated. A ready pull request merges once its agent review passed |
 
 ### Recheck of a design
@@ -586,6 +586,11 @@ summary comment. See [Rules the app adds](#rules-the-app-adds).
 A person who turns a ready pull request back into a draft makes `review-ready`
 fire again while the review and the checks pass. The rule `back-to-draft` first
 moves the card from In review to Implementation.
+
+A card with a ready and a draft pull request waits in Implementation. The rule
+`reviewable` does not move the card to In review while any open pull request of
+the card is a draft. `review-ready` marks the draft ready once its review and
+checks pass, and `reviewable` then moves the card.
 
 A pull request is ready to merge when it is reviewable, an approval covers its
 head, its base is the default branch or the card's epic branch, and it has no
@@ -845,7 +850,7 @@ proposals land, with the key `proposalSlot`. Loupe ships it as `next`.
 
 The rules `post-widget-review` and `sync-site-review-check` watch every column.
 They act on the verdict that a reviewer sends from the
-[site-review widget](site-review.md). Each reads one condition of the Board
+[live-review widget](live-review.md). Each reads one condition of the Board
 group, and each fires one write. The rules `sync-agent-review-check` and `comment-agent-review` also watch
 every column. They read conditions of the Agent review group:
 

@@ -48,7 +48,7 @@ final class CardArtifactToolsTest extends KernelTestCase
         $this->actAsMcpTokenBoundTo($project);
 
         $created = ($this->create)('Prototype', 'Body', 'feature', artifactIds: [(string) $artifact->id]);
-        $read = ($this->get)($created['cardId']);
+        $read = $this->read($created['cardId']);
 
         foreach ([$created, $read] as $card) {
             self::assertSame([[
@@ -72,8 +72,8 @@ final class CardArtifactToolsTest extends KernelTestCase
         $artifact->archivedAt = new \DateTimeImmutable();
         $this->em->flush();
 
-        self::assertSame([], ($this->get)($bare['cardId'])['artifacts']);
-        self::assertTrue(($this->get)($linked['cardId'])['artifacts'][0]['archived']);
+        self::assertSame([], $this->read($bare['cardId'])['artifacts']);
+        self::assertTrue($this->read($linked['cardId'])['artifacts'][0]['archived']);
     }
 
     public function test_card_update_omits_keeps_replaces_and_clears(): void
@@ -113,7 +113,13 @@ final class CardArtifactToolsTest extends KernelTestCase
             }
         }
 
-        self::assertSame([], ($this->get)($card['cardId'])['artifacts']);
+        self::assertSame([], $this->read($card['cardId'])['artifacts']);
+    }
+
+    /** @return array<string, mixed> */
+    private function read(string $cardId): array
+    {
+        return ($this->get)($cardId)->structuredContent ?? self::fail('card_get returned no structured content.');
     }
 
     private function artifact(Project $project, string $name, int $versions = 1): Artifact

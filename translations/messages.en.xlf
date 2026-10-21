@@ -2311,7 +2311,7 @@
             </trans-unit>
             <trans-unit id="project.delete.warning">
                 <source>project.delete.warning</source>
-                <target>Deleting a project permanently removes all of its documents, versions, comments, reviews, site reviews and API tokens. This cannot be undone.</target>
+                <target>Deleting a project permanently removes all of its documents, versions, comments, reviews, live reviews and API tokens. This cannot be undone.</target>
             </trans-unit>
             <trans-unit id="project.delete.modal.title">
                 <source>project.delete.modal.title</source>
@@ -2377,7 +2377,7 @@
             </trans-unit>
 
             <!-- Connect agent (handoff §5) -->
-            <trans-unit id="project.connect.card.widget.title"><source>project.connect.card.widget.title</source><target>Site review widget</target></trans-unit>
+            <trans-unit id="project.connect.card.widget.title"><source>project.connect.card.widget.title</source><target>Live review widget</target></trans-unit>
             <trans-unit id="project.connect.machines.title"><source>project.connect.machines.title</source><target>Machines</target></trans-unit>
             <trans-unit id="project.connect.machines.version"><source>project.connect.machines.version</source><target>loupe %version%</target></trans-unit>
             <trans-unit id="project.connect.machines.add.title"><source>project.connect.machines.add.title</source><target>Connect another machine</target></trans-unit>
@@ -2419,7 +2419,7 @@
             </trans-unit>
             <trans-unit id="project.connect.skills.hint">
                 <source>project.connect.skills.hint</source>
-                <target>The endpoint gives an agent the tools. These teach it how to use them well. Without them you get documents formatted for a terminal, and site-review comments answered in the wrong file.</target>
+                <target>The endpoint gives an agent the tools. These teach it how to use them well. Without them you get documents formatted for a terminal, and live-review comments answered in the wrong file.</target>
             </trans-unit>
             <trans-unit id="project.connect.skills.documents">
                 <source>project.connect.skills.documents</source>
@@ -2647,7 +2647,7 @@
             </trans-unit>
             <trans-unit id="project.connect.tool.feedback_list">
                 <source>project.connect.tool.feedback_list</source>
-                <target>List the feedback reviewers left with the site-review widget, each item with the card it belongs to. Returns the pending items by default. Fix each item, then mark it with feedback_mark_addressed.</target>
+                <target>List the feedback reviewers left with the live-review widget, each item with the card it belongs to. Returns the pending items by default. Fix each item, then mark it with feedback_mark_addressed.</target>
             </trans-unit>
             <trans-unit id="project.connect.tool.feedback_mark_addressed">
                 <source>project.connect.tool.feedback_mark_addressed</source>
@@ -2978,7 +2978,7 @@
                 <target>Next page</target>
             </trans-unit>
 
-            <!-- Site review labels -->
+            <!-- Live review labels -->
             <trans-unit id="site_review.comment.status.pending">
                 <source>site_review.comment.status.pending</source>
                 <target>Pending</target>
@@ -4208,7 +4208,7 @@
             </trans-unit>
             <trans-unit id="project.edit.form.domain.hint">
                 <source>project.edit.form.domain.hint</source>
-                <target>Used to label site-review comments and to scope the review widget.</target>
+                <target>Used to label live-review comments and to scope the review widget.</target>
             </trans-unit>
             <trans-unit id="billing.subscribe.status.chip.subscribed">
                 <source>billing.subscribe.status.chip.subscribed</source>
@@ -4491,7 +4491,7 @@
             </trans-unit>
             <trans-unit id="landing.workflow.step.site_review.title">
                 <source>landing.workflow.step.site_review.title</source>
-                <target>Site review</target>
+                <target>Live review</target>
             </trans-unit>
             <trans-unit id="landing.workflow.step.site_review.text">
                 <source>landing.workflow.step.site_review.text</source>
@@ -4595,11 +4595,11 @@
             </trans-unit>
             <trans-unit id="landing.features.site_review.title">
                 <source>landing.features.site_review.title</source>
-                <target>Site review</target>
+                <target>Live review</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.text">
                 <source>landing.features.site_review.text</source>
-                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card.</target>
+                <target>Add the widget to a preview of your app. Point at any element, leave a note, and it lands on the card. Review an iOS app in the simulator the same way.</target>
             </trans-unit>
             <trans-unit id="landing.features.site_review.caption">
                 <source>landing.features.site_review.caption</source>
@@ -5011,7 +5011,7 @@
             </trans-unit>
             <trans-unit id="landing.requirements.better.previews.text">
                 <source>landing.requirements.better.previews.text</source>
-                <target>A URL for each pull request lets you review the change with the site review widget.</target>
+                <target>A URL for each pull request lets you review the change with the live review widget.</target>
             </trans-unit>
             <trans-unit id="landing.requirements.better.worktree.name">
                 <source>landing.requirements.better.worktree.name</source>
@@ -5924,7 +5924,7 @@
             </trans-unit>
             <trans-unit id="board.card.type.site-review">
                 <source>board.card.type.site-review</source>
-                <target>Site review</target>
+                <target>Live review</target>
             </trans-unit>
             <trans-unit id="board.card.source.person">
                 <source>board.card.source.person</source>
@@ -5932,7 +5932,7 @@
             </trans-unit>
             <trans-unit id="board.card.source.widget">
                 <source>board.card.source.widget</source>
-                <target>Site review</target>
+                <target>Live review</target>
             </trans-unit>
             <trans-unit id="board.card.source.run">
                 <source>board.card.source.run</source>
@@ -7175,7 +7175,7 @@
             <trans-unit id="board.card.history.run_not_started_no_kind"><source>board.card.history.run_not_started_no_kind</source><target>A worker did not run.</target></trans-unit>
             <trans-unit id="board.card.history.paused"><source>board.card.history.paused</source><target>%actor% paused the card because %kind%.</target></trans-unit>
             <trans-unit id="board.card.history.pause_released"><source>board.card.history.pause_released</source><target>%actor% released a pause set because %kind%.</target></trans-unit>
-            <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the site-review widget: %verdict%.</target></trans-unit>
+            <trans-unit id="board.card.history.verdict"><source>board.card.history.verdict</source><target>%actor% sent a verdict from the live-review widget: %verdict%.</target></trans-unit>
             <trans-unit id="board.card.history.review_overridden"><source>board.card.history.review_overridden</source><target>The approval of %login% overrides the failed agent review of #%pr% at %sha%.</target></trans-unit>
             <trans-unit id="board.card.history.review_override_ended"><source>board.card.history.review_override_ended</source><target>The override of the failed agent review of #%pr% at %sha% ended.</target></trans-unit>
             <trans-unit id="board.card.history.resume_skipped"><source>board.card.history.resume_skipped</source><target>Did not resume a session: another session of this card resumes for question #%number%.</target></trans-unit>
@@ -7232,7 +7232,7 @@
             <trans-unit id="board.card.runs.usage.unknown"><source>board.card.runs.usage.unknown</source><target>Usage unknown</target></trans-unit>
             <trans-unit id="board.card.conversation.title"><source>board.card.conversation.title</source><target>Conversation</target></trans-unit>
             <trans-unit id="board.card.conversation.description"><source>board.card.conversation.description</source><target>Inbox requests linked to this card share their original records.</target></trans-unit>
-            <trans-unit id="board.card.feedback.description"><source>board.card.feedback.description</source><target>Feedback captured by the site review widget for this card.</target></trans-unit>
+            <trans-unit id="board.card.feedback.description"><source>board.card.feedback.description</source><target>Feedback captured by the live review widget for this card.</target></trans-unit>
             <trans-unit id="board.card.link.status_not_reported"><source>board.card.link.status_not_reported</source><target>Not reported</target></trans-unit>
             <trans-unit id="board.card.link.status_unavailable"><source>board.card.link.status_unavailable</source><target>Unavailable</target></trans-unit>
             <trans-unit id="board.card.link.pull_request"><source>board.card.link.pull_request</source><target>Pull request</target></trans-unit>
@@ -7323,7 +7323,19 @@
             <trans-unit id="board.card.linked_cards.kind.blocked_by"><source>board.card.linked_cards.kind.blocked_by</source><target>Blocked by</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.has_follow_up"><source>board.card.linked_cards.kind.has_follow_up</source><target>Has follow-up</target></trans-unit>
             <trans-unit id="board.card.linked_cards.kind.follow_up_of"><source>board.card.linked_cards.kind.follow_up_of</source><target>Follow-up of</target></trans-unit>
-            <trans-unit id="site_review.source.widget"><source>site_review.source.widget</source><target>Site review widget</target></trans-unit>
+            <trans-unit id="site_review.source.widget"><source>site_review.source.widget</source><target>Live review widget</target></trans-unit>
+            <trans-unit id="site_review.source.ios_simulator"><source>site_review.source.ios_simulator</source><target>iOS simulator</target></trans-unit>
+            <trans-unit id="site_review.feedback.screenshot_alt"><source>site_review.feedback.screenshot_alt</source><target>Screenshot saved with this note</target></trans-unit>
+            <trans-unit id="site_review.feedback.screenshot_open"><source>site_review.feedback.screenshot_open</source><target>Open the full screenshot</target></trans-unit>
+            <trans-unit id="site_review.feedback.screenshot_title"><source>site_review.feedback.screenshot_title</source><target>Screenshot</target></trans-unit>
+            <trans-unit id="site_review.feedback.screenshot_close"><source>site_review.feedback.screenshot_close</source><target>Close</target></trans-unit>
+            <trans-unit id="site_review.native.device"><source>site_review.native.device</source><target>Device</target></trans-unit>
+            <trans-unit id="site_review.native.os_version"><source>site_review.native.os_version</source><target>iOS version</target></trans-unit>
+            <trans-unit id="site_review.native.app"><source>site_review.native.app</source><target>App</target></trans-unit>
+            <trans-unit id="site_review.native.screen"><source>site_review.native.screen</source><target>Screen</target></trans-unit>
+            <trans-unit id="site_review.native.element_role"><source>site_review.native.element_role</source><target>Element role</target></trans-unit>
+            <trans-unit id="site_review.native.element_label"><source>site_review.native.element_label</source><target>Element label</target></trans-unit>
+            <trans-unit id="site_review.native.element_identifier"><source>site_review.native.element_identifier</source><target>Element identifier</target></trans-unit>
             <trans-unit id="site_review.comment.open_source"><source>site_review.comment.open_source</source><target>Open source page</target></trans-unit>
             <trans-unit id="site_review.feedback.captured_elements"><source>site_review.feedback.captured_elements</source><target>Captured elements</target></trans-unit>
             <trans-unit id="activity.filter.search_label"><source>activity.filter.search_label</source><target>Search activity</target></trans-unit>
@@ -7343,7 +7355,7 @@
             <trans-unit id="activity.family.inbox"><source>activity.family.inbox</source><target>Needs you</target></trans-unit>
             <trans-unit id="activity.family.document"><source>activity.family.document</source><target>Documents</target></trans-unit>
             <trans-unit id="activity.family.rule"><source>activity.family.rule</source><target>Rules</target></trans-unit>
-            <trans-unit id="activity.family.site_review"><source>activity.family.site_review</source><target>Site review</target></trans-unit>
+            <trans-unit id="activity.family.site_review"><source>activity.family.site_review</source><target>Live review</target></trans-unit>
             <trans-unit id="activity.family.project"><source>activity.family.project</source><target>Project</target></trans-unit>
             <trans-unit id="activity.family.pull_request"><source>activity.family.pull_request</source><target>Pull requests</target></trans-unit>
             <trans-unit id="bridge.worker_runs.column.work"><source>bridge.worker_runs.column.work</source><target>Work</target></trans-unit>
@@ -8146,8 +8158,8 @@
             <trans-unit id="account.settings.nav.connected_apps"><source>account.settings.nav.connected_apps</source><target>Connected apps</target></trans-unit>
             <trans-unit id="account.settings.nav.billing"><source>account.settings.nav.billing</source><target>Billing</target></trans-unit>
             <trans-unit id="oauth.consent.page.title"><source>oauth.consent.page.title</source><target>Connect an app</target></trans-unit>
-            <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and site reviews of one project, through MCP.</target></trans-unit>
-            <trans-unit id="oauth.consent.scope.site_review"><source>oauth.consent.scope.site_review</source><target>Read and post site-review comments on one project.</target></trans-unit>
+            <trans-unit id="oauth.consent.scope.mcp"><source>oauth.consent.scope.mcp</source><target>Read and change the documents and live reviews of one project, through MCP.</target></trans-unit>
+            <trans-unit id="oauth.consent.scope.site_review"><source>oauth.consent.scope.site_review</source><target>Read and post live-review comments on a project you own.</target></trans-unit>
             <trans-unit id="oauth.consent.scope.agent"><source>oauth.consent.scope.agent</source><target>Act as your Loupe agent: read your projects and boards, and report bridge runs.</target></trans-unit>
             <trans-unit id="oauth.consent.client_host.label"><source>oauth.consent.client_host.label</source><target>App published by</target></trans-unit>
             <trans-unit id="oauth.consent.client_name.label"><source>oauth.consent.client_name.label</source><target>Name the app gives itself</target></trans-unit>
@@ -8158,11 +8170,11 @@
             <trans-unit id="oauth.consent.row.publisher_unverified"><source>oauth.consent.row.publisher_unverified</source><target>It calls itself %client%. Loupe cannot check that name.</target></trans-unit>
             <trans-unit id="oauth.consent.row.publisher_registered"><source>oauth.consent.row.publisher_registered</source><target>%client%</target></trans-unit>
             <trans-unit id="oauth.consent.row.publisher_registered_hint"><source>oauth.consent.row.publisher_registered_hint</source><target>An operator of this Loupe registered this app.</target></trans-unit>
-            <trans-unit id="oauth.consent.row.scope.mcp"><source>oauth.consent.row.scope.mcp</source><target>It can read and write the documents, site reviews and board of one project</target></trans-unit>
-            <trans-unit id="oauth.consent.row.scope.site_review"><source>oauth.consent.row.scope.site_review</source><target>It can read and post site-review comments, and add cards to the board</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope.mcp"><source>oauth.consent.row.scope.mcp</source><target>It can read and write the documents, live reviews and board of one project</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope.site_review"><source>oauth.consent.row.scope.site_review</source><target>It can read and post live-review comments, and add cards to the boards of projects you own</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope.agent"><source>oauth.consent.row.scope.agent</source><target>It can list your projects, read their boards, and report what your agents do</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.mcp"><source>oauth.consent.row.scope_bounds.mcp</source><target>In one project only, acting as you. It cannot reach your account or your billing.</target></trans-unit>
-            <trans-unit id="oauth.consent.row.scope_bounds.site_review"><source>oauth.consent.row.scope_bounds.site_review</source><target>In one project only, acting as you. It cannot reach your account or your billing.</target></trans-unit>
+            <trans-unit id="oauth.consent.row.scope_bounds.site_review"><source>oauth.consent.row.scope_bounds.site_review</source><target>Only in projects you own, acting as you. It cannot reach your account or your billing.</target></trans-unit>
             <trans-unit id="oauth.consent.row.scope_bounds.agent"><source>oauth.consent.row.scope_bounds.agent</source><target>Across your projects, acting as you. It cannot reach your account or your billing.</target></trans-unit>
             <trans-unit id="oauth.consent.row.return"><source>oauth.consent.row.return</source><target>You return to %origin%</target></trans-unit>
             <trans-unit id="oauth.consent.row.return_remote"><source>oauth.consent.row.return_remote</source><target>That is the address the app gave Loupe for your answer.</target></trans-unit>
@@ -8231,7 +8243,7 @@
             <trans-unit id="oauth.connected_apps.revoke.cancel"><source>oauth.connected_apps.revoke.cancel</source><target>Cancel</target></trans-unit>
             <trans-unit id="oauth.connected_apps.revoke.confirm"><source>oauth.connected_apps.revoke.confirm</source><target>Revoke</target></trans-unit>
             <trans-unit id="oauth.connected_apps.flash.revoked"><source>oauth.connected_apps.flash.revoked</source><target>The app no longer has access to your account.</target></trans-unit>
-            <trans-unit id="oauth.connected_apps.preview_tokens.app_name"><source>oauth.connected_apps.preview_tokens.app_name</source><target>Site review widget</target></trans-unit>
+            <trans-unit id="oauth.connected_apps.preview_tokens.app_name"><source>oauth.connected_apps.preview_tokens.app_name</source><target>Live review widget</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.description"><source>oauth.connected_apps.preview_tokens.description</source><target>Signs the widget in on a card preview, with no click. One token for each preview.</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.list_label"><source>oauth.connected_apps.preview_tokens.list_label</source><target>Live preview tokens</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.empty"><source>oauth.connected_apps.preview_tokens.empty</source><target>No live preview tokens.</target></trans-unit>
@@ -8242,7 +8254,7 @@
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke.title"><source>oauth.connected_apps.preview_tokens.revoke.title</source><target>Revoke this preview token?</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke.description"><source>oauth.connected_apps.preview_tokens.revoke.description</source><target>The widget on this preview stops signing in at once. Other previews keep their tokens.</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.action"><source>oauth.connected_apps.preview_tokens.revoke_all.action</source><target>Revoke all</target></trans-unit>
-            <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.title"><source>oauth.connected_apps.preview_tokens.revoke_all.title</source><target>Revoke the site review widget?</target></trans-unit>
+            <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.title"><source>oauth.connected_apps.preview_tokens.revoke_all.title</source><target>Revoke the live review widget?</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.description"><source>oauth.connected_apps.preview_tokens.revoke_all.description</source><target>Every preview token and every widget sign-in stops working at once. To sign the widget in again, start a new preview or sign in from the widget.</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.revoke_all.confirm"><source>oauth.connected_apps.preview_tokens.revoke_all.confirm</source><target>Revoke all</target></trans-unit>
             <trans-unit id="oauth.connected_apps.preview_tokens.flash.revoked"><source>oauth.connected_apps.preview_tokens.flash.revoked</source><target>The preview token no longer works.</target></trans-unit>
@@ -8269,7 +8281,7 @@
             <trans-unit id="github.system_status.app_api.missing_permissions"><source>github.system_status.app_api.missing_permissions</source><target>These installations do not grant each permission Loupe reads: %installations%. On GitHub, give the App read access to checks, contents, metadata, pull requests and commit statuses, then let each account accept the new permissions.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.missing_comment_permission"><source>github.system_status.app_api.missing_comment_permission</source><target>The GitHub App cannot write to pull requests for the accounts %accounts%. Loupe cannot post fix run comments, or mark ready, draft or close an epic pull request. Grant Pull requests: read and write.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.missing_contents_write"><source>github.system_status.app_api.missing_contents_write</source><target>The GitHub App cannot write the contents of repositories for the accounts %accounts%. Loupe cannot sync a pull request branch that is behind its base for these accounts. Grant Contents: read and write to use the sync.</target></trans-unit>
-            <trans-unit id="github.system_status.app_api.missing_checks_write"><source>github.system_status.app_api.missing_checks_write</source><target>The GitHub App cannot write checks for the accounts %accounts%. Loupe cannot report the Loupe site review check on a pull request for these accounts. Grant Checks: read and write to use the check.</target></trans-unit>
+            <trans-unit id="github.system_status.app_api.missing_checks_write"><source>github.system_status.app_api.missing_checks_write</source><target>The GitHub App cannot write checks for the accounts %accounts%. Loupe cannot report the Loupe live review check on a pull request for these accounts. Grant Checks: read and write to use the check.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.missing_workflows_write"><source>github.system_status.app_api.missing_workflows_write</source><target>The GitHub App cannot update workflow files for the accounts %accounts%. Loupe cannot merge or sync a pull request that changes a file under .github/workflows/ for these accounts. Grant Workflows: read and write.</target></trans-unit>
             <trans-unit id="github.system_status.app_api.working"><source>github.system_status.app_api.working</source><target>{0}GitHub accepts the App key. No account has installed the App yet.|{1}GitHub accepts the App key, and its installation grants each permission Loupe reads.|]1,Inf[GitHub accepts the App key, and its %count% installations grant each permission Loupe reads.</target></trans-unit>
             <trans-unit id="check.github_hook_key.label"><source>check.github_hook_key.label</source><target>GitHub webhook secrets</target></trans-unit>
@@ -8427,8 +8439,8 @@
             <trans-unit id="workflow.waiting.not.card_fix_run_uncommented"><source>workflow.waiting.not.card_fix_run_uncommented</source><target>Waiting: an open or recent fix run of the card has no pull request comment.</target></trans-unit>
             <trans-unit id="workflow.waiting.card_pr_approval_stale"><source>workflow.waiting.card_pr_approval_stale</source><target>Waiting: no open pull request of the card has a stale approval without a notice.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.card_pr_approval_stale"><source>workflow.waiting.not.card_pr_approval_stale</source><target>Waiting: an open pull request of the card has a stale approval without a notice.</target></trans-unit>
-            <trans-unit id="workflow.waiting.site_review_check_stale"><source>workflow.waiting.site_review_check_stale</source><target>Waiting: the site review check of each open pull request is up to date.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.site_review_check_stale"><source>workflow.waiting.not.site_review_check_stale</source><target>Waiting: the site review check of an open pull request is out of date.</target></trans-unit>
+            <trans-unit id="workflow.waiting.site_review_check_stale"><source>workflow.waiting.site_review_check_stale</source><target>Waiting: the live review check of each open pull request is up to date.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.site_review_check_stale"><source>workflow.waiting.not.site_review_check_stale</source><target>Waiting: the live review check of an open pull request is out of date.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_due"><source>workflow.waiting.agent_review_due</source><target>Waiting: no open pull request head needs an agent review.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.agent_review_due"><source>workflow.waiting.not.agent_review_due</source><target>Waiting: the head of an open pull request needs an agent review.</target></trans-unit>
             <trans-unit id="workflow.waiting.agent_review_failed"><source>workflow.waiting.agent_review_failed</source><target>Waiting: no agent review of an open pull request head failed.</target></trans-unit>
@@ -8535,6 +8547,8 @@
             <trans-unit id="workflow.waiting.not.card_inbox_open_question_non_blocking"><source>workflow.waiting.not.card_inbox_open_question_non_blocking</source><target>Waiting: an open non-blocking inbox question names the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_linked"><source>workflow.waiting.pr_linked</source><target>Waiting: no pull request is linked to the card.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_linked"><source>workflow.waiting.not.pr_linked</source><target>Waiting: a pull request is linked to the card.</target></trans-unit>
+            <trans-unit id="workflow.waiting.pr_draft_open"><source>workflow.waiting.pr_draft_open</source><target>Waiting: no open pull request of the card is a draft.</target></trans-unit>
+            <trans-unit id="workflow.waiting.not.pr_draft_open"><source>workflow.waiting.not.pr_draft_open</source><target>Waiting: an open pull request of the card is a draft.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_all_finished_one_merged"><source>workflow.waiting.pr_all_finished_one_merged</source><target>Waiting: a pull request is still open, or none is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_all_finished_one_merged"><source>workflow.waiting.not.pr_all_finished_one_merged</source><target>Waiting: no pull request is open, and one is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.run_done_at_head"><source>workflow.waiting.run_done_at_head</source><target>Waiting: no matching work request ended done at the current head of the pull request.</target></trans-unit>
@@ -8823,10 +8837,10 @@
             <trans-unit id="readiness.discovery.reason.no_capable_taker_app_prompts"><source>readiness.discovery.reason.no_capable_taker_app_prompts</source><target>A bridge is online, but none can run discovery. Run `loupe init` again, so the bridge reports the app-prompts capability.</target></trans-unit>
             <trans-unit id="readiness.discovery.reason.worker_ended"><source>readiness.discovery.reason.worker_ended</source><target>The worker ended without a report. Open card #%number% to see its run.</target></trans-unit>
             <trans-unit id="board.verdict.action.post_review"><source>board.verdict.action.post_review</source><target>Posts your verdict as a review on the pull requests you pick.</target></trans-unit>
-            <trans-unit id="board.verdict.review.source"><source>board.verdict.review.source</source><target>Sent from the Loupe site review of card %number%. [Open the notes in Loupe](%card_url%)</target></trans-unit>
+            <trans-unit id="board.verdict.review.source"><source>board.verdict.review.source</source><target>Sent from the Loupe live review of card %number%. [Open the notes in Loupe](%card_url%)</target></trans-unit>
             <trans-unit id="board.verdict.review.preview"><source>board.verdict.review.preview</source><target>· [Open the preview](%preview_url%)</target></trans-unit>
-            <trans-unit id="board.site_review_check.title"><source>board.site_review_check.title</source><target>{0} No open site review notes|{1} One site review note is open|]1,Inf[ %count% site review notes are open</target></trans-unit>
-            <trans-unit id="board.site_review_check.summary_clear"><source>board.site_review_check.summary_clear</source><target>Every site review note of this card is closed.</target></trans-unit>
+            <trans-unit id="board.site_review_check.title"><source>board.site_review_check.title</source><target>{0} No open live review notes|{1} One live review note is open|]1,Inf[ %count% live review notes are open</target></trans-unit>
+            <trans-unit id="board.site_review_check.summary_clear"><source>board.site_review_check.summary_clear</source><target>Every live review note of this card is closed.</target></trans-unit>
             <trans-unit id="board.site_review_check.title_off"><source>board.site_review_check.title_off</source><target>Loupe no longer keeps this check</target></trans-unit>
             <trans-unit id="board.site_review_check.summary_unlinked"><source>board.site_review_check.summary_unlinked</source><target>No card links this pull request any more, so this check does not block it.</target></trans-unit>
             <trans-unit id="agent_review.check.title"><source>agent_review.check.title</source><target>Agent review: %findings%</target></trans-unit>

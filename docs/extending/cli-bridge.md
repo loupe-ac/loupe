@@ -1096,6 +1096,8 @@ default, and `autoUpdate: true` in `rules.yaml` turns them on. A development
 build, such as one from `just cli-build`, has no version. It never updates, and
 it logs `update_skipped` at start.
 
+On macOS, an update also installs the Live review panel of the new version. See [`loupe review ios`](../reference/cli.md#loupe-review-ios).
+
 ### The check
 
 The server declares the CLI versions it supports as a caret range, `^1.0` today,

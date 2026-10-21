@@ -112,7 +112,7 @@ module "app" {
   # Background worker, from the same image as the web service. Without it
   # nothing consumes the jobs or scheduler transports: queued mail is never
   # delivered, data exports never build, the trial-end sweep never runs, and the
-  # site-review outbox never drains.
+  # live-review outbox never drains.
   #
   # Supervisord runs two consumers (docker/prod/worker-supervisord.conf):
   # scheduler_default card_eval jobs, and card_sweep for the workflow sweep, so the sweep
@@ -121,7 +121,7 @@ module "app" {
   enable_worker  = true
   worker_command = "/usr/bin/supervisord -c /etc/worker-supervisord.conf"
 
-  # Mercure hub for site-review push, run as a second service in this app.
+  # Mercure hub for live-review push, run as a second service in this app.
   # Gated on the secret rather than hardcoded true, so the feature is cleanly
   # off until it is configured — the same shape as every extra_env entry below.
   # Without it, review submissions still save but never reach the bridge CLI,
@@ -203,6 +203,8 @@ module "app" {
     var.sentry_profiles_sample_rate == "" ? {} : { SENTRY_PROFILES_SAMPLE_RATE = { value = var.sentry_profiles_sample_rate } },
     var.sentry_browser_dsn == "" ? {} : { SENTRY_BROWSER_DSN = { value = var.sentry_browser_dsn } },
     var.sentry_browser_traces_sample_rate == "" ? {} : { SENTRY_BROWSER_TRACES_SAMPLE_RATE = { value = var.sentry_browser_traces_sample_rate } },
+    var.sentry_browser_replays_session_sample_rate == "" ? {} : { SENTRY_BROWSER_REPLAYS_SESSION_SAMPLE_RATE = { value = var.sentry_browser_replays_session_sample_rate } },
+    var.sentry_browser_replays_on_error_sample_rate == "" ? {} : { SENTRY_BROWSER_REPLAYS_ON_ERROR_SAMPLE_RATE = { value = var.sentry_browser_replays_on_error_sample_rate } },
     var.github_app_slug == "" ? {} : { GITHUB_APP_SLUG = { value = var.github_app_slug } },
     var.github_app_client_id == "" ? {} : { GITHUB_APP_CLIENT_ID = { value = var.github_app_client_id } },
     var.github_app_client_secret == "" ? {} : { GITHUB_APP_CLIENT_SECRET = { value = var.github_app_client_secret, type = "SECRET" } },

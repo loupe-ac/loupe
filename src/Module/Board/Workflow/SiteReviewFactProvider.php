@@ -92,7 +92,7 @@ final readonly class SiteReviewFactProvider implements FactProvider
      *
      * @param list<Card> $cards
      *
-     * @return list<array{id: string, url: string, body: string, anchorCount: int}>
+     * @return list<array{id: string, url: ?string, body: string, anchorCount: int}>
      */
     public function carriedPendingNotes(array $cards): array
     {
@@ -123,7 +123,7 @@ final readonly class SiteReviewFactProvider implements FactProvider
     /**
      * A digest of the notes in the order the check summary lists them.
      *
-     * @param list<array{id: string, url: string, body: string, anchorCount: int}> $notes
+     * @param list<array{id: string, url: ?string, body: string, anchorCount: int}> $notes
      */
     public function notesDigest(array $notes): string
     {

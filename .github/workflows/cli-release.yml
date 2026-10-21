@@ -10,16 +10,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: cli/go.mod
-          cache-dependency-path: cli/go.sum
       - name: Read the version
         id: version
         run: |
@@ -29,6 +24,136 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # Builds, signs and notarises the Live review app. The release job puts it in the darwin archives.
+  panel:
+    needs: version
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - name: Check the signing secrets
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+        run: |
+          missing=0
+          for name in MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD APPLE_NOTARY_KEY_ID APPLE_NOTARY_ISSUER_ID APPLE_NOTARY_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set. Add the secret to sign and notarise the Live review app."
+              missing=1
+            fi
+          done
+          exit "$missing"
+      - name: Name the temporary files
+        run: |
+          echo "KEYCHAIN=$RUNNER_TEMP/panel-signing.keychain-db" >> "$GITHUB_ENV"
+          echo "NOTARY_KEY_FILE=$RUNNER_TEMP/notary-key.p8" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Show the Xcode version
+        run: xcodebuild -version
+      - name: Test the panel
+        working-directory: cli/macos/LiveReview
+        run: swift test
+      - name: Import the signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          password=$(openssl rand -hex 24)
+          echo "::add-mask::$password"
+          certificate="$RUNNER_TEMP/certificate.p12"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$certificate"
+          security create-keychain -p "$password" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$password" "$KEYCHAIN"
+          security import "$certificate" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          rm -f "$certificate"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$KEYCHAIN" > /dev/null
+          existing=$(security list-keychains -d user | tr -d '"')
+          # shellcheck disable=SC2086
+          security list-keychains -d user -s "$KEYCHAIN" $existing
+      - name: Find the signing identity
+        id: identity
+        run: |
+          identity=$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | awk '/Developer ID Application/ { print $2; exit }')
+          if [ -z "$identity" ]; then
+            echo "::error::MACOS_CERTIFICATE holds no Developer ID Application identity."
+            exit 1
+          fi
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+      - name: Build and sign the app
+        env:
+          LIVE_REVIEW_SIGN_IDENTITY: ${{ steps.identity.outputs.identity }}
+          LIVE_REVIEW_VERSION: ${{ needs.version.outputs.version }}
+        run: sh cli/macos/LiveReview/Scripts/bundle.sh "$RUNNER_TEMP/panel"
+      - name: Notarise and staple the app
+        env:
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_NOTARY_KEY: ${{ secrets.APPLE_NOTARY_KEY }}
+        working-directory: ${{ runner.temp }}/panel
+        run: |
+          umask 077
+          printf '%s' "$APPLE_NOTARY_KEY" > "$NOTARY_KEY_FILE"
+          ditto -c -k --keepParent 'Live review.app' notarise.zip
+          xcrun notarytool submit notarise.zip --wait \
+            --key "$NOTARY_KEY_FILE" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER_ID" \
+            | tee notarytool.log
+          if ! grep -q 'status: Accepted' notarytool.log; then
+            echo "::error::Apple did not accept the Live review app for notarisation."
+            exit 1
+          fi
+          xcrun stapler staple 'Live review.app'
+      - name: Verify the app
+        working-directory: ${{ runner.temp }}/panel
+        run: |
+          codesign --verify --deep --strict --verbose=2 'Live review.app'
+          xcrun stapler validate 'Live review.app'
+      # A zip artifact loses file modes, so the app travels as a tar.
+      - name: Pack the app
+        working-directory: ${{ runner.temp }}/panel
+        run: COPYFILE_DISABLE=1 tar -cf panel.tar 'Live review.app'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: panel
+          path: ${{ runner.temp }}/panel/panel.tar
+          if-no-files-found: error
+      - name: Delete the keychain and the notary key
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+          rm -f "$NOTARY_KEY_FILE" "$RUNNER_TEMP/certificate.p12"
+
+  release:
+    needs: [version, panel]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - uses: actions/download-artifact@v8
+        with:
+          name: panel
+          path: ${{ runner.temp }}/panel-artifact
+      - name: Unpack the app
+        run: |
+          mkdir -p cli/panel
+          tar -xf "$RUNNER_TEMP/panel-artifact/panel.tar" -C cli/panel
+          if [ ! -f 'cli/panel/Live review.app/Contents/MacOS/LiveReview' ]; then
+            echo "::error::The panel artifact holds no Live review.app executable."
+            exit 1
+          fi
       - name: Vet and test
         working-directory: cli
         run: go vet ./... && go test ./...
@@ -40,7 +165,7 @@ jobs:
           args: release --clean --skip=publish,validate
           workdir: cli
         env:
-          GORELEASER_CURRENT_TAG: v${{ steps.version.outputs.version }}
+          GORELEASER_CURRENT_TAG: v${{ needs.version.outputs.version }}
       - name: Publish the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

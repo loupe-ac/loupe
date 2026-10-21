@@ -39,18 +39,6 @@ class SiteReviewComment implements ProjectScopedSubject
     #[ORM\Column(type: Types::JSON, nullable: true)]
     public ?array $strokes = null;
 
-    /**
-     * Anchor 0, repeated. Nothing here reads either one: the anchors are the
-     * record. A previous image maps both columns as non-nullable, so a rollback
-     * onto this schema can only hydrate rows that carry them. The contraction
-     * migration drops the columns and this mapping in the same release.
-     */
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $selector = '';
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $text = '';
-
     /** @var Collection<int, SiteReviewCommentAnchor> */
     #[ORM\OneToMany(targetEntity: SiteReviewCommentAnchor::class, mappedBy: 'comment', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['position' => 'ASC'])]
@@ -68,8 +56,9 @@ class SiteReviewComment implements ProjectScopedSubject
         #[ORM\Column(type: Types::TEXT)]
         public string $body,
 
-        #[ORM\Column(type: Types::TEXT)]
-        public readonly string $url,
+        /** Null for a native note, which has no page. */
+        #[ORM\Column(type: Types::TEXT, nullable: true)]
+        public readonly ?string $url,
 
         /**
          * What the embed's `data-context` said the page was, echoed back
@@ -91,6 +80,20 @@ class SiteReviewComment implements ProjectScopedSubject
 
         #[ORM\Column(length: 64, nullable: true)]
         public readonly ?string $deliveryHash = null,
+
+        // The default stays in the column until the contraction migration drops
+        // it, so a row the previous image writes still reads as a web note.
+        #[ORM\Column(length: 20, enumType: ReviewSurface::class, options: ['default' => 'web'])]
+        public readonly ReviewSurface $surface = ReviewSurface::Web,
+
+        /**
+         * What a native note says about the app, the device, the screen and the
+         * element. Nothing queries it. Null for a web note.
+         *
+         * @var array<string, mixed>|null
+         */
+        #[ORM\Column(type: Types::JSON, nullable: true)]
+        public readonly ?array $native = null,
     ) {
         $this->anchors = new ArrayCollection();
     }
@@ -107,10 +110,6 @@ class SiteReviewComment implements ProjectScopedSubject
         ?string $quoteSuffix = null,
     ): self {
         $position = $this->anchors->count();
-        if (0 === $position) {
-            $this->selector = $selector;
-            $this->text = $text;
-        }
 
         $this->anchors->add(new SiteReviewCommentAnchor(
             comment: $this,

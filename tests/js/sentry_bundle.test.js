@@ -7,6 +7,7 @@ import { beforeAll, expect, it } from 'vitest';
 import { initSentry } from '../../assets/lib/sentry.js';
 
 const BUNDLE = readFileSync('assets/sentry/bundle.tracing.min.js', 'utf8');
+const REPLAY = readFileSync('assets/sentry/replay.min.js', 'utf8');
 
 beforeAll(() => {
     // jsdom has no Performance Timeline API, which the SDK reads at start.
@@ -15,6 +16,7 @@ beforeAll(() => {
     performance.mark = () => {};
     performance.measure = () => {};
     (0, eval)(BUNDLE);
+    (0, eval)(REPLAY);
 
     for (const [name, content] of Object.entries({
         'loupe-route': 'app_reset_password',
@@ -27,6 +29,11 @@ beforeAll(() => {
         meta.content = content;
         document.head.append(meta);
     }
+});
+
+it('adds the replay integration to the SDK object', () => {
+    expect(typeof window.Sentry.replayIntegration).toBe('function');
+    expect(typeof window.Sentry.makeFetchTransport).toBe('function');
 });
 
 it('sends no part of the page path or query with the real SDK', async () => {
@@ -63,4 +70,15 @@ it('sends no part of the page path or query with the real SDK', async () => {
     expect(sent).not.toContain('SECRET123');
     expect(sent).not.toContain('?x=1');
     expect(sent).not.toContain('/forgot-password');
+});
+
+it('vendors the replay add-on at the SDK version of the tracing bundle', () => {
+    const version = (file) =>
+        readFileSync(file, 'utf8')
+            .split('\n', 1)[0]
+            .match(/\b(\d+\.\d+\.\d+)\b/)?.[1];
+
+    const tracing = version('assets/sentry/bundle.tracing.min.js');
+    expect(tracing).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(version('assets/sentry/replay.min.js')).toBe(tracing);
 });

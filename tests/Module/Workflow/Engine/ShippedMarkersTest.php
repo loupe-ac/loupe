@@ -7,6 +7,7 @@ namespace App\Tests\Module\Workflow\Engine;
 use App\Module\AgentReview\Workflow\DocumentReviewFacts;
 use App\Module\AgentReview\Workflow\DocumentReviewState;
 use App\Module\Board\Workflow\CardActivityFacts;
+use App\Module\Board\Workflow\ChildActivityFacts;
 use App\Module\Board\Workflow\ChildMark;
 use App\Module\Board\Workflow\ChildrenFacts;
 use App\Module\Board\Workflow\PauseFacts;
@@ -348,6 +349,49 @@ final class ShippedMarkersTest extends KernelTestCase
             $facts = FactsMother::facts(card: $epic, provided: [CardActivityFacts::class => $quiet, ChildrenFacts::class => new ChildrenFacts(1, 1, childMarks: [$kind => $mark])]);
             self::assertSame($idle, $marker->when->evaluate($facts), $kind);
         }
+    }
+
+    public function test_an_epic_with_a_child_run_open_shows_no_idle_marker(): void
+    {
+        $epic = FactsMother::card(slot: 'implementation', type: 'epic', childCount: 1, openChildCount: 1);
+
+        self::assertSame([], $this->keys(FactsMother::facts(card: $epic, provided: [
+            CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00')),
+            ChildActivityFacts::class => new ChildActivityFacts(new \DateTimeImmutable('2026-10-01 09:30:00'), true),
+        ])));
+    }
+
+    public function test_an_epic_counts_the_stuck_delay_from_the_newest_child_event(): void
+    {
+        $epic = FactsMother::card(slot: 'implementation', type: 'epic', childCount: 1, openChildCount: 1);
+        $facts = static fn (string $childEvent): Facts => FactsMother::facts(card: $epic, provided: [
+            CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00')),
+            ChildActivityFacts::class => new ChildActivityFacts(new \DateTimeImmutable($childEvent), false),
+        ]);
+
+        self::assertSame([], $this->keys($facts('2026-10-01 11:55:00')), 'the delay has not passed since the child event');
+        self::assertEquals(new \DateTimeImmutable('2026-10-01 12:10:00'), $this->writtenDueAt);
+        self::assertSame(['nothing-happened'], $this->keys($facts('2026-10-01 11:00:00')));
+    }
+
+    public function test_an_epic_with_all_quiet_shows_the_idle_marker(): void
+    {
+        $epic = FactsMother::card(slot: 'implementation', type: 'epic', childCount: 1, openChildCount: 1);
+
+        self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: $epic, provided: [
+            CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00')),
+            ChildActivityFacts::class => new ChildActivityFacts(new \DateTimeImmutable('2026-10-01 09:30:00'), false),
+        ])));
+    }
+
+    public function test_an_open_child_with_no_run_still_shows_the_idle_marker(): void
+    {
+        $card = FactsMother::card(slot: 'implementation', childCount: 1, openChildCount: 1);
+
+        self::assertSame(['nothing-happened'], $this->keys(FactsMother::facts(card: $card, provided: [
+            CardActivityFacts::class => new CardActivityFacts(new \DateTimeImmutable('2026-10-01 09:00:00')),
+            ChildActivityFacts::class => new ChildActivityFacts(null, false),
+        ])));
     }
 
     public function test_a_held_card_is_not_called_idle_and_shows_the_chip(): void

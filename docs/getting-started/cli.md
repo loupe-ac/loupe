@@ -59,6 +59,13 @@ the rule file when it is absent. `loupe update auto on` changes that value to
 [`loupe update auto`](../../cli/README.md#loupe-update-auto) describes the
 command, and the rare case where it cannot change the line.
 
+On macOS, the install also brings the Live review panel, an app for
+[reviewing an iOS app in the simulator](../using/live-review.md#reviewing-an-ios-app-in-the-simulator).
+The script keeps it in `~/Library/Application Support/loupe/live-review/`, and
+Homebrew keeps it in `libexec`. Each update of the script install installs the
+panel of the new version, and `brew upgrade loupe` does the same for Homebrew.
+A Linux install has no panel.
+
 A Homebrew install updates with `brew upgrade loupe`. With no bridge running,
 `loupe update` refuses to replace a binary that Homebrew installed, and prints
 that command.
@@ -194,4 +201,4 @@ describes each step. [Command-line bridge](../extending/cli-bridge.md) describes
 what the bridge does, and [`cli/README.md`](../../cli/README.md) lists every
 flag.
 
-Preview tokens are described in [Site review](../using/site-review.md#preview-sites).
+Preview tokens are described in [Live review](../using/live-review.md#preview-sites).

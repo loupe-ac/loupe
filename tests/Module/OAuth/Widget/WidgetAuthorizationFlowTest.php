@@ -73,7 +73,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         self::assertIsString($tokens['access_token']);
         self::assertIsString($tokens['refresh_token']);
 
-        $this->browser->request(Request::METHOD_GET, '/api/site-review/review', server: $this->bearer($tokens['access_token']));
+        $this->browser->request(Request::METHOD_GET, '/api/live-review/review', server: $this->bearer($tokens['access_token']));
         self::assertResponseIsSuccessful();
 
         $this->browser->request(Request::METHOD_POST, '/api/board/feedback', server: [
@@ -92,7 +92,7 @@ final class WidgetAuthorizationFlowTest extends WebTestCase
         ]);
         self::assertResponseIsSuccessful();
         self::assertIsString($refreshed['access_token']);
-        $this->browser->request(Request::METHOD_GET, '/api/site-review/review', server: $this->bearer($refreshed['access_token']));
+        $this->browser->request(Request::METHOD_GET, '/api/live-review/review', server: $this->bearer($refreshed['access_token']));
         self::assertResponseIsSuccessful();
     }
 

@@ -50,7 +50,7 @@ final class TemplateApprovalRulesTest extends KernelTestCase
         $binding = self::getContainer()->get(WorkflowBindingRepository::class)->findOneByProjectId($id);
         self::assertInstanceOf(WorkflowBinding::class, $binding);
         self::assertFalse($binding->definition[TemplateApprovalRules::KEY]);
-        self::assertSame(11, $binding->templateVersion);
+        self::assertSame(13, $binding->templateVersion);
     }
 
     public function test_a_write_announces_a_change_of_the_value_only(): void

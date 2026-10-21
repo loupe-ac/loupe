@@ -22,7 +22,7 @@ front of all of them. It costs one manual step: trusting a locally generated
 root certificate.
 
 Take **`no-proxy/`** to avoid that entirely. The cost is plain HTTP, which is
-fine for the app itself and awkward for the site-review widget — see that
+fine for the app itself and awkward for the live-review widget — see that
 directory's README.
 
 ## Adding one

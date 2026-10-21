@@ -1,5 +1,5 @@
 key: lifecycle
-version: 11
+version: 13
 defaultType: feature
 epicBranch: 'epic/{number}'
 agentReviewFailingSeverities: [important]
@@ -267,6 +267,7 @@ rules:
           all:
               - not: { card.type: { type: epic } }
               - pr.open: {}
+              - not: { card.pr.draft_open: {} }
               - not: { pr.draft: {} }
               - pr.checks_passed: {}
               - not: { pr.conflicting: {} }
@@ -744,7 +745,7 @@ markers:
       slots: [product-design, tech-design, implementation, in-review]
       when:
           all:
-              - card.quiet_for: {}
+              - card.quiet_for: { children: true }
               - not: { card.held: {} }
               - not:
                     any:

@@ -8,9 +8,11 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Repository\CardRepository;
 use App\Module\Board\Repository\CardSiteReviewCommentRepository;
 use App\Module\Project\Entity\Project;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Tests\Module\Board\BoardColumnFixtures;
 use App\Tests\Support\AgentCredential;
 use App\Tests\Support\OAuthScenario;
+use App\Tests\Support\TinyImage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -169,6 +171,185 @@ final class AddFeedbackApiTest extends WebTestCase
         $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function test_a_native_note_with_a_screenshot_is_stored_with_its_facts(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-native@example.com');
+        $png = TinyImage::png(5, 4);
+
+        $data = $this->post($client, $raw, $this->nativeNote(['screenshot' => ['contentType' => 'image/png', 'data' => base64_encode($png)]]));
+
+        self::assertResponseStatusCodeSame(201);
+        $link = $this->service(CardSiteReviewCommentRepository::class)->findForCard($this->service(CardRepository::class)->findBy(['project' => $project])[0])[0];
+        self::assertSame($data['commentId'], (string) $link->comment->id);
+        self::assertSame(ReviewSurface::IosSimulator, $link->comment->surface);
+        self::assertNull($link->comment->url);
+        self::assertSame([], $link->comment->anchors->toArray());
+        self::assertSame('com.example.treadmatic', $link->comment->native['app']['bundleId'] ?? null);
+        self::assertSame(['x' => 10.0, 'y' => 20.0, 'width' => 80.0, 'height' => 44.0], $link->comment->native['element']['frame'] ?? null);
+        $row = $this->em()->getConnection()->fetchAssociative('SELECT content_type, width, height, size FROM site_review_screenshots WHERE comment_id = ?', [$data['commentId']]);
+        self::assertSame(['content_type' => 'image/png', 'width' => 5, 'height' => 4, 'size' => \strlen($png)], $row);
+    }
+
+    public function test_a_web_note_can_carry_a_screenshot_too(): void
+    {
+        $client = static::createClient();
+        [$raw] = $this->projectWithToken($client, 'feedback-api-web-shot@example.com');
+
+        $data = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()], ['screenshot' => ['contentType' => 'image/jpeg', 'data' => base64_encode(TinyImage::jpeg())]]));
+
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame(1, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM site_review_screenshots WHERE comment_id = ?', [$data['commentId']]));
+    }
+
+    public function test_a_retried_native_note_answers_with_the_same_card_and_a_changed_image_conflicts(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-native-retry@example.com');
+        $shot = static fn (int $size): array => ['screenshot' => ['contentType' => 'image/png', 'data' => base64_encode(TinyImage::png($size, $size))]];
+        $extra = ['deliveryId' => '0199c0de-0000-4000-8000-000000000002'];
+
+        $first = $this->post($client, $raw, $this->nativeNote($shot(2) + $extra));
+        $second = $this->post($client, $raw, $this->nativeNote($shot(2) + $extra));
+        self::assertResponseStatusCodeSame(201);
+        self::assertSame($first, $second);
+
+        $this->post($client, $raw, $this->nativeNote($shot(3) + $extra));
+        self::assertResponseStatusCodeSame(409);
+        $changedFact = $this->nativeNote($shot(2) + $extra);
+        $changedFact['native']['screenTitle'] = 'Profile';
+        $this->post($client, $raw, $changedFact);
+        self::assertResponseStatusCodeSame(409);
+        self::assertCount(1, $this->service(CardRepository::class)->findBy(['project' => $project]));
+    }
+
+    /** @return iterable<string, array{array<string, mixed>, string}> */
+    public static function badScreenshots(): iterable
+    {
+        yield 'not base64' => [['contentType' => 'image/png', 'data' => '***'], 'screenshot_invalid'];
+        yield 'an svg' => [['contentType' => 'image/png', 'data' => base64_encode('<svg xmlns="http://www.w3.org/2000/svg"/>')], 'screenshot_invalid'];
+        yield 'a png declared as a jpeg' => [['contentType' => 'image/jpeg', 'data' => base64_encode(TinyImage::png())], 'screenshot_invalid'];
+        yield 'an unsupported content type' => [['contentType' => 'image/svg+xml', 'data' => base64_encode(TinyImage::png())], 'screenshot_invalid'];
+        yield 'no content type' => [['data' => base64_encode(TinyImage::png())], 'screenshot_invalid'];
+        yield 'blank data' => [['contentType' => 'image/png', 'data' => ''], 'screenshot_invalid'];
+        yield 'no data' => [['contentType' => 'image/png'], 'screenshot_invalid'];
+        yield 'over two mebibytes' => [['contentType' => 'image/png', 'data' => base64_encode(TinyImage::png().str_repeat("\x00", 2 * 1024 * 1024))], 'screenshot_too_large'];
+    }
+
+    /** @param array<string, mixed> $screenshot */
+    #[\PHPUnit\Framework\Attributes\DataProvider('badScreenshots')]
+    public function test_a_screenshot_that_is_not_an_acceptable_image_is_refused_before_any_write(array $screenshot, string $error): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-bad-shot-'.md5($error.json_encode($screenshot)).'@example.com');
+
+        $data = $this->post($client, $raw, $this->nativeNote(['screenshot' => $screenshot]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(['error' => $error], $data);
+        self::assertCount(0, $this->service(CardRepository::class)->findBy(['project' => $project]));
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM site_review_screenshots'));
+    }
+
+    /** @return iterable<string, array{callable(array<string, mixed>): array<string, mixed>}> */
+    public static function inconsistentNotes(): iterable
+    {
+        yield 'a native note with no facts' => [static function (array $note): array {
+            unset($note['native']);
+
+            return $note;
+        }];
+        yield 'a native note with a page' => [static fn (array $note): array => $note + ['url' => 'https://app.localhost/x']];
+        yield 'a web note with native facts' => [static fn (array $note): array => ['surface' => 'web', 'url' => 'https://app.localhost/x'] + $note];
+        yield 'a web note with no page' => [static fn (array $note): array => ['surface' => 'web', 'native' => null] + $note];
+        yield 'an unknown surface' => [static fn (array $note): array => ['surface' => 'android'] + $note];
+        yield 'native facts without a bundle id' => [static function (array $note): array {
+            unset($note['native']['bundleId']);
+
+            return $note;
+        }];
+    }
+
+    /** @param callable(array<string, mixed>): array<string, mixed> $break */
+    #[\PHPUnit\Framework\Attributes\DataProvider('inconsistentNotes')]
+    public function test_a_note_whose_surface_and_facts_disagree_fails_validation(callable $break): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'feedback-api-shape-'.uniqid().'@example.com');
+
+        $this->post($client, $raw, $break($this->nativeNote()));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertCount(0, $this->service(CardRepository::class)->findBy(['project' => $project]));
+    }
+
+    public function test_the_review_list_serves_web_notes_unless_asked_for_native_ones(): void
+    {
+        $client = static::createClient();
+        [$raw] = $this->projectWithToken($client, 'feedback-api-list@example.com');
+        $web = $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
+        $native = $this->post($client, $raw, $this->nativeNote());
+
+        $ids = fn (string $query): array => array_column($this->get($client, $raw, '/api/live-review/review'.$query)['comments'] ?? [], 'id');
+
+        self::assertSame([$web['commentId']], $ids(''));
+        self::assertSame([$web['commentId']], $ids('?surface=web'));
+        self::assertSame([$native['commentId']], $ids('?surface=ios-simulator'));
+        $listed = $this->get($client, $raw, '/api/live-review/review?surface=ios-simulator')['comments'][0];
+        self::assertNull($listed['url']);
+        self::assertSame('ios-simulator', $listed['surface']);
+        self::assertSame('com.example.treadmatic', $listed['native']['app']['bundleId']);
+        self::assertSame(['selector' => '', 'text' => ''], ['selector' => $listed['selector'], 'text' => $listed['text']]);
+
+        $this->get($client, $raw, '/api/live-review/review?surface=android');
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function test_the_review_response_keeps_the_selector_and_text_of_anchor_zero(): void
+    {
+        $client = static::createClient();
+        [$raw] = $this->projectWithToken($client, 'feedback-api-list-legacy@example.com');
+        $this->post($client, $raw, $this->note(['newCard' => new \stdClass()]));
+
+        $listed = $this->get($client, $raw, '/api/live-review/review')['comments'][0];
+
+        self::assertSame('.footer', $listed['selector']);
+        self::assertSame('Footer', $listed['text']);
+        self::assertSame('web', $listed['surface']);
+    }
+
+    /**
+     * @param array<string, mixed> $extra
+     *
+     * @return array<string, mixed>
+     */
+    private function nativeNote(array $extra = []): array
+    {
+        return $extra + [
+            'surface' => 'ios-simulator',
+            'body' => 'The Save button is clipped',
+            'native' => [
+                'appName' => 'Treadmatic',
+                'bundleId' => 'com.example.treadmatic',
+                'deviceName' => 'iPhone 17 Pro',
+                'udid' => 'A1B2C3D4',
+                'osVersion' => 'iOS-26-5',
+                'screenTitle' => 'Settings',
+                'element' => ['role' => 'AXButton', 'label' => 'Save', 'identifier' => null, 'frame' => ['x' => 10, 'y' => 20, 'width' => 80, 'height' => 44]],
+            ],
+            'target' => ['newCard' => new \stdClass()],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function get(KernelBrowser $client, string $raw, string $path): array
+    {
+        $client->request(Request::METHOD_GET, $path, server: ['HTTP_AUTHORIZATION' => 'Bearer '.$raw, 'HTTP_ORIGIN' => 'https://app.localhost']);
+        $data = json_decode((string) $client->getResponse()->getContent(), true);
+
+        return \is_array($data) ? $data : [];
     }
 
     /**

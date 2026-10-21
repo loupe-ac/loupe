@@ -120,6 +120,20 @@ final class VerdictReviewSettlerTest extends KernelTestCase
         );
     }
 
+    public function test_a_native_note_posts_its_text_with_no_page_line(): void
+    {
+        $card = $this->card($this->project);
+        $notes = [['id' => 'note-1', 'url' => null, 'body' => 'Button is clipped', 'anchorCount' => 0]];
+        $this->delivery($card, 7, CardVerdictKind::RequestChanges, '', $notes);
+
+        $this->settle($card);
+
+        self::assertSame(
+            $this->sourceLine($card)."\n\nButton is clipped\n<!-- loupe-note:note-1 -->",
+            $this->poster->posts[0]['body'],
+        );
+    }
+
     public function test_an_approval_with_no_message_and_no_note_names_the_site_review(): void
     {
         $card = $this->card($this->project);
@@ -381,7 +395,7 @@ final class VerdictReviewSettlerTest extends KernelTestCase
             'tab' => 'feedback',
         ]);
 
-        return \sprintf('Sent from the Loupe site review of card %d. [Open the notes in Loupe](%s)%s', $card->number, $url, $suffix);
+        return \sprintf('Sent from the Loupe live review of card %d. [Open the notes in Loupe](%s)%s', $card->number, $url, $suffix);
     }
 
     private function settler(): VerdictReviewSettler
@@ -402,7 +416,7 @@ final class VerdictReviewSettlerTest extends KernelTestCase
     }
 
     /**
-     * @param list<array{id: string, url: string, body: string, anchorCount: int}> $notes
+     * @param list<array{id: string, url: ?string, body: string, anchorCount: int}> $notes
      */
     private function delivery(Card $card, int $number, CardVerdictKind $kind, string $message, array $notes = [], ?string $authorId = null, bool $reviewer = true, bool $authorRead = true): CardVerdictDelivery
     {

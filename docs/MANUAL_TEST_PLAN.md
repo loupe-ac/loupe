@@ -195,6 +195,69 @@ hosted service. Development and test show it at once, because
 
 ---
 
+## 9. Live review panel on Xcode 27
+
+**UNCOVERED.** No automated test runs the panel against Device Hub. Run these checks with the
+panel from a release build, signed with the Developer ID certificate and
+notarised. Use a Mac with Xcode 27 and a booted simulator open in Device Hub.
+Run `loupe review ios` in a folder with a `.loupe.yaml` file. Write each result
+in the line that starts with `Result:`.
+
+### The Accessibility prompt names the panel
+
+1. Remove **Live review** from System Settings, Privacy & Security,
+   Accessibility, when it is in the list.
+2. Run `loupe review ios` from a terminal.
+3. Read the macOS prompt for the Accessibility permission.
+
+Expected: the prompt names **Live review**. It does not name the terminal or
+`loupe`. After you tick **Live review** in the list, the panel leaves the
+permission view without a restart.
+
+Also note whether macOS asks for the Screen Recording permission. The panel
+reads the window titles of Device Hub with the window list of the system, and
+macOS can ask for that permission for another app's window titles. Write the
+answer in the result line.
+
+Result:
+
+### The permission survives a rebuild with the same certificate
+
+1. Grant the permission to the panel from release N.
+2. Install release N+1, which holds a panel signed with the same certificate.
+   Run `loupe update`, or install the release again.
+3. Run `loupe review ios`.
+
+Expected: the panel starts without the permission prompt, and it shows the
+sign-in view or the review view, not the permission view.
+
+An ad hoc build from `Scripts/bundle.sh` does not keep the grant. Each build
+has a new signature, so macOS asks again. This difference is the reason to test
+with a release build.
+
+Result:
+
+### The screen title names a screen in four apps
+
+The panel names a screen from its accessibility elements. It takes the first
+heading from the top of the screen. When the screen has no heading, it takes the
+first text inside the navigation bar. When it finds neither, the name is empty.
+
+For each app, open a screen, pick any element, and press **Save**. Then open the
+card in Loupe and read **Screen** in the facts of the note.
+
+| App | Screen to open | Expected **Screen** | Result |
+|---|---|---|---|
+| Apple Settings | The top list, then **General** | The title that the screen shows, such as **Settings**, then **General** | |
+| Treadmatic (SwiftUI) | A screen with a navigation title | The navigation title | |
+| A React Native app | A screen with a header | The text of the header | |
+| A Flutter app | A screen with an app bar | The text of the app bar, or no name when the app exposes no heading or navigation bar text | |
+
+A screen with no name is a finding to record, not a failure of the panel. Write
+which app it came from and what the screen showed.
+
+---
+
 ## What the automated gates cannot see
 
 Worth knowing when deciding how much of the above to actually do:

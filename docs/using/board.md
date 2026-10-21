@@ -8,7 +8,7 @@ piece of work: what it asks for, how urgent it is, and which column it sits in.
 A person works the board on its own screen. An agent reads and writes the same
 board through the MCP endpoint.
 
-Every instance has the board. [Site review](site-review.md) writes each note to
+Every instance has the board. [Live review](live-review.md) writes each note to
 a card.
 
 ## Columns
@@ -189,7 +189,7 @@ is in a state. The mark says what the card needs now:
 
 | State | Means |
 |---|---|
-| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card for longer than the stuck delay and no other reason applies. The remedy line on the card page says what to do |
+| **Stuck** | The card is paused, its last worker run gave up, was blocked, failed or had no result and no new work is under way, a pull request has failed checks or a conflict and no fix is under way, or a pull request has been ready to merge for longer than the stuck delay and no merge is under way. Work that waits also makes a card **Stuck** when no online bridge could take it, such as when every bridge is offline or none runs that kind of work. The remedy line links to the Agents page. A card in Product design, Tech design, Implementation or In review also shows it when nothing happened on the card or on its children for longer than the stuck delay and no other reason applies. An epic never shows it while a child has an open worker run. The remedy line on the card page says what to do |
 | **Needs you** | A document of the card waits for your review, a pull request waits for your approval, or an inbox question names the card |
 | **Working** | A worker runs on the card, a person has an interactive session open on the card, or Loupe asked the forge to change a pull request and the forge has not answered |
 | **Waiting** | Work waits for a free spot on a bridge that could take it, the only online bridges that could take the work of the card are paused (the remedy line links to the Agents page), a card that blocks this card is still open, a pull request waits for its parent pull request or branch to merge, or the checks of a pull request run. The mark is a grey hourglass |
@@ -358,7 +358,7 @@ the time out.
 
 The page carries the full Markdown body, every pull request link, and the times
 the card was created, last changed and completed. Its **Feedback** tab shows the
-site-review notes on the card. See
+live-review notes on the card. See
 [Review feedback on a card](#review-feedback-on-a-card). Its Status field is a
 column control, which moves a card
 with no drag. That is the way to move a card from a keyboard.
@@ -407,14 +407,14 @@ under the row says why, for example after a pull request merged. An agent's
 move inside a worker run names that run on the same line. The tab also
 records when the automation asked for a fix or stopped, with the reason, when
 a pull request was ready to merge, when a verdict was sent from the
-site-review widget, and when an approval started or ended the override of a
+live-review widget, and when an approval started or ended the override of a
 failed agent review. A finished agent run shows its
 rule, its duration and its result, and it links to the run while the run is
 kept.
 
 A row names a person by their full name. An agent's change reads **Agent for**
 and the name of the person the agent works for. A change by the app reads
-**Loupe**. A change from the site-review widget reads **A reviewer**, because
+**Loupe**. A change from the live-review widget reads **A reviewer**, because
 the widget does not name its visitor. A verdict is the exception, because the
 reviewer signs in to send it, so its row names the reviewer. A deleted account reads **A deleted
 user**. The tab shows 50 rows, and **Show older** loads the next 50 in
@@ -728,15 +728,15 @@ to `main`.
 | Type | A type that the workflow template declares. `board_columns` lists them. |
 | Status | The column the card sits in. The tools report the column's slug. |
 | Reporter | `human`, `agent` or `reviewer`. It records who raised the card. |
-| Source | Where the card came from: a person, the site review widget, a worker run, an agent outside a run, or Loupe. It never changes. |
+| Source | Where the card came from: a person, the live review widget, a worker run, an agent outside a run, or Loupe. It never changes. |
 | Pull requests | Any number of links, each with the last state Loupe read. See below. |
 | Linked cards | Other cards of the project, each with a kind. See [Cards linked to a card](#cards-linked-to-a-card). |
 
 A card also carries the moment it was created and the moment it last changed. A
 card in a terminal column carries its completion time as well.
 
-The site-review widget gives the default type of the workflow template to each
-note card and review card it creates, and the source site review widget.
+The live-review widget gives the default type of the workflow template to each
+note card and review card it creates, and the source live review widget.
 
 The source is set once, when the card is created. A card made by `card_create`
 through a worker run records that run and the card of the run. A card made by an
@@ -751,7 +751,7 @@ from one a person dictated. An agent writing down what a person asked for passes
 `human` at creation.
 
 An MCP caller may claim `human` or `agent` only. `card_create` refuses
-`reviewer`, because the site-review widget owns that value. A filter is the
+`reviewer`, because the live-review widget owns that value. A filter is the
 other way round: `card_list` matches all three, so the widget's cards stay
 readable.
 
@@ -990,8 +990,11 @@ It pages the same way `card_list` does: `perPage` holds 25 rows by default and
 row is the same summary `card_list` returns, so call `card_get` for a body.
 
 `card_get` returns one card with its full Markdown body, every pull request
-linked to it, and all of its feedback, under `siteReviewComments`. Use a card id that
-`card_list`, `card_search` or `card_create` gave you, or the card number.
+linked to it, and all of its feedback, under `siteReviewComments`. Each feedback item
+carries `surface`, `native` and `screenshot`, and the answer carries the images of the
+pending notes after the JSON, at most ten, with `imagesOmitted` for the rest. See
+[A feedback item says where it came from](mcp.md#a-feedback-item-says-where-it-came-from-and-may-carry-an-image).
+Use a card id that `card_list`, `card_search` or `card_create` gave you, or the card number.
 
 Each entry of `pullRequests` carries `state`, the last state Loupe read:
 `state`, `draft`, `checks`, `failedChecks`, `mergeability`, `review`,
@@ -1067,7 +1070,7 @@ has no event.
 
 ## Cards raised from the review widget
 
-Every note from the [site-review widget](site-review.md) lands on a card. The
+Every note from the [live-review widget](live-review.md) lands on a card. The
 reviewer chooses once where notes go: a new card for each note, one card for
 the whole review, or a new card for each note under an epic. The widget can
 pick an open card or epic, and it can create one.
@@ -1178,13 +1181,17 @@ breakdown then cuts `epic/<n>` from a `main` that holds the code of the blocker.
 
 ## Review feedback on a card
 
-Each site-review note is feedback on one card. The widget writes the note and
+Each live-review note is feedback on one card. The widget writes the note and
 its card link in one request, so a new note never exists without its card. A
 preview page can lock the widget to one card, through `data-context` and
-`SITE_REVIEW_WIDGET_CONTEXT`. See [Site review](site-review.md#a-preview-page-locks-the-card).
+`SITE_REVIEW_WIDGET_CONTEXT`. See [Live review](live-review.md#a-preview-page-locks-the-card).
 
 The card page's **Feedback** tab lists each note with its page, its elements
-and its status. A note moves through three states:
+and its status. A note from a native app shows the source **iOS simulator**
+instead of the widget, and no page link. Its **Captured elements** list holds the
+device, the iOS version, the app, the screen title and the element the reviewer
+picked. A note that has a screenshot shows a thumbnail. Press the thumbnail to
+open the full image in a dialog. A note moves through three states:
 
 | Status | Who sets it |
 |---|---|
@@ -1217,7 +1224,7 @@ requests, as soon as the rule fires:
 
 - The verdict becomes a review under the reviewer's own GitHub account. On the
   reviewer's own pull request it becomes a comment. Each review opens with a
-  line that names the Loupe site review and links to the card.
+  line that names the Loupe live review and links to the card.
 - The check fails while a pending note that a verdict carried remains. The check
   also runs when nobody sends a verdict. It is green until a verdict carries a
   note. When two cards link one pull request, the check counts the pending notes

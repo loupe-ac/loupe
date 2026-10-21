@@ -52,11 +52,38 @@ const releasesJSON = `[
 
 var platforms = []string{"darwin_amd64", "darwin_arm64", "linux_amd64", "linux_arm64"}
 
-func archive(t *testing.T, loupe string) []byte {
+// appFiles is the fake panel of a darwin archive: name, mode and content.
+var appFiles = []struct {
+	name string
+	mode int64
+	body string
+}{
+	{"Live review.app/", 0o755, ""},
+	{"Live review.app/Contents/", 0o755, ""},
+	{"Live review.app/Contents/MacOS/", 0o755, ""},
+	{"Live review.app/Contents/MacOS/panel", 0o755, "#!/bin/sh\n"},
+	{"Live review.app/Contents/Info.plist", 0o644, "plist"},
+}
+
+func archive(t *testing.T, loupe string, app bool) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
+	if app {
+		for _, f := range appFiles {
+			h := &tar.Header{Name: f.name, Mode: f.mode, Size: int64(len(f.body))}
+			if strings.HasSuffix(f.name, "/") {
+				h.Typeflag = tar.TypeDir
+			}
+			if err := tw.WriteHeader(h); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := tw.Write([]byte(f.body)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	if err := tw.WriteHeader(&tar.Header{Name: "loupe", Mode: 0o755, Size: int64(len(loupe))}); err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +111,7 @@ func release(t *testing.T, s setup, requested *[]string) *httptest.Server {
 	if loupe == "" {
 		loupe = fakeLoupe
 	}
-	body := archive(t, loupe)
+	body := archive(t, loupe, s.app)
 	corrupt, decoy, pages := s.corrupt, s.decoy, s.pages
 	sum := sha256.Sum256(body)
 	hexSum := hex.EncodeToString(sum[:])
@@ -165,6 +192,10 @@ type setup struct {
 	pages      []string
 	// loupe replaces the binary in the release archive.
 	loupe string
+	// app puts Live review.app in every archive.
+	app bool
+	// darwin shadows uname, so the script sees macOS on arm64.
+	darwin bool
 	// tty holds the answers of a terminal session, one per line.
 	tty string
 	// fakes holds extra commands, by name, that shadow the real ones.
@@ -199,12 +230,18 @@ func scriptPath(t *testing.T) string {
 
 func run(t *testing.T, s setup, args ...string) result {
 	t.Helper()
+
+	return runIn(t, t.TempDir(), s, args...)
+}
+
+// runIn runs the script with HOME set to home, which may hold an earlier install.
+func runIn(t *testing.T, home string, s setup, args ...string) result {
+	t.Helper()
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh is not available")
 	}
 	var requested []string
 	srv := release(t, s, &requested)
-	home := t.TempDir()
 
 	// A fake brew comes first, so a real Homebrew on the machine never answers.
 	fakeBin := filepath.Join(home, "fakebin")
@@ -217,6 +254,12 @@ func run(t *testing.T, s setup, args ...string) result {
 	}
 	if err := os.WriteFile(filepath.Join(fakeBin, "brew"), []byte("#!/bin/sh\nexit "+brewExit+"\n"), 0o755); err != nil {
 		t.Fatal(err)
+	}
+	if s.darwin {
+		uname := "#!/bin/sh\nif [ \"$1\" = -s ]; then echo Darwin; else echo arm64; fi\n"
+		if err := os.WriteFile(filepath.Join(fakeBin, "uname"), []byte(uname), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for name, body := range s.fakes {
 		if err := os.WriteFile(filepath.Join(fakeBin, name), []byte(body), 0o755); err != nil {
@@ -602,4 +645,137 @@ func TestInstallFailsWhenAutoUpdateCannotBeTurnedOn(t *testing.T) {
 	assertInstalled(t, bin)
 	assertContains(t, r.out, "Installed loupe 1.10.0", "cannot write the rule file", "Auto-update: unknown",
 		"automatic updates are NOT on", "loupe update auto on", "loupe init --url")
+}
+
+func panelDir(home string) string {
+	return filepath.Join(home, "Library", "Application Support", "loupe", "live-review")
+}
+
+func exitCode(err error) int {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode()
+	}
+
+	return 0
+}
+
+func TestInstallPutsThePanelInTheConfigDir(t *testing.T) {
+	r := run(t, setup{darwin: true, app: true})
+	if r.err != nil {
+		t.Fatalf("install failed: %v\n%s", r.err, r.out)
+	}
+	app := filepath.Join(panelDir(r.home), "1.10.0", "Live review.app")
+	assertContains(t, r.out, "Installed the Live review panel at "+app+".")
+	for _, f := range appFiles {
+		path := filepath.Join(r.home, "Library", "Application Support", "loupe", "live-review", "1.10.0", strings.TrimSuffix(f.name, "/"))
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("missing %s: %v", path, err)
+		}
+		if info.Mode().Perm() != os.FileMode(f.mode) {
+			t.Errorf("%s has mode %v, want %v", f.name, info.Mode().Perm(), os.FileMode(f.mode))
+		}
+	}
+	assertInstalled(t, filepath.Join(r.home, ".local", "bin", "loupe"))
+	left, _ := filepath.Glob(filepath.Join(panelDir(r.home), ".install.*"))
+	if len(left) > 0 {
+		t.Errorf("a staging directory stays behind: %v", left)
+	}
+}
+
+func TestInstallWithoutAPanelInstallsOnlyLoupe(t *testing.T) {
+	r := run(t, setup{darwin: true})
+	if r.err != nil {
+		t.Fatalf("install failed: %v\n%s", r.err, r.out)
+	}
+	assertInstalled(t, filepath.Join(r.home, ".local", "bin", "loupe"))
+	if strings.Contains(r.out, "Live review") {
+		t.Errorf("the output mentions the panel:\n%s", r.out)
+	}
+	if _, err := os.Stat(panelDir(r.home)); err == nil {
+		t.Errorf("the script made the panel directory")
+	}
+}
+
+func TestInstallIgnoresThePanelOnLinux(t *testing.T) {
+	r := run(t, setup{app: true, fakes: map[string]string{"uname": "#!/bin/sh\nif [ \"$1\" = -s ]; then echo Linux; else echo x86_64; fi\n"}})
+	if r.err != nil {
+		t.Fatalf("install failed: %v\n%s", r.err, r.out)
+	}
+	if _, err := os.Stat(filepath.Join(r.home, "Library")); err == nil {
+		t.Errorf("the script installed a panel on Linux")
+	}
+}
+
+func TestInstallReplacesThePanelAndPrunesOldVersions(t *testing.T) {
+	r := run(t, setup{darwin: true, app: true}, "--version", "1.3.0")
+	if r.err != nil {
+		t.Fatalf("install failed: %v\n%s", r.err, r.out)
+	}
+	home := r.home
+	for _, v := range []string{"1.2.0", "1.3.0", "1.9.0"} {
+		d := filepath.Join(panelDir(home), v, "Live review.app")
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, "stale"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A second run uses the same home, so it needs a script run in that home.
+	second := runIn(t, home, setup{darwin: true, app: true}, "--version", "1.3.0")
+	if second.err != nil {
+		t.Fatalf("second install failed: %v\n%s", second.err, second.out)
+	}
+	kept, _ := filepath.Glob(filepath.Join(panelDir(home), "*"))
+	if len(kept) != 1 || filepath.Base(kept[0]) != "1.3.0" {
+		t.Errorf("want only 1.3.0 left, got %v", kept)
+	}
+	app := filepath.Join(panelDir(home), "1.3.0", "Live review.app")
+	if _, err := os.Stat(filepath.Join(app, "stale")); err == nil {
+		t.Errorf("the old copy of 1.3.0 was not replaced")
+	}
+	if _, err := os.Stat(filepath.Join(app, "Contents", "Info.plist")); err != nil {
+		t.Errorf("the new copy is missing: %v", err)
+	}
+}
+
+func TestInstallKeepsLoupeWhenThePanelFails(t *testing.T) {
+	r := run(t, setup{darwin: true, app: true, prepare: func(home string) []string {
+		if err := os.MkdirAll(filepath.Dir(panelDir(home)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(panelDir(home), []byte("in the way"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		return nil
+	}})
+	if got := exitCode(r.err); got != 3 {
+		t.Fatalf("want exit status 3, got %v:\n%s", r.err, r.out)
+	}
+	assertInstalled(t, filepath.Join(r.home, ".local", "bin", "loupe"))
+	assertContains(t, r.out, "Installed loupe 1.10.0", "could not install the Live review panel", "panel is NOT installed")
+	if strings.Contains(r.out, "Installed the Live review panel") {
+		t.Errorf("the output claims success:\n%s", r.out)
+	}
+}
+
+func TestInstallReportsBothFailuresWithStatus4(t *testing.T) {
+	failing := "#!/bin/sh\necho 'error: no' >&2\nexit 1\n"
+	r := run(t, setup{darwin: true, app: true, loupe: failing, prepare: func(home string) []string {
+		if err := os.MkdirAll(filepath.Dir(panelDir(home)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(panelDir(home), []byte("in the way"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		return nil
+	}}, "--auto-update")
+	if got := exitCode(r.err); got != 4 {
+		t.Fatalf("want exit status 4, got %v:\n%s", r.err, r.out)
+	}
+	assertContains(t, r.out, "panel is NOT installed", "Automatic updates are NOT on")
 }

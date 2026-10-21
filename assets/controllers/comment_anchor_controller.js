@@ -862,6 +862,14 @@ export default class extends Controller {
             if (this.#threadOpen()) {
                 return;
             }
+            // A stream replaced the open card, and its reopen waits for the
+            // next layout. Escape closes it there.
+            if (this.openCard === null && this.openThreadId !== null) {
+                this.threadToReopen = null;
+                this.openThreadId = null;
+                this.#clearActiveHighlight();
+                return;
+            }
             if (this.#anyComposerOpen()) {
                 this.hideComposer(event);
             } else {

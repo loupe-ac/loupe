@@ -120,8 +120,8 @@ worktree-tailwind:
 lint:
     vendor/bin/parallel-lint --exclude vendor --exclude var --exclude node_modules --exclude .worktrees --exclude .claude .
     php bin/changelog.php --check
-    npx prettier --check --log-level warn assets/ e2e/ public/site-review/ tests/js/
-    npx eslint public/site-review/widget.js assets/controllers/
+    npx prettier --check --log-level warn assets/ e2e/ public/live-review/ tests/js/
+    npx eslint public/live-review/widget.js assets/controllers/
     cd e2e && npx eslint .
 
 lint-e2e:
@@ -134,7 +134,7 @@ twig-cs-fix:
     vendor/bin/twig-cs-fixer fix
 
 prettier:
-    npx prettier --write --log-level warn assets/ e2e/ public/site-review/ tests/js/
+    npx prettier --write --log-level warn assets/ e2e/ public/live-review/ tests/js/
 
 rector:
     vendor/bin/rector

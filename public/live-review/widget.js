@@ -35,7 +35,7 @@
     // stale; the document is the source of truth afterwards.
     const pageMarker = () => {
         const tag = document.querySelector(
-            'script[src*="site-review/widget.js"]',
+            'script[src*="live-review/widget.js"]',
         );
 
         // A tag with no attribute means this page names no card, and must not
@@ -50,7 +50,7 @@
     // a restarted preview carries a new token.
     const pagePreviewToken = () => {
         const tag = document.querySelector(
-            'script[src*="site-review/widget.js"]',
+            'script[src*="live-review/widget.js"]',
         );
 
         return tag
@@ -274,14 +274,8 @@
     const ALT_LABEL = IS_MAC ? '⌥' : 'Alt';
     const modHeld = (event) => (IS_MAC ? event.metaKey : event.ctrlKey);
 
-    // Anchors of a comment, tolerating a pre-anchors server that sends only the
-    // scalar selector/text pair.
-    const anchorsOf = (comment) => {
-        if (Array.isArray(comment.anchors)) return comment.anchors;
-        return comment.selector
-            ? [{ selector: comment.selector, text: comment.text || '' }]
-            : [];
-    };
+    const anchorsOf = (comment) =>
+        Array.isArray(comment.anchors) ? comment.anchors : [];
 
     // Strokes of a saved comment, tolerating a server that predates the column.
     const strokesOf = (comment) =>
@@ -521,7 +515,7 @@
         try {
             const payload = await api(
                 'GET',
-                '/api/site-review/review?scope=' +
+                '/api/live-review/review?scope=' +
                     encodeURIComponent(scope) +
                     (asked ? '&context=' + encodeURIComponent(asked) : ''),
             );
@@ -2690,7 +2684,7 @@
     // send the reader down the wrong path.
     const fatalDetail = ({ status, code }) => {
         if ('insufficient_scope' === code) {
-            return 'This sign-in does not cover site review. Sign in again, and allow the site-review access the page asks for.';
+            return 'This sign-in does not cover live review. Sign in again, and allow the live-review access the page asks for.';
         }
         if (403 === status) {
             return 'This account cannot review this project. Sign in as a person the project allows.';
@@ -5261,7 +5255,7 @@
                     throw Object.assign(new Error('HTTP 404'), { status: 404 });
                 const updated = await api(
                     'PATCH',
-                    `/api/site-review/comments/${target.id}`,
+                    `/api/live-review/comments/${target.id}`,
                     { body },
                 );
                 target.body = body;
@@ -5406,7 +5400,7 @@
         sync();
         try {
             await ready;
-            await api('POST', `/api/site-review/comments/${target.id}/resolve`);
+            await api('POST', `/api/live-review/comments/${target.id}/resolve`);
             // By id: the list can change while the request runs.
             comments = comments.filter((comment) => comment.id !== target.id);
             flashSaved('Marked resolved');

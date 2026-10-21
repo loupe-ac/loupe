@@ -166,7 +166,7 @@ other card, and nobody tells that card's writer. Read the card before you write.
 `siteReviewComments` is read-only, on `card_get` and on `card_list` with `full`.
 It lists the feedback items that belong to the card. Each item carries `id`,
 `url`, `anchors`, `body`, `hasDrawing`, `status`, `context` and `createdAt`. A reviewer
-files feedback against a card with the site-review widget, and no board tool
+files feedback against a card with the live-review widget, and no board tool
 writes that link. `feedback_list` reads the feedback of the whole project, each
 item with its card. Mark an item done with `feedback_mark_addressed`, which takes
 the same `id`, rather than by editing the card. The `loupe-site-review` skill
@@ -261,7 +261,7 @@ the owner dictated or decided is `human`, even when you write it down. A card
 you found on your own is `agent`. An unclear or unattributable card is also
 `agent`, because agents absorb the ambiguity, never the person.
 
-`card_create` refuses `reviewer`. The site-review widget writes that value, and
+`card_create` refuses `reviewer`. The live-review widget writes that value, and
 it says the app could not name who raised the card.
 
 The field was called `origin`. `card_create` still accepts that name for one
@@ -437,7 +437,7 @@ moves the card.
 | Expecting a body from `card_list` | A row is a summary. Pass `full`, or call `card_get`. |
 | Fixing a wrong `reporter` with `card_update` | `reporter` is set once, when the card is created. |
 | Passing `origin` to `card_create` | It still works for one release. Write `reporter`. |
-| Passing `reporter: reviewer` to `card_create` | Only the site-review widget writes that value. Filtering on it is fine. |
+| Passing `reporter: reviewer` to `card_create` | Only the live-review widget writes that value. Filtering on it is fine. |
 | Expecting a merged pull request to move its card | Only a GitHub App repository with the automation on moves it. Otherwise move the card yourself. |
 | Linking a pull request only when it is ready for review | A draft has a URL. Link it when you open it. |
 | Moving a card into a column only to hold it | A running `loupe bridge` starts a worker when a rule names that column. |
