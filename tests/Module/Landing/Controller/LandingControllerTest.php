@@ -132,6 +132,39 @@ final class LandingControllerTest extends WebTestCase
         self::assertSelectorNotExists('.lp-home-footer a[href*="x.com"]');
     }
 
+    public function test_home_page_footer_links_to_the_discord_server_the_flag_names(): void
+    {
+        $client = static::createClient();
+        $this->setLink(SiteLinks::DISCORD_FLAG, 'https://discord.gg/loupe');
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.lp-home-footer__social a[href="https://discord.gg/loupe"][target="_blank"][rel="noopener noreferrer"][aria-label="Loupe on Discord"]');
+        self::assertSelectorNotExists('.lp-home-nav a[href="https://discord.gg/loupe"]');
+    }
+
+    public function test_home_page_footer_has_no_discord_link_while_the_flag_is_empty(): void
+    {
+        $client = static::createClient();
+
+        $client->request(Request::METHOD_GET, '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('.lp-home-footer a[aria-label="Loupe on Discord"]');
+    }
+
+    private function setLink(string $flag, string $value): void
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $repository = static::getContainer()->get(FeatureFlagRepository::class);
+        self::assertInstanceOf(FeatureFlagRepository::class, $repository);
+        $row = $repository->findAllIndexed()[$flag] ?? null;
+        self::assertInstanceOf(FeatureFlag::class, $row, 'A migration seeds the row.');
+        $row->value = $value;
+        $em->flush();
+    }
+
     public function test_home_page_footer_links_the_blog_after_the_changelog_when_a_blog_host_is_set(): void
     {
         $this->setBlogProxyHost('blog.example.com');

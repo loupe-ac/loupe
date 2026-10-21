@@ -76,6 +76,18 @@
                 <source>about.docs.action</source>
                 <target>Read the documentation</target>
             </trans-unit>
+            <trans-unit id="about.community.heading">
+                <source>about.community.heading</source>
+                <target>Community</target>
+            </trans-unit>
+            <trans-unit id="about.community.body">
+                <source>about.community.body</source>
+                <target>Talk with the team and other Loupe users. Ask a question, or tell us what breaks.</target>
+            </trans-unit>
+            <trans-unit id="about.community.button">
+                <source>about.community.button</source>
+                <target>Join the Discord server</target>
+            </trans-unit>
             <trans-unit id="about.version.heading">
                 <source>about.version.heading</source>
                 <target>Version</target>
@@ -4417,6 +4429,10 @@
                 <source>landing.nav.github</source>
                 <target>GitHub</target>
             </trans-unit>
+            <trans-unit id="landing.nav.discord">
+                <source>landing.nav.discord</source>
+                <target>Discord</target>
+            </trans-unit>
             <trans-unit id="landing.nav.go_to_app">
                 <source>landing.nav.go_to_app</source>
                 <target>Go to app</target>
@@ -5120,6 +5136,10 @@
             <trans-unit id="landing.footer.x_label">
                 <source>landing.footer.x_label</source>
                 <target>Loupe on X</target>
+            </trans-unit>
+            <trans-unit id="landing.footer.discord_label">
+                <source>landing.footer.discord_label</source>
+                <target>Loupe on Discord</target>
             </trans-unit>
             <trans-unit id="landing.footer.product">
                 <source>landing.footer.product</source>

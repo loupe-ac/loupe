@@ -13,6 +13,9 @@
                     {% if site_x_url() %}
                         <a href="{{ site_x_url() }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.x_label'|trans }}"><twig:UX:Icon name="simple-icons:x" class="w-4 h-4" aria-hidden="true" /></a>
                     {% endif %}
+                    {% if site_discord_url() %}
+                        <a href="{{ site_discord_url() }}" class="lp-home-footer__icon" target="_blank" rel="noopener noreferrer" aria-label="{{ 'landing.footer.discord_label'|trans }}"><twig:UX:Icon name="simple-icons:discord" class="w-4 h-4" aria-hidden="true" /></a>
+                    {% endif %}
                 </div>
             </div>
             <nav class="lp-home-footer__column" aria-label="{{ 'landing.footer.product'|trans }}">

@@ -44,6 +44,20 @@
             </div>
         </twig:Ds:Panel>
 
+        {% if site_discord_url() %}
+        <twig:Ds:Panel as="section" class="lp-about-item" aria-labelledby="about-community">
+            <span class="lp-about-card__glyph"><twig:ux:icon name="simple-icons:discord" class="lp-icon lp-icon--lg" /></span>
+            <div class="lp-about-card__main">
+                <h2 class="lp-about-card__title" id="about-community">{{ 'about.community.heading'|trans }}</h2>
+                <p class="lp-about-card__text">{{ 'about.community.body'|trans }}</p>
+                <twig:Ds:Button href="{{ site_discord_url() }}" class="lp-about-card__action" target="_blank" rel="noopener noreferrer">
+                    <twig:ux:icon name="simple-icons:discord" class="lp-icon lp-icon--sm" />
+                    <span>{{ 'about.community.button'|trans }}</span>
+                </twig:Ds:Button>
+            </div>
+        </twig:Ds:Panel>
+        {% endif %}
+
         {% if app.user %}
         <twig:Ds:Panel as="section" class="lp-about-item" aria-labelledby="about-version">
             <span class="lp-about-card__glyph"><twig:ux:icon name="lucide:tag" class="lp-icon lp-icon--lg" /></span>
