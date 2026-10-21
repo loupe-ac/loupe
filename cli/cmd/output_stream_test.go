@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // outputServer is Loupe's side of the output endpoint. It appends a chunk only

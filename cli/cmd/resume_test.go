@@ -19,10 +19,10 @@ import (
 	"github.com/zalando/go-keyring"
 	"golang.org/x/sys/unix"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/event"
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // handedBridge takes the lock and the control socket of rulesPath as a former

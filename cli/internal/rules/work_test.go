@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/directive"
-	"github.com/ubermuda/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/directive"
+	"github.com/loupe-ac/loupe/cli/internal/event"
 )
 
 const workRequestID = "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90"

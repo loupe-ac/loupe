@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/directive"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/directive"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // plainPrompt is the prompt the default rule renders for card 87.

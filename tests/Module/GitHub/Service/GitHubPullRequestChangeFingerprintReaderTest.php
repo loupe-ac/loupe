@@ -58,19 +58,19 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_it_compares_the_base_branch_with_the_head_once(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe', 72_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe', 72_001);
 
         $fingerprint = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
 
         self::assertNotNull($fingerprint);
         self::assertSame(64, \strlen($fingerprint->change));
         self::assertSame(64, \strlen($fingerprint->lines));
-        self::assertSame(['https://api.github.com/repos/Ubermuda/Loupe/compare/release%2F1.x...'.self::HEAD], \array_slice($this->urls, 1));
+        self::assertSame(['https://api.github.com/repos/Loupe-AC/Loupe/compare/release%2F1.x...'.self::HEAD], \array_slice($this->urls, 1));
     }
 
     public function test_a_clean_merge_keeps_the_change_and_the_lines(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_002);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_002);
 
         $before = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
         $after = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
@@ -81,7 +81,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_merge_that_moves_lines_keeps_the_change_and_not_the_lines(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_003);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_003);
         $moved = str_replace('@@ -10,3 +10,4 @@ final class Widget', '@@ -14,3 +14,4 @@ final class Widget', self::PATCH);
 
         $before = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
@@ -95,7 +95,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_hand_resolved_conflict_changes_the_change(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_004);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_004);
         $resolved = str_replace('+new line', '+resolved line', self::PATCH);
 
         $before = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
@@ -109,7 +109,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_the_previous_name_of_a_renamed_file_is_part_of_the_change(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_005);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_005);
 
         $fromOld = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH, 'renamed', 'src/Old.php')]);
         $fromOther = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH, 'renamed', 'src/Other.php')]);
@@ -121,7 +121,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_file_with_no_patch_and_changes_gives_no_fingerprint(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_006);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_006);
 
         self::assertNull($this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH), $this->file('composer.lock', changes: 12)]));
         self::assertSame([], $this->logger->records);
@@ -129,7 +129,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_pure_rename_with_no_patch_is_known_by_its_names_and_not_its_blob(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_021);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_021);
 
         $first = $this->read($pullRequest, [$this->file('logo-new.png', status: 'renamed', previous: 'logo.png', sha: 'blob1', changes: 0)]);
         $otherBlob = $this->read($pullRequest, [$this->file('logo-new.png', status: 'renamed', previous: 'logo.png', sha: 'blob2', changes: 0)]);
@@ -143,7 +143,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_the_function_context_of_a_hunk_header_is_part_of_the_change(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_022);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_022);
         $elsewhere = str_replace('@@ -10,3 +10,4 @@ final class Widget', '@@ -10,3 +10,4 @@ final class Gadget', self::PATCH);
 
         $before = $this->read($pullRequest, [$this->file('src/Widget.php', self::PATCH)]);
@@ -156,7 +156,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_the_order_of_the_files_does_not_matter(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_007);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_007);
         $files = [$this->file('9.php', self::PATCH), $this->file('10.php', self::PATCH), $this->file('a.png', status: 'renamed', previous: 'b.png', changes: 0)];
 
         $forward = $this->read($pullRequest, $files);
@@ -168,7 +168,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_list_of_300_files_gives_no_fingerprint(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_008);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_008);
         $files = array_map(fn (int $index): array => $this->file('src/F'.$index.'.php', self::PATCH), range(1, 300));
 
         self::assertNull($this->read($pullRequest, $files));
@@ -177,14 +177,14 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_failed_compare_gives_no_fingerprint_and_is_logged(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_009);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_009);
         $this->answers(new MockResponse('{"message":"Server Error"}', ['http_code' => 500]));
 
         self::assertNull($this->reader()->read($pullRequest, self::HEAD));
         self::assertSame('forge.change_fingerprint_unreadable', $this->logger->records[0]['message']);
         self::assertSame('http_status', $this->logger->records[0]['context']['reason']);
         self::assertSame((string) $pullRequest->id, $this->logger->records[0]['context']['pullRequestId']);
-        self::assertSame('ubermuda/loupe', $this->logger->records[0]['context']['repository']);
+        self::assertSame('loupe-ac/loupe', $this->logger->records[0]['context']['repository']);
     }
 
     public function test_a_malformed_compare_gives_no_fingerprint_and_is_logged(): void
@@ -198,7 +198,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
             ['files' => ['not a file']],
         ];
         foreach ($bodies as $offset => $body) {
-            $pullRequest = $this->tracked('ubermuda/loupe', 72_010 + $offset);
+            $pullRequest = $this->tracked('loupe-ac/loupe', 72_010 + $offset);
             $this->logger = new RecordingLogger();
             $this->answers($this->answer($body));
 
@@ -209,7 +209,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
 
     public function test_a_pull_request_without_a_base_or_a_head_is_not_compared(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_020);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_020);
 
         self::assertNull($this->reader()->read($pullRequest, ''));
         $pullRequest->baseBranch = null;
@@ -251,7 +251,7 @@ final class GitHubPullRequestChangeFingerprintReaderTest extends KernelTestCase
         $project = new Project($user, 'fingerprint-'.uniqid());
         $this->em->persist($user);
         $this->em->persist($project);
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $pullRequest->baseBranch = 'release/1.x';

@@ -25,7 +25,7 @@ flag-gated social buttons, which is a database read on every request.
 3. Docker with `buildx` — App Platform runs **amd64**, so the image must be
    cross-built from an Apple Silicon workstation.
 4. **A container registry you can push to.** The defaults name this project's
-   own package, `ghcr.io/ubermuda/loupe:prod`, which nobody else can write to.
+   own package, `ghcr.io/loupe-ac/loupe:prod`, which nobody else can write to.
    Point the tooling at yours in both places, or the image you push is not the
    image App Platform pulls:
 
@@ -110,7 +110,7 @@ docker run --rm \
     -e APP_ENV=prod \
     -e APP_SECRET="$TF_VAR_app_secret" \
     -e DATABASE_URL="postgresql://<db_user>:<password>@<host>:<port>/<db_name>?sslmode=require&serverVersion=16" \
-    "${LOUPE_PROD_IMAGE:-ghcr.io/ubermuda/loupe:prod}" docker/prod/release.sh
+    "${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}" docker/prod/release.sh
 
 # 5. Turn on automated migrations for every deploy afterwards:
 #    set `enable_predeploy_migrations = true` in terraform.tfvars, then

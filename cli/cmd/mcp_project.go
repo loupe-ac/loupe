@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 )
 
 // mcpProject gives the project each request of `loupe mcp` names. The flag

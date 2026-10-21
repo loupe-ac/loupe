@@ -79,7 +79,7 @@ final class BoardAccountDeletionTest extends KernelTestCase
         $this->seedColumns($project);
 
         $card = new Card(project: $project, column: $this->column($project, 'backlog'), title: 'Ship it', body: 'Body', number: 1);
-        $card->pullRequests->add(new CardPullRequest($card, 'https://github.com/ubermuda/loupe/pull/1', Forge::GitHub, 'ubermuda/loupe', 1));
+        $card->pullRequests->add(new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/1', Forge::GitHub, 'loupe-ac/loupe', 1));
         $em->persist($card);
 
         return $project;

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 const commandPayload = `{"type":"bridge.command","projectId":"0192F3A1-4B2C-7D3E-8F10-A2B3C4D5E6F7",` +

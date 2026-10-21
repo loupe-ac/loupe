@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // ProjectHeader names the project a request acts on. The server refuses a

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 const porcelain = `worktree /repo
@@ -109,12 +109,12 @@ func TestOriginRemoteReadsGitAndDropsCredentials(t *testing.T) {
 	if got := originRemote(context.Background(), dir); got != "" {
 		t.Fatalf("a folder with no repository gave %q", got)
 	}
-	for _, args := range [][]string{{"init", "-b", "main"}, {"remote", "add", "origin", "https://user:secret@github.com/ubermuda/loupe.git"}} {
+	for _, args := range [][]string{{"init", "-b", "main"}, {"remote", "add", "origin", "https://user:secret@github.com/loupe-ac/loupe.git"}} {
 		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
 	}
-	if got := originRemote(context.Background(), dir); got != "https://github.com/ubermuda/loupe.git" {
+	if got := originRemote(context.Background(), dir); got != "https://github.com/loupe-ac/loupe.git" {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -128,9 +128,9 @@ func TestRepositoryReportsSkipAProjectWithNoResolvedID(t *testing.T) {
 
 func TestWithoutCredentialsKeepsAnScpRemoteAndDropsTheOverlongOne(t *testing.T) {
 	for in, want := range map[string]string{
-		"git@github.com:ubermuda/loupe.git":     "git@github.com:ubermuda/loupe.git",
-		"https://github.com/ubermuda/loupe.git": "https://github.com/ubermuda/loupe.git",
-		"https://tok@github.com/ubermuda/l.git": "https://github.com/ubermuda/l.git",
+		"git@github.com:loupe-ac/loupe.git":     "git@github.com:loupe-ac/loupe.git",
+		"https://github.com/loupe-ac/loupe.git": "https://github.com/loupe-ac/loupe.git",
+		"https://tok@github.com/loupe-ac/l.git": "https://github.com/loupe-ac/l.git",
 		"":                                      "",
 		strings.Repeat("a", maxRemoteURL+1):     "",
 	} {

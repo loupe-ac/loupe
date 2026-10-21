@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // fakeGitHub serves a releases list and the assets it names, and counts each
@@ -63,7 +63,7 @@ func (g *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	switch r.URL.Path {
-	case "/repos/ubermuda/loupe/releases":
+	case "/repos/loupe-ac/loupe/releases":
 		g.listed++
 		if g.failList {
 			w.WriteHeader(http.StatusBadGateway)

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // The outcome of a run that ran carries the peak context it read, and nil

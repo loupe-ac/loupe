@@ -11,8 +11,8 @@ import (
 	"github.com/dop251/goja"
 	"golang.org/x/net/html"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/artifactcompile"
 )
 
 var inlineHandlerRe = regexp.MustCompile(`(?i)\son[a-z]+=`)

@@ -18,7 +18,7 @@ final class ShowAboutControllerTest extends WebTestCase
         $client->request(Request::METHOD_GET, '/about');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('a[href="https://github.com/ubermuda/loupe"]');
+        self::assertSelectorExists('a[href="https://github.com/loupe-ac/loupe"]');
         self::assertSelectorNotExists('[data-testid="app-version"]');
         self::assertSelectorExists('a[href="https://loupe.ac/docs/"]');
     }

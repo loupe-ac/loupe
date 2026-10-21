@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
-	harn "github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 const (

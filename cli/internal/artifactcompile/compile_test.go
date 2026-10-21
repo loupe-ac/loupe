@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 type fake struct {

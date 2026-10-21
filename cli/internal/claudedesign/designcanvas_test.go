@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/artifactcompile"
 )
 
 const canvasFixture = "testdata/design-canvas"

@@ -37,6 +37,38 @@ func (e HookEntry) ID() string {
 	return e.Package + "/" + e.Path
 }
 
+// movedPackages maps the old name of a moved repository, in lower case, to its
+// new name. Rule files keep the old name until the operator installs again.
+var movedPackages = map[string]string{"ubermuda/loupe": "loupe-ac/loupe"}
+
+// CanonicalPackage is the current name of the repository pkg names.
+func CanonicalPackage(pkg string) string {
+	if moved, ok := movedPackages[strings.ToLower(pkg)]; ok {
+		return moved
+	}
+
+	return pkg
+}
+
+// CanonicalID is id, owner/repo or owner/repo/path, with the current name of
+// its repository.
+func CanonicalID(id string) string {
+	owner, rest, _ := strings.Cut(id, "/")
+	repo, p, _ := strings.Cut(rest, "/")
+
+	return HookEntry{Package: CanonicalPackage(owner + "/" + repo), Path: p}.ID()
+}
+
+// CanonicalID names the package with the current name of its repository.
+func (e HookEntry) CanonicalID() string {
+	return HookEntry{Package: CanonicalPackage(e.Package), Path: e.Path}.ID()
+}
+
+// Moved reports that the entry names its repository by an old name.
+func (e HookEntry) Moved() bool {
+	return CanonicalPackage(e.Package) != e.Package
+}
+
 // The characters GitHub allows in an owner and in a repository name.
 var (
 	ownerPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$`)
@@ -118,7 +150,7 @@ func checkHooks(entries []HookEntry) []error {
 			continue
 		}
 		// GitHub names ignore case, and so does the default macOS file system.
-		key := strings.ToLower(e.ID())
+		key := strings.ToLower(e.CanonicalID())
 		if seen[key] {
 			errs = append(errs, fmt.Errorf("hook %q: another hook installs the same package", e.ID()))
 		}

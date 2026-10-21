@@ -55,7 +55,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_it_reads_the_pull_request_then_marks_a_draft_ready_for_review(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe.site', 72_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 72_001);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: true),
@@ -65,7 +65,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
         $this->writer()->setDraft($pullRequest, false);
 
         self::assertCount(3, $this->requests);
-        self::assertSame(['owner' => 'Ubermuda', 'name' => 'Loupe.site', 'number' => 604], $this->graphql(1)['variables']);
+        self::assertSame(['owner' => 'Loupe-AC', 'name' => 'Loupe.site', 'number' => 604], $this->graphql(1)['variables']);
         self::assertStringContainsString('pullRequest(number:$number){id isDraft state}', $this->graphql(1)['query']);
         self::assertStringContainsString('markPullRequestReadyForReview(input:{pullRequestId:$id})', $this->graphql(2)['query']);
         self::assertSame(['id' => 'PR_node'], $this->graphql(2)['variables']);
@@ -73,7 +73,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_it_converts_an_open_pull_request_to_a_draft(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_002);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_002);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: false),
@@ -96,7 +96,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
     #[DataProvider('targets')]
     public function test_a_pull_request_already_in_the_target_state_takes_no_mutation(bool $draft): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_003 + (int) $draft);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_003 + (int) $draft);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: $draft),
@@ -117,7 +117,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
     #[DataProvider('endedStates')]
     public function test_a_pull_request_that_is_not_open_takes_no_draft_mutation(string $state, int $offset): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_010 + $offset);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_010 + $offset);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: true, state: $state),
@@ -131,7 +131,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
     #[DataProvider('endedStates')]
     public function test_a_pull_request_that_is_not_open_is_not_closed_again(string $state, int $offset): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_020 + $offset);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_020 + $offset);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: false, state: $state),
@@ -144,7 +144,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_it_closes_an_open_pull_request(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_030);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_030);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: true),
@@ -160,7 +160,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_a_forbidden_mutation_is_a_permanent_permission_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_040);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_040);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->node(isDraft: false),
@@ -175,7 +175,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_another_graphql_error_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_041);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_041);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => null, 'errors' => [['type' => 'SERVICE_UNAVAILABLE']]]),
@@ -189,7 +189,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_a_graphql_rate_limit_is_a_transient_failure_with_a_fallback_delay(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_046);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_046);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => null, 'errors' => [['type' => 'RATE_LIMITED', 'message' => 'API rate limit exceeded']]]),
@@ -204,7 +204,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_a_missing_pull_request_is_a_permanent_not_found_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_042);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_042);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => ['repository' => ['pullRequest' => null]], 'errors' => [['type' => 'NOT_FOUND']]]),
@@ -219,7 +219,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_a_rate_limit_is_a_transient_failure_that_carries_the_delay_github_asks_for(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_043);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_043);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => 403, 'response_headers' => ['retry-after' => '60']]),
@@ -243,7 +243,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
     #[DataProvider('refusals')]
     public function test_a_refused_request_is_a_permanent_permission_failure(int $status): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_100 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_100 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"No"}', ['http_code' => $status]),
@@ -257,7 +257,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_a_server_error_is_a_transient_failure_that_names_the_status(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_044);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_044);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"Server Error"}', ['http_code' => 502]),
@@ -271,7 +271,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
 
     public function test_a_missing_app_configuration_is_a_permanent_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 72_045);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 72_045);
 
         $failure = $this->failure(fn () => $this->writer(appId: null)->close($pullRequest));
 
@@ -283,8 +283,8 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -298,7 +298,7 @@ final class GitHubPullRequestStateWriterTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

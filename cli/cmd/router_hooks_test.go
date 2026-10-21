@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // withHookRunner gives the harness a runner whose loop never starts, so its

@@ -5,12 +5,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/envfile"
-	harn "github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/harness/claude"
-	"github.com/ubermuda/loupe/cli/internal/harness/codex"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/envfile"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/harness/claude"
+	"github.com/loupe-ac/loupe/cli/internal/harness/codex"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // harnessByName is the harness a name gives, reading the sessions in

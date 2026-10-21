@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // fakeRunClient records each call, and answers the way its fields say. A nil

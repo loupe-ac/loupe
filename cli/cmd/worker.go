@@ -18,13 +18,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/envfile"
-	harn "github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/rules"
-	"github.com/ubermuda/loupe/cli/internal/stream"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/envfile"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/stream"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // waitDelay bounds the wait after the context kills the worker's process

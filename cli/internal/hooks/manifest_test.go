@@ -85,9 +85,10 @@ func TestParseManifestRefuses(t *testing.T) {
 
 func TestParseSpec(t *testing.T) {
 	for in, want := range map[string]Spec{
-		"ubermuda/loupe@v1.0.0":                   {Owner: "ubermuda", Repo: "loupe", Ref: "v1.0.0"},
-		"ubermuda/loupe/hooks/amphetamine@abc123": {Owner: "ubermuda", Repo: "loupe", Path: "hooks/amphetamine", Ref: "abc123"},
+		"loupe-ac/loupe@v1.0.0":                   {Owner: "loupe-ac", Repo: "loupe", Ref: "v1.0.0"},
+		"loupe-ac/loupe/hooks/amphetamine@abc123": {Owner: "loupe-ac", Repo: "loupe", Path: "hooks/amphetamine", Ref: "abc123"},
 		"acme/tool@feature/x":                     {Owner: "acme", Repo: "tool", Ref: "feature/x"},
+		"Ubermuda/Loupe/hooks/amphetamine@v1":     {Owner: "loupe-ac", Repo: "loupe", Path: "hooks/amphetamine", Ref: "v1"},
 	} {
 		got, err := ParseSpec(in)
 		if err != nil {
@@ -107,15 +108,15 @@ func TestParseSpec(t *testing.T) {
 
 func TestParseSpecRefuses(t *testing.T) {
 	for in, want := range map[string]string{
-		"ubermuda/loupe":         "names no ref",
-		"ubermuda/loupe@":        "ref is required",
-		"ubermuda@v1":            `is not owner/repo`,
+		"loupe-ac/loupe":         "names no ref",
+		"loupe-ac/loupe@":        "ref is required",
+		"loupe-ac@v1":            `is not owner/repo`,
 		"-bad/loupe@v1":          `is not owner/repo`,
-		"ubermuda/loupe/../x@v1": "is not a clean relative path",
-		"ubermuda/loupe/a//b@v1": "is not a clean relative path",
-		"ubermuda/loupe/a/@v1":   "is not a clean relative path",
-		"ubermuda/loupe@v 1":     "is not a git ref",
-		"ubermuda/loupe@../../x": "is not a git ref",
+		"loupe-ac/loupe/../x@v1": "is not a clean relative path",
+		"loupe-ac/loupe/a//b@v1": "is not a clean relative path",
+		"loupe-ac/loupe/a/@v1":   "is not a clean relative path",
+		"loupe-ac/loupe@v 1":     "is not a git ref",
+		"loupe-ac/loupe@../../x": "is not a git ref",
 	} {
 		if _, err := ParseSpec(in); err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("%s: err = %v, want %q", in, err, want)

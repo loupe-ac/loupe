@@ -12,7 +12,7 @@ import (
 const sha = "0123456789abcdef0123456789abcdef01234567"
 
 const withHooks = oneRule + `hooks:
-  - package: ubermuda/loupe
+  - package: loupe-ac/loupe
     path: hooks/amphetamine
     ref: v1.0.0
     sha: ` + sha + `
@@ -30,7 +30,7 @@ func TestParseReadsTheHooks(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("hooks = %+v", got)
 	}
-	if got[0].ID() != "ubermuda/loupe/hooks/amphetamine" || got[0].Ref != "v1.0.0" || got[0].SHA != sha || got[0].Settings["takeover"] != "true" {
+	if got[0].ID() != "loupe-ac/loupe/hooks/amphetamine" || got[0].Ref != "v1.0.0" || got[0].SHA != sha || got[0].Settings["takeover"] != "true" {
 		t.Fatalf("first hook = %+v", got[0])
 	}
 	if got[1].ID() != "acme/notify" || got[1].Path != "" || got[1].Settings != nil {
@@ -97,6 +97,36 @@ func TestParseRefusesADuplicateHook(t *testing.T) {
 	}
 }
 
+func TestAMovedPackageKeepsItsIDAndNamesItsNewOne(t *testing.T) {
+	old := HookEntry{Package: "Ubermuda/Loupe", Path: "hooks/amphetamine"}
+	if old.ID() != "Ubermuda/Loupe/hooks/amphetamine" || old.CanonicalID() != "loupe-ac/loupe/hooks/amphetamine" || !old.Moved() {
+		t.Fatalf("old: id = %q, canonical = %q, moved = %v", old.ID(), old.CanonicalID(), old.Moved())
+	}
+	cur := HookEntry{Package: "loupe-ac/loupe", Path: "hooks/amphetamine"}
+	if cur.CanonicalID() != cur.ID() || cur.Moved() {
+		t.Fatalf("new: canonical = %q, moved = %v", cur.CanonicalID(), cur.Moved())
+	}
+	for in, want := range map[string]string{
+		"ubermuda/loupe/hooks/amphetamine": "loupe-ac/loupe/hooks/amphetamine",
+		"UBERMUDA/loupe":                   "loupe-ac/loupe",
+		"ubermuda/loupe-x/hooks":           "ubermuda/loupe-x/hooks",
+		"acme/notify":                      "acme/notify",
+	} {
+		if got := CanonicalID(in); got != want {
+			t.Errorf("CanonicalID(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestParseRefusesTheOldAndTheNewNameOfOnePackage(t *testing.T) {
+	entry := "  - package: loupe-ac/loupe\n    path: hooks/amphetamine\n    ref: v1\n    sha: " + sha + "\n"
+	text, _ := file(t, oneRule+"hooks:\n"+entry+strings.Replace(entry, "loupe-ac/loupe", "ubermuda/loupe", 1))
+	_, err := Parse([]byte(text), Defaults{})
+	if err == nil || !strings.Contains(err.Error(), `hook "ubermuda/loupe/hooks/amphetamine": another hook installs the same package`) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 const commented = `# The rule file of this machine.
 projects:
   # The main app.
@@ -138,7 +168,7 @@ func TestEditHooksKeepsTheComments(t *testing.T) {
 			t.Fatalf("hooks = %+v", hooks)
 		}
 
-		return append(hooks, HookEntry{Package: "ubermuda/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha, Settings: map[string]string{"takeover": "false"}}), nil
+		return append(hooks, HookEntry{Package: "loupe-ac/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha, Settings: map[string]string{"takeover": "false"}}), nil
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -159,7 +189,7 @@ func TestEditHooksKeepsTheComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v\n%s", err, got)
 	}
-	if hooks := s.Hooks(); len(hooks) != 1 || hooks[0].ID() != "ubermuda/loupe/hooks/amphetamine" || hooks[0].Settings["takeover"] != "false" {
+	if hooks := s.Hooks(); len(hooks) != 1 || hooks[0].ID() != "loupe-ac/loupe/hooks/amphetamine" || hooks[0].Settings["takeover"] != "false" {
 		t.Fatalf("hooks = %+v", hooks)
 	}
 	if runtime.GOOS != "windows" {

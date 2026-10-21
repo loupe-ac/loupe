@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/artifactcompile"
+	_ "github.com/loupe-ac/loupe/cli/internal/claudedesign"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
-	_ "github.com/ubermuda/loupe/cli/internal/claudedesign"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
 // maxArtifactBytes is the request size the web server of Loupe accepts. A

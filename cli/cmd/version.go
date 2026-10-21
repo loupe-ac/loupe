@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"runtime"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
 )
 
 // commit and dirty are injected at link time with `-ldflags -X`. The build

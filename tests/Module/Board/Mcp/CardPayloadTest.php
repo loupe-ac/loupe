@@ -99,7 +99,7 @@ final class CardPayloadTest extends KernelTestCase
     {
         $card = $this->card();
         $this->setId($card, Uuid::v7());
-        $tracked = new CardPullRequest($card, 'https://github.com/ubermuda/loupe/pull/7', Forge::GitHub, 'ubermuda/loupe', 7);
+        $tracked = new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/7', Forge::GitHub, 'loupe-ac/loupe', 7);
         $this->setId($tracked, Uuid::v7());
         $untracked = new CardPullRequest($card, 'https://example.com/pr/1');
         $this->setId($untracked, Uuid::v7());
@@ -139,7 +139,7 @@ final class CardPayloadTest extends KernelTestCase
     public function test_a_pull_request_that_loupe_never_read_reads_a_null_state(): void
     {
         $card = $this->card();
-        $link = new CardPullRequest($card, 'https://github.com/ubermuda/loupe/pull/8', Forge::GitHub, 'ubermuda/loupe', 8);
+        $link = new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/8', Forge::GitHub, 'loupe-ac/loupe', 8);
         $this->setId($link, Uuid::v7());
         $card->pullRequests->add($link);
         $states = $this->createStub(CardPullRequestStates::class);
@@ -288,7 +288,7 @@ final class CardPayloadTest extends KernelTestCase
     {
         $card = $this->card();
         $this->setId($card, Uuid::v7());
-        $link = new CardPullRequest($card, 'https://github.com/ubermuda/loupe/pull/7', Forge::GitHub, 'ubermuda/loupe', 7);
+        $link = new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/7', Forge::GitHub, 'loupe-ac/loupe', 7);
         $this->setId($link, Uuid::v7());
         $card->pullRequests->add($link);
 

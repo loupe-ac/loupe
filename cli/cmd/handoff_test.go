@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // execCall is what a fake exec saw: the argv, the handover file as it stood,

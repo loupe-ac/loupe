@@ -668,8 +668,8 @@ Do not diagnose a rejected merge with `gh repo view`. It reports repository
 ruleset forbids two. The ruleset is the authority:
 
 ```bash
-id=$(gh api repos/ubermuda/loupe/rulesets -q '.[]|select(.name=="main")|.id')
-gh api repos/ubermuda/loupe/rulesets/$id -q '.rules[]|select(.type=="pull_request")|.parameters'
+id=$(gh api repos/loupe-ac/loupe/rulesets -q '.[]|select(.name=="main")|.id')
+gh api repos/loupe-ac/loupe/rulesets/$id -q '.rules[]|select(.type=="pull_request")|.parameters'
 ```
 
 That prints **one approving review**. It also sets `require_code_owner_review`,
@@ -677,7 +677,7 @@ which is inert while the repository has no `CODEOWNERS` file. Read the required
 checks from the same ruleset, named `main`:
 
 ```bash
-gh api repos/ubermuda/loupe/rulesets/$id \
+gh api repos/loupe-ac/loupe/rulesets/$id \
   -q '.rules[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
 ```
 
@@ -693,7 +693,7 @@ request into `epic/<n>` the required checks of `main`, and the merge stage
 checks an epic child against them by name:
 
 ```bash
-gh api repos/ubermuda/loupe/rules/branches/main \
+gh api repos/loupe-ac/loupe/rules/branches/main \
   -q '.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context'
 gh pr checks <n> --json name,bucket
 ```

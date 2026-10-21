@@ -7,13 +7,13 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/mcpproxy"
+	"github.com/loupe-ac/loupe/cli/internal/oauth"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/mcpproxy"
-	"github.com/ubermuda/loupe/cli/internal/oauth"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
 // tokenSource gives the bearer token for cfg.

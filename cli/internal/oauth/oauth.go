@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // ClientID is the public client every Loupe instance registers for the CLI.

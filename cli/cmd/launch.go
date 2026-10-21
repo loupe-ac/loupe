@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/envfile"
-	harn "github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/envfile"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // maxLaunchReason is the longest failure reason the server takes.

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // resumeBridge takes over the lock and the control socket that a former image

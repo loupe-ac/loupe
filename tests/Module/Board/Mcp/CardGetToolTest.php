@@ -57,7 +57,7 @@ final class CardGetToolTest extends KernelTestCase
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-get'));
         $created = ($this->createTool)('Ship it', '## Body', 'tooling', pullRequestUrls: [
-            'https://github.com/ubermuda/loupe/pull/7',
+            'https://github.com/loupe-ac/loupe/pull/7',
         ]);
 
         $card = $this->call($created['cardId']);
@@ -69,7 +69,7 @@ final class CardGetToolTest extends KernelTestCase
         self::assertSame('## Body', $card['body']);
         self::assertSame('tooling', $card['type']);
         self::assertCount(1, $card['pullRequests']);
-        self::assertSame('ubermuda/loupe', $card['pullRequests'][0]['repository']);
+        self::assertSame('loupe-ac/loupe', $card['pullRequests'][0]['repository']);
         self::assertSame(7, $card['pullRequests'][0]['number']);
     }
 
@@ -144,11 +144,11 @@ final class CardGetToolTest extends KernelTestCase
         $project = $this->makeProject('card-get-state');
         $this->actAsMcpTokenBoundTo($project);
         $created = ($this->createTool)('Ship it', 'Body', 'tooling', pullRequestUrls: [
-            'https://github.com/Ubermuda/Loupe/pull/7',
+            'https://github.com/Loupe-AC/Loupe/pull/7',
             'https://example.com/merge-requests/3',
         ]);
         $projectId = $project->id ?? throw new \LogicException('The project is persisted.');
-        $row = $this->forgeRows()->findByKeys($projectId, [['forge' => 'github', 'repository' => 'ubermuda/loupe', 'number' => 7]])[0];
+        $row = $this->forgeRows()->findByKeys($projectId, [['forge' => 'github', 'repository' => 'loupe-ac/loupe', 'number' => 7]])[0];
         $row->checks = PullRequestChecks::Failed;
         $row->failedChecks = ['phpunit'];
         $row->mergeability = PullRequestMergeability::Conflicting;
@@ -172,9 +172,9 @@ final class CardGetToolTest extends KernelTestCase
     {
         $project = $this->makeProject('card-get-outdated');
         $this->actAsMcpTokenBoundTo($project);
-        $created = ($this->createTool)('Ship it', 'Body', 'tooling', pullRequestUrls: ['https://github.com/ubermuda/loupe/pull/7']);
+        $created = ($this->createTool)('Ship it', 'Body', 'tooling', pullRequestUrls: ['https://github.com/loupe-ac/loupe/pull/7']);
         $projectId = $project->id ?? throw new \LogicException('The project is persisted.');
-        $row = $this->forgeRows()->findByKeys($projectId, [['forge' => 'github', 'repository' => 'ubermuda/loupe', 'number' => 7]])[0];
+        $row = $this->forgeRows()->findByKeys($projectId, [['forge' => 'github', 'repository' => 'loupe-ac/loupe', 'number' => 7]])[0];
         $row->review = PullRequestReview::Approved;
         $row->approvalId = 'review7';
         $row->approvalSha = $row->coveredSha = 'approved7';

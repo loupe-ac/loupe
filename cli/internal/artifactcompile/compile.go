@@ -2,7 +2,7 @@
 // files. A compiler claims a file set it knows, such as a design canvas.
 package artifactcompile
 
-import "github.com/ubermuda/loupe/cli/internal/api"
+import "github.com/loupe-ac/loupe/cli/internal/api"
 
 // Compiler turns the files of one push into plain files.
 type Compiler interface {

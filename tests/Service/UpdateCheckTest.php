@@ -39,7 +39,7 @@ final class UpdateCheckTest extends TestCase
         HttpClientInterface $client,
         bool $flagEnabled = true,
         ?string $version = 'v1.4.0',
-        string $sourceUrl = 'https://github.com/ubermuda/loupe',
+        string $sourceUrl = 'https://github.com/loupe-ac/loupe',
     ): UpdateCheck {
         if (null !== $version) {
             file_put_contents($this->projectDir.'/var/build-version', $version);

@@ -36,7 +36,7 @@ Built with Symfony, Tailwind CSS and Symfony UX (Stimulus + Turbo).
 One container holding the app, its worker and Postgres:
 
 ```bash
-docker run --rm -p 127.0.0.1:8080:80 ghcr.io/ubermuda/loupe:demo
+docker run --rm -p 127.0.0.1:8080:80 ghcr.io/loupe-ac/loupe:demo
 ```
 
 Open <http://localhost:8080> and log in with `admin@example.com` /

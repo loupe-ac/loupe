@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/directive"
-	"github.com/ubermuda/loupe/cli/internal/rules"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/directive"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // endedRunKey is the key of a run of card 87 that ended before the resume.

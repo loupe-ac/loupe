@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 const testBridgeID = "0192f3a1-7777-4d3e-8f10-a2b3c4d5e6f7"

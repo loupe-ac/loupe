@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // syncHolds replaces the held cards with the list of the server, which is the

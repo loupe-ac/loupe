@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/config"
 )
 
 // githubAPIURL is the GitHub REST API. A test points it at a stub.

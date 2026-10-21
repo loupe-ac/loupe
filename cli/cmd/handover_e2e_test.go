@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 const (
@@ -83,7 +83,7 @@ func buildVersions(t *testing.T) (string, string) {
 	var wg sync.WaitGroup
 	for i, v := range []string{e2eOld, e2eNew} {
 		wg.Go(func() {
-			cmd := exec.Command("go", "build", "-o", paths[i], "-ldflags", "-X github.com/ubermuda/loupe/cli/cmd.version="+v, ".")
+			cmd := exec.Command("go", "build", "-o", paths[i], "-ldflags", "-X github.com/loupe-ac/loupe/cli/cmd.version="+v, ".")
 			cmd.Dir = root
 			cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 			if out, err := cmd.CombinedOutput(); err != nil {
@@ -201,7 +201,7 @@ func (f *e2eLoupe) serve(w http.ResponseWriter, r *http.Request) {
 		f.reports = append(f.reports, report)
 		f.mu.Unlock()
 		w.WriteHeader(http.StatusCreated)
-	case path == "/github/repos/ubermuda/loupe/releases":
+	case path == "/github/repos/loupe-ac/loupe/releases":
 		select {
 		case <-f.gate:
 		case <-r.Context().Done():

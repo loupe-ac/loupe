@@ -7,9 +7,9 @@ import (
 	"math"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
-	"github.com/ubermuda/loupe/cli/internal/api"
 )
 
 // Prime starts the CPU counters, so the first Read measures from this call

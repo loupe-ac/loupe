@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // ceilingEnv lifts claude -p's background wait ceiling, which otherwise ends a

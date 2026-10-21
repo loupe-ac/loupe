@@ -7,14 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 var (
@@ -37,9 +39,12 @@ settings:
     description: A label for the log.
 `
 
-// fakeHookRepo serves the ref and the tarball endpoints of acme/tool.
+// fakeHookRepo serves the ref and the tarball endpoints of repo, acme/tool
+// unless a test sets it, with the package in the directory sub.
 type fakeHookRepo struct {
 	mu        sync.Mutex
+	repo      string
+	sub       string
 	refs      map[string]string
 	manifests map[string]string
 	script    string
@@ -49,6 +54,7 @@ type fakeHookRepo struct {
 func newFakeHookRepo(t *testing.T) *fakeHookRepo {
 	t.Helper()
 	gh := &fakeHookRepo{
+		repo:      "acme/tool",
 		refs:      map[string]string{"v1": shaOne},
 		manifests: map[string]string{shaOne: toolManifest},
 		script:    "#!/bin/sh\necho ran\n",
@@ -67,7 +73,7 @@ func (gh *fakeHookRepo) serve(w http.ResponseWriter, r *http.Request) {
 	defer gh.mu.Unlock()
 
 	path := strings.ToLower(r.URL.Path)
-	if ref, ok := strings.CutPrefix(path, "/repos/acme/tool/commits/"); ok {
+	if ref, ok := strings.CutPrefix(path, "/repos/"+gh.repo+"/commits/"); ok {
 		sha, found := gh.refs[ref]
 		if !found {
 			http.NotFound(w, r)
@@ -78,7 +84,7 @@ func (gh *fakeHookRepo) serve(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	if sha, ok := strings.CutPrefix(path, "/acme/tool/tar.gz/"); ok {
+	if sha, ok := strings.CutPrefix(path, "/"+gh.repo+"/tar.gz/"); ok {
 		manifest, found := gh.manifests[sha]
 		if !found {
 			http.NotFound(w, r)
@@ -86,7 +92,7 @@ func (gh *fakeHookRepo) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		gh.downloads++
-		_, _ = w.Write(toolTarball(manifest, gh.script))
+		_, _ = w.Write(toolTarball(manifest, gh.script, gh.sub))
 
 		return
 	}
@@ -100,7 +106,7 @@ func (gh *fakeHookRepo) downloaded() int {
 	return gh.downloads
 }
 
-func toolTarball(manifest, script string) []byte {
+func toolTarball(manifest, script, sub string) []byte {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
@@ -108,10 +114,13 @@ func toolTarball(manifest, script string) []byte {
 		name, body string
 		mode       int64
 	}{
-		{"tool-1111111/loupe-hook.yaml", manifest, 0o644},
-		{"tool-1111111/hook.sh", script, 0o755},
+		{path.Join("tool-1111111", sub, "loupe-hook.yaml"), manifest, 0o644},
+		{path.Join("tool-1111111", sub, "hook.sh"), script, 0o755},
 	}
 	_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: "tool-1111111/", Mode: 0o755})
+	if sub != "" {
+		_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: path.Join("tool-1111111", sub) + "/", Mode: 0o755})
+	}
 	for _, f := range files {
 		_ = tw.WriteHeader(&tar.Header{Typeflag: tar.TypeReg, Name: f.name, Mode: f.mode, Size: int64(len(f.body))})
 		_, _ = tw.Write([]byte(f.body))
@@ -427,5 +436,68 @@ func TestHooksSet(t *testing.T) {
 	_, err = runHooks(t, "", "set", "acme/tool", "loud=yes", "--rules", path)
 	if err == nil || !strings.Contains(err.Error(), "not true or false") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// movedEntry writes an entry under the old name of the Loupe repository, with
+// its package and its state on disk, as an older CLI installed it.
+func movedEntry(t *testing.T, root, rulesPath string) {
+	t.Helper()
+	entry := rules.HookEntry{Package: "ubermuda/loupe", Path: "hooks/tool", Ref: "v1", SHA: shaOne, Settings: map[string]string{"loud": "true"}}
+	dir := hooks.PackageDir(root, entry.ID(), shaOne)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "loupe-hook.yaml"), []byte(toolManifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	state := hooks.StateDir(root, entry.ID())
+	if err := os.MkdirAll(state, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(state, "session"), []byte("kept"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := rules.EditHooks(rulesPath, func([]rules.HookEntry) ([]rules.HookEntry, error) { return []rules.HookEntry{entry}, nil }); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHooksCommandsFindAMovedPackageByEitherName(t *testing.T) {
+	root, path := hooksEnv(t)
+	movedEntry(t, root, path)
+
+	for _, id := range []string{"loupe-ac/loupe/hooks/tool", "ubermuda/loupe/hooks/tool"} {
+		if out, err := runHooks(t, "", "set", id, "label="+id, "--rules", path); err != nil {
+			t.Fatalf("set %s: %v\n%s", id, err, out)
+		}
+		if got := installedHooks(t, path)[0].Settings["label"]; got != id {
+			t.Fatalf("label = %q", got)
+		}
+	}
+}
+
+func TestHooksInstallMovesAnOldEntryToTheNewName(t *testing.T) {
+	root, path := hooksEnv(t)
+	gh := newFakeHookRepo(t)
+	gh.repo, gh.sub = "loupe-ac/loupe", "hooks/tool"
+	movedEntry(t, root, path)
+
+	out, err := runHooks(t, "", "install", "ubermuda/loupe/hooks/tool@v1", "--yes", "--rules", path)
+	if err != nil {
+		t.Fatalf("err = %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Repository: https://github.com/loupe-ac/loupe") {
+		t.Fatalf("output = %s", out)
+	}
+	got := installedHooks(t, path)
+	if len(got) != 1 || got[0].ID() != "loupe-ac/loupe/hooks/tool" || got[0].SHA != shaOne || got[0].Settings["loud"] != "true" {
+		t.Fatalf("hooks = %+v", got)
+	}
+	if _, err := hooks.Resolve(root, got, runtime.GOOS); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(hooks.StateDir(root, "loupe-ac/loupe/hooks/tool"), "session")); err != nil || string(data) != "kept" {
+		t.Fatalf("state = %q, %v", data, err)
 	}
 }

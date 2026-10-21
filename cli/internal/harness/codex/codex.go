@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ubermuda/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/harness"
 )
 
 // The files a run keeps in its run directory. The bridge writes the schema

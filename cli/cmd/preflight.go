@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // newBridgePreflightCmd checks that this binary can take over a running

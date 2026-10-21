@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
 )
 
 // previewTokenTimeout bounds one mint or revoke. A worktree script waits for it.

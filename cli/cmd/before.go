@@ -15,7 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // beforeShell runs the argv after $0 and records its exit code in the file

@@ -11,7 +11,7 @@ import (
 
 	"github.com/zalando/go-keyring"
 
-	"github.com/ubermuda/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 )
 
 // preflightHome logs in against a fake Loupe in a config directory short

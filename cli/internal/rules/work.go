@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/directive"
-	"github.com/ubermuda/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/directive"
+	"github.com/loupe-ac/loupe/cli/internal/event"
 )
 
 // WorkRulePrefix starts the rule name of a work match. The kind follows it.

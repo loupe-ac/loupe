@@ -12,9 +12,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/mcpproxy"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/mcpproxy"
 )
 
 type currentProject struct {

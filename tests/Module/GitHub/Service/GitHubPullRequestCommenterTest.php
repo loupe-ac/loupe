@@ -56,7 +56,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_it_posts_the_body_as_an_issue_comment_of_the_pull_request(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe.site', 71_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 71_001);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['id' => 1], 201),
@@ -67,7 +67,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
         self::assertCount(2, $this->requests);
         self::assertSame('https://api.github.com/app/installations/71001/access_tokens', $this->requests[0]['url']);
         self::assertSame('POST', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/issues/604/comments', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/issues/604/comments', $this->requests[1]['url']);
         $body = $this->requests[1]['options']['body'] ?? null;
         self::assertIsString($body);
         self::assertSame(['body' => 'A fix run started.'], json_decode($body, true, flags: \JSON_THROW_ON_ERROR));
@@ -75,7 +75,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_the_repository_path_is_url_encoded(): void
     {
-        $pullRequest = $this->tracked('ubermuda/lou pe', 71_002);
+        $pullRequest = $this->tracked('loupe-ac/lou pe', 71_002);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['id' => 1], 201),
@@ -83,7 +83,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
         $this->commenter()->comment($pullRequest, 'Hello');
 
-        self::assertSame('https://api.github.com/repos/ubermuda/lou%20pe/issues/604/comments', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/loupe-ac/lou%20pe/issues/604/comments', $this->requests[1]['url']);
     }
 
     /** @return iterable<string, array{int}> */
@@ -97,7 +97,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
     #[DataProvider('refusals')]
     public function test_a_refused_comment_is_a_permanent_permission_failure(int $status): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_010 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_010 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"Resource not accessible by integration"}', ['http_code' => $status]),
@@ -125,7 +125,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
     #[DataProvider('rateLimits')]
     public function test_a_rate_limit_is_a_transient_failure_that_carries_the_delay_github_asks_for(int $status, array $headers, ?int $retryAfterSeconds): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_020 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_020 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => $status, 'response_headers' => $headers]),
@@ -140,7 +140,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_the_lookup_reads_the_comments_since_the_given_time_and_finds_the_marker(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe.site', 71_030);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe.site', 71_030);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer([['id' => 1, 'body' => 'LGTM'], ['id' => 2, 'body' => "Loupe queued a fix run.\n\n<!-- loupe-fix-run:run-1 -->"]]),
@@ -152,14 +152,14 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
         self::assertSame('GET', $this->requests[1]['method']);
         $url = parse_url($this->requests[1]['url']);
         self::assertIsArray($url);
-        self::assertSame('/repos/Ubermuda/Loupe.site/issues/604/comments', $url['path'] ?? null);
+        self::assertSame('/repos/Loupe-AC/Loupe.site/issues/604/comments', $url['path'] ?? null);
         parse_str($url['query'] ?? '', $query);
         self::assertSame(['since' => '2026-09-29T11:00:00Z', 'per_page' => '100', 'page' => '1'], $query);
     }
 
     public function test_the_lookup_reads_the_next_page_until_it_finds_the_marker(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_032);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_032);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->comments(100)),
@@ -173,7 +173,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_the_lookup_stops_at_a_short_page(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_033);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_033);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->comments(100)),
@@ -186,7 +186,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_a_lookup_that_reaches_ten_full_pages_is_a_permanent_incomplete_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_034);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_034);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201)];
         for ($page = 1; $page <= 11; ++$page) {
             $this->responses[] = $this->answer($this->comments(100));
@@ -206,7 +206,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_a_marker_on_the_tenth_page_is_found(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_035);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_035);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201)];
         for ($page = 1; $page <= 9; ++$page) {
             $this->responses[] = $this->answer($this->comments(100));
@@ -231,7 +231,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_the_lookup_answers_false_without_the_marker(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_031);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_031);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer([['id' => 1, 'body' => '<!-- loupe-fix-run:run-2 -->'], ['id' => 2, 'body' => null]]),
@@ -250,7 +250,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
     #[DataProvider('lookupFailures')]
     public function test_a_failed_lookup_fails_like_a_post(int $status, string $cause, bool $permanent): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_040 + $status);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_040 + $status);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"No"}', ['http_code' => $status]),
@@ -267,7 +267,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_a_server_error_is_a_transient_failure_that_names_the_status(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_003);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_003);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             new MockResponse('{"message":"Server Error"}', ['http_code' => 502]),
@@ -281,7 +281,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_a_missing_app_configuration_is_a_permanent_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_006);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_006);
 
         $failure = $this->failure($pullRequest, appId: null);
 
@@ -292,7 +292,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_an_unusable_private_key_is_a_permanent_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_007);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_007);
 
         $failure = $this->failure($pullRequest, privateKey: 'not a key');
 
@@ -303,7 +303,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_a_transport_error_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_004);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_004);
         $this->responses = [new MockResponse('', ['error' => 'Could not resolve host'])];
 
         $failure = $this->failure($pullRequest);
@@ -315,8 +315,8 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -329,7 +329,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
 
     public function test_a_suspended_installation_is_a_permanent_failure_of_its_own(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 71_005);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 71_005);
         $installations = self::getContainer()->get(GitHubInstallationRepository::class);
         self::assertInstanceOf(GitHubInstallationRepository::class, $installations);
         $installation = $installations->findOneByInstallationId(71_005);
@@ -347,7 +347,7 @@ final class GitHubPullRequestCommenterTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

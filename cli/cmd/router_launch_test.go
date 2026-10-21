@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/event"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // launchRules opens a session for plan work, and runs a worker for review

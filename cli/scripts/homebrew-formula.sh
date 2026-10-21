@@ -5,7 +5,7 @@ set -eu
 
 version=$1
 checksums=$2
-base="https://github.com/ubermuda/loupe/releases/download/cli/v$version"
+base="https://github.com/loupe-ac/loupe/releases/download/cli/v$version"
 
 # platform OS_ARCH prints the url and sha256 lines of one archive.
 platform() {
@@ -26,7 +26,7 @@ linux_amd64=$(platform linux_amd64)
 cat <<EOF
 class Loupe < Formula
   desc "Close the loop between Loupe and a local coding agent"
-  homepage "https://github.com/ubermuda/loupe"
+  homepage "https://github.com/loupe-ac/loupe"
   version "$version"
   license "AGPL-3.0-or-later"
 

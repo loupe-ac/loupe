@@ -2,7 +2,7 @@
 
 The stage skills read this file when the forge is `github`. It maps each forge operation to `gh` commands. Run them from a checkout of the repository.
 
-`<n>` is the pull request number. `<nameWithOwner>` is the repository of the checkout, such as `ubermuda/loupe`. Split it into `<owner>` and `<repo>` where a command needs both.
+`<n>` is the pull request number. `<nameWithOwner>` is the repository of the checkout, such as `loupe-ac/loupe`. Split it into `<owner>` and `<repo>` where a command needs both.
 
 ## Get a token
 

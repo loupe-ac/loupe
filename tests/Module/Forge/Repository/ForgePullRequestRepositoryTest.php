@@ -36,17 +36,17 @@ final class ForgePullRequestRepositoryTest extends KernelTestCase
     {
         $project = $this->project();
         $projectId = $project->id ?? throw new \LogicException('The project is persisted.');
-        $seven = $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 7);
-        $eight = $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 8);
-        $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/other', 7);
-        $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 9);
-        $this->pullRequests->insertIfMissing($this->projectId(), 'github', 'ubermuda/loupe', 7);
+        $seven = $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 7);
+        $eight = $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 8);
+        $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/other', 7);
+        $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 9);
+        $this->pullRequests->insertIfMissing($this->projectId(), 'github', 'loupe-ac/loupe', 7);
 
         $rows = $this->pullRequests->findByKeys($projectId, [
-            ['forge' => 'github', 'repository' => 'Ubermuda/Loupe', 'number' => 7],
-            ['forge' => 'github', 'repository' => 'ubermuda/loupe', 'number' => 8],
-            ['forge' => 'gitlab', 'repository' => 'ubermuda/loupe', 'number' => 9],
-            ['forge' => 'github', 'repository' => 'ubermuda/missing', 'number' => 7],
+            ['forge' => 'github', 'repository' => 'Loupe-AC/Loupe', 'number' => 7],
+            ['forge' => 'github', 'repository' => 'loupe-ac/loupe', 'number' => 8],
+            ['forge' => 'gitlab', 'repository' => 'loupe-ac/loupe', 'number' => 9],
+            ['forge' => 'github', 'repository' => 'loupe-ac/missing', 'number' => 7],
         ]);
 
         $ids = array_map(static fn (ForgePullRequest $row): string => (string) $row->id, $rows);
@@ -59,7 +59,7 @@ final class ForgePullRequestRepositoryTest extends KernelTestCase
     public function test_find_by_keys_answers_nothing_for_no_keys(): void
     {
         $projectId = $this->projectId();
-        $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 7);
+        $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 7);
 
         self::assertSame([], $this->pullRequests->findByKeys($projectId, []));
     }
@@ -68,11 +68,11 @@ final class ForgePullRequestRepositoryTest extends KernelTestCase
     {
         $projectId = $this->projectId();
         $otherProjectId = $this->projectId();
-        $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 7);
-        $eight = $this->pullRequests->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 8);
-        $elsewhere = $this->pullRequests->insertIfMissing($otherProjectId, 'github', 'ubermuda/loupe', 7);
+        $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 7);
+        $eight = $this->pullRequests->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 8);
+        $elsewhere = $this->pullRequests->insertIfMissing($otherProjectId, 'github', 'loupe-ac/loupe', 7);
 
-        $this->pullRequests->deleteByKey($projectId, 'github', 'Ubermuda/Loupe', 7);
+        $this->pullRequests->deleteByKey($projectId, 'github', 'Loupe-AC/Loupe', 7);
 
         $remaining = $this->em->getConnection()->fetchFirstColumn(
             'SELECT id FROM forge_pull_requests WHERE project_id IN (:projects) ORDER BY number, project_id',
@@ -89,18 +89,18 @@ final class ForgePullRequestRepositoryTest extends KernelTestCase
     {
         $project = $this->project();
         $projectId = $project->id ?? throw new \LogicException('The project is persisted.');
-        $match = $this->row($project, 'ubermuda/loupe', 1, 'epic/42');
-        $merged = $this->row($project, 'ubermuda/loupe', 2, 'epic/42');
+        $match = $this->row($project, 'loupe-ac/loupe', 1, 'epic/42');
+        $merged = $this->row($project, 'loupe-ac/loupe', 2, 'epic/42');
         $merged->state = PullRequestState::Merged;
-        $this->row($project, 'ubermuda/loupe', 3, 'epic/43');
-        $this->row($project, 'ubermuda/other', 4, 'epic/42');
-        $this->row($this->project(), 'ubermuda/loupe', 5, 'epic/42');
+        $this->row($project, 'loupe-ac/loupe', 3, 'epic/43');
+        $this->row($project, 'loupe-ac/other', 4, 'epic/42');
+        $this->row($this->project(), 'loupe-ac/loupe', 5, 'epic/42');
         $this->em->flush();
 
-        $rows = $this->pullRequests->findByHeadBranch($projectId, 'github', 'Ubermuda/Loupe', 'epic/42');
+        $rows = $this->pullRequests->findByHeadBranch($projectId, 'github', 'Loupe-AC/Loupe', 'epic/42');
 
         self::assertSame([$match->number, $merged->number], array_map(static fn (ForgePullRequest $row): int => $row->number, $rows));
-        self::assertSame([], $this->pullRequests->findByHeadBranch($projectId, 'gitlab', 'ubermuda/loupe', 'epic/42'));
+        self::assertSame([], $this->pullRequests->findByHeadBranch($projectId, 'gitlab', 'loupe-ac/loupe', 'epic/42'));
     }
 
     private function row(Project $project, string $repository, int $number, string $headBranch): ForgePullRequest

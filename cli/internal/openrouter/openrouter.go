@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // URL is the public model list. It needs no key.

@@ -1625,6 +1625,7 @@ no card, `subject` is the ask id. A worker line for a review verdict also names
 | `stream_error` | `error` |
 | `event_malformed` | `error` |
 | `permission_mode_unknown` | `mode`, `known`: logged at start for a mode outside the list this build knows |
+| `hook_package_moved` | `hook`, `fix`: a hook names its repository by an old name, such as `ubermuda/loupe`. The hook still runs. `fix` is the install command that renames it. Level `WARN` |
 | `accounts_migration_done` | `rules`: the bridge gave the rule file an `accounts` block at start |
 | `accounts_migration_failed` | `rules`, `error`, `block`: the bridge could not add the `accounts` block. `block` holds the lines to paste. Level `WARN` |
 | `agents_off` | `reason`, `message`: the rule file has no `accounts` block, so no worker, interactive session or app prompt runs. Command entries still run. Level `WARN` |
@@ -1838,11 +1839,11 @@ list of the rule file and keep the rest of the file, comments included. They
 rewrite the list itself, so a comment inside it is lost.
 
 ```bash
-loupe bridge hooks install ubermuda/loupe/hooks/amphetamine@<commit sha>
+loupe bridge hooks install loupe-ac/loupe/hooks/amphetamine@<commit sha>
 loupe bridge hooks list
-loupe bridge hooks set ubermuda/loupe/hooks/amphetamine quiet_hours=22:30-07:00
-loupe bridge hooks run ubermuda/loupe/hooks/amphetamine busy
-loupe bridge hooks remove ubermuda/loupe/hooks/amphetamine
+loupe bridge hooks set loupe-ac/loupe/hooks/amphetamine quiet_hours=22:30-07:00
+loupe bridge hooks run loupe-ac/loupe/hooks/amphetamine busy
+loupe bridge hooks remove loupe-ac/loupe/hooks/amphetamine
 ```
 
 | Flag | Default | Purpose |

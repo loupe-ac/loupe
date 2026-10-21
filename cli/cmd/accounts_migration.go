@@ -3,7 +3,7 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // accountsMigration is the outcome of the accounts migration of one start. It

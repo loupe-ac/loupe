@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/ubermuda/loupe/cli/internal/rules"
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // migrateAutoUpdate runs at each start until update.json holds the defaultOff

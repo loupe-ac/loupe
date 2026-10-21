@@ -13,7 +13,7 @@
 # the same pass, which is what lets this image be multi-platform without a
 # multi-platform production image being published. Build it with
 # `just build-demo`, not a bare `docker build`.
-ARG LOUPE_BASE=ghcr.io/ubermuda/loupe:prod
+ARG LOUPE_BASE=ghcr.io/loupe-ac/loupe:prod
 FROM ${LOUPE_BASE}
 
 # 16 to match docker/compose/prod.yaml, and therefore the serverVersion below.

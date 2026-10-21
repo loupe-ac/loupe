@@ -5,7 +5,7 @@ description: Use when deploying to production, running terraform apply against t
 
 # Deploying
 
-Production is a DigitalOcean App Platform app pulling `ghcr.io/ubermuda/loupe:prod`.
+Production is a DigitalOcean App Platform app pulling `ghcr.io/loupe-ac/loupe:prod`.
 Infrastructure lives in `terraform/`, and `terraform/terraform.tfvars` is
 gitignored, so it holds the real values.
 

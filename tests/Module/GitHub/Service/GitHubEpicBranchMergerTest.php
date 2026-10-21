@@ -55,14 +55,14 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
 
     public function test_it_merges_the_default_branch_into_the_epic_branch(): void
     {
-        $reference = $this->tracked('Ubermuda/Loupe.site', 73_001);
+        $reference = $this->tracked('Loupe-AC/Loupe.site', 73_001);
         $this->responses = [$this->token(), new MockResponse('{"sha":"abc"}', ['http_code' => 201])];
 
         $this->merger()->merge($reference, 'epic/820', 'main');
 
         self::assertCount(2, $this->requests);
         self::assertSame('POST', $this->requests[1]['method']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/merges', $this->requests[1]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe.site/merges', $this->requests[1]['url']);
         $body = $this->requests[1]['options']['body'] ?? null;
         self::assertIsString($body);
         self::assertSame(['base' => 'epic/820', 'head' => 'main'], json_decode($body, true, flags: \JSON_THROW_ON_ERROR));
@@ -70,7 +70,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
 
     public function test_a_204_means_the_epic_branch_already_holds_the_base(): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_002);
+        $reference = $this->tracked('loupe-ac/loupe', 73_002);
         $this->responses = [$this->token(), new MockResponse('', ['http_code' => 204])];
 
         $this->merger()->merge($reference, 'epic/820', 'main');
@@ -80,7 +80,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
 
     public function test_a_404_means_the_repository_has_no_epic_branch(): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_003);
+        $reference = $this->tracked('loupe-ac/loupe', 73_003);
         $this->responses = [$this->token(), new MockResponse('{"message":"Base does not exist"}', ['http_code' => 404])];
 
         $this->merger()->merge($reference, 'epic/820', 'main');
@@ -90,7 +90,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
 
     public function test_a_409_is_a_permanent_merge_conflict(): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_004);
+        $reference = $this->tracked('loupe-ac/loupe', 73_004);
         $this->responses = [$this->token(), new MockResponse('{"message":"Merge conflict"}', ['http_code' => 409])];
 
         $failure = $this->failure($reference);
@@ -109,7 +109,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
     #[DataProvider('refusals')]
     public function test_a_refused_merge_is_a_permanent_permission_failure(int $status): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_010 + $status);
+        $reference = $this->tracked('loupe-ac/loupe', 73_010 + $status);
         $this->responses = [$this->token(), new MockResponse('{"message":"Resource not accessible by integration"}', ['http_code' => $status])];
 
         $failure = $this->failure($reference);
@@ -130,7 +130,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
     #[DataProvider('rateLimits')]
     public function test_a_rate_limit_is_a_transient_failure_that_carries_the_delay(int $status, array $headers, ?int $retryAfterSeconds): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_020 + $status);
+        $reference = $this->tracked('loupe-ac/loupe', 73_020 + $status);
         $this->responses = [$this->token(), new MockResponse('{"message":"API rate limit exceeded"}', ['http_code' => $status, 'response_headers' => $headers])];
 
         $failure = $this->failure($reference);
@@ -142,7 +142,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
 
     public function test_a_server_error_is_a_transient_failure_that_names_the_status(): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_005);
+        $reference = $this->tracked('loupe-ac/loupe', 73_005);
         $this->responses = [$this->token(), new MockResponse('{"message":"Server Error"}', ['http_code' => 502])];
 
         $failure = $this->failure($reference);
@@ -153,7 +153,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
 
     public function test_a_missing_app_configuration_is_a_permanent_failure(): void
     {
-        $reference = $this->tracked('ubermuda/loupe', 73_006);
+        $reference = $this->tracked('loupe-ac/loupe', 73_006);
 
         $failure = $this->failure($reference, appId: null);
 
@@ -165,8 +165,8 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
     public function test_a_repository_without_an_installation_is_a_permanent_failure(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $reference = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $reference = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($reference);
         $this->em->flush();
 
@@ -180,7 +180,7 @@ final class GitHubEpicBranchMergerTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $reference = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($reference);

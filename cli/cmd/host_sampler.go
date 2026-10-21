@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/hostsample"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/hostsample"
 )
 
 // defaultHostSampleInterval applies when the server shares no interval of at

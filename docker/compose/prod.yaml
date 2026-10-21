@@ -170,7 +170,7 @@ services:
   # default command, so none is given here. Expired-export purging is not run
   # here any more: it rides the worker's schedule below.
   web:
-    image: ${LOUPE_PROD_IMAGE:-ghcr.io/ubermuda/loupe:prod}
+    image: ${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}
     build: *app-build
     restart: unless-stopped
     ports:
@@ -189,7 +189,7 @@ services:
   # keeps the shared export volume written by one user: the local adapter writes
   # archives 0600, so a root-written one 404s for every download.
   worker:
-    image: ${LOUPE_PROD_IMAGE:-ghcr.io/ubermuda/loupe:prod}
+    image: ${LOUPE_PROD_IMAGE:-ghcr.io/loupe-ac/loupe:prod}
     build: *app-build
     restart: unless-stopped
     command:

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // stateSent is one run state the router sent, with the project and run it named.

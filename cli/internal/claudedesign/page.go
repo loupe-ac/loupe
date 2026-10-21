@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/ubermuda/loupe/cli/internal/artifactcompile"
+	"github.com/loupe-ac/loupe/cli/internal/artifactcompile"
 )
 
 const lineAttr = "data-loupe-line"

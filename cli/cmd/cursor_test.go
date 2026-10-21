@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/api"
 )
 
 // replayer answers each replay call with the next page, and records the after

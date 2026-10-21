@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
 )
 
 var outboxNow = time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)

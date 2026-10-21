@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // Spec is a package the operator names on the command line, such as
@@ -37,7 +37,8 @@ func ParseSpec(s string) (Spec, error) {
 	if len(parts) < 2 {
 		return Spec{}, fmt.Errorf("package %q is not owner/repo", name)
 	}
-	spec := Spec{Owner: parts[0], Repo: parts[1], Ref: ref}
+	owner, repo, _ := strings.Cut(rules.CanonicalPackage(parts[0]+"/"+parts[1]), "/")
+	spec := Spec{Owner: owner, Repo: repo, Ref: ref}
 	if len(parts) == 3 {
 		spec.Path = parts[2]
 		if spec.Path == "" {

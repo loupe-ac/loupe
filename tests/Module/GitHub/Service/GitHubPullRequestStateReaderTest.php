@@ -63,7 +63,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_it_reads_pull_request_604_with_the_branch_rules_and_the_compare(): void
     {
-        $pullRequest = $this->tracked('Ubermuda/Loupe', 70_001);
+        $pullRequest = $this->tracked('Loupe-AC/Loupe', 70_001);
         $graphql = $this->fixture('graphql');
         $graphql['data']['repository']['pullRequest']['headRefName'] = 'card-604';
         $graphql['data']['repository']['pullRequest']['author'] = ['login' => 'ubermuda', 'databaseId' => 1234];
@@ -87,7 +87,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertSame('https://api.github.com/graphql', $this->requests[1]['url']);
         $body = json_decode($this->requests[1]['options']['body'] ?? '', true, flags: \JSON_THROW_ON_ERROR);
         self::assertIsArray($body);
-        self::assertSame(['owner' => 'Ubermuda', 'name' => 'Loupe', 'n' => 604, 'after' => null], $body['variables']);
+        self::assertSame(['owner' => 'Loupe-AC', 'name' => 'Loupe', 'n' => 604, 'after' => null], $body['variables']);
         self::assertIsString($body['query'] ?? null);
         self::assertStringContainsString('latestOpinionatedReviews(first:100,writersOnly:true){nodes{id state submittedAt author{login} commit{oid}}}', $body['query']);
         self::assertStringContainsString(' baseRepository{defaultBranchRef{name}} ', $body['query']);
@@ -96,13 +96,13 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
         self::assertStringContainsString(' createdAt mergedAt ', $body['query']);
         self::assertStringContainsString(' headRefOid headRefName baseRefName ', $body['query']);
         self::assertStringContainsString('author{login ... on User{databaseId}}', $body['query']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe/rules/branches/main?per_page=100&page=1', $this->requests[2]['url']);
-        self::assertSame('https://api.github.com/repos/Ubermuda/Loupe/compare/main...'.self::HEAD, $this->requests[3]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe/rules/branches/main?per_page=100&page=1', $this->requests[2]['url']);
+        self::assertSame('https://api.github.com/repos/Loupe-AC/Loupe/compare/main...'.self::HEAD, $this->requests[3]['url']);
     }
 
     public function test_every_page_of_the_check_contexts_is_read(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_010);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_010);
         $first = $this->fixture('graphql');
         $first['data']['repository']['pullRequest']['commits']['nodes'][0]['commit']['statusCheckRollup']['contexts'] = [
             'pageInfo' => ['hasNextPage' => true, 'endCursor' => 'cursor-1'],
@@ -133,7 +133,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_head_that_moves_between_pages_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_011);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_011);
         $first = $this->fixture('graphql');
         $first['data']['repository']['pullRequest']['commits']['nodes'][0]['commit']['statusCheckRollup']['contexts']['pageInfo'] = ['hasNextPage' => true, 'endCursor' => 'cursor-1'];
         $second = $first;
@@ -155,7 +155,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_every_page_of_the_branch_rules_is_read(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_013);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_013);
         $graphql = $this->fixture('graphql');
         $graphql['data']['repository']['pullRequest']['mergeable'] = 'CONFLICTING';
         $filler = array_fill(0, 100, ['type' => 'deletion']);
@@ -175,7 +175,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_behind_the_base_under_strict_rules_reads_as_behind(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_002);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_002);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->fixture('graphql')),
@@ -188,7 +188,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_the_branch_rules_are_cached_for_five_minutes(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_003);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_003);
         $graphql = $this->fixture('graphql');
         $graphql['data']['repository']['pullRequest']['mergeable'] = 'CONFLICTING';
         $this->responses = [
@@ -214,7 +214,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_unreadable_branch_rules_fall_back_to_the_required_flags_and_skip_the_compare(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_004);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_004);
         $graphql = $this->fixture('graphql');
         $graphql['data']['repository']['pullRequest']['baseRefName'] = 'release/1.x';
         $this->responses = [
@@ -227,14 +227,14 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
         self::assertSame(PullRequestChecks::Pending, $snapshot->checks);
         self::assertCount(3, $this->requests);
-        self::assertSame('https://api.github.com/repos/ubermuda/loupe/rules/branches/release%2F1.x?per_page=100&page=1', $this->requests[2]['url']);
+        self::assertSame('https://api.github.com/repos/loupe-ac/loupe/rules/branches/release%2F1.x?per_page=100&page=1', $this->requests[2]['url']);
         self::assertSame('forge.ruleset_unreadable', $this->logger->records[0]['message']);
         self::assertSame('http_status', $this->logger->records[0]['context']['reason']);
     }
 
     public function test_a_base_without_rules_inherits_the_required_checks_of_the_default_branch(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_014);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_014);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->ruleLessGraphql('epic/436')),
@@ -253,7 +253,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_the_default_branch_without_rules_requires_no_check(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_015);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_015);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->ruleLessGraphql('main')),
@@ -268,7 +268,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_base_without_rules_and_unreadable_default_branch_rules_is_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_016);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_016);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->ruleLessGraphql('epic/436')),
@@ -292,7 +292,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_unreadable_rules_of_a_base_that_is_not_the_default_branch_are_a_transient_failure(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_017);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_017);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->ruleLessGraphql('epic/436')),
@@ -313,7 +313,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_failed_compare_is_logged_and_ignored(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_005);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_005);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer($this->fixture('graphql')),
@@ -327,7 +327,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_missing_pull_request_is_not_found(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_006);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_006);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['data' => ['repository' => ['pullRequest' => null]], 'errors' => [['type' => 'NOT_FOUND']]]),
@@ -338,7 +338,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_graphql_answer_without_data_is_transient(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_012);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_012);
         $this->responses = [
             $this->answer(['token' => 'ghs_token'], 201),
             $this->answer(['errors' => [['type' => 'RATE_LIMITED']]]),
@@ -355,7 +355,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_failed_api_call_names_its_reason(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_007);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_007);
         $this->responses = [new MockResponse('', ['http_code' => 401])];
 
         self::assertSame('api_failed_http_status', $this->unreadable($pullRequest));
@@ -364,8 +364,8 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
     public function test_a_repository_without_an_installation_row_is_unreadable(): void
     {
         $project = $this->project();
-        $this->em->persist(new ForgeRepository($project, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Hook));
-        $pullRequest = new ForgePullRequest($project, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($project, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Hook));
+        $pullRequest = new ForgePullRequest($project, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -375,7 +375,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_removed_installation_is_unreadable(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_008);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_008);
         $this->installationOf(70_008)->removedAt = new \DateTimeImmutable();
         $this->em->flush();
 
@@ -384,10 +384,10 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_an_installation_of_another_project_is_unreadable(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_009);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_009);
         $other = $this->project();
-        $this->em->persist(new ForgeRepository($other, 'github', '604', 'ubermuda/loupe', ForgeRepositorySource::Installation, '70009'));
-        $pullRequest = new ForgePullRequest($other, 'github', 'ubermuda/loupe', 604);
+        $this->em->persist(new ForgeRepository($other, 'github', '604', 'loupe-ac/loupe', ForgeRepositorySource::Installation, '70009'));
+        $pullRequest = new ForgePullRequest($other, 'github', 'loupe-ac/loupe', 604);
         $this->em->persist($pullRequest);
         $this->em->flush();
 
@@ -396,7 +396,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
 
     public function test_a_suspended_installation_is_unreadable(): void
     {
-        $pullRequest = $this->tracked('ubermuda/loupe', 70_010);
+        $pullRequest = $this->tracked('loupe-ac/loupe', 70_010);
         $this->installationOf(70_010)->suspendedAt = new \DateTimeImmutable();
         $this->em->flush();
 
@@ -407,7 +407,7 @@ final class GitHubPullRequestStateReaderTest extends KernelTestCase
     private function tracked(string $path, int $installationId): ForgePullRequest
     {
         $project = $this->project();
-        $this->em->persist(new GitHubInstallation($project, $installationId, 'ubermuda', GitHubRepositorySelection::Selected));
+        $this->em->persist(new GitHubInstallation($project, $installationId, 'loupe-ac', GitHubRepositorySelection::Selected));
         $this->em->persist(new ForgeRepository($project, 'github', (string) $installationId, $path, ForgeRepositorySource::Installation, (string) $installationId));
         $pullRequest = new ForgePullRequest($project, 'github', $path, 604);
         $this->em->persist($pullRequest);

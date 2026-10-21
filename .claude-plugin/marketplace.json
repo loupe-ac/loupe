@@ -2,7 +2,7 @@
   "name": "loupe",
   "owner": {
     "name": "Geoffrey Bachelet",
-    "url": "https://github.com/ubermuda"
+    "url": "https://github.com/loupe-ac"
   },
   "description": "The Loupe plugin for Claude Code \u2014 skills for documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
   "version": "0.44.0",
@@ -15,9 +15,9 @@
       "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
       "author": {
         "name": "Geoffrey Bachelet",
-        "url": "https://github.com/ubermuda"
+        "url": "https://github.com/loupe-ac"
       },
-      "homepage": "https://github.com/ubermuda/loupe",
+      "homepage": "https://github.com/loupe-ac/loupe",
       "license": "AGPL-3.0-or-later",
       "category": "development",
       "keywords": [

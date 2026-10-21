@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 const usageRunID = "0199a0e2-4444-7c5e-9f2a-3b1c6d7e8f90"

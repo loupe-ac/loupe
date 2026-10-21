@@ -146,7 +146,7 @@ final class DeleteBoardDataOnProjectDeletingTest extends KernelTestCase
 
         $card = new Card(project: $project, column: $backlog, title: 'Ship it', body: 'Body', number: 1);
         if ('doomed' === $name) {
-            $card->pullRequests->add(new CardPullRequest($card, 'https://github.com/ubermuda/loupe/pull/1', Forge::GitHub, 'ubermuda/loupe', 1));
+            $card->pullRequests->add(new CardPullRequest($card, 'https://github.com/loupe-ac/loupe/pull/1', Forge::GitHub, 'loupe-ac/loupe', 1));
             $blocked = new Card(project: $project, column: $backlog, title: 'Then this', body: 'Body', number: 2);
             $em->persist($blocked);
             $em->persist(new CardLink($card, $blocked, CardLinkKind::Blocks));

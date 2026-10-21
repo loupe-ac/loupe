@@ -3,9 +3,9 @@ package cmd
 import (
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	harn "github.com/ubermuda/loupe/cli/internal/harness"
-	"github.com/ubermuda/loupe/cli/internal/transcript"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	harn "github.com/loupe-ac/loupe/cli/internal/harness"
+	"github.com/loupe-ac/loupe/cli/internal/transcript"
 )
 
 // sessionBaseline is what the whole session spent before a resume, and nil

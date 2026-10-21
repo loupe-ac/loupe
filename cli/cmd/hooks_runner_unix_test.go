@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // scriptHook installs script as ./hook.sh of a new package directory.

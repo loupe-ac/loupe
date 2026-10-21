@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
-	"github.com/ubermuda/loupe/cli/internal/update"
 )
 
 // reviewIOS is what `loupe review ios` needs from the machine; tests replace it.

@@ -11,7 +11,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"github.com/ubermuda/loupe/cli/internal/update"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 )
 
 // EntryRefusal is the error of AddWorkEntry. Reason is one of the Refuse

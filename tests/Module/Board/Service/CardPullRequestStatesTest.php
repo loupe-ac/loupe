@@ -43,12 +43,12 @@ final class CardPullRequestStatesTest extends KernelTestCase
         $projectId = $project->id ?? throw new \LogicException('The project is persisted.');
         $forgeRows = self::getContainer()->get(ForgePullRequestRepository::class);
         self::assertInstanceOf(ForgePullRequestRepository::class, $forgeRows);
-        $forgeRows->insertIfMissing($projectId, 'github', 'ubermuda/loupe', 7);
+        $forgeRows->insertIfMissing($projectId, 'github', 'loupe-ac/loupe', 7);
         $first = $this->cardIn($project);
         $second = $this->cardIn($project);
-        $firstLink = $this->link($first, 'Ubermuda/Loupe', 7);
-        $secondLink = $this->link($second, 'ubermuda/loupe', 7);
-        $untracked = $this->link($second, 'ubermuda/loupe', 8);
+        $firstLink = $this->link($first, 'Loupe-AC/Loupe', 7);
+        $secondLink = $this->link($second, 'loupe-ac/loupe', 7);
+        $untracked = $this->link($second, 'loupe-ac/loupe', 8);
         $unparsed = $this->link($second, null, null);
         $this->em->flush();
 

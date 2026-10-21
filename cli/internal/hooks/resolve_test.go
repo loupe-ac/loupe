@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"
@@ -28,7 +28,7 @@ func install(t *testing.T, root string, e rules.HookEntry, body string) {
 
 func TestTheDirectories(t *testing.T) {
 	root := t.TempDir()
-	if got, want := PackageDir(root, "ubermuda/loupe/hooks/amphetamine", sha), filepath.Join(root, "hooks", "packages", "ubermuda", "loupe", "hooks", "amphetamine", sha); got != want {
+	if got, want := PackageDir(root, "loupe-ac/loupe/hooks/amphetamine", sha), filepath.Join(root, "hooks", "packages", "loupe-ac", "loupe", "hooks", "amphetamine", sha); got != want {
 		t.Fatalf("PackageDir = %s, want %s", got, want)
 	}
 	if got, want := StateDir(root, "acme/tool"), filepath.Join(root, "hooks", "state", "acme", "tool"); got != want {
@@ -38,7 +38,7 @@ func TestTheDirectories(t *testing.T) {
 
 func TestResolve(t *testing.T) {
 	root := t.TempDir()
-	amph := rules.HookEntry{Package: "ubermuda/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha, Settings: map[string]string{"takeover": "true"}}
+	amph := rules.HookEntry{Package: "loupe-ac/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha, Settings: map[string]string{"takeover": "true"}}
 	tool := rules.HookEntry{Package: "acme/tool", Ref: "main", SHA: sha}
 	install(t, root, amph, manifest)
 	install(t, root, tool, "name: tool\nevents:\n  start: [./run, a b]\n")
@@ -52,7 +52,7 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("hooks = %+v", got)
 	}
 	h := got[0]
-	if h.ID != "ubermuda/loupe/hooks/amphetamine" || h.Ref != "v1" || h.SHA != sha || h.Timeout != 10*time.Second {
+	if h.ID != "loupe-ac/loupe/hooks/amphetamine" || h.Ref != "v1" || h.SHA != sha || h.Timeout != 10*time.Second {
 		t.Fatalf("hook = %+v", h)
 	}
 	if h.Dir != PackageDir(root, h.ID, sha) || h.StateDir != StateDir(root, h.ID) {
@@ -94,7 +94,7 @@ func TestResolveRefusesMoreEventsThanLoupeShows(t *testing.T) {
 
 func TestResolveFillsTheDefaults(t *testing.T) {
 	root := t.TempDir()
-	e := rules.HookEntry{Package: "ubermuda/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha}
+	e := rules.HookEntry{Package: "loupe-ac/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha}
 	install(t, root, e, manifest)
 
 	got, err := Resolve(root, []rules.HookEntry{e}, "darwin")
@@ -108,7 +108,7 @@ func TestResolveFillsTheDefaults(t *testing.T) {
 
 func TestResolveRefuses(t *testing.T) {
 	root := t.TempDir()
-	ok := rules.HookEntry{Package: "ubermuda/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha}
+	ok := rules.HookEntry{Package: "loupe-ac/loupe", Path: "hooks/amphetamine", Ref: "v1", SHA: sha}
 	install(t, root, ok, manifest)
 	broken := rules.HookEntry{Package: "acme/broken", Ref: "v1", SHA: sha}
 	install(t, root, broken, "name: x\n")
@@ -131,9 +131,9 @@ func TestResolveRefuses(t *testing.T) {
 		"missing":      {rules.HookEntry{Package: "acme/none", Ref: "v1", SHA: sha}, "darwin", "hook acme/none: the package is not installed"},
 		"no manifest":  {bare, "darwin", "hook acme/bare: the package is not installed"},
 		"bad manifest": {broken, "darwin", "hook acme/broken: events lists no event"},
-		"other os":     {ok, "linux", "hook ubermuda/loupe/hooks/amphetamine: the package runs on darwin, and this machine runs linux"},
-		"unknown":      {with(map[string]string{"speed": "1"}), "darwin", `hook ubermuda/loupe/hooks/amphetamine: setting "speed" is not in the manifest, which has label, takeover`},
-		"wrong type":   {with(map[string]string{"takeover": "yes"}), "darwin", `hook ubermuda/loupe/hooks/amphetamine: setting "takeover": "yes" is not true or false`},
+		"other os":     {ok, "linux", "hook loupe-ac/loupe/hooks/amphetamine: the package runs on darwin, and this machine runs linux"},
+		"unknown":      {with(map[string]string{"speed": "1"}), "darwin", `hook loupe-ac/loupe/hooks/amphetamine: setting "speed" is not in the manifest, which has label, takeover`},
+		"wrong type":   {with(map[string]string{"takeover": "yes"}), "darwin", `hook loupe-ac/loupe/hooks/amphetamine: setting "takeover": "yes" is not true or false`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := Resolve(root, []rules.HookEntry{tc.entry}, tc.goos)

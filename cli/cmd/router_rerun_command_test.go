@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // failedCommandKey is the key of a command run of card 87 that failed.

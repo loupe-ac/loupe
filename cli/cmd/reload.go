@@ -8,10 +8,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // reloadResult says what a reload changed, or why it changed nothing. Stage
@@ -261,6 +261,7 @@ func (r *router) swap(b built, seq uint64) reloadResult {
 	}
 	r.log.Info("reload_applied", attrs...)
 	warnUnknownModes(r.log, set)
+	warnMovedHooks(r.log, set)
 	warnAgentsOff(r.log, set)
 	warnAccountsOff(r.log, b.accounts)
 	if off := set.AccountsOff(); len(off) > 0 {

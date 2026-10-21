@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // shortConfigHome points the config dir at a short temp dir. A socket path

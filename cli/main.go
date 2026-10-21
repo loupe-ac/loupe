@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ubermuda/loupe/cli/cmd"
+	"github.com/loupe-ac/loupe/cli/cmd"
 )
 
 func main() {

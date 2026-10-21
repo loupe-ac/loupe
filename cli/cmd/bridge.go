@@ -18,14 +18,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/hooks"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/transport"
+	"github.com/loupe-ac/loupe/cli/internal/update"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/hooks"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
-	"github.com/ubermuda/loupe/cli/internal/rules"
-	"github.com/ubermuda/loupe/cli/internal/transport"
-	"github.com/ubermuda/loupe/cli/internal/update"
 )
 
 // refreshTimeout bounds a credentials fetch. http.DefaultClient has none at
@@ -289,6 +289,7 @@ func runBridgeOn(cmd *cobra.Command, o bridgeRunOptions, defaults rules.Defaults
 	cleanLaunchScripts(defaultScriptDir(), time.Now(), r.log)
 	logBridgeStart(r.log, cmd, set, path, bl.path, bridgeID)
 	warnUnknownModes(r.log, set)
+	warnMovedHooks(r.log, set)
 	warnAgentsOff(r.log, set)
 	warnAccountsOff(r.log, accounts)
 
@@ -329,6 +330,16 @@ func poolSizes(set *rules.Set) string {
 func warnUnknownModes(log *slog.Logger, set *rules.Set) {
 	for _, mode := range set.UnknownPermissionModes() {
 		log.Warn("permission_mode_unknown", "mode", mode, "known", rules.PermissionModes)
+	}
+}
+
+// warnMovedHooks names each hook whose repository moved, and the install that
+// moves it to the new name. The hook keeps running under the old one.
+func warnMovedHooks(log *slog.Logger, set *rules.Set) {
+	for _, e := range set.Hooks() {
+		if e.Moved() {
+			log.Warn("hook_package_moved", "hook", e.ID(), "fix", "loupe bridge hooks install "+e.CanonicalID()+"@"+e.Ref)
+		}
 	}
 }
 
@@ -535,7 +546,7 @@ func subscribe(cmd *cobra.Command, cfg config.Config, r *router) error {
 
 				return r.credentials.answer(ctx, runID)
 			},
-			env:    r.runEnv,
+			env: r.runEnv,
 			update: func(ctx context.Context, reply func(updateResult)) updateResult {
 				if updates == nil {
 					return updateResult{From: version, Outcome: outcomeFailed, Problem: "this bridge runs no update checks"}

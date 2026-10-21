@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/claudecode"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/mcpjson"
+	"github.com/loupe-ac/loupe/cli/internal/profile"
+	"github.com/loupe-ac/loupe/cli/internal/projectfile"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/claudecode"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/mcpjson"
-	"github.com/ubermuda/loupe/cli/internal/profile"
-	"github.com/ubermuda/loupe/cli/internal/projectfile"
 )
 
 // projectLinkOptions are the flags of `loupe project link`.

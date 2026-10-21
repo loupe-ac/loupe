@@ -9,11 +9,11 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/config"
-	"github.com/ubermuda/loupe/cli/internal/event"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
+	"github.com/loupe-ac/loupe/cli/internal/event"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // workClient claims and settles work requests. *api.Client is one.

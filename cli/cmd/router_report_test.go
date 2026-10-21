@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/outbound"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/outbound"
 )
 
 const testBridge = "0199a0e2-9d4c-7c5e-9f2a-3b1c6d7e8f90"

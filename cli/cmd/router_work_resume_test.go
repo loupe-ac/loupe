@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/directive"
-	"github.com/ubermuda/loupe/cli/internal/rules"
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/directive"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 )
 
 // unfinishedSession is the session of an unfinished run that a work request

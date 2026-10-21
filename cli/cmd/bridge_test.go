@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/rules"
 	"github.com/spf13/cobra"
-	"github.com/ubermuda/loupe/cli/internal/api"
-	"github.com/ubermuda/loupe/cli/internal/rules"
 )
 
 // runBridge parses args and runs the command far enough to reach its start
@@ -100,6 +100,26 @@ func TestAnUnknownPermissionModeIsLoggedAtStart(t *testing.T) {
 		t.Fatalf("log = %q: %v", out.String(), err)
 	}
 	if line["event"] != "permission_mode_unknown" || line["mode"] != "acceptedits" || line["level"] != "WARN" {
+		t.Fatalf("line = %v", line)
+	}
+}
+
+// A hook under the old name of the Loupe repository keeps running, and the log
+// names the command that moves it.
+func TestAMovedHookPackageIsLoggedAtStart(t *testing.T) {
+	set, err := rules.Parse([]byte("accounts:\n  claude:\n    harness: claude-code\ndefaults:\n  account: claude\nprojects:\n  loupe:\n    dir: "+t.TempDir()+"\nwork:\n  plan: {prompt: go}\nhooks:\n  - package: ubermuda/loupe\n    path: hooks/amphetamine\n    ref: v1\n    sha: "+strings.Repeat("1", 40)+"\n"), rules.Defaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+
+	warnMovedHooks(newBridgeLogger(&out), set)
+
+	var line map[string]any
+	if err := json.Unmarshal(out.Bytes(), &line); err != nil {
+		t.Fatalf("log = %q: %v", out.String(), err)
+	}
+	if line["event"] != "hook_package_moved" || line["hook"] != "ubermuda/loupe/hooks/amphetamine" || line["fix"] != "loupe bridge hooks install loupe-ac/loupe/hooks/amphetamine@v1" || line["level"] != "WARN" {
 		t.Fatalf("line = %v", line)
 	}
 }

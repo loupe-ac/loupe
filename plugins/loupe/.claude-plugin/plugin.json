@@ -5,10 +5,10 @@
   "description": "Skills for working a Loupe project from Claude Code: documents, the board, the inbox, live review, the workers, the analyses, discovery and the card stages.",
   "author": {
     "name": "Geoffrey Bachelet",
-    "url": "https://github.com/ubermuda"
+    "url": "https://github.com/loupe-ac"
   },
-  "homepage": "https://github.com/ubermuda/loupe",
-  "repository": "https://github.com/ubermuda/loupe",
+  "homepage": "https://github.com/loupe-ac/loupe",
+  "repository": "https://github.com/loupe-ac/loupe",
   "license": "AGPL-3.0-or-later",
   "keywords": [
     "review",

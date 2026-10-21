@@ -41,7 +41,7 @@ func FetchReleases(ctx context.Context, hc *http.Client, apiBase string) ([]Rele
 }
 
 func fetchPage(ctx context.Context, hc *http.Client, apiBase string, page int) ([]Release, error) {
-	url := fmt.Sprintf("%s/repos/ubermuda/loupe/releases?per_page=%d&page=%d", apiBase, perPage, page)
+	url := fmt.Sprintf("%s/repos/loupe-ac/loupe/releases?per_page=%d&page=%d", apiBase, perPage, page)
 	data, err := download(ctx, hc, url, "application/vnd.github+json", maxReleases)
 	if err != nil {
 		return nil, fmt.Errorf("list the releases: %w", err)

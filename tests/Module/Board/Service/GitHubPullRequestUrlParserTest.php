@@ -22,14 +22,14 @@ final class GitHubPullRequestUrlParserTest extends TestCase
 
     public function test_a_github_pull_request_url_is_read(): void
     {
-        $url = 'https://github.com/ubermuda/loupe/pull/362';
+        $url = 'https://github.com/loupe-ac/loupe/pull/362';
 
         self::assertTrue($this->parser->supports($url));
 
         $ref = $this->parser->parse($url);
 
         self::assertSame(Forge::GitHub, $ref->forge);
-        self::assertSame('ubermuda/loupe', $ref->repository);
+        self::assertSame('loupe-ac/loupe', $ref->repository);
         self::assertSame(362, $ref->number);
     }
 
@@ -38,8 +38,8 @@ final class GitHubPullRequestUrlParserTest extends TestCase
     {
         yield 'another forge' => ['https://gitlab.com/group/project/-/merge_requests/7'];
         yield 'self-hosted forge' => ['https://code.example.org/team/app/pulls/12'];
-        yield 'github issue' => ['https://github.com/ubermuda/loupe/issues/362'];
-        yield 'github repository root' => ['https://github.com/ubermuda/loupe'];
+        yield 'github issue' => ['https://github.com/loupe-ac/loupe/issues/362'];
+        yield 'github repository root' => ['https://github.com/loupe-ac/loupe'];
         yield 'not a url' => ['loupe pull 362'];
     }
 
@@ -64,7 +64,7 @@ final class GitHubPullRequestUrlParserTest extends TestCase
     {
         $resolver = new PullRequestUrlResolver([$this->parser]);
 
-        $ref = $resolver->resolve('https://github.com/ubermuda/loupe/pull/1');
+        $ref = $resolver->resolve('https://github.com/loupe-ac/loupe/pull/1');
 
         self::assertSame(Forge::GitHub, $ref->forge);
     }
@@ -75,8 +75,8 @@ final class GitHubPullRequestUrlParserTest extends TestCase
         $owner = str_repeat('a', CardPullRequest::MAX_REPOSITORY_LENGTH);
 
         yield 'repository past its column' => ['https://github.com/'.$owner.'/loupe/pull/1'];
-        yield 'number past a 32-bit integer' => ['https://github.com/ubermuda/loupe/pull/2147483648'];
-        yield 'number past a 64-bit integer' => ['https://github.com/ubermuda/loupe/pull/99999999999999999999'];
+        yield 'number past a 32-bit integer' => ['https://github.com/loupe-ac/loupe/pull/2147483648'];
+        yield 'number past a 64-bit integer' => ['https://github.com/loupe-ac/loupe/pull/99999999999999999999'];
     }
 
     /**
