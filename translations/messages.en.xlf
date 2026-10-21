@@ -754,6 +754,34 @@
                 <source>billing.email.trial_end_survey.subscribed.button_label</source>
                 <target>Share your experience</target>
             </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.subject">
+                <source>billing.email.beta_welcome.subject</source>
+                <target>Welcome to the Loupe beta</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.heading">
+                <source>billing.email.beta_welcome.heading</source>
+                <target>Welcome to the Loupe beta</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.access">
+                <source>billing.email.beta_welcome.access</source>
+                <target>Your account now has free access for as long as the beta runs.</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.discord">
+                <source>billing.email.beta_welcome.discord</source>
+                <target>The beta testers and the team talk on Discord: ask questions there, and tell us what breaks.</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.open">
+                <source>billing.email.beta_welcome.open</source>
+                <target>Open Loupe</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.join_discord">
+                <source>billing.email.beta_welcome.join_discord</source>
+                <target>Join the Discord server</target>
+            </trans-unit>
+            <trans-unit id="billing.email.beta_welcome.footer">
+                <source>billing.email.beta_welcome.footer</source>
+                <target>You get this email because you used a Loupe beta invite.</target>
+            </trans-unit>
             <trans-unit id="billing.email.cancel_survey.subject">
                 <source>billing.email.cancel_survey.subject</source>
                 <target>Your Loupe subscription has ended — what made you leave?</target>
@@ -3876,6 +3904,26 @@
             <trans-unit id="billing.beta_invite.redeemed.continue">
                 <source>billing.beta_invite.redeemed.continue</source>
                 <target>Continue to the app</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.start.heading">
+                <source>billing.beta_invite.redeemed.start.heading</source>
+                <target>Start using Loupe</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.start.body">
+                <source>billing.beta_invite.redeemed.start.body</source>
+                <target>Create your first project and connect your coding agent.</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.community.heading">
+                <source>billing.beta_invite.redeemed.community.heading</source>
+                <target>Join the beta testers</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.community.body">
+                <source>billing.beta_invite.redeemed.community.body</source>
+                <target>The beta testers and the team talk on Discord. Ask questions, and tell us what breaks.</target>
+            </trans-unit>
+            <trans-unit id="billing.beta_invite.redeemed.community.button">
+                <source>billing.beta_invite.redeemed.community.button</source>
+                <target>Join the Discord server</target>
             </trans-unit>
             <trans-unit id="billing.beta_invite.invalid.page.title">
                 <source>billing.beta_invite.invalid.page.title</source>

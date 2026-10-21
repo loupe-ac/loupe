@@ -8,6 +8,7 @@ use App\Module\Account\Entity\User;
 use App\Module\Billing\Entity\BetaInvite;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Types\UuidType;
 
 /**
  * @extends ServiceEntityRepository<BetaInvite>
@@ -38,6 +39,56 @@ class BetaInviteRepository extends ServiceEntityRepository
             ->leftJoin('i.redeemedBy', 'r')
             ->addSelect('r')
             ->orderBy('i.createdAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Clears the due date of one invite and tells whether this call did it.
+     * One conditional UPDATE decides which of two racing callers sends the
+     * email. It runs on the ORM connection, so a caller's transaction holds it.
+     */
+    public function claimWelcomeEmail(BetaInvite $invite): bool
+    {
+        return 1 === $this->getEntityManager()->getConnection()->executeStatement(
+            'UPDATE beta_invites SET welcome_email_due_at = NULL WHERE id = :id AND welcome_email_due_at IS NOT NULL',
+            ['id' => $invite->id],
+            ['id' => UuidType::NAME],
+        );
+    }
+
+    /**
+     * The sweep's batch: invites that still wait and whose redeemer has a
+     * verified address, oldest redemption first.
+     *
+     * @return list<BetaInvite>
+     */
+    public function findWelcomeDue(int $limit): array
+    {
+        return $this->createQueryBuilder('i')
+            ->innerJoin('i.redeemedBy', 'r')
+            ->addSelect('r')
+            ->where('i.welcomeEmailDueAt IS NOT NULL')
+            ->andWhere('r.emailVerifiedAt IS NOT NULL')
+            ->orderBy('i.redeemedAt', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Every invite the user redeemed that still waits, whether or not the
+     * address is verified. The sender applies the verification guard.
+     *
+     * @return list<BetaInvite>
+     */
+    public function findWelcomeDueFor(User $user): array
+    {
+        return $this->createQueryBuilder('i')
+            ->where('i.redeemedBy = :user')
+            ->andWhere('i.welcomeEmailDueAt IS NOT NULL')
+            ->setParameter('user', $user->id, UuidType::NAME)
+            ->orderBy('i.redeemedAt', 'ASC')
             ->getQuery()
             ->getResult();
     }

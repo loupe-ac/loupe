@@ -84,6 +84,14 @@ h1 {
     font-weight: 700;
 }
 
+/* The quiet twin of .btn: white fill, hairline border, the same pill. Sits
+   beside .btn, so it carries its own left gap. */
+.btn-outline {
+    background-color: #ffffff;
+    border: 1px solid #cdd3c6; /* --line-strong */
+    margin-left: 10px;
+}
+
 /* The footer carries a raw fallback URL, which is one long unbreakable token
    and runs past the card edge without this. */
 .footer {
