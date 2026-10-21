@@ -11,6 +11,7 @@ use App\Module\SiteReview\Command\ShowPendingCommentsHandler;
 use App\Module\SiteReview\Context\CommentLinkResolverInterface;
 use App\Module\SiteReview\Context\CommentScopeResolver;
 use App\Module\SiteReview\Context\ContextLabelResolver;
+use App\Module\SiteReview\Entity\ReviewSurface;
 use App\Module\SiteReview\Entity\SiteReviewComment;
 use App\Module\SiteReview\Entity\SiteReviewCommentAnchor;
 use App\Module\SiteReview\ParentType\ParentType;
@@ -27,7 +28,7 @@ use Ubermuda\FeatureFlagsBundle\FeatureFlagService;
  * review batch.
  */
 #[Route(
-    '/api/site-review/review',
+    '/api/live-review/review',
     name: 'api_site_review_pending_comments',
     methods: ['GET'],
 )]
@@ -58,7 +59,15 @@ final class ShowPendingCommentsController extends AppController
             ? $this->commentScopes->resolve((string) $request->query->get('scope'), $project) ?? []
             : null;
 
-        $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds));
+        // An absent filter keeps the web notes, which is all a widget copy asks for.
+        $surface = $request->query->has('surface')
+            ? ReviewSurface::tryFrom((string) $request->query->get('surface'))
+            : ReviewSurface::Web;
+        if (null === $surface) {
+            return $this->json(['error' => 'surface_invalid'], JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $view = ($this->showPendingComments)(new ShowPendingCommentsCommand($project, $commentIds, $surface));
 
         // The marker is the page's preview card or the target the widget
         // stored for its mode. A marker nothing resolves comes back as null,
@@ -96,6 +105,8 @@ final class ShowPendingCommentsController extends AppController
                         'selector' => null === $first ? '' : $first->selector,
                         'text' => null === $first ? '' : $first->text,
                         'url' => $c->url,
+                        'surface' => $c->surface->value,
+                        'native' => $c->native,
                         'anchors' => array_values(array_map(
                             static fn (SiteReviewCommentAnchor $a): array => [
                                 'selector' => $a->selector,

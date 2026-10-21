@@ -11,11 +11,13 @@ final class WidgetFileTest extends TestCase
 {
     public function test_widget_file_exists_and_is_self_contained(): void
     {
-        $path = dirname(__DIR__, 3).'/public/site-review/widget.js';
+        $path = dirname(__DIR__, 3).'/public/live-review/widget.js';
         self::assertFileExists($path);
 
         $src = (string) file_get_contents($path);
         self::assertStringContainsString('attachShadow', $src);
+        // The anchors are the record. A note reads no scalar selector or text.
+        self::assertStringNotContainsString('comment.selector', $src);
         self::assertStringContainsString('data-project', $src);
         self::assertStringContainsString('data-context', $src);
         // Read once per request and carried through the answer, never re-read
@@ -35,9 +37,9 @@ final class WidgetFileTest extends TestCase
         // only tells a stale copy to reload.
         self::assertStringNotContainsString('{ context: CONTEXT }', $src);
         self::assertStringContainsString("api('POST', '/api/board/feedback'", $src);
-        self::assertStringNotContainsString("'/api/site-review/comments',", $src);
+        self::assertStringNotContainsString("'/api/live-review/comments',", $src);
         // The widget saves as the reviewer writes; there is no send step to call.
-        self::assertStringNotContainsString('/api/site-review/review/submit', $src);
+        self::assertStringNotContainsString('/api/live-review/review/submit', $src);
 
         // The launcher says when the backend is a local build, so a reviewer
         // sees that the comments land in a preview instance. The origin the
@@ -63,7 +65,7 @@ final class WidgetFileTest extends TestCase
 
     public function test_list_request_carries_the_scope_of_the_review(): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         // The scope rides next to the context marker on every list request.
         self::assertStringContainsString('encodeURIComponent(scope)', $src);
@@ -80,7 +82,7 @@ final class WidgetFileTest extends TestCase
 
     public function test_panel_views_replace_the_old_flags(): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         foreach (['state.composing', 'state.picking', 'state.listExpanded', 'verdict.open'] as $flag) {
             self::assertStringNotContainsString($flag, $src, $flag);
@@ -96,7 +98,7 @@ final class WidgetFileTest extends TestCase
 
     public function test_note_actions_live_in_menus(): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         foreach (['lp-resolve', 'lp-edit', 'lp-del"', 'id="lp-move"', 'id="lp-clear"'] as $gone) {
             self::assertStringNotContainsString($gone, $src, $gone);
@@ -108,7 +110,7 @@ final class WidgetFileTest extends TestCase
 
     public function test_active_launcher_tool_shows_an_accent_disc_inside_the_button(): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         // The padding insets the accent, so the disc sits inside the button
         // and the click target keeps its full size.
@@ -117,14 +119,14 @@ final class WidgetFileTest extends TestCase
 
     public function test_launcher_tools_keep_the_prototype_click_target(): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         self::assertMatchesRegularExpression('/^\s*\.lp-launch-action\{[^}]*width:36px;height:36px;/m', $src);
     }
 
     public function test_every_widget_control_keeps_its_focus_ring(): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         preg_match_all('/^\s*(button:focus-visible,[^{]*)\{outline:2px solid var\(--accent-ink\)/m', $src, $rings);
         self::assertCount(2, $rings[1]);
@@ -150,7 +152,7 @@ final class WidgetFileTest extends TestCase
     #[DataProvider('overlaySizes')]
     public function test_overlay_size_constant_matches_its_css(string $constant, string $selector, string $property): void
     {
-        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/site-review/widget.js');
+        $src = (string) file_get_contents(dirname(__DIR__, 3).'/public/live-review/widget.js');
 
         self::assertSame(1, preg_match('/const '.$constant.' = (\d+);/', $src, $js));
         self::assertSame(1, preg_match('/^\s*'.preg_quote($selector, '/').'\{(?:[^}]*?;)?'.$property.':(\d+)px/m', $src, $css));

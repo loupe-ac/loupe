@@ -54,8 +54,8 @@ db_server_version = "18" # the cluster's actual PG major version
 # `openssl rand -hex 32`.
 # health_probe_token = "..."
 
-# --- Site review ---
-# Optional. The id of the loupe.ac project site-review comments should file
+# --- Live review ---
+# Optional. The id of the loupe.ac project live-review comments should file
 # into. The reviewer signs in through the OAuth popup, so the page source
 # carries no credential.
 # site_review_widget_project = "0199c0de-0000-7000-8000-000000000001"
@@ -157,7 +157,7 @@ registry = "you"
 # mailer_from_address is required and set in the outbound-mail section above.
 # mailer_from_name    = "Loupe"
 
-# Site-review push. Setting this runs a Mercure hub as a second service in the
+# Live-review push. Setting this runs a Mercure hub as a second service in the
 # app and wires the URLs automatically; leave it out to keep push disabled.
 # mercure_jwt_secret = "GENERATE_A_LONG_RANDOM_STRING"
 

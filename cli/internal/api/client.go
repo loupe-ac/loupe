@@ -160,6 +160,8 @@ type Client struct {
 	baseURL string
 	tokens  TokenSource
 	http    *http.Client
+	// project is the id the site-review methods send as ProjectHeader.
+	project string
 }
 
 // New builds a Client for a static API token. A nil http.Client falls back to

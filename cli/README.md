@@ -20,6 +20,8 @@ a directory on your `PATH` that you can write.
 [Installing the CLI](../docs/getting-started/cli.md) gives the steps. A bridge
 then keeps the binary up to date by itself, as [Updates](#updates) says.
 
+On macOS, the install also puts the Live review panel on the machine. The script and `loupe update` install it into `live-review/<version>/` in the config directory, and Homebrew installs it in `libexec`. [`loupe review ios`](#loupe-review-ios) opens it.
+
 From a checkout of this repository, one recipe does all three steps:
 
 ```bash
@@ -73,6 +75,20 @@ workflow gives goreleaser the version as `GORELEASER_CURRENT_TAG=vX.Y.Z`, with
 `--skip=publish,validate`. The `validate` step refuses a tag that git does not
 hold. The binary then reports the version `X.Y.Z`.
 
+A release needs five secrets in the GitHub repository. The macOS job signs and notarises the Live review panel with them, and the release fails when one is missing.
+
+| Secret | Value |
+|---|---|
+| `MACOS_CERTIFICATE` | The `.p12` file of a Developer ID Application certificate, encoded as base64 |
+| `MACOS_CERTIFICATE_PASSWORD` | The password of that `.p12` file |
+| `APPLE_NOTARY_KEY_ID` | The key ID of an App Store Connect API key |
+| `APPLE_NOTARY_ISSUER_ID` | The issuer ID of that API key |
+| `APPLE_NOTARY_KEY` | The text of the `.p8` file of that API key |
+
+The panel needs the same certificate for each release, so macOS keeps the Accessibility permission across updates.
+
+The new login carries the `site-review` scope, and an older server refuses it. Deploy the server first, then push the `cli/v*` tag.
+
 To make a release, push a tag from `main`:
 
 ```bash
@@ -100,7 +116,7 @@ goreleaser release --snapshot --clean         # local dry run, no tag needed
 - A login with the **agent** scope. `loupe login` gets one in a browser, and a
   browser is the only way in. A machine with no browser anywhere cannot get a
   credential, and there is no replacement for CI. A project's widget token
-  carries the site-review scope instead. That token is embedded in page HTML and
+  carries the `site-review` scope instead. That token is embedded in page HTML and
   public by design, so the firewall refuses it on every endpoint the bridge
   needs.
 - A rule file, `rules.yaml`, beside `config.json`. See
@@ -155,6 +171,18 @@ An older version kept a static API token in `config.json` or in your OS
 keychain. Loupe refuses such a token now, so that file reports you as logged
 out. Run `loupe login`, which clears the keychain entry as it writes the new
 login.
+
+## `loupe review ios`
+
+Opens the Live review panel for the current folder, beside the iOS Simulator in Device Hub. It reads `.loupe.yaml` for the project. [`docs/reference/cli.md`](../docs/reference/cli.md#loupe-review-ios) gives the panel lookup order and the exit messages.
+
+## `loupe review` (hidden helpers)
+
+`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `targets`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them. The helpers other than `ios` can change at any release.
+
+`sign-in` starts a device sign-in, prints the code and the link, and exits. The panel then runs `status` until the sign-in ends. While nobody has approved the code, `status` prints `pending`. It finishes the sign-in with one token request at most per server interval. After an approval it saves the login and prints `ok`. After a denial or an expired code it prints `signedOut`.
+
+A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
 
 ## `loupe init`
 
@@ -1852,7 +1880,7 @@ that each worker gets.
 
 ## `loupe preview-token`
 
-Mints and revokes the preview token that signs the site-review widget in on a
+Mints and revokes the preview token that signs the live-review widget in on a
 preview site. A preview script calls `mint` when it creates a preview site,
 and `revoke` when it removes the site.
 
@@ -1908,7 +1936,7 @@ reported usage and a repeat changes nothing. `--dry-run` needs no login.
 
 ## `loupe update`
 
-Updates the CLI now, without waiting for the next hourly check.
+Updates the CLI now, without waiting for the next hourly check. On macOS it installs the Live review panel of the new version too. When the running version has no panel, `loupe update` installs that panel even if the CLI is current.
 
 ```bash
 loupe update
@@ -2062,3 +2090,9 @@ gives the bridge no cursor, and the bridge then catches up nothing. A replayed
 work request that ended since runs nothing, because its claim fails. The
 [Replay section](../docs/extending/cli-bridge.md#replay) of the bridge
 documentation gives every rule.
+
+## Live review panel
+
+`cli/macos/LiveReview/` holds the Live review panel, a Swift package for macOS 13 and later.
+It reads the iOS Simulator window in Device Hub through the macOS accessibility interface, marks a screenshot, and saves the note with the hidden `loupe review` commands.
+Run `swift test` in that folder for its tests, and `Scripts/bundle.sh` to build `Live review.app` with an ad hoc signature for local use.

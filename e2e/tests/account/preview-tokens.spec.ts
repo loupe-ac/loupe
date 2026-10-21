@@ -84,7 +84,7 @@ test('a person with no preview token sees the empty line in the widget group', a
     await page.goto('/account/connected-apps');
 
     const group = page.locator('[data-preview-widget]');
-    await expect(group).toContainText('Site review widget');
+    await expect(group).toContainText('Live review widget');
     await expect(group).toContainText('No live preview tokens.');
     await expect(group.locator('[data-preview-token]')).toHaveCount(0);
     await expect(group.getByRole('button', { name: 'Revoke all' })).toHaveCount(

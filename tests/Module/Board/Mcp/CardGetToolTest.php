@@ -10,6 +10,7 @@ use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Mcp\CardCreateTool;
 use App\Module\Board\Mcp\CardGetTool;
+use App\Module\Board\Mcp\FeedbackListTool;
 use App\Module\Forge\Entity\PullRequestChecks;
 use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
@@ -20,7 +21,10 @@ use App\Module\Workflow\Contract\PauseKind;
 use App\Tests\Support\McpTokenScenario;
 use Doctrine\ORM\EntityManagerInterface;
 use Mcp\Exception\ToolCallException;
+use Mcp\Schema\Content\ImageContent;
+use Mcp\Schema\Content\TextContent;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class CardGetToolTest extends KernelTestCase
@@ -56,7 +60,7 @@ final class CardGetToolTest extends KernelTestCase
             'https://github.com/ubermuda/loupe/pull/7',
         ]);
 
-        $card = ($this->tool)($created['cardId']);
+        $card = $this->call($created['cardId']);
 
         self::assertSame($created['cardId'], $card['cardId']);
         self::assertSame($created['number'], $card['number']);
@@ -73,7 +77,7 @@ final class CardGetToolTest extends KernelTestCase
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-get-pause'));
         $created = ($this->createTool)('Ship it', 'Body', 'feature');
-        self::assertNull(($this->tool)($created['cardId'])['pause']);
+        self::assertNull($this->call($created['cardId'])['pause']);
         $card = $this->em->find(Card::class, $created['cardId']);
         self::assertInstanceOf(Card::class, $card);
         $handler = self::getContainer()->get(PauseCardHandler::class);
@@ -87,19 +91,19 @@ final class CardGetToolTest extends KernelTestCase
             'reason' => 'review-failed',
             'ruleId' => 'fix-on-review',
             'since' => $pause->createdAt->format(\DATE_ATOM),
-        ], ($this->tool)($created['cardId'])['pause']);
+        ], $this->call($created['cardId'])['pause']);
 
         $pause->release('owner-resumed', new \DateTimeImmutable());
         $this->em->flush();
 
-        self::assertNull(($this->tool)($created['cardId'])['pause']);
+        self::assertNull($this->call($created['cardId'])['pause']);
     }
 
     public function test_a_card_reads_its_state_with_the_reason_and_the_others(): void
     {
         $this->actAsMcpTokenBoundTo($this->makeProject('card-get-card-state'));
         $created = ($this->createTool)('Ship it', 'Body', 'feature');
-        self::assertNull(($this->tool)($created['cardId'])['state']);
+        self::assertNull($this->call($created['cardId'])['state']);
         $card = $this->em->find(Card::class, $created['cardId']);
         self::assertInstanceOf(Card::class, $card);
         $since = new \DateTimeImmutable('2026-10-02 09:00:00+00:00');
@@ -110,7 +114,7 @@ final class CardGetToolTest extends KernelTestCase
         ];
         $this->em->flush();
 
-        $state = ($this->tool)($created['cardId'])['state'];
+        $state = $this->call($created['cardId'])['state'];
 
         self::assertSame([
             'kind' => 'stuck',
@@ -132,7 +136,7 @@ final class CardGetToolTest extends KernelTestCase
         $card->markers = [['key' => 'unmanaged', 'kind' => 'chip', 'label' => 'marker.unmanaged', 'remedy' => null, 'params' => [], 'since' => '2026-10-02T09:00:00+00:00']];
         $this->em->flush();
 
-        self::assertNull(($this->tool)($created['cardId'])['state']);
+        self::assertNull($this->call($created['cardId'])['state']);
     }
 
     public function test_a_card_reads_the_stored_pull_request_state(): void
@@ -151,7 +155,7 @@ final class CardGetToolTest extends KernelTestCase
         $row->refreshedAt = new \DateTimeImmutable('2026-09-27T11:00:00+00:00');
         $this->em->flush();
 
-        $read = ($this->tool)($created['cardId']);
+        $read = $this->call($created['cardId']);
 
         $state = $read['pullRequests'][0]['state'];
         self::assertNotNull($state);
@@ -178,7 +182,7 @@ final class CardGetToolTest extends KernelTestCase
         $row->refreshedAt = new \DateTimeImmutable('2026-09-27T11:00:00+00:00');
         $this->em->flush();
 
-        $state = ($this->tool)($created['cardId'])['pullRequests'][0]['state'];
+        $state = $this->call($created['cardId'])['pullRequests'][0]['state'];
 
         self::assertNotNull($state);
         self::assertSame('approval-outdated', $state['review']);
@@ -193,11 +197,11 @@ final class CardGetToolTest extends KernelTestCase
 
         self::assertSame(
             [['cardId' => $blocker['cardId'], 'number' => 1, 'title' => 'Blocker', 'status' => 'backlog', 'kind' => 'blocked-by']],
-            ($this->tool)($blocked['cardId'])['relatedCards'],
+            $this->call($blocked['cardId'])['relatedCards'],
         );
         self::assertSame(
             [['cardId' => $blocked['cardId'], 'number' => 2, 'title' => 'Blocked', 'status' => 'backlog', 'kind' => 'blocks']],
-            ($this->tool)($blocker['cardId'])['relatedCards'],
+            $this->call($blocker['cardId'])['relatedCards'],
         );
     }
 
@@ -210,7 +214,7 @@ final class CardGetToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('not found or not accessible');
-        ($this->tool)($theirs['cardId']);
+        $this->call($theirs['cardId']);
     }
 
     public function test_a_malformed_id_is_reported_rather_than_fatal(): void
@@ -219,7 +223,7 @@ final class CardGetToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('"not-a-uuid" is not a valid card ID.');
-        ($this->tool)('not-a-uuid');
+        $this->call('not-a-uuid');
     }
 
     public function test_a_card_reads_back_by_its_number(): void
@@ -228,7 +232,7 @@ final class CardGetToolTest extends KernelTestCase
         ($this->createTool)('First', 'Body', 'feature');
         $second = ($this->createTool)('Second', 'Body', 'feature');
 
-        $card = ($this->tool)(number: 2);
+        $card = $this->call(number: 2);
 
         self::assertSame($second['cardId'], $card['cardId']);
         self::assertSame(2, $card['number']);
@@ -242,7 +246,7 @@ final class CardGetToolTest extends KernelTestCase
         $mine = ($this->createTool)('Mine', 'Body', 'feature');
         self::assertSame($theirs['number'], $mine['number']);
 
-        $card = ($this->tool)(number: 1);
+        $card = $this->call(number: 1);
 
         self::assertSame($mine['cardId'], $card['cardId']);
     }
@@ -253,7 +257,7 @@ final class CardGetToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('This project has no card 7.');
-        ($this->tool)(number: 7);
+        $this->call(number: 7);
     }
 
     /** @return iterable<string, array{?string, ?int, string}> */
@@ -272,7 +276,7 @@ final class CardGetToolTest extends KernelTestCase
 
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage($message);
-        ($this->tool)($cardId, $number);
+        $this->call($cardId, $number);
     }
 
     public function test_a_card_reads_back_each_linked_feedback_item_in_full(): void
@@ -299,6 +303,9 @@ final class CardGetToolTest extends KernelTestCase
             [
                 'id' => (string) $drawn->id,
                 'url' => 'https://app.example/page',
+                'surface' => 'web',
+                'native' => null,
+                'screenshot' => null,
                 'anchors' => [[
                     'selector' => 'header .logo',
                     'text' => 'Logo',
@@ -315,6 +322,9 @@ final class CardGetToolTest extends KernelTestCase
             [
                 'id' => (string) $addressed->id,
                 'url' => 'https://app.example/other',
+                'surface' => 'web',
+                'native' => null,
+                'screenshot' => null,
                 'anchors' => [],
                 'body' => 'The footer overlaps',
                 'hasDrawing' => false,
@@ -322,7 +332,99 @@ final class CardGetToolTest extends KernelTestCase
                 'context' => null,
                 'createdAt' => $addressed->createdAt->format(\DATE_ATOM),
             ],
-        ], ($this->tool)($created['cardId'])['siteReviewComments']);
+        ], $this->call($created['cardId'])['siteReviewComments']);
+    }
+
+    /** @return array<string, mixed> */
+    private function call(?string $cardId = null, ?int $number = null): array
+    {
+        return ($this->tool)($cardId, $number)->structuredContent ?? self::fail('card_get returned no structured content.');
+    }
+
+    public function test_a_card_without_screenshots_answers_with_its_json_alone(): void
+    {
+        $project = $this->makeProject('card-get-no-images');
+        $this->actAsMcpTokenBoundTo($project);
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->em->find(Card::class, $created['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        $this->feedbackNote($project, $card, 0, screenshot: false);
+        $this->em->flush();
+        $this->em->clear();
+
+        $result = ($this->tool)($created['cardId']);
+
+        self::assertCount(1, $result->content);
+        self::assertInstanceOf(TextContent::class, $result->content[0]);
+        self::assertSame($result->structuredContent, json_decode((string) $result->content[0]->text, true));
+        self::assertSame(0, $this->call($created['cardId'])['imagesOmitted']);
+        self::assertNull($this->call($created['cardId'])['siteReviewComments'][0]['screenshot']);
+    }
+
+    #[TestWith([10, 0])]
+    #[TestWith([11, 1])]
+    #[TestWith([12, 2])]
+    public function test_the_images_of_open_notes_follow_the_json_newest_first_at_most_ten_and_the_rest_are_counted(int $count, int $omitted): void
+    {
+        $project = $this->makeProject('card-get-images');
+        $this->actAsMcpTokenBoundTo($project);
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->em->find(Card::class, $created['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        for ($position = 0; $position < $count; ++$position) {
+            $this->feedbackNote($project, $card, $position);
+        }
+        $this->feedbackNote($project, $card, $count, status: SiteReviewCommentStatus::Addressed);
+        $this->em->flush();
+        $this->em->clear();
+
+        $result = ($this->tool)($created['cardId']);
+
+        self::assertInstanceOf(TextContent::class, $result->content[0]);
+        $images = array_values(array_filter($result->content, static fn (mixed $content): bool => $content instanceof ImageContent));
+        $labels = array_values(array_filter(array_slice($result->content, 1), static fn (mixed $content): bool => $content instanceof TextContent));
+        self::assertCount(\count($images), $labels);
+        foreach ($result->content as $index => $content) {
+            if ($content instanceof ImageContent) {
+                self::assertInstanceOf(TextContent::class, $result->content[$index - 1]);
+                self::assertStringStartsWith('Screenshot of feedback ', $result->content[$index - 1]->text);
+            }
+        }
+        self::assertSame(
+            array_map($this->feedbackPng(...), range($count - 1, max(0, $count - 10))),
+            array_map(static fn (ImageContent $image): string => $image->data, $images),
+        );
+        self::assertSame($omitted, $result->structuredContent['imagesOmitted'] ?? null);
+        self::assertCount($count + 1, $result->structuredContent['siteReviewComments'] ?? []);
+    }
+
+    public function test_feedback_list_with_the_card_and_an_offset_reaches_the_images_card_get_left_out(): void
+    {
+        $project = $this->makeProject('card-get-paging');
+        $this->actAsMcpTokenBoundTo($project);
+        $created = ($this->createTool)('Ship it', 'Body', 'feature');
+        $card = $this->em->find(Card::class, $created['cardId']);
+        self::assertInstanceOf(Card::class, $card);
+        for ($position = 0; $position < 12; ++$position) {
+            $this->feedbackNote($project, $card, $position);
+        }
+        $this->em->flush();
+        $this->em->clear();
+        $list = self::getContainer()->get(FeedbackListTool::class);
+        self::assertInstanceOf(FeedbackListTool::class, $list);
+
+        $first = ($this->tool)($created['cardId']);
+        $rest = $list(null, $created['cardId'], 10);
+
+        $seen = [];
+        foreach ([$first, $rest] as $result) {
+            foreach ($result->content as $content) {
+                if ($content instanceof ImageContent) {
+                    $seen[] = $content->data;
+                }
+            }
+        }
+        self::assertSame(array_map($this->feedbackPng(...), range(11, 0)), $seen);
     }
 
     private function forgeRows(): ForgePullRequestRepository

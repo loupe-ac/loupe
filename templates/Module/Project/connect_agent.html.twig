@@ -91,7 +91,7 @@
         </div>
         <p class="lp-connect-note"><twig:ux:icon name="lucide:shield" />{{ 'project.connect.forwarding.warning'|trans }}</p>
 
-        {%- set oauthSnippet = '<script src="' ~ absolute_url('/site-review/widget.js') ~ '" data-project="' ~ project.id ~ '"></script>' -%}
+        {%- set oauthSnippet = '<script src="' ~ absolute_url('/live-review/widget.js') ~ '" data-project="' ~ project.id ~ '"></script>' -%}
         <div class="lp-connect-block" id="widget-sign-in">
             <p class="lp-eyebrow">{{ 'project.connect.widget_oauth.eyebrow'|trans }}</p>
             <p class="lp-connect-hint">{{ 'project.connect.widget_oauth.purpose'|trans }}</p>

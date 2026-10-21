@@ -15,6 +15,12 @@ Options:
   --version X.Y.Z    Install this release, not the newest one.
   --help             Show this help.
 
+On macOS, a release that holds the Live review panel installs it at
+"$HOME/Library/Application Support/loupe/live-review/X.Y.Z/Live review.app".
+The script removes the panels of other versions. If the panel cannot be
+installed, loupe stays installed and the script exits with status 3. If both
+the panel and automatic updates fail, the status is 4.
+
 Environment:
   LOUPE_INSTALL_NO_TTY=1     Treat the session as non-interactive.
   LOUPE_INSTALL_TTY=FILE     Read the answers from FILE, not from /dev/tty.
@@ -37,6 +43,38 @@ fetch() {
 	else
 		wget -qO "$2" "$1"
 	fi
+}
+
+# install_panel ARCHIVE VERSION installs Live review.app from the archive, when it holds one.
+# It prints the install path on success. It returns 0 with no output when the archive has no panel.
+install_panel() {
+	tar -tzf "$1" | grep -q '^Live review\.app/' || return 0
+	panels="$HOME/Library/Application Support/loupe/live-review"
+	final="$panels/$2/Live review.app"
+	stage="$panels/.install.$$"
+	rm -rf "$stage"
+	mkdir -p "$stage" "$panels/$2" || return 1
+	if ! { tar -xzpf "$1" -C "$stage" "Live review.app" && [ -d "$stage/Live review.app" ]; }; then
+		rm -rf "$stage"
+		rmdir "$panels/$2" 2>/dev/null
+		return 1
+	fi
+	# A directory rename cannot replace a full directory, so the old copy moves aside first.
+	if [ -e "$final" ] && ! mv "$final" "$stage/old"; then
+		rm -rf "$stage"
+		return 1
+	fi
+	if ! mv "$stage/Live review.app" "$final"; then
+		[ ! -e "$stage/old" ] || mv "$stage/old" "$final"
+		rm -rf "$stage"
+		return 1
+	fi
+	rm -rf "$stage"
+	for old in "$panels"/*; do
+		[ -e "$old" ] || continue
+		[ "${old##*/}" = "$2" ] || rm -rf "$old"
+	done
+	say "$final"
 }
 
 sha256() {
@@ -159,7 +197,7 @@ main() {
 	url=${LOUPE_URL:-}
 	github_api=${LOUPE_GITHUB_API:-https://api.github.com}
 	github_download=${LOUPE_GITHUB_DOWNLOAD:-https://github.com}
-	dir='' auto='' version='' auto_failed=''
+	dir='' auto='' version='' auto_failed='' panel_failed='' panel_path=''
 
 	while [ $# -gt 0 ]; do
 		case $1 in
@@ -252,6 +290,16 @@ main() {
 		die "cannot install loupe into $dir. Choose another directory with --install-dir."
 	fi
 
+	if [ "$os" = darwin ]; then
+		if panel_path=$(install_panel "$work/$archive" "$version"); then
+			:
+		else
+			panel_failed=1
+			panel_path=''
+			say "warning: loupe could not install the Live review panel." >&2
+		fi
+	fi
+
 	state='' output=''
 	if [ -n "$auto" ]; then
 		set -- update auto on
@@ -273,6 +321,7 @@ main() {
 
 	say ""
 	say "Installed loupe $version at $bin."
+	[ -z "$panel_path" ] || say "Installed the Live review panel at $panel_path."
 	if [ -n "$auto" ]; then
 		say "$output"
 		say "Auto-update: $state"
@@ -286,6 +335,14 @@ main() {
 	say ""
 	say "Next, run: loupe init --url ${url:-<your Loupe URL>}"
 
+	if [ -n "$panel_failed" ]; then
+		say "" >&2
+		say "error: loupe is installed at $bin, but the Live review panel is NOT installed." >&2
+		say "To try again, run this script again." >&2
+		[ -z "$auto_failed" ] || say "Automatic updates are NOT on either. Run: loupe update auto on" >&2
+		if [ -n "$auto_failed" ]; then exit 4; fi
+		exit 3
+	fi
 	if [ -n "$auto_failed" ]; then
 		say "" >&2
 		say "error: loupe is installed at $bin, but automatic updates are NOT on." >&2

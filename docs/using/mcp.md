@@ -209,7 +209,7 @@ A connection carries one scope. The `mcp` scope binds to the one project you
 pick on the consent page, so every tool call knows which project it acts on.
 The `agent` scope reaches the CLI endpoints and binds to no project. The
 `site-review` scope reaches the comments of one project, which is what the
-site-review widget uses. See [Connected apps](connected-apps.md) for the whole
+live-review widget uses. See [Connected apps](connected-apps.md) for the whole
 table and for how to revoke a connection.
 
 `403 insufficient_scope` means the sign-in is valid and carries the wrong scope
@@ -297,7 +297,7 @@ Roughly in the order an agent uses them:
 | `tag_list` | The project's existing tag vocabulary |
 | `series_list` | The project's series, each with its document count and highest position |
 | `series_rename` | Rename a series; every document in it keeps its position |
-| `feedback_list` | The project's site-review feedback, each item with the card it belongs to (off with the board, see below) |
+| `feedback_list` | The project's live-review feedback, each item with the card it belongs to (off with the board, see below) |
 | `feedback_mark_addressed` | Mark feedback items acted on, so the next `feedback_list` skips them (off with the board, see below) |
 | `agent_review_submit` | Submit the review of a pull request of a card, with findings on file lines. A finding has the category `code` (the default) or `spec`, a gap between the pull request and the approved design. Only a `spec` finding can leave out the file and the lines. A `spec` finding can set `needsPerson` when a worker cannot settle it from the design and the code alone. The fix worker then asks the owner. Only a running worker of the card with the `code-review` role can call it. Loupe stores the review against the commit it names, and the `agent-review-check` forge write shows it as a check on the pull request. The result field `current` says whether that commit matches the last head commit that Loupe read from the forge |
 | `document_review_submit` | Submit the review of a draft design document of a card, with findings that name no file. A finding can set `needsPerson` for a gap that only the owner can settle, and such a finding does not fail the review. Only a running worker of the card with the `design-review` role can call it, and only for a draft that the card links. Loupe stores the review against the version number it names. The result field `current` says whether that version is still the newest |
@@ -457,6 +457,36 @@ Read `hasDrawing: true` as "the reviewer pointed at something the words may not
 name". Act on the words. Ask the reviewer when they do not say enough, rather
 than guessing what the drawing meant. The reviewer's own data export carries the
 points in full, under `strokes` in each card's `feedback` in `cards.json`.
+
+### A feedback item says where it came from and may carry an image
+
+`feedback_list` and `card_get` give each feedback item three more fields.
+
+- `surface` is `web` for a note from a page, or `ios-simulator` for a note from a
+  native app.
+- `native` is null for a web note. For a native note it holds the app (`name`,
+  `bundleId`), the device (`name`, `udid`, `osVersion`), the screen (`title`) and the
+  element the reviewer picked (`role`, `label`, `identifier`, `frame`). The element
+  is null when the reviewer picked none. A native note has a null `url`.
+- `screenshot` is null when the note has no image. Otherwise it holds the `width` and
+  `height` of the image in pixels.
+
+The images themselves follow the JSON in the answer, as image content. An answer
+carries the images of pending notes only, newest note first, and at most ten of them.
+A line of text before each image reads `Screenshot of feedback <id>:`, with the `id`
+of its note.
+
+`card_get` adds `imagesOmitted`, the number of pending images left out of the answer.
+`feedback_list` takes two more parameters:
+
+| Parameter | Use |
+|---|---|
+| `cardId` | List the feedback of one card only. |
+| `imageOffset` | Skip this many images. Start at 0. |
+
+`feedback_list` also returns `nextImageOffset`. Pass it as `imageOffset` to read the
+next ten images. It is null when no image remains. To read the images that `card_get`
+left out, call `feedback_list` with the `cardId` of the card and `imageOffset` 10.
 
 ## Two things agents get wrong
 

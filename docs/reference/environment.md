@@ -41,7 +41,7 @@ Email verification is **mandatory**, so nobody can register until mail works.
 ## Live updates (Mercure)
 
 Optional. The hub carries live updates for the board, the inbox count, worker
-runs and site review. Without it, a page shows changes by others on its next
+runs and live review. Without it, a page shows changes by others on its next
 load. Review submissions still save but never reach a running agent, and the
 app only logs the publish failure.
 
@@ -114,8 +114,8 @@ A new key pair makes every issued access token invalid. The apps then refresh, s
 | `GITHUB_APP_PRIVATE_KEY` | A private key, which you generate on the *General* page of the App settings. **Secret.** Paste the PEM file as it is, or on one line with `\n` for each line break. The *GitHub App access* row on `/admin/status` reports a key that GitHub refuses, and an installation that misses a permission. | No |
 | `OAUTH_GOOGLE_ID`, `OAUTH_GOOGLE_SECRET`, `OAUTH_GITHUB_ID`, `OAUTH_GITHUB_SECRET` | Social login. A provider becomes reachable only when its credentials **and** its feature flag (`auth.google.enabled` / `auth.github.enabled`) are both set. | No |
 | `HEALTH_PROBE_TOKEN` | Adds the build version to `GET /healthz`, for a caller presenting it as an `X-Probe-Token` header — so a post-deploy check can prove which build went live without a session. Unset, the field never appears: an instance must not advertise its build to anyone who asks. | No |
-| `SITE_REVIEW_WIDGET_PUBLIC` | Serves the site-review widget to every visitor instead of administrators only. Its comments are instructions an agent may act on, so set it only where you trust everyone who can reach the site — **production should leave it empty**. | No |
-| `SITE_REVIEW_WIDGET_PREVIEW_TOKEN` | A preview token that signs the site-review widget in with no popup. The embed carries it as `data-preview-token`, so it sits in the page source and works for 14 days at most. Leave it empty on a real deployment. A preview instance gets it from the `loupe` CLI. See [Site review](../using/site-review.md#preview-sites). | No |
+| `SITE_REVIEW_WIDGET_PUBLIC` | Serves the live-review widget to every visitor instead of administrators only. Its comments are instructions an agent may act on, so set it only where you trust everyone who can reach the site — **production should leave it empty**. | No |
+| `SITE_REVIEW_WIDGET_PREVIEW_TOKEN` | A preview token that signs the live-review widget in with no popup. The embed carries it as `data-preview-token`, so it sits in the page source and works for 14 days at most. Leave it empty on a real deployment. A preview instance gets it from the `loupe` CLI. See [Live review](../using/live-review.md#preview-sites). | No |
 | `SITE_REVIEW_WIDGET_BACKEND` | Overrides the instance the widget talks to. Empty means the host that served the script, which is what you want unless the widget is embedded from somewhere else. | No |
 | `SITE_REVIEW_WIDGET_CONTEXT` | An opaque marker saying what this deployment serves. It is stored on every comment the widget files, and reported by `feedback_list` and `card_get`. A `card:` marker locks the widget to that card, so every note on the page goes to it. Leave it empty on a real deployment, which stores nothing. A preview instance sets it so a comment carries the work it was made against. | No |
 | `ANALYTICS_SCRIPT_URL`, `ANALYTICS_WEBSITE_ID`, `ANALYTICS_ORIGIN`, `ANALYTICS_COLLECT_ORIGIN` | A self-hosted analytics tag. Nothing is emitted unless both of the first two are set **and** the `analytics.enabled` flag is on, so the page calls nowhere by default. The tag loads only on the public pages, for a visitor who is signed out, and it honours Do Not Track. The last two go in the content security policy: the script's origin in `script-src`, the origin events post to in `connect-src`. Umami Cloud splits those (`cloud.umami.is` and `gateway.umami.is`); a self-hosted Umami uses one value for both. | No |

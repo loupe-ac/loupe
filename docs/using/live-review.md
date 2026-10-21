@@ -1,9 +1,9 @@
 ---
-title: "Site review"
+title: "Live review"
 description: "An embeddable widget for notes on live web pages. Each note becomes feedback on a board card."
 ---
 
-The site-review widget brings the select-and-comment flow to any web page. A
+The live-review widget brings the select-and-comment flow to any web page. A
 reviewer picks an element, or selects a passage of text, and writes a note
 about it. The note saves when the reviewer presses Save. Each note becomes
 feedback on a card of the project [board](board.md), and the agent reads it
@@ -20,7 +20,7 @@ with a Loupe account before they write a note. The project's Connections page
 shows the snippet with the project ID filled in:
 
 ```html
-<script src="https://your-instance/site-review/widget.js" data-project="PROJECT-ID"></script>
+<script src="https://your-instance/live-review/widget.js" data-project="PROJECT-ID"></script>
 ```
 
 The ID is the project's UUID, the same one that is in the project's URLs. The
@@ -52,7 +52,7 @@ for now. Loupe refuses any other account on the consent page.
 The widget keeps its tokens in the tab's session storage, so a new tab signs in
 again. It renews its access in the background. When the renewal fails, the
 widget shows the sign-in button again. This happens, for example, after you
-revoke **Loupe site-review widget** under **Connected apps**. Removing a site
+revoke **Loupe live-review widget** under **Connected apps**. Removing a site
 from the list stops new sign-ins from that site. Revoke the app to end a sign-in
 that already exists.
 
@@ -107,7 +107,7 @@ A card that the widget creates has these values:
 - The type is the default type of the workflow template for a note card or a review card, and the type with the children capability for an epic.
 - The column is the board's Backlog.
 - The reporter is `reviewer`.
-- The source is the site review widget. The card shows a site review badge.
+- The source is the live review widget. The card shows a live review badge.
 - A note card takes its title from the start of the note, cut at a word to 80 characters, with "…" at the end when the note is longer.
 - The card body holds the whole note.
 - When you edit the note while the card sits in Backlog and nobody has changed it, the title and the body follow the edit. After that the card keeps its own text.
@@ -141,7 +141,7 @@ A preview page can sign the widget in with no popup. It sets
 `data-preview-token`. See [Environment variables](../reference/environment.md).
 
 ```html
-<script src="https://your-instance/site-review/widget.js" data-project="PROJECT-ID" data-preview-token="TOKEN"></script>
+<script src="https://your-instance/live-review/widget.js" data-project="PROJECT-ID" data-preview-token="TOKEN"></script>
 ```
 
 The widget sends the token as its sign-in. It shows the review tools at once,
@@ -260,7 +260,7 @@ again**.
 ### What the review says on GitHub
 
 Every review that Loupe posts opens with one line. The line says that the
-review comes from the Loupe site review of the card, and links to the
+review comes from the Loupe live review of the card, and links to the
 **Feedback** tab of the card. It also links to the page of the first note, when
 the review has a note. Only members of the project can open the card link. The
 message and the notes follow the line, and an approval with no message posts
@@ -282,8 +282,21 @@ A client must reuse it with unchanged content when it retries.
 Its scope is one project, and it lives as long as the stored note.
 Reusing it with different content returns HTTP 409 with `delivery_conflict`.
 
-An old copy of the widget script saved through `POST /api/site-review/comments`.
-That route now answers HTTP 410 with `widget_outdated`, and the widget tells the reviewer to reload the page.
+The request can carry a note from a native app instead of a web page.
+Set `surface` to `ios-simulator` and send the facts in `native`, with no `url`.
+A web note keeps `surface` as `web` and sends `url`, and it sends no `native`.
+Either kind can send `screenshot` with `contentType` and base64 `data`.
+The image must be a JPEG or a PNG of 2 MiB or less when decoded.
+A larger image gets HTTP 422 with `screenshot_too_large`.
+Any other file gets HTTP 422 with `screenshot_invalid`.
+A retry that changes the surface, a native fact or the image returns `delivery_conflict`.
+
+`GET /api/live-review/review` lists the notes of the web surface.
+Pass `surface=ios-simulator` to list the notes of the native surface.
+
+An old copy of the widget script saves through `POST /api/site-review/comments`.
+That path is gone and answers HTTP 404, so the old copy cannot save a note.
+Load the script from `/live-review/widget.js` to get the current widget.
 
 ## Resolving a note
 
@@ -496,11 +509,58 @@ while you look at the page.
 If you edit a note at the moment the agent picks it up, the widget refuses your
 save and tells you so. It does not discard your text without a word.
 
+## Reviewing an iOS app in the simulator
+
+You can review an iOS app that runs in the iOS Simulator. The Live review panel is a small macOS app. It sits beside the simulator and saves notes to your project.
+
+You need these things:
+
+- A Mac with Xcode 27. The panel reads the simulator in the Device Hub window of Xcode 27.
+- The `loupe` CLI, installed on macOS with the install script or Homebrew. [Installing the CLI](../getting-started/cli.md) gives the steps. The macOS install brings the panel, and `loupe update` brings the panel of each new version.
+- A booted simulator with your app, open in Device Hub.
+- The owner role in the project. A member who is not the owner sees "Only the owner of this project can review it."
+
+To start a review:
+
+1. Open a terminal in the folder of your app.
+2. Run `loupe review ios`. The command opens the panel and prints `Opened Live review for <folder>.`
+3. Allow the permission. On the first run, macOS asks for the Accessibility permission for **Live review**. Open System Settings, then Privacy & Security, then Accessibility, and tick **Live review**. The panel updates by itself. It reads the Device Hub window only.
+4. Choose **Sign in with Loupe**. The panel shows a code. Check that the browser page shows the same code, then choose **Allow**. A login from before this release needs one more sign-in, because the login now carries the `site-review` scope.
+
+The project comes from `.loupe.yaml` in the folder. [`loupe project link`](../reference/cli.md#loupe-project-link) writes it. Without that file, the panel lists your projects and asks which one the notes belong to. It remembers your pick for that folder.
+
+To leave a note:
+
+1. Choose **Pick element** or **Draw**.
+2. In **Pick element**, click an element in the simulator. The panel marks the element and shows its role, its label and its identifier at once. A spinner shows while it takes the screenshot. The note field then has the focus.
+3. In **Draw**, draw on the simulator screen. You can draw more than once for one note.
+4. Choose **Navigate** to use the simulator as usual, for example to scroll or to tap. Hold Option to do the same for a moment in the other modes.
+5. Type the note.
+6. Choose **Save**.
+
+The panel marks the simulator only while Device Hub, or the panel in front of it, is the active window. Switch to another app and the marks go away until you come back.
+
+When nothing at the point has an accessibility element, the panel says "Nothing to pick here." and offers **Draw**.
+
+The **Saves to** menu works as [Where notes go](#where-notes-go) says. It starts on **One card for this review**. The first save creates that card, and the later notes of the review join it. You can pick **A new card for each note**, a card for each note under an epic, or an existing card.
+
+The card page shows the note with a thumbnail of the screenshot. Choose the thumbnail to see the image at full size. The image holds your marks: the box of the element you picked, or your drawing. The note also lists the device, the iOS version, the app, the name of the screen, and the role, label and identifier of the element.
+
+The panel takes the name of the screen from the first heading on the screen. Else it takes the first text in the navigation bar. An app that exposes neither gives a note with no screen name. Your agent reads these facts as [Reaching your agent](#reaching-your-agent) says.
+
+The panel works with the [`loupe review ios`](../reference/cli.md#loupe-review-ios) command. A Linux install has no panel, and the command stops there.
+
 ## Reaching your agent
 
 Notes do not push. Your agent sees them when it calls `feedback_list` for the
 whole project, or `card_get` for one card. Ask it to look. Nothing arrives
 without a request.
+
+A note from a native app has a `surface` of `ios-simulator`, `native` facts and
+no page `url`. A note with a screenshot sends the image after the JSON. An answer
+carries at most ten images, newest first. Read more with `feedback_list`, using
+`cardId` and `imageOffset`. See
+[A feedback item says where it came from](mcp.md#a-feedback-item-says-where-it-came-from-and-may-carry-an-image).
 
 A note carries no author, so an agent cannot tell your notes from anyone else's
 on the page. A card that the widget creates does not make its note trusted

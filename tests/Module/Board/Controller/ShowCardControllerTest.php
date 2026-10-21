@@ -8,6 +8,7 @@ use App\Module\AgentReview\Entity\AgentReview;
 use App\Module\AgentReview\Entity\AgentReviewConclusion;
 use App\Module\Board\Entity\Card;
 use App\Module\Board\Entity\CardPullRequest;
+use App\Module\Board\Entity\CardSiteReviewComment;
 use App\Module\Board\Entity\Forge;
 use App\Module\Forge\Entity\ForgePullRequest;
 use App\Module\Forge\Entity\PullRequestChecks;
@@ -15,7 +16,11 @@ use App\Module\Forge\Entity\PullRequestMergeability;
 use App\Module\Forge\Entity\PullRequestReview;
 use App\Module\Forge\Entity\PullRequestState;
 use App\Module\Project\Entity\Project;
+use App\Module\SiteReview\Entity\ReviewSurface;
+use App\Module\SiteReview\Entity\SiteReviewComment;
+use App\Module\SiteReview\Entity\SiteReviewScreenshot;
 use App\Module\Workflow\Contract\Actor;
+use App\Tests\Support\TinyImage;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -52,6 +57,56 @@ final class ShowCardControllerTest extends WebTestCase
         $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$plain->id);
         self::assertResponseIsSuccessful();
         self::assertSame(0, $crawler->filter('.lp-card-drawer__identity .lp-tag--purple')->count());
+    }
+
+    public function test_a_native_note_shows_its_source_facts_and_screenshot_thumbnail(): void
+    {
+        $client = static::createClient();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $owner = $this->user($em, 'card-native-note@example.com');
+        $project = $this->project($em, $owner);
+        $card = $this->card($em, $project, 'Fix the screen');
+        $withShot = new SiteReviewComment($project, 0, 'Button is clipped', null, surface: ReviewSurface::IosSimulator, native: [
+            'app' => ['name' => 'Fieldnotes', 'bundleId' => 'dev.example.fieldnotes'],
+            'device' => ['name' => 'iPhone 17', 'udid' => 'ABC', 'osVersion' => '26.1'],
+            'screen' => ['title' => 'Settings'],
+            'element' => ['role' => 'Button', 'label' => 'Save', 'identifier' => 'save-button', 'frame' => null],
+        ]);
+        $withoutShot = new SiteReviewComment($project, 1, 'Title is wrong', null, surface: ReviewSurface::IosSimulator, native: ['app' => ['name' => null, 'bundleId' => 'dev.example.fieldnotes'], 'device' => ['name' => 'iPhone 17', 'udid' => 'ABC', 'osVersion' => '26.1'], 'screen' => ['title' => null], 'element' => null]);
+        $png = TinyImage::png(3, 2);
+        $links = [new CardSiteReviewComment($card, $withShot), new CardSiteReviewComment($card, $withoutShot)];
+        foreach ([$withShot, $withoutShot, ...$links] as $entity) {
+            $em->persist($entity);
+        }
+        $em->persist(new SiteReviewScreenshot($withShot, $project, 'image/png', $png, \strlen($png), 3, 2));
+        $em->flush();
+        $em->clear();
+
+        $client->loginUser($owner);
+        $crawler = $client->request(Request::METHOD_GET, '/projects/'.$project->id.'/board/cards/'.$card->id);
+
+        self::assertResponseIsSuccessful();
+        $entries = $crawler->filter('[data-site-feedback]');
+        self::assertCount(2, $entries);
+        $shot = $crawler->filter('[data-site-feedback="'.$withShot->id.'"]');
+        self::assertStringContainsString('iOS simulator', $shot->filter('.lp-card-feedback-list__head')->text());
+        $thumbnail = $shot->filter('img.lp-feedback-screenshot__thumbnail');
+        self::assertCount(1, $thumbnail);
+        self::assertSame('/board/feedback/'.$links[0]->id.'/screenshot', $thumbnail->attr('src'));
+        self::assertSame('3', $thumbnail->attr('width'));
+        self::assertSame('2', $thumbnail->attr('height'));
+        self::assertSame('lazy', $thumbnail->attr('loading'));
+        self::assertNotSame('', trim((string) $thumbnail->attr('alt')));
+        self::assertCount(1, $shot->filter('dialog img.lp-feedback-screenshot__full'));
+        $facts = $shot->filter('.lp-feedback-native-facts')->text();
+        foreach (['iPhone 17', '26.1', 'Fieldnotes', 'dev.example.fieldnotes', 'Settings', 'Button', 'Save', 'save-button'] as $fact) {
+            self::assertStringContainsString($fact, $facts);
+        }
+
+        $bare = $crawler->filter('[data-site-feedback="'.$withoutShot->id.'"]');
+        self::assertStringContainsString('iOS simulator', $bare->filter('.lp-card-feedback-list__head')->text());
+        self::assertCount(0, $bare->filter('img'));
+        self::assertCount(0, $bare->filter('a[target="_blank"]'));
     }
 
     public function test_the_status_box_names_the_winning_state_and_lists_the_others(): void

@@ -144,7 +144,7 @@ describe('the mode', () => {
             'The hero image is blurry',
         );
         expect(fetchMock.mock.calls[0][0]).toBe(
-            `${BACKEND}/api/site-review/review?scope=${encodeURIComponent('cards:')}`,
+            `${BACKEND}/api/live-review/review?scope=${encodeURIComponent('cards:')}`,
         );
     });
 
@@ -273,7 +273,7 @@ describe('the mode', () => {
         await settle();
 
         expect(fetchMock.mock.calls[0][0]).toBe(
-            `${BACKEND}/api/site-review/review?scope=${encodeURIComponent(`card:${CARD}`)}&context=${encodeURIComponent(`card:${CARD}`)}`,
+            `${BACKEND}/api/live-review/review?scope=${encodeURIComponent(`card:${CARD}`)}&context=${encodeURIComponent(`card:${CARD}`)}`,
         );
         const root = openNote();
         expect(targetText(root)).toBe('#3');
@@ -945,7 +945,7 @@ describe('navigating to a page that names a different card', () => {
     /** Turbo swaps the tag after the URL changes, so the marker lands late. */
     async function navigate(to, marker) {
         const tag = document.querySelector(
-            'script[src*="site-review/widget.js"]',
+            'script[src*="live-review/widget.js"]',
         );
         window.history.pushState({}, '', to);
         // The swap happens after pushState, which is the whole difficulty.
@@ -1098,7 +1098,7 @@ describe('boot', () => {
 
         const [url, options] = fetchMock.mock.calls[0];
         expect(url).toBe(
-            `${BACKEND}/api/site-review/review?scope=${encodeURIComponent('cards:')}`,
+            `${BACKEND}/api/live-review/review?scope=${encodeURIComponent('cards:')}`,
         );
         expect(options.method).toBe('GET');
         expect(options.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
@@ -1210,7 +1210,7 @@ describe('a preview token', () => {
         await settle();
 
         const tag = document.querySelector(
-            'script[src*="site-review/widget.js"]',
+            'script[src*="live-review/widget.js"]',
         );
         window.history.pushState({}, '', '/next');
         // Turbo swaps the tag after the URL changes.
@@ -1308,7 +1308,7 @@ describe('a refused credential', () => {
         });
         await settle();
 
-        expect(fatalDetail()).toContain('does not cover site review');
+        expect(fatalDetail()).toContain('does not cover live review');
     });
 
     it('names the account for a 403 with no code', async () => {
@@ -1546,7 +1546,7 @@ describe('a stored selector that carries a stale class', () => {
 });
 
 describe('style sheet colour tokens', () => {
-    const source = readFileSync('public/site-review/widget.js', 'utf8');
+    const source = readFileSync('public/live-review/widget.js', 'utf8');
     const palette = (name) => {
         const body = source.match(
             new RegExp(`const ${name} = \\{([\\s\\S]*?)\\n {4}\\};`),
@@ -1580,7 +1580,7 @@ describe('style sheet colour tokens', () => {
 const listRequest = (fetchMock, index = 0) => {
     const url = new URL(
         fetchMock.mock.calls.filter(([target]) =>
-            target.includes('/api/site-review/review'),
+            target.includes('/api/live-review/review'),
         )[index][0],
     );
 
@@ -1715,7 +1715,7 @@ describe('the scope of the list request', () => {
         expect(release).toBeTypeOf('function');
 
         document
-            .querySelector('script[src*="site-review/widget.js"]')
+            .querySelector('script[src*="live-review/widget.js"]')
             .setAttribute('data-context', `card:${CARD}`);
         window.history.pushState({}, '', '/preview');
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -1902,7 +1902,7 @@ describe('the scope of the list request', () => {
                 saved = true;
                 return madeCard(OTHER);
             }
-            if (!url.includes('/api/site-review/review')) {
+            if (!url.includes('/api/live-review/review')) {
                 return ok({ comments: [], context: null });
             }
             // The first list request of the new page answers last, with a
@@ -1924,7 +1924,7 @@ describe('the scope of the list request', () => {
             });
         });
         document
-            .querySelector('script[src*="site-review/widget.js"]')
+            .querySelector('script[src*="live-review/widget.js"]')
             .setAttribute('data-context', `card:${OTHER}`);
         window.history.pushState({}, '', '/preview');
         await new Promise((resolve) => setTimeout(resolve, 300));

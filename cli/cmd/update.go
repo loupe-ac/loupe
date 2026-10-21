@@ -449,6 +449,13 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	}
 	if current {
 		fmt.Fprintln(out, "current at "+s.version)
+		note, err := u.ensurePanel(ctx, releases)
+		switch {
+		case err != nil:
+			fmt.Fprintf(out, "warning: %v\n", err)
+		case note != "":
+			fmt.Fprintln(out, note)
+		}
 
 		return nil
 	}
@@ -472,12 +479,14 @@ func (s selfUpdate) run(ctx context.Context, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("install %s over %s: %w", to, exe, err)
 	}
-	if !swapped {
+	if swapped {
+		fmt.Fprintf(out, "installed %s over %s\n", to, exe)
+	} else {
 		fmt.Fprintf(out, "%s already holds %s\n", exe, to)
-
-		return nil
 	}
-	fmt.Fprintf(out, "installed %s over %s\n", to, exe)
+	if err := pruneVersions(dir, to, s.version); err != nil {
+		fmt.Fprintf(out, "warning: could not remove old versions: %v\n", err)
+	}
 
 	return nil
 }

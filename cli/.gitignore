@@ -1,0 +1,3 @@
+# Built by CI: the signed Live review app and the goreleaser output.
+/panel/
+/dist/

@@ -102,7 +102,7 @@ test.describe('home page', () => {
         });
         await expect(transcript).toContainText(/Loupe merges it on its own/);
         const story = (await transcript.textContent()) ?? '';
-        const steps = ['Agent review.', 'Site review.', 'Merge.'].map((step) =>
+        const steps = ['Agent review.', 'Live review.', 'Merge.'].map((step) =>
             story.indexOf(step),
         );
         expect(steps.every((index) => index >= 0)).toBe(true);

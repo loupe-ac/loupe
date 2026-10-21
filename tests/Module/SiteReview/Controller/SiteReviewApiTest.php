@@ -112,7 +112,7 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         $first = (string) $client->getResponse()->getContent();
         $commentId = json_decode($first, true, flags: \JSON_THROW_ON_ERROR)['commentId'];
-        $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/'.$commentId, $raw, ['body' => 'Edited after saving']);
+        $this->api($client, Request::METHOD_PATCH, '/api/live-review/comments/'.$commentId, $raw, ['body' => 'Edited after saving']);
         self::assertResponseIsSuccessful();
         $this->addComment($client, $raw, $payload);
         self::assertResponseStatusCodeSame(201);
@@ -156,7 +156,7 @@ final class SiteReviewApiTest extends WebTestCase
         $em->persist($card);
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review?context='.urlencode('card:'.$card->id), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review?context='.urlencode('card:'.$card->id), $raw);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
@@ -166,7 +166,7 @@ final class SiteReviewApiTest extends WebTestCase
         // No marker at all is the ordinary deployment, and the key is present
         // as null rather than absent so the widget never has to tell the two
         // apart.
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $plain = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($plain);
         self::assertArrayHasKey('context', $plain);
@@ -254,7 +254,7 @@ final class SiteReviewApiTest extends WebTestCase
         $em->persist(new CardSiteReviewComment($card, $linked));
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
@@ -271,7 +271,7 @@ final class SiteReviewApiTest extends WebTestCase
     /** @return list<string> */
     private function listedIds(KernelBrowser $client, string $raw, string $query): array
     {
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review'.$query, $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review'.$query, $raw);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
@@ -284,7 +284,7 @@ final class SiteReviewApiTest extends WebTestCase
         $client = static::createClient();
         [$raw] = $this->projectWithToken($client, 'api-parent-types@example.com');
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $client->getResponse()->getContent(), true);
@@ -335,7 +335,7 @@ final class SiteReviewApiTest extends WebTestCase
             $pending[0]->strokes,
         );
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
         self::assertSame(
@@ -378,7 +378,7 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         self::assertCount(1, static::getContainer()->get(SiteReviewCommentRepository::class)->findPendingForProject($project));
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $payload = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($payload);
         self::assertFalse($payload['drawingEnabled']);
@@ -428,14 +428,14 @@ final class SiteReviewApiTest extends WebTestCase
         $em->persist($epic);
         $em->flush();
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review?context='.urlencode('card:'.$review->id), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review?context='.urlencode('card:'.$review->id), $raw);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
         self::assertSame('#1 Review: /pricing', $data['context']['label'] ?? null);
         self::assertStringContainsString((string) $review->id, $data['context']['url'] ?? '');
         self::assertSame((string) $project->id, $data['projectId']);
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review?context='.urlencode('epic:'.$epic->id), $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review?context='.urlencode('epic:'.$epic->id), $raw);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
         self::assertSame('#2 Review: /checkout', $data['context']['label'] ?? null);
@@ -472,7 +472,7 @@ final class SiteReviewApiTest extends WebTestCase
             'malformed' => 'epic:not-a-uuid',
         ];
         foreach ($refused as $case => $marker) {
-            $this->api($client, Request::METHOD_GET, '/api/site-review/review?context='.urlencode($marker), $raw);
+            $this->api($client, Request::METHOD_GET, '/api/live-review/review?context='.urlencode($marker), $raw);
             $data = json_decode((string) $client->getResponse()->getContent(), true);
             self::assertIsArray($data);
             self::assertArrayHasKey('context', $data, $case);
@@ -488,7 +488,7 @@ final class SiteReviewApiTest extends WebTestCase
 
         // Nothing has moved the flag, so this reads the value the migration
         // and the install seeder both write.
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $payload = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($payload);
         self::assertTrue($payload['drawingEnabled']);
@@ -507,7 +507,7 @@ final class SiteReviewApiTest extends WebTestCase
         $pending = static::getContainer()->get(SiteReviewCommentRepository::class)->findPendingForProject($project);
         self::assertNull($pending[0]->strokes);
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($data);
         self::assertSame([], $data['comments'][0]['strokes']);
@@ -676,7 +676,7 @@ final class SiteReviewApiTest extends WebTestCase
         $this->addComment($client, $raw,
             ['body' => 'a page note', 'url' => 'https://app/y']);
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
 
         self::assertCount(2, $data['comments'][0]['anchors']);
@@ -704,7 +704,7 @@ final class SiteReviewApiTest extends WebTestCase
         $em->persist($elsewhere);
         $em->flush();
 
-        $client->request(Request::METHOD_GET, '/api/site-review/review', server: [
+        $client->request(Request::METHOD_GET, '/api/live-review/review', server: [
             'HTTP_AUTHORIZATION' => 'Bearer '.$raw,
             'HTTP_ORIGIN' => 'https://app.localhost',
             'HTTP_X_LOUPE_PROJECT' => (string) $elsewhere->id,
@@ -721,7 +721,7 @@ final class SiteReviewApiTest extends WebTestCase
         [$raw, $project] = $this->projectWithToken($client, 'api-c@example.com');
         $em = $this->em();
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertSame(
             // context is always present and null on a page with no marker, so
             // the widget never has to tell an absent key from a resolved one.
@@ -732,7 +732,7 @@ final class SiteReviewApiTest extends WebTestCase
         $this->addComment($client, $raw, ['body' => 'one', 'url' => 'https://app/x']);
         $this->addComment($client, $raw, ['body' => 'two', 'url' => 'https://app/y']);
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         $data = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertCount(2, $data['comments']);
         self::assertSame('one', $data['comments'][0]['body']);
@@ -750,7 +750,7 @@ final class SiteReviewApiTest extends WebTestCase
         $client->disableReboot();
         [$raw, $project] = $this->projectWithToken($client, 'api-outdated@example.com');
 
-        $this->api($client, Request::METHOD_POST, '/api/site-review/comments', $raw, ['body' => 'from an old copy', 'url' => 'https://app/x']);
+        $this->api($client, Request::METHOD_POST, '/api/live-review/comments', $raw, ['body' => 'from an old copy', 'url' => 'https://app/x']);
 
         self::assertResponseStatusCodeSame(410);
         self::assertSame('widget_outdated', json_decode((string) $client->getResponse()->getContent(), true)['error'] ?? null);
@@ -764,9 +764,9 @@ final class SiteReviewApiTest extends WebTestCase
         [$raw] = $this->projectWithToken($client, 'api-e@example.com');
 
         // The GET on the same prefix must keep working — only the POST is gone.
-        $this->api($client, Request::METHOD_POST, '/api/site-review/review/submit', $raw);
+        $this->api($client, Request::METHOD_POST, '/api/live-review/review/submit', $raw);
         self::assertResponseStatusCodeSame(404);
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertResponseIsSuccessful();
     }
 
@@ -779,18 +779,18 @@ final class SiteReviewApiTest extends WebTestCase
         $this->addComment($client, $raw, ['body' => 'orig', 'url' => 'https://app/x']);
         $id = json_decode((string) $client->getResponse()->getContent(), true)['commentId'];
 
-        $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/'.$id, $raw, ['body' => 'edited']);
+        $this->api($client, Request::METHOD_PATCH, '/api/live-review/comments/'.$id, $raw, ['body' => 'edited']);
         self::assertResponseIsSuccessful();
         // The edit answers with the card, so the widget names it in its notice.
         self::assertMatchesRegularExpression('/^#\d+ /', json_decode((string) $client->getResponse()->getContent(), true)['label']);
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertSame('edited', json_decode((string) $client->getResponse()->getContent(), true)['comments'][0]['body']);
 
         $this->api($client, Request::METHOD_DELETE, '/api/board/feedback/'.$id, $raw);
         self::assertResponseIsSuccessful();
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertSame([], json_decode((string) $client->getResponse()->getContent(), true)['comments']);
     }
 
@@ -808,10 +808,10 @@ final class SiteReviewApiTest extends WebTestCase
         $this->addComment($client, $raw, ['body' => 'done with this', 'url' => 'https://app/x']);
         $id = json_decode((string) $client->getResponse()->getContent(), true)['commentId'];
 
-        $this->api($client, Request::METHOD_POST, '/api/site-review/comments/'.$id.'/resolve', $raw);
+        $this->api($client, Request::METHOD_POST, '/api/live-review/comments/'.$id.'/resolve', $raw);
         self::assertResponseStatusCodeSame(204);
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertSame([], json_decode((string) $client->getResponse()->getContent(), true)['comments']);
 
         // Resolved, not deleted: the owner can still see it and reopen it.
@@ -834,10 +834,10 @@ final class SiteReviewApiTest extends WebTestCase
         $this->addComment($client, $raw, ['body' => 'once', 'url' => 'https://app/x']);
         $id = json_decode((string) $client->getResponse()->getContent(), true)['commentId'];
 
-        $this->api($client, Request::METHOD_POST, '/api/site-review/comments/'.$id.'/resolve', $raw);
+        $this->api($client, Request::METHOD_POST, '/api/live-review/comments/'.$id.'/resolve', $raw);
         self::assertResponseStatusCodeSame(204);
 
-        $this->api($client, Request::METHOD_POST, '/api/site-review/comments/'.$id.'/resolve', $raw);
+        $this->api($client, Request::METHOD_POST, '/api/live-review/comments/'.$id.'/resolve', $raw);
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -855,10 +855,10 @@ final class SiteReviewApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(201);
         $id = json_decode((string) $client->getResponse()->getContent(), true)['commentId'];
 
-        $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/'.$id, $raw, ['body' => '0']);
+        $this->api($client, Request::METHOD_PATCH, '/api/live-review/comments/'.$id, $raw, ['body' => '0']);
         self::assertResponseIsSuccessful();
 
-        $this->api($client, Request::METHOD_GET, '/api/site-review/review', $raw);
+        $this->api($client, Request::METHOD_GET, '/api/live-review/review', $raw);
         self::assertSame('0', json_decode((string) $client->getResponse()->getContent(), true)['comments'][0]['body']);
     }
 
@@ -872,13 +872,13 @@ final class SiteReviewApiTest extends WebTestCase
         $this->addComment($client, $rawA, ['body' => 'mine', 'url' => 'https://app/x']);
         $id = json_decode((string) $client->getResponse()->getContent(), true)['commentId'];
 
-        $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/'.$id, $rawB, ['body' => 'hijack']);
+        $this->api($client, Request::METHOD_PATCH, '/api/live-review/comments/'.$id, $rawB, ['body' => 'hijack']);
         self::assertResponseStatusCodeSame(404);
 
         $this->api($client, Request::METHOD_DELETE, '/api/board/feedback/'.$id, $rawB);
         self::assertResponseStatusCodeSame(404);
 
-        $this->api($client, Request::METHOD_POST, '/api/site-review/comments/'.$id.'/resolve', $rawB);
+        $this->api($client, Request::METHOD_POST, '/api/live-review/comments/'.$id.'/resolve', $rawB);
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -889,7 +889,7 @@ final class SiteReviewApiTest extends WebTestCase
         $em = $this->em();
 
         // No credential answers 401.
-        $client->request(Request::METHOD_POST, '/api/site-review/comments', server: ['CONTENT_TYPE' => 'application/json'], content: '{"body":"x","url":"u"}');
+        $client->request(Request::METHOD_POST, '/api/live-review/comments', server: ['CONTENT_TYPE' => 'application/json'], content: '{"body":"x","url":"u"}');
         self::assertResponseStatusCodeSame(401);
 
         // An MCP credential answers 403, from the firewall before the controller.
@@ -913,14 +913,14 @@ final class SiteReviewApiTest extends WebTestCase
         // The stored-XSS guard answers 422 for a javascript: URL.
         $this->addComment($client, $raw, ['body' => 'x', 'url' => 'javascript:alert(1)']);
         self::assertResponseStatusCodeSame(422);
-        $this->api($client, Request::METHOD_PATCH, '/api/site-review/comments/not-a-uuid', $raw, ['body' => 'x']);
+        $this->api($client, Request::METHOD_PATCH, '/api/live-review/comments/not-a-uuid', $raw, ['body' => 'x']);
         self::assertResponseStatusCodeSame(404);
     }
 
     public function test_preflight_carries_new_methods(): void
     {
         $client = static::createClient();
-        $client->request(Request::METHOD_OPTIONS, '/api/site-review/comments', server: ['HTTP_ORIGIN' => 'https://app.localhost']);
+        $client->request(Request::METHOD_OPTIONS, '/api/live-review/comments', server: ['HTTP_ORIGIN' => 'https://app.localhost']);
         self::assertResponseStatusCodeSame(204);
         self::assertSame('GET, POST, PATCH, DELETE, OPTIONS', $client->getResponse()->headers->get('Access-Control-Allow-Methods'));
         self::assertSame('https://app.localhost', $client->getResponse()->headers->get('Access-Control-Allow-Origin'));
@@ -929,7 +929,7 @@ final class SiteReviewApiTest extends WebTestCase
     public function test_a_request_without_an_origin_is_granted_no_origin(): void
     {
         $client = static::createClient();
-        $client->request(Request::METHOD_OPTIONS, '/api/site-review/comments');
+        $client->request(Request::METHOD_OPTIONS, '/api/live-review/comments');
 
         // A wildcard fallback here would hand the API to every page on the web.
         self::assertResponseStatusCodeSame(204);

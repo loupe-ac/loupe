@@ -42,8 +42,8 @@ An app asks for exactly one kind of access:
 
 | Scope | Access | Project |
 |---|---|---|
-| `mcp` | The documents and site reviews of one project, through MCP. | The user picks one project that they own. |
-| `site-review` | The site-review comments of one project. | The user picks one project that they own. |
+| `mcp` | The documents and live reviews of one project, through MCP. | The user picks one project that they own. |
+| `site-review` | The live-review comments of one project. | The user picks one project that they own. |
 | `agent` | The agent surface that the bridge uses. | None. |
 
 The user can pick only a project that they own. An app cannot choose the
@@ -74,7 +74,7 @@ access and the project. **Revoke** removes the access of that app at once: its
 access tokens and its refresh tokens stop working. To connect again, the app
 must ask the user again.
 
-The *Site review widget* row is always on the page. Under it, each live
+The *Live review widget* row is always on the page. Under it, each live
 preview token has a row with its card, its project, when it expires and when
 the widget last used it. **Revoke** on a row ends that token only. **Revoke
 all** ends every preview token and every widget sign-in of the account.

@@ -79,6 +79,43 @@ It prints a note, and never fails, when:
 The last line on stdout is `loupe status: PASS` or `loupe status: FAIL`. Flags
 are `--project` and `--rules`.
 
+## `loupe review ios`
+
+Opens the Live review panel for an app in the local iOS Simulator. The panel sits beside the simulator window in Device Hub, in Xcode 27. It saves notes with a screenshot to the Loupe project. [Reviewing an iOS app in the simulator](../using/live-review.md#reviewing-an-ios-app-in-the-simulator) describes the review itself.
+
+```bash
+loupe review ios
+```
+
+The command takes no argument and no flag. Run it in the folder of your app. It reads `.loupe.yaml` in that folder for the project. Without that file, the panel lists your projects and remembers your pick for the folder. The command passes the project, the folder and its own path to the panel.
+
+The command needs macOS and the panel of the running version. It looks for the panel in this order:
+
+1. The `libexec` folder beside the binary, where Homebrew installs it.
+2. The config folder of the CLI, in `live-review/<version>/`. On macOS this is `~/Library/Application Support/loupe/live-review/<version>/`.
+
+On the first run, macOS asks for the Accessibility permission for **Live review**.
+
+The command exits with status 1 and prints one of these messages:
+
+| Message | Cause |
+|---|---|
+| `Live review for iOS needs macOS` | The command runs on another system, such as Linux. |
+| `this is a development build of loupe, which has no installed Live review panel` | The binary has no release version. |
+| `Live review is not installed; looked in <libexec> and <config folder>. Run loupe update, or reinstall loupe` | Neither folder holds the panel. |
+| `could not open <panel>` | macOS could not start the app. |
+| `read the project file` | `.loupe.yaml` exists and cannot be read. |
+
+On success the command prints `Opened Live review for <folder>.`
+
+## `loupe review` (hidden helpers)
+
+`loupe review` holds hidden helpers for the Live review panel: `status`, `sign-in`, `projects`, `targets`, `notes` and `save`. Each prints one JSON object on stdout. They are not a stable interface, so do not script against them. Only `loupe review ios` is stable.
+
+`sign-in` starts a device sign-in, prints the code and the link, and exits. The panel then runs `status` until the sign-in ends. While nobody has approved the code, `status` prints `pending`. It finishes the sign-in with one token request at most per server interval. After an approval it saves the login and prints `ok`. After a denial or an expired code it prints `signedOut`.
+
+A login that uses them needs a Loupe server release that lists the `site-review` scope for `loupe-cli`. An older server refuses the new scope at `loupe login`.
+
 ## `loupe credential`
 
 Prints a GitHub token for the worker that calls it. A worker runs it through

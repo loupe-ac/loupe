@@ -16,7 +16,7 @@ bin/console messenger:failed:retry         # re-queue them, interactively
 `/admin/status` shows the current count, so you know whether it is worth
 looking.
 
-## The site-review outbox
+## The live-review outbox
 
 Every event bound for an agent is recorded in an outbox before its Mercure
 update is published, so a hub restart or an unreachable hub loses nothing

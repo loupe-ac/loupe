@@ -89,6 +89,37 @@ final class BoardCardsApiTest extends WebTestCase
         self::assertSame([1], array_column($narrowed['cards'], 'number'));
     }
 
+    public function test_the_picker_reaches_a_card_by_its_number_past_a_full_page_of_shared_titles(): void
+    {
+        $client = static::createClient();
+        [$raw, $project] = $this->projectWithToken($client, 'cards-api-number@example.com');
+        $em = $this->em();
+
+        $backlog = $this->column($project, 'backlog');
+        for ($number = 1; $number <= 21; ++$number) {
+            $em->persist(new Card($project, $backlog, 'Login fails', '', $number));
+        }
+        $em->persist(new Card($project, $backlog, 'Step 1 of onboarding', '', 22));
+        $em->flush();
+
+        $this->api($client, Request::METHOD_GET, '/api/board/cards?q='.urlencode('Login fails'), $raw);
+        $byTitle = array_column(json_decode((string) $client->getResponse()->getContent(), true)['cards'], 'number');
+        self::assertNotContains(1, $byTitle);
+
+        $this->api($client, Request::METHOD_GET, '/api/board/cards?q='.urlencode('#1'), $raw);
+        self::assertSame([1], array_column(
+            json_decode((string) $client->getResponse()->getContent(), true)['cards'],
+            'number',
+        ));
+
+        // A bare number names the card first, then the titles that hold it.
+        $this->api($client, Request::METHOD_GET, '/api/board/cards?q=1', $raw);
+        self::assertSame([1, 22], array_column(
+            json_decode((string) $client->getResponse()->getContent(), true)['cards'],
+            'number',
+        ));
+    }
+
     public function test_the_picker_can_ask_for_open_epics_alone(): void
     {
         $client = static::createClient();

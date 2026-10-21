@@ -1,15 +1,15 @@
 ---
 title: "Introduction"
-description: "A document- and site-review tool for humans working with AI agents."
+description: "A document- and live-review tool for humans working with AI agents."
 ---
 
-Loupe is a document- and site-review tool for humans working with AI agents.
+Loupe is a document- and live-review tool for humans working with AI agents.
 
 An agent (or a person) submits a Markdown **document**; humans review it inline —
 selecting text, leaving comments, and either approving it or requesting changes.
 A **Model Context Protocol (MCP)** endpoint lets AI coding agents create documents
 and hand back a review URL, so a long-form plan or spec gets considered human
-feedback instead of scrolling past in a terminal. A companion **site-review**
+feedback instead of scrolling past in a terminal. A companion **live-review**
 widget brings the same select-and-comment
 flow to live web pages.
 

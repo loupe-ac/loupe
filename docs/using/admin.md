@@ -1,6 +1,6 @@
 ---
 title: "The admin area"
-description: "Instance status, feature flags, the waitlist, beta invites, the audit log and the site-review outbox. Requires ROLE_ADMIN."
+description: "Instance status, feature flags, the waitlist, beta invites, the audit log and the live-review outbox. Requires ROLE_ADMIN."
 ---
 
 `/admin` is the dashboard. Everything below it needs `ROLE_ADMIN`, which

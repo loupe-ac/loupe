@@ -88,7 +88,7 @@ final class LogWidgetOriginMismatchTest extends TestCase
     /**
      * @return list<array{message: string, context: array<string, mixed>}>
      */
-    private function handle(?string $origin, ?string $domain, string $path = '/api/site-review/review', ?CacheItemPoolInterface $seen = null): array
+    private function handle(?string $origin, ?string $domain, string $path = '/api/live-review/review', ?CacheItemPoolInterface $seen = null): array
     {
         $project = new Project(new User('Riley Chen', 'riley@example.com', 'x'), 'Loupe', $domain);
 

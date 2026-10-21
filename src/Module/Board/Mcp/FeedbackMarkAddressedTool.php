@@ -18,7 +18,7 @@ use Symfony\Component\Uid\Uuid;
  * The agent's only write on feedback: Pending to Addressed. Resolved stays with
  * the human, and no MCP tool reaches the resolve route.
  */
-#[McpTool(name: self::NAME, description: 'Mark feedback items as addressed after you fix them. Feedback is what a reviewer leaves on a page with the site-review widget, and each item belongs to a card. Pass the feedback ids from feedback_list or card_get. Only the feedback of the project bound to your MCP token is reachable. An item that is unknown, already addressed or resolved is skipped, not fatal. The skip reason is best-effort: the write settles the status, and the reason comes from a separate read that can be stale when another writer changes the same item at that moment.')]
+#[McpTool(name: self::NAME, description: 'Mark feedback items as addressed after you fix them. Feedback is what a reviewer leaves on a page with the live-review widget, and each item belongs to a card. Pass the feedback ids from feedback_list or card_get. Only the feedback of the project bound to your MCP token is reachable. An item that is unknown, already addressed or resolved is skipped, not fatal. The skip reason is best-effort: the write settles the status, and the reason comes from a separate read that can be stale when another writer changes the same item at that moment.')]
 final readonly class FeedbackMarkAddressedTool
 {
     public const string NAME = 'feedback_mark_addressed';

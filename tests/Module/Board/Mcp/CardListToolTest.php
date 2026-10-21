@@ -403,6 +403,9 @@ final class CardListToolTest extends KernelTestCase
         self::assertSame([[
             'id' => (string) $comment->id,
             'url' => 'https://app.example/page',
+            'surface' => 'web',
+            'native' => null,
+            'screenshot' => null,
             'anchors' => [['selector' => 'header .logo', 'text' => 'Logo', 'quote' => null, 'quotePrefix' => null, 'quoteSuffix' => null]],
             'body' => 'The logo is blurry',
             'hasDrawing' => true,

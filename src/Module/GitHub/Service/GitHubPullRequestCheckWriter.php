@@ -61,7 +61,9 @@ final readonly class GitHubPullRequestCheckWriter implements PullRequestCheckWri
 
         try {
             if (null !== $runId) {
+                // The name rides the update too, so a renamed check renames its run.
                 $answer = $this->api->patch($installationId, $runs.'/'.$runId, [
+                    'name' => $name,
                     'status' => 'completed',
                     'conclusion' => $conclusion->value,
                     'output' => $first,

@@ -38,10 +38,10 @@ unbounded spam target. Nothing bounds the read beyond the twenty-card page.
 
 What is accepted. Any holder of the `site-review` scope can read, edit, resolve
 and delete every **pending** comment in that grant's project, whoever wrote it.
-`GET /api/site-review/review` returns bodies, URLs, selectors and quoted page
+`GET /api/live-review/review` returns bodies, URLs, selectors and quoted page
 text for the whole project, not the current page.
-`PATCH /api/site-review/comments/{id}`, `DELETE /api/board/feedback/{id}` and
-`POST /api/site-review/comments/{id}/resolve` accept any pending id.
+`PATCH /api/live-review/comments/{id}`, `DELETE /api/board/feedback/{id}` and
+`POST /api/live-review/comments/{id}/resolve` accept any pending id.
 
 Resolve joined the list after delete, and widens nothing in kind: a holder who
 can delete a comment outright can already do worse than sign it off. It is also
@@ -58,7 +58,7 @@ resolve through `findOnePending($commentId, $project)`, which is project scope
 only. `SiteReviewCorsSubscriber` reflects the request `Origin`, so the endpoints
 work from any page once a grant exists.
 
-What bounds it. Policy first: `docs/using/site-review.md` and the Connect page
+What bounds it. Policy first: `docs/using/live-review.md` and the Connect page
 document the widget as staging and preview only. Then code:
 
 - Only the owner of the project signs in, and the page's origin must be on the

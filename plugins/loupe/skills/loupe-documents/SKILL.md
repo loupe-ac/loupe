@@ -133,7 +133,7 @@ reading context, not for a terminal or a README.
 
    On `document_create` the description answers a different question: what this
    document is and what it exists to settle. One sentence is usually enough
-   ("Design spec for the site-review widget, deciding the auth model").
+   ("Design spec for the live-review widget, deciding the auth model").
 
 10. **Renaming is `document_rename`, not a revision.** To fix a typo in a title,
     or to make a batch of related documents consistent, call `document_rename`;

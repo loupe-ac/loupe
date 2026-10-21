@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
 #[Route(
-    '/api/site-review/comments/{id}/resolve',
+    '/api/live-review/comments/{id}/resolve',
     name: 'api_site_review_comment_resolve',
     methods: ['POST'],
 )]

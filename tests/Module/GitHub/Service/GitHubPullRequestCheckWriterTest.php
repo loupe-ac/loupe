@@ -70,14 +70,14 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         $pullRequest = $this->tracked('Ubermuda/Loupe.site', 72_001 + \count($this->requests));
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 4242], 201)];
 
-        $runId = $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', $conclusion, '2 open notes', 'Fix the footer.', null, []);
+        $runId = $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', $conclusion, '2 open notes', 'Fix the footer.', null, []);
 
         self::assertSame(4242, $runId);
         self::assertCount(2, $this->requests);
         self::assertSame('POST', $this->requests[1]['method']);
         self::assertSame('https://api.github.com/repos/Ubermuda/Loupe.site/check-runs', $this->requests[1]['url']);
         self::assertSame([
-            'name' => 'Loupe site review',
+            'name' => 'Loupe live review',
             'head_sha' => 'abc123',
             'status' => 'completed',
             'conclusion' => $conclusion->value,
@@ -85,17 +85,18 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         ], $this->sentBody());
     }
 
-    public function test_a_run_id_updates_the_run_and_sends_no_name_or_sha(): void
+    public function test_a_run_id_updates_the_run_under_the_given_name_and_sends_no_sha(): void
     {
         $pullRequest = $this->tracked('ubermuda/loupe', 72_010);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 4242])];
 
-        $runId = $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', PullRequestCheckConclusion::Success, 'No open note', 'Done.', 4242, []);
+        $runId = $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Success, 'No open note', 'Done.', 4242, []);
 
         self::assertSame(4242, $runId);
         self::assertSame('PATCH', $this->requests[1]['method']);
         self::assertSame('https://api.github.com/repos/ubermuda/loupe/check-runs/4242', $this->requests[1]['url']);
         self::assertSame([
+            'name' => 'Loupe live review',
             'status' => 'completed',
             'conclusion' => 'success',
             'output' => ['title' => 'No open note', 'summary' => 'Done.'],
@@ -107,7 +108,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         $pullRequest = $this->tracked('ubermuda/loupe', 72_011);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 1], 201)];
 
-        $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', str_repeat('é', 70_000), null, []);
+        $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', str_repeat('é', 70_000), null, []);
 
         $output = $this->sentBody()['output'] ?? null;
         self::assertIsArray($output);
@@ -137,7 +138,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
             $annotations[] = new PullRequestCheckAnnotation('src/page.html', $i, $i + 1, PullRequestCheckAnnotationLevel::Warning, 'Note '.$i, 'Fix line '.$i.'.');
         }
 
-        $result = $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', 'Summary', $runId, $annotations);
+        $result = $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', 'Summary', $runId, $annotations);
 
         self::assertSame(4242, $result);
         self::assertCount(1 + \count($perRequest), $this->requests);
@@ -176,7 +177,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         $pullRequest = $this->tracked('ubermuda/loupe', 72_200);
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 1], 201)];
 
-        $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', PullRequestCheckConclusion::Success, 'Clean', 'Done.', null, []);
+        $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Success, 'Clean', 'Done.', null, []);
 
         $output = $this->sentBody()['output'] ?? null;
         self::assertIsArray($output);
@@ -189,7 +190,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
         $this->responses = [$this->answer(['token' => 'ghs_token'], 201), $this->answer(['id' => 1], 201)];
         $annotation = new PullRequestCheckAnnotation('a.html', 1, 1, PullRequestCheckAnnotationLevel::Failure, str_repeat('t', 300), str_repeat('é', 70_000));
 
-        $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', 'Summary', null, [$annotation]);
+        $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', 'Summary', null, [$annotation]);
 
         $output = $this->sentBody()['output'] ?? null;
         self::assertIsArray($output);
@@ -385,7 +386,7 @@ final class GitHubPullRequestCheckWriterTest extends KernelTestCase
     private function failure(ForgePullRequest $pullRequest): PullRequestCheckFailed
     {
         try {
-            $this->writer()->publish($pullRequest, 'Loupe site review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', 'Summary', null, []);
+            $this->writer()->publish($pullRequest, 'Loupe live review', 'abc123', PullRequestCheckConclusion::Failure, 'Notes', 'Summary', null, []);
         } catch (PullRequestCheckFailed $e) {
             return $e;
         }
