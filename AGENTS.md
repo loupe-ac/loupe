@@ -65,9 +65,9 @@ Work that the owner asks for in a session and that opens a pull request needs a 
 
 1. Before your first edit, call `card_search`, then `card_create` with no `status`. The card lands in Backlog. Pass `reporter: human` when the owner asked for the work.
 2. Open the draft pull request, and put the card URL in its body.
-3. Call `card_update` with `status: implementation` and the pull request URL in `pullRequestUrls`, in one call.
+3. Call `card_update` with the pull request URL in `pullRequestUrls`, and pass no `status`.
 
-Do not move the card to Implementation before it carries the pull request. The `implement` rule starts a worker for a card in Implementation with no linked pull request. After step 3, the workflow reviews and merges the pull request.
+The workflow then moves the card from Backlog to Implementation by itself, through its `pull-request-reopened` rule. Do not move the card yourself. The workflow refuses a manual move from Backlog to Implementation. A card that reached Implementation with no linked pull request would also start an implement worker. After step 3, the workflow reviews and merges the pull request.
 
 Invoke the `loupe-board` skill before you write a card. It says how to read a board's columns with `board_columns`. It also carries the card types, the priorities, and the rule that `reporter` records who raised the card rather than who typed it. Never leave such a note in a code comment.
 
