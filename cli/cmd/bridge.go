@@ -391,12 +391,12 @@ func newBridgeLogger(w io.Writer) *slog.Logger {
 // defaultLogPath names the log the bridge appends to. The temp directory is the
 // fallback, because a host with no config directory must still keep a history.
 func defaultLogPath() string {
-	base, err := os.UserConfigDir()
+	d, err := config.Dir()
 	if err != nil {
-		base = os.TempDir()
+		return filepath.Join(os.TempDir(), "loupe", "bridge.log")
 	}
 
-	return filepath.Join(base, "loupe", "bridge.log")
+	return filepath.Join(d, "bridge.log")
 }
 
 // openLogFile appends to path and creates its directory. A supervisor's log is

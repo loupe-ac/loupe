@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/loupe-ac/loupe/cli/internal/api"
+	"github.com/loupe-ac/loupe/cli/internal/config"
 	"github.com/loupe-ac/loupe/cli/internal/envfile"
 	harn "github.com/loupe-ac/loupe/cli/internal/harness"
 	"github.com/loupe-ac/loupe/cli/internal/rules"
@@ -32,7 +33,9 @@ var launchWaitDelay = time.Second
 
 // defaultScriptDir holds the launch scripts.
 func defaultScriptDir() string {
-	return filepath.Join(os.TempDir(), "loupe-sessions")
+	tmp, _ := config.TempDir()
+
+	return filepath.Join(tmp, "loupe-sessions")
 }
 
 // writeLaunchScript writes the script of one session into root and returns its

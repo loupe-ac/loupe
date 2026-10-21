@@ -62,6 +62,8 @@ func newStatusCmd() *cobra.Command {
 			"status, because the error comes after the verdict when the two streams merge.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
+			setup := config.Current()
+			fmt.Fprintf(out, "Setup:       %s (%s)\n", setup.Dir, setup.Source)
 			current, err := checkStatus(cmd.Context(), out, projectID, cmd.ErrOrStderr())
 			noteClaudeCode(out)
 			err = errors.Join(err, checkStatusAccounts(cmd.Context(), out, rulesPath))

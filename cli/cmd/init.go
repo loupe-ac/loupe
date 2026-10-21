@@ -717,7 +717,13 @@ func initCodexSkills(ctx context.Context, out io.Writer, in io.Reader, dir strin
 
 		return
 	}
-	tmp, err := os.MkdirTemp("", "loupe-skills-")
+	base, err := config.TempDir()
+	if err != nil {
+		fail(err, nil)
+
+		return
+	}
+	tmp, err := os.MkdirTemp(base, "loupe-skills-")
 	if err != nil {
 		fail(err, nil)
 
