@@ -141,6 +141,23 @@ final class ChromeCssExtractorTest extends TestCase
         self::assertStringContainsString('.lp-home-nav { color: red; }', $css);
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function commentsInASelector(): iterable
+    {
+        yield 'quote in a comment' => ["/* it's */"];
+        yield 'brace in a comment' => ['/* { */'];
+    }
+
+    #[DataProvider('commentsInASelector')]
+    public function test_a_comment_in_a_selector_does_not_hide_the_rules_after_it(string $comment): void
+    {
+        $stylesheet = "@layer components {\n  .lp-home-nav ".$comment." { color: red; }\n  .w-4 { width: 4px; }\n}\n";
+
+        $css = new ChromeCssExtractor()->extract($stylesheet, '<header class="lp-home-nav w-4"></header>');
+
+        self::assertStringContainsString("\n.lp-home-nav ".$comment." { color: red; }\n.w-4 { width: 4px; }\n}", $css);
+    }
+
     public function test_markup_with_no_known_class_gives_the_base_alone(): void
     {
         $css = new ChromeCssExtractor()->extract(self::CSS, '<p>plain</p>');

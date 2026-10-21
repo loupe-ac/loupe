@@ -124,6 +124,11 @@ final class ChromeCssExtractor
                 $position += 2;
                 continue;
             }
+            if ('/*' === substr($css, $position, 2)) {
+                $end = strpos($css, '*/', $position + 2);
+                $position = false === $end ? $length : $end + 2;
+                continue;
+            }
             if ('"' === $char || "'" === $char) {
                 $position = $this->skipString($css, $position);
                 continue;
