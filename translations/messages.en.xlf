@@ -8509,8 +8509,6 @@
             <trans-unit id="workflow.waiting.not.pr_parent_merged"><source>workflow.waiting.not.pr_parent_merged</source><target>Waiting: the parent pull request is merged.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_checks_pending"><source>workflow.waiting.pr_checks_pending</source><target>Waiting: the checks of the open pull request do not run.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_checks_pending"><source>workflow.waiting.not.pr_checks_pending</source><target>Waiting: the checks of the pull request run.</target></trans-unit>
-            <trans-unit id="workflow.waiting.pr_waits_for_approval"><source>workflow.waiting.pr_waits_for_approval</source><target>Waiting: the pull request does not wait for an approval.</target></trans-unit>
-            <trans-unit id="workflow.waiting.not.pr_waits_for_approval"><source>workflow.waiting.not.pr_waits_for_approval</source><target>Waiting: the pull request waits for an approval that covers its head commit.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_forge_request_pending"><source>workflow.waiting.pr_forge_request_pending</source><target>Waiting: the forge has no pending merge, sync or base change that Loupe asked for.</target></trans-unit>
             <trans-unit id="workflow.waiting.not.pr_forge_request_pending"><source>workflow.waiting.not.pr_forge_request_pending</source><target>Waiting: the forge has not answered a merge, sync or base change that Loupe asked for.</target></trans-unit>
             <trans-unit id="workflow.waiting.pr_stack_parent"><source>workflow.waiting.pr_stack_parent</source><target>Waiting: the pull request is not ready, or does not wait for the branch below it in the stack.</target></trans-unit>
@@ -8968,6 +8966,8 @@
             <trans-unit id="marker.paused.remedy"><source>marker.paused.remedy</source><target>Fix the cause of the pause, then release the pause in the Workflow panel.</target></trans-unit>
             <trans-unit id="marker.run_stopped"><source>marker.run_stopped</source><target>The last worker run did not finish its work.</target></trans-unit>
             <trans-unit id="marker.run_stopped.remedy"><source>marker.run_stopped.remedy</source><target>Read the summary of the last run, then resume the run or start the work again.</target></trans-unit>
+            <trans-unit id="marker.run_needs_you"><source>marker.run_needs_you</source><target>The last worker run needs you.</target></trans-unit>
+            <trans-unit id="marker.run_needs_you.remedy"><source>marker.run_needs_you.remedy</source><target>Read the summary of the last run, then answer it or resume the run.</target></trans-unit>
             <trans-unit id="marker.checks_failed"><source>marker.checks_failed</source><target>The checks of pull request #%number% fail, and no fix is under way.</target></trans-unit>
             <trans-unit id="marker.checks_failed.remedy"><source>marker.checks_failed.remedy</source><target>Fix the failing checks, or start a fix run.</target></trans-unit>
             <trans-unit id="marker.conflicting"><source>marker.conflicting</source><target>Pull request #%number% has a merge conflict, and no fix is under way.</target></trans-unit>

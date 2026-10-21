@@ -95,7 +95,6 @@ final class ConditionCatalogueTest extends KernelTestCase
         'pr.ready_for' => 'workflow.source.forge',
         'pr.stack_parent' => 'workflow.source.forge',
         'pr.stacked' => 'workflow.source.forge',
-        'pr.waits_for_approval' => 'workflow.source.forge',
     ];
 
     /** The keys whose waiting sentence id is not the key with underscores. */

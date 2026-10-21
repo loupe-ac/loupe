@@ -30,7 +30,6 @@ final readonly class PullRequestStateView
         public ?\DateTimeImmutable $readySince = null,
         public ?\DateTimeImmutable $checksFailedSince = null,
         public ?\DateTimeImmutable $conflictingSince = null,
-        public ?\DateTimeImmutable $waitsForApprovalSince = null,
         /** When Loupe asked the forge to merge, sync or change the base, and the forge has not answered. Null when nothing is in flight. */
         public ?\DateTimeImmutable $forgeRequestedAt = null,
         public bool $mergeInFlight = false,
@@ -65,7 +64,6 @@ final readonly class PullRequestStateView
             $row->readySince,
             $row->checksFailedSince,
             $row->conflictingSince,
-            $row->waitsForApprovalSince,
             [] === $requests ? null : min($requests),
             $mergeInFlight,
         );

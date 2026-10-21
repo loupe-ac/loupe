@@ -33,13 +33,14 @@ trait MarkerScenario
     /**
      * @param list<array<string, mixed>> $markers
      * @param list<string>               $inbox   the keys of the markers that store one inbox entry per thing
+     * @param array<string, mixed>       $facts   the named facts of the template
      */
-    private function markerTemplate(array $markers, array $inbox = []): Template
+    private function markerTemplate(array $markers, array $inbox = [], array $facts = []): Template
     {
         $parser = self::getContainer()->get(TemplateParser::class);
         self::assertInstanceOf(TemplateParser::class, $parser);
 
-        return $parser->parse([
+        $parsed = $parser->parse([
             'key' => 'test',
             'version' => 1,
             'defaultType' => 'feature',
@@ -53,9 +54,24 @@ trait MarkerScenario
             'backoffMinutes' => [10],
             'workTimeoutMinutes' => 120,
             'rules' => [],
+            ...([] === $facts ? [] : ['facts' => $facts]),
             'markers' => $markers,
-            ...([] === $inbox ? [] : ['inbox' => $inbox]),
         ]);
+
+        // The parser refuses a listed marker with the card subject, and these scenarios list such markers on purpose.
+        return new Template(
+            $parsed->key,
+            $parsed->version,
+            $parsed->slots,
+            $parsed->rules,
+            $parsed->manualMoves,
+            $parsed->backoffMinutes,
+            $parsed->workTimeoutMinutes,
+            $parsed->types,
+            $parsed->defaultType,
+            markers: $parsed->markers,
+            inbox: $inbox,
+        );
     }
 
     /**

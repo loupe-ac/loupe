@@ -116,7 +116,7 @@ final class ShowWorkflowSettingsControllerTest extends WebTestCase
         $shipped = static::getContainer()->get(ShippedTemplates::class);
         self::assertInstanceOf(ShippedTemplates::class, $shipped);
         $source = $shipped->source('simple');
-        unset($source['markers']);
+        unset($source['markers'], $source['inbox']);
         $this->em()->persist(new WorkflowBinding($project, 'simple', 2, $source));
         $owner = $this->stampedOwner($project);
 
